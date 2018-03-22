@@ -60,6 +60,7 @@ PairlistParams::PairlistParams(const Nbnxm::KernelType kernelType,
     rlistInner(rlist),
     haveMultipleDomains(haveMultipleDomains),
     useDynamicPruning(false),
+    mtsFactor(1),
     nstlistPrune(-1),
     numRollingPruningParts(1),
     lifetime(-1)

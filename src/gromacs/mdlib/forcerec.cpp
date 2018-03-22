@@ -82,9 +82,7 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/md_enums.h"
-#include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
-#include "gromacs/nbnxm/nbnxm_geometry.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/tables/forcetable.h"
@@ -613,7 +611,10 @@ void forcerec_set_ranges(t_forcerec* fr, int natoms_force, int natoms_force_cons
     fr->natoms_force        = natoms_force;
     fr->natoms_force_constr = natoms_force_constr;
 
-    fr->forceHelperBuffers->resize(natoms_f_novirsum);
+    for (auto& forceHelperBuffers : fr->forceHelperBuffers)
+    {
+        forceHelperBuffers.resize(natoms_f_novirsum);
+    }
 }
 
 static real cutoff_inf(real cutoff)
@@ -1172,11 +1173,28 @@ void init_forcerec(FILE*                            fp,
     /* 1-4 interaction electrostatics */
     fr->fudgeQQ = mtop->ffparams.fudgeQQ;
 
-    const bool haveDirectVirialContributions =
-            (EEL_FULL(ic->eeltype) || EVDW_PME(ic->vdwtype) || fr->forceProviders->hasForceProvider()
-             || gmx_mtop_ftype_count(mtop, F_POSRES) > 0 || gmx_mtop_ftype_count(mtop, F_FBPOSRES) > 0
-             || ir->nwall > 0 || ir->bPull || ir->bRot || ir->bIMD);
-    fr->forceHelperBuffers = std::make_unique<ForceHelperBuffers>(haveDirectVirialContributions);
+    // Multiple time stepping
+    fr->useMts = ir->useMts;
+
+    // Note that we do allow arbitrary nstlist when only use MTS for PME
+    GMX_RELEASE_ASSERT(
+            !(fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(MtsForceGroups::Nonbonded)]
+              && ir->nstlist % ir->mtsLevels[1].stepFactor != 0),
+            "With multiple time stepping for the non-bonded pair interactions, nstlist should be a "
+            "multiple of mtsFactor");
+
+    const bool haveDirectVirialContributionsFast =
+            fr->forceProviders->hasForceProvider() || gmx_mtop_ftype_count(mtop, F_POSRES) > 0
+            || gmx_mtop_ftype_count(mtop, F_FBPOSRES) > 0 || ir->nwall > 0 || ir->bPull || ir->bRot
+            || ir->bIMD;
+    const bool haveDirectVirialContributionsSlow = EEL_FULL(ic->eeltype) || EVDW_PME(ic->vdwtype);
+    for (int i = 0; i < (fr->useMts ? 2 : 1); i++)
+    {
+        bool haveDirectVirialContributions =
+                (((!fr->useMts || i == 0) && haveDirectVirialContributionsFast)
+                 || ((!fr->useMts || i == 1) && haveDirectVirialContributionsSlow));
+        fr->forceHelperBuffers.emplace_back(haveDirectVirialContributions);
+    }
 
     if (fr->shift_vec == nullptr)
     {
@@ -1286,9 +1304,37 @@ void init_forcerec(FILE*                            fp,
     }
 
     /* Initialize the thread working data for bonded interactions */
-    fr->listedForces.emplace_back(
-            mtop->ffparams, mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
-            gmx_omp_nthreads_get(emntBonded), ListedForces::interactionSelectionAll(), fp);
+    for (int mtsIndex = 0; mtsIndex < (fr->useMts ? 2 : 1); mtsIndex++)
+    {
+        ListedForces::InteractionSelection interactionSelection;
+        if (fr->useMts)
+        {
+            const auto& forceGroups = ir->mtsLevels[mtsIndex].forceGroups;
+            if (forceGroups[static_cast<int>(MtsForceGroups::Pair)])
+            {
+                interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Pairs));
+            }
+            if (forceGroups[static_cast<int>(MtsForceGroups::Dihedral)])
+            {
+                interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Dihedrals));
+            }
+            if (forceGroups[static_cast<int>(MtsForceGroups::Angle)])
+            {
+                interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Angles));
+            }
+            if (mtsIndex == 0)
+            {
+                interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Rest));
+            }
+        }
+        else if (mtsIndex == 0)
+        {
+            interactionSelection = ListedForces::interactionSelectionAll();
+        }
+        fr->listedForces.emplace_back(
+                mtop->ffparams, mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
+                gmx_omp_nthreads_get(emntBonded), interactionSelection, fp);
+    }
 
     // QM/MM initialization if requested
     if (ir->bQMMM)

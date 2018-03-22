@@ -111,10 +111,9 @@ class DomainLifetimeWorkload
 public:
     //! Whether the current nstlist step-range has bonded work to run on a GPU.
     bool haveGpuBondedWork = false;
-    //! Whether the current nstlist step-range has bonded work to run on he CPU.
+    //! Whether the current nstlist step-range has bonded work to run on the CPU.
     bool haveCpuBondedWork = false;
-    //! Whether the current nstlist step-range has listed forces work to run on he CPU.
-    //  Note: currently this is haveCpuBondedWork | haveRestraintsWork
+    //! Whether the current nstlist step-range has listed (bonded + restraints) forces work to run on the CPU.
     bool haveCpuListedForceWork = false;
     //! Whether the current nstlist step-range has special forces on the CPU.
     bool haveSpecialForces = false;
