@@ -841,8 +841,8 @@ void EnergyEvaluator::run(em_state_t* ems, rvec mu_tot, tensor vir, tensor pres,
      */
     do_force(fplog, cr, ms, inputrec, nullptr, nullptr, imdSession, pull_work, count, nrnb, wcycle,
              top, ems->s.box, ems->s.x.arrayRefWithPadding(), &ems->s.hist,
-             ems->f.arrayRefWithPadding(), force_vir, mdAtoms->mdatoms(), enerd, ems->s.lambda, fr,
-             runScheduleWork, vsite, mu_tot, t, nullptr,
+             ems->f.arrayRefWithPadding(), {}, force_vir, mdAtoms->mdatoms(), enerd, ems->s.lambda,
+             fr, runScheduleWork, vsite, mu_tot, t, nullptr,
              GMX_FORCE_STATECHANGED | GMX_FORCE_ALLFORCES | GMX_FORCE_VIRIAL | GMX_FORCE_ENERGY
                      | (bNS ? GMX_FORCE_NS : 0),
              DDBalanceRegionHandler(cr));

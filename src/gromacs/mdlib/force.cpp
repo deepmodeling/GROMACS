@@ -103,6 +103,7 @@ static void reduceEwaldThreadOuput(int nthreads, ewald_corr_thread_t* ewc_t)
 
 void do_force_lowlevel(t_forcerec*                          fr,
                        const t_inputrec*                    ir,
+                       const int                            listedForcesGroupIndex,
                        const t_commrec*                     cr,
                        const gmx_multisim_t*                ms,
                        t_nrnb*                              nrnb,
@@ -126,7 +127,7 @@ void do_force_lowlevel(t_forcerec*                          fr,
 
     /* Call the short range functions all in one go. */
 
-    if (ir->nwall)
+    if (ir->nwall && stepWork.computeNonbondedForces)
     {
         /* foreign lambda component for walls */
         real dvdl_walls = do_walls(*ir, *fr, box, *md, x, &forceWithVirial, lambda[efptVDW],
@@ -134,13 +135,14 @@ void do_force_lowlevel(t_forcerec*                          fr,
         enerd->dvdl_lin[efptVDW] += dvdl_walls;
     }
 
+    if (fr->listedForces->haveCpuListedForces(listedForcesGroupIndex))
     {
         t_pbc pbc;
 
         /* Check whether we need to take into account PBC in listed interactions. */
-        ListedForces& listedForces = *fr->listedForces;
-        const auto    needPbcForListedForces =
-                fr->bMolPBC && stepWork.computeListedForces && listedForces.haveCpuListedForces(0);
+        ListedForces& listedForces           = *fr->listedForces;
+        const auto    needPbcForListedForces = fr->bMolPBC && stepWork.computeListedForces;
+
         if (needPbcForListedForces)
         {
             /* Since all atoms are in the rectangular or triclinic unit-cell,
@@ -149,8 +151,8 @@ void do_force_lowlevel(t_forcerec*                          fr,
             set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
         }
 
-        listedForces.calculate(wcycle, box, ir->fepvals, cr, ms, 0, x, xWholeMolecules, hist,
-                               forceOutputs, fr, &pbc, enerd, nrnb, lambda, md,
+        listedForces.calculate(wcycle, box, ir->fepvals, cr, ms, listedForcesGroupIndex, x,
+                               xWholeMolecules, hist, forceOutputs, fr, &pbc, enerd, nrnb, lambda, md,
                                DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
     }
 
@@ -163,7 +165,8 @@ void do_force_lowlevel(t_forcerec*                          fr,
     /* Do long-range electrostatics and/or LJ-PME
      * and compute PME surface terms when necessary.
      */
-    if (computePmeOnCpu || fr->ic->eeltype == eelEWALD || haveEwaldSurfaceTerm)
+    if ((computePmeOnCpu || fr->ic->eeltype == eelEWALD || haveEwaldSurfaceTerm)
+        && stepWork.computeNonbondedForces)
     {
         int  status = 0;
         real Vlr_q = 0, Vlr_lj = 0;

@@ -206,7 +206,7 @@ void ForceElement::run(Step step, Time time, unsigned int flags)
         gmx_edsam* ed  = nullptr;
 
         do_force(fplog_, cr_, ms, inputrec_, awh, enforcedRotation_, imdSession_, pull_work_, step,
-                 nrnb_, wcycle_, localTopology_, box, x, hist, forces, force_vir,
+                 nrnb_, wcycle_, localTopology_, box, x, hist, forces, {}, force_vir,
                  mdAtoms_->mdatoms(), energyData_->enerdata(), lambda, fr_, runScheduleWork_, vsite_,
                  energyData_->muTot(), time, ed, static_cast<int>(flags), ddBalanceRegionHandler_);
     }

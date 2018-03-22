@@ -82,9 +82,7 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/md_enums.h"
-#include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
-#include "gromacs/nbnxm/nbnxm_geometry.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/tables/forcetable.h"
@@ -613,7 +611,10 @@ void forcerec_set_ranges(t_forcerec* fr, int natoms_force, int natoms_force_cons
     fr->natoms_force        = natoms_force;
     fr->natoms_force_constr = natoms_force_constr;
 
-    fr->forceHelperBuffers->resize(natoms_f_novirsum);
+    for (auto& forceHelperBuffers : fr->forceHelperBuffers)
+    {
+        forceHelperBuffers.resize(natoms_f_novirsum);
+    }
 }
 
 static real cutoff_inf(real cutoff)
@@ -1172,11 +1173,24 @@ void init_forcerec(FILE*                            fp,
     /* 1-4 interaction electrostatics */
     fr->fudgeQQ = mtop->ffparams.fudgeQQ;
 
-    const bool haveDirectVirialContributions =
-            (EEL_FULL(ic->eeltype) || EVDW_PME(ic->vdwtype) || fr->forceProviders->hasForceProvider()
-             || gmx_mtop_ftype_count(mtop, F_POSRES) > 0 || gmx_mtop_ftype_count(mtop, F_FBPOSRES) > 0
-             || ir->nwall > 0 || ir->bPull || ir->bRot || ir->bIMD);
-    fr->forceHelperBuffers = std::make_unique<ForceHelperBuffers>(haveDirectVirialContributions);
+    // Multiple time stepping
+    fr->useMts = ir->useMts;
+
+    // Note that we do allow arbitrary nstlist when only use MTS for PME
+    GMX_RELEASE_ASSERT(!(fr->useMts && ir->eMtsScheme == emtsschemePmeNonbondedPairDihedral && ir->nstlist % ir->mtsFactor != 0), "With multiple time stepping forthe non-bonded pair interactions, nstlist should be a multiple of mtsFactor");
+
+    const bool haveDirectVirialContributionsFast =
+            fr->forceProviders->hasForceProvider() || gmx_mtop_ftype_count(mtop, F_POSRES) > 0
+            || gmx_mtop_ftype_count(mtop, F_FBPOSRES) > 0 || ir->nwall > 0 || ir->bPull || ir->bRot
+            || ir->bIMD;
+    const bool haveDirectVirialContributionsSlow = EEL_FULL(ic->eeltype) || EVDW_PME(ic->vdwtype);
+    for (int i = 0; i < (fr->useMts ? 2 : 1); i++)
+    {
+        bool haveDirectVirialContributions =
+                (((!fr->useMts || i == 0) && haveDirectVirialContributionsFast)
+                 || ((!fr->useMts || i == 1) && haveDirectVirialContributionsSlow));
+        fr->forceHelperBuffers.emplace_back(haveDirectVirialContributions);
+    }
 
     if (fr->shift_vec == nullptr)
     {
@@ -1261,7 +1275,9 @@ void init_forcerec(FILE*                            fp,
 
     /* Initialize the thread working data for bonded interactions */
     fr->listedForces = std::make_unique<ListedForces>(
-            mtop->ffparams, 1, false, mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
+            mtop->ffparams, fr->useMts ? 2 : 1,
+            fr->useMts && ir->eMtsScheme == emtsschemePmeNonbondedPairDihedral,
+            mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
             gmx_omp_nthreads_get(emntBonded), fp);
 
     if (!tabbfnm.empty())

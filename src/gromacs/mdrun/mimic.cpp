@@ -430,8 +430,9 @@ void gmx::LegacySimulator::do_mimic()
             gmx_edsam* ed  = nullptr;
             do_force(fplog, cr, ms, ir, awh, enforcedRotation, imdSession, pull_work, step, nrnb,
                      wcycle, &top, state->box, state->x.arrayRefWithPadding(), &state->hist,
-                     f.arrayRefWithPadding(), force_vir, mdatoms, enerd, state->lambda, fr, runScheduleWork,
-                     vsite, mu_tot, t, ed, GMX_FORCE_NS | force_flags, ddBalanceRegionHandler);
+                     f.arrayRefWithPadding(), {}, force_vir, mdatoms, enerd, state->lambda, fr,
+                     runScheduleWork, vsite, mu_tot, t, ed, GMX_FORCE_NS | force_flags,
+                     ddBalanceRegionHandler);
         }
 
         /* Now we have the energies and forces corresponding to the

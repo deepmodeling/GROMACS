@@ -1020,7 +1020,7 @@ void relax_shell_flexcon(FILE*                         fplog,
     }
     int shellfc_flags = force_flags | (bVerbose ? GMX_FORCE_ENERGY : 0);
     do_force(fplog, cr, ms, inputrec, nullptr, enforcedRotation, imdSession, pull_work, mdstep,
-             nrnb, wcycle, top, box, xPadded, hist, forceWithPadding[Min], force_vir, md, enerd,
+             nrnb, wcycle, top, box, xPadded, hist, forceWithPadding[Min], {}, force_vir, md, enerd,
              lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr,
              (bDoNS ? GMX_FORCE_NS : 0) | shellfc_flags, ddBalanceRegionHandler);
 
@@ -1106,8 +1106,8 @@ void relax_shell_flexcon(FILE*                         fplog,
         }
         /* Try the new positions */
         do_force(fplog, cr, ms, inputrec, nullptr, enforcedRotation, imdSession, pull_work, 1, nrnb,
-                 wcycle, top, box, posWithPadding[Try], hist, forceWithPadding[Try], force_vir, md,
-                 enerd, lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr, shellfc_flags,
+                 wcycle, top, box, posWithPadding[Try], hist, forceWithPadding[Try], {}, force_vir,
+                 md, enerd, lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr, shellfc_flags,
                  ddBalanceRegionHandler);
         accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
         if (gmx_debug_at)

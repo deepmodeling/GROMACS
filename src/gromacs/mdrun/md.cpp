@@ -174,16 +174,15 @@ void gmx::LegacySimulator::do_md()
     int    i, m;
     rvec   mu_tot;
     matrix pressureCouplingMu, M;
-    gmx_repl_ex_t               repl_ex = nullptr;
-    PaddedHostVector<gmx::RVec> f{};
-    gmx_global_stat_t           gstat;
-    gmx_shellfc_t*              shellfc;
-    gmx_bool                    bSumEkinhOld, bDoReplEx, bExchanged, bNeedRepartition;
-    gmx_bool                    bTemp, bPres, bTrotter;
-    real                        dvdl_constr;
-    std::vector<RVec>           cbuf;
-    matrix                      lastbox;
-    int                         lamnew = 0;
+    gmx_repl_ex_t     repl_ex = nullptr;
+    gmx_global_stat_t gstat;
+    gmx_shellfc_t*    shellfc;
+    gmx_bool          bSumEkinhOld, bDoReplEx, bExchanged, bNeedRepartition;
+    gmx_bool          bTemp, bPres, bTrotter;
+    real              dvdl_constr;
+    std::vector<RVec> cbuf;
+    matrix            lastbox;
+    int               lamnew = 0;
     /* for FEP */
     int       nstfep = 0;
     double    cycles;
@@ -322,6 +321,9 @@ void gmx::LegacySimulator::do_md()
 
     auto mdatoms = mdAtoms->mdatoms();
 
+    PaddedHostVector<RVec> force{};
+    PaddedHostVector<RVec> forceMts{};
+
     std::unique_ptr<UpdateConstrainGpu> integrator;
 
     if (DOMAINDECOMP(cr))
@@ -332,7 +334,7 @@ void gmx::LegacySimulator::do_md()
 
         /* Distribute the charge groups over the nodes from the master node */
         dd_partition_system(fplog, mdlog, ir->init_step, cr, TRUE, 1, state_global, *top_global, ir,
-                            imdSession, pull_work, state, &f, mdAtoms, &top, fr, vsite, constr,
+                            imdSession, pull_work, state, &force, mdAtoms, &top, fr, vsite, constr,
                             nrnb, nullptr, FALSE);
         shouldCheckNumberOfBondedInteractions = true;
         upd.setNumAtoms(state->natoms);
@@ -344,7 +346,7 @@ void gmx::LegacySimulator::do_md()
         state = state_global;
 
         /* Generate and initialize new topology */
-        mdAlgorithmsSetupAtomData(cr, ir, *top_global, &top, fr, &f, mdAtoms, constr, vsite, shellfc);
+        mdAlgorithmsSetupAtomData(cr, ir, *top_global, &top, fr, &force, mdAtoms, constr, vsite, shellfc);
 
         upd.setNumAtoms(state->natoms);
     }
@@ -423,7 +425,7 @@ void gmx::LegacySimulator::do_md()
     }
     if ((useGpuForNonbonded && useGpuForBufferOps) || useGpuForUpdate)
     {
-        changePinningPolicy(&f, PinningPolicy::PinnedIfSupported);
+        changePinningPolicy(&force, PinningPolicy::PinnedIfSupported);
     }
     if (useGpuForUpdate)
     {
@@ -834,7 +836,7 @@ void gmx::LegacySimulator::do_md()
             {
                 /* Repartition the domain decomposition */
                 dd_partition_system(fplog, mdlog, step, cr, bMasterState, nstglobalcomm, state_global,
-                                    *top_global, ir, imdSession, pull_work, state, &f, mdAtoms, &top,
+                                    *top_global, ir, imdSession, pull_work, state, &force, mdAtoms, &top,
                                     fr, vsite, constr, nrnb, wcycle, do_verbose && !bPMETunePrinting);
                 shouldCheckNumberOfBondedInteractions = true;
                 upd.setNumAtoms(state->natoms);
@@ -922,7 +924,7 @@ void gmx::LegacySimulator::do_md()
                                 imdSession, pull_work, bNS, force_flags, &top, constr, enerd,
                                 state->natoms, state->x.arrayRefWithPadding(),
                                 state->v.arrayRefWithPadding(), state->box, state->lambda, &state->hist,
-                                f.arrayRefWithPadding(), force_vir, mdatoms, nrnb, wcycle, shellfc,
+                                force.arrayRefWithPadding(), force_vir, mdatoms, nrnb, wcycle, shellfc,
                                 fr, runScheduleWork, t, mu_tot, vsite, ddBalanceRegionHandler);
         }
         else
@@ -945,11 +947,17 @@ void gmx::LegacySimulator::do_md()
              * This is parallellized as well, and does communication too.
              * Check comments in sim_util.c
              */
+            //! \todo This can/should be resized at DD partitioning only
+            if (fr->useMts && forceMts.size() != force.size())
+            {
+                forceMts.resizeWithPadding(force.size());
+            }
             do_force(fplog, cr, ms, ir, awh.get(), enforcedRotation, imdSession, pull_work, step,
                      nrnb, wcycle, &top, state->box, state->x.arrayRefWithPadding(), &state->hist,
-                     f.arrayRefWithPadding(), force_vir, mdatoms, enerd, state->lambda, fr,
-                     runScheduleWork, vsite, mu_tot, t, ed ? ed->getLegacyED() : nullptr,
-                     (bNS ? GMX_FORCE_NS : 0) | force_flags, ddBalanceRegionHandler);
+                     force.arrayRefWithPadding(), forceMts.arrayRefWithPadding(), force_vir,
+                     mdatoms, enerd, state->lambda, fr, runScheduleWork, vsite, mu_tot, t,
+                     ed ? ed->getLegacyED() : nullptr, (bNS ? GMX_FORCE_NS : 0) | force_flags,
+                     ddBalanceRegionHandler);
         }
 
         // VV integrators do not need the following velocity half step
@@ -981,8 +989,8 @@ void gmx::LegacySimulator::do_md()
                                trotter_seq, ettTSEQ1);
             }
 
-            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcdata, ekind, M,
-                              etrtVELOCITY1, cr, constr != nullptr);
+            upd.update_coords(*ir, step, mdatoms, state, force.arrayRefWithPadding(), fcdata, ekind,
+                              M, etrtVELOCITY1, cr, constr != nullptr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
             constrain_velocities(constr, do_log, do_ene, step, state, nullptr, bCalcVir, shake_vir);
@@ -1151,7 +1159,7 @@ void gmx::LegacySimulator::do_md()
         if (runScheduleWork->stepWork.useGpuFBufferOps && (simulationWork.useGpuUpdate && !vsite)
             && do_per_step(step, ir->nstfout))
         {
-            stateGpu->copyForcesFromGpu(ArrayRef<RVec>(f), AtomLocality::Local);
+            stateGpu->copyForcesFromGpu(ArrayRef<RVec>(force), AtomLocality::Local);
             stateGpu->waitForcesReadyOnHost(AtomLocality::Local);
         }
         /* Now we have the energies and forces corresponding to the
@@ -1159,9 +1167,9 @@ void gmx::LegacySimulator::do_md()
          * the update.
          */
         do_md_trajectory_writing(fplog, cr, nfile, fnm, step, step_rel, t, ir, state, state_global,
-                                 observablesHistory, top_global, fr, outf, energyOutput, ekind, f,
-                                 checkpointHandler->isCheckpointingStep(), bRerunMD, bLastStep,
-                                 mdrunOptions.writeConfout, bSumEkinhOld);
+                                 observablesHistory, top_global, fr, outf, energyOutput, ekind,
+                                 force, checkpointHandler->isCheckpointingStep(), bRerunMD,
+                                 bLastStep, mdrunOptions.writeConfout, bSumEkinhOld);
         /* Check if IMD step and do IMD communication, if bIMD is TRUE. */
         bInteractiveMDstep = imdSession->run(step, bNS, state->box, state->x.rvec_array(), t);
 
@@ -1229,8 +1237,8 @@ void gmx::LegacySimulator::do_md()
         if (EI_VV(ir->eI))
         {
             /* velocity half-step update */
-            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcdata, ekind, M,
-                              etrtVELOCITY2, cr, constr != nullptr);
+            upd.update_coords(*ir, step, mdatoms, state, force.arrayRefWithPadding(), fcdata, ekind,
+                              M, etrtVELOCITY2, cr, constr != nullptr);
         }
 
         /* Above, initialize just copies ekinh into ekin,
@@ -1272,7 +1280,7 @@ void gmx::LegacySimulator::do_md()
             // If the buffer ops were not offloaded this step, the forces are on the host and have to be copied
             if (!runScheduleWork->stepWork.useGpuFBufferOps)
             {
-                stateGpu->copyForcesToGpu(ArrayRef<RVec>(f), AtomLocality::Local);
+                stateGpu->copyForcesToGpu(ArrayRef<RVec>(force), AtomLocality::Local);
             }
 
             const bool doTemperatureScaling =
@@ -1295,7 +1303,10 @@ void gmx::LegacySimulator::do_md()
         }
         else
         {
-            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcdata, ekind, M,
+            ArrayRefWithPadding<const RVec> forceCombined = (fr->useMts && step % ir->mtsFactor == 0)
+                                                                    ? forceMts.arrayRefWithPadding()
+                                                                    : force.arrayRefWithPadding();
+            upd.update_coords(*ir, step, mdatoms, state, forceCombined, fcdata, ekind, M,
                               etrtPOSITION, cr, constr != nullptr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
@@ -1326,8 +1337,8 @@ void gmx::LegacySimulator::do_md()
             /* now we know the scaling, we can compute the positions again */
             std::copy(cbuf.begin(), cbuf.end(), state->x.begin());
 
-            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcdata, ekind, M,
-                              etrtPOSITION, cr, constr != nullptr);
+            upd.update_coords(*ir, step, mdatoms, state, force.arrayRefWithPadding(), fcdata, ekind,
+                              M, etrtPOSITION, cr, constr != nullptr);
             wallcycle_stop(wcycle, ewcUPDATE);
 
             /* do we need an extra constraint here? just need to copy out of as_rvec_array(state->v.data()) to upd->xp? */
@@ -1585,8 +1596,8 @@ void gmx::LegacySimulator::do_md()
         if ((bExchanged || bNeedRepartition) && DOMAINDECOMP(cr))
         {
             dd_partition_system(fplog, mdlog, step, cr, TRUE, 1, state_global, *top_global, ir,
-                                imdSession, pull_work, state, &f, mdAtoms, &top, fr, vsite, constr,
-                                nrnb, wcycle, FALSE);
+                                imdSession, pull_work, state, &force, mdAtoms, &top, fr, vsite,
+                                constr, nrnb, wcycle, FALSE);
             shouldCheckNumberOfBondedInteractions = true;
             upd.setNumAtoms(state->natoms);
         }

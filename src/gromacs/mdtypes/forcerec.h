@@ -256,8 +256,8 @@ struct t_forcerec
     /* The number of atoms participating in force calculation and constraints */
     int natoms_force_constr = 0;
 
-    /* Helper buffer for ForceOutputs */
-    std::unique_ptr<ForceHelperBuffers> forceHelperBuffers;
+    /* List of helper buffers for ForceOutputs, one for each time step with MTS */
+    std::vector<ForceHelperBuffers> forceHelperBuffers;
 
     /* Data for PPPM/PME/Ewald */
     struct gmx_pme_t* pmedata                = nullptr;
@@ -297,6 +297,9 @@ struct t_forcerec
     real userreal2 = 0;
     real userreal3 = 0;
     real userreal4 = 0;
+
+    /* Tells whether we use multiple time stepping, computing some forces less frequently */
+    bool useMts = false;
 
     /* The listed forces calculation data */
     std::unique_ptr<ListedForces> listedForces;
