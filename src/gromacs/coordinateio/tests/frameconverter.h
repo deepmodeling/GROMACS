@@ -33,20 +33,25 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*!\file
- * \internal
+ * \libinternal
  * \brief
- * Dummy module used for tests and as an implementation example.
+ * Helper classes for frameconverter tests
  *
  * \author Paul Bauer <paul.bauer.q@gmail.com>
- * \libinternal
+ * \inlibraryapi
  * \ingroup module_coordinateio
  */
 
-#ifndef GMX_COORDINATEIO_TESTMODULE_H
-#define GMX_COORDINATEIO_TESTMODULE_H
+#ifndef GMX_COORDINATEIO_TESTS_FRAMECONVERTER_H
+#define GMX_COORDINATEIO_TESTS_FRAMECONVERTER_H
 
-#include "gromacs/coordinateio/coordinatefileenums.h"
-#include "gromacs/coordinateio/ioutputadapter.h"
+#include <gtest/gtest.h>
+
+#include "gromacs/coordinateio/iframeconverter.h"
+#include "gromacs/utility/exceptions.h"
+#include "gromacs/utility/smalloc.h"
+
+#include "testutils/testasserts.h"
 
 namespace gmx
 {
@@ -54,25 +59,59 @@ namespace gmx
 namespace test
 {
 
-class DummyOutputModule : public IOutputAdapter
+class DummyConverter : public IFrameConverter
 {
 public:
-    explicit DummyOutputModule(CoordinateFileFlags requirementsFlag) :
-        moduleRequirements_(requirementsFlag)
-    {
-    }
+    DummyConverter(FrameConverterFlags flag) : flag_(flag) {}
 
-    DummyOutputModule(DummyOutputModule&& old) noexcept = default;
+    DummyConverter(DummyConverter&& old) noexcept = default;
 
-    ~DummyOutputModule() override {}
+    ~DummyConverter() override {}
 
-    void processFrame(int /*framenumber*/, t_trxframe* /*input*/) override {}
+    void convertFrame(t_trxframe* /* input */) override {}
 
-    void checkAbilityDependencies(unsigned long abilities) const override;
+    unsigned long guarantee() const override { return convertFlag(flag_); }
 
 private:
-    //! Local requirements
-    CoordinateFileFlags moduleRequirements_;
+    FrameConverterFlags flag_;
+};
+
+//! Convenience typedef for dummy module
+using DummyConverterPointer = std::unique_ptr<DummyConverter>;
+
+class FrameconverterTestBase : public ::testing::Test
+{
+public:
+    FrameconverterTestBase()
+    {
+        clear_trxframe(&frame_, true);
+        frame_.natoms = 20;
+        frame_.x      = x();
+        frame_.v      = v();
+        frame_.f      = f();
+        frame_.bX     = true;
+        frame_.bV     = true;
+        frame_.bF     = true;
+    }
+
+    //! Access coordinate frame.
+    const t_trxframe* frame() const { return &frame_; }
+    //! Access coordinate pointer.
+    rvec* x() { return as_rvec_array(x_.data()); }
+    //! Access velocity pointer.
+    rvec* v() { return as_rvec_array(v_.data()); }
+    //! Access force pointer.
+    rvec* f() { return as_rvec_array(f_.data()); }
+
+private:
+    //! Coordinate data to use for tests.
+    t_trxframe frame_;
+    //! Vector for coordinates.
+    std::array<RVec, 20> x_;
+    //! Vector for velocities.
+    std::array<RVec, 20> v_;
+    //! Vector for forces.
+    std::array<RVec, 20> f_;
 };
 
 } // namespace test

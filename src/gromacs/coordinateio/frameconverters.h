@@ -32,51 +32,18 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*!\file
- * \internal
+/*! \file
  * \brief
- * Dummy module used for tests and as an implementation example.
+ * Public API convenience header for accessing frameconverters.
  *
  * \author Paul Bauer <paul.bauer.q@gmail.com>
- * \libinternal
+ * \inpublicapi
  * \ingroup module_coordinateio
  */
+#ifndef GMX_COORDINATEIO_FRAMECONVERTERS_H
+#define GMX_COORDINATEIO_FRAMECONVERTERS_H
 
-#ifndef GMX_COORDINATEIO_TESTMODULE_H
-#define GMX_COORDINATEIO_TESTMODULE_H
-
-#include "gromacs/coordinateio/coordinatefileenums.h"
-#include "gromacs/coordinateio/ioutputadapter.h"
-
-namespace gmx
-{
-
-namespace test
-{
-
-class DummyOutputModule : public IOutputAdapter
-{
-public:
-    explicit DummyOutputModule(CoordinateFileFlags requirementsFlag) :
-        moduleRequirements_(requirementsFlag)
-    {
-    }
-
-    DummyOutputModule(DummyOutputModule&& old) noexcept = default;
-
-    ~DummyOutputModule() override {}
-
-    void processFrame(int /*framenumber*/, t_trxframe* /*input*/) override {}
-
-    void checkAbilityDependencies(unsigned long abilities) const override;
-
-private:
-    //! Local requirements
-    CoordinateFileFlags moduleRequirements_;
-};
-
-} // namespace test
-
-} // namespace gmx
+#include "gromacs/coordinateio/iframeconverter.h"
+#include "gromacs/coordinateio/frameconverters/register.h"
 
 #endif
