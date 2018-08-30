@@ -32,20 +32,45 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \file
+/*!\file
+ * \internal
  * \brief
- * Public API convenience header for accessing frameconverters.
+ * Implements gmx::Shiftcoord.
  *
  * \author Paul Bauer <paul.bauer.q@gmail.com>
- * \inpublicapi
  * \ingroup module_coordinateio
  */
-#ifndef GMX_COORDINATEIO_FRAMECONVERTERS_H
-#define GMX_COORDINATEIO_FRAMECONVERTERS_H
 
-#include "gromacs/coordinateio/frameconverters/register.h"
-#include "gromacs/coordinateio/frameconverters/shiftcoord.h"
+#include "gmxpre.h"
 
-#include "iframeconverter.h"
+#include "shiftcoord.h"
 
-#endif
+#include "gromacs/math/vec.h"
+#include "gromacs/trajectory/trajectoryframe.h"
+
+namespace gmx
+{
+
+void ShiftCoord::convertFrame(t_trxframe* input)
+{
+    if (!sel_.isValid())
+    {
+        int               natoms = input->natoms;
+        std::vector<RVec> shiftCoord(natoms);
+        for (int i = 0; i < natoms; i++)
+        {
+            rvec_inc(input->x[i], shift_);
+        }
+    }
+    else
+    {
+        int natoms = sel_.atomCount();
+        for (int i = 0; i < natoms; i++)
+        {
+            int pos = sel_.position(i).refId();
+            rvec_inc(input->x[pos], shift_);
+        }
+    }
+}
+
+} // namespace gmx

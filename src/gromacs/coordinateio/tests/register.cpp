@@ -67,21 +67,11 @@ public:
      * \param[in] expectedOutcome If results should match or not.
      */
     void checkMemory(bool expectedOutcome);
-    //! Access underlying storage object.
-    ProcessFrameConversion* method() { return &method_; }
-    //! Access to none owning frame object.
-    t_trxframe* newFrame() { return newFrame_; }
-
-private:
-    //! Storage object.
-    ProcessFrameConversion method_;
-    //! Non owning pointer to new coordinate frame.
-    t_trxframe* newFrame_;
 };
 
 void RegisterFrameconverterTest::runTest()
 {
-    newFrame_ = method()->prepareAndTransformCoordinates(frame());
+    setNewFrame(method()->prepareAndTransformCoordinates(frame()));
 }
 void RegisterFrameconverterTest::checkMemory(bool expectedOutcome)
 {
@@ -94,8 +84,8 @@ TEST_F(RegisterFrameconverterTest, NoConverterWorks)
 {
     EXPECT_EQ(0, method()->getNumberOfConverters());
     runTest();
-    EXPECT_TRUE((method()->guarantee() & convertFlag(FrameConverterFlags::NoGuarantee)) != 0u);
-    EXPECT_FALSE((method()->guarantee() & convertFlag(FrameConverterFlags::AtomsInBox)) != 0u);
+    EXPECT_TRUE((method()->guarantee() & convertFlag(FrameConverterFlags::NoGuarantee)) != 0U);
+    EXPECT_FALSE((method()->guarantee() & convertFlag(FrameConverterFlags::AtomsInBox)) != 0U);
     checkMemory(false);
 }
 
@@ -109,7 +99,7 @@ TEST_F(RegisterFrameconverterTest, RegistrationWorks)
     EXPECT_EQ(2, method()->getNumberOfConverters());
 
     runTest();
-    EXPECT_TRUE((method()->guarantee() & convertFlag(FrameConverterFlags::AtomsInBox)) != 0u);
+    EXPECT_TRUE((method()->guarantee() & convertFlag(FrameConverterFlags::AtomsInBox)) != 0U);
     checkMemory(false);
 }
 
@@ -119,8 +109,8 @@ TEST_F(RegisterFrameconverterTest, NewConverterCanInvalidateGuarantees)
     method()->addFrameConverter(std::make_unique<DummyConverter>(FrameConverterFlags::NewSystemCenter));
     method()->addFrameConverter(std::make_unique<DummyConverter>(FrameConverterFlags::MoleculeCOMInBox));
     runTest();
-    EXPECT_FALSE((method()->guarantee() & convertFlag(FrameConverterFlags::AtomsInBox)) != 0u);
-    EXPECT_TRUE((method()->guarantee() & convertFlag(FrameConverterFlags::MoleculeCOMInBox)) != 0u);
+    EXPECT_FALSE((method()->guarantee() & convertFlag(FrameConverterFlags::AtomsInBox)) != 0U);
+    EXPECT_TRUE((method()->guarantee() & convertFlag(FrameConverterFlags::MoleculeCOMInBox)) != 0U);
 }
 
 } // namespace test

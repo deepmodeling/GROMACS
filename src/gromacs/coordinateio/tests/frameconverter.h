@@ -48,6 +48,9 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/coordinateio/iframeconverter.h"
+#include "gromacs/coordinateio/frameconverters/register.h"
+#include "gromacs/fileio/trxio.h"
+#include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/smalloc.h"
 
@@ -85,7 +88,7 @@ public:
     FrameconverterTestBase()
     {
         clear_trxframe(&frame_, true);
-        frame_.natoms = 20;
+        frame_.natoms = 5;
         frame_.x      = x();
         frame_.v      = v();
         frame_.f      = f();
@@ -102,16 +105,26 @@ public:
     rvec* v() { return as_rvec_array(v_.data()); }
     //! Access force pointer.
     rvec* f() { return as_rvec_array(f_.data()); }
+    //! Access to non owning result coordinate frame.
+    t_trxframe* newFrame() { return newFrame_; }
+    //! Set new frame.
+    void setNewFrame(t_trxframe* newFrame) { newFrame_ = newFrame; }
+    //! Get access to wrapper method.
+    ProcessFrameConversion* method() { return &method_; }
 
 private:
     //! Coordinate data to use for tests.
     t_trxframe frame_;
+    //! Non owning pointer for result coordinates.
+    t_trxframe* newFrame_;
+    //! Storage for wrapper method.
+    ProcessFrameConversion method_;
     //! Vector for coordinates.
-    std::array<RVec, 20> x_;
+    std::array<RVec, 5> x_;
     //! Vector for velocities.
-    std::array<RVec, 20> v_;
+    std::array<RVec, 5> v_;
     //! Vector for forces.
-    std::array<RVec, 20> f_;
+    std::array<RVec, 5> f_;
 };
 
 } // namespace test
