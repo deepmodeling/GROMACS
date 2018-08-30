@@ -62,6 +62,15 @@ namespace gmx
 namespace test
 {
 
+inline void compareRVec(bool expectedOutcome, const RVec& first, const RVec& second)
+{
+    for (int d = 0; d < DIM; d++)
+    {
+        EXPECT_EQ(expectedOutcome, first[d] == second[d]);
+    }
+}
+
+
 class DummyConverter : public IFrameConverter
 {
 public:

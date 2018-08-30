@@ -35,7 +35,7 @@
 /*!\file
  * \internal
  * \brief
- * Tests for frameconverter coordinate shift method.
+ * Tests for frameconverter method to remove pbc jumps in coordinate frames.
  *
  * \author Paul Bauer <paul.bauer.q@gmail.com>
  * \ingroup module_coordinateio
@@ -45,8 +45,7 @@
 
 #include <numeric>
 
-#include "gromacs/coordinateio/frameconverters/register.h"
-#include "gromacs/coordinateio/frameconverters/shiftcoord.h"
+#include "gromacs/coordinateio/frameconverters/removejump.h"
 #include "gromacs/fileio/trxio.h"
 #include "gromacs/trajectory/trajectoryframe.h"
 
@@ -61,62 +60,61 @@ namespace test
 /*! \brief
  * Test fixture to prepare coordinate frame for coordinate manipulation.
  */
-class ShiftCoordTest : public FrameconverterTestBase
+class RemoveJumpTest : public FrameconverterTestBase
 {
 public:
-    ShiftCoordTest()
+    RemoveJumpTest()
     {
         RVec value(1, 2, 3);
         RVec inc(1, 1, 1);
+        reference_.resize(frame()->natoms);
         for (int i = 0; i < frame()->natoms; i++)
         {
             copy_rvec(value, x()[i]);
+            clear_rvec(reference_[i]);
+            rvec_dec(reference_[i], value);
             rvec_inc(value, inc);
         }
     }
     /*! \brief
      *  Run the test.
      *
-     *  \param[in] shift How to shift coordinates.
-     *  \param[in] addSelection if a selection should be used for shift.
+     *  \param[in] reference Pointer to the reference coordiantes to use.
+     *  \param[in] box A box to test for removing PBC jumps.
      */
-    void runTest(RVec shift, bool addSelection);
-    //! Get access to selection.
-    const Selection& selection() { return sel_; }
+    void runTest(gmx::ArrayRef<const RVec> reference, matrix box);
+    //! Access to underlying reference coordinates.
+    const gmx::ArrayRef<const RVec> reference() { return reference_; }
 
 private:
-    //! Selection to use for tests.
-    Selection sel_;
+    //! Reference coordinates to use.
+    std::vector<RVec> reference_;
 };
 
-void ShiftCoordTest::runTest(const RVec shift, bool addSelection)
+void RemoveJumpTest::runTest(const gmx::ArrayRef<const RVec> reference, matrix box)
 {
-    if (!addSelection)
-    {
-        method()->addFrameConverter(std::make_unique<ShiftCoord>(shift, selection()));
-        setNewFrame(method()->prepareAndTransformCoordinates(frame()));
-    }
+    method()->addFrameConverter(std::make_unique<RemoveJump>(reference, box));
+    setNewFrame(method()->prepareAndTransformCoordinates(frame()));
 }
 
-TEST_F(ShiftCoordTest, AllAtomShiftWorks)
+TEST_F(RemoveJumpTest, Works)
 {
     EXPECT_EQ(frame()->x, x());
 
-    RVec shift(-1, -2, -3);
-    runTest(shift, false);
+    matrix box;
+    clear_mat(box);
+    for (int d1 = 0; d1 < DIM; d1++)
+    {
+        box[d1][d1] = 1;
+    }
+    runTest(reference(), box);
+    std::vector<RVec> expectedFinalVector;
+    RVec              endVal(0, -1, -2);
     for (int i = 0; i < frame()->natoms; i++)
     {
         compareRVec(false, newFrame()->x[i], frame()->x[i]);
-    }
-    std::vector<RVec> expectedFinalVector;
-    for (int i = 0; i < frame()->natoms; i++)
-    {
-        expectedFinalVector.emplace_back();
-        rvec_add(frame()->x[i], shift, expectedFinalVector.back());
-    }
-
-    for (int i = 0; i < frame()->natoms; i++)
-    {
+        expectedFinalVector.emplace_back(endVal);
+        rvec_dec(endVal, RVec(1, 1, 1));
         compareRVec(true, newFrame()->x[i], expectedFinalVector[i]);
     }
 }

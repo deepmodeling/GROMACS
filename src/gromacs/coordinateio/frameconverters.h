@@ -44,6 +44,7 @@
 #define GMX_COORDINATEIO_FRAMECONVERTERS_H
 
 #include "gromacs/coordinateio/frameconverters/register.h"
+#include "gromacs/coordinateio/frameconverters/removejump.h"
 #include "gromacs/coordinateio/frameconverters/shiftcoord.h"
 
 #include "iframeconverter.h"

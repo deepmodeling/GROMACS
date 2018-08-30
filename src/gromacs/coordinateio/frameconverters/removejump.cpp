@@ -35,7 +35,7 @@
 /*!\file
  * \internal
  * \brief
- * Tests for frameconverter coordinate shift method.
+ * Implements gmx::RemoveJump.
  *
  * \author Paul Bauer <paul.bauer.q@gmail.com>
  * \ingroup module_coordinateio
@@ -43,84 +43,47 @@
 
 #include "gmxpre.h"
 
-#include <numeric>
+#include "removejump.h"
 
-#include "gromacs/coordinateio/frameconverters/register.h"
-#include "gromacs/coordinateio/frameconverters/shiftcoord.h"
-#include "gromacs/fileio/trxio.h"
 #include "gromacs/trajectory/trajectoryframe.h"
-
-#include "gromacs/coordinateio/tests/frameconverter.h"
 
 namespace gmx
 {
 
-namespace test
+void RemoveJump::convertFrame(t_trxframe* input)
 {
-
-/*! \brief
- * Test fixture to prepare coordinate frame for coordinate manipulation.
- */
-class ShiftCoordTest : public FrameconverterTestBase
-{
-public:
-    ShiftCoordTest()
+    int natoms = input->natoms;
+    GMX_RELEASE_ASSERT(
+            natoms == referenceCoord_.ssize(),
+            "Need to have same size of reference coordinates and number of atoms in frame");
+    RVec diagonal(0, 0, 0);
+    for (int d = 0; d < DIM; d++)
     {
-        RVec value(1, 2, 3);
-        RVec inc(1, 1, 1);
-        for (int i = 0; i < frame()->natoms; i++)
+        diagonal[d] = localBox_[d][d];
+    }
+    for (int i = 0; i < natoms; i++)
+    {
+        for (int m = DIM - 1; m >= 0; m--)
         {
-            copy_rvec(value, x()[i]);
-            rvec_inc(value, inc);
+            if (diagonal[m] > 0)
+            {
+                while (input->x[i][m] - referenceCoord_[i][m] <= -diagonal[m])
+                {
+                    for (int d = 0; d <= m; d++)
+                    {
+                        input->x[i][d] += localBox_[m][d];
+                    }
+                }
+                while (input->x[i][m] - referenceCoord_[i][m] > diagonal[m])
+                {
+                    for (int d = 0; d <= m; d++)
+                    {
+                        input->x[i][d] -= localBox_[m][d];
+                    }
+                }
+            }
         }
     }
-    /*! \brief
-     *  Run the test.
-     *
-     *  \param[in] shift How to shift coordinates.
-     *  \param[in] addSelection if a selection should be used for shift.
-     */
-    void runTest(RVec shift, bool addSelection);
-    //! Get access to selection.
-    const Selection& selection() { return sel_; }
-
-private:
-    //! Selection to use for tests.
-    Selection sel_;
-};
-
-void ShiftCoordTest::runTest(const RVec shift, bool addSelection)
-{
-    if (!addSelection)
-    {
-        method()->addFrameConverter(std::make_unique<ShiftCoord>(shift, selection()));
-        setNewFrame(method()->prepareAndTransformCoordinates(frame()));
-    }
 }
-
-TEST_F(ShiftCoordTest, AllAtomShiftWorks)
-{
-    EXPECT_EQ(frame()->x, x());
-
-    RVec shift(-1, -2, -3);
-    runTest(shift, false);
-    for (int i = 0; i < frame()->natoms; i++)
-    {
-        compareRVec(false, newFrame()->x[i], frame()->x[i]);
-    }
-    std::vector<RVec> expectedFinalVector;
-    for (int i = 0; i < frame()->natoms; i++)
-    {
-        expectedFinalVector.emplace_back();
-        rvec_add(frame()->x[i], shift, expectedFinalVector.back());
-    }
-
-    for (int i = 0; i < frame()->natoms; i++)
-    {
-        compareRVec(true, newFrame()->x[i], expectedFinalVector[i]);
-    }
-}
-
-} // namespace test
 
 } // namespace gmx
