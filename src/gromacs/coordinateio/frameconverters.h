@@ -45,6 +45,7 @@
 
 #include "gromacs/coordinateio/frameconverters/register.h"
 #include "gromacs/coordinateio/frameconverters/removejump.h"
+#include "gromacs/coordinateio/frameconverters/setcenter.h"
 #include "gromacs/coordinateio/frameconverters/shiftcoord.h"
 
 #include "iframeconverter.h"

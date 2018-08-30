@@ -62,7 +62,9 @@ void ProcessFrameConversion::addAndCheckGuarantee(const unsigned long flag)
         listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::AtomsInBox);
         listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::MoleculeCOMInBox);
         listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::ResidueCOMInBox);
-        listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::SystemIsCenteredInBox);
+        listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::SystemIsCenteredInTriclinicBox);
+        listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::SystemIsCenteredInRectangularBox);
+        listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::SystemIsCenteredInZeroBox);
     }
 }
 

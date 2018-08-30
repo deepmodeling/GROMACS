@@ -62,6 +62,13 @@ namespace gmx
 namespace test
 {
 
+/*! \brief
+ * Check that two vectors compare as expected.
+ *
+ * \param[in] expectedOutcome How the vectors should compare.
+ * \param[in] first One vector to compare.
+ * \param[in] second Other vector to compare.
+ */
 inline void compareRVec(bool expectedOutcome, const RVec& first, const RVec& second)
 {
     for (int d = 0; d < DIM; d++)

@@ -98,48 +98,60 @@ enum class FrameConverterFlags : unsigned long
      */
     UnitCellIsCompact = 1 << 8,
     /*! \brief
-     * Tells us that converter centered system in a box.
+     * Tells us that converter centered system in a triclinic box.
      *
      * Invalidated by calling a method that changes the type of box.
      */
-    SystemIsCenteredInBox = 1 << 9,
+    SystemIsCenteredInTriclinicBox = 1 << 9,
+    /*! \brief
+     * Tells us that converter centered system in a rectangular box.
+     *
+     * Invalidated by calling a method that changes the type of box.
+     */
+    SystemIsCenteredInRectangularBox = 1 << 10,
+    /*! \brief
+     * Tells us that converter centered system in a zero box.
+     *
+     * Invalidated by calling a method that changes the type of box.
+     */
+    SystemIsCenteredInZeroBox = 1 << 11,
     /*! \brief
      * Tells us that converter has fit coordinate data to reference.
      *
      * Specific for rotational and translational fit.
      */
-    FitToReferenceRotTrans = 1 << 10,
+    FitToReferenceRotTrans = 1 << 12,
     /*! \brief
      * Tells us that converter fit coordinate data to reference.
      *
      * Specific for rotation and translation in XY plane.
      */
-    FitToReferenceRotTransXY = 1 << 11,
+    FitToReferenceRotTransXY = 1 << 13,
     /*! \brief
      * Tells us that converter fit coordinate data to reference.
      *
      * Specific for translational fit.
      */
-    FitToReferenceTranslation = 1 << 12,
+    FitToReferenceTranslation = 1 << 14,
     /*! \brief
      * Tells us that converter fit coordinate data to reference.
      *
      * Specific for translational fit in XY plane.
      */
-    FitToReferenceTranslationXY = 1 << 13,
+    FitToReferenceTranslationXY = 1 << 15,
     /*! \brief
      * Tells us that converter fit coordinate data to reference.
      *
      * Specific for progressive fit.
      */
-    FitToReferencePrgressive = 1 << 14,
+    FitToReferencePrgressive = 1 << 16,
     /*! \brief
      * Tells us that converter has set a new center for the system.
      *
      * This affects the routines that place atoms in the box and the unit cell changing routines,
      * so they have to be invalidated by any method setting this flag.
      */
-    NewSystemCenter = 1 << 15
+    NewSystemCenter = 1 << 17
 };
 
 //! Conversion of flag to its corresponding unsigned long value.
