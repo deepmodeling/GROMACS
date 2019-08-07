@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -219,6 +219,30 @@ TEST_F(MatrixTest, canFillLegacyMatrix)
             EXPECT_EQ(legacyMatrix[i][j], matrix_(i, j));
         }
     }
+}
+
+TEST_F(MatrixTest, canSlice)
+{
+    const Matrix3x3 mat = { { 1.0, 2.0, 3.0, 0.0, 1.0, 4.0, 5.0, 6.0, 0.0 } };
+
+    auto sliceX = sliceRow(mat, XX);
+    auto sliceY = sliceRow(mat, YY);
+    auto sliceZ = sliceRow(mat, ZZ);
+    EXPECT_EQ(sliceX[XX], 1.0);
+    EXPECT_EQ(sliceX[YY], 2.0);
+    EXPECT_EQ(sliceX[ZZ], 3.0);
+    EXPECT_EQ(sliceY[XX], 0.0);
+    EXPECT_EQ(sliceY[YY], 1.0);
+    EXPECT_EQ(sliceY[ZZ], 4.0);
+    EXPECT_EQ(sliceZ[XX], 5.0);
+    EXPECT_EQ(sliceZ[YY], 6.0);
+    EXPECT_EQ(sliceZ[ZZ], 0.0);
+}
+
+TEST_F(MatrixTest, cannotSliceWrongDimensions)
+{
+    EXPECT_THROW_GMX(sliceRow(matrix_, -1), InternalError);
+    EXPECT_THROW_GMX(sliceRow(matrix_, DIM), InternalError);
 }
 
 } // namespace

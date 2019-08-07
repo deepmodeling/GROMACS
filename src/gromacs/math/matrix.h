@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,9 +44,11 @@
 #define GMX_MATH_MATRIX_H_
 
 #include <array>
+#include <type_traits>
 
 #include "gromacs/math/multidimarray.h"
 #include "gromacs/math/vec.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/real.h"
 
 namespace gmx
@@ -116,6 +118,23 @@ static inline void fillLegacyMatrix(Matrix3x3ConstSpan newMatrix, matrix legacyM
             legacyMatrix[i][j] = newMatrix(i, j);
         }
     }
+}
+
+/*! \brief
+ * Slice a matrix at a user provided \p row.
+ *
+ * \param[in] matrixView The matrix to slice.
+ * \param[in] row The row of the matrix to return as a slice.
+ * \returns An array of ElementType for the given matrix.
+ */
+static inline std::array<real, 3> sliceRow(Matrix3x3ConstSpan matrixView, int row)
+{
+    if (row < XX || row >= DIM)
+    {
+        GMX_THROW(InternalError("Cannot slice matrix outside of matrix dimensions"));
+    }
+    std::array<real, 3> rowSlice{ matrixView(row, 0), matrixView(row, 1), matrixView(row, 2) };
+    return rowSlice;
 }
 
 } // namespace gmx
