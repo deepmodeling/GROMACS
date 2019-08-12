@@ -457,24 +457,35 @@
 #        error "Vc_sub_self is uninitialized"
 #    endif
 
+#    if !defined ENERGY_GROUPS \
+            && ((GMX_SIMD_REAL_WIDTH == UNROLLI) || (GMX_SIMD4_HAVE_REAL && GMX_SIMD4_WIDTH == UNROLLI))
+#        if GMX_SIMD_REAL_WIDTH == UNROLLI
+                SimdReal v = load<SimdReal>(q + sci);
+#        else
+                Simd4Real v = load<Simd4Real>(q + sci);
+#        endif
+                Vc[0] -= facel * reduce(v * v) * Vc_sub_self;
+#    else
                 for (int ia = 0; ia < UNROLLI; ia++)
                 {
                     real qi = q[sci + ia];
-#    ifdef ENERGY_GROUPS
+#        ifdef ENERGY_GROUPS
                     vctp[ia][((egps_i >> (ia * egps_ishift)) & egps_imask) * egps_jstride]
-#    else
+#        else
                     Vc[0]
-#    endif
+#        endif
                             -= facel * qi * qi * Vc_sub_self;
                 }
+#    endif
             }
 
 #    ifdef LJ_EWALD_GEOM
             {
                 for (int ia = 0; ia < UNROLLI; ia++)
                 {
-                    real c6_i =
-                            nbatParams.nbfp[nbatParams.type[sci + ia] * (nbatParams.numTypes + 1) * 2] / 6;
+                    real c6_i;
+
+                    c6_i = nbatParams.nbfp[nbatParams.type[sci + ia] * (nbatParams.numTypes + 1) * 2] / 6;
 #        ifdef ENERGY_GROUPS
                     vvdwtp[ia][((egps_i >> (ia * egps_ishift)) & egps_imask) * egps_jstride]
 #        else
