@@ -524,10 +524,10 @@
     /* We need to mask (or limit) rsq for the cut-off,
      * as large distances can cause an overflow in gmx_pmecorrF/V.
      */
-    brsq_S0   = beta2_S * selectByMask(rsq_S0, wco_S0);
-    brsq_S1   = beta2_S * selectByMask(rsq_S1, wco_S1);
-    brsq_S2   = beta2_S * selectByMask(rsq_S2, wco_S2);
-    brsq_S3   = beta2_S * selectByMask(rsq_S3, wco_S3);
+    brsq_S0   = maskzMul(beta2_S, rsq_S0, wco_S0);
+    brsq_S1   = maskzMul(beta2_S, rsq_S1, wco_S1);
+    brsq_S2   = maskzMul(beta2_S, rsq_S2, wco_S2);
+    brsq_S3   = maskzMul(beta2_S, rsq_S3, wco_S3);
     ewcorr_S0 = beta_S * pmeForceCorrection(brsq_S0);
     ewcorr_S1 = beta_S * pmeForceCorrection(brsq_S1);
     ewcorr_S2 = beta_S * pmeForceCorrection(brsq_S2);
@@ -636,10 +636,10 @@
 #            ifndef NO_SHIFT_EWALD
     /* Add Ewald potential shift to vc_sub for convenience */
 #                ifdef CHECK_EXCLS
-    vc_sub_S0 = vc_sub_S0 + selectByMask(sh_ewald_S, interact_S0);
-    vc_sub_S1 = vc_sub_S1 + selectByMask(sh_ewald_S, interact_S1);
-    vc_sub_S2 = vc_sub_S2 + selectByMask(sh_ewald_S, interact_S2);
-    vc_sub_S3 = vc_sub_S3 + selectByMask(sh_ewald_S, interact_S3);
+    vc_sub_S0 = maskAdd(vc_sub_S0, sh_ewald_S, interact_S0);
+    vc_sub_S1 = maskAdd(vc_sub_S1, sh_ewald_S, interact_S1);
+    vc_sub_S2 = maskAdd(vc_sub_S2, sh_ewald_S, interact_S2);
+    vc_sub_S3 = maskAdd(vc_sub_S3, sh_ewald_S, interact_S3);
 #                else
     vc_sub_S0 = vc_sub_S0 + sh_ewald_S;
     vc_sub_S1 = vc_sub_S1 + sh_ewald_S;
@@ -1008,11 +1008,11 @@
 #            endif
 
         /* Mask for the cut-off to avoid overflow of cr2^2 */
-        cr2_S0 = lje_c2_S * selectByMask(rsq_S0, wco_vdw_S0);
-        cr2_S1 = lje_c2_S * selectByMask(rsq_S1, wco_vdw_S1);
+        cr2_S0 = maskzMul(lje_c2_S, rsq_S0, wco_vdw_S0);
+        cr2_S1 = maskzMul(lje_c2_S, rsq_S1, wco_vdw_S1);
 #            ifndef HALF_LJ
-        cr2_S2 = lje_c2_S * selectByMask(rsq_S2, wco_vdw_S2);
-        cr2_S3 = lje_c2_S * selectByMask(rsq_S3, wco_vdw_S3);
+        cr2_S2 = maskzMul(lje_c2_S, rsq_S2, wco_vdw_S2);
+        cr2_S3 = maskzMul(lje_c2_S, rsq_S3, wco_vdw_S3);
 #            endif
         // Unsafe version of our exp() should be fine, since these arguments should never
         // be smaller than -127 for any reasonable choice of cutoff or ewald coefficients.
