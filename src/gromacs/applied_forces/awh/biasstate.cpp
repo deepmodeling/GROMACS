@@ -764,7 +764,17 @@ void makeLocalUpdateList(const BiasGrid&                grid,
 
         if (pointExists && points[pointIndex].inTargetRegion())
         {
-            updateList->push_back(pointIndex);
+            if (std::find(updateList->begin(), updateList->end(), pointIndex) == updateList->end())
+            {
+                updateList->push_back(pointIndex);
+            }
+            for (int symmetricPoint : grid.point(pointIndex).symmetryMirroredPoints)
+            {
+                if (std::find(updateList->begin(), updateList->end(), symmetricPoint) == updateList->end())
+                {
+                    updateList->push_back(symmetricPoint);
+                }
+            }
         }
     }
 }
@@ -1360,6 +1370,10 @@ void BiasState::sampleProbabilityWeights(const BiasGrid& grid, gmx::ArrayRef<con
     for (size_t n = 0; n < neighbor.size(); n++)
     {
         points_[neighbor[n]].increaseWeightSumIteration(probWeightNeighbor[n]);
+        for (int neighborSymmetricPoint : grid.point(neighbor[n]).symmetryMirroredPoints)
+        {
+            points_[neighborSymmetricPoint].increaseWeightSumIteration(probWeightNeighbor[n]);
+        }
     }
 
     /* Update the local update range. Two corner points define this rectangular
@@ -1400,6 +1414,33 @@ void BiasState::sampleProbabilityWeights(const BiasGrid& grid, gmx::ArrayRef<con
              */
             last += grid.axis(d).numPointsInPeriod();
         }
+        if (grid.axis(d).isSymmetric())
+        {
+            for (int symmetricPoint : grid.point(neighborStart).symmetryMirroredPoints)
+            {
+                int currSymmetryMirroredIndex = grid.point(symmetricPoint).index[d];
+                if (currSymmetryMirroredIndex < origin)
+                {
+                    origin = currSymmetryMirroredIndex;
+                }
+                if (currSymmetryMirroredIndex > last)
+                {
+                    last = currSymmetryMirroredIndex;
+                }
+            }
+            for (int symmetricPoint : grid.point(neighborLast).symmetryMirroredPoints)
+            {
+                int currSymmetryMirroredIndex = grid.point(symmetricPoint).index[d];
+                if (currSymmetryMirroredIndex < origin)
+                {
+                    origin = currSymmetryMirroredIndex;
+                }
+                if (currSymmetryMirroredIndex > last)
+                {
+                    last = currSymmetryMirroredIndex;
+                }
+            }
+        }
 
         originUpdatelist_[d] = std::min(originUpdatelist_[d], origin);
         endUpdatelist_[d]    = std::max(endUpdatelist_[d], last);
@@ -1439,8 +1480,8 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
                                            coordState_.coordValue()[2], coordState_.coordValue()[3] };
         for (size_t i = 0; i < neighbors.size(); i++)
         {
-            const int neighbor = neighbors[i];
-            double    bias;
+            int    neighbor = neighbors[i];
+            double bias;
             if (pointsAlongLambdaAxis(grid, gridPointIndex, neighbor))
             {
                 const double neighborLambda = grid.point(neighbor).coordValue[lambdaAxisIndex.value()];
@@ -1460,10 +1501,26 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
                 if (neighbor == gridPointIndex && grid.covers(coordState_.coordValue()))
                 {
                     points_[neighbor].samplePmf(weightedBias);
+                    for (int neighborSymmetricPoint : grid.point(neighbor).symmetryMirroredPoints)
+                    {
+                        if (std::find(neighbors.begin(), neighbors.end(), neighborSymmetricPoint)
+                            == neighbors.end())
+                        {
+                            points_[neighborSymmetricPoint].samplePmf(weightedBias);
+                        }
+                    }
                 }
                 else
                 {
                     points_[neighbor].updatePmfUnvisited(weightedBias);
+                    for (int neighborSymmetricPoint : grid.point(neighbor).symmetryMirroredPoints)
+                    {
+                        if (std::find(neighbors.begin(), neighbors.end(), neighborSymmetricPoint)
+                            == neighbors.end())
+                        {
+                            points_[neighborSymmetricPoint].updatePmfUnvisited(weightedBias);
+                        }
+                    }
                 }
             }
         }
@@ -1477,6 +1534,10 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
         {
             /* Save PMF sum and keep a histogram of the sampled coordinate values */
             points_[gridPointIndex].samplePmf(convolvedBias);
+            for (int symmetricPoint : grid.point(gridPointIndex).symmetryMirroredPoints)
+            {
+                points_[symmetricPoint].samplePmf(convolvedBias);
+            }
         }
     }
 

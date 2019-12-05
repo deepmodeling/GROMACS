@@ -2131,6 +2131,17 @@ AWH adaptive biasing
    (0.0) [nm] or [rad]
    End value defining the sampling interval together with :mdp:`awh1-dim1-start`.
 
+.. mdp:: awh1-dim1-symmetric
+
+   .. mdp-value:: no
+
+      Do not enforce symmetry around the origin (0) in this dimension.
+
+   .. mdp-value:: yes
+
+      Make the coordinate dimension symmetric around the origin. Negative coordinate samples affect the bias in
+      the positive coordinate range and are in turn affected by the same bias as positive coordinate samples.
+
 .. mdp:: awh1-dim1-diffusion
 
    (10\ :sup:`-5`) [nm\ :sup:`2`/ps], [rad\ :sup:`2`/ps] or [ps\ :sup:`-1`]
@@ -2153,6 +2164,7 @@ AWH adaptive biasing
    for many sharing simulations does not guarantee transitions across free energy barriers.
    On the other hand, when the diameter >= the sampling interval length, covering occurs when a single simulation
    has independently sampled the whole interval.
+
 
 Enforced rotation
 ^^^^^^^^^^^^^^^^^

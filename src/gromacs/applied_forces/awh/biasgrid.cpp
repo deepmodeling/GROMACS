@@ -606,7 +606,9 @@ int BiasGrid::numFepLambdaStates() const
 int GridAxis::nearestIndex(double value) const
 {
     /* Get the point distance to the origin. This may by an out of index range for the axis. */
-    int index = pointDistanceAlongAxis(*this, value, origin_);
+    /* Also correct for the offset, to avoid point duplication along symmetric periodic axes. */
+    int index = pointDistanceAlongAxis(
+            *this, value, (isSymmetric() && numPointsInPeriod_ > 0) ? origin_ + spacing() / 2 : origin_);
 
     if (index < 0 || index >= numPoints_)
     {
@@ -708,6 +710,67 @@ void setNeighborsOfGridPoint(int pointIndex, const BiasGrid& grid, std::vector<i
     }
 }
 
+/*! \brief Recursively create a list of symmetry mirrored grid points.
+ * Iterate through grid dimensions and create two branches when they are symmetric.
+ *
+ * \param[in]     pointIndex           BiasGrid point index.
+ * \param[in]     grid                 The grid.
+ * \param[in]     localCoordValue      The input coordinates, possibly with mirrored coordinates.
+ * \param[in]     startBranchDimLevel  The dimension index to start this branch from.
+ * \param[in,out] symmetricPoints      Pointer to a list of points, symmetric to pointIndex, that is
+ * getting extended. This list will not include pointIndex.
+ */
+void recursiveGetSymmetryMirroredPoints(const int         pointIndex,
+                                        const BiasGrid&   grid,
+                                        awh_dvec          localCoordValue,
+                                        const int         startBranchDimLevel,
+                                        std::vector<int>* symmetricPoints)
+{
+    /* When reaching the end of the dimensions find the point of the coordinates of
+     * this branch and add it to the list */
+    if (startBranchDimLevel == grid.numDimensions())
+    {
+        int symmetryMirroredPointIndex = grid.nearestIndex(localCoordValue);
+        if (symmetryMirroredPointIndex != pointIndex)
+        {
+            symmetricPoints->push_back(symmetryMirroredPointIndex);
+        }
+        return;
+    }
+    recursiveGetSymmetryMirroredPoints(pointIndex, grid, localCoordValue, startBranchDimLevel + 1,
+                                       symmetricPoints);
+    if (grid.axis(startBranchDimLevel).isSymmetric())
+    {
+        localCoordValue[startBranchDimLevel] *= -1;
+        recursiveGetSymmetryMirroredPoints(pointIndex, grid, localCoordValue,
+                                           startBranchDimLevel + 1, symmetricPoints);
+    }
+}
+
+/*! \brief
+ * Find and set mirrored points across symmetric dimensions.
+ *
+ * \param[in]     pointIndex           BiasGrid point index.
+ * \param[in]     grid                 The grid.
+ *
+ * \returns A vector of points mirrored along symmetric grid axes (not including pointIndex). The vector is empty if there is no symmetry.
+ */
+std::vector<int> getSymmetryMirroredPointsOfGridPoint(const int pointIndex, const BiasGrid& grid)
+{
+    std::vector<int> symmetricPoints;
+    if (grid.hasSymmetricAxis())
+    {
+        awh_dvec localCoordValue = { grid.point(pointIndex).coordValue[0],
+                                     grid.point(pointIndex).coordValue[1],
+                                     grid.point(pointIndex).coordValue[2],
+                                     grid.point(pointIndex).coordValue[3] };
+        recursiveGetSymmetryMirroredPoints(pointIndex, grid, localCoordValue, 0, &symmetricPoints);
+    }
+    GMX_ASSERT(symmetricPoints.size() == (std::pow(2, grid.numSymmetricAxes()) - 1),
+               "The number of symmetric points does not match the number of symmetric grid axes.");
+    return symmetricPoints;
+}
+
 } // namespace
 
 void BiasGrid::initPoints()
@@ -732,12 +795,16 @@ void BiasGrid::initPoints()
             else
             {
                 point.coordValue[d] = axis_[d].origin() + indexWork[d] * axis_[d].spacing();
-            }
 
-            if (axis_[d].period() > 0)
-            {
-                /* Do we always want the values to be centered around 0 ? */
-                centerPeriodicValueAroundZero(&point.coordValue[d], axis_[d].period());
+                if (axis_[d].period() > 0)
+                {
+                    /* Do we always want the values to be centered around 0 ? */
+                    centerPeriodicValueAroundZero(&point.coordValue[d], axis_[d].period());
+                    if (axis_[d].isSymmetric())
+                    {
+                        point.coordValue[d] += axis_[d].spacing() / 2;
+                    }
+                }
             }
 
             point.index[d] = indexWork[d];
@@ -747,11 +814,13 @@ void BiasGrid::initPoints()
     }
 }
 
-GridAxis::GridAxis(double origin, double end, double period, double pointDensity) :
+GridAxis::GridAxis(double origin, double end, double period, double pointDensity, bool isSymmetric) :
     origin_(origin),
     period_(period),
     isFepLambdaAxis_(false)
 {
+    GMX_ASSERT(!isSymmetric || (origin == -end),
+               "The beginning and end of a symmetric axis must be symmetric around 0.");
     length_ = getIntervalLengthPeriodic(origin_, end, period_);
 
     /* Automatically determine number of points based on the user given endpoints
@@ -776,38 +845,56 @@ GridAxis::GridAxis(double origin, double end, double period, double pointDensity
     {
         /* Set the grid spacing so that a period is matched exactly by an integer number of points.
            The number of points in a period is equal to the number of grid spacings in a period
-           since the endpoints are connected.  */
+           since the endpoints are connected. */
         numPointsInPeriod_ =
                 length_ > 0 ? static_cast<int>(std::ceil(period / length_ * (numPoints_ - 1))) : 1;
         spacing_ = period_ / numPointsInPeriod_;
 
         /* Modify the number of grid axis points to be compatible with the period dependent spacing. */
         numPoints_ = std::min(static_cast<int>(round(length_ / spacing_)) + 1, numPointsInPeriod_);
+        /* Do not allow a point at 0 along a symmetric axis. */
+        if (isSymmetric && numPoints_ % 2 == 1)
+        {
+            numPoints_ -= 1;
+            numPointsInPeriod_ -= 1;
+        }
+        spacing_ = length_ / numPoints_;
     }
     else
     {
         numPointsInPeriod_ = 0;
-        spacing_           = numPoints_ > 1 ? length_ / (numPoints_ - 1) : 0;
+        /* Do not allow a point at 0 along a symmetric axis. */
+        if (isSymmetric && numPoints_ % 2 == 1)
+        {
+            numPoints_ -= 1;
+        }
+        spacing_ = numPoints_ > 1 ? length_ / (numPoints_ - 1) : 0;
     }
+    isSymmetric_ = isSymmetric;
 }
 
-GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis) :
+GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis, bool isSymmetric) :
     origin_(origin),
     period_(period),
     numPoints_(numPoints),
     isFepLambdaAxis_(isFepLambdaAxis)
 {
+    GMX_ASSERT(!(isFepLambdaAxis && isSymmetric), "An FEP lambda axis cannot be symmetric.");
+    GMX_ASSERT(!isSymmetric || (origin == -end),
+               "The beginning and end of a symmetric axis must be symmetric around 0.");
     if (isFepLambdaAxis)
     {
         length_            = end - origin_;
         spacing_           = 1;
         numPointsInPeriod_ = numPoints;
+        isSymmetric_       = false;
     }
     else
     {
         length_            = getIntervalLengthPeriodic(origin_, end, period_);
         spacing_           = numPoints_ > 1 ? length_ / (numPoints_ - 1) : period_;
         numPointsInPeriod_ = static_cast<int>(std::round(period_ / spacing_));
+        isSymmetric_       = isSymmetric;
     }
 }
 
@@ -828,11 +915,11 @@ BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* 
                     "The number of points per sigma should be at least 1.0 to get a uniformly "
                     "covering the reaction using Gaussians");
             double pointDensity = std::sqrt(dimParams[d].pullDimParams().betak) * c_numPointsPerSigma;
-            axis_.emplace_back(origin, end, period[d], pointDensity);
+            axis_.emplace_back(origin, end, period[d], pointDensity, awhDimParams[d].isSymmetric);
         }
         else
         {
-            axis_.emplace_back(origin, end, 0, dimParams[d].fepDimParams().numFepLambdaStates, true);
+            axis_.emplace_back(origin, end, 0, dimParams[d].fepDimParams().numFepLambdaStates, true, false);
         }
         numPoints *= axis_[d].numPoints();
     }
@@ -851,6 +938,8 @@ BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* 
         std::vector<int>* neighbor = &point_[m].neighbor;
 
         setNeighborsOfGridPoint(m, *this, neighbor);
+
+        point_[m].symmetryMirroredPoints = getSymmetryMirroredPointsOfGridPoint(m, *this);
     }
 }
 
@@ -908,12 +997,12 @@ void mapGridToDataGrid(std::vector<int>*    gridpointToDatapoint,
     {
         if (isFepLambdaAxis[d])
         {
-            axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], 0, numPoints[d], true);
+            axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], 0, numPoints[d], true, false);
         }
         else
         {
             axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], grid.axis(d).period(),
-                               numPoints[d], false);
+                               numPoints[d], false, grid.axis(d).isSymmetric());
         }
     }
 

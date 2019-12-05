@@ -253,10 +253,13 @@ static int64_t countSamples(const std::vector<PointState>& pointState)
  *
  * \param[in] params  The parameters of the bias.
  * \param[in] state   The state of the bias.
+ * \param[in] grid    The bias grid.
  */
-static void ensureStateAndRunConsistency(const BiasParams& params, const BiasState& state)
+static void ensureStateAndRunConsistency(const BiasParams& params, const BiasState& state, const BiasGrid& grid)
 {
     int64_t numSamples = countSamples(state.points());
+    /* Symmetric axes are in effect getting twice the weight since the mirrored points also get updated. */
+    numSamples /= std::pow(2, grid.numSymmetricAxes());
     int64_t numUpdatesFromSamples =
             numSamples / (params.numSamplesUpdateFreeEnergy_ * params.numSharedUpdate);
     int64_t numUpdatesExpected = state.histogramSize().numUpdates();
@@ -299,7 +302,7 @@ void Bias::restoreStateFromHistory(const AwhBiasHistory* biasHistory, const t_co
          * since the user can have changed AWH parameters or the number
          * of simulations sharing the bias.
          */
-        ensureStateAndRunConsistency(params_, state_);
+        ensureStateAndRunConsistency(params_, state_, grid_);
 
         if (forceCorrelationGrid_ != nullptr)
         {
@@ -431,6 +434,10 @@ void Bias::updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeig
 
         /* Note: we might want to give a whole list of data to add instead and have this loop in the data adding function */
         forceCorrelationGrid_->addData(indexNeighbor, weightNeighbor, forceFromNeighbor, t);
+        for (int symmetricPoint : grid_.point(indexNeighbor).symmetryMirroredPoints)
+        {
+            forceCorrelationGrid_->addData(symmetricPoint, weightNeighbor, forceFromNeighbor, t);
+        }
     }
 }
 

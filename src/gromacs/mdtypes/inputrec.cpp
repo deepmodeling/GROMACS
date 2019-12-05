@@ -637,6 +637,7 @@ static void pr_awh_bias_dim(FILE* fp, int indent, gmx::AwhDimParams* awhDimParam
     PI("coord-index", awhDimParams->coordIndex + 1);
     PR("start", awhDimParams->origin);
     PR("end", awhDimParams->end);
+    PS("symmetric", EBOOL(awhDimParams->isSymmetric));
     PR("period", awhDimParams->period);
     PR("force-constant", awhDimParams->forceConstant);
     PR("diffusion", awhDimParams->diffusion);

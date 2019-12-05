@@ -86,7 +86,7 @@ struct AwhTestParameters
 };
 
 //! Helper function to set up the C-style AWH parameters for the test
-static AwhTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential)
+static AwhTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential, bool symmetricBias)
 {
     AwhTestParameters params;
 
@@ -102,6 +102,11 @@ static AwhTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential)
     awhDimParams.coordValueInit = awhDimParams.origin;
     awhDimParams.coverDiameter  = 0;
     awhDimParams.eCoordProvider = eawhcoordproviderPULL;
+    awhDimParams.isSymmetric    = symmetricBias;
+    if (symmetricBias)
+    {
+        awhDimParams.origin = -awhDimParams.end;
+    }
 
     AwhBiasParams& awhBiasParams = params.awhBiasParams;
 
@@ -141,7 +146,7 @@ const double g_coords[] = { 0.62, 0.70, 0.68, 0.80, 0.93, 0.87, 1.16, 1.14, 0.95
                             0.86, 0.88, 0.79, 0.75, 0.82, 0.74, 0.70, 0.68, 0.71, 0.73 };
 
 //! Convenience typedef: growth type enum, potential type enum, disable update skips
-typedef std::tuple<int, int, BiasParams::DisableUpdateSkips> BiasTestParameters;
+typedef std::tuple<int, int, BiasParams::DisableUpdateSkips, bool> BiasTestParameters;
 
 /*! \brief Test fixture for testing Bias updates
  */
@@ -168,6 +173,9 @@ public:
          *   disableUpdateSkips (should not affect the results):
          *     BiasParams::DisableUpdateSkips::yes: update the point state for every sample
          *     BiasParams::DisableUpdateSkips::no:  update the point state at an interval > 1 sample
+         *   symmetricBias:
+         *     true:                 The sampling and the bias is symmetrized around the origin.
+         *     false:                The sampling and the bias is not symmetrized around the origin.
          *
          * Note: It would be nice to explicitly check that eawhpotential
          *       and disableUpdateSkips do not affect the point state.
@@ -175,15 +183,16 @@ public:
          */
         int                            eawhgrowth;
         int                            eawhpotential;
+        bool                           symmetricBias;
         BiasParams::DisableUpdateSkips disableUpdateSkips;
-        std::tie(eawhgrowth, eawhpotential, disableUpdateSkips) = GetParam();
+        std::tie(eawhgrowth, eawhpotential, disableUpdateSkips, symmetricBias) = GetParam();
 
         /* Set up a basic AWH setup with a single, 1D bias with parameters
          * such that we can measure the effects of different parameters.
          * The idea is to, among other things, have part of the interval
          * not covered by samples.
          */
-        const AwhTestParameters params = getAwhTestParameters(eawhgrowth, eawhpotential);
+        const AwhTestParameters params = getAwhTestParameters(eawhgrowth, eawhpotential, symmetricBias);
 
         seed_ = params.awhParams.seed;
 
@@ -209,6 +218,11 @@ TEST_P(BiasTest, ForcesBiasPmf)
 
     Bias& bias = *bias_;
 
+    const AwhTestParameters params =
+            getAwhTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED, false);
+    const AwhDimParams& awhDimParams = params.awhParams.awhBiasParams[0].dimParams[0];
+    const bool          isSymmetric  = awhDimParams.isSymmetric;
+
     /* Make strings with the properties we expect to be different in the tests.
      * These also helps to interpret the reference data.
      */
@@ -216,6 +230,7 @@ TEST_P(BiasTest, ForcesBiasPmf)
     props.push_back(formatString("stage:           %s", bias.state().inInitialStage() ? "initial" : "final"));
     props.push_back(formatString("convolve forces: %s", bias.params().convolveForce ? "yes" : "no"));
     props.push_back(formatString("skip updates:    %s", bias.params().skipUpdates() ? "yes" : "no"));
+    props.push_back(formatString("symmetric:       %s", isSymmetric ? "yes" : "no"));
 
     SCOPED_TRACE(gmx::formatString("%s, %s, %s", props[0].c_str(), props[1].c_str(), props[2].c_str()));
 
@@ -284,13 +299,15 @@ INSTANTIATE_TEST_CASE_P(WithParameters,
                         ::testing::Combine(::testing::Values(eawhgrowthLINEAR, eawhgrowthEXP_LINEAR),
                                            ::testing::Values(eawhpotentialUMBRELLA, eawhpotentialCONVOLVED),
                                            ::testing::Values(BiasParams::DisableUpdateSkips::yes,
-                                                             BiasParams::DisableUpdateSkips::no)));
+                                                             BiasParams::DisableUpdateSkips::no),
+                                           ::testing::Values(false, true)));
 
 // Test that we detect coverings and exit the initial stage at the correct step
 TEST(BiasTest, DetectsCovering)
 {
-    const AwhTestParameters params = getAwhTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED);
-    const AwhDimParams&     awhDimParams = params.awhParams.awhBiasParams[0].dimParams[0];
+    const AwhTestParameters params =
+            getAwhTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED, false);
+    const AwhDimParams& awhDimParams = params.awhParams.awhBiasParams[0].dimParams[0];
 
     const double mdTimeStep = 0.1;
 

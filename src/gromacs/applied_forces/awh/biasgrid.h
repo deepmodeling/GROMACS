@@ -82,8 +82,9 @@ public:
      * \param[in] end              End value.
      * \param[in] period           Period, pass 0 if not periodic.
      * \param[in] pointDensity     Requested number of point per unit of axis length.
+     * \param[in] isSymmetric      If the grid axis is symmetric around the origin.
      */
-    GridAxis(double origin, double end, double period, double pointDensity);
+    GridAxis(double origin, double end, double period, double pointDensity, bool isSymmetric);
 
     /*! \brief Constructor.
      *
@@ -91,9 +92,10 @@ public:
      * \param[in] end              End value.
      * \param[in] period           Period, pass 0 if not periodic.
      * \param[in] numPoints        The number of points.
-     * \param[in] isFepLambdaAxis     If this axis is controlling lambda.
+     * \param[in] isFepLambdaAxis  If this axis is controlling lambda.
+     * \param[in] isSymmetric      If the grid axis is symmetric around the origin.
      */
-    GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis);
+    GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis, bool isSymmetric);
 
     /*! \brief Returns whether the axis has periodic boundaries.
      */
@@ -141,6 +143,10 @@ public:
      */
     bool isFepLambdaAxis() const { return isFepLambdaAxis_; }
 
+    /*! \brief Returns if the grid axis is symmetric around the origin.
+     */
+    bool isSymmetric() const { return isSymmetric_; }
+
 private:
     double origin_;            /**< Interval start value */
     double length_;            /**< Interval length */
@@ -149,6 +155,7 @@ private:
     int    numPoints_;         /**< Number of points in the interval */
     int    numPointsInPeriod_; /**< Number of points in a period (0 if no periodicity) */
     bool isFepLambdaAxis_; /**< If this axis is coupled to the system's free energy lambda state */
+    bool isSymmetric_;     /**< Whether this axis is symmetric around the origin or not. */
 };
 
 /*! \internal
@@ -163,6 +170,7 @@ struct GridPoint
     awh_dvec         coordValue; /**< Multidimensional coordinate value of this point */
     awh_ivec         index;      /**< Multidimensional point indices */
     std::vector<int> neighbor;   /**< Linear point indices of the neighboring points */
+    std::vector<int> symmetryMirroredPoints; /**< Linear point indices of mirrored points along all symmetric axes */
 };
 
 /*! \internal
@@ -265,6 +273,22 @@ public:
      * lambda state axes.
      */
     int numFepLambdaStates() const;
+
+    /*! \brief Returns true if the grid has a symmetric axis at all.
+     */
+    bool hasSymmetricAxis() const
+    {
+        return std::any_of(std::begin(axis_), std::end(axis_),
+                           [](const auto& axis) { return axis.isSymmetric(); });
+    }
+
+    /*! \brief Returns the number of symmetric axes.
+     */
+    int numSymmetricAxes() const
+    {
+        return std::count_if(std::begin(axis_), std::end(axis_),
+                             [](const auto& axis) { return axis.isSymmetric(); });
+    }
 
 private:
     std::vector<GridPoint> point_; /**< Points on the grid */

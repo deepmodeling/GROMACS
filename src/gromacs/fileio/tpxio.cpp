@@ -134,7 +134,8 @@ enum tpxv
     tpxv_StoreNonBondedInteractionExclusionGroup, /**< Store the non bonded interaction exclusion group in the topology */
     tpxv_VSite1,                                  /**< Added 1 type virtual site */
     tpxv_MTS,                                     /**< Added multiple time stepping */
-    tpxv_Count                                    /**< the total number of tpxv versions */
+    tpxv_AWHSymmetry, /**< Added AWH option to symmetrise bias dimensions */
+    tpxv_Count        /**< the total number of tpxv versions */
 };
 
 /*! \brief Version number of the file format written to run input
@@ -652,7 +653,7 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
     }
 }
 
-static void do_awhBias(gmx::ISerializer* serializer, gmx::AwhBiasParams* awhBiasParams, int gmx_unused file_version)
+static void do_awhBias(gmx::ISerializer* serializer, gmx::AwhBiasParams* awhBiasParams, int file_version)
 {
     serializer->doInt(&awhBiasParams->eTarget);
     serializer->doDouble(&awhBiasParams->targetBetaScaling);
@@ -682,6 +683,10 @@ static void do_awhBias(gmx::ISerializer* serializer, gmx::AwhBiasParams* awhBias
         serializer->doDouble(&dimParams->diffusion);
         serializer->doDouble(&dimParams->coordValueInit);
         serializer->doDouble(&dimParams->coverDiameter);
+        if (file_version >= tpxv_AWHSymmetry)
+        {
+            serializer->doBool(&dimParams->isSymmetric);
+        }
     }
 }
 

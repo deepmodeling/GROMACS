@@ -172,6 +172,31 @@ void checkPullDimParams(const std::string&   prefix,
         warning(wi, message);
     }
 
+    if (dimParams->isSymmetric)
+    {
+        if (dimParams->origin > 0)
+        {
+            gmx_fatal(FARGS,
+                      "%s-start (%g) must be negative in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->origin);
+        }
+        if (dimParams->end < 0)
+        {
+            gmx_fatal(FARGS,
+                      "%s-end (%g) must not be negative in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->end);
+        }
+        if (!gmx_within_tol(dimParams->end, -dimParams->origin, GMX_REAL_EPS))
+        {
+            gmx_fatal(FARGS,
+                      "%s-start (%g) must be the inverted value of %s-end (%g) in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->origin, prefix.c_str(), dimParams->end);
+        }
+    }
+
     if (dimParams->forceConstant <= 0)
     {
         warning_error(wi, "The force AWH bias force constant should be > 0");
@@ -367,6 +392,19 @@ void readDimParams(std::vector<t_inpfile>* inp,
     dimParams->origin = get_ereal(inp, opt, 0., wi);
     opt               = prefix + "-end";
     dimParams->end    = get_ereal(inp, opt, 0., wi);
+
+    if (bComment)
+    {
+        printStringNoNewline(inp, "Make the coordinate dimension symmetric around the origin (0).");
+        printStringNoNewline(inp,
+                             "Negative coordinate samples affect the bias in the positive "
+                             "coordinate range and ");
+        printStringNoNewline(inp,
+                             "are in turn affected by the same bias as positive coordinate "
+                             "samples.");
+    }
+    opt                    = prefix + "-symmetric";
+    dimParams->isSymmetric = (get_eeenum(inp, opt, yesno_names, wi) != 0);
 
     if (bComment)
     {
@@ -857,7 +895,7 @@ static double get_pull_coord_period(const t_pull_coord& pullCoordParams, const t
     if (pullCoordParams.eGeom == epullgDIR)
     {
         const real margin = 0.001;
-        // Make dims periodic when the interval covers > 95%
+        // Make dims periodic when the interval covers > 95% (or if it is symmetric)
         const real periodicFraction = 0.95;
 
         // Check if the pull direction is along a box vector
@@ -956,6 +994,7 @@ static void checkInputConsistencyInterval(const AwhParams* awhParams, warninp_t 
             int           coordIndex = dimParams->coordIndex;
             double origin = dimParams->origin, end = dimParams->end, period = dimParams->period;
             double coordValueInit = dimParams->coordValueInit;
+            bool   isSymmetric    = dimParams->isSymmetric;
 
             if ((period == 0) && (origin > end))
             {
@@ -986,7 +1025,8 @@ static void checkInputConsistencyInterval(const AwhParams* awhParams, warninp_t 
             }
 
             /* Warn if the pull initial coordinate value is not in the grid */
-            if (!valueIsInInterval(origin, end, period, coordValueInit))
+            if ((!isSymmetric && !valueIsInInterval(origin, end, period, coordValueInit))
+                || (isSymmetric && !valueIsInInterval(origin, end, period, fabs(coordValueInit))))
             {
                 auto message = formatString(
                         "The initial coordinate value (%.8g) for pull coordinate index %d falls "
