@@ -255,7 +255,20 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
             else
             {
                 double dev = getDeviationFromPointAlongGridAxis(grid, d, pointIndex, value[d]);
-                logWeight -= 0.5 * dimParams[d].betak * dev * dev;
+                double logWeightContrib = -0.5 * dimParams[d].betak * dev * dev;
+                if (grid.axis(d).isSymmetric())
+                {
+                    double projectionDev =
+                            getDistanceToSymmetryProjectionAlongGridAxis(grid, d, pointIndex);
+                    dev += projectionDev;
+                    double symLogWeightContrib = -0.5 * dimParams[d].betak * dev * dev;
+                    double weightSum = std::exp(logWeightContrib) + std::exp(symLogWeightContrib);
+                    logWeight += std::log(weightSum);
+                }
+                else
+                {
+                    logWeight += logWeightContrib;
+                }
             }
         }
     }

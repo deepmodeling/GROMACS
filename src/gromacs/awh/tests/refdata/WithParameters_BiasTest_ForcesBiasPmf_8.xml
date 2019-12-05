@@ -3,9 +3,9 @@
 <ReferenceData>
   <Sequence Name="Properties">
     <Int Name="Length">3</Int>
-    <String>stage:           final</String>
+    <String>stage:           initial</String>
     <String>convolve forces: no</String>
-    <String>skip updates:    yes</String>
+    <String>skip updates:    no</String>
   </Sequence>
   <Sequence Name="Force">
     <Int Name="Length">21</Int>
@@ -81,50 +81,50 @@
   </Sequence>
   <Sequence Name="PointBias">
     <Int Name="Length">21</Int>
-    <Real>-2.7472944451046044</Real>
-    <Real>-2.761382468216012</Real>
-    <Real>-2.8841487700294044</Real>
-    <Real>-3.2209538871703414</Real>
-    <Real>-3.5026939887681463</Real>
-    <Real>-3.5195714843782056</Real>
-    <Real>-3.4502423109495881</Real>
-    <Real>-3.469814270443778</Real>
-    <Real>-3.4405375988254123</Real>
-    <Real>-3.2226649751609364</Real>
-    <Real>-2.9351106219650442</Real>
-    <Real>-2.8182713948302314</Real>
-    <Real>-2.9109204815675662</Real>
-    <Real>-2.9974201933988711</Real>
-    <Real>-2.909045620263937</Real>
-    <Real>-2.7875440262964757</Real>
-    <Real>-2.7504540277720304</Real>
-    <Real>-2.7468371894369819</Real>
-    <Real>-2.7467110222070819</Real>
-    <Real>-2.7467093840049168</Real>
-    <Real>-2.7467093840049168</Real>
+    <Real>-2.7252571125147735</Real>
+    <Real>-2.7406945936944584</Real>
+    <Real>-2.8751558537650319</Real>
+    <Real>-3.2406864635799923</Real>
+    <Real>-3.5460149559446359</Real>
+    <Real>-3.5687884755542472</Real>
+    <Real>-3.4901303714495153</Real>
+    <Real>-3.4970015262603624</Real>
+    <Real>-3.4496621504416853</Real>
+    <Real>-3.2125376886451624</Real>
+    <Real>-2.91505863813991</Real>
+    <Real>-2.7962936950351538</Real>
+    <Real>-2.8888307484050659</Real>
+    <Real>-2.9753285114361296</Real>
+    <Real>-2.8869539267116591</Real>
+    <Real>-2.7654523327441973</Real>
+    <Real>-2.7283623342197525</Real>
+    <Real>-2.7247454958847039</Real>
+    <Real>-2.7246193286548039</Real>
+    <Real>-2.7246176904526385</Real>
+    <Real>-2.7246176904526385</Real>
   </Sequence>
   <Sequence Name="PointLogPmfsum">
     <Int Name="Length">21</Int>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.6151742683824608</Real>
-    <Real>4.4405502576634461</Real>
-    <Real>4.4441023756206013</Real>
-    <Real>4.3362531480424424</Real>
-    <Real>4.4431072875080853</Real>
-    <Real>4.3095557059880116</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.3095557021915543</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
-    <Real>4.0544222744639065</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>4.3399332371624695</Real>
+    <Real>4.1747174038020365</Real>
+    <Real>4.1623670231442622</Real>
+    <Real>4.0396595028897746</Real>
+    <Real>4.1446557041188061</Real>
+    <Real>3.9896509587172271</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.9896509549207697</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
+    <Real>3.7345175271931224</Real>
   </Sequence>
 </ReferenceData>

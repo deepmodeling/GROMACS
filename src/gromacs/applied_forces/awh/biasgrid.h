@@ -82,8 +82,9 @@ public:
      * \param[in] end              End value.
      * \param[in] period           Period, pass 0 if not periodic.
      * \param[in] pointDensity     Requested number of point per unit of axis length.
+     * \param[in] isSymmetric      If the grid axis is symmetric around the origin.
      */
-    GridAxis(double origin, double end, double period, double pointDensity);
+    GridAxis(double origin, double end, double period, double pointDensity, bool isSymmetric);
 
     /*! \brief Constructor.
      *
@@ -91,9 +92,10 @@ public:
      * \param[in] end              End value.
      * \param[in] period           Period, pass 0 if not periodic.
      * \param[in] numPoints        The number of points.
-     * \param[in] isFepLambdaAxis     If this axis is controlling lambda.
+     * \param[in] isFepLambdaAxis  If this axis is controlling lambda.
+     * \param[in] isSymmetric      If the grid axis is symmetric around the origin.
      */
-    GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis);
+    GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis, bool isSymmetric);
 
     /*! \brief Returns whether the axis has periodic boundaries.
      */
@@ -141,6 +143,10 @@ public:
      */
     bool isFepLambdaAxis() const { return isFepLambdaAxis_; }
 
+    /*! \brief Returns if the grid axis is symmetric around the origin.
+     */
+    bool isSymmetric() const { return isSymmetric_; }
+
 private:
     double origin_;            /**< Interval start value */
     double length_;            /**< Interval length */
@@ -148,7 +154,8 @@ private:
     double spacing_;           /**< Point spacing */
     int    numPoints_;         /**< Number of points in the interval */
     int    numPointsInPeriod_; /**< Number of points in a period (0 if no periodicity) */
-    bool isFepLambdaAxis_; /**< If this axis is coupled to the system's free energy lambda state */
+    bool   isFepLambdaAxis_;   /**< If this axis is coupled to the system's free energy lambda state */
+    bool   isSymmetric_;       /**< Whether this axis is symmetric around the origin or not. */
 };
 
 /*! \internal
@@ -395,6 +402,19 @@ bool pointsAlongLambdaAxis(const BiasGrid& grid, int pointIndex1, int pointIndex
  * \returns true if the two points have different lambda values.
  */
 bool pointsHaveDifferentLambda(const BiasGrid& grid, int pointIndex1, int pointIndex2);
+
+/*! \brief
+ * Get the distance between a coordinate value of a point and its closest projection across a
+ * symmetry boundary at the origin (or the periodic boundary at the other end of the interval,
+ * if the axis is periodic along the axis).
+ *
+ * \param[in] grid        The grid.
+ * \param[in] dimIndex    Dimensional index in [0, ndim -1].
+ * \param[in] pointIndex  Grid point index.
+ * \returns the distance the distance from the coordinate point to its projection across its closest
+ * symmetry boundary.
+ */
+double getDistanceToSymmetryProjectionAlongGridAxis(const BiasGrid& grid, int dimIndex, int pointIndex);
 
 } // namespace gmx
 
