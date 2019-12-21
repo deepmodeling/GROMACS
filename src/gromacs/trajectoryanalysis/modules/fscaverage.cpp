@@ -99,8 +99,7 @@ GaussianSpreadKernelParameters::Shape makeSpreadKernel(real sigma, real nSigma, 
 class FSCAvg : public TrajectoryAnalysisModule
 {
 public:
-    
-    FSCAvg(): amplitudeLookup_(amplitudeLookupMethod_)
+    FSCAvg() : amplitudeLookup_(amplitudeLookupMethod_)
     {
         registerAnalysisDataset(&fscCurve_, "fsc");
         registerAnalysisDataset(&fscAverage_, "fscAverage");
@@ -135,39 +134,35 @@ private:
     // mdAtoms are needed for amplitude lookup
     t_mdatoms mdAtoms_;
 
-    std::vector<ExponentialMovingAverage> movingMapAverager_;
+    std::vector<ExponentialMovingAverage>               movingMapAverager_;
     MultiDimArray<std::vector<float>, dynamicExtents3D> movingMapData_;
 
     //! Indices of the atoms that shall be fit to the density
     std::vector<index> indices_;
-    //! Determines how to measure similarity between simulated and reference density
-    DensitySimilarityMeasureMethod similarityMeasureMethod_ = DensitySimilarityMeasureMethod::innerProduct;
     //! Determines with what weight atoms are spread
     DensityFittingAmplitudeMethod amplitudeLookupMethod_ = DensityFittingAmplitudeMethod::Unity;
     DensityFittingAmplitudeLookup amplitudeLookup_;
     //! The spreading width used for the gauss transform of atoms onto the density grid
     real gaussianTransformSpreadingWidth_ = 0.2;
     //! The spreading range for spreading atoms onto the grid in multiples of the spreading width
-    real gaussianTransformSpreadingRangeInMultiplesOfWidth_ = 4.0;
-    std::vector<RVec>  transformedCoordinates_;
+    real              gaussianTransformSpreadingRangeInMultiplesOfWidth_ = 4.0;
+    std::vector<RVec> transformedCoordinates_;
     //! Normalize reference and simulated densities
-    bool normalizeDensities_ = true;
-    Selection refSel_;
-    basic_mdspan<const float, dynamicExtents3D> referenceDensity_;
+    bool                                                normalizeDensities_ = true;
+    Selection                                           refSel_;
+    basic_mdspan<const float, dynamicExtents3D>         referenceDensity_;
     MultiDimArray<std::vector<float>, dynamicExtents3D> referenceDensityData_;
-    compat::optional<TranslateAndScale>             transformationToDensityLattice_;
-    RVec                          referenceDensityCenter_;
-    compat::optional<GaussTransform3D> gaussTransform_;
-    compat::optional<FourierShellCorrelation> fsc_;
+    compat::optional<TranslateAndScale>                 transformationToDensityLattice_;
+    RVec                                                referenceDensityCenter_;
+    compat::optional<GaussTransform3D>                  gaussTransform_;
+    compat::optional<FourierShellCorrelation>           fsc_;
     // Copy and assign disallowed by base.
 };
 
 void FSCAvg::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings)
 {
 
-    static const char* const desc[] = {
-        "[THISMODULE] calculates the average FSC."
-    };
+    static const char* const desc[] = { "[THISMODULE] calculates the average FSC." };
 
     settings->setHelpText(desc);
 
@@ -179,60 +174,59 @@ void FSCAvg::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings*
                                .defaultBasename("fsc")
                                .description("Fourier shell correlation as function of time"));
 
-    options->addOption(FileNameOption("fscmove")
-                               .filetype(eftPlot)
-                               .outputFile()
-                               .required()
-                               .store(&fnFSCmove_)
-                               .defaultBasename("fsc-moving-average-map")
-                               .description("Fourier shell correlation of moving map as function of time"));
+    options->addOption(
+            FileNameOption("fscmove")
+                    .filetype(eftPlot)
+                    .outputFile()
+                    .required()
+                    .store(&fnFSCmove_)
+                    .defaultBasename("fsc-moving-average-map")
+                    .description("Fourier shell correlation of moving map as function of time"));
 
-    options->addOption(FileNameOption("fscmoveavg")
-                               .filetype(eftPlot)
-                               .outputFile()
-                               .required()
-                               .store(&fnFSCmoveavg_)
-                               .defaultBasename("fsc-average-moving-average-map")
-                               .description("Fourier shell correlation average of moving map as function of time"));
+    options->addOption(
+            FileNameOption("fscmoveavg")
+                    .filetype(eftPlot)
+                    .outputFile()
+                    .required()
+                    .store(&fnFSCmoveavg_)
+                    .defaultBasename("fsc-average-moving-average-map")
+                    .description(
+                            "Fourier shell correlation average of moving map as function of time"));
 
     options->addOption(FileNameOption("avg")
-                                .filetype(eftPlot)
-                                .outputFile()
-                                .required()
-                                .store(&fnFSCAvg_)
-                                .defaultBasename("fscavg")
-                                .description("FSC average as function of time"));
+                               .filetype(eftPlot)
+                               .outputFile()
+                               .required()
+                               .store(&fnFSCAvg_)
+                               .defaultBasename("fscavg")
+                               .description("FSC average as function of time"));
 
     options->addOption(FileNameOption("ordinate-axis")
-                                .filetype(eftPlot)
-                                .outputFile()
-                                .required()
-                                .store(&fnAxis_)
-                                .defaultBasename("axis")
-                                .description("FSC x-axis"));
+                               .filetype(eftPlot)
+                               .outputFile()
+                               .required()
+                               .store(&fnAxis_)
+                               .defaultBasename("axis")
+                               .description("FSC x-axis"));
 
     options->addOption(EnumOption<DensityFittingAmplitudeMethod>("amplitude")
-                                .enumValue(c_densityFittingAmplitudeMethodNames.m_elements)
-                                .store(&amplitudeLookupMethod_));
+                               .enumValue(c_densityFittingAmplitudeMethodNames.m_elements)
+                               .store(&amplitudeLookupMethod_));
 
     options->addOption(RealOption("gausswidth")
-                                .store(&gaussianTransformSpreadingWidth_)
-                                .description("Spreading Gaussian width to generate density in nm."));
+                               .store(&gaussianTransformSpreadingWidth_)
+                               .description("Spreading Gaussian width to generate density in nm."));
 
-    options->addOption(IntegerOption("shells")
-                                .store(&numFscShells_)
-                                .defaultValue(61)
-                                .description("Number of FSC shells."));
+    options->addOption(
+            IntegerOption("shells").store(&numFscShells_).defaultValue(61).description("Number of FSC shells."));
 
-    options->addOption(StringOption("refmap")
-                               .store(&fnDensity_)
-                               .description("The name of the reference density."));
+    options->addOption(
+            StringOption("refmap").store(&fnDensity_).description("The name of the reference density."));
 
     options->addOption(SelectionOption("sel").store(&refSel_).required().description(
             "Reference selection for FSC computation"));
 
     settings->setFlag(TrajectoryAnalysisSettings::efRequireTop);
-
 }
 
 
@@ -241,32 +235,33 @@ void FSCAvg::optionsFinished(TrajectoryAnalysisSettings* /* settings */)
     MrcDensityMapOfFloatFromFileReader reader(fnDensity_);
     transformationToDensityLattice_.emplace(reader.transformationToDensityLattice());
     referenceDensityData_ = reader.densityDataCopy();
-    const double norm = std::accumulate(begin(referenceDensityData_), end(referenceDensityData_),0.);
+    const double norm = std::accumulate(begin(referenceDensityData_), end(referenceDensityData_), 0.);
 
-    std::transform(begin(referenceDensityData_), end(referenceDensityData_),begin(referenceDensityData_),
-        [norm](real value){return value/norm;});
+    std::transform(begin(referenceDensityData_), end(referenceDensityData_),
+                   begin(referenceDensityData_), [norm](real value) { return value / norm; });
 
-    RVec unitVector = {1,0,0};
+    RVec unitVector = { 1, 0, 0 };
     transformationToDensityLattice_->scaleOperationOnly().inverseIgnoringZeroScale(
             { &unitVector, &unitVector + 1 });
-    
+
     fsc_.emplace(referenceDensityData_.asConstView(), unitVector[0], numFscShells_);
-    
-    const auto axisfile = fopen(fnAxis_.c_str(),"w");
+    numFscShells_ = fsc_->numberOfShells();
+
+    const auto axisfile = fopen(fnAxis_.c_str(), "w");
     for (ptrdiff_t i = 0; i < numFscShells_; i++)
     {
-        fprintf(axisfile, "%10.10g\n", i*fsc_->spacing());
+        fprintf(axisfile, "%10.10g\n", i * fsc_->spacing());
     }
     fclose(axisfile);
-    
+
     // normalize the reference
     const real sumOfDensityData = std::accumulate(begin(referenceDensityData_.asView()),
-                                                      end(referenceDensityData_.asView()), 0.);
-        for (float& referenceDensityVoxel : referenceDensityData_.asView())
-        {
-            referenceDensityVoxel /= sumOfDensityData;
-        }
-    
+                                                  end(referenceDensityData_.asView()), 0.);
+    for (float& referenceDensityVoxel : referenceDensityData_.asView())
+    {
+        referenceDensityVoxel /= sumOfDensityData;
+    }
+
     referenceDensity_ = referenceDensityData_.asConstView();
 
     referenceDensityCenter_ = { real(referenceDensity_.extent(XX)) / 2,
@@ -282,39 +277,44 @@ void FSCAvg::optionsFinished(TrajectoryAnalysisSettings* /* settings */)
             { &referenceDensityOriginShift, &referenceDensityOriginShift + 1 });
     referenceDensityCenter_ -= referenceDensityOriginShift;
 
-    GaussianSpreadKernelParameters::Shape spreadKernel = makeSpreadKernel(gaussianTransformSpreadingWidth_, gaussianTransformSpreadingRangeInMultiplesOfWidth_, transformationToDensityLattice_->scaleOperationOnly());
+    GaussianSpreadKernelParameters::Shape spreadKernel = makeSpreadKernel(
+            gaussianTransformSpreadingWidth_, gaussianTransformSpreadingRangeInMultiplesOfWidth_,
+            transformationToDensityLattice_->scaleOperationOnly());
 
     gaussTransform_.emplace(GaussTransform3D(referenceDensity_.extents(), spreadKernel));
-    
+
     movingMapData_.resize(referenceDensity_.extents());
-    movingMapAverager_.resize(movingMapData_.asConstView().mapping().required_span_size(), {10});
+    movingMapAverager_.resize(movingMapData_.asConstView().mapping().required_span_size(), { 10 });
     amplitudeLookup_ = DensityFittingAmplitudeLookup(amplitudeLookupMethod_);
 }
 
-void addPlotModule(AnalysisData * analysisData, const AnalysisDataPlotSettings& plotSettings, 
-    const std::string & fn, const std::string & title, const std::string & ylabel, int numberOfColumns)
+void addPlotModule(AnalysisData*                   analysisData,
+                   const AnalysisDataPlotSettings& plotSettings,
+                   const std::string&              fn,
+                   const std::string&              title,
+                   const std::string&              ylabel,
+                   int                             numberOfColumns)
 {
-        analysisData->setColumnCount(0, numberOfColumns);
-        AnalysisDataPlotModulePointer plotModule = 
-            std::make_shared<AnalysisDataPlotModule>(plotSettings);
-        plotModule->setFileName(fn);
-        plotModule->setXAxisIsTime();
-        plotModule->setTitle(title);
-        plotModule->setYLabel(ylabel.c_str());
-        analysisData->addModule(plotModule);    
+    analysisData->setColumnCount(0, numberOfColumns);
+    AnalysisDataPlotModulePointer plotModule = std::make_shared<AnalysisDataPlotModule>(plotSettings);
+    plotModule->setFileName(fn);
+    plotModule->setXAxisIsTime();
+    plotModule->setTitle(title);
+    plotModule->setYLabel(ylabel.c_str());
+    analysisData->addModule(plotModule);
 }
 
-t_mdatoms mdatomsFromtAtoms(const t_atoms & atoms)
+t_mdatoms mdatomsFromtAtoms(const t_atoms& atoms)
 {
     t_mdatoms mdAtoms;
-    
+
     mdAtoms.nr = atoms.nr;
     snew(mdAtoms.massT, mdAtoms.nr);
     snew(mdAtoms.chargeA, mdAtoms.nr);
 
     for (int i = 0; i < mdAtoms.nr; i++)
     {
-        mdAtoms.massT[i] = atoms.atom[i].m;
+        mdAtoms.massT[i]   = atoms.atom[i].m;
         mdAtoms.chargeA[i] = atoms.atom[i].q;
     }
     return mdAtoms;
@@ -322,19 +322,22 @@ t_mdatoms mdatomsFromtAtoms(const t_atoms & atoms)
 
 void FSCAvg::initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top)
 {
-    addPlotModule(&fscCurve_, settings.plotSettings(), fnFSC_, 
-        "Fourier Shell Correlation", "FSC", numFscShells_);
+    addPlotModule(&fscCurve_, settings.plotSettings(), fnFSC_, "Fourier Shell Correlation", "FSC",
+                  numFscShells_);
     addPlotModule(&fscMoveCurve_, settings.plotSettings(), fnFSCmove_,
-        "Fourier Shell Correlation Moving Map Average", "FSC", numFscShells_);
+                  "Fourier Shell Correlation Moving Map Average", "FSC", numFscShells_);
     addPlotModule(&fscAverage_, settings.plotSettings(), fnFSCAvg_,
-        "Fourier Shell Correlation Average", "FSC avg", numFscShells_);
+                  "Fourier Shell Correlation Average", "FSC avg", numFscShells_);
     addPlotModule(&fscMoveAverage_, settings.plotSettings(), fnFSCmoveavg_,
-        "Fourier Shell Correlation Average Moving Map Average", "FSC avg", numFscShells_);
+                  "Fourier Shell Correlation Average Moving Map Average", "FSC avg", numFscShells_);
     mdAtoms_ = mdatomsFromtAtoms(*(top.atoms()));
 }
 
-void addData(int nr, real time, const AnalysisData & analysisData, const std::vector<real> & frameData, 
-    TrajectoryAnalysisModuleData* pdata)
+void addData(int                           nr,
+             real                          time,
+             const AnalysisData&           analysisData,
+             const std::vector<real>&      frameData,
+             TrajectoryAnalysisModuleData* pdata)
 {
     AnalysisDataHandle dh = pdata->dataHandle(analysisData);
     dh.startFrame(nr, time);
@@ -344,12 +347,11 @@ void addData(int nr, real time, const AnalysisData & analysisData, const std::ve
 
 void FSCAvg::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata)
 {
-    
+
     transformedCoordinates_.resize(refSel_.atomIndices().size());
     // pick and copy atom coordinates
     std::transform(std::cbegin(refSel_.atomIndices()), std::cend(refSel_.atomIndices()),
-                   std::begin(transformedCoordinates_),
-                   [&fr](int index) { return fr.x[index]; });
+                   std::begin(transformedCoordinates_), [&fr](int index) { return fr.x[index]; });
 
     // pick periodic image that is closest to the center of the reference density
     for (RVec& x : transformedCoordinates_)
@@ -364,7 +366,6 @@ void FSCAvg::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, Trajectory
 
     // spread atoms on grid
     gaussTransform_->setZero();
-    
     std::vector<real> amplitudes = amplitudeLookup_(mdAtoms_, refSel_.atomIndices());
 
     if (normalizeDensities_)
@@ -386,35 +387,32 @@ void FSCAvg::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, Trajectory
 
     /* Calculate the moving map average */
     auto movingMapAveragerIterator = std::begin(movingMapAverager_);
-    for(const auto voxelValue : gaussTransform_->constView())
+    for (const auto voxelValue : gaussTransform_->constView())
     {
         movingMapAveragerIterator->updateWithDataPoint(voxelValue);
         ++movingMapAveragerIterator;
     }
 
     movingMapAveragerIterator = std::begin(movingMapAverager_);
-    for( auto & voxelValue: movingMapData_)
+    for (auto& voxelValue : movingMapData_)
     {
         voxelValue = movingMapAveragerIterator->biasCorrectedAverage();
         ++movingMapAveragerIterator;
     }
 
     /* Caluclate FSC curves from maps */
-    const FourierShellCorrelationCurve & curve = fsc_->fscCurve(gaussTransform_->constView());
-    const FourierShellCorrelationCurve & moveCurve = fsc_->fscCurve(movingMapData_.asConstView());
+    const FourierShellCorrelationCurve& curve     = fsc_->fscCurve(gaussTransform_->constView());
+    const FourierShellCorrelationCurve& moveCurve = fsc_->fscCurve(movingMapData_.asConstView());
 
     /* Store the results in analysis data */
     addData(frnr, fr.time, fscCurve_, curve.correlation, pdata);
     addData(frnr, fr.time, fscAverage_, fscAverage(curve), pdata);
     addData(frnr, fr.time, fscMoveCurve_, moveCurve.correlation, pdata);
     addData(frnr, fr.time, fscMoveAverage_, fscAverage(moveCurve), pdata);
-
 }
 
 
-void FSCAvg::finishAnalysis(int /*nframes*/)
-{
-}
+void FSCAvg::finishAnalysis(int /*nframes*/) {}
 
 
 void FSCAvg::writeOutput() {}
