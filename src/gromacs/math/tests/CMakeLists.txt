@@ -39,6 +39,7 @@ gmx_add_unit_test(MathUnitTests math-test
         densityfit.cpp
         dofit.cpp
         exponentialmovingaverage.cpp
+        fsc.cpp
         functions.cpp
         gausstransform.cpp
         densityfittingforce.cpp
