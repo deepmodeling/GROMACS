@@ -65,6 +65,9 @@ macro(manage_linear_algebra_library name function_in_library)
         # been specified (which is the default).
         if(GMX_${name}_USER)
             set(_libraries_to_link ${GMX_${name}_USER})
+            if(GMX_${name}_EXTRA)
+                set(_libraries_to_link ${_libraries_to_link} ${GMX_${name}_EXTRA})
+            endif()
             set(_library_was_found 1)
 
             if(NOT _find_quietly)
@@ -190,9 +193,9 @@ function(gmxManageLinearAlgebraLibraries)
     # Probably not necessary to unset, but let's be clear about usage.
     unset(LINEAR_ALGEBRA_LIBRARIES)
 
+    manage_linear_algebra_library(LAPACK cheev_)
     manage_linear_algebra_library(BLAS dgemm_)
     set(BLAS_FIND_QUIETLY ON)
-    manage_linear_algebra_library(LAPACK cheev_)
 
     # Propagate the new local value to the parent scope
     set(LINEAR_ALGEBRA_LIBRARIES "${LINEAR_ALGEBRA_LIBRARIES}" PARENT_SCOPE)

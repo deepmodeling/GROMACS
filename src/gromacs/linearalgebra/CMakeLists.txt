@@ -44,7 +44,7 @@ if (NOT GMX_EXTERNAL_LAPACK)
 endif()
 
 set(LINEARALGEBRA_SOURCES
-    ${LINEARALGEBRA_SOURCES} ${BLAS_SOURCES} ${LAPACK_SOURCES})
+    ${LINEARALGEBRA_SOURCES} ${LAPACK_SOURCES} ${BLAS_SOURCES})
 
 add_library(linearalgebra OBJECT ${LINEARALGEBRA_SOURCES})
 gmx_target_compile_options(linearalgebra)
