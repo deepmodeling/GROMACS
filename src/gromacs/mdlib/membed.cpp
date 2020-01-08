@@ -894,12 +894,12 @@ static int rm_bonded(t_block* ins_at, gmx_mtop_t* mtop)
         {
             for (j = 0; j < F_LJ; j++)
             {
-                mtop->moltype[i].ilist[j].iatoms.clear();
+                mtop->moltype[i].ilist[j].clear();
             }
 
             for (j = F_POSRES; j <= F_VSITEN; j++)
             {
-                mtop->moltype[i].ilist[j].iatoms.clear();
+                mtop->moltype[i].ilist[j].clear();
             }
         }
     }

@@ -75,8 +75,8 @@ static void constr_recur(const ListOfLists<int>&        at2con,
 
     (*count)++;
 
-    gmx::ArrayRef<const int> ia1 = ilist[F_CONSTR].iatoms;
-    gmx::ArrayRef<const int> ia2 = ilist[F_CONSTRNC].iatoms;
+    gmx::ArrayRef<const int> ia1 = ilist[F_CONSTR].iatoms();
+    gmx::ArrayRef<const int> ia2 = ilist[F_CONSTRNC].iatoms();
 
     /* Loop over all constraints connected to this atom */
     for (const int con : at2con[at])

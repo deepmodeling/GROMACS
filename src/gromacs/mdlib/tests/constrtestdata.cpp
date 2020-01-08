@@ -147,22 +147,15 @@ ConstraintsTestData::ConstraintsTestData(const std::string&       title,
         iparams[constraints.at(3 * i)].constr.dB = constraintsR0.at(constraints.at(3 * i));
     }
     idef_ = std::make_unique<InteractionDefinitions>(mtop_.ffparams);
-    for (index i = 0; i < ssize(constraints); i++)
+    for (index i = 0; i < ssize(constraints); i += 3)
     {
-        idef_->il[F_CONSTR].iatoms.push_back(constraints.at(i));
+        idef_->il[F_CONSTR].push_back<2>(constraints[i], { constraints[i + 1], constraints[i + 2] });
     }
 
     // Constraints and their parameters (global topology)
-    InteractionList interactionList;
-    interactionList.iatoms.resize(constraints.size());
-    std::copy(constraints.begin(), constraints.end(), interactionList.iatoms.begin());
-    InteractionList interactionListEmpty;
-    interactionListEmpty.iatoms.resize(0);
-
     gmx_moltype_t molType;
-    molType.atoms.nr             = numAtoms;
-    molType.ilist.at(F_CONSTR)   = interactionList;
-    molType.ilist.at(F_CONSTRNC) = interactionListEmpty;
+    molType.atoms.nr           = numAtoms;
+    molType.ilist.at(F_CONSTR) = idef_->il[F_CONSTR];
     mtop_.moltype.push_back(molType);
 
     gmx_molblock_t molBlock;

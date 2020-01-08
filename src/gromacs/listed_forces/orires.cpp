@@ -126,8 +126,7 @@ void init_orires(FILE*                 fplog,
     int                  nmol;
     while (const InteractionLists* il = gmx_mtop_ilistloop_next(iloop, &nmol))
     {
-        const int numOrires = (*il)[F_ORIRES].size();
-        if (nmol > 1 && numOrires > 0)
+        if (nmol > 1 && !(*il)[F_ORIRES].empty())
         {
             gmx_fatal(FARGS,
                       "Found %d copies of a molecule with orientation restrains while the current "
@@ -136,9 +135,9 @@ void init_orires(FILE*                 fplog,
                       nmol);
         }
 
-        for (int i = 0; i < numOrires; i += 3)
+        for (const auto entry : (*il)[F_ORIRES])
         {
-            int type = (*il)[F_ORIRES].iatoms[i];
+            int type = entry.parameterType;
             int ex   = mtop->ffparams.iparams[type].orires.ex;
             if (ex >= od->nex)
             {
@@ -380,17 +379,17 @@ void print_orires_log(FILE* log, t_oriresdata* od)
     }
 }
 
-real calc_orires_dev(const gmx_multisim_t* ms,
-                     int                   nfa,
-                     const t_iatom         forceatoms[],
-                     const t_iparams       ip[],
-                     const t_mdatoms*      md,
-                     ArrayRef<const RVec>  xWholeMolecules,
-                     const rvec            x[],
-                     const t_pbc*          pbc,
-                     t_fcdata*             fcd,
-                     history_t*            hist)
+real calc_orires_dev(const gmx_multisim_t*  ms,
+                     const InteractionList& ilist,
+                     const t_iparams        ip[],
+                     const t_mdatoms*       md,
+                     ArrayRef<const RVec>   xWholeMolecules,
+                     const rvec             x[],
+                     const t_pbc*           pbc,
+                     t_fcdata*              fcd,
+                     history_t*             hist)
 {
+    GMX_RELEASE_ASSERT(ilist.functionType() == F_ORIRES, "Expect an orires ilist");
     int           nref;
     real          edt, edt_1, invn, pfac, r2, invr, corrfac, wsv2, sw, dev;
     OriresMatEq*  matEq;
@@ -467,17 +466,17 @@ real calc_orires_dev(const gmx_multisim_t* ms,
     /* Calculate the rotation matrix to rotate x to the reference orientation */
     calc_fit_R(DIM, nref, mref, xref, xtmp, od->R);
 
-    for (int fa = 0; fa < nfa; fa += 3)
+    for (const auto entry : ilist)
     {
-        const int type           = forceatoms[fa];
+        const int type           = entry.parameterType;
         const int restraintIndex = type - od->typeMin;
         if (pbc)
         {
-            pbc_dx_aiuc(pbc, x[forceatoms[fa + 1]], x[forceatoms[fa + 2]], r_unrot);
+            pbc_dx_aiuc(pbc, x[entry.atoms[0]], x[entry.atoms[1]], r_unrot);
         }
         else
         {
-            rvec_sub(x[forceatoms[fa + 1]], x[forceatoms[fa + 2]], r_unrot);
+            rvec_sub(x[entry.atoms[0]], x[entry.atoms[1]], r_unrot);
         }
         mvmul(od->R, r_unrot, r);
         r2   = norm2(r);
@@ -522,9 +521,9 @@ real calc_orires_dev(const gmx_multisim_t* ms,
         }
     }
 
-    for (int fa = 0; fa < nfa; fa += 3)
+    for (const auto entry : ilist)
     {
-        const int type           = forceatoms[fa];
+        const int type           = entry.parameterType;
         const int restraintIndex = type - od->typeMin;
         rvec5&    Dtav           = od->Dtav[restraintIndex];
         if (bTAV)
@@ -594,9 +593,9 @@ real calc_orires_dev(const gmx_multisim_t* ms,
     wsv2 = 0;
     sw   = 0;
 
-    for (int fa = 0; fa < nfa; fa += 3)
+    for (const auto entry : ilist)
     {
-        const int type           = forceatoms[fa];
+        const int type           = entry.parameterType;
         const int restraintIndex = type - od->typeMin;
         const int ex             = ip[type].orires.ex;
 

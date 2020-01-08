@@ -160,7 +160,7 @@ static void check_viol(FILE*                          log,
                        real                           vvindex[],
                        t_fcdata*                      fcd)
 {
-    int             i, j, nat, n, type, nviol, ndr, label;
+    int             j, nat, n, type, nviol, ndr, label;
     real            rt, mviol, tviol, viol, lam, dvdl, drt;
     rvec*           fshift;
     static gmx_bool bFirst = TRUE;
@@ -175,7 +175,7 @@ static void check_viol(FILE*                          log,
     {
         reset5();
     }
-    gmx::ArrayRef<const int> forceatoms = disres.iatoms;
+    gmx::ArrayRef<const int> forceatoms = disres.rawIndices();
     for (j = 0; (j < isize); j++)
     {
         vvindex[j] = 0;
@@ -185,7 +185,7 @@ static void check_viol(FILE*                          log,
     // The label for a distance restraint should be at most one larger
     // than the previous label.
     int label_old = forceparams[forceatoms[0]].disres.label;
-    for (i = 0; (i < disres.size()); i += nat)
+    for (gmx::index i = 0; i < forceatoms.ssize(); i += nat)
     {
         type  = forceatoms[i];
         label = forceparams[type].disres.label;
@@ -198,27 +198,27 @@ static void check_viol(FILE*                          log,
             gmx_fatal(FARGS,
                       "Label mismatch in distance restrains. Label for restraint %d is %d, "
                       "expected it to be either %d or %d",
-                      i / nat, label, label_old, label_old + 1);
+                      int(i) / nat, label, label_old, label_old + 1);
         }
     }
     // Get offset for label index
     label_old = forceparams[forceatoms[0]].disres.label;
-    for (i = 0; (i < disres.size());)
+    for (gmx::index i = 0; i < forceatoms.ssize();)
     {
         type  = forceatoms[i];
         n     = 0;
         label = forceparams[type].disres.label - label_old;
         if (debug)
         {
-            fprintf(debug, "DISRE: ndr = %d, label = %d  i=%d, n =%d\n", ndr, label, i, n);
+            fprintf(debug, "DISRE: ndr = %d, label = %d  i=%d, n =%d\n", ndr, label, int(i), n);
         }
         do
         {
             n += nat;
-        } while (((i + n) < disres.size())
+        } while (((i + n) < forceatoms.ssize())
                  && (forceparams[forceatoms[i + n]].disres.label == label + label_old));
 
-        calc_disres_R_6(nullptr, nullptr, n, &forceatoms[i], x, pbc, fcd, nullptr);
+        calc_disres_R_6(nullptr, nullptr, forceatoms.subArray(i, n), x, pbc, fcd, nullptr);
 
         if (fcd->disres.Rt_6[label] <= 0)
         {
@@ -269,7 +269,7 @@ static void check_viol(FILE*                          log,
 
     if (bFirst)
     {
-        fprintf(stderr, "\nThere are %d restraints and %d pairs\n", ndr, disres.size() / nat);
+        fprintf(stderr, "\nThere are %d restraints and %zu pairs\n", ndr, disres.numInteractions());
         bFirst = FALSE;
     }
     if (ntop)
@@ -385,16 +385,15 @@ static void dump_stats(FILE*                          log,
     fprintf(log, "\n");
     fprintf(log, "++++++++++++++ STATISTICS ++++++++++++++++++++++++\n");
     snew(drs, dd.nres);
-    const int nra = interaction_function[F_DISRES].nratoms + 1;
-    for (int j = 0; j < disres.size(); j += nra)
+    for (const auto entry : disres)
     {
         // Note that the restraint i can be used by multiple pairs
-        const int i = disres.iatoms[j] - dd.type_min;
+        const int i = entry.parameterType - dd.type_min;
         GMX_RELEASE_ASSERT(i >= 0 && i < dd.nres, "The restraint index should be in range");
 
-        drs[i].label  = ip[disres.iatoms[j]].disres.label;
+        drs[i].label  = ip[entry.parameterType].disres.label;
         drs[i].bCore  = is_core(drs[i].label, isize, index);
-        drs[i].up1    = ip[disres.iatoms[j]].disres.up1;
+        drs[i].up1    = ip[entry.parameterType].disres.up1;
         drs[i].r      = dr->aver1[i] / nsteps;
         drs[i].rT3    = gmx::invcbrt(dr->aver_3[i] / nsteps);
         drs[i].rT6    = gmx::invsixthroot(dr->aver_6[i] / nsteps);
@@ -403,8 +402,8 @@ static void dump_stats(FILE*                          log,
         drs[i].violT6 = std::max(0.0, static_cast<double>(drs[i].rT6 - drs[i].up1));
         if (atoms)
         {
-            int j1 = disres.iatoms[j + 1];
-            int j2 = disres.iatoms[j + 2];
+            int j1 = entry.atoms[0];
+            int j2 = entry.atoms[1];
             atoms->pdbinfo[j1].bfac += drs[i].violT3 * 5;
             atoms->pdbinfo[j2].bfac += drs[i].violT3 * 5;
         }
@@ -431,7 +430,7 @@ static void dump_clust_stats(FILE*                          fp,
                              int                            isize,
                              int                            index[])
 {
-    int         k, nra, mmm = 0;
+    int         k, mmm = 0;
     double      sumV, maxV, sumVT3, sumVT6, maxVT3, maxVT6;
     t_dr_stats* drs;
 
@@ -458,24 +457,23 @@ static void dump_clust_stats(FILE*                          fp,
         {
             gmx_fatal(FARGS, "Inconsistency with cluster %d. Invalid name", k);
         }
-        nra  = interaction_function[F_DISRES].nratoms + 1;
         sumV = sumVT3 = sumVT6 = maxV = maxVT3 = maxVT6 = 0;
 
         // Use a map to process each restraint only once while looping over all pairs
         std::unordered_map<int, bool> restraintHasBeenProcessed;
-        for (int j = 0; j < dd.nres; j += nra)
+        for (const auto entry : disres)
         {
             // Note that the restraint i can be used by multiple pairs
-            const int i = disres.iatoms[j] - dd.type_min;
+            const int i = entry.parameterType - dd.type_min;
 
             if (restraintHasBeenProcessed[i])
             {
                 continue;
             }
 
-            drs[i].label = ip[disres.iatoms[j]].disres.label;
+            drs[i].label = ip[entry.parameterType].disres.label;
             drs[i].bCore = is_core(drs[i].label, isize, index);
-            drs[i].up1   = ip[disres.iatoms[j]].disres.up1;
+            drs[i].up1   = ip[entry.parameterType].disres.up1;
             drs[i].r     = dr[k].aver1[i] / dr[k].nframes;
             if ((dr[k].aver_3[i] <= 0) || !std::isfinite(dr[k].aver_3[i]))
             {
@@ -533,7 +531,7 @@ static void dump_disre_matrix(const char*                   fn,
     FILE*  fp;
     int*   resnr;
     int    n_res, a_offset, mol, a;
-    int    i, j, nra, nratoms, tp, ri, rj, index, nlabel, label;
+    int    i, j, nra, tp, ri, rj, index, nlabel, label;
     int    ai, aj, *ptr;
     real **matrix, *t_res, hi, *w_dr, rav, rviol;
     t_rgb  rlo = { 1, 1, 1 };
@@ -570,22 +568,22 @@ static void dump_disre_matrix(const char*                   fn,
     {
         snew(matrix[i], n_res);
     }
-    nratoms = interaction_function[F_DISRES].nratoms;
-    nra     = (idef.il[F_DISRES].size() / (nratoms + 1));
+    nra = idef.il[F_DISRES].numInteractions();
     snew(ptr, nra + 1);
     index  = 0;
     nlabel = 0;
     ptr[0] = 0;
     snew(w_dr, ndr);
-    for (i = 0; (i < idef.il[F_DISRES].size()); i += nratoms + 1)
+    int interactionIndex = 0;
+    for (const auto entry : idef.il[F_DISRES])
     {
-        tp    = idef.il[F_DISRES].iatoms[i];
+        tp    = entry.parameterType;
         label = idef.iparams[tp].disres.label;
 
         if (label != index)
         {
             /* Set index pointer */
-            ptr[index + 1] = i;
+            ptr[index + 1] = interactionIndex;
             if (nlabel <= 0)
             {
                 gmx_fatal(FARGS, "nlabel is %d, label = %d", nlabel, label);
@@ -603,16 +601,17 @@ static void dump_disre_matrix(const char*                   fn,
         {
             nlabel++;
         }
+        interactionIndex++;
     }
     printf("nlabel = %d, index = %d, ndr = %d\n", nlabel, index, ndr);
     hi = 0;
     for (i = 0; (i < ndr); i++)
     {
-        for (j = ptr[i]; (j < ptr[i + 1]); j += nratoms + 1)
+        for (j = ptr[i]; (j < ptr[i + 1]); j++)
         {
-            tp = idef.il[F_DISRES].iatoms[j];
-            ai = idef.il[F_DISRES].iatoms[j + 1];
-            aj = idef.il[F_DISRES].iatoms[j + 2];
+            tp = idef.il[F_DISRES][j].parameterType;
+            ai = idef.il[F_DISRES][j].atoms[0];
+            aj = idef.il[F_DISRES][j].atoms[1];
 
             ri = resnr[ai];
             rj = resnr[aj];

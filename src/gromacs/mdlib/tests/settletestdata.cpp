@@ -101,14 +101,11 @@ SettleTestData::SettleTestData(int numSettles) :
     const int settleType = 0;
     mtop_.moltype.resize(1);
     mtop_.molblock.resize(1);
-    mtop_.molblock[0].type   = 0;
-    std::vector<int>& iatoms = mtop_.moltype[0].ilist[F_SETTLE].iatoms;
+    mtop_.molblock[0].type = 0;
     for (int i = 0; i < numSettles; ++i)
     {
-        iatoms.push_back(settleType);
-        iatoms.push_back(i * atomsPerSettle_ + 0);
-        iatoms.push_back(i * atomsPerSettle_ + 1);
-        iatoms.push_back(i * atomsPerSettle_ + 2);
+        mtop_.moltype[0].ilist[F_SETTLE].push_back<3>(
+                settleType, { i * atomsPerSettle_ + 0, i * atomsPerSettle_ + 1, i * atomsPerSettle_ + 2 });
     }
 
     // Set up the SETTLE parameters.

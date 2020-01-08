@@ -881,38 +881,30 @@ int set_vsites(bool                              bVerbose,
 
 void set_vsites_ptype(bool bVerbose, gmx_moltype_t* molt, const gmx::MDLogger& logger)
 {
-    int ftype, i;
-
     if (bVerbose)
     {
         GMX_LOG(logger.info)
                 .asParagraph()
                 .appendTextFormatted("Setting particle type to V for virtual sites");
     }
-    for (ftype = 0; ftype < F_NRE; ftype++)
+    for (int ftype = 0; ftype < F_NRE; ftype++)
     {
-        InteractionList* il = &molt->ilist[ftype];
+        const InteractionList& il = molt->ilist[ftype];
         if (interaction_function[ftype].flags & IF_VSITE)
         {
-            const int                nra = interaction_function[ftype].nratoms;
-            const int                nrd = il->size();
-            gmx::ArrayRef<const int> ia  = il->iatoms;
-
-            if (debug && nrd)
+            if (debug && !il.empty())
             {
                 GMX_LOG(logger.info)
                         .asParagraph()
-                        .appendTextFormatted("doing %d %s virtual sites", (nrd / (nra + 1)),
+                        .appendTextFormatted("doing %zu %s virtual sites", il.numInteractions(),
                                              interaction_function[ftype].longname);
             }
 
-            for (i = 0; (i < nrd);)
+            for (const auto entry : il)
             {
                 /* The virtual site */
-                int avsite                     = ia[i + 1];
+                int avsite                     = entry.atoms[0];
                 molt->atoms.atom[avsite].ptype = eptVSite;
-
-                i += nra + 1;
             }
         }
     }

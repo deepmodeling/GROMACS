@@ -237,7 +237,6 @@ static void chk_forces(int frame, int natoms, rvec* f)
 
 static void chk_bonds(const InteractionDefinitions* idef, PbcType pbcType, rvec* x, matrix box, real tol)
 {
-    int   ftype, k, ai, aj, type;
     real  b0, blen, deviation;
     t_pbc pbc;
     rvec  dx;
@@ -245,16 +244,16 @@ static void chk_bonds(const InteractionDefinitions* idef, PbcType pbcType, rvec*
     gmx::ArrayRef<const t_iparams> iparams = idef->iparams;
 
     set_pbc(&pbc, pbcType, box);
-    for (ftype = 0; (ftype < F_NRE); ftype++)
+    for (int ftype = 0; ftype < F_NRE; ftype++)
     {
         if ((interaction_function[ftype].flags & IF_CHEMBOND) == IF_CHEMBOND)
         {
-            for (k = 0; (k < idef->il[ftype].size());)
+            for (const auto entry : idef->il[ftype])
             {
-                type = idef->il[ftype].iatoms[k++];
-                ai   = idef->il[ftype].iatoms[k++];
-                aj   = idef->il[ftype].iatoms[k++];
-                b0   = 0;
+                const int type = entry.parameterType;
+                const int ai   = entry.atoms[0];
+                const int aj   = entry.atoms[1];
+                b0             = 0;
                 switch (ftype)
                 {
                     case F_BONDS: b0 = iparams[type].harmonic.rA; break;

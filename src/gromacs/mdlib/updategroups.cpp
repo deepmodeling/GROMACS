@@ -63,13 +63,13 @@ namespace gmx
 /*! \brief Returns whether \p moltype contains flexible constraints */
 static bool hasFlexibleConstraints(const gmx_moltype_t& moltype, gmx::ArrayRef<const t_iparams> iparams)
 {
-    for (auto& ilist : extractILists(moltype.ilist, IF_CONSTRAINT))
+    for (auto& ilist : moltype.ilist.selection(IF_CONSTRAINT))
     {
-        if (ilist.functionType != F_SETTLE)
+        if (ilist.functionType() != F_SETTLE)
         {
-            for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+            for (const auto entry : ilist)
             {
-                if (isConstraintFlexible(iparams, ilist.iatoms[i]))
+                if (isConstraintFlexible(iparams, entry.parameterType))
                 {
                     return true;
                 }
@@ -89,16 +89,16 @@ static bool hasIncompatibleVsites(const gmx_moltype_t& moltype, gmx::ArrayRef<co
 {
     bool hasIncompatibleVsites = false;
 
-    for (auto& ilist : extractILists(moltype.ilist, IF_VSITE))
+    for (auto& ilist : moltype.ilist.selection(IF_VSITE))
     {
-        if (ilist.functionType == F_VSITE2 || ilist.functionType == F_VSITE3)
+        if (ilist.functionType() == F_VSITE2 || ilist.functionType() == F_VSITE3)
         {
-            for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+            for (const auto& entry : ilist)
             {
-                const t_iparams& iparam = iparams[ilist.iatoms[i]];
+                const t_iparams& iparam = iparams[entry.parameterType];
                 real             coeffMin;
                 real             coeffSum;
-                if (ilist.functionType == F_VSITE2)
+                if (ilist.functionType() == F_VSITE2)
                 {
                     coeffMin = iparam.vsite.a;
                     coeffSum = iparam.vsite.a;
@@ -128,32 +128,25 @@ static bool hasIncompatibleVsites(const gmx_moltype_t& moltype, gmx::ArrayRef<co
 /*! \brief Returns a merged list with constraints of all types */
 static InteractionList jointConstraintList(const gmx_moltype_t& moltype)
 {
-    InteractionList   ilistCombined;
-    std::vector<int>& iatoms = ilistCombined.iatoms;
+    InteractionList ilistCombined(F_CONSTR);
 
-    for (auto& ilist : extractILists(moltype.ilist, IF_CONSTRAINT))
+    for (auto& ilist : moltype.ilist.selection(IF_CONSTRAINT))
     {
-        if (ilist.functionType == F_SETTLE)
+        if (ilist.functionType() == F_SETTLE)
         {
-            for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+            for (const auto entry : ilist)
             {
-                iatoms.push_back(-1);
-                iatoms.push_back(ilist.iatoms[i + 1]);
-                iatoms.push_back(ilist.iatoms[i + 2]);
-                iatoms.push_back(-1);
-                iatoms.push_back(ilist.iatoms[i + 1]);
-                iatoms.push_back(ilist.iatoms[i + 3]);
-                iatoms.push_back(-1);
-                iatoms.push_back(ilist.iatoms[i + 2]);
-                iatoms.push_back(ilist.iatoms[i + 3]);
+                ilistCombined.push_back<2>(-1, { entry.atoms[0], entry.atoms[1] });
+                ilistCombined.push_back<2>(-1, { entry.atoms[0], entry.atoms[2] });
+                ilistCombined.push_back<2>(-1, { entry.atoms[1], entry.atoms[2] });
             }
         }
         else
         {
-            GMX_RELEASE_ASSERT(NRAL(ilist.functionType) == 2,
+            GMX_RELEASE_ASSERT(ilist.numAtoms() == 2,
                                "Can only handle two-atom non-SETTLE constraints");
 
-            iatoms.insert(iatoms.end(), ilist.iatoms.begin(), ilist.iatoms.end());
+            ilistCombined.append(ilist);
         }
     }
 
@@ -172,18 +165,18 @@ static AtomIndexExtremes vsiteConstructRange(int a, const gmx_moltype_t& moltype
 {
     AtomIndexExtremes extremes = { -1, -1 };
 
-    for (auto& ilist : extractILists(moltype.ilist, IF_VSITE))
+    for (auto& ilist : moltype.ilist.selection(IF_VSITE))
     {
-        for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+        for (const auto& entry : ilist)
         {
-            if (ilist.iatoms[i + 1] == a)
+            if (entry.atoms[0] == a)
             {
-                extremes.minAtom = ilist.iatoms[i + 2];
-                extremes.maxAtom = ilist.iatoms[i + 2];
-                for (size_t j = i + 3; j < i + ilistStride(ilist); j++)
+                extremes.minAtom = entry.atoms[1];
+                extremes.maxAtom = entry.atoms[1];
+                for (index j = 2; j < entry.atoms.ssize(); j++)
                 {
-                    extremes.minAtom = std::min(extremes.minAtom, ilist.iatoms[j]);
-                    extremes.maxAtom = std::max(extremes.maxAtom, ilist.iatoms[j]);
+                    extremes.minAtom = std::min(extremes.minAtom, entry.atoms[j]);
+                    extremes.maxAtom = std::max(extremes.maxAtom, entry.atoms[j]);
                 }
                 return extremes;
             }
@@ -204,9 +197,8 @@ static AtomIndexExtremes constraintAtomRange(int                     a,
 
     for (const int constraint : at2con[a])
     {
-        for (int j = 0; j < 2; j++)
+        for (const int atomJ : ilistConstraints[constraint].atoms)
         {
-            int atomJ        = ilistConstraints.iatoms[constraint * 3 + 1 + j];
             extremes.minAtom = std::min(extremes.minAtom, atomJ);
             extremes.maxAtom = std::max(extremes.maxAtom, atomJ);
         }
@@ -220,11 +212,11 @@ static std::vector<bool> buildIsParticleVsite(const gmx_moltype_t& moltype)
 {
     std::vector<bool> isVsite(moltype.atoms.nr);
 
-    for (auto& ilist : extractILists(moltype.ilist, IF_VSITE))
+    for (auto& ilist : moltype.ilist.selection(IF_VSITE))
     {
-        for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+        for (const auto& entry : ilist)
         {
-            int vsiteAtom      = ilist.iatoms[i + 1];
+            int vsiteAtom      = entry.atoms[0];
             isVsite[vsiteAtom] = true;
         }
     }
@@ -352,7 +344,7 @@ static RangePartitioning makeUpdateGroups(const gmx_moltype_t& moltype, gmx::Arr
     }
 
     /* Combine all constraint ilists into a single one */
-    std::array<InteractionList, F_NRE> ilistsCombined;
+    InteractionLists ilistsCombined;
     ilistsCombined[F_CONSTR] = jointConstraintList(moltype);
     /* We "include" flexible constraints, but none are present (checked above) */
     const ListOfLists<int> at2con = make_at2con(moltype.atoms.nr, ilistsCombined, iparams,
@@ -408,16 +400,18 @@ std::vector<RangePartitioning> makeUpdateGroups(const gmx_mtop_t& mtop)
     return updateGroups;
 }
 
-/*! \brief Returns a map of angles ilist.iatoms indices with the middle atom as key */
+/*! \brief Returns a map of angles interaction indices with the middle atom as key */
 static std::unordered_multimap<int, int> getAngleIndices(const gmx_moltype_t& moltype)
 {
     const InteractionList& angles = moltype.ilist[F_ANGLES];
 
-    std::unordered_multimap<int, int> indices(angles.size());
+    std::unordered_multimap<int, int> indices(angles.numInteractions());
 
-    for (int i = 0; i < angles.size(); i += 1 + NRAL(F_ANGLES))
+    int angleIndex = 0;
+    for (const auto entry : angles)
     {
-        indices.insert({ angles.iatoms[i + 2], i });
+        indices.insert({ entry.atoms[1], angleIndex });
+        angleIndex++;
     }
 
     return indices;
@@ -443,21 +437,22 @@ static real constraintGroupRadius(const gmx_moltype_t&                     molty
                                   const real                               constraintLength,
                                   const real                               temperature)
 {
-    const int numConstraints = at2con[centralAtom].ssize();
+    const int numNormalConstraints = moltype.ilist[F_CONSTR].numInteractions();
+    const int numConstraints       = at2con[centralAtom].ssize();
     GMX_RELEASE_ASSERT(numConstraints == numPartnerAtoms,
                        "We expect as many constraints as partner atoms here");
 
     std::array<int, numPartnerAtoms> partnerAtoms;
     for (int i = 0; i < numPartnerAtoms; i++)
     {
-        const int ind = at2con[centralAtom][i] * 3;
-        if (ind >= moltype.ilist[F_CONSTR].size())
+        const int constraint = at2con[centralAtom][i];
+        if (constraint >= numNormalConstraints)
         {
             /* This is a flexible constraint, we don't optimize for that */
             return -1;
         }
-        const int a1    = moltype.ilist[F_CONSTR].iatoms[ind + 1];
-        const int a2    = moltype.ilist[F_CONSTR].iatoms[ind + 2];
+        const int a1    = moltype.ilist[F_CONSTR][constraint].atoms[0];
+        const int a2    = moltype.ilist[F_CONSTR][constraint].atoms[1];
         partnerAtoms[i] = (a1 == centralAtom ? a2 : a1);
     }
 
@@ -469,12 +464,13 @@ static real constraintGroupRadius(const gmx_moltype_t&                     molty
     for (auto it = range.first; it != range.second; ++it)
     {
         /* Check if the outer atoms in the angle are both partner atoms */
-        int numAtomsFound = 0;
-        for (int ind = it->second + 1; ind < it->second + 4; ind += 2)
+        const auto angle         = angles[it->second];
+        int        numAtomsFound = 0;
+        for (int atomIndex = 0; atomIndex < 3; atomIndex += 2)
         {
             for (const int& partnerAtom : partnerAtoms)
             {
-                if (angles.iatoms[ind] == partnerAtom)
+                if (angle.atoms[atomIndex] == partnerAtom)
                 {
                     numAtomsFound++;
                 }
@@ -485,18 +481,18 @@ static real constraintGroupRadius(const gmx_moltype_t&                     molty
             /* Check that the angle potentials have the same type */
             if (angleType == -1)
             {
-                angleType = angles.iatoms[it->second];
+                angleType = angle.parameterType;
             }
-            else if (angles.iatoms[it->second] != angleType)
+            else if (angle.parameterType != angleType)
             {
                 areSameType = false;
             }
             /* Count the number of angle interactions per atoms */
-            for (int ind = it->second + 1; ind < it->second + 4; ind += 2)
+            for (int atomIndex = 0; atomIndex < 3; atomIndex += 2)
             {
                 for (size_t i = 0; i < partnerAtoms.size(); i++)
                 {
-                    if (angles.iatoms[ind] == partnerAtoms[i])
+                    if (angle.atoms[atomIndex] == partnerAtoms[i])
                     {
                         numAngles[i]++;
                     }
@@ -626,6 +622,9 @@ static real computeMaxUpdateGroupRadius(const gmx_moltype_t&           moltype,
             continue;
         }
 
+
+        const int numNormalConstraints = moltype.ilist[F_CONSTR].numInteractions();
+
         bool allTypesAreEqual     = true;
         int  constraintType       = -1;
         real maxConstraintLength  = 0;
@@ -633,16 +632,14 @@ static real computeMaxUpdateGroupRadius(const gmx_moltype_t&           moltype,
         bool isFirstConstraint    = true;
         for (const int constraint : at2con[maxAtom])
         {
-            int conIndex = constraint * (1 + NRAL(F_CONSTR));
             int iparamsIndex;
-            if (conIndex < moltype.ilist[F_CONSTR].size())
+            if (constraint < numNormalConstraints)
             {
-                iparamsIndex = moltype.ilist[F_CONSTR].iatoms[conIndex];
+                iparamsIndex = moltype.ilist[F_CONSTR][constraint].parameterType;
             }
             else
             {
-                iparamsIndex =
-                        moltype.ilist[F_CONSTRNC].iatoms[conIndex - moltype.ilist[F_CONSTR].size()];
+                iparamsIndex = moltype.ilist[F_CONSTRNC][constraint - numNormalConstraints].parameterType;
             }
             if (isFirstConstraint)
             {
@@ -709,10 +706,10 @@ static real computeMaxUpdateGroupRadius(const gmx_moltype_t&           moltype,
         maxRadius = std::max(maxRadius, radius);
     }
 
-    for (int i = 0; i < settles.size(); i += 1 + NRAL(F_SETTLE))
+    for (const auto entry : settles)
     {
-        const real dOH = iparams[settles.iatoms[i]].settle.doh;
-        const real dHH = iparams[settles.iatoms[i]].settle.dhh;
+        const real dOH = iparams[entry.parameterType].settle.doh;
+        const real dHH = iparams[entry.parameterType].settle.dhh;
         /* Compute distance^2 from center of geometry to O and H */
         const real dCO2  = (4 * dOH * dOH - dHH * dHH) / 9;
         const real dCH2  = (dOH * dOH + 2 * dHH * dHH) / 9;

@@ -103,20 +103,16 @@ void EdgesGenerator::addEdge(const int a0, const int a1)
 template<typename T>
 static bool mk_igraph(EdgesGenerator* edgesG, int ftype, const T& il, int at_end, ArrayRef<const int> part)
 {
-    int  i, j, np;
-    int  end;
     bool addedEdge = false;
 
-    end = il.size();
-
-    i = 0;
-    while (i < end)
+    gmx::ArrayRef<const int> rawIndices = il.rawIndices();
+    const int                nral       = NRAL(ftype);
+    for (gmx::index i = 0; i < rawIndices.ssize(); i += 1 + nral)
     {
-        np = interaction_function[ftype].nratoms;
-
-        if (np > 1 && il.iatoms[i + 1] < at_end)
+        gmx::ArrayRef<const int> atoms = rawIndices.subArray(i + 1, nral);
+        if (nral > 1 && atoms[0] < at_end)
         {
-            if (il.iatoms[i + np] >= at_end)
+            if (atoms[nral - 1] >= at_end)
             {
                 gmx_fatal(FARGS,
                           "Molecule in topology has atom numbers below and "
@@ -129,34 +125,32 @@ static bool mk_igraph(EdgesGenerator* edgesG, int ftype, const T& il, int at_end
             if (ftype == F_SETTLE)
             {
                 /* Bond all the atoms in the settle */
-                edgesG->addEdge(il.iatoms[i + 1], il.iatoms[i + 2]);
-                edgesG->addEdge(il.iatoms[i + 1], il.iatoms[i + 3]);
+                edgesG->addEdge(atoms[0], atoms[1]);
+                edgesG->addEdge(atoms[0], atoms[2]);
                 addedEdge = true;
             }
             else if (part.empty())
             {
                 /* Simply add this bond */
-                for (j = 1; j < np; j++)
+                for (int j = 0; j < nral - 1; j++)
                 {
-                    edgesG->addEdge(il.iatoms[i + j], il.iatoms[i + j + 1]);
+                    edgesG->addEdge(atoms[j], atoms[j + 1]);
                 }
                 addedEdge = true;
             }
             else
             {
                 /* Add this bond when it connects two unlinked parts of the graph */
-                for (j = 1; j < np; j++)
+                for (int j = 0; j < nral - 1; j++)
                 {
-                    if (part[il.iatoms[i + j]] != part[il.iatoms[i + j + 1]])
+                    if (part[atoms[j]] != part[atoms[j + 1]])
                     {
-                        edgesG->addEdge(il.iatoms[i + j], il.iatoms[i + j + 1]);
+                        edgesG->addEdge(atoms[j], atoms[j + 1]);
                         addedEdge = true;
                     }
                 }
             }
         }
-
-        i += np + 1;
     }
 
     return addedEdge;

@@ -101,7 +101,7 @@ void dd_clear_local_vsite_indices(gmx_domdec_t* dd)
     }
 }
 
-int dd_make_local_vsites(gmx_domdec_t* dd, int at_start, gmx::ArrayRef<InteractionList> lil)
+int dd_make_local_vsites(gmx_domdec_t* dd, int at_start, InteractionLists* localIlists)
 {
     std::vector<int>&    ireq         = dd->vsite_requestedGlobalAtomIndices;
     gmx::HashedMap<int>* ga2la_specat = dd->ga2la_vsite;
@@ -112,20 +112,17 @@ int dd_make_local_vsites(gmx_domdec_t* dd, int at_start, gmx::ArrayRef<Interacti
     {
         if (interaction_function[ftype].flags & IF_VSITE)
         {
-            const int              nral = NRAL(ftype);
-            const InteractionList& lilf = lil[ftype];
-            for (int i = 0; i < lilf.size(); i += 1 + nral)
+            const int nral = NRAL(ftype);
+            for (const auto entry : (*localIlists)[ftype])
             {
-                const int* iatoms = lilf.iatoms.data() + i;
-                /* Check if we have the other atoms */
-                for (int j = 1; j < 1 + nral; j++)
+                for (int j = 0; j < nral; j++)
                 {
-                    if (iatoms[j] < 0)
+                    if (entry.atoms[j] < 0)
                     {
                         /* This is not a home atom,
                          * we need to ask our neighbors.
                          */
-                        int a = -iatoms[j] - 1;
+                        const int a = -entry.atoms[j] - 1;
                         /* Check to not ask for the same atom more than once */
                         if (!dd->ga2la_vsite->find(a))
                         {
@@ -150,18 +147,16 @@ int dd_make_local_vsites(gmx_domdec_t* dd, int at_start, gmx::ArrayRef<Interacti
     {
         if (interaction_function[ftype].flags & IF_VSITE)
         {
-            const int        nral = NRAL(ftype);
-            InteractionList& lilf = lil[ftype];
-            for (int i = 0; i < lilf.size(); i += 1 + nral)
+            const int nral = NRAL(ftype);
+            for (auto entry : (*localIlists)[ftype])
             {
-                t_iatom* iatoms = lilf.iatoms.data() + i;
-                for (int j = 1; j < 1 + nral; j++)
+                for (int j = 0; j < nral; j++)
                 {
-                    if (iatoms[j] < 0)
+                    if (entry.atoms[j] < 0)
                     {
-                        const int* a = ga2la_specat->find(-iatoms[j] - 1);
+                        const int* a = ga2la_specat->find(-entry.atoms[j] - 1);
                         GMX_ASSERT(a, "We have checked before that this atom index has been set");
-                        iatoms[j] = *a;
+                        entry.atoms[j] = *a;
                     }
                 }
             }

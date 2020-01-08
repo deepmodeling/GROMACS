@@ -49,8 +49,8 @@
 #include "gromacs/topology/block.h"
 #include "gromacs/utility/real.h"
 
-struct InteractionList;
 class InteractionDefinitions;
+class InteractionList;
 struct t_inputrec;
 struct t_nrnb;
 struct t_pbc;

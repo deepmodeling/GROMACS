@@ -57,8 +57,8 @@
 
 struct gmx_domdec_t;
 struct gmx_mtop_t;
+class InteractionLists;
 struct t_commrec;
-struct InteractionList;
 struct t_mdatoms;
 struct t_nrnb;
 struct gmx_wallcycle;
@@ -96,7 +96,7 @@ public:
     int numInterUpdategroupVirtualSites() const;
 
     //! Set VSites and distribute VSite work over threads, should be called after each DD partitioning
-    void setVirtualSites(ArrayRef<const InteractionList> ilist, const t_mdatoms& mdatoms);
+    void setVirtualSites(const InteractionLists& ilists, const t_mdatoms& mdatoms);
 
     /*! \brief Create positions of vsite atoms based for the local system
      *
@@ -147,9 +147,7 @@ private:
  * \param[in]     ip       Interaction parameters
  * \param[in]     ilist    The interaction list
  */
-void constructVirtualSites(ArrayRef<RVec>                  x,
-                           ArrayRef<const t_iparams>       ip,
-                           ArrayRef<const InteractionList> ilist);
+void constructVirtualSites(ArrayRef<RVec> x, ArrayRef<const t_iparams> ip, const InteractionLists& ilist);
 
 /*! \brief Create positions of vsite atoms for the whole system assuming all molecules are wholex
  *

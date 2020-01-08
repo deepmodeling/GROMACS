@@ -48,6 +48,7 @@
 #include <cstdio>
 
 #include "gromacs/topology/ifunc.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/gmxmpi.h"
 
@@ -94,14 +95,13 @@ void init_disres(FILE*                 fplog,
  * Calculates r and r^-3 (inst. and time averaged) for all pairs
  * and the ensemble averaged r^-6 (inst. and time averaged) for all restraints
  */
-void calc_disres_R_6(const t_commrec*      cr,
-                     const gmx_multisim_t* ms,
-                     int                   nfa,
-                     const t_iatom*        fa,
-                     const rvec*           x,
-                     const t_pbc*          pbc,
-                     t_fcdata*             fcd,
-                     history_t*            hist);
+void calc_disres_R_6(const t_commrec*         cr,
+                     const gmx_multisim_t*    ms,
+                     gmx::ArrayRef<const int> forceatoms,
+                     const rvec*              x,
+                     const t_pbc*             pbc,
+                     t_fcdata*                fcd,
+                     history_t*               hist);
 
 //! Calculates the distance restraint forces, return the potential.
 real ta_disres(int              nfa,

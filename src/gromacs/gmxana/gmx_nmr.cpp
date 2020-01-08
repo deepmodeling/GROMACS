@@ -200,7 +200,6 @@ static void get_orires_parms(const char* topnm, t_inputrec* ir, int* nor, int* n
 
 static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gmx_localtop_t* top)
 {
-    int   i, j, k, type, ftype, natom;
     real* b;
     int * ind, *pair;
     int   nb, label1;
@@ -209,7 +208,7 @@ static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gm
     gmx::ArrayRef<const t_iparams>  iparams  = top->idef.iparams;
 
     /* Count how many distance restraint there are... */
-    nb = top->idef.il[F_DISRES].size();
+    nb = top->idef.il[F_DISRES].numInteractions();
     if (nb == 0)
     {
         gmx_fatal(FARGS, "No distance restraints in topology!\n");
@@ -224,8 +223,7 @@ static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gm
     nb = 0;
     for (gmx::index i = 0; i < functype.ssize(); i++)
     {
-        ftype = functype[i];
-        if (ftype == F_DISRES)
+        if (functype[i] == F_DISRES)
         {
 
             label1  = iparams[i].disres.label;
@@ -237,14 +235,13 @@ static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gm
     *bounds = b;
 
     /* Fill the index array */
-    label1                          = -1;
-    const InteractionList&   disres = top->idef.il[F_DISRES];
-    gmx::ArrayRef<const int> iatom  = disres.iatoms;
-    for (i = j = k = 0; (i < disres.size());)
+    label1                        = -1;
+    const InteractionList& disres = top->idef.il[F_DISRES];
+    int                    j      = 0;
+    int                    k      = 0;
+    for (const auto entry : disres)
     {
-        type  = iatom[i];
-        ftype = functype[type];
-        natom = interaction_function[ftype].nratoms + 1;
+        const int type = entry.parameterType;
         if (label1 != iparams[type].disres.label)
         {
             pair[j] = k;
@@ -252,7 +249,6 @@ static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gm
             j++;
         }
         k++;
-        i += natom;
     }
     pair[j] = k;
     *npairs = k;
@@ -659,7 +655,7 @@ int gmx_nmr(int argc, char* argv[])
             if (bDisRe && bDRAll && !leg && blk_disre)
             {
                 const InteractionList&   ilist = top->idef.il[F_DISRES];
-                gmx::ArrayRef<const int> fa    = ilist.iatoms;
+                gmx::ArrayRef<const int> fa    = ilist.iatoms();
                 const t_iparams*         ip    = top->idef.iparams.data();
                 if (blk_disre->nsub != 2 || (blk_disre->sub[0].nr != blk_disre->sub[1].nr))
                 {
@@ -667,12 +663,12 @@ int gmx_nmr(int argc, char* argv[])
                 }
 
                 ndisre = blk_disre->sub[0].nr;
-                if (ndisre != ilist.size() / 3)
+                if (ndisre != int(ilist.numInteractions()))
                 {
                     gmx_fatal(FARGS,
                               "Number of disre pairs in the energy file (%d) does not match the "
-                              "number in the run input file (%d)\n",
-                              ndisre, ilist.size() / 3);
+                              "number in the run input file (%zu)\n",
+                              ndisre, ilist.numInteractions());
                 }
                 snew(pairleg, ndisre);
                 int molb = 0;

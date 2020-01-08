@@ -344,7 +344,7 @@ static void read_vsite_database(const char*                            ddbname,
                     case DDB_HISH:
                     {
                         const auto found = std::find_if(
-                                vsitetoplist->begin(), vsitetoplist->end(), [&dirstr](const auto& entry) {
+                                vsitetoplist->begin(), vsitetoplist->end(), [&dirstr](const auto entry) {
                                     return gmx::equalCaseInsensitive(dirstr, entry.resname);
                                 });
                         /* Allocate a new topology entry if this is a new residue */
@@ -394,7 +394,7 @@ static int nitrogen_is_planar(gmx::ArrayRef<const VirtualSiteConfiguration> vsit
      */
     int        res;
     const auto found =
-            std::find_if(vsiteconflist.begin(), vsiteconflist.end(), [&atomtype](const auto& entry) {
+            std::find_if(vsiteconflist.begin(), vsiteconflist.end(), [&atomtype](const auto entry) {
                 return (gmx::equalCaseInsensitive(entry.atomtype, atomtype) && entry.nHydrogens == 2);
             });
     if (found != vsiteconflist.end())
@@ -415,7 +415,7 @@ static std::string get_dummymass_name(gmx::ArrayRef<const VirtualSiteConfigurati
 {
     /* Return the dummy mass name if found, or NULL if not set in ddb database */
     const auto found = std::find_if(
-            vsiteconflist.begin(), vsiteconflist.end(), [&atom, &nextheavy](const auto& entry) {
+            vsiteconflist.begin(), vsiteconflist.end(), [&atom, &nextheavy](const auto entry) {
                 return (gmx::equalCaseInsensitive(atom, entry.atomtype)
                         && gmx::equalCaseInsensitive(nextheavy, entry.nextHeavyType));
             });
@@ -435,7 +435,7 @@ static real get_ddb_bond(gmx::ArrayRef<const VirtualSiteTopology> vsitetop,
                          const std::string&                       atom1,
                          const std::string&                       atom2)
 {
-    const auto found = std::find_if(vsitetop.begin(), vsitetop.end(), [&res](const auto& entry) {
+    const auto found = std::find_if(vsitetop.begin(), vsitetop.end(), [&res](const auto entry) {
         return gmx::equalCaseInsensitive(res, entry.resname);
     });
 
@@ -444,7 +444,7 @@ static real get_ddb_bond(gmx::ArrayRef<const VirtualSiteTopology> vsitetop,
         gmx_fatal(FARGS, "No vsite information for residue %s found in vsite database.\n", res.c_str());
     }
     const auto foundBond =
-            std::find_if(found->bond.begin(), found->bond.end(), [&atom1, &atom2](const auto& entry) {
+            std::find_if(found->bond.begin(), found->bond.end(), [&atom1, &atom2](const auto entry) {
                 return ((atom1 == entry.atom1 && atom2 == entry.atom2)
                         || (atom1 == entry.atom2 && atom2 == entry.atom1));
             });
@@ -464,7 +464,7 @@ static real get_ddb_angle(gmx::ArrayRef<const VirtualSiteTopology> vsitetop,
                           const std::string&                       atom2,
                           const std::string&                       atom3)
 {
-    const auto found = std::find_if(vsitetop.begin(), vsitetop.end(), [&res](const auto& entry) {
+    const auto found = std::find_if(vsitetop.begin(), vsitetop.end(), [&res](const auto entry) {
         return gmx::equalCaseInsensitive(res, entry.resname);
     });
 
@@ -473,7 +473,7 @@ static real get_ddb_angle(gmx::ArrayRef<const VirtualSiteTopology> vsitetop,
         gmx_fatal(FARGS, "No vsite information for residue %s found in vsite database.\n", res.c_str());
     }
     const auto foundAngle = std::find_if(
-            found->angle.begin(), found->angle.end(), [&atom1, &atom2, &atom3](const auto& entry) {
+            found->angle.begin(), found->angle.end(), [&atom1, &atom2, &atom3](const auto entry) {
                 return ((atom1 == entry.atom1 && atom2 == entry.atom2 && atom3 == entry.atom3)
                         || (atom1 == entry.atom3 && atom2 == entry.atom2 && atom3 == entry.atom1)
                         || (atom1 == entry.atom2 && atom2 == entry.atom1 && atom3 == entry.atom3)

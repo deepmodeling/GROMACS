@@ -3090,7 +3090,7 @@ void dd_partition_system(FILE*                        fplog,
             case DDAtomRanges::Type::Vsites:
                 if (vsite && vsite->numInterUpdategroupVirtualSites())
                 {
-                    n = dd_make_local_vsites(dd, n, top_local->idef.il);
+                    n = dd_make_local_vsites(dd, n, &top_local->idef.il);
                 }
                 break;
             case DDAtomRanges::Type::Constraints:
@@ -3098,7 +3098,7 @@ void dd_partition_system(FILE*                        fplog,
                 {
                     /* Only for inter-cg constraints we need special code */
                     n = dd_make_local_constraints(dd, n, &top_global, fr->cginfo.data(), constr,
-                                                  ir->nProjOrder, top_local->idef.il);
+                                                  ir->nProjOrder, &top_local->idef.il);
                 }
                 break;
             default: gmx_incons("Unknown special atom type setup");

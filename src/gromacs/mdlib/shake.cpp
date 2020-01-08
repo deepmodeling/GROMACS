@@ -123,7 +123,6 @@ static void resizeLagrangianData(shakedata* shaked, int ncons)
 
 void make_shake_sblock_serial(shakedata* shaked, InteractionDefinitions* idef, const int numAtoms)
 {
-    int          i, m, ncons;
     int          bstart, bnr;
     t_blocka     sblocks;
     t_sortblock* sb;
@@ -132,7 +131,7 @@ void make_shake_sblock_serial(shakedata* shaked, InteractionDefinitions* idef, c
     /* Since we are processing the local topology,
      * the F_CONSTRNC ilist has been concatenated to the F_CONSTR ilist.
      */
-    ncons = idef->il[F_CONSTR].size() / 3;
+    const int ncons = idef->il[F_CONSTR].numInteractions();
 
     init_blocka(&sblocks);
     sfree(sblocks.index); // To solve memory leak
@@ -157,15 +156,17 @@ void make_shake_sblock_serial(shakedata* shaked, InteractionDefinitions* idef, c
      * sort the constraints in order of the sblock number
      * and the atom numbers, really sorting a segment of the array!
      */
-    int* iatom = idef->il[F_CONSTR].iatoms.data();
     snew(sb, ncons);
-    for (i = 0; (i < ncons); i++, iatom += 3)
+    int constraint = 0;
+    for (const auto entry : idef->il[F_CONSTR])
     {
-        for (m = 0; (m < 3); m++)
+        sb[constraint].iatom[0] = entry.parameterType;
+        for (int a = 0; a < 2; a++)
         {
-            sb[i].iatom[m] = iatom[m];
+            sb[constraint].iatom[1 + a] = entry.atoms[a];
         }
-        sb[i].blocknr = inv_sblock[iatom[1]];
+        sb[constraint].blocknr = inv_sblock[entry.atoms[0]];
+        constraint++;
     }
 
     /* Now sort the blocks */
@@ -182,18 +183,22 @@ void make_shake_sblock_serial(shakedata* shaked, InteractionDefinitions* idef, c
         pr_sortblock(debug, "After sorting", ncons, sb);
     }
 
-    iatom = idef->il[F_CONSTR].iatoms.data();
-    for (i = 0; (i < ncons); i++, iatom += 3)
     {
-        for (m = 0; (m < 3); m++)
+        int i = 0;
+        for (auto entry : idef->il[F_CONSTR])
         {
-            iatom[m] = sb[i].iatom[m];
+            entry.parameterType = sb[i].iatom[0];
+            for (int a = 0; a < 2; a++)
+            {
+                entry.atoms[a] = sb[i].iatom[1 + a];
+            }
+            i++;
         }
     }
 
     shaked->sblock.clear();
     bnr = -2;
-    for (i = 0; (i < ncons); i++)
+    for (int i = 0; (i < ncons); i++)
     {
         if (sb[i].blocknr != bnr)
         {
@@ -213,21 +218,19 @@ void make_shake_sblock_dd(shakedata* shaked, const InteractionList& ilcon)
 {
     int ncons, c, cg;
 
-    ncons            = ilcon.size() / 3;
-    const int* iatom = ilcon.iatoms.data();
+    ncons = ilcon.numInteractions();
     shaked->sblock.clear();
     cg = 0;
     for (c = 0; c < ncons; c++)
     {
-        if (c == 0 || iatom[1] >= cg + 1)
+        if (c == 0 || ilcon[c].atoms[0] >= cg + 1)
         {
             shaked->sblock.push_back(3 * c);
-            while (iatom[1] >= cg + 1)
+            while (ilcon[c].atoms[0] >= cg + 1)
             {
                 cg++;
             }
         }
-        iatom += 3;
     }
     shaked->sblock.push_back(3 * ncons);
     resizeLagrangianData(shaked, ncons);
@@ -678,20 +681,21 @@ static bool bshakef(FILE*                         log,
                     ConstraintVariable            econq)
 {
     real dt_2, dvdl;
-    int  i, n0, ncon, blen, type, ll;
+    int  i, n0, blen, type;
     int  tnit = 0, trij = 0;
 
-    ncon = idef.il[F_CONSTR].size() / 3;
+    const int ncon = idef.il[F_CONSTR].numInteractions();
 
-    for (ll = 0; ll < ncon; ll++)
+    for (int constraint = 0; constraint < ncon; constraint++)
     {
-        shaked->scaled_lagrange_multiplier[ll] = 0;
+        shaked->scaled_lagrange_multiplier[constraint] = 0;
     }
 
     // TODO Rewrite this block so that it is obvious that i, iatoms
     // and lam are all iteration variables. Is this easier if the
     // sblock data structure is organized differently?
-    const int*     iatoms = &(idef.il[F_CONSTR].iatoms[shaked->sblock[0]]);
+
+    const int*     iatoms = &(idef.il[F_CONSTR].iatoms()[shaked->sblock[0]]);
     ArrayRef<real> lam    = shaked->scaled_lagrange_multiplier;
     for (i = 0; (i < shaked->numShakeBlocks());)
     {
@@ -725,11 +729,12 @@ static bool bshakef(FILE*                         log,
             ArrayRef<const t_iparams> iparams = idef.iparams;
 
             /* TODO This should probably use invdt, so that sd integrator scaling works properly */
-            dt_2 = 1 / gmx::square(ir.delta_t);
-            dvdl = 0;
-            for (ll = 0; ll < ncon; ll++)
+            dt_2           = 1 / gmx::square(ir.delta_t);
+            dvdl           = 0;
+            int constraint = 0;
+            for (const auto entry : idef.il[F_CONSTR])
             {
-                type = idef.il[F_CONSTR].iatoms[3 * ll];
+                type = entry.parameterType;
 
                 /* Per equations in the manual, dv/dl = -2 \sum_ll lagrangian_ll * r_ll * (d_B - d_A) */
                 /* The vector scaled_lagrange_multiplier[ll] contains the value -2 r_ll eta_ll
@@ -737,7 +742,8 @@ static bool bshakef(FILE*                         log,
                    al 1977), so the pre-factors are already present. */
                 const real bondA = iparams[type].constr.dA;
                 const real bondB = iparams[type].constr.dB;
-                dvdl += shaked->scaled_lagrange_multiplier[ll] * dt_2 * (bondB - bondA);
+                dvdl += shaked->scaled_lagrange_multiplier[constraint] * dt_2 * (bondB - bondA);
+                constraint++;
             }
             *dvdlambda += dvdl;
         }

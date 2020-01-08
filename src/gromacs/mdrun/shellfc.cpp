@@ -256,12 +256,12 @@ gmx_shellfc_t* init_shell_flexcon(FILE* fplog, const gmx_mtop_t* mtop, int nflex
 {
     gmx_shellfc_t* shfc;
 
-    int  ns, nshell, nsi;
-    int  i, j, type, a_offset, mol, ftype, nra;
-    real qS, alpha;
-    int  aS, aN = 0; /* Shell and nucleus */
-    int bondtypes[] = { F_BONDS, F_HARMONIC, F_CUBICBONDS, F_POLARIZATION, F_ANHARM_POL, F_WATER_POL };
-#define NBT asize(bondtypes)
+    int                   ns, nshell, nsi;
+    int                   i, type, a_offset, mol;
+    real                  qS, alpha;
+    int                   aS, aN = 0; /* Shell and nucleus */
+    std::array<int, 6>    bondtypes = { F_BONDS,        F_HARMONIC,   F_CUBICBONDS,
+                                     F_POLARIZATION, F_ANHARM_POL, F_WATER_POL };
     const gmx_ffparams_t* ffparams;
 
     const std::array<int, eptNR> numParticles = gmx_mtop_particletype_count(*mtop);
@@ -345,39 +345,37 @@ gmx_shellfc_t* init_shell_flexcon(FILE* fplog, const gmx_mtop_t* mtop, int nflex
         const t_atom* atom = molt->atoms.atom;
         for (mol = 0; mol < molb->nmol; mol++)
         {
-            for (j = 0; (j < NBT); j++)
+            for (int ftype : bondtypes)
             {
-                const int* ia = molt->ilist[bondtypes[j]].iatoms.data();
-                for (i = 0; (i < molt->ilist[bondtypes[j]].size());)
+                for (const auto entry : molt->ilist[ftype])
                 {
-                    type  = ia[0];
+                    type  = entry.parameterType;
                     ftype = ffparams->functype[type];
-                    nra   = interaction_function[ftype].nratoms;
 
                     /* Check whether we have a bond with a shell */
                     aS = -1;
 
-                    switch (bondtypes[j])
+                    switch (ftype)
                     {
                         case F_BONDS:
                         case F_HARMONIC:
                         case F_CUBICBONDS:
                         case F_POLARIZATION:
                         case F_ANHARM_POL:
-                            if (atom[ia[1]].ptype == eptShell)
+                            if (atom[entry.atoms[0]].ptype == eptShell)
                             {
-                                aS = ia[1];
-                                aN = ia[2];
+                                aS = entry.atoms[0];
+                                aN = entry.atoms[1];
                             }
-                            else if (atom[ia[2]].ptype == eptShell)
+                            else if (atom[entry.atoms[1]].ptype == eptShell)
                             {
-                                aS = ia[2];
-                                aN = ia[1];
+                                aS = entry.atoms[1];
+                                aN = entry.atoms[0];
                             }
                             break;
                         case F_WATER_POL:
-                            aN = ia[4]; /* Dummy */
-                            aS = ia[5]; /* Shell */
+                            aN = entry.atoms[3]; /* Dummy */
+                            aS = entry.atoms[4]; /* Shell */
                             break;
                         default: gmx_fatal(FARGS, "Death Horror: %s, %d", __FILE__, __LINE__);
                     }
@@ -428,7 +426,7 @@ gmx_shellfc_t* init_shell_flexcon(FILE* fplog, const gmx_mtop_t* mtop, int nflex
                             shfc->bInterCG = TRUE;
                         }
 
-                        switch (bondtypes[j])
+                        switch (ftype)
                         {
                             case F_BONDS:
                             case F_HARMONIC:
@@ -467,8 +465,6 @@ gmx_shellfc_t* init_shell_flexcon(FILE* fplog, const gmx_mtop_t* mtop, int nflex
                         }
                         shell[nsi].nnucl++;
                     }
-                    ia += nra + 1;
-                    i += nra + 1;
                 }
             }
             a_offset += molt->atoms.nr;

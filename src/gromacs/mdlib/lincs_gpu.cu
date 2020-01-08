@@ -709,7 +709,7 @@ bool LincsGpu::isNumCoupledConstraintsSupported(const gmx_mtop_t& mtop)
 {
     for (const gmx_moltype_t& molType : mtop.moltype)
     {
-        ArrayRef<const int> iatoms    = molType.ilist[F_CONSTR].iatoms;
+        ArrayRef<const int> iatoms    = molType.ilist[F_CONSTR].iatoms();
         const auto atomsAdjacencyList = constructAtomsAdjacencyList(molType.atoms.nr, iatoms);
         // Compute, how many constraints are coupled to each constraint
         const auto numCoupledConstraints = countNumCoupledConstraints(iatoms, atomsAdjacencyList);
@@ -739,9 +739,9 @@ void LincsGpu::set(const InteractionDefinitions& idef, const int numAtoms, const
     std::vector<float> massFactorsHost;
 
     // List of constrained atoms in local topology
-    ArrayRef<const int> iatoms         = idef.il[F_CONSTR].iatoms;
+    ArrayRef<const int> iatoms         = idef.il[F_CONSTR].iatoms();
     const int           stride         = NRAL(F_CONSTR) + 1;
-    const int           numConstraints = idef.il[F_CONSTR].size() / stride;
+    const int           numConstraints = idef.il[F_CONSTR].numInteractions();
 
     // Early exit if no constraints
     if (numConstraints == 0)

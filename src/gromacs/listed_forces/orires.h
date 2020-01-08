@@ -52,6 +52,7 @@
 struct gmx_mtop_t;
 struct gmx_multisim_t;
 class history_t;
+class InteractionList;
 struct t_inputrec;
 struct t_pbc;
 struct t_commrec;
@@ -87,8 +88,7 @@ void init_orires(FILE*                 fplog,
  * Returns the weighted RMS deviation of the orientation restraints.
  */
 real calc_orires_dev(const gmx_multisim_t*          ms,
-                     int                            nfa,
-                     const t_iatom                  fa[],
+                     const InteractionList&         ilist,
                      const t_iparams                ip[],
                      const t_mdatoms*               md,
                      gmx::ArrayRef<const gmx::RVec> xWholeMolecules,

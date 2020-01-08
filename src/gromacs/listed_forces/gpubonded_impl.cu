@@ -140,7 +140,8 @@ static bool fTypeHasPerturbedEntries(const InteractionDefinitions& idef, int fTy
 
     const InteractionList& ilist = idef.il[fType];
 
-    return (idef.ilsort != ilsortNO_FE && idef.numNonperturbedInteractions[fType] != ilist.size());
+    return (idef.ilsort != ilsortNO_FE
+            && idef.numNonperturbedInteractions[fType] != ilist.rawIndices().ssize());
 }
 
 //! Converts \p src with atom indices in state order to \p dest in nbnxn order
@@ -149,17 +150,18 @@ static void convertIlistToNbnxnOrder(const InteractionList& src,
                                      int                    numAtomsPerInteraction,
                                      ArrayRef<const int>    nbnxnAtomOrder)
 {
-    GMX_ASSERT(src.size() == 0 || !nbnxnAtomOrder.empty(), "We need the nbnxn atom order");
+    GMX_ASSERT(src.empty() || !nbnxnAtomOrder.empty(), "We need the nbnxn atom order");
 
-    dest->iatoms.resize(src.size());
+    dest->iatoms.resize(src.iatoms().size());
 
+    ArrayRef<const int> srcIndices = src.rawIndices();
     // TODO use OpenMP to parallelise this loop
-    for (int i = 0; i < src.size(); i += 1 + numAtomsPerInteraction)
+    for (index i = 0; i < srcIndices.ssize(); i += 1 + numAtomsPerInteraction)
     {
-        dest->iatoms[i] = src.iatoms[i];
+        dest->iatoms[i] = srcIndices[i];
         for (int a = 0; a < numAtomsPerInteraction; a++)
         {
-            dest->iatoms[i + 1 + a] = nbnxnAtomOrder[src.iatoms[i + 1 + a]];
+            dest->iatoms[i + 1 + a] = nbnxnAtomOrder[srcIndices[i + 1 + a]];
         }
     }
 }

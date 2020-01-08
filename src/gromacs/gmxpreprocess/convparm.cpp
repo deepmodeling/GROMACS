@@ -485,15 +485,6 @@ static int enter_params(gmx_ffparams_t*           ffparams,
     return type;
 }
 
-static void append_interaction(InteractionList* ilist, int type, gmx::ArrayRef<const int> a)
-{
-    ilist->iatoms.push_back(type);
-    for (const auto& atom : a)
-    {
-        ilist->iatoms.push_back(atom);
-    }
-}
-
 static void enter_function(const InteractionsOfType* p,
                            t_functype                ftype,
                            int                       comb,
@@ -514,7 +505,7 @@ static void enter_function(const InteractionsOfType* p,
             GMX_RELEASE_ASSERT(il, "Need valid interaction list");
             GMX_RELEASE_ASSERT(parm.atoms().ssize() == NRAL(ftype),
                                "Need to have correct number of atoms for the parameter");
-            append_interaction(il, type, parm.atoms());
+            il->push_back(type, parm.atoms());
         }
     }
 }
@@ -548,7 +539,7 @@ void convertInteractionsOfType(int                                      atnr,
         molt = &mtop->moltype[mt];
         for (i = 0; (i < F_NRE); i++)
         {
-            molt->ilist[i].iatoms.clear();
+            molt->ilist[i].clear();
 
             gmx::ArrayRef<const InteractionsOfType> interactions = mi[mt].interactions;
 
@@ -570,7 +561,7 @@ void convertInteractionsOfType(int                                      atnr,
 
         for (i = 0; (i < F_NRE); i++)
         {
-            (*mtop->intermolecular_ilist)[i].iatoms.clear();
+            (*mtop->intermolecular_ilist)[i].clear();
 
             gmx::ArrayRef<const InteractionsOfType> interactions = intermolecular_interactions->interactions;
 

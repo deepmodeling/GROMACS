@@ -1992,15 +1992,27 @@ static void do_iparams(gmx::ISerializer* serializer, t_functype ftype, t_iparams
     }
 }
 
-static void do_ilist(gmx::ISerializer* serializer, InteractionList* ilist)
+static void do_ilist(gmx::ISerializer* serializer, const int functionType, InteractionList* ilist)
 {
-    int nr = ilist->size();
+    int nr = ilist->rawIndices().ssize();
     serializer->doInt(&nr);
+    gmx::ArrayRef<int> indicesRef;
+    std::vector<int>   indices;
     if (serializer->reading())
     {
-        ilist->iatoms.resize(nr);
+        indices.resize(nr);
+        indicesRef = indices;
     }
-    serializer->doIntArray(ilist->iatoms.data(), ilist->size());
+    else
+    {
+        indicesRef = gmx::arrayRefFromArray(const_cast<int*>(ilist->rawIndices().data()),
+                                            ilist->rawIndices().size());
+    }
+    serializer->doIntArray(indicesRef.data(), indicesRef.size());
+    if (serializer->reading())
+    {
+        *ilist = InteractionList(functionType, std::move(indices));
+    }
 }
 
 static void do_ffparams(gmx::ISerializer* serializer, gmx_ffparams_t* ffparams, int file_version)
@@ -2052,17 +2064,14 @@ static void do_ffparams(gmx::ISerializer* serializer, gmx_ffparams_t* ffparams, 
 
 static void add_settle_atoms(InteractionList* ilist)
 {
-    int i;
-
     /* Settle used to only store the first atom: add the other two */
-    ilist->iatoms.resize(2 * ilist->size());
-    for (i = ilist->size() / 4 - 1; i >= 0; i--)
+    InteractionList ilistNew(F_SETTLE);
+    for (const auto entry : *ilist)
     {
-        ilist->iatoms[4 * i + 0] = ilist->iatoms[2 * i + 0];
-        ilist->iatoms[4 * i + 1] = ilist->iatoms[2 * i + 1];
-        ilist->iatoms[4 * i + 2] = ilist->iatoms[2 * i + 1] + 1;
-        ilist->iatoms[4 * i + 3] = ilist->iatoms[2 * i + 1] + 2;
+        std::array<int, 3> atoms = { entry.atoms[0], entry.atoms[0] + 1, entry.atoms[0] };
+        ilistNew.push_back(entry.parameterType, atoms);
     }
+    *ilist = ilistNew;
 }
 
 static void do_ilists(gmx::ISerializer* serializer, InteractionLists* ilists, int file_version)
@@ -2087,11 +2096,11 @@ static void do_ilists(gmx::ISerializer* serializer, InteractionLists* ilists, in
         }
         if (bClear)
         {
-            ilist.iatoms.clear();
+            ilist.clear();
         }
         else
         {
-            do_ilist(serializer, &ilist);
+            do_ilist(serializer, j, &ilist);
             if (file_version < 78 && j == F_SETTLE && !ilist.empty())
             {
                 add_settle_atoms(&ilist);
@@ -2495,16 +2504,18 @@ static void set_disres_npair(gmx_mtop_t* mtop)
 
         if (!il.empty())
         {
-            gmx::ArrayRef<const int> a     = il.iatoms;
-            int                      npair = 0;
-            for (int i = 0; i < il.size(); i += 3)
+            int previousLabel = -1;
+            int npair         = 0;
+            for (const auto entry : il)
             {
-                npair++;
-                if (i + 3 == il.size() || ip[a[i]].disres.label != ip[a[i + 3]].disres.label)
+                const int label = ip[entry.parameterType].disres.label;
+                if (label != previousLabel)
                 {
-                    ip[a[i]].disres.npair = npair;
-                    npair                 = 0;
+                    npair = 0;
                 }
+                previousLabel = label;
+                npair++;
+                ip[entry.parameterType].disres.npair = npair;
             }
         }
     }

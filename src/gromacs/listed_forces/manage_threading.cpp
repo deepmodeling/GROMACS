@@ -96,12 +96,12 @@ static void divide_bondeds_by_locality(bonded_threading_t* bt, int numType, cons
     for (f = 0; f < numType; f++)
     {
         /* Sum #bondeds*#atoms_per_bond over all bonded types */
-        nat_tot += ild[f].il->size() / (ild[f].nat + 1) * ild[f].nat;
+        nat_tot += ild[f].il->numInteractions() * ild[f].nat;
         /* The start bound for thread 0 is 0 for all interactions */
         ind[f] = 0;
         /* Initialize the next atom index array */
         assert(!ild[f].il->empty());
-        at_ind[f] = ild[f].il->iatoms[1];
+        at_ind[f] = ild[f].il->iatoms()[1];
     }
 
     nat_sum = 0;
@@ -162,9 +162,9 @@ static void divide_bondeds_by_locality(bonded_threading_t* bt, int numType, cons
             nat_sum += ild[f_min].nat;
 
             /* Update the first unassigned atom index for this type */
-            if (ind[f_min] < ild[f_min].il->size())
+            if (ind[f_min] < ild[f_min].il->rawIndices().ssize())
             {
-                at_ind[f_min] = ild[f_min].il->iatoms[ind[f_min] + 1];
+                at_ind[f_min] = ild[f_min].il->iatoms()[ind[f_min] + 1];
             }
             else
             {
@@ -185,7 +185,7 @@ static void divide_bondeds_by_locality(bonded_threading_t* bt, int numType, cons
 
     for (f = 0; f < numType; f++)
     {
-        assert(ind[f] == ild[f].il->size());
+        assert(ind[f] == ild[f].il->rawIndices().ssize());
     }
 }
 
@@ -197,7 +197,8 @@ static bool ftypeHasPerturbedEntries(const InteractionDefinitions& idef, int fty
 
     const InteractionList& ilist = idef.il[ftype];
 
-    return (idef.ilsort != ilsortNO_FE && idef.numNonperturbedInteractions[ftype] != ilist.size());
+    return (idef.ilsort != ilsortNO_FE
+            && idef.numNonperturbedInteractions[ftype] != ilist.rawIndices().ssize());
 }
 
 //! Divides bonded interactions over threads and GPU
@@ -223,7 +224,7 @@ static void divide_bondeds_over_threads(bonded_threading_t*           bt,
         }
 
         const InteractionList& il                     = idef.il[fType];
-        int                    nrToAssignToCpuThreads = il.size();
+        int                    nrToAssignToCpuThreads = il.rawIndices().ssize();
 
         if (useGpuForBondeds && fTypeGpuIndex < gmx::fTypesOnGpu.size()
             && gmx::fTypesOnGpu[fTypeGpuIndex] == fType)
@@ -273,8 +274,8 @@ static void divide_bondeds_over_threads(bonded_threading_t*           bt,
                      * end up on the same thread.
                      */
                     while (nr_t > 0 && nr_t < nrToAssignToCpuThreads
-                           && iparams[il.iatoms[nr_t]].disres.label
-                                      == iparams[il.iatoms[nr_t - stride]].disres.label)
+                           && iparams[il.iatoms()[nr_t]].disres.label
+                                      == iparams[il.iatoms()[nr_t - stride]].disres.label)
                     {
                         nr_t += stride;
                     }
@@ -371,7 +372,7 @@ static void calc_bonded_reduction_mask(int                           natoms,
     {
         if (ftype_is_bonded_potential(ftype))
         {
-            int nb = idef.il[ftype].size();
+            int nb = idef.il[ftype].rawIndices().ssize();
             if (nb > 0)
             {
                 int nat1 = interaction_function[ftype].nratoms + 1;
@@ -383,7 +384,8 @@ static void calc_bonded_reduction_mask(int                           natoms,
                 {
                     for (int a = 1; a < nat1; a++)
                     {
-                        bitmask_set_bit(&mask[idef.il[ftype].iatoms[i + a] >> reduction_block_bits], thread);
+                        bitmask_set_bit(&mask[idef.il[ftype].iatoms()[i + a] >> reduction_block_bits],
+                                        thread);
                     }
                 }
             }

@@ -181,17 +181,16 @@ settledata* settle_init(const gmx_mtop_t& mtop)
     int                  settle_type = -1;
     gmx_mtop_ilistloop_t iloop       = gmx_mtop_ilistloop_init(mtop);
     int                  nmol;
-    const int            nral1 = 1 + NRAL(F_SETTLE);
     while (const InteractionLists* ilists = gmx_mtop_ilistloop_next(iloop, &nmol))
     {
         const InteractionList& ilist = (*ilists)[F_SETTLE];
-        for (int i = 0; i < ilist.size(); i += nral1)
+        for (const auto entry : ilist)
         {
             if (settle_type == -1)
             {
-                settle_type = ilist.iatoms[i];
+                settle_type = entry.parameterType;
             }
-            else if (ilist.iatoms[i] != settle_type)
+            else if (entry.parameterType != settle_type)
             {
                 gmx_fatal(FARGS,
                           "The [molecules] section of your topology specifies more than one block "
@@ -255,12 +254,12 @@ void settle_set_constraints(settledata*            settled,
 #endif
 
     const int nral1   = 1 + NRAL(F_SETTLE);
-    int       nsettle = il_settle.size() / nral1;
+    int       nsettle = il_settle.numInteractions();
     settled->nsettle  = nsettle;
 
     if (nsettle > 0)
     {
-        ArrayRef<const int> iatoms = il_settle.iatoms;
+        ArrayRef<const int> iatoms = il_settle.iatoms();
 
         /* Here we initialize the normal SETTLE parameters */
         if (settled->massw.mO < 0)

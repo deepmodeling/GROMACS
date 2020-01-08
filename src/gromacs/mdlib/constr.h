@@ -261,7 +261,7 @@ ListOfLists<int> make_at2con(const gmx_moltype_t&           moltype,
  * the order in F_CONSTRNC offset by the number of constraints in F_CONSTR.
  *
  * \param[in]  numAtoms  The number of atoms to construct the list for
- * \param[in]  ilist     Interaction list, size F_NRE
+ * \param[in]  interactionLists  The interaction lists
  * \param[in]  iparams   Interaction parameters, can be null when
  *                       \p flexibleConstraintTreatment==Include
  * \param[in]  flexibleConstraintTreatment  The flexible constraint treatment,
@@ -269,13 +269,13 @@ ListOfLists<int> make_at2con(const gmx_moltype_t&           moltype,
  *
  * \returns a ListOfLists object with all constraints for each atom
  */
-ListOfLists<int> make_at2con(int                             numAtoms,
-                             ArrayRef<const InteractionList> ilist,
-                             ArrayRef<const t_iparams>       iparams,
-                             FlexibleConstraintTreatment     flexibleConstraintTreatment);
+ListOfLists<int> make_at2con(int                         numAtoms,
+                             const InteractionLists&     interactionLists,
+                             ArrayRef<const t_iparams>   iparams,
+                             FlexibleConstraintTreatment flexibleConstraintTreatment);
 
-//! Return the number of flexible constraints in the \c ilist and \c iparams.
-int countFlexibleConstraints(ArrayRef<const InteractionList> ilist, ArrayRef<const t_iparams> iparams);
+//! Return the number of flexible constraints in the \c ilists and \c iparams.
+int countFlexibleConstraints(const InteractionLists& ilists, ArrayRef<const t_iparams> iparams);
 
 /*! \brief Returns the constraint iatoms for a constraint number con
  * which comes from a list where F_CONSTR and F_CONSTRNC constraints

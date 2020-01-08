@@ -176,7 +176,7 @@ void list_tpr(const char* fn,
         {
             atot = 0;
             printf("%-12s: ", shortName(group));
-            for (const auto& entry : gcount[group])
+            for (const auto entry : gcount[group])
             {
                 printf("  %5d", entry);
                 atot += entry;

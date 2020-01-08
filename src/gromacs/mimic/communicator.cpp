@@ -126,35 +126,28 @@ void gmx::MimicCommunicator::sendInitData(gmx_mtop_t* mtop, PaddedHostVector<gmx
     int offset = 0;
     for (const gmx_molblock_t& molblock : mtop->molblock)
     {
-        gmx_moltype_t* type = &mtop->moltype[molblock.type];
+        const gmx_moltype_t& moltype = mtop->moltype[molblock.type];
         for (int mol = 0; mol < molblock.nmol; ++mol)
         {
-            int nconstr  = type->ilist[F_CONSTR].size() / 3;
-            int nconstrc = type->ilist[F_CONSTRNC].size() / 3;
-            int nsettle  = type->ilist[F_SETTLE].size() / 4;
-
-            for (int ncon = 0; ncon < nconstr + nconstrc; ++ncon)
+            for (int ftype : std::array<int, 2>({ F_CONSTR, F_CONSTRNC }))
             {
-                int contype = type->ilist[F_CONSTR].iatoms[0];
-                int at1     = type->ilist[F_CONSTR].iatoms[1];
-                int at2     = type->ilist[F_CONSTR].iatoms[2];
-                bonds.push_back(offset + at1 + 1);
-                bonds.push_back(offset + at2 + 1);
-                bondLengths.push_back(static_cast<double>(mtop->ffparams.iparams[contype].constr.dA)
-                                      / BOHR2NM);
+                for (const auto entry : moltype.ilist[ftype])
+                {
+                    bonds.push_back(offset + entry.atoms[0]);
+                    bonds.push_back(offset + entry.atoms[1]);
+                    bondLengths.push_back(
+                            static_cast<double>(mtop->ffparams.iparams[entry.parameterType].constr.dA)
+                            / BOHR2NM);
+                }
             }
 
-            for (int ncon = 0; ncon < nsettle; ++ncon)
+            for (const auto entry : moltype.ilist[F_SETTLE])
             {
-                t_iatom ox;
-                t_iatom h1;
-                t_iatom h2;
+                const int contype = entry.parameterType;
 
-                int contype = type->ilist[F_SETTLE].iatoms[0];
-
-                ox = type->ilist[F_SETTLE].iatoms[1];
-                h1 = type->ilist[F_SETTLE].iatoms[2];
-                h2 = type->ilist[F_SETTLE].iatoms[3];
+                const int ox = entry.atoms[0];
+                const int h1 = entry.atoms[1];
+                const int h2 = entry.atoms[2];
 
                 bonds.push_back(offset + ox + 1);
                 bonds.push_back(offset + h1 + 1);
@@ -172,19 +165,19 @@ void gmx::MimicCommunicator::sendInitData(gmx_mtop_t* mtop, PaddedHostVector<gmx
                                       / BOHR2NM);
             }
 
-            nAtomsMol.push_back(type->atoms.nr);
-            for (int at = 0; at < type->atoms.nr; ++at)
+            nAtomsMol.push_back(moltype.atoms.nr);
+            for (int at = 0; at < moltype.atoms.nr; ++at)
             {
-                int  atomtype = type->atoms.atom[at].type;
-                auto charge   = static_cast<double>(type->atoms.atom[at].q);
+                int  atomtype = moltype.atoms.atom[at].type;
+                auto charge   = static_cast<double>(moltype.atoms.atom[at].q);
                 idOrder.push_back(offset + 1);
                 offset++;
                 atomTypes.push_back(atomtype + 1);
                 charges.push_back(charge);
                 if (existingTypes.insert(atomtype).second)
                 {
-                    masses[atomtype]   = type->atoms.atom[at].m;
-                    elements[atomtype] = type->atoms.atom[at].atomnumber;
+                    masses[atomtype]   = moltype.atoms.atom[at].m;
+                    elements[atomtype] = moltype.atoms.atom[at].atomnumber;
                 }
             }
         }

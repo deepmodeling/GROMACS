@@ -188,18 +188,17 @@ real do_fbposres_cylinder(int fbdim, rvec fm, rvec dx, real rfb, real kk, gmx_bo
  *
  * Returns the flat-bottomed potential. Same PBC treatment as in
  * normal position restraints */
-real fbposres(int                   nbonds,
-              const t_iatom         forceatoms[],
-              const t_iparams       forceparams[],
-              const rvec            x[],
-              gmx::ForceWithVirial* forceWithVirial,
-              const t_pbc*          pbc,
-              int                   refcoord_scaling,
-              PbcType               pbcType,
-              const rvec            com)
+real fbposres(const InteractionList& ilist,
+              const t_iparams        forceparams[],
+              const rvec             x[],
+              gmx::ForceWithVirial*  forceWithVirial,
+              const t_pbc*           pbc,
+              int                    refcoord_scaling,
+              PbcType                pbcType,
+              const rvec             com)
 /* compute flat-bottomed positions restraints */
 {
-    int              i, ai, m, d, type, npbcdim = 0, fbdim;
+    int              ai, m, d, type, npbcdim = 0, fbdim;
     const t_iparams* pr;
     real             kk, v;
     real             dr, dr2, rfb, rfb2, fact;
@@ -224,10 +223,10 @@ real fbposres(int                   nbonds,
     rvec* f      = as_rvec_array(forceWithVirial->force_.data());
     real  vtot   = 0.0;
     rvec  virial = { 0 };
-    for (i = 0; (i < nbonds);)
+    for (gmx::index i = 0; i < ilist.iatoms().ssize(); i += 2)
     {
-        type = forceatoms[i++];
-        ai   = forceatoms[i++];
+        type = ilist.iatoms()[i];
+        ai   = ilist.iatoms()[i + 1];
         pr   = &forceparams[type];
 
         /* same calculation as for normal posres, but with identical A and B states, and lambda==0 */
@@ -319,20 +318,19 @@ real fbposres(int                   nbonds,
  * Note that position restraints require a different pbc treatment
  * from other bondeds */
 template<bool computeForce>
-real posres(int                   nbonds,
-            const t_iatom         forceatoms[],
-            const t_iparams       forceparams[],
-            const rvec            x[],
-            gmx::ForceWithVirial* forceWithVirial,
-            const struct t_pbc*   pbc,
-            real                  lambda,
-            real*                 dvdlambda,
-            int                   refcoord_scaling,
-            PbcType               pbcType,
-            const rvec            comA,
-            const rvec            comB)
+real posres(const InteractionList& ilist,
+            const t_iparams        forceparams[],
+            const rvec             x[],
+            gmx::ForceWithVirial*  forceWithVirial,
+            const struct t_pbc*    pbc,
+            real                   lambda,
+            real*                  dvdlambda,
+            int                    refcoord_scaling,
+            PbcType                pbcType,
+            const rvec             comA,
+            const rvec             comB)
 {
-    int              i, ai, m, d, type, npbcdim = 0;
+    int              ai, m, d, type, npbcdim = 0;
     const t_iparams* pr;
     real             kk, fm;
     rvec             comA_sc, comB_sc, rdist, dpdl, dx;
@@ -365,10 +363,10 @@ real posres(int                   nbonds,
     real vtot = 0.0;
     /* Use intermediate virial buffer to reduce reduction rounding errors */
     rvec virial = { 0 };
-    for (i = 0; (i < nbonds);)
+    for (gmx::index i = 0; i < ilist.iatoms().ssize(); i += 2)
     {
-        type = forceatoms[i++];
-        ai   = forceatoms[i++];
+        type = ilist.iatoms()[i];
+        ai   = ilist.iatoms()[i + 1];
         pr   = &forceparams[type];
 
         /* return dx, rdist, and dpdl */
@@ -413,8 +411,7 @@ void posres_wrapper(t_nrnb*                       nrnb,
     real v, dvdl;
 
     dvdl = 0;
-    v    = posres<true>(idef.il[F_POSRES].size(), idef.il[F_POSRES].iatoms.data(),
-                     idef.iparams_posres.data(), x, forceWithVirial,
+    v    = posres<true>(idef.il[F_POSRES], idef.iparams_posres.data(), x, forceWithVirial,
                      fr->pbcType == PbcType::No ? nullptr : pbc, lambda[efptRESTRAINT], &dvdl,
                      fr->rc_scaling, fr->pbcType, fr->posres_com, fr->posres_comB);
     enerd->term[F_POSRES] += v;
@@ -422,7 +419,7 @@ void posres_wrapper(t_nrnb*                       nrnb,
      * but if k changes, it is not.
      */
     enerd->dvdl_nonlin[efptRESTRAINT] += dvdl;
-    inc_nrnb(nrnb, eNR_POSRES, gmx::exactDiv(idef.il[F_POSRES].size(), 2));
+    inc_nrnb(nrnb, eNR_POSRES, idef.il[F_POSRES].numInteractions());
 }
 
 void posres_wrapper_lambda(struct gmx_wallcycle*         wcycle,
@@ -443,8 +440,7 @@ void posres_wrapper_lambda(struct gmx_wallcycle*         wcycle,
 
         const real lambda_dum =
                 (i == 0 ? lambda[efptRESTRAINT] : fepvals->all_lambda[efptRESTRAINT][i - 1]);
-        v = posres<false>(idef.il[F_POSRES].size(), idef.il[F_POSRES].iatoms.data(),
-                          idef.iparams_posres.data(), x, nullptr,
+        v = posres<false>(idef.il[F_POSRES], idef.iparams_posres.data(), x, nullptr,
                           fr->pbcType == PbcType::No ? nullptr : pbc, lambda_dum, &dvdl,
                           fr->rc_scaling, fr->pbcType, fr->posres_com, fr->posres_comB);
         enerd->enerpart_lambda[i] += v;
@@ -465,9 +461,8 @@ void fbposres_wrapper(t_nrnb*                       nrnb,
 {
     real v;
 
-    v = fbposres(idef.il[F_FBPOSRES].size(), idef.il[F_FBPOSRES].iatoms.data(),
-                 idef.iparams_fbposres.data(), x, forceWithVirial,
+    v = fbposres(idef.il[F_FBPOSRES], idef.iparams_fbposres.data(), x, forceWithVirial,
                  fr->pbcType == PbcType::No ? nullptr : pbc, fr->rc_scaling, fr->pbcType, fr->posres_com);
     enerd->term[F_FBPOSRES] += v;
-    inc_nrnb(nrnb, eNR_FBPOSRES, gmx::exactDiv(idef.il[F_FBPOSRES].size(), 2));
+    inc_nrnb(nrnb, eNR_FBPOSRES, idef.il[F_FBPOSRES].numInteractions());
 }

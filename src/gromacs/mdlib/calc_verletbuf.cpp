@@ -212,23 +212,23 @@ static void get_vsite_masses(const gmx_moltype_t&  moltype,
     int numNonlinearVsites = 0;
 
     /* Check for virtual sites, determine mass from constructing atoms */
-    for (const auto& ilist : extractILists(moltype.ilist, IF_VSITE))
+    for (const auto& ilist : moltype.ilist.selection(IF_VSITE))
     {
-        for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+        if (ilist.functionType() != F_VSITEN)
         {
-            const t_iparams& ip = ffparams.iparams[ilist.iatoms[i]];
-            const int        a1 = ilist.iatoms[i + 1];
-
-            if (ilist.functionType != F_VSITEN)
+            for (const auto& entry : ilist)
             {
+                const t_iparams& ip = ffparams.iparams[entry.parameterType];
+                const int        a1 = entry.atoms[0];
+
                 /* Only vsiten can have more than four
                    constructing atoms, so NRAL(ft) <= 5 */
-                const int         maxj = NRAL(ilist.functionType);
+                const int         maxj = ilist.numAtoms();
                 std::vector<real> cam(maxj, 0);
                 GMX_ASSERT(maxj <= 5, "This code expect at most 5 atoms in a vsite");
                 for (int j = 1; j < maxj; j++)
                 {
-                    const int aj = ilist.iatoms[i + 1 + j];
+                    const int aj = entry.atoms[j];
                     cam[j]       = getMass(moltype.atoms, aj, setMassesToOne);
                     if (cam[j] == 0)
                     {
@@ -241,7 +241,7 @@ static void get_vsite_masses(const gmx_moltype_t&  moltype,
                     GMX_ASSERT(cam[j] != 0, "We should have a non-zero mass");
                 }
 
-                switch (ilist.functionType)
+                switch (ilist.functionType())
                 {
                     case F_VSITE2:
                         /* Exact */
@@ -281,15 +281,23 @@ static void get_vsite_masses(const gmx_moltype_t&  moltype,
                         break;
                 }
             }
-            else
+        }
+        else
+        {
+            const int stride = 1 + NRAL(F_VSITEN);
+
+            gmx::index i = 0;
+            while (i < ilist.iatoms().ssize())
             {
+                const int a1 = ilist.iatoms()[i + 1];
+
                 /* Exact */
                 real inv_mass             = 0;
-                int  numConstructingAtoms = ffparams.iparams[ilist.iatoms[i]].vsiten.n;
-                for (int j = 0; j < 3 * numConstructingAtoms; j += 3)
+                int  numConstructingAtoms = ffparams.iparams[ilist.iatoms()[i]].vsiten.n;
+                for (int j = 0; j < stride * numConstructingAtoms; j += stride)
                 {
-                    int  aj    = ilist.iatoms[i + j + 2];
-                    real coeff = ffparams.iparams[ilist.iatoms[i + j]].vsiten.a;
+                    int  aj    = ilist.iatoms()[i + j + 2];
+                    real coeff = ffparams.iparams[ilist.iatoms()[i + j]].vsiten.a;
                     real m_aj;
                     if (moltype.atoms.atom[aj].ptype == eptVSite)
                     {
@@ -306,13 +314,15 @@ static void get_vsite_masses(const gmx_moltype_t&  moltype,
                     inv_mass += coeff * coeff / m_aj;
                 }
                 vsite_m[a1] = 1 / inv_mass;
-                /* Correct the loop increment of i for processes more than 1 entry */
-                i += (numConstructingAtoms - 1) * ilistStride(ilist);
-            }
-            if (gmx_debug_at)
-            {
-                fprintf(debug, "atom %4d %-20s mass %6.3f\n", a1,
-                        interaction_function[ilist.functionType].longname, vsite_m[a1]);
+
+                if (gmx_debug_at)
+                {
+                    fprintf(debug, "atom %4d %-20s mass %6.3f\n", a1,
+                            interaction_function[ilist.functionType()].longname, vsite_m[a1]);
+                }
+
+                /* Increment the index */
+                i += numConstructingAtoms * stride;
             }
         }
     }
@@ -326,7 +336,7 @@ static void get_vsite_masses(const gmx_moltype_t&  moltype,
 static std::vector<VerletbufAtomtype> getVerletBufferAtomtypes(const gmx_mtop_t& mtop, const bool setMassesToOne)
 {
     std::vector<VerletbufAtomtype> att;
-    int                            ft, i, a1, a2, a3, a;
+    int                            ft, a1, a2, a3, a;
     const t_iparams*               ip;
 
     for (const gmx_molblock_t& molblock : mtop.molblock)
@@ -347,11 +357,11 @@ static std::vector<VerletbufAtomtype> getVerletBufferAtomtypes(const gmx_mtop_t&
         {
             const InteractionList& il = moltype.ilist[ft];
 
-            for (i = 0; i < il.size(); i += 1 + NRAL(ft))
+            for (const auto entry : il)
             {
-                ip         = &mtop.ffparams.iparams[il.iatoms[i]];
-                a1         = il.iatoms[i + 1];
-                a2         = il.iatoms[i + 2];
+                ip         = &mtop.ffparams.iparams[entry.parameterType];
+                a1         = entry.atoms[0];
+                a2         = entry.atoms[1];
                 real mass1 = getMass(*atoms, a1, setMassesToOne);
                 real mass2 = getMass(*atoms, a2, setMassesToOne);
                 if (mass2 > prop[a1].con_mass)
@@ -369,12 +379,12 @@ static std::vector<VerletbufAtomtype> getVerletBufferAtomtypes(const gmx_mtop_t&
 
         const InteractionList& il = moltype.ilist[F_SETTLE];
 
-        for (i = 0; i < il.size(); i += 1 + NRAL(F_SETTLE))
+        for (const auto entry : il)
         {
-            ip = &mtop.ffparams.iparams[il.iatoms[i]];
-            a1 = il.iatoms[i + 1];
-            a2 = il.iatoms[i + 2];
-            a3 = il.iatoms[i + 3];
+            ip = &mtop.ffparams.iparams[entry.parameterType];
+            a1 = entry.atoms[0];
+            a2 = entry.atoms[1];
+            a3 = entry.atoms[2];
             /* Usually the mass of a1 (usually oxygen) is larger than a2/a3.
              * If this is not the case, we overestimate the displacement,
              * which leads to a larger buffer (ok since this is an exotic case).
@@ -1169,19 +1179,19 @@ static std::vector<AtomConstraintProps> getAtomConstraintProps(const gmx_moltype
     const t_atoms&                   atoms = moltype.atoms;
     std::vector<AtomConstraintProps> props(atoms.nr);
 
-    for (const auto& ilist : extractILists(moltype.ilist, IF_CONSTRAINT))
+    for (const auto& ilist : moltype.ilist.selection(IF_CONSTRAINT))
     {
         // Settles are handled separately
-        if (ilist.functionType == F_SETTLE)
+        if (ilist.functionType() == F_SETTLE)
         {
             continue;
         }
 
-        for (size_t i = 0; i < ilist.iatoms.size(); i += ilistStride(ilist))
+        for (const auto& entry : ilist)
         {
-            int  type   = ilist.iatoms[i];
-            int  a1     = ilist.iatoms[i + 1];
-            int  a2     = ilist.iatoms[i + 2];
+            int  type   = entry.parameterType;
+            int  a1     = entry.atoms[0];
+            int  a2     = entry.atoms[1];
             real length = ffparams.iparams[type].constr.dA;
             props[a1].addConstraint(length);
             props[a2].addConstraint(length);
@@ -1258,11 +1268,11 @@ static real chanceOfUpdateGroupCrossingCell(const gmx_moltype_t&          moltyp
                 const auto& ilist = moltype.ilist[F_SETTLE];
                 GMX_RELEASE_ASSERT(!ilist.empty(),
                                    "There should be at least one settle in this moltype");
-                for (int i = 0; i < ilist.size(); i += 1 + NRAL(F_SETTLE))
+                for (const auto entry : ilist)
                 {
-                    if (atom == ilist.iatoms[i + 1])
+                    if (atom == entry.atoms[0])
                     {
-                        const t_iparams& iparams = ffparams.iparams[ilist.iatoms[i]];
+                        const t_iparams& iparams = ffparams.iparams[entry.parameterType];
                         real             dOH     = iparams.settle.doh;
                         real             dHH     = iparams.settle.dhh;
                         real             dOMidH  = std::sqrt(dOH * dOH - 0.25_real * dHH * dHH);

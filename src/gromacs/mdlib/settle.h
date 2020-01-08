@@ -47,7 +47,7 @@
 #include "gromacs/topology/idef.h"
 
 struct gmx_mtop_t;
-struct InteractionList;
+class InteractionList;
 struct t_inputrec;
 struct t_pbc;
 

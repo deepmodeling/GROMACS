@@ -97,7 +97,7 @@ void exclusionBlocksToBlocka(gmx::ArrayRef<const ExclusionBlock> b2, t_blocka* b
     {
         b->index[i] = nra;
         int j       = 0;
-        for (const auto& entry : block.atomNumber)
+        for (const auto entry : block.atomNumber)
         {
             b->a[nra + j] = entry;
             j++;

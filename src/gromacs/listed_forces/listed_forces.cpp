@@ -443,7 +443,7 @@ static void calcBondedForces(const InteractionDefinitions& idef,
                 const InteractionList& ilist = idef.il[ftype];
                 if (!ilist.empty() && ftype_is_bonded_potential(ftype))
                 {
-                    ArrayRef<const int> iatoms = gmx::makeConstArrayRef(ilist.iatoms);
+                    ArrayRef<const int> iatoms = ilist.iatoms();
                     v = calc_one_bond(thread, ftype, idef, iatoms, idef.numNonperturbedInteractions[ftype],
                                       fr->bondedThreading->workDivision, x, ft, fshift, fr, pbc_null,
                                       grpp, nrnb, lambda, dvdlt, md, fcd, stepWork, global_atom_index);
@@ -571,8 +571,9 @@ void calc_listed_lambda(const InteractionDefinitions& idef,
             const InteractionList& ilist = idef.il[ftype];
             /* Create a temporary iatom list with only perturbed interactions */
             const int           numNonperturbed = idef.numNonperturbedInteractions[ftype];
-            ArrayRef<const int> iatomsPerturbed = gmx::constArrayRefFromArray(
-                    ilist.iatoms.data() + numNonperturbed, ilist.size() - numNonperturbed);
+            ArrayRef<const int> iatomsPerturbed =
+                    gmx::constArrayRefFromArray(ilist.rawIndices().data() + numNonperturbed,
+                                                ilist.rawIndices().size() - numNonperturbed);
             if (!iatomsPerturbed.empty())
             {
                 /* Set the work range of thread 0 to the perturbed bondeds */
@@ -650,14 +651,13 @@ void do_force_listed(struct gmx_wallcycle*          wcycle,
         if (fcd->orires.nr > 0)
         {
             GMX_ASSERT(!xWholeMolecules.empty(), "Need whole molecules for orienation restraints");
-            enerd->term[F_ORIRESDEV] = calc_orires_dev(
-                    ms, idef.il[F_ORIRES].size(), idef.il[F_ORIRES].iatoms.data(), idef.iparams.data(),
-                    md, xWholeMolecules, x, fr->bMolPBC ? pbc : nullptr, fcd, hist);
+            enerd->term[F_ORIRESDEV] =
+                    calc_orires_dev(ms, idef.il[F_ORIRES], idef.iparams.data(), md, xWholeMolecules,
+                                    x, fr->bMolPBC ? pbc : nullptr, fcd, hist);
         }
         if (fcd->disres.nres > 0)
         {
-            calc_disres_R_6(cr, ms, idef.il[F_DISRES].size(), idef.il[F_DISRES].iatoms.data(), x,
-                            fr->bMolPBC ? pbc : nullptr, fcd, hist);
+            calc_disres_R_6(cr, ms, idef.il[F_DISRES].iatoms(), x, fr->bMolPBC ? pbc : nullptr, fcd, hist);
         }
 
         wallcycle_sub_stop(wcycle, ewcsRESTRAINTS);

@@ -46,7 +46,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/listoflists.h"
 
-struct InteractionList;
+class InteractionList;
 struct gmx_moltype_t;
 class InteractionDefinitions;
 struct t_idef;

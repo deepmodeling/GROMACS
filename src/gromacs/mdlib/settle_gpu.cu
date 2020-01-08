@@ -499,10 +499,7 @@ SettleGpu::SettleGpu(const gmx_mtop_t& mtop, const DeviceContext& deviceContext,
     int totalSettles = 0;
     for (unsigned mt = 0; mt < mtop.moltype.size(); mt++)
     {
-        const int        nral1           = 1 + NRAL(F_SETTLE);
-        InteractionList  interactionList = mtop.moltype.at(mt).ilist[F_SETTLE];
-        std::vector<int> iatoms          = interactionList.iatoms;
-        totalSettles += iatoms.size() / nral1;
+        totalSettles += mtop.moltype.at(mt).ilist[F_SETTLE].numInteractions();
     }
     if (totalSettles == 0)
     {
@@ -519,9 +516,9 @@ SettleGpu::SettleGpu(const gmx_mtop_t& mtop, const DeviceContext& deviceContext,
 
     for (unsigned mt = 0; mt < mtop.moltype.size(); mt++)
     {
-        const int        nral1           = 1 + NRAL(F_SETTLE);
-        InteractionList  interactionList = mtop.moltype.at(mt).ilist[F_SETTLE];
-        std::vector<int> iatoms          = interactionList.iatoms;
+        const int                nral1           = 1 + NRAL(F_SETTLE);
+        InteractionList          interactionList = mtop.moltype.at(mt).ilist[F_SETTLE];
+        gmx::ArrayRef<const int> iatoms          = interactionList.iatoms();
         for (unsigned i = 0; i < iatoms.size() / nral1; i++)
         {
             int3 settler;
@@ -559,13 +556,13 @@ SettleGpu::SettleGpu(const gmx_mtop_t& mtop, const DeviceContext& deviceContext,
     {
         const int       nral1           = 1 + NRAL(F_SETTLE);
         InteractionList interactionList = mtop.moltype.at(mt).ilist[F_SETTLE];
-        for (int i = 0; i < interactionList.size(); i += nral1)
+        for (gmx::index i = 0; i < interactionList.iatoms().ssize(); i += nral1)
         {
             if (settle_type == -1)
             {
-                settle_type = interactionList.iatoms[i];
+                settle_type = interactionList.iatoms()[i];
             }
-            else if (interactionList.iatoms[i] != settle_type)
+            else if (interactionList.iatoms()[i] != settle_type)
             {
                 gmx_fatal(FARGS,
                           "The [molecules] section of your topology specifies more than one block "
@@ -609,8 +606,8 @@ void SettleGpu::set(const InteractionDefinitions& idef)
 {
     const int              nral1     = 1 + NRAL(F_SETTLE);
     const InteractionList& il_settle = idef.il[F_SETTLE];
-    ArrayRef<const int>    iatoms    = il_settle.iatoms;
-    numSettles_                      = il_settle.size() / nral1;
+    ArrayRef<const int>    iatoms    = il_settle.iatoms();
+    numSettles_                      = il_settle.iatoms().size() / nral1;
 
     reallocateDeviceBuffer(&d_atomIds_, numSettles_, &numAtomIds_, &numAtomIdsAlloc_, deviceContext_);
     h_atomIds_.resize(numSettles_);

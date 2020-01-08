@@ -416,12 +416,12 @@ int gmx_mtop_ftype_count(const gmx_mtop_t* mtop, int ftype)
     iloop = gmx_mtop_ilistloop_init(mtop);
     while (const InteractionLists* il = gmx_mtop_ilistloop_next(iloop, &nmol))
     {
-        n += nmol * (*il)[ftype].size() / (1 + NRAL(ftype));
+        n += nmol * (*il)[ftype].numInteractions();
     }
 
     if (mtop->bIntermolecularInteractions)
     {
-        n += (*mtop->intermolecular_ilist)[ftype].size() / (1 + NRAL(ftype));
+        n += (*mtop->intermolecular_ilist)[ftype].numInteractions();
     }
 
     return n;
@@ -444,7 +444,7 @@ int gmx_mtop_interaction_count(const gmx_mtop_t& mtop, const int unsigned if_fla
         {
             if ((interaction_function[ftype].flags & if_flags) == if_flags)
             {
-                n += nmol * (*il)[ftype].size() / (1 + NRAL(ftype));
+                n += nmol * (*il)[ftype].numInteractions();
             }
         }
     }
@@ -455,7 +455,7 @@ int gmx_mtop_interaction_count(const gmx_mtop_t& mtop, const int unsigned if_fla
         {
             if ((interaction_function[ftype].flags & if_flags) == if_flags)
             {
-                n += (*mtop.intermolecular_ilist)[ftype].size() / (1 + NRAL(ftype));
+                n += (*mtop.intermolecular_ilist)[ftype].numInteractions();
             }
         }
     }
@@ -607,21 +607,22 @@ t_atoms gmx_mtop_global_atoms(const gmx_mtop_t* mtop)
 
 static void ilistcat(int ftype, InteractionList* dest, const InteractionList& src, int copies, int dnum, int snum)
 {
-    int nral, c, i, a;
+    const int nral = NRAL(ftype);
 
-    nral = NRAL(ftype);
-
-    size_t destIndex = dest->iatoms.size();
-    dest->iatoms.resize(dest->iatoms.size() + copies * src.size());
-
-    for (c = 0; c < copies; c++)
+    for (int c = 0; c < copies; c++)
     {
-        for (i = 0; i < src.size();)
+        const gmx::index offset = dest->numInteractions();
+
+        dest->append(src);
+
+        /* Increase the atom indices */
+        auto itBegin = dest->begin() + offset;
+        auto itEnd   = dest->end();
+        for (auto it = itBegin; it != itEnd; it++)
         {
-            dest->iatoms[destIndex++] = src.iatoms[i++];
-            for (a = 0; a < nral; a++)
+            for (int a = 0; a < nral; a++)
             {
-                dest->iatoms[destIndex++] = dnum + src.iatoms[i++];
+                (*it).atoms[a] += dnum;
             }
         }
         dnum += snum;
@@ -630,21 +631,21 @@ static void ilistcat(int ftype, InteractionList* dest, const InteractionList& sr
 
 static void ilistcat(int ftype, t_ilist* dest, const InteractionList& src, int copies, int dnum, int snum)
 {
-    int nral, c, i, a;
+    int nral, c, a;
 
     nral = NRAL(ftype);
 
-    dest->nalloc = dest->nr + copies * src.size();
+    dest->nalloc = dest->nr + copies * src.iatoms().size();
     srenew(dest->iatoms, dest->nalloc);
 
     for (c = 0; c < copies; c++)
     {
-        for (i = 0; i < src.size();)
+        for (const auto entry : src)
         {
-            dest->iatoms[dest->nr++] = src.iatoms[i++];
+            dest->iatoms[dest->nr++] = entry.parameterType;
             for (a = 0; a < nral; a++)
             {
-                dest->iatoms[dest->nr++] = dnum + src.iatoms[i++];
+                dest->iatoms[dest->nr++] = dnum + entry.atoms[a];
             }
         }
         dnum += snum;
@@ -674,18 +675,18 @@ static void resizeIParams(t_iparams** iparams, const int newSize)
 template<typename IdefType>
 static void set_posres_params(IdefType* idef, const gmx_molblock_t* molb, int i0, int a_offset)
 {
-    int        i1, i, a_molb;
-    t_iparams* ip;
-
-    auto* il = &idef->il[F_POSRES];
-    i1       = il->size() / 2;
-    resizeIParams(&idef->iparams_posres, i1);
-    for (i = i0; i < i1; i++)
+    auto& ilist = idef->il[F_POSRES];
+    resizeIParams(&idef->iparams_posres, ilist.rawIndices().size() / 2);
+    auto itBegin = begin(&ilist, NRAL(F_POSRES)) + i0;
+    auto itEnd   = end(&ilist, NRAL(F_POSRES));
+    int  i       = i0;
+    for (auto it = itBegin; it != itEnd; it++)
     {
-        ip = &idef->iparams_posres[i];
+        auto       entry = *it;
+        t_iparams* ip    = &idef->iparams_posres[i];
         /* Copy the force constants */
-        *ip    = getIparams(*idef, il->iatoms[i * 2]);
-        a_molb = il->iatoms[i * 2 + 1] - a_offset;
+        *ip              = getIparams(*idef, entry.parameterType);
+        const int a_molb = entry.atoms[0] - a_offset;
         if (molb->posres_xA.empty())
         {
             gmx_incons("Position restraint coordinates are missing");
@@ -706,25 +707,26 @@ static void set_posres_params(IdefType* idef, const gmx_molblock_t* molb, int i0
             ip->posres.pos0B[ZZ] = ip->posres.pos0A[ZZ];
         }
         /* Set the parameter index for idef->iparams_posre */
-        il->iatoms[i * 2] = i;
+        entry.parameterType = i;
+        i++;
     }
 }
 
 template<typename IdefType>
 static void set_fbposres_params(IdefType* idef, const gmx_molblock_t* molb, int i0, int a_offset)
 {
-    int        i1, i, a_molb;
-    t_iparams* ip;
-
-    auto* il = &idef->il[F_FBPOSRES];
-    i1       = il->size() / 2;
-    resizeIParams(&idef->iparams_fbposres, i1);
-    for (i = i0; i < i1; i++)
+    auto& ilist = idef->il[F_FBPOSRES];
+    resizeIParams(&idef->iparams_posres, ilist.rawIndices().size() / 2);
+    auto itBegin = begin(&ilist, NRAL(F_FBPOSRES)) + i0;
+    auto itEnd   = end(&ilist, NRAL(F_FBPOSRES));
+    int  i       = i0;
+    for (auto it = itBegin; it != itEnd; it++)
     {
-        ip = &idef->iparams_fbposres[i];
+        auto       entry = *it;
+        t_iparams* ip    = &idef->iparams_fbposres[i];
         /* Copy the force constants */
-        *ip    = getIparams(*idef, il->iatoms[i * 2]);
-        a_molb = il->iatoms[i * 2 + 1] - a_offset;
+        *ip              = getIparams(*idef, entry.parameterType);
+        const int a_molb = entry.atoms[0] - a_offset;
         if (molb->posres_xA.empty())
         {
             gmx_incons("Position restraint coordinates are missing");
@@ -736,7 +738,8 @@ static void set_fbposres_params(IdefType* idef, const gmx_molblock_t* molb, int 
         /* Note: no B-type for flat-bottom posres */
 
         /* Set the parameter index for idef->iparams_posre */
-        il->iatoms[i * 2] = i;
+        entry.parameterType = i;
+        i++;
     }
 }
 
@@ -803,8 +806,8 @@ static void copyIListsFromMtop(const gmx_mtop_t& mtop, IdefType* idef, bool merg
         int srcnr  = molt.atoms.nr;
         int destnr = natoms;
 
-        int nposre_old   = idef->il[F_POSRES].size();
-        int nfbposre_old = idef->il[F_FBPOSRES].size();
+        const std::size_t nposre_old   = idef->il[F_POSRES].rawIndices().size();
+        const std::size_t nfbposre_old = idef->il[F_FBPOSRES].rawIndices().size();
         for (int ftype = 0; ftype < F_NRE; ftype++)
         {
             if (mergeConstr && ftype == F_CONSTR && !molt.ilist[F_CONSTRNC].empty())
@@ -825,13 +828,13 @@ static void copyIListsFromMtop(const gmx_mtop_t& mtop, IdefType* idef, bool merg
                 ilistcat(ftype, &idef->il[ftype], molt.ilist[ftype], molb.nmol, destnr, srcnr);
             }
         }
-        if (idef->il[F_POSRES].size() > nposre_old)
+        if (idef->il[F_POSRES].rawIndices().size() > nposre_old)
         {
             /* Executing this line line stops gmxdump -sys working
              * correctly. I'm not aware there's an elegant fix. */
             set_posres_params(idef, &molb, nposre_old / 2, natoms);
         }
-        if (idef->il[F_FBPOSRES].size() > nfbposre_old)
+        if (idef->il[F_FBPOSRES].rawIndices().size() > nfbposre_old)
         {
             set_fbposres_params(idef, &molb, nfbposre_old / 2, natoms);
         }

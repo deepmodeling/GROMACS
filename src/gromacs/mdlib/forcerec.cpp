@@ -264,14 +264,11 @@ static std::vector<cginfo_mb_t> init_cginfo_mb(const gmx_mtop_t* mtop, const t_f
             if (interaction_function[ftype].flags & IF_CONSTRAINT)
             {
                 const int nral = NRAL(ftype);
-                for (int ia = 0; ia < molt.ilist[ftype].size(); ia += 1 + nral)
+                for (const auto entry : molt.ilist[ftype])
                 {
-                    int a;
-
-                    for (a = 0; a < nral; a++)
+                    for (int a = 0; a < nral; a++)
                     {
-                        a_con[molt.ilist[ftype].iatoms[ia + 1 + a]] =
-                                (ftype == F_SETTLE ? acSETTLE : acCONSTRAINT);
+                        a_con[entry.atoms[a]] = (ftype == F_SETTLE ? acSETTLE : acCONSTRAINT);
                     }
                 }
             }
@@ -502,7 +499,7 @@ static real calcBuckinghamBMax(FILE* fplog, const gmx_mtop_t* mtop)
  */
 static void count_tables(int ftype1, int ftype2, const gmx_mtop_t* mtop, int* ncount, int** count)
 {
-    int ftype, i, j, tabnr;
+    int ftype, j, tabnr;
 
     // Loop over all moleculetypes
     for (const gmx_moltype_t& molt : mtop->moltype)
@@ -513,13 +510,11 @@ static void count_tables(int ftype1, int ftype2, const gmx_mtop_t* mtop, int* nc
             // If the current interaction type is one of the types whose tables we're trying to count...
             if (ftype == ftype1 || ftype == ftype2)
             {
-                const InteractionList& il     = molt.ilist[ftype];
-                const int              stride = 1 + NRAL(ftype);
                 // ... and there are actually some interactions for this type
-                for (i = 0; i < il.size(); i += stride)
+                for (const auto entry : molt.ilist[ftype])
                 {
                     // Find out which table index the user wanted
-                    tabnr = mtop->ffparams.iparams[il.iatoms[i]].tab.table;
+                    tabnr = mtop->ffparams.iparams[entry.parameterType].tab.table;
                     if (tabnr < 0)
                     {
                         gmx_fatal(FARGS, "A bonded table number is smaller than 0: %d\n", tabnr);

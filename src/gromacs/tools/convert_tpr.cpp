@@ -198,25 +198,25 @@ static void reduce_ilist(gmx::ArrayRef<const int> invindex,
     if (!il->empty())
     {
         std::vector<int> newAtoms(nratoms);
-        InteractionList  ilReduced;
-        for (int i = 0; i < il->size(); i += nratoms + 1)
+        InteractionList  ilReduced(il->functionType());
+        for (const auto entry : *il)
         {
             bool bB = true;
             for (int j = 0; j < nratoms; j++)
             {
-                bB = bB && bKeep[il->iatoms[i + 1 + j]];
+                bB = bB && bKeep[entry.atoms[j]];
             }
             if (bB)
             {
                 for (int j = 0; j < nratoms; j++)
                 {
-                    newAtoms[j] = invindex[il->iatoms[i + 1 + j]];
+                    newAtoms[j] = invindex[entry.atoms[j]];
                 }
-                ilReduced.push_back(il->iatoms[i], nratoms, newAtoms.data());
+                ilReduced.push_back(entry.parameterType, nratoms, newAtoms.data());
             }
         }
-        fprintf(stderr, "Reduced ilist %8s from %6d to %6d entries\n", name,
-                il->size() / (nratoms + 1), ilReduced.size() / (nratoms + 1));
+        fprintf(stderr, "Reduced ilist %8s from %6zu to %6zu entries\n", name,
+                il->numInteractions(), ilReduced.numInteractions());
 
         *il = std::move(ilReduced);
     }

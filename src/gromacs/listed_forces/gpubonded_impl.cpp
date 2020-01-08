@@ -60,7 +60,7 @@ static bool someInteractionsCanRunOnGpu(const InteractionLists& ilists)
 {
     for (int fType : fTypesOnGpu)
     {
-        if (!ilists[fType].iatoms.empty())
+        if (!ilists[fType].empty())
         {
             // Perturbation is not implemented in the GPU bonded
             // kernels. If all the interactions were actually

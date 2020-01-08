@@ -201,14 +201,11 @@ static void flagInteractionsForType(const int                ftype,
                                     gmx::ArrayRef<int>       isAssigned)
 {
     const int nril_mol = ril.index[numAtomsPerMolecule];
-    const int nral     = NRAL(ftype);
 
-    for (int i = 0; i < il.size(); i += 1 + nral)
+    for (const auto entry : il)
     {
-        // ia[0] is the interaction type, ia[1, ...] the atom indices
-        const int* ia = il.iatoms.data() + i;
         // Extract the global atom index of the first atom in this interaction
-        const int a0 = globalAtomIndices[ia[1]];
+        const int a0 = globalAtomIndices[entry.atoms[0]];
         /* Check if this interaction is in
          * the currently checked molblock.
          */
@@ -228,17 +225,18 @@ static void flagInteractionsForType(const int                ftype,
                  * not already been assigned, since we could have
                  * multiply defined interactions.
                  */
-                if (ftype == ftype_j && ia[0] == ril.il[j_mol + 1] && isAssigned[j] == 0)
+                if (ftype == ftype_j && entry.parameterType == ril.il[j_mol + 1] && isAssigned[j] == 0)
                 {
                     /* Check the atoms */
-                    found = true;
-                    for (int a = 0; a < nral; a++)
+                    found               = true;
+                    int reverseTopIndex = j_mol + 2;
+                    for (int a : entry.atoms)
                     {
-                        if (globalAtomIndices[ia[1 + a]]
-                            != globalAtomStartInMolecule + ril.il[j_mol + 2 + a])
+                        if (globalAtomIndices[a] != globalAtomStartInMolecule + ril.il[reverseTopIndex])
                         {
                             found = false;
                         }
+                        reverseTopIndex++;
                     }
                     if (found)
                     {
@@ -370,7 +368,7 @@ void dd_print_missing_interactions(const gmx::MDLogger&           mdlog,
                                    const matrix                   box)
 {
     int           ndiff_tot, cl[F_NRE], n, ndiff, rest_global, rest_local;
-    int           ftype, nral;
+    int           ftype;
     gmx_domdec_t* dd;
 
     dd = cr->dd;
@@ -384,8 +382,7 @@ void dd_print_missing_interactions(const gmx::MDLogger&           mdlog,
 
     for (ftype = 0; ftype < F_NRE; ftype++)
     {
-        nral      = NRAL(ftype);
-        cl[ftype] = top_local->idef.il[ftype].size() / (1 + nral);
+        cl[ftype] = top_local->idef.il[ftype].numInteractions();
     }
 
     gmx_sumi(F_NRE, cl, cr);
@@ -530,9 +527,8 @@ static int low_make_reverse_ilist(const InteractionLists&  il_mt,
             const bool  bVSite = ((interaction_function[ftype].flags & IF_VSITE) != 0U);
             const int   nral   = NRAL(ftype);
             const auto& il     = il_mt[ftype];
-            for (int i = 0; i < il.size(); i += 1 + nral)
+            for (const auto entry : il)
             {
-                const int* ia = il.iatoms.data() + i;
                 if (bLinkToAllAtoms)
                 {
                     if (bVSite)
@@ -552,17 +548,17 @@ static int low_make_reverse_ilist(const InteractionLists&  il_mt,
                 }
                 for (link = 0; link < nlink; link++)
                 {
-                    a = ia[1 + link];
+                    a = entry.atoms[link];
                     if (bAssign)
                     {
                         GMX_ASSERT(!r_il.empty(), "with bAssign not allowed to be empty");
                         GMX_ASSERT(!r_index.empty(), "with bAssign not allowed to be empty");
                         r_il[r_index[a] + count[a]]     = (ftype == F_CONSTRNC ? F_CONSTR : ftype);
-                        r_il[r_index[a] + count[a] + 1] = ia[0];
-                        for (j = 1; j < 1 + nral; j++)
+                        r_il[r_index[a] + count[a] + 1] = entry.parameterType;
+                        for (j = 0; j < nral; j++)
                         {
                             /* Store the molecular atom number */
-                            r_il[r_index[a] + count[a] + 1 + j] = ia[j];
+                            r_il[r_index[a] + count[a] + 2 + j] = entry.atoms[j];
                         }
                     }
                     if (interaction_function[ftype].flags & IF_VSITE)
@@ -574,11 +570,11 @@ static int low_make_reverse_ilist(const InteractionLists&  il_mt,
                              * vsites again.
                              */
                             r_il[r_index[a] + count[a] + 2 + nral] = 0;
-                            for (j = 2; j < 1 + nral; j++)
+                            for (j = 1; j < nral; j++)
                             {
-                                if (atom[ia[j]].ptype == eptVSite)
+                                if (atom[entry.atoms[j]].ptype == eptVSite)
                                 {
-                                    r_il[r_index[a] + count[a] + 2 + nral] |= (2 << j);
+                                    r_il[r_index[a] + count[a] + 2 + nral] |= (2 << (1 + j));
                                 }
                             }
                         }
@@ -852,7 +848,7 @@ static void add_posres(int                     mol,
     /* This position restraint has not been added yet,
      * so it's index is the current number of position restraints.
      */
-    const int n = idef->il[F_POSRES].size() / 2;
+    const int n = idef->il[F_POSRES].numInteractions();
 
     /* Get the position restraint coordinates from the molblock */
     const int a_molb = mol * numAtomsInMolecule + a_mol;
@@ -895,7 +891,7 @@ static void add_fbposres(int                     mol,
     /* This flat-bottom position restraint has not been added yet,
      * so it's index is the current number of position restraints.
      */
-    const int n = idef->il[F_FBPOSRES].size() / 2;
+    const int n = idef->il[F_FBPOSRES].numInteractions();
 
     /* Get the position restraint coordinats from the molblock */
     const int a_molb = mol * numAtomsInMolecule + a_mol;
@@ -999,7 +995,7 @@ static void combine_idef(InteractionDefinitions* dest, gmx::ArrayRef<const threa
         int n = 0;
         for (gmx::index s = 1; s < src.ssize(); s++)
         {
-            n += src[s].idef.il[ftype].size();
+            n += src[s].idef.il[ftype].iatoms().size();
         }
         if (n > 0)
         {
@@ -1011,14 +1007,14 @@ static void combine_idef(InteractionDefinitions* dest, gmx::ArrayRef<const threa
             /* Position restraints need an additional treatment */
             if (ftype == F_POSRES || ftype == F_FBPOSRES)
             {
-                int                     nposres = dest->il[ftype].size() / 2;
+                int                     nposres = dest->il[ftype].numInteractions();
                 std::vector<t_iparams>& iparams_dest =
                         (ftype == F_POSRES ? dest->iparams_posres : dest->iparams_fbposres);
 
                 /* Set nposres to the number of original position restraints in dest */
                 for (gmx::index s = 1; s < src.ssize(); s++)
                 {
-                    nposres -= src[s].idef.il[ftype].size() / 2;
+                    nposres -= src[s].idef.il[ftype].numInteractions();
                 }
 
                 for (gmx::index s = 1; s < src.ssize(); s++)
@@ -1028,10 +1024,11 @@ static void combine_idef(InteractionDefinitions* dest, gmx::ArrayRef<const threa
                     iparams_dest.insert(iparams_dest.end(), iparams_src.begin(), iparams_src.end());
 
                     /* Correct the indices into iparams_posres */
-                    for (int i = 0; i < src[s].idef.il[ftype].size() / 2; i++)
+                    auto beginIt = dest->il[ftype].begin() + nposres;
+                    auto endIt   = dest->il[ftype].end();
+                    for (auto it = beginIt; it != endIt; it++)
                     {
-                        /* Correct the index into iparams_posres */
-                        dest->il[ftype].iatoms[nposres * 2] = nposres;
+                        (*it).parameterType = nposres;
                         nposres++;
                     }
                 }
@@ -1844,14 +1841,14 @@ static void bonded_cg_distance_mol(const gmx_moltype_t* molt,
             int         nral = NRAL(ftype);
             if (nral > 1)
             {
-                for (int i = 0; i < il.size(); i += 1 + nral)
+                for (const auto entry : il)
                 {
                     for (int ai = 0; ai < nral; ai++)
                     {
-                        int atomI = il.iatoms[i + 1 + ai];
+                        const int atomI = entry.atoms[ai];
                         for (int aj = ai + 1; aj < nral; aj++)
                         {
-                            int atomJ = il.iatoms[i + 1 + aj];
+                            const int atomJ = entry.atoms[aj];
                             if (atomI != atomJ)
                             {
                                 real rij2 = distance2(x[atomI], x[atomJ]);
@@ -1907,22 +1904,20 @@ static void bonded_distance_intermol(const InteractionLists& ilists_intermol,
             /* No nral>1 check here, since intermol interactions always
              * have nral>=2 (and the code is also correct for nral=1).
              */
-            for (int i = 0; i < il.size(); i += 1 + nral)
+            for (const auto entry : il)
             {
                 for (int ai = 0; ai < nral; ai++)
                 {
-                    int atom_i = il.iatoms[i + 1 + ai];
+                    const int atom_i = entry.atoms[ai];
 
                     for (int aj = ai + 1; aj < nral; aj++)
                     {
+                        const int atom_j = entry.atoms[aj];
+
                         rvec dx;
-                        real rij2;
-
-                        int atom_j = il.iatoms[i + 1 + aj];
-
                         pbc_dx(&pbc, x[atom_i], x[atom_j], dx);
 
-                        rij2 = norm2(dx);
+                        const real rij2 = norm2(dx);
 
                         update_max_bonded_distance(rij2, ftype, atom_i, atom_j, (nral == 2) ? bd_2b : bd_mb);
                     }

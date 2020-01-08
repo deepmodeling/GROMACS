@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2013,2014,2015,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2013,2014,2015,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -275,7 +275,6 @@ static void addTngMoleculeFromTopology(gmx_tng_trajectory_t gmx_tng,
 void gmx_tng_add_mtop(gmx_tng_trajectory_t gmx_tng, const gmx_mtop_t* mtop)
 {
     int               i;
-    int               j;
     std::vector<real> atomCharges;
     std::vector<real> atomMasses;
     tng_bond_t        tngBond;
@@ -315,22 +314,18 @@ void gmx_tng_add_mtop(gmx_tng_trajectory_t gmx_tng, const gmx_mtop_t* mtop)
             if (IS_CHEMBOND(i))
             {
                 const InteractionList& ilist = molType->ilist[i];
-                j                            = 1;
-                while (j < ilist.size())
+                for (const auto entry : ilist)
                 {
-                    tng_molecule_bond_add(tng, tngMol, ilist.iatoms[j], ilist.iatoms[j + 1], &tngBond);
-                    j += 3;
+                    tng_molecule_bond_add(tng, tngMol, entry.atoms[0], entry.atoms[1], &tngBond);
                 }
             }
         }
         /* Settle is described using three atoms */
         const InteractionList& ilist = molType->ilist[F_SETTLE];
-        j                            = 1;
-        while (j < ilist.size())
+        for (const auto entry : ilist)
         {
-            tng_molecule_bond_add(tng, tngMol, ilist.iatoms[j], ilist.iatoms[j + 1], &tngBond);
-            tng_molecule_bond_add(tng, tngMol, ilist.iatoms[j], ilist.iatoms[j + 2], &tngBond);
-            j += 4;
+            tng_molecule_bond_add(tng, tngMol, entry.atoms[0], entry.atoms[1], &tngBond);
+            tng_molecule_bond_add(tng, tngMol, entry.atoms[0], entry.atoms[2], &tngBond);
         }
         /* First copy atom charges and masses, first atom by atom and then copy the memory for the molecule instances.
          * FIXME: Atom B state data should also be written to TNG (v 2.0?) */
@@ -668,11 +663,11 @@ static void add_selection_groups(gmx_tng_trajectory_t gmx_tng, const gmx_mtop_t*
                     if (IS_CHEMBOND(k))
                     {
                         const InteractionList& ilist = molType.ilist[k];
-                        for (int l = 1; l < ilist.size(); l += 3)
+                        for (const auto entry : ilist)
                         {
                             int atom1, atom2;
-                            atom1 = ilist.iatoms[l] + atom_offset;
-                            atom2 = ilist.iatoms[l + 1] + atom_offset;
+                            atom1 = entry.atoms[0] + atom_offset;
+                            atom2 = entry.atoms[1] + atom_offset;
                             if (getGroupType(mtop->groups,
                                              SimulationAtomGroupType::CompressedPositionOutput, atom1)
                                         == 0
@@ -680,20 +675,19 @@ static void add_selection_groups(gmx_tng_trajectory_t gmx_tng, const gmx_mtop_t*
                                                 SimulationAtomGroupType::CompressedPositionOutput, atom2)
                                            == 0)
                             {
-                                tng_molecule_bond_add(tng, mol, ilist.iatoms[l],
-                                                      ilist.iatoms[l + 1], &tngBond);
+                                tng_molecule_bond_add(tng, mol, entry.atoms[0], entry.atoms[1], &tngBond);
                             }
                         }
                     }
                 }
                 /* Settle is described using three atoms */
                 const InteractionList& ilist = molType.ilist[F_SETTLE];
-                for (int l = 1; l < ilist.size(); l += 4)
+                for (const auto entry : ilist)
                 {
                     int atom1, atom2, atom3;
-                    atom1 = ilist.iatoms[l] + atom_offset;
-                    atom2 = ilist.iatoms[l + 1] + atom_offset;
-                    atom3 = ilist.iatoms[l + 2] + atom_offset;
+                    atom1 = entry.atoms[0] + atom_offset;
+                    atom2 = entry.atoms[1] + atom_offset;
+                    atom3 = entry.atoms[2] + atom_offset;
                     if (getGroupType(mtop->groups, SimulationAtomGroupType::CompressedPositionOutput, atom1)
                         == 0)
                     {

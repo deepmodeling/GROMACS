@@ -340,7 +340,7 @@ static void check_bonds_timestep(const gmx_mtop_t* mtop, double dt, warninp* wi)
     int  min_steps_warn = 5;
     int  min_steps_note = 10;
     int  ftype;
-    int  i, a1, a2, w_a1, w_a2, j;
+    int  w_a1, w_a2;
     real twopi2, limit2, fc, re, m1, m2, period2, w_period2;
     bool bFound, bWater, bWarn;
 
@@ -369,19 +369,19 @@ static void check_bonds_timestep(const gmx_mtop_t* mtop, double dt, warninp* wi)
             }
 
             const InteractionList& ilb = ilist[ftype];
-            for (i = 0; i < ilb.size(); i += 3)
+            for (const auto entry : ilb)
             {
-                fc = ip[ilb.iatoms[i]].harmonic.krA;
-                re = ip[ilb.iatoms[i]].harmonic.rA;
+                fc = ip[entry.parameterType].harmonic.krA;
+                re = ip[entry.parameterType].harmonic.rA;
                 if (ftype == F_G96BONDS)
                 {
                     /* Convert squared sqaure fc to harmonic fc */
                     fc = 2 * fc * re;
                 }
-                a1 = ilb.iatoms[i + 1];
-                a2 = ilb.iatoms[i + 2];
-                m1 = atom[a1].m;
-                m2 = atom[a2].m;
+                const int a1 = entry.atoms[0];
+                const int a2 = entry.atoms[1];
+                m1           = atom[a1].m;
+                m2           = atom[a2].m;
                 if (fc > 0 && m1 > 0 && m2 > 0)
                 {
                     period2 = twopi2 * m1 * m2 / ((m1 + m2) * fc);
@@ -397,19 +397,18 @@ static void check_bonds_timestep(const gmx_mtop_t* mtop, double dt, warninp* wi)
                 if (period2 < limit2)
                 {
                     bFound = false;
-                    for (j = 0; j < ilc.size(); j += 3)
+                    for (const auto cEntry : ilc)
                     {
-                        if ((ilc.iatoms[j + 1] == a1 && ilc.iatoms[j + 2] == a2)
-                            || (ilc.iatoms[j + 1] == a2 && ilc.iatoms[j + 2] == a1))
+                        if ((cEntry.atoms[0] == a1 && cEntry.atoms[1] == a2)
+                            || (cEntry.atoms[0] == a2 && cEntry.atoms[1] == a1))
                         {
                             bFound = true;
                         }
                     }
-                    for (j = 0; j < ils.size(); j += 4)
+                    for (const auto sEntry : ils)
                     {
-                        if ((a1 == ils.iatoms[j + 1] || a1 == ils.iatoms[j + 2] || a1 == ils.iatoms[j + 3])
-                            && (a2 == ils.iatoms[j + 1] || a2 == ils.iatoms[j + 2]
-                                || a2 == ils.iatoms[j + 3]))
+                        if ((a1 == sEntry.atoms[0] || a1 == sEntry.atoms[1] || a1 == sEntry.atoms[2])
+                            && (a2 == sEntry.atoms[0] || a2 == sEntry.atoms[1] || a2 == sEntry.atoms[2]))
                         {
                             bFound = true;
                         }
@@ -510,7 +509,7 @@ static void renumber_moltypes(gmx_mtop_t* sys, std::vector<MoleculeInformation>*
     std::vector<int> order;
     for (gmx_molblock_t& molblock : sys->molblock)
     {
-        const auto found = std::find_if(order.begin(), order.end(), [&molblock](const auto& entry) {
+        const auto found = std::find_if(order.begin(), order.end(), [&molblock](const auto entry) {
             return molblock.type == entry;
         });
         if (found == order.end())
@@ -1381,14 +1380,13 @@ static void checkForUnboundAtoms(const gmx_moltype_t* molt, gmx_bool bVerbose, w
         if (((interaction_function[ftype].flags & IF_BOND) && NRAL(ftype) == 2 && ftype != F_CONNBONDS)
             || (interaction_function[ftype].flags & IF_CONSTRAINT) || ftype == F_SETTLE)
         {
-            const InteractionList& il   = molt->ilist[ftype];
-            const int              nral = NRAL(ftype);
+            const InteractionList& il = molt->ilist[ftype];
 
-            for (int i = 0; i < il.size(); i += 1 + nral)
+            for (const auto entry : il)
             {
-                for (int j = 0; j < nral; j++)
+                for (int atom : entry.atoms)
                 {
-                    count[il.iatoms[i + 1 + j]]++;
+                    count[atom]++;
                 }
             }
         }
@@ -1460,9 +1458,8 @@ static bool haveDecoupledModeInMol(const gmx_moltype_t&           molt,
     {
         if (interaction_function[ftype].flags & IF_ATYPE)
         {
-            const int              nral = NRAL(ftype);
-            const InteractionList& il   = molt.ilist[ftype];
-            for (int i = 0; i < il.size(); i += 1 + nral)
+            const InteractionList& il = molt.ilist[ftype];
+            for (const auto entry : il)
             {
                 /* Here we check for the mass difference between the atoms
                  * at both ends of the angle, that the atoms at the ends have
@@ -1478,9 +1475,9 @@ static bool haveDecoupledModeInMol(const gmx_moltype_t&           molt,
                  * occur in "normal" molecules and it doesn't hurt running
                  * those with higher accuracy settings as well.
                  */
-                int a0 = il.iatoms[1 + i];
-                int a1 = il.iatoms[1 + i + 1];
-                int a2 = il.iatoms[1 + i + 2];
+                const int a0 = entry.atoms[0];
+                const int a1 = entry.atoms[1];
+                const int a2 = entry.atoms[2];
                 if ((atom[a0].m > atom[a2].m * massFactorThreshold || atom[a2].m > atom[a0].m * massFactorThreshold)
                     && atomToConstraints[a0].ssize() == 1 && atomToConstraints[a2].ssize() == 1
                     && atomToConstraints[a1].ssize() >= 3)

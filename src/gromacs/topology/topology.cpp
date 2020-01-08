@@ -195,7 +195,7 @@ static void pr_grps(FILE* fp, const char* title, gmx::ArrayRef<const AtomGroupIn
     {
         fprintf(fp, "%s[%-12s] nr=%zu, name=[", title, c_simulationAtomGroupTypeShortNames[index],
                 group.size());
-        for (const auto& entry : group)
+        for (const auto entry : group)
         {
             fprintf(fp, " %s", *(grpname[entry]));
         }
@@ -494,11 +494,13 @@ static void compareInteractionLists(FILE* fp, const InteractionLists* il1, const
     {
         for (int i = 0; i < F_NRE; i++)
         {
-            cmp_int(fp, "InteractionList size", i, il1->at(i).size(), il2->at(i).size());
-            int nr = std::min(il1->at(i).size(), il2->at(i).size());
+            cmp_int(fp, "InteractionList number of interactions", i, il1->at(i).numInteractions(),
+                    il2->at(i).numInteractions());
+            int nr = std::min(il1->at(i).rawIndices().size(), il2->at(i).rawIndices().size());
             for (int j = 0; j < nr; j++)
             {
-                cmp_int(fp, "InteractionList entry", j, il1->at(i).iatoms.at(j), il2->at(i).iatoms.at(j));
+                cmp_int(fp, "InteractionList entry", j, il1->at(i).iatoms().at(j),
+                        il2->at(i).iatoms().at(j));
             }
         }
     }

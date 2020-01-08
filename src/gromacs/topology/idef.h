@@ -45,6 +45,7 @@
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/topology/ifunc.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
@@ -214,62 +215,396 @@ typedef union t_iparams {
 
 typedef int t_functype;
 
-/* List of listed interactions, see description further down.
- *
- * TODO: Consider storing the function type as well.
- * TODO: Consider providing per interaction access.
- */
-struct InteractionList
+//! Reference to an interaction list entry, used by the iterator
+struct InteractionListEntry
 {
-    /* Returns the total number of elements in iatoms */
-    int size() const { return static_cast<int>(iatoms.size()); }
+    //! Constructor using pointer to raw indices and the stride of the interaction list
+    InteractionListEntry(int const* indicesPtr, const std::size_t stride) :
+        parameterType(indicesPtr[0]),
+        atoms(indicesPtr + 1, indicesPtr + stride)
+    {
+    }
 
-    /* Returns whether the list is empty */
-    bool empty() const { return iatoms.empty(); }
+    //! Reference to the parameter type
+    const int& parameterType;
+    //! Reference to the atoms
+    gmx::ArrayRef<const int> atoms;
+};
 
-    /* Adds one interaction to the list */
+//! Helper class for looping over entries in an InteractionList
+class InteractionListIterator
+{
+public:
+    //! Difference type for iterator arithmetic
+    using difference_type = std::ptrdiff_t;
+
+    //! Constructor
+    InteractionListIterator(const int* indicesPtr, std::size_t stride) :
+        indicesPtr_(indicesPtr),
+        stride_(stride)
+    {
+    }
+    //! Value
+    operator InteractionListEntry() const { return InteractionListEntry(indicesPtr_, stride_); }
+    //! Pointer
+    InteractionListEntry operator*() const { return InteractionListEntry(indicesPtr_, stride_); }
+    //! Equality comparison
+    bool operator==(const InteractionListIterator other)
+    {
+        return indicesPtr_ == other.indicesPtr_;
+    }
+    //! Inequality comparison
+    bool operator!=(const InteractionListIterator other)
+    {
+        return indicesPtr_ != other.indicesPtr_;
+    }
+    //! Increment operator
+    InteractionListIterator& operator++()
+    {
+        indicesPtr_ += stride_;
+        return *this;
+    }
+    //! Increment operator
+    InteractionListIterator operator++(int gmx_unused dummy)
+    {
+        InteractionListIterator tmp(*this);
+        indicesPtr_ += stride_;
+        return tmp;
+    }
+    //! Addition operator
+    InteractionListIterator operator+(difference_type d)
+    {
+        return { indicesPtr_ + d * stride_, stride_ };
+    }
+
+private:
+    //! Pointer to the first index of the current entry
+    int const* indicesPtr_;
+    //! The stride of entries in the flat list
+    std::size_t stride_;
+};
+
+//! Reference to an interaction list entry, used by the iterator
+struct InteractionListWriteEntry
+{
+    //! Constructor using pointer to raw indices and the stride of entries in the interaction list
+    InteractionListWriteEntry(int* indicesPtr, const std::size_t stride) :
+        parameterType(indicesPtr[0]),
+        atoms(indicesPtr + 1, indicesPtr + stride)
+    {
+    }
+
+    //! Reference to the parameter type
+    int& parameterType;
+    //! Reference to the atoms
+    gmx::ArrayRef<int> atoms;
+};
+
+//! Helper class for looping over entries in an InteractionList with write access to entries
+class InteractionListWriteIterator
+{
+public:
+    //! Difference type for iterator arithmetic
+    using difference_type = std::ptrdiff_t;
+
+    //! Constructor
+    InteractionListWriteIterator(int* indicesPtr, const std::size_t stride) :
+        indicesPtr_(indicesPtr),
+        stride_(stride)
+    {
+    }
+    //! Value
+    operator InteractionListWriteEntry() const
+    {
+        return InteractionListWriteEntry(indicesPtr_, stride_);
+    }
+    //! Pointer
+    InteractionListWriteEntry operator*() const
+    {
+        return InteractionListWriteEntry(indicesPtr_, stride_);
+    }
+    //! Equality comparison
+    bool operator==(const InteractionListWriteIterator other)
+    {
+        return indicesPtr_ == other.indicesPtr_;
+    }
+    //! Inequality comparison
+    bool operator!=(const InteractionListWriteIterator other)
+    {
+        return indicesPtr_ != other.indicesPtr_;
+    }
+    //! Increment operator
+    InteractionListWriteIterator& operator++()
+    {
+        indicesPtr_ += stride_;
+        return *this;
+    }
+    //! Increment operator
+    InteractionListWriteIterator operator++(int gmx_unused dummy)
+    {
+        InteractionListWriteIterator tmp(*this);
+        indicesPtr_ += stride_;
+        return tmp;
+    }
+    //! Compound += operator
+    InteractionListWriteIterator operator+=(difference_type d)
+    {
+        indicesPtr_ += d * stride_;
+        return *this;
+    }
+    //! Addition operator
+    InteractionListWriteIterator operator+(difference_type d)
+    {
+        return { indicesPtr_ + d * stride_, stride_ };
+    }
+
+private:
+    //! Pointer to the first index of the current entry
+    int* indicesPtr_;
+    //! The stride of entries in the interaction list
+    std::size_t stride_;
+};
+
+/*! \brief List of listed interactions
+ *
+ * Each interaction consists of a parameter type and \p numAtoms() atom indices.
+ * Iterators are provided to iterate over the interactions.
+ * For maximum performance in force kernels, direct access to the underlying
+ * flat array or integers is provided.
+ */
+class InteractionList
+{
+public:
+    //! Constructs an empty list
+    InteractionList(int functionType) : functionType_(functionType), stride_(1 + NRAL(functionType))
+    {
+    }
+
+    //! Constructs from raw indices stored as: t0,a00,a01,...,t1,a10,a11,...
+    InteractionList(int functionType, std::vector<int>&& rawIndices) :
+        functionType_(functionType),
+        indices_(std::move(rawIndices)),
+        stride_(1 + NRAL(functionType))
+    {
+        GMX_RELEASE_ASSERT(indices_.size() % stride_ == 0,
+                           "The number of raw indices should be a multiple of 1 + the number of "
+                           "atoms per interaction");
+    }
+
+    //! Returns the function type
+    int functionType() const { return functionType_; }
+
+    //! Returns the number of interactions in the list
+    std::size_t numInteractions() const { return int(indices_.size()) / int(stride_); }
+
+    //! Returns whether the list is empty
+    bool empty() const { return indices_.empty(); }
+
+    //! Returns the number of atoms in an interaction
+    std::size_t numAtoms() const { return stride_ - 1; }
+
+    //! Return an entry from the list
+    const InteractionListEntry operator[](std::size_t interactionIndex) const
+    {
+        return InteractionListEntry(indices_.data() + interactionIndex * stride_, stride_);
+    }
+
+    //! Return the raw indices in layout: t0,a00,a01,...,t1,a10,a11,...
+    gmx::ArrayRef<const int> rawIndices() const { return indices_; }
+
+    //! Return the raw indices in layout: t0,a00,a01,...,t1,a10,a11,...
+    gmx::ArrayRef<const int> iatoms() const { return indices_; }
+
+    //! Adds an interaction at the end of the list
+    void push_back(const int parameterType, const std::size_t numAtoms, const int* atoms)
+    {
+        GMX_ASSERT(numAtoms == stride_ - 1,
+                   "The number of atoms in the interaction to add should match the number of atoms "
+                   "of the function type of the list");
+        const std::size_t oldSize = indices_.size();
+        indices_.resize(indices_.size() + stride_);
+        indices_[oldSize] = parameterType;
+        for (std::size_t i = 1; i < stride_; i++)
+        {
+            indices_[oldSize + i] = atoms[i - 1];
+        }
+    }
+
+    //! Adds an interaction at the end of the list
     template<std::size_t numAtoms>
     void push_back(const int parameterType, const std::array<int, numAtoms>& atoms)
     {
-        const std::size_t oldSize = iatoms.size();
-        iatoms.resize(iatoms.size() + 1 + numAtoms);
-        iatoms[oldSize] = parameterType;
-        for (std::size_t i = 0; i < numAtoms; i++)
-        {
-            iatoms[oldSize + 1 + i] = atoms[i];
-        }
+        push_back(parameterType, numAtoms, atoms.data());
     }
 
-    /* Adds one interaction to the list */
-    void push_back(const int parameterType, const int numAtoms, const int* atoms)
+    //! Adds an interaction at the end of the list
+    void push_back(const int parameterType, gmx::ArrayRef<const int> atoms)
     {
-        const std::size_t oldSize = iatoms.size();
-        iatoms.resize(iatoms.size() + 1 + numAtoms);
-        iatoms[oldSize] = parameterType;
-        for (int i = 0; i < numAtoms; i++)
-        {
-            iatoms[oldSize + 1 + i] = atoms[i];
-        }
+        push_back(parameterType, atoms.size(), atoms.data());
     }
 
-    /* Appends \p ilist at the back of the list */
+    //! Appends \p ilist at the back of the list, the function types should match (except that F_CONSTRNC can be appended to F_CONSTR)
     void append(const InteractionList& ilist)
     {
-        iatoms.insert(iatoms.end(), ilist.iatoms.begin(), ilist.iatoms.end());
+        GMX_RELEASE_ASSERT(ilist.functionType() == functionType_
+                                   || (functionType_ == F_CONSTR && ilist.functionType() == F_CONSTRNC),
+                           "Function types should match");
+        indices_.insert(indices_.end(), ilist.iatoms().begin(), ilist.iatoms().end());
     }
 
-    /* Clears the list */
-    void clear() { iatoms.clear(); }
+    //! Clears the list
+    void clear() { indices_.clear(); }
 
-    /* List of interactions, see explanation further down */
-    std::vector<int> iatoms;
+    //! Returns the begin iterator
+    inline InteractionListIterator begin() const
+    {
+        return InteractionListIterator(indices_.data(), stride_);
+    }
+    //! Returns the end iterator
+    inline InteractionListIterator end() const
+    {
+        return InteractionListIterator(indices_.data() + indices_.size(), stride_);
+    }
+
+    //! Returns the begin iterator
+    inline InteractionListWriteIterator begin()
+    {
+        return InteractionListWriteIterator(indices_.data(), stride_);
+    }
+    //! Returns the end iterator
+    inline InteractionListWriteIterator end()
+    {
+        return InteractionListWriteIterator(indices_.data() + indices_.size(), stride_);
+    }
+
+private:
+    //! The function type
+    int functionType_;
+    //! List of interactions, stored as t0,a00,a01,...,t1,a10,a11,...
+    std::vector<int> indices_;
+    //! The stride of entries in indices_, equal to 1 + numAtoms()
+    std::size_t stride_;
+};
+
+//! Helper class for looping over selections of InteractionLists
+class InteractionListsSelection
+{
+public:
+    //! Iterator for loop over selected InteractionList entries in an InteractionLists
+    class iterator
+    {
+    public:
+        //! Difference type for iterator arithmetic
+        using difference_type = std::ptrdiff_t;
+
+        //! Constructor
+        iterator(const InteractionList* listPtr, const InteractionList* listEnd, int flags) :
+            listPtr_(listPtr),
+            listEnd_(listEnd),
+            flags_(flags)
+        {
+            findValidList();
+        }
+        //! Pointer
+        const InteractionList& operator*() const { return *listPtr_; }
+        //! Equality comparison
+        bool operator==(const iterator other) { return listPtr_ == &(*other); }
+        //! Inequality comparison
+        bool operator!=(const iterator other) { return listPtr_ != &(*other); }
+        //! Increment operator
+        iterator& operator++()
+        {
+            listPtr_++;
+            findValidList();
+            return *this;
+        }
+        //! Increment operator
+        iterator operator++(int gmx_unused dummy)
+        {
+            iterator tmp(listPtr_, listEnd_, flags_);
+            (*this)++;
+            return tmp;
+        }
+
+    private:
+        //! Increases listPtr_ until a non-empty list is found with one of the flags set
+        void findValidList()
+        {
+            while (listPtr_ < listEnd_
+                   && ((interaction_function[listPtr_->functionType()].flags & flags_) == 0
+                       || listPtr_->empty()))
+            {
+                listPtr_++;
+            }
+        }
+
+        //! Pointer to the current list
+        const InteractionList* listPtr_;
+        //! Pointer to the one after the last list
+        const InteractionList* listEnd_;
+        //! The interaction flags to select on
+        int flags_;
+    };
+
+    //! Constructor
+    InteractionListsSelection(gmx::ArrayRef<const InteractionList> ilists, int flags) :
+        ilists_(ilists),
+        flags_(flags)
+    {
+    }
+
+    //! Returns iterator to begin
+    const iterator begin() const
+    {
+        return iterator(ilists_.data(), ilists_.data() + ilists_.size(), flags_);
+    }
+
+    //! Returns iterator to end
+    const iterator end() const
+    {
+        return iterator(ilists_.data() + ilists_.size(), ilists_.data() + ilists_.size(), flags_);
+    }
+
+private:
+    //! The interaction lists to select from
+    gmx::ArrayRef<const InteractionList> ilists_;
+    //! The interaction flags to select on
+    int flags_;
 };
 
 /* List of interaction lists, one list for each interaction type
  *
  * TODO: Consider only including entries in use instead of all F_NRE
  */
-using InteractionLists = std::array<InteractionList, F_NRE>;
+class InteractionLists
+{
+public:
+    InteractionLists()
+    {
+        for (int ftype = 0; ftype < F_NRE; ftype++)
+        {
+            lists_.emplace_back(ftype);
+        }
+    }
+
+    std::size_t size() const { return lists_.size(); }
+
+    InteractionList&       operator[](std::size_t listIndex) { return lists_[listIndex]; }
+    const InteractionList& operator[](std::size_t listIndex) const { return lists_[listIndex]; }
+    InteractionList&       at(std::size_t listIndex) { return lists_.at(listIndex); }
+    const InteractionList& at(std::size_t listIndex) const { return lists_.at(listIndex); }
+
+    const InteractionList* data() const { return lists_.data(); }
+
+    //! Returns a selection of non-empty interaction lists that have one of the flags in \p flags set
+    InteractionListsSelection selection(int flags) const
+    {
+        return InteractionListsSelection(lists_, flags);
+    }
+
+private:
+    std::vector<InteractionList> lists_;
+};
 
 /* Deprecated list of listed interactions */
 struct t_ilist
@@ -279,6 +614,10 @@ struct t_ilist
 
     /* Returns whether the list is empty */
     bool empty() const { return nr == 0; }
+
+    gmx::ArrayRef<const int> rawIndices() const { return gmx::constArrayRefFromArray(iatoms, nr); }
+
+    int* iatomsWriteAccess() { return iatoms; }
 
     int      nr;
     t_iatom* iatoms;
@@ -306,41 +645,30 @@ struct t_ilist
  *      identifier is an index in a params[] and functype[] array.
  */
 
-/*! \brief Type for returning a list of InteractionList references
- *
- * TODO: Remove when the function type is made part of InteractionList
- */
-struct InteractionListHandle
-{
-    const int               functionType; //!< The function type
-    const std::vector<int>& iatoms;       //!< Reference to interaction list
-};
+/* The following four iterator generators should be removed when t_ilist is removed */
 
-/*! \brief Returns a list of all non-empty InteractionList entries with any of the interaction flags in \p flags set
- *
- * \param[in] ilists  Set of interaction lists
- * \param[in] flags   Bit mask with one or more IF_... bits set
- */
-static inline std::vector<InteractionListHandle> extractILists(const InteractionLists& ilists, int flags)
+//! Returns the begin iterator
+inline InteractionListWriteIterator begin(InteractionList* iList, std::size_t numAtoms)
 {
-    std::vector<InteractionListHandle> handles;
-    for (size_t ftype = 0; ftype < ilists.size(); ftype++)
-    {
-        if ((interaction_function[ftype].flags & flags) && !ilists[ftype].empty())
-        {
-            handles.push_back({ static_cast<int>(ftype), ilists[ftype].iatoms });
-        }
-    }
-    return handles;
+    GMX_ASSERT(numAtoms == iList->numAtoms(), "numAtoms should match");
+    return iList->begin();
+}
+//! Returns the end iterator
+inline InteractionListWriteIterator end(InteractionList* iList, std::size_t numAtoms)
+{
+    GMX_ASSERT(numAtoms == iList->numAtoms(), "numAtoms should match");
+    return iList->end();
 }
 
-/*! \brief Returns the stride for the iatoms array in \p ilistHandle
- *
- * \param[in] ilistHandle  The ilist to return the stride for
- */
-static inline int ilistStride(const InteractionListHandle& ilistHandle)
+//! Returns the begin iterator
+inline InteractionListWriteIterator begin(t_ilist* iList, std::size_t numAtoms)
 {
-    return 1 + NRAL(ilistHandle.functionType);
+    return InteractionListWriteIterator(iList->iatoms, numAtoms);
+}
+//! Returns the end iterator
+inline InteractionListWriteIterator end(t_ilist* iList, std::size_t numAtoms)
+{
+    return InteractionListWriteIterator(iList->iatoms, numAtoms);
 }
 
 struct gmx_cmapdata_t
@@ -390,7 +718,7 @@ public:
     // Flat-bottomed position restraint parameters
     std::vector<t_iparams> iparams_fbposres;
     // The list of interactions for each type. Note that some, such as LJ and COUL will have 0 entries.
-    std::array<InteractionList, F_NRE> il;
+    InteractionLists il;
     /* The number of non-perturbed interactions at the start of each entry in il */
     std::array<int, F_NRE> numNonperturbedInteractions;
     // The sorting state of interaction in il

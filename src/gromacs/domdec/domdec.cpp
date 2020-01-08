@@ -1733,11 +1733,11 @@ static int multi_body_bondeds_count(const gmx_mtop_t* mtop)
     int                  nmol;
     while (const InteractionLists* ilists = gmx_mtop_ilistloop_next(iloop, &nmol))
     {
-        for (auto& ilist : extractILists(*ilists, IF_BOND))
+        for (auto& ilist : ilists->selection(IF_BOND))
         {
-            if (NRAL(ilist.functionType) > 2)
+            if (NRAL(ilist.functionType()) > 2)
             {
-                n += nmol * (ilist.iatoms.size() / ilistStride(ilist));
+                n += nmol * ilist.numInteractions();
             }
         }
     }
@@ -1939,9 +1939,12 @@ static bool systemHasConstraintsOrVsites(const gmx_mtop_t& mtop)
     int  nmol;
     while (const InteractionLists* ilists = gmx_mtop_ilistloop_next(ilistLoop, &nmol))
     {
-        if (!extractILists(*ilists, IF_CONSTRAINT | IF_VSITE).empty())
+        for (const auto& ilist : ilists->selection(IF_CONSTRAINT | IF_VSITE))
         {
-            return true;
+            if (!ilist.empty())
+            {
+                return true;
+            }
         }
     }
 

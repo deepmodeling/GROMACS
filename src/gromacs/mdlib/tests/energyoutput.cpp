@@ -250,27 +250,13 @@ public:
 
         // F_CONSTR
         // This must be initialized so that Constraints object can be created below.
-        InteractionList interactionListConstr;
-        interactionListConstr.iatoms.resize(NRAL(F_CONSTR) + 1);
-        interactionListConstr.iatoms[0] = 0;
-        interactionListConstr.iatoms[1] = 0;
-        interactionListConstr.iatoms[2] = 1;
-        molType.ilist.at(F_CONSTR)      = interactionListConstr;
-
-        InteractionList interactionListEmpty;
-        interactionListEmpty.iatoms.resize(0);
-        molType.ilist.at(F_CONSTRNC) = interactionListEmpty;
-        molType.ilist.at(F_SETTLE)   = interactionListEmpty;
+        molType.ilist.at(F_CONSTR).push_back<2>(0, { 0, 1 });
 
         // F_LJ14 and F_COUL14
-        InteractionList interactionListLJ14;
-        interactionListLJ14.iatoms.resize(NRAL(F_LJ14) + 1);
-        molType.ilist.at(F_LJ14) = interactionListLJ14;
+        molType.ilist.at(F_LJ14).push_back<2>(0, { 0, 0 });
 
         // F_LJC14_Q
-        InteractionList interactionListLJC14Q;
-        interactionListLJC14Q.iatoms.resize(NRAL(F_LJC14_Q) + 1);
-        molType.ilist.at(F_LJC14_Q) = interactionListLJC14Q;
+        molType.ilist.at(F_LJC14_Q).push_back<2>(0, { 0, 0 });
 
         // TODO Do proper initialization for distance and orientation
         //      restraints and remove comments to enable their output

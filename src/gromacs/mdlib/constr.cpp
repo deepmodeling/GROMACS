@@ -407,7 +407,7 @@ bool Constraints::Impl::apply(bool                      bLog,
         clear_mat(vir_r_m_dr);
     }
     const InteractionList& settle = idef->il[F_SETTLE];
-    nsettle                       = settle.size() / (1 + NRAL(F_SETTLE));
+    nsettle                       = settle.numInteractions();
 
     if (nsettle > 0)
     {
@@ -554,7 +554,7 @@ bool Constraints::Impl::apply(bool                      bLog,
                         if (start_th >= 0 && end_th - start_th > 0)
                         {
                             settle_proj(settled, econq, end_th - start_th,
-                                        settle.iatoms.data() + start_th * (1 + NRAL(F_SETTLE)), pbc_null,
+                                        settle.iatoms().data() + start_th * (1 + NRAL(F_SETTLE)), pbc_null,
                                         x.unpaddedArrayRef(), xprime.unpaddedArrayRef(), min_proj,
                                         calcvir_atom_end, th == 0 ? vir_r_m_dr : vir_r_m_dr_th[th]);
                         }
@@ -758,9 +758,9 @@ FlexibleConstraintTreatment flexibleConstraintTreatment(bool haveDynamicsIntegra
  *
  * \returns a block struct with all constraints for each atom
  */
-static ListOfLists<int> makeAtomsToConstraintsList(int                             numAtoms,
-                                                   ArrayRef<const InteractionList> ilists,
-                                                   ArrayRef<const t_iparams>       iparams,
+static ListOfLists<int> makeAtomsToConstraintsList(int                       numAtoms,
+                                                   const InteractionLists&   ilists,
+                                                   ArrayRef<const t_iparams> iparams,
                                                    FlexibleConstraintTreatment flexibleConstraintTreatment)
 {
     GMX_ASSERT(flexibleConstraintTreatment == FlexibleConstraintTreatment::Include || !iparams.empty(),
@@ -770,17 +770,15 @@ static ListOfLists<int> makeAtomsToConstraintsList(int                          
 
     for (int ftype = F_CONSTR; ftype <= F_CONSTRNC; ftype++)
     {
-        const InteractionList& ilist  = ilists[ftype];
-        const int              stride = 1 + NRAL(ftype);
-        for (int i = 0; i < ilist.size(); i += stride)
+        const InteractionList& ilist = ilists[ftype];
+        for (const auto entry : ilist)
         {
             if (flexibleConstraintTreatment == FlexibleConstraintTreatment::Include
-                || !isConstraintFlexible(iparams, ilist.iatoms[i]))
+                || !isConstraintFlexible(iparams, entry.parameterType))
             {
-                for (int j = 1; j < 3; j++)
+                for (int j = 0; j < 2; j++)
                 {
-                    int a = ilist.iatoms[i + j];
-                    count[a]++;
+                    count[entry.atoms[j]]++;
                 }
             }
         }
@@ -800,16 +798,15 @@ static ListOfLists<int> makeAtomsToConstraintsList(int                          
     int numConstraints = 0;
     for (int ftype = F_CONSTR; ftype <= F_CONSTRNC; ftype++)
     {
-        const InteractionList& ilist  = ilists[ftype];
-        const int              stride = 1 + NRAL(ftype);
-        for (int i = 0; i < ilist.size(); i += stride)
+        const InteractionList& ilist = ilists[ftype];
+        for (const auto entry : ilist)
         {
             if (flexibleConstraintTreatment == FlexibleConstraintTreatment::Include
-                || !isConstraintFlexible(iparams, ilist.iatoms[i]))
+                || !isConstraintFlexible(iparams, entry.parameterType))
             {
-                for (int j = 1; j < 3; j++)
+                for (int j = 0; j < 2; j++)
                 {
-                    const int a                          = ilist.iatoms[i + j];
+                    const int a                          = entry.atoms[j];
                     elements[listRanges[a] + count[a]++] = numConstraints;
                 }
             }
@@ -820,32 +817,30 @@ static ListOfLists<int> makeAtomsToConstraintsList(int                          
     return ListOfLists<int>(std::move(listRanges), std::move(elements));
 }
 
-ListOfLists<int> make_at2con(int                             numAtoms,
-                             ArrayRef<const InteractionList> ilist,
-                             ArrayRef<const t_iparams>       iparams,
-                             FlexibleConstraintTreatment     flexibleConstraintTreatment)
+ListOfLists<int> make_at2con(int                         numAtoms,
+                             const InteractionLists&     interactionLists,
+                             ArrayRef<const t_iparams>   iparams,
+                             FlexibleConstraintTreatment flexibleConstraintTreatment)
 {
-    return makeAtomsToConstraintsList(numAtoms, ilist, iparams, flexibleConstraintTreatment);
+    return makeAtomsToConstraintsList(numAtoms, interactionLists, iparams, flexibleConstraintTreatment);
 }
 
 ListOfLists<int> make_at2con(const gmx_moltype_t&           moltype,
                              gmx::ArrayRef<const t_iparams> iparams,
                              FlexibleConstraintTreatment    flexibleConstraintTreatment)
 {
-    return makeAtomsToConstraintsList(moltype.atoms.nr, makeConstArrayRef(moltype.ilist), iparams,
-                                      flexibleConstraintTreatment);
+    return makeAtomsToConstraintsList(moltype.atoms.nr, moltype.ilist, iparams, flexibleConstraintTreatment);
 }
 
 //! Return the number of flexible constraints in the \c ilist and \c iparams.
-int countFlexibleConstraints(ArrayRef<const InteractionList> ilist, ArrayRef<const t_iparams> iparams)
+int countFlexibleConstraints(const InteractionLists& ilists, ArrayRef<const t_iparams> iparams)
 {
     int nflexcon = 0;
     for (int ftype = F_CONSTR; ftype <= F_CONSTRNC; ftype++)
     {
-        const int numIatomsPerConstraint = 3;
-        for (int i = 0; i < ilist[ftype].size(); i += numIatomsPerConstraint)
+        for (const auto entry : ilists[ftype])
         {
-            const int type = ilist[ftype].iatoms[i];
+            const int type = entry.parameterType;
             if (iparams[type].constr.dA == 0 && iparams[type].constr.dB == 0)
             {
                 nflexcon++;
@@ -862,13 +857,14 @@ static std::vector<int> make_at2settle(int natoms, const InteractionList& ilist)
     /* Set all to no settle */
     std::vector<int> at2s(natoms, -1);
 
-    const int stride = 1 + NRAL(F_SETTLE);
-
-    for (int s = 0; s < ilist.size(); s += stride)
+    int settleIndex = 0;
+    for (const auto entry : ilist)
     {
-        at2s[ilist.iatoms[s + 1]] = s / stride;
-        at2s[ilist.iatoms[s + 2]] = s / stride;
-        at2s[ilist.iatoms[s + 3]] = s / stride;
+        for (int atom : entry.atoms)
+        {
+            at2s[atom] = settleIndex;
+        }
+        settleIndex++;
     }
 
     return at2s;

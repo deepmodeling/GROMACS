@@ -131,13 +131,19 @@ static gmx_bool ip_pert(int ftype, const t_iparams* ip)
     return bPert;
 }
 
-static gmx_bool ip_q_pert(int ftype, const t_iatom* ia, const t_iparams* ip, const real* qA, const real* qB)
+static gmx_bool ip_q_pert(int                              ftype,
+                          const InteractionListWriteEntry& ilistEntry,
+                          const t_iparams*                 ip,
+                          const real*                      qA,
+                          const real*                      qB)
 {
     /* 1-4 interactions do not have the charges stored in the iparams list,
      * so we need a separate check for those.
      */
-    return (ip_pert(ftype, ip + ia[0])
-            || (ftype == F_LJ14 && (qA[ia[1]] != qB[ia[1]] || qA[ia[2]] != qB[ia[2]])));
+    return (ip_pert(ftype, ip + ilistEntry.parameterType)
+            || (ftype == F_LJ14
+                && (qA[ilistEntry.atoms[0]] != qB[ilistEntry.atoms[0]]
+                    || qA[ilistEntry.atoms[1]] != qB[ilistEntry.atoms[1]])));
 }
 
 gmx_bool gmx_mtop_bondeds_free_energy(const gmx_mtop_t* mtop)
@@ -161,12 +167,11 @@ gmx_bool gmx_mtop_bondeds_free_energy(const gmx_mtop_t* mtop)
     /* Check perturbed charges for 1-4 interactions */
     for (const gmx_molblock_t& molb : mtop->molblock)
     {
-        const t_atom*            atom = mtop->moltype[molb.type].atoms.atom;
-        const InteractionList&   il   = mtop->moltype[molb.type].ilist[F_LJ14];
-        gmx::ArrayRef<const int> ia   = il.iatoms;
-        for (int i = 0; i < il.size(); i += 3)
+        const t_atom* atom = mtop->moltype[molb.type].atoms.atom;
+        for (const auto entry : mtop->moltype[molb.type].ilist[F_LJ14])
         {
-            if (atom[ia[i + 1]].q != atom[ia[i + 1]].qB || atom[ia[i + 2]].q != atom[ia[i + 2]].qB)
+            if (atom[entry.atoms[0]].q != atom[entry.atoms[0]].qB
+                || atom[entry.atoms[1]].q != atom[entry.atoms[1]].qB)
             {
                 bPert = TRUE;
             }
@@ -178,72 +183,73 @@ gmx_bool gmx_mtop_bondeds_free_energy(const gmx_mtop_t* mtop)
 
 void gmx_sort_ilist_fe(InteractionDefinitions* idef, const real* qA, const real* qB)
 {
-    int      ftype, nral, i, ic, ib, a;
-    t_iatom* iabuf;
-    int      iabuf_nalloc;
-
     if (qB == nullptr)
     {
         qB = qA;
     }
 
-    iabuf_nalloc = 0;
-    iabuf        = nullptr;
+    const t_iparams* iparams = idef->iparams.data();
 
-    for (ftype = 0; ftype < F_NRE; ftype++)
+    for (int ftype = 0; ftype < F_NRE; ftype++)
     {
         if (interaction_function[ftype].flags & IF_BOND)
         {
-            InteractionList* ilist  = &idef->il[ftype];
-            int*             iatoms = ilist->iatoms.data();
-            nral                    = NRAL(ftype);
-            ic                      = 0;
-            ib                      = 0;
-            i                       = 0;
-            while (i < ilist->size())
+            InteractionList& ilist       = idef->il[ftype];
+            const int        nral        = NRAL(ftype);
+            const auto       itBegin     = ilist.begin();
+            const auto       itEnd       = ilist.end();
+            auto             newIterator = itBegin;
+            InteractionList  perturbed(ftype);
+            int              numPerturbed = 0;
+            for (auto it = itBegin; it != itEnd; it++)
             {
+                const auto entry = *it;
                 /* Check if this interaction is perturbed */
-                if (ip_q_pert(ftype, iatoms + i, idef->iparams.data(), qA, qB))
+                if (ip_q_pert(ftype, entry, iparams, qA, qB))
                 {
                     /* Copy to the perturbed buffer */
-                    if (ib + 1 + nral > iabuf_nalloc)
-                    {
-                        iabuf_nalloc = over_alloc_large(ib + 1 + nral);
-                        srenew(iabuf, iabuf_nalloc);
-                    }
-                    for (a = 0; a < 1 + nral; a++)
-                    {
-                        iabuf[ib++] = iatoms[i++];
-                    }
+                    perturbed.push_back(entry.parameterType, entry.atoms);
+                    numPerturbed++;
                 }
                 else
                 {
-                    /* Copy in place */
-                    for (a = 0; a < 1 + nral; a++)
+                    if (numPerturbed)
                     {
-                        iatoms[ic++] = iatoms[i++];
+                        /* Move entry */
+                        (*newIterator).parameterType = entry.parameterType;
+                        for (int a = 0; a < nral; a++)
+                        {
+                            (*newIterator).atoms[a] = entry.atoms[a];
+                        }
                     }
+                    newIterator++;
                 }
             }
             /* Now we know the number of non-perturbed interactions */
-            idef->numNonperturbedInteractions[ftype] = ic;
+            idef->numNonperturbedInteractions[ftype] =
+                    ilist.rawIndices().size() - numPerturbed * (1 + nral);
 
-            /* Copy the buffer with perturbed interactions to the ilist */
-            for (a = 0; a < ib; a++)
+            /* Copy back the perturbed interactions */
+            for (const auto entry : perturbed)
             {
-                iatoms[ic++] = iabuf[a];
+                (*newIterator).parameterType = entry.parameterType;
+                for (int a = 0; a < nral; a++)
+                {
+                    (*newIterator).atoms[a] = entry.atoms[a];
+                }
+                newIterator++;
             }
+            GMX_RELEASE_ASSERT(newIterator == itEnd,
+                               "The total number of entries should be unchanged");
 
             if (debug)
             {
-                const int numNonperturbed = idef->numNonperturbedInteractions[ftype];
-                fprintf(debug, "%s non-pert %d pert %d\n", interaction_function[ftype].longname,
-                        numNonperturbed, ilist->size() - numNonperturbed);
+                const int numNonperturbed = idef->numNonperturbedInteractions[ftype] / (1 + nral);
+                fprintf(debug, "%s non-pert %d pert %zu\n", interaction_function[ftype].longname,
+                        numNonperturbed, idef->il[ftype].numInteractions() - numNonperturbed);
             }
         }
     }
-
-    sfree(iabuf);
 
     idef->ilsort = ilsortFE_SORTED;
 }

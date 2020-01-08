@@ -1351,11 +1351,11 @@ static void set_lincs_matrix(Lincs* li, const real* invmass, real lambda)
 //! Finds all triangles of atoms that share constraints to a central atom.
 static int count_triangle_constraints(const InteractionLists& ilist, const ListOfLists<int>& at2con)
 {
-    const int ncon1    = ilist[F_CONSTR].size() / 3;
-    const int ncon_tot = ncon1 + ilist[F_CONSTRNC].size() / 3;
+    const int ncon1    = ilist[F_CONSTR].numInteractions();
+    const int ncon_tot = ncon1 + ilist[F_CONSTRNC].numInteractions();
 
-    gmx::ArrayRef<const int> ia1 = ilist[F_CONSTR].iatoms;
-    gmx::ArrayRef<const int> ia2 = ilist[F_CONSTRNC].iatoms;
+    gmx::ArrayRef<const int> ia1 = ilist[F_CONSTR].iatoms();
+    gmx::ArrayRef<const int> ia2 = ilist[F_CONSTRNC].iatoms();
 
     int ncon_triangle = 0;
     for (int c0 = 0; c0 < ncon_tot; c0++)
@@ -1407,11 +1407,11 @@ static int count_triangle_constraints(const InteractionLists& ilist, const ListO
 //! Finds sequences of sequential constraints.
 static bool more_than_two_sequential_constraints(const InteractionLists& ilist, const ListOfLists<int>& at2con)
 {
-    const int ncon1    = ilist[F_CONSTR].size() / 3;
-    const int ncon_tot = ncon1 + ilist[F_CONSTRNC].size() / 3;
+    const int ncon1    = ilist[F_CONSTR].numInteractions();
+    const int ncon_tot = ncon1 + ilist[F_CONSTRNC].numInteractions();
 
-    gmx::ArrayRef<const int> ia1 = ilist[F_CONSTR].iatoms;
-    gmx::ArrayRef<const int> ia2 = ilist[F_CONSTRNC].iatoms;
+    gmx::ArrayRef<const int> ia1 = ilist[F_CONSTR].iatoms();
+    gmx::ArrayRef<const int> ia2 = ilist[F_CONSTRNC].iatoms();
 
     for (int c = 0; c < ncon_tot; c++)
     {
@@ -1910,7 +1910,7 @@ void set_lincs(const InteractionDefinitions& idef,
     const ListOfLists<int> at2con =
             make_at2con(natoms, idef.il, idef.iparams, flexibleConstraintTreatment(bDynamics));
 
-    const int ncon_tot = idef.il[F_CONSTR].size() / 3;
+    const int ncon_tot = idef.il[F_CONSTR].numInteractions();
 
     /* Ensure we have enough padding for aligned loads for each thread */
     const int numEntries = ncon_tot + li->ntask * simd_width;
@@ -1933,7 +1933,7 @@ void set_lincs(const InteractionDefinitions& idef,
     li->tmp4.resize(numEntries);
     li->mlambda.resize(numEntries);
 
-    gmx::ArrayRef<const int> iatom = idef.il[F_CONSTR].iatoms;
+    gmx::ArrayRef<const int> iatom = idef.il[F_CONSTR].iatoms();
 
     li->blnr[0] = li->ncc;
 

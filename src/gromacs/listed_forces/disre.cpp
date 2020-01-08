@@ -79,7 +79,7 @@ void init_disres(FILE*                 fplog,
                  t_state*              state,
                  gmx_bool              bIsREMD)
 {
-    int                  fa, nmol, npair, np;
+    int                  nmol, npair, np;
     t_disresdata*        dd;
     history_t*           hist;
     gmx_mtop_ilistloop_t iloop;
@@ -151,11 +151,9 @@ void init_disres(FILE*                 fplog,
         }
 
         np = 0;
-        for (fa = 0; fa < (*il)[F_DISRES].size(); fa += 3)
+        for (const auto entry : (*il)[F_DISRES])
         {
-            int type;
-
-            type = (*il)[F_DISRES].iatoms[fa];
+            const int type = entry.parameterType;
 
             np++;
             npair = mtop->ffparams.iparams[type].disres.npair;
@@ -299,14 +297,13 @@ void init_disres(FILE*                 fplog,
     }
 }
 
-void calc_disres_R_6(const t_commrec*      cr,
-                     const gmx_multisim_t* ms,
-                     int                   nfa,
-                     const t_iatom         forceatoms[],
-                     const rvec            x[],
-                     const t_pbc*          pbc,
-                     t_fcdata*             fcd,
-                     history_t*            hist)
+void calc_disres_R_6(const t_commrec*         cr,
+                     const gmx_multisim_t*    ms,
+                     gmx::ArrayRef<const int> forceatoms,
+                     const rvec               x[],
+                     const t_pbc*             pbc,
+                     t_fcdata*                fcd,
+                     history_t*               hist)
 {
     rvec          dx;
     real *        rt, *rm3tav, *Rtl_6, *Rt_6, *Rtav_6;
@@ -342,7 +339,7 @@ void calc_disres_R_6(const t_commrec*      cr,
 
     /* 'loop' over all atom pairs (pair_nr=fa/3) involved in restraints, *
      * the total number of atoms pairs is nfa/3                          */
-    for (int fa = 0; fa < nfa; fa += 3)
+    for (gmx::index fa = 0; fa < forceatoms.ssize(); fa += 3)
     {
         int type = forceatoms[fa];
         int res  = type - dd->type_min;
@@ -415,7 +412,7 @@ void calc_disres_R_6(const t_commrec*      cr,
      * index in ta_disres() for indexing pair data in t_disresdata when
      * using thread parallelization.
      */
-    dd->forceatomsStart = forceatoms;
+    dd->forceatomsStart = forceatoms.data();
 
     dd->sumviol = 0;
 }

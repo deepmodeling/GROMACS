@@ -327,29 +327,30 @@ static void printIlist(FILE*             fp,
                        gmx_bool          bShowParameters,
                        const t_iparams*  iparams)
 {
-    int i, j, k, type, ftype;
-
     indent = pr_title(fp, indent, title);
     pr_indent(fp, indent);
-    fprintf(fp, "nr: %d\n", ilist.size());
+    fprintf(fp, "nr: %zu\n", ilist.rawIndices().size());
     if (!ilist.empty())
     {
+        gmx::ArrayRef<const int> rawIndices = ilist.rawIndices();
+        const int                ftype      = functype[rawIndices[0]];
+        const int                nral       = NRAL(ftype);
         pr_indent(fp, indent);
         fprintf(fp, "iatoms:\n");
-        for (i = j = 0; i < ilist.size();)
+
+        for (gmx::index j = 0; j < rawIndices.ssize(); j += 1 + nral)
         {
             pr_indent(fp, indent + INDENT);
-            type  = ilist.iatoms[i];
-            ftype = functype[type];
+            const int type = rawIndices[j];
             if (bShowNumbers)
             {
-                fprintf(fp, "%d type=%d ", j, type);
+                fprintf(fp, "%d type=%d ", int(j), type);
             }
-            j++;
             printf("(%s)", interaction_function[ftype].name);
-            for (k = 0; k < interaction_function[ftype].nratoms; k++)
+            gmx::ArrayRef<const int> atoms = rawIndices.subArray(j + 1, nral);
+            for (const int atom : atoms)
             {
-                fprintf(fp, " %3d", ilist.iatoms[i + 1 + k]);
+                fprintf(fp, " %3d", atom);
             }
             if (bShowParameters)
             {
@@ -357,7 +358,6 @@ static void printIlist(FILE*             fp,
                 pr_iparams(fp, ftype, iparams[type]);
             }
             fprintf(fp, "\n");
-            i += 1 + interaction_function[ftype].nratoms;
         }
     }
 }
@@ -429,9 +429,9 @@ InteractionDefinitions::InteractionDefinitions(const gmx_ffparams_t& ffparams) :
 void InteractionDefinitions::clear()
 {
     /* Clear the counts */
-    for (auto& ilist : il)
+    for (int ftype = 0; ftype < F_NRE; ftype++)
     {
-        ilist.clear();
+        il[ftype].clear();
     }
     iparams_posres.clear();
     iparams_fbposres.clear();

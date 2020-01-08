@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -54,13 +54,9 @@ namespace
 void createBasicTop(gmx_mtop_t* mtop)
 {
     gmx_moltype_t moltype;
-    moltype.atoms.nr             = NRAL(F_SETTLE);
-    std::vector<int>& iatoms     = moltype.ilist[F_SETTLE].iatoms;
-    const int         settleType = 0;
-    iatoms.push_back(settleType);
-    iatoms.push_back(0);
-    iatoms.push_back(1);
-    iatoms.push_back(2);
+    moltype.atoms.nr     = NRAL(F_SETTLE);
+    const int settleType = 0;
+    moltype.ilist[F_SETTLE].push_back<3>(settleType, { 0, 1, 2 });
     mtop->moltype.push_back(moltype);
 
     mtop->molblock.resize(1);

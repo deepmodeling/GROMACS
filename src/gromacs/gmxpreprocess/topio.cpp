@@ -1097,15 +1097,13 @@ static void generate_qmexcl_moltype(gmx_moltype_t*       molt,
      * which is ok, since CONNBONDS does not use parameters.
      */
     int ftype_connbond = 0;
-    int ind_connbond   = 0;
     if (!molt->ilist[F_CONNBONDS].empty())
     {
         GMX_LOG(logger.info)
                 .asParagraph()
-                .appendTextFormatted("nr. of CONNBONDS present already: %d",
-                                     molt->ilist[F_CONNBONDS].size() / 3);
-        ftype_connbond = molt->ilist[F_CONNBONDS].iatoms[0];
-        ind_connbond   = molt->ilist[F_CONNBONDS].size();
+                .appendTextFormatted("nr. of CONNBONDS present already: %zu",
+                                     molt->ilist[F_CONNBONDS].numInteractions());
+        ftype_connbond = molt->ilist[F_CONNBONDS].iatoms()[0];
     }
     /* now we delete all bonded interactions, except the ones describing
      * a chemical bond. These are converted to CONNBONDS
@@ -1116,9 +1114,10 @@ static void generate_qmexcl_moltype(gmx_moltype_t*       molt,
         {
             continue;
         }
-        int nratoms = interaction_function[ftype].nratoms;
-        int j       = 0;
-        while (j < molt->ilist[ftype].size())
+        InteractionList prunedIList(ftype);
+
+        const int nratoms = interaction_function[ftype].nratoms;
+        for (const auto entry : molt->ilist[ftype])
         {
             bool bexcl;
 
@@ -1128,19 +1127,14 @@ static void generate_qmexcl_moltype(gmx_moltype_t*       molt,
                  * in the QM region. Note that we don't have to worry about
                  * link atoms here, as they won't have 2-atom interactions.
                  */
-                int a1 = molt->ilist[ftype].iatoms[1 + j + 0];
-                int a2 = molt->ilist[ftype].iatoms[1 + j + 1];
-                bexcl  = (bQMMM[a1] && bQMMM[a2]);
+                bexcl = (bQMMM[entry.atoms[0]] && bQMMM[entry.atoms[1]]);
                 /* A chemical bond between two QM atoms will be copied to
                  * the F_CONNBONDS list, for reasons mentioned above.
                  */
                 if (bexcl && IS_CHEMBOND(ftype))
                 {
                     InteractionList& ilist = molt->ilist[F_CONNBONDS];
-                    ilist.iatoms.resize(ind_connbond + 3);
-                    ilist.iatoms[ind_connbond++] = ftype_connbond;
-                    ilist.iatoms[ind_connbond++] = a1;
-                    ilist.iatoms[ind_connbond++] = a2;
+                    ilist.push_back(ftype_connbond, entry.atoms);
                 }
             }
             else
@@ -1153,9 +1147,9 @@ static void generate_qmexcl_moltype(gmx_moltype_t*       molt,
                  * QMatom1-QMatom2-QMatom-3-Linkatom.
                  */
                 int numQmAtoms = 0;
-                for (int jj = j + 1; jj < j + 1 + nratoms; jj++)
+                for (const int atom : entry.atoms)
                 {
-                    if (bQMMM[molt->ilist[ftype].iatoms[jj]])
+                    if (bQMMM[atom])
                     {
                         numQmAtoms++;
                     }
@@ -1172,23 +1166,14 @@ static void generate_qmexcl_moltype(gmx_moltype_t*       molt,
                               "using QM and SETTLE by one without SETTLE");
                 }
             }
-            if (bexcl)
+            if (!bexcl)
             {
-                /* since the interaction involves QM atoms, these should be
-                 * removed from the MM ilist
-                 */
-                InteractionList& ilist = molt->ilist[ftype];
-                for (int k = j; k < ilist.size() - (nratoms + 1); k++)
-                {
-                    ilist.iatoms[k] = ilist.iatoms[k + (nratoms + 1)];
-                }
-                ilist.iatoms.resize(ilist.size() - (nratoms + 1));
-            }
-            else
-            {
-                j += nratoms + 1; /* the +1 is for the functype */
+                /* Interaction does not involve QM atoms: keep it */
+                prunedIList.push_back(entry.parameterType, entry.atoms);
             }
         }
+
+        molt->ilist[ftype] = prunedIList;
     }
     /* Now, we search for atoms bonded to a QM atom because we also want
      * to exclude their nonbonded interactions with the QM atoms. The
@@ -1237,30 +1222,21 @@ static void generate_qmexcl_moltype(gmx_moltype_t*       molt,
      * way as we did above for the other bonded interactions: */
     for (int i = F_LJ14; i < F_COUL14; i++)
     {
-        int nratoms = interaction_function[i].nratoms;
-        int j       = 0;
-        while (j < molt->ilist[i].size())
+        InteractionList prunedIList(i);
+
+        for (const auto entry : molt->ilist[i])
         {
-            int  a1    = molt->ilist[i].iatoms[j + 1];
-            int  a2    = molt->ilist[i].iatoms[j + 2];
+            int  a1    = entry.atoms[0];
+            int  a2    = entry.atoms[1];
             bool bexcl = (bQMMM[a1] && bQMMM[a2]);
-            if (bexcl)
+            if (!bexcl)
             {
-                /* since the interaction involves QM atoms, these should be
-                 * removed from the MM ilist
-                 */
-                InteractionList& ilist = molt->ilist[i];
-                for (int k = j; k < ilist.size() - (nratoms + 1); k++)
-                {
-                    ilist.iatoms[k] = ilist.iatoms[k + (nratoms + 1)];
-                }
-                ilist.iatoms.resize(ilist.size() - (nratoms + 1));
-            }
-            else
-            {
-                j += nratoms + 1; /* the +1 is for the functype */
+                /* Interaction does not involve QM atoms: keep it */
+                prunedIList.push_back(entry.parameterType, entry.atoms);
             }
         }
+
+        molt->ilist[i] = prunedIList;
     }
 
     free(qm_arr);
