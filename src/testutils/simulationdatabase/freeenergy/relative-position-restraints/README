@@ -1,0 +1,3 @@
+This is the same as freeenergy/relative, with the
+addition of position restraints on all the atoms
+of the solute.

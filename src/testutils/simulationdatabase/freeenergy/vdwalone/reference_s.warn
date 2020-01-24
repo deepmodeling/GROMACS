@@ -1,0 +1,4 @@
+WARNING 1 [file topol.top, line 71]:
+  Some parameters for bonded interaction involving perturbed atoms are
+  specified explicitly in state A, but not B - copying A to B
+

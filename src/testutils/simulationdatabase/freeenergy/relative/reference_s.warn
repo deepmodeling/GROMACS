@@ -1,0 +1,11 @@
+WARNING 1 [file ./grompp.mdp]:
+  The switching range should be 5% or less (currently 5.56% using a
+  switching range of 0.850000-0.900000) for accurate electrostatic
+  energies, energy conservation will be good regardless, since ewald_rtol =
+  1e-06.
+
+WARNING 2 [file ./grompp.mdp]:
+  You are not using center of mass motion removal (mdp option comm-mode),
+  numerical rounding errors can lead to build up of kinetic energy of the
+  center of mass
+

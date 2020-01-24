@@ -1,0 +1,14 @@
+WARNING 1 [file ./grompp.mdp]:
+  The switching range should be 5% or less (currently 5.56% using a
+  switching range of 0.850000-0.900000) for accurate electrostatic
+  energies, energy conservation will be good regardless, since ewald_rtol =
+  1e-06.
+
+WARNING 2 [file posre.itp, line 5]:
+  Some parameters for bonded interaction involving perturbed atoms are
+  specified explicitly in state A, but not B - copying A to B
+
+WARNING 3 [file ./grompp.mdp]:
+  You are using pressure coupling with absolute position restraints, this
+  will give artifacts. Use the refcoord_scaling option.
+

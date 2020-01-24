@@ -1,0 +1,10 @@
+#include "oplsaa.ff/forcefield.itp"
+#include "ana.itp"
+#include "oplsaa.ff/spce.itp"
+
+[ system ]
+AA
+
+[ molecules ]
+ASNJ 1
+SOL 640

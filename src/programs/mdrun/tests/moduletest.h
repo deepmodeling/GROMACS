@@ -105,6 +105,12 @@ public:
     void useTopGroAndNdxFromDatabase(const std::string& name);
     //! Use a standard .gro file as input to grompp
     void useGroFromDatabase(const char* name);
+    //! Use .top, .gro, and .mdp from FEP test database
+    void useTopGroAndMdpFromFepTestDatabase(const std::string& name);
+    //! Get .edr and .trr from FEP test database
+    static void getEdrAndTrrFromFepTestDatabase(const std::string& name,
+                                                std::string*       edrFile,
+                                                std::string*       trrFile);
     //! Calls grompp (on rank 0, with a customized command line) to prepare for the mdrun test
     int callGrompp(const CommandLine& callerRef);
     //! Convenience wrapper for a default call to \c callGrompp
@@ -136,6 +142,7 @@ public:
      */
     std::string topFileName_;
     std::string groFileName_;
+    std::string mdpFileName_;
     std::string fullPrecisionTrajectoryFileName_;
     std::string reducedPrecisionTrajectoryFileName_;
     std::string groOutputFileName_;
