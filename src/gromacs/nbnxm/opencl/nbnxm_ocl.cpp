@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -714,6 +714,11 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     // The OpenCL kernel takes int as second to last argument because bool is
     // not supported as a kernel argument type (sizeof(bool) is implementation defined).
     const int computeFshift = static_cast<int>(stepWork.computeVirial);
+    // Other kernel arguments are checked at buffer allocation
+    static_assert(sizeof(cl_int) == sizeof(decltype(computeFshift)),
+                  "Mismatch in the size of computeFshift host / device data type");
+    static_assert(sizeof(cl_int) == sizeof(decltype(adat->ntypes)),
+                  "Mismatch in the size of adat->ntypes host / device data type");
     if (useLjCombRule(nb->nbparam->vdwType))
     {
         const auto kernelArgs = prepareGpuKernelArguments(kernel,
@@ -900,6 +905,11 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
     auto*          timingEvent  = bDoTime ? timer->fetchNextEvent() : nullptr;
     constexpr char kernelName[] = "k_pruneonly";
     const auto     pruneKernel  = selectPruneKernel(nb->kernel_pruneonly, plist->haveFreshList);
+    // Other kernel arguments are checked at buffer allocation, imask is never copied back
+    static_assert(sizeof(cl_int) == sizeof(decltype(numParts)),
+                  "Mismatch in the size of computeFshift host / device data type");
+    static_assert(sizeof(cl_int) == sizeof(decltype(part)),
+                  "Mismatch in the size of adat->ntypes host / device data type");
     const auto     kernelArgs   = prepareGpuKernelArguments(pruneKernel,
                                                       config,
                                                       &nbparams_params,

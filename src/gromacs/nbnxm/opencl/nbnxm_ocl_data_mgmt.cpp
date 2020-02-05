@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -99,7 +99,6 @@ namespace Nbnxm
  */
 static unsigned int gpu_min_ci_balanced_factor = 50;
 
-
 /*! \brief Initializes the atomdata structure first time, it only gets filled at
     pair-search.
  */
@@ -107,11 +106,25 @@ static void init_atomdata_first(cl_atomdata_t* ad, int ntypes, const DeviceConte
 {
     ad->ntypes = ntypes;
 
+    /*
+     * TODO: should be using cl_float / cl_int instead of float/int or at least assert on their size.
+     */
+    // rvec* to float* conversion
+    static_assert(3 * sizeof(cl_float) == sizeof(decltype(*nbnxn_atomdata_t::shift_vec.data())),
+                  "Mismatch in the size of shift_vec host / device data type");
     allocateDeviceBuffer(&ad->shift_vec, SHIFTS * DIM, deviceContext);
     ad->bShiftVecUploaded = CL_FALSE;
 
+    // float[3] used as float* on device
+    static_assert(3 * sizeof(cl_float) == sizeof(decltype(nb_staging_t::fshift[0])),
+                  "Mismatch in the size of fshift host / device data type");
     allocateDeviceBuffer(&ad->fshift, SHIFTS * DIM, deviceContext);
+
+    static_assert(sizeof(cl_float) == sizeof(decltype(*nb_staging_t::e_lj)),
+                  "Mismatch in the size of e_lj host / device data type");
     allocateDeviceBuffer(&ad->e_lj, 1, deviceContext);
+    static_assert(sizeof(cl_float) == sizeof(decltype(*nb_staging_t::e_el)),
+                  "Mismatch in the size of e_el host / device data type");
     allocateDeviceBuffer(&ad->e_el, 1, deviceContext);
 
     /* initialize to nullptr pointers to data that is not allocated here and will
@@ -167,12 +180,16 @@ static void init_nbparam(NBParamGpu*                     nbp,
     {
         /* set up LJ parameter lookup table */
         DeviceBuffer<real> nbfp;
+        static_assert(sizeof(cl_float) == sizeof(decltype(*nbatParams.nbfp.data())),
+                      "Mismatch in the size of nbatParams.nbfp host / device data type");
         initParamLookupTable(&nbfp, nullptr, nbatParams.nbfp.data(), nnbfp, deviceContext);
         nbp->nbfp = nbfp;
 
         if (ic->vdwtype == evdwPME)
         {
             DeviceBuffer<float> nbfp_comb;
+            static_assert(sizeof(cl_float) == sizeof(decltype(*nbatParams.nbfp_comb.data())),
+                          "Mismatch in the size of nbatParams.nbfp_comb host / device data type");
             initParamLookupTable(&nbfp_comb, nullptr, nbatParams.nbfp_comb.data(), nnbfp_comb, deviceContext);
             nbp->nbfp_comb = nbfp_comb;
         }
@@ -451,17 +468,27 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->atom_types);
         }
 
-
+        // nbat->out[0].f is real* on the host but trated as float* on the device
+        static_assert(sizeof(cl_float) == sizeof(decltype(*nbat->out[0].f.data())),
+                      "Mismatch in the size of xq host / device data type");
         allocateDeviceBuffer(&d_atdat->f, nalloc * DIM, deviceContext);
+        // nbat->x() is real* on the host but trated as float4 on the device
+        static_assert(sizeof(cl_float4) == 4 * sizeof(decltype(*nbat->x().data())),
+                      "Mismatch in the size of xq host / device data type");
         allocateDeviceBuffer(&d_atdat->xq, nalloc * (DIM + 1), deviceContext);
 
         if (useLjCombRule(nb->nbparam->vdwType))
         {
             // Two Lennard-Jones parameters per atom
+            // Note that lj_comb.data() on the host is a real* array so it has twice the elements
+            static_assert(sizeof(cl_float2) == 2 * sizeof(decltype(*nbat->params().lj_comb.data())),
+                          "Mismatch in the size of lj_comb host / device data type");
             allocateDeviceBuffer(&d_atdat->lj_comb, nalloc * 2, deviceContext);
         }
         else
         {
+            static_assert(sizeof(cl_int) == sizeof(decltype(*nbat->params().type.data())),
+                          "Mismatch in the size of atom_types host / device data type");
             allocateDeviceBuffer(&d_atdat->atom_types, nalloc, deviceContext);
         }
 

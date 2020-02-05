@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -79,6 +79,10 @@ void init_ewald_coulomb_force_table(const EwaldCorrectionTables& tables,
     }
 
     nbp->coulomb_tab_scale = tables.scale;
+#if (GMX_GPU_OPENCL)
+        static_assert(sizeof(cl_float) == sizeof(decltype(*tables.tableF.data())),
+                   "Mismatch in the size of tales.tableF host / device data type");
+#endif
     initParamLookupTable(
             &nbp->coulomb_tab, &nbp->coulomb_tab_texobj, tables.tableF.data(), tables.tableF.size(), deviceContext);
 }
