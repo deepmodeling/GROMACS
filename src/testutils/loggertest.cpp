@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -74,17 +74,27 @@ public:
     Impl()
     {
         // TODO: Add support for -stdout for echoing the log to stdout.
-        logger_.warning = LogLevelHelper(&getTarget(MDLogger::LogLevel::Warning));
-        logger_.info    = LogLevelHelper(&getTarget(MDLogger::LogLevel::Info));
+        logger_.warning = LogStreamHelper(prepareLogger(MDLogger::LoggingStreams::Warning));
+        logger_.info    = LogStreamHelper(prepareLogger(MDLogger::LoggingStreams::Info));
     }
 
-    NiceMock<MockLogTarget>& getTarget(MDLogger::LogLevel level)
+    NiceMock<MockLogTarget>& getTarget(MDLogger::LoggingStreams level, VerbosityLevel verbosity)
     {
-        return targets_[static_cast<int>(level)];
+        return targets_[static_cast<int>(level)][static_cast<int>(verbosity)];
     }
 
-    NiceMock<MockLogTarget> targets_[MDLogger::LogLevelCount];
-    MDLogger                logger_;
+    std::array<ILogTarget*, gmx::VerbosityLevelCount> prepareLogger(MDLogger::LoggingStreams level)
+    {
+        for (int i = 0; i < gmx::VerbosityLevelCount; i++)
+        {
+            targetPointer_[static_cast<int>(level)][i] = &targets_[static_cast<int>(level)][i];
+        }
+        return targetPointer_[static_cast<int>(level)];
+    }
+
+    std::array<std::array<NiceMock<MockLogTarget>, gmx::VerbosityLevelCount>, MDLogger::LogStreamCount> targets_;
+    std::array<std::array<ILogTarget*, gmx::VerbosityLevelCount>, MDLogger::LogStreamCount> targetPointer_;
+    MDLogger                                                                                logger_;
 };
 
 /********************************************************************
@@ -100,11 +110,13 @@ const MDLogger& LoggerTestHelper::logger()
     return impl_->logger_;
 }
 
-void LoggerTestHelper::expectEntryMatchingRegex(gmx::MDLogger::LogLevel level, const char* re)
+void LoggerTestHelper::expectEntryMatchingRegex(gmx::MDLogger::LoggingStreams stream,
+                                                gmx::VerbosityLevel           level,
+                                                const char*                   re)
 {
     using ::testing::ContainsRegex;
     using ::testing::Field;
-    auto& target = impl_->getTarget(level);
+    auto& target = impl_->getTarget(stream, level);
     EXPECT_CALL(target, writeEntry(Field(&LogEntry::text, ContainsRegex(re))));
 }
 

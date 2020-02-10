@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -96,7 +96,10 @@ void LogTargetFormatter::writeEntry(const LogEntry& entry)
 class LoggerOwner::Impl
 {
 public:
-    explicit Impl(ILogTarget* loggerTargets[MDLogger::LogLevelCount]) : logger_(loggerTargets) {}
+    explicit Impl(std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets) :
+        logger_(loggerTargets)
+    {
+    }
 
     MDLogger                                       logger_;
     std::vector<std::unique_ptr<TextOutputStream>> streams_;
@@ -137,7 +140,10 @@ class LoggerBuilder::Impl
 public:
     std::vector<std::unique_ptr<TextOutputStream>> streams_;
     std::vector<std::unique_ptr<ILogTarget>>       targets_;
-    std::vector<ILogTarget*>                       loggerTargets_[MDLogger::LogLevelCount];
+    std::array<std::array<std::vector<ILogTarget*>, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets_;
+    int verbosityLevel_      = 0;
+    int errorVerbosityLevel_ = 0;
+    int debugVerbosityLevel_ = 0;
 };
 
 /********************************************************************
@@ -148,48 +154,53 @@ LoggerBuilder::LoggerBuilder() : impl_(new Impl) {}
 
 LoggerBuilder::~LoggerBuilder() {}
 
-void LoggerBuilder::addTargetStream(MDLogger::LogLevel level, TextOutputStream* stream)
+void LoggerBuilder::addTargetStream(MDLogger::LoggingStreams target, VerbosityLevel level, TextOutputStream* stream)
 {
     impl_->targets_.push_back(std::unique_ptr<ILogTarget>(new LogTargetFormatter(stream)));
-    ILogTarget* target = impl_->targets_.back().get();
+    ILogTarget* logTarget   = impl_->targets_.back().get();
+    const int   targetValue = static_cast<int>(target);
+
     for (int i = 0; i <= static_cast<int>(level); ++i)
     {
-        impl_->loggerTargets_[i].push_back(target);
+        impl_->loggerTargets_[targetValue][i].push_back(logTarget);
     }
 }
 
-void LoggerBuilder::addTargetFile(MDLogger::LogLevel level, FILE* fp)
+void LoggerBuilder::addTargetFile(MDLogger::LoggingStreams target, VerbosityLevel level, FILE* fp)
 {
     std::unique_ptr<TextOutputStream> stream(new TextOutputFile(fp));
-    addTargetStream(level, stream.get());
+    addTargetStream(target, level, stream.get());
     impl_->streams_.push_back(std::move(stream));
 }
 
 LoggerOwner LoggerBuilder::build()
 {
-    ILogTarget* loggerTargets[MDLogger::LogLevelCount];
-    for (int i = 0; i < MDLogger::LogLevelCount; ++i)
+    std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets;
+    for (int stream = 0; stream < MDLogger::LogStreamCount; ++stream)
     {
-        auto& levelTargets = impl_->loggerTargets_[i];
-        loggerTargets[i]   = nullptr;
-        if (!levelTargets.empty())
+        for (int level = 0; level < VerbosityLevelCount; ++level)
         {
-            if (levelTargets.size() == 1)
+            auto& levelTargets           = impl_->loggerTargets_[stream][level];
+            loggerTargets[stream][level] = nullptr;
+            if (!levelTargets.empty())
             {
-                loggerTargets[i] = levelTargets[0];
-            }
-            else
-            {
-                std::unique_ptr<LogTargetCollection> collection(new LogTargetCollection);
-                for (auto& target : levelTargets)
+                if (levelTargets.size() == 1)
                 {
-                    collection->addTarget(target);
+                    loggerTargets[stream][level] = levelTargets[0];
                 }
-                loggerTargets[i] = collection.get();
-                impl_->targets_.push_back(std::move(collection));
+                else
+                {
+                    std::unique_ptr<LogTargetCollection> collection(new LogTargetCollection);
+                    for (auto& target : levelTargets)
+                    {
+                        collection->addTarget(target);
+                    }
+                    loggerTargets[stream][level] = collection.get();
+                    impl_->targets_.push_back(std::move(collection));
+                }
             }
+            levelTargets.clear();
         }
-        levelTargets.clear();
     }
     std::unique_ptr<LoggerOwner::Impl> data(new LoggerOwner::Impl(loggerTargets));
     data->targets_ = std::move(impl_->targets_);

@@ -2,8 +2,8 @@
 <?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
 <ReferenceData>
   <String Name="Output"><![CDATA[
-Warning that is not verbose
+line that is printed
 
-Warning that is verbose
+line that is printed at different verbosity
 ]]></String>
 </ReferenceData>

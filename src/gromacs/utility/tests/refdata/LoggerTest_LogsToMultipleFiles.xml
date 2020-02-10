@@ -2,38 +2,11 @@
 <?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
 <ReferenceData>
   <String Name="Output1"><![CDATA[
-line
-
-par
-
-line2
-formatted
+Warning that is not verbose is printed
 ]]></String>
   <String Name="Output2"><![CDATA[
-par
+Default error is printed
 
-formatted
-]]></String>
-  <String Name="Output3"><![CDATA[
-formatted
-]]></String>
-  <String Name="Output4"><![CDATA[
-line
-
-par
-
-line2
-formatted
-debugline
-]]></String>
-  <String Name="Output5"><![CDATA[
-line
-
-par
-
-line2
-formatted
-debugline
-verbose
+Verbose error is printed
 ]]></String>
 </ReferenceData>

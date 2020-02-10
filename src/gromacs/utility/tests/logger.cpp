@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,6 +44,10 @@
 #include "testutils/stringtest.h"
 #include "testutils/testfilemanager.h"
 
+namespace gmx
+{
+namespace test
+{
 namespace
 {
 
@@ -52,159 +56,142 @@ typedef gmx::test::StringTestBase LoggerTest;
 
 TEST_F(LoggerTest, EmptyLoggerWorks)
 {
-    gmx::MDLogger logger;
+    MDLogger logger;
     GMX_LOG(logger.info).appendText("foobar");
     GMX_LOG(logger.warning).appendText("foobar").asParagraph();
     GMX_LOG(logger.debug).appendText("foobaz");
     GMX_LOG(logger.error).appendText("baz");
-    GMX_LOG(logger.verboseDebug).appendText("verbose");
 }
 
-TEST_F(LoggerTest, LogsToStream)
+TEST_F(LoggerTest, EmptyLoggerWorksWithExplicitLevels)
 {
-    gmx::StringOutputStream stream;
-    gmx::LoggerBuilder      builder;
-    builder.addTargetStream(gmx::MDLogger::LogLevel::VerboseDebug, &stream);
-    gmx::LoggerOwner     owner  = builder.build();
-    const gmx::MDLogger& logger = owner.logger();
-    GMX_LOG(logger.info).appendText("line");
-    GMX_LOG(logger.warning).appendText("par").asParagraph();
-    GMX_LOG(logger.info).appendText("line2");
-    GMX_LOG(logger.error).appendTextFormatted("%s", "formatted");
-    GMX_LOG(logger.debug).appendText("debugline");
-    GMX_LOG(logger.verboseDebug).appendText("verbose");
+    MDLogger logger;
+    GMX_LOG_LEVEL(logger.info, VerbosityLevel::NoVerbose).appendText("foobar");
+    GMX_LOG_LEVEL(logger.warning, VerbosityLevel::Verbose).appendText("foobar").asParagraph();
+    GMX_LOG_LEVEL(logger.debug, VerbosityLevel::NoVerbose).appendText("foobaz");
+    GMX_LOG_LEVEL(logger.error, VerbosityLevel::Verbose).appendText("baz");
+}
+
+TEST_F(LoggerTest, LogsToStreamNoVerbose)
+{
+    StringOutputStream stream;
+    LoggerBuilder      builder;
+    builder.addTargetStream(MDLogger::LoggingStreams::Error, VerbosityLevel::NoVerbose, &stream);
+    LoggerOwner     owner  = builder.build();
+    const MDLogger& logger = owner.logger();
+    GMX_LOG(logger.error).asParagraph().appendText("line that is printed");
+    GMX_LOG_LEVEL(logger.error, VerbosityLevel::Verbose)
+            .asParagraph()
+            .appendText("line that is not printed due to wrong verbosity");
+    GMX_LOG(logger.warning)
+            .asParagraph()
+            .appendText("line that is also not printed, but due to different logging stream");
     checkText(stream.toString(), "Output");
+}
+
+TEST_F(LoggerTest, LogsToStreamVerbose)
+{
+    StringOutputStream stream;
+    LoggerBuilder      builder;
+    builder.addTargetStream(MDLogger::LoggingStreams::Info, VerbosityLevel::Verbose, &stream);
+    LoggerOwner     owner  = builder.build();
+    const MDLogger& logger = owner.logger();
+    GMX_LOG(logger.info).asParagraph().appendText("line that is printed");
+    GMX_LOG_LEVEL(logger.info, VerbosityLevel::Verbose)
+            .asParagraph()
+            .appendText("line that is printed at different verbosity");
+    GMX_LOG(logger.warning)
+            .asParagraph()
+            .appendText("line that is not printed, due to different logging stream");
+    checkText(stream.toString(), "Output");
+}
+
+TEST_F(LoggerTest, LogsMultipleLoggingStreamsToSingleTextStream)
+{
+    StringOutputStream stream;
+    LoggerBuilder      builder;
+    builder.addTargetStream(MDLogger::LoggingStreams::Info, VerbosityLevel::Verbose, &stream);
+    builder.addTargetStream(MDLogger::LoggingStreams::Debug, VerbosityLevel::NoVerbose, &stream);
+    LoggerOwner     owner  = builder.build();
+    const MDLogger& logger = owner.logger();
+    GMX_LOG(logger.info).asParagraph().appendText("line that is printed");
+    GMX_LOG_LEVEL(logger.info, VerbosityLevel::Verbose)
+            .asParagraph()
+            .appendText("line that is printed at different verbosity");
+    GMX_LOG(logger.warning)
+            .asParagraph()
+            .appendText("line that is not printed, due to different logging stream");
+    GMX_LOG(logger.debug).asParagraph().appendText("debug line that is printed");
+    GMX_LOG_LEVEL(logger.debug, VerbosityLevel::Verbose)
+            .asParagraph()
+            .appendText("debug line that is not printed due to different verbosity");
+    checkText(stream.toString(), "Output");
+}
+
+TEST_F(LoggerTest, LogsDifferentVerbosityLevelsToDifferentStreams)
+{
+    StringOutputStream infoStream;
+    StringOutputStream verboseInfoStream;
+    LoggerBuilder      builder;
+    builder.addTargetStream(MDLogger::LoggingStreams::Info, VerbosityLevel::NoVerbose, &infoStream);
+    builder.addTargetStream(MDLogger::LoggingStreams::Info, VerbosityLevel::Verbose, &verboseInfoStream);
+    LoggerOwner     owner  = builder.build();
+    const MDLogger& logger = owner.logger();
+    GMX_LOG(logger.info).asParagraph().appendText("line that is printed to infoStream");
+    GMX_LOG_LEVEL(logger.info, VerbosityLevel::Verbose)
+            .asParagraph()
+            .appendText("line that is printed at different verbosity");
+    checkText(infoStream.toString(), "Output of default stream");
+    checkText(verboseInfoStream.toString(), "Output of verbose stream");
 }
 
 TEST_F(LoggerTest, LogsToFile)
 {
-    gmx::test::TestFileManager files;
-    std::string                filename(files.getTemporaryFilePath("log.txt"));
-    FILE*                      fp = fopen(filename.c_str(), "w");
+    TestFileManager files;
+    std::string     filename(files.getTemporaryFilePath("warning.txt"));
+    FILE*           fp = fopen(filename.c_str(), "w");
     {
-        gmx::LoggerBuilder builder;
-        builder.addTargetFile(gmx::MDLogger::LogLevel::VerboseDebug, fp);
-        gmx::LoggerOwner     owner  = builder.build();
-        const gmx::MDLogger& logger = owner.logger();
-        GMX_LOG(logger.info).appendText("line");
-        GMX_LOG(logger.warning).appendText("par").asParagraph();
-        GMX_LOG(logger.info).appendText("line2");
-        GMX_LOG(logger.error).appendTextFormatted("%s", "formatted");
-        GMX_LOG(logger.debug).appendText("debugline");
-        GMX_LOG(logger.verboseDebug).appendText("verbose");
+        LoggerBuilder builder;
+        builder.addTargetFile(MDLogger::LoggingStreams::Warning, VerbosityLevel::Verbose, fp);
+        LoggerOwner     owner  = builder.build();
+        const MDLogger& logger = owner.logger();
+        GMX_LOG(logger.warning).asParagraph().appendText("Warning that is not verbose");
+        GMX_LOG_LEVEL(logger.warning, VerbosityLevel::Verbose)
+                .asParagraph()
+                .appendText("Warning that is verbose");
     }
     fclose(fp);
     checkFileContents(filename, "Output");
 }
 
-TEST_F(LoggerTest, LevelFilteringWorks)
-{
-    gmx::StringOutputStream stream;
-    gmx::LoggerBuilder      builder;
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Warning, &stream);
-    gmx::LoggerOwner     owner  = builder.build();
-    const gmx::MDLogger& logger = owner.logger();
-    GMX_LOG(logger.info).appendText("line");
-    GMX_LOG(logger.warning).appendText("par").asParagraph();
-    GMX_LOG(logger.info).appendText("line2");
-    GMX_LOG(logger.error).appendTextFormatted("%s", "formatted");
-    GMX_LOG(logger.debug).appendText("debugline");
-    GMX_LOG(logger.verboseDebug).appendText("verbose");
-    checkText(stream.toString(), "Output");
-}
-
-TEST_F(LoggerTest, LogsToMultipleStreams)
-{
-    gmx::StringOutputStream stream1;
-    gmx::StringOutputStream stream2;
-    gmx::StringOutputStream stream3;
-    gmx::StringOutputStream stream4;
-    gmx::StringOutputStream stream5;
-    gmx::LoggerBuilder      builder;
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Info, &stream1);
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Warning, &stream2);
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Error, &stream3);
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Debug, &stream4);
-    builder.addTargetStream(gmx::MDLogger::LogLevel::VerboseDebug, &stream5);
-    gmx::LoggerOwner     owner  = builder.build();
-    const gmx::MDLogger& logger = owner.logger();
-    GMX_LOG(logger.info).appendText("line");
-    GMX_LOG(logger.warning).appendText("par").asParagraph();
-    GMX_LOG(logger.info).appendText("line2");
-    GMX_LOG(logger.error).appendTextFormatted("%s", "formatted");
-    GMX_LOG(logger.debug).appendText("debugline");
-    GMX_LOG(logger.verboseDebug).appendText("verbose");
-
-    checkText(stream1.toString(), "Output1");
-    checkText(stream2.toString(), "Output2");
-    checkText(stream3.toString(), "Output3");
-    checkText(stream4.toString(), "Output4");
-    checkText(stream5.toString(), "Output5");
-}
-
 TEST_F(LoggerTest, LogsToMultipleFiles)
 {
-    gmx::test::TestFileManager files;
-    std::string                filename1(files.getTemporaryFilePath("log.txt"));
-    std::string                filename2(files.getTemporaryFilePath("warn.txt"));
-    std::string                filename3(files.getTemporaryFilePath("error.txt"));
-    std::string                filename4(files.getTemporaryFilePath("debug.txt"));
-    std::string                filename5(files.getTemporaryFilePath("verboseDebug.txt"));
-    FILE*                      fp1 = fopen(filename1.c_str(), "w");
-    FILE*                      fp2 = fopen(filename2.c_str(), "w");
-    FILE*                      fp3 = fopen(filename3.c_str(), "w");
-    FILE*                      fp4 = fopen(filename4.c_str(), "w");
-    FILE*                      fp5 = fopen(filename5.c_str(), "w");
+    TestFileManager files;
+    std::string     filename1(files.getTemporaryFilePath("warn.txt"));
+    std::string     filename2(files.getTemporaryFilePath("error.txt"));
+    FILE*           fp1 = fopen(filename1.c_str(), "w");
+    FILE*           fp2 = fopen(filename2.c_str(), "w");
     {
-        gmx::LoggerBuilder builder;
-        builder.addTargetFile(gmx::MDLogger::LogLevel::Info, fp1);
-        builder.addTargetFile(gmx::MDLogger::LogLevel::Warning, fp2);
-        builder.addTargetFile(gmx::MDLogger::LogLevel::Error, fp3);
-        builder.addTargetFile(gmx::MDLogger::LogLevel::Debug, fp4);
-        builder.addTargetFile(gmx::MDLogger::LogLevel::VerboseDebug, fp5);
+        LoggerBuilder builder;
+        builder.addTargetFile(MDLogger::LoggingStreams::Warning, VerbosityLevel::NoVerbose, fp1);
+        builder.addTargetFile(MDLogger::LoggingStreams::Error, VerbosityLevel::Verbose, fp2);
         gmx::LoggerOwner     owner  = builder.build();
         const gmx::MDLogger& logger = owner.logger();
-        GMX_LOG(logger.info).appendText("line");
-        GMX_LOG(logger.warning).appendText("par").asParagraph();
-        GMX_LOG(logger.info).appendText("line2");
-        GMX_LOG(logger.error).appendTextFormatted("%s", "formatted");
-        GMX_LOG(logger.debug).appendText("debugline");
-        GMX_LOG(logger.verboseDebug).appendText("verbose");
+        GMX_LOG(logger.warning).appendText("Warning that is not verbose is printed").asParagraph();
+        GMX_LOG_LEVEL(logger.warning, VerbosityLevel::Verbose)
+                .asParagraph()
+                .appendText("Verbose warning is not printed");
+        GMX_LOG(logger.error).asParagraph().appendText("Default error is printed");
+        GMX_LOG_LEVEL(logger.error, VerbosityLevel::Verbose)
+                .asParagraph()
+                .appendText("Verbose error is printed");
     }
     fclose(fp1);
     fclose(fp2);
-    fclose(fp3);
-    fclose(fp4);
-    fclose(fp5);
     checkFileContents(filename1, "Output1");
     checkFileContents(filename2, "Output2");
-    checkFileContents(filename3, "Output3");
-    checkFileContents(filename4, "Output4");
-    checkFileContents(filename5, "Output5");
-}
-
-TEST_F(LoggerTest, LogsToStreamAndFile)
-{
-    gmx::test::TestFileManager files;
-    gmx::StringOutputStream    stream;
-    std::string                filename(files.getTemporaryFilePath("verboseDebug.txt"));
-    FILE*                      fp = fopen(filename.c_str(), "w");
-    {
-        gmx::LoggerBuilder builder;
-        builder.addTargetFile(gmx::MDLogger::LogLevel::VerboseDebug, fp);
-        builder.addTargetStream(gmx::MDLogger::LogLevel::VerboseDebug, &stream);
-        gmx::LoggerOwner     owner  = builder.build();
-        const gmx::MDLogger& logger = owner.logger();
-        GMX_LOG(logger.info).appendText("line");
-        GMX_LOG(logger.warning).appendText("par").asParagraph();
-        GMX_LOG(logger.info).appendText("line2");
-        GMX_LOG(logger.error).appendTextFormatted("%s", "formatted");
-        GMX_LOG(logger.debug).appendText("debugline");
-        GMX_LOG(logger.verboseDebug).appendText("verbose");
-    }
-    fclose(fp);
-    checkText(stream.toString(), "OutputStream");
-    checkFileContents(filename, "OutputFile");
 }
 
 } // namespace
+} // namespace test
+} // namespace gmx

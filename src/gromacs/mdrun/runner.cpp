@@ -536,11 +536,12 @@ static gmx::LoggerOwner buildLogger(FILE* fplog, const bool isSimulationMasterRa
     gmx::LoggerBuilder builder;
     if (fplog != nullptr)
     {
-        builder.addTargetFile(gmx::MDLogger::LogLevel::Info, fplog);
+        builder.addTargetFile(gmx::MDLogger::LoggingStreams::Info, gmx::VerbosityLevel::Verbose, fplog);
     }
     if (isSimulationMasterRank)
     {
-        builder.addTargetStream(gmx::MDLogger::LogLevel::Warning, &gmx::TextOutputFile::standardError());
+        builder.addTargetStream(gmx::MDLogger::LoggingStreams::Warning,
+                                gmx::VerbosityLevel::Verbose, &gmx::TextOutputFile::standardError());
     }
     return builder.build();
 }

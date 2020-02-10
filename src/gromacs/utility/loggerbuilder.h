@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -78,19 +78,21 @@ public:
     /*! \brief
      * Adds a stream to which log output is written.
      *
-     * All output at level \p level or above it is written to \p stream.
+     * All output for logging target \p target at verbosity level \p level or above
+     * is written to \p stream.
      * The caller is responsible of closing and freeing \p stream once the
      * logger is discarded.
      */
-    void addTargetStream(MDLogger::LogLevel level, TextOutputStream* stream);
+    void addTargetStream(MDLogger::LoggingStreams target, VerbosityLevel level, TextOutputStream* stream);
     /*! \brief
      * Adds a file to which log output is written.
      *
-     * All output at level \p level or above it is written to \p fp.
+     * All output for logging target \p target at verbosity level \p level or above
+     * it is written to \p fp.
      * The caller is responsible of closing \p fp once the logger is
      * discarded.
      */
-    void addTargetFile(MDLogger::LogLevel level, FILE* fp);
+    void addTargetFile(MDLogger::LoggingStreams target, VerbosityLevel level, FILE* fp);
 
     /*! \brief
      * Builds the logger with the targets set for this builder.

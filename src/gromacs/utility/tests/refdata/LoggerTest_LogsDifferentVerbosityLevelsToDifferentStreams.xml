@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
+<ReferenceData>
+  <String Name="Output of default stream"><![CDATA[
+line that is printed to infoStream
+]]></String>
+  <String Name="Output of verbose stream"><![CDATA[
+line that is printed to infoStream
+
+line that is printed at different verbosity
+]]></String>
+</ReferenceData>

@@ -122,12 +122,12 @@ public:
     void expectWarningMatchingRegex(const char* re) { expectWarningMatchingRegexIf(re, true); }
     void expectWarningMatchingRegexIf(const char* re, bool condition)
     {
-        expectLogMessageMatchingRegexIf(MDLogger::LogLevel::Warning, re, condition);
+        expectLogMessageMatchingRegexIf(MDLogger::LoggingStreams::Warning, re, condition);
     }
     void expectInfoMatchingRegex(const char* re) { expectInfoMatchingRegexIf(re, true); }
     void expectInfoMatchingRegexIf(const char* re, bool condition)
     {
-        expectLogMessageMatchingRegexIf(MDLogger::LogLevel::Info, re, condition);
+        expectLogMessageMatchingRegexIf(MDLogger::LoggingStreams::Info, re, condition);
     }
     void expectGenericFailureMessage() { expectGenericFailureMessageIf(true); }
     void expectGenericFailureMessageIf(bool condition)
@@ -140,11 +140,11 @@ public:
                                            userSpecifiedStride ? "user" : "auto", stride);
         expectInfoMatchingRegex(pattern.c_str());
     }
-    void expectLogMessageMatchingRegexIf(MDLogger::LogLevel level, const char* re, bool condition)
+    void expectLogMessageMatchingRegexIf(MDLogger::LoggingStreams level, const char* re, bool condition)
     {
         if (condition)
         {
-            logHelper_.expectEntryMatchingRegex(level, re);
+            logHelper_.expectEntryMatchingRegex(level, VerbosityLevel::NoVerbose, re);
         }
     }
 

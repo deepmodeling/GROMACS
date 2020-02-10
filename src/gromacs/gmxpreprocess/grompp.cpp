@@ -1837,8 +1837,10 @@ int gmx_grompp(int argc, char* argv[])
     snew(opts->define, STRLEN);
 
     gmx::LoggerBuilder builder;
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Info, &gmx::TextOutputFile::standardOutput());
-    builder.addTargetStream(gmx::MDLogger::LogLevel::Warning, &gmx::TextOutputFile::standardError());
+    builder.addTargetStream(gmx::MDLogger::LoggingStreams::Info, gmx::VerbosityLevel::Verbose,
+                            &gmx::TextOutputFile::standardOutput());
+    builder.addTargetStream(gmx::MDLogger::LoggingStreams::Warning, gmx::VerbosityLevel::Verbose,
+                            &gmx::TextOutputFile::standardError());
     gmx::LoggerOwner    logOwner(builder.build());
     const gmx::MDLogger logger(logOwner.logger());
 

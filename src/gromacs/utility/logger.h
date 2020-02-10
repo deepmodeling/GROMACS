@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,8 +44,10 @@
 #ifndef GMX_UTILITY_LOGGER_H
 #define GMX_UTILITY_LOGGER_H
 
+#include <algorithm>
 #include <string>
 
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/stringutil.h"
 
 namespace gmx
@@ -133,7 +135,7 @@ public:
      *
      * This is implemented as an assignment operator to get proper
      * precedence for operations for the ::GMX_LOG macro; this is a common
-     * technique for implementing macros that allow streming information to
+     * technique for implementing macros that allow streaming information to
      * them (see, e.g., Google Test).
      */
     LogWriteHelper& operator=(const LogEntryWriter& entryWriter)
@@ -146,6 +148,17 @@ private:
     ILogTarget* target_;
 };
 
+//! Supported verbosity levels for all streams.
+enum class VerbosityLevel
+{
+    NoVerbose,
+    Verbose,
+    Count
+};
+
+//! Number of verbosity levels available.
+static constexpr int VerbosityLevelCount = static_cast<int>(VerbosityLevel::Count);
+
 /*! \libinternal \brief
  * Represents a single logging level.
  *
@@ -157,7 +170,7 @@ private:
 class LogLevelHelper
 {
 public:
-    //! Initializes a helper for writing to the given target.
+    //! Initializes a helper for writing to the given target at a given verbosity level.
     explicit LogLevelHelper(ILogTarget* target) : target_(target) {}
 
     // Both of the below should be explicit, once that works in CUDA.
@@ -168,7 +181,42 @@ public:
     operator LogWriteHelper() const { return LogWriteHelper(target_); }
 
 private:
-    ILogTarget* target_;
+    ILogTarget* target_ = nullptr;
+};
+
+/*! \libinternal \brief
+ * Represents collection of logging targets for one logging stream.
+ *
+ * In general those types will not be used directly by the user, but are
+ * accessed through the ::GMX_LOG macro in the code to write a message at a defined
+ * verbosity level.
+ *
+ * \ingroup module_utility
+ */
+class LogStreamHelper
+{
+public:
+    //! Initializes one logging stream with targets at given verbosity levels.
+    explicit LogStreamHelper(const std::array<ILogTarget*, VerbosityLevelCount> targets) :
+        targets_(targets)
+    {
+    }
+    //! Empty logger stream when default constructing.
+    LogStreamHelper() : targets_({ nullptr }) {}
+    //! Whether any actual outputs have been defined for this collection.
+    operator bool() const
+    {
+        return std::any_of(targets_.begin(), targets_.end(),
+                           [](const auto& target) { return target != nullptr; });
+    }
+    //! Creates a LogLevelHelper for a target at a given verbosity level.
+    LogWriteHelper helper(VerbosityLevel level) const
+    {
+        return LogWriteHelper(targets_[static_cast<int>(level)]);
+    }
+
+private:
+    std::array<ILogTarget*, VerbosityLevelCount> targets_;
 };
 
 /*! \libinternal \brief
@@ -188,43 +236,41 @@ private:
 class MDLogger
 {
 public:
-    //! Supported logging levels.
-    enum class LogLevel
+    //! Available logging streams.
+    enum class LoggingStreams
     {
         Error,
         Warning,
         Info,
         Debug,
-        VerboseDebug,
         Count
     };
-    //! Number of logging levels.
-    static const int LogLevelCount = static_cast<int>(LogLevel::Count);
+    //! Number of logging streams.
+    static const int LogStreamCount = static_cast<int>(LoggingStreams::Count);
 
     MDLogger();
     //! Creates a logger with the given targets.
-    explicit MDLogger(ILogTarget* targets[LogLevelCount]);
-
-    //! For writing at LogLevel::Warning level.
-    LogLevelHelper warning;
-    //! For writing at LogLevel::Error level.
-    LogLevelHelper error;
-    //! For writing at LogLevel::Debug level.
-    LogLevelHelper debug;
-    //! For writing at LogLevel::VerboseDebug level.
-    LogLevelHelper verboseDebug;
-    //! For writing at LogLevel::Info level.
-    LogLevelHelper info;
+    explicit MDLogger(std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets);
+    //! For writing to the stream handling errors.
+    LogStreamHelper error;
+    //! For writing to the stream handling warnings.
+    LogStreamHelper warning;
+    //! For writing to the stream handling debug information.
+    LogStreamHelper debug;
+    //! For writing to the stream handling general information.
+    LogStreamHelper info;
 };
+
 
 /*! \brief
  * Helper to log information using gmx::MDLogger.
  *
- * \param  logger  LogLevelHelper instance to use for logging.
+ * \param  logger  LogStreamHelper instance to use for logging.
+ * \param  level   Verbosity level for logging.
  *
  * Used as
  * \code
-   GMX_LOG(logger.warning).appendText(...);
+   GMX_LOG(logger.status, VerbosityLevel::Verbose).appendText(...);
    \endcode
  * and ensures that the code to format the output is only executed when the
  * output goes somewhere.
@@ -234,10 +280,20 @@ public:
  *
  * \ingroup module_utility
  */
-#define GMX_LOG(logger)                                                  \
-    if (::gmx::LogWriteHelper helper = ::gmx::LogWriteHelper(logger)) {} \
-    else                                                                 \
+#define GMX_LOG_LEVEL(logger, level)                                                    \
+    if (::gmx::LogWriteHelper helper = ::gmx::LogStreamHelper(logger).helper(level)) {} \
+    else                                                                                \
         helper = ::gmx::LogEntryWriter()
+
+/*! \brief
+ * Helper that logs to default verbosity level.
+ */
+#define GMX_LOG(logger) GMX_LOG_LEVEL(logger, ::gmx::VerbosityLevel::NoVerbose)
+
+/*! \brief
+ * Helper that logs at verbose level.
+ */
+#define GMX_LOGV(logger) GMX_LOG_LEVEL(logger, ::gmx::VerbosityLevel::Verbose)
 
 } // namespace gmx
 
