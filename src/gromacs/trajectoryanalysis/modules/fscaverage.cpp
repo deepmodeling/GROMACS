@@ -35,9 +35,9 @@
  */
 /*! \internal \file
  * \brief
- * Implements gmx::analysismodules::Angle.
+ * Implements gmx::analysismodules::FSC.
  *
- * \author Teemu Murtola <teemu.murtola@gmail.com>
+ * \author Christian Blau <blau@kth.se>
  * \ingroup module_trajectoryanalysis
  */
 #include "gmxpre.h"
@@ -105,6 +105,7 @@ public:
         registerAnalysisDataset(&fscAverage_, "fscAverage");
         registerAnalysisDataset(&fscMoveCurve_, "fscOfMovingAvgMap");
         registerAnalysisDataset(&fscMoveAverage_, "fscAverageOfMovingAvgMap");
+        registerAnalysisDataset(&similarityScore_, "similarity");
     }
 
     void initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings) override;
@@ -122,6 +123,7 @@ private:
     std::string fnFSCmove_;
     std::string fnFSCmoveavg_;
     std::string fnFSCAvg_;
+    std::string fnSimilarity_;
     std::string fnAxis_;
 
     int numFscShells_;
@@ -130,6 +132,7 @@ private:
     AnalysisData fscAverage_;
     AnalysisData fscMoveCurve_;
     AnalysisData fscMoveAverage_;
+    AnalysisData similarityScore_;
 
     // mdAtoms are needed for amplitude lookup
     t_mdatoms mdAtoms_;
@@ -156,6 +159,7 @@ private:
     RVec                                                referenceDensityCenter_;
     compat::optional<GaussTransform3D>                  gaussTransform_;
     compat::optional<FourierShellCorrelation>           fsc_;
+    std::vector<DensitySimilarityMeasure>               measure_;
     // Copy and assign disallowed by base.
 };
 
@@ -200,6 +204,14 @@ void FSCAvg::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings*
                                .store(&fnFSCAvg_)
                                .defaultBasename("fscavg")
                                .description("FSC average as function of time"));
+
+    options->addOption(FileNameOption("similarity")
+                               .filetype(eftPlot)
+                               .outputFile()
+                               .required()
+                               .store(&fnSimilarity_)
+                               .defaultBasename("similarity")
+                               .description("Similarity to reference as function of time"));
 
     options->addOption(FileNameOption("ordinate-axis")
                                .filetype(eftPlot)
@@ -264,6 +276,11 @@ void FSCAvg::optionsFinished(TrajectoryAnalysisSettings* /* settings */)
 
     referenceDensity_ = referenceDensityData_.asConstView();
 
+    for (const auto& method : EnumerationWrapper<DensitySimilarityMeasureMethod>{})
+    {
+        measure_.emplace_back(method, referenceDensity_);
+    }
+
     referenceDensityCenter_ = { real(referenceDensity_.extent(XX)) / 2,
                                 real(referenceDensity_.extent(YY)) / 2,
                                 real(referenceDensity_.extent(ZZ)) / 2 };
@@ -301,6 +318,7 @@ void addPlotModule(AnalysisData*                   analysisData,
     plotModule->setXAxisIsTime();
     plotModule->setTitle(title);
     plotModule->setYLabel(ylabel.c_str());
+    plotModule->setYFormat(12, 6, 'g');
     analysisData->addModule(plotModule);
 }
 
@@ -330,6 +348,9 @@ void FSCAvg::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topo
                   "Fourier Shell Correlation Average", "FSC avg", numFscShells_);
     addPlotModule(&fscMoveAverage_, settings.plotSettings(), fnFSCmoveavg_,
                   "Fourier Shell Correlation Average Moving Map Average", "FSC avg", numFscShells_);
+    addPlotModule(&similarityScore_, settings.plotSettings(), fnSimilarity_,
+                  "Similarity to reference density", "similarity",
+                  c_densitySimilarityMeasureMethodNames.size());
     mdAtoms_ = mdatomsFromtAtoms(*(top.atoms()));
 }
 
@@ -409,6 +430,13 @@ void FSCAvg::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, Trajectory
     addData(frnr, fr.time, fscAverage_, fscAverage(curve), pdata);
     addData(frnr, fr.time, fscMoveCurve_, moveCurve.correlation, pdata);
     addData(frnr, fr.time, fscMoveAverage_, fscAverage(moveCurve), pdata);
+
+    std::vector<real> similarityScores;
+    for (const auto& measure : measure_)
+    {
+        similarityScores.push_back(measure.similarity(gaussTransform_->constView()));
+    }
+    addData(frnr, fr.time, similarityScore_, similarityScores, pdata);
 }
 
 

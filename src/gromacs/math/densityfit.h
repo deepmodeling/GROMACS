@@ -125,7 +125,7 @@ public:
      * \param[in] comparedDensity the variable density
      * \returns density similarity
      */
-    real similarity(density comparedDensity);
+    real similarity(density comparedDensity) const;
 
 private:
     std::unique_ptr<DensitySimilarityMeasureImpl> impl_;

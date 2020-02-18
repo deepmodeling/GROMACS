@@ -36,11 +36,11 @@
  * \brief
  * Declares trajectory analysis module for FSCAvg calculations.
  *
- * \author Teemu Murtola <teemu.murtola@gmail.com>
+ * \author Christian Blau <blau@kth.se>
  * \ingroup module_trajectoryanalysis
  */
-#ifndef GMX_TRAJECTORYANALYSIS_MODULES_FSCAvg_H
-#define GMX_TRAJECTORYANALYSIS_MODULES_FSCAvg_H
+#ifndef GMX_TRAJECTORYANALYSIS_MODULES_FSCAVG_H
+#define GMX_TRAJECTORYANALYSIS_MODULES_FSCAVG_H
 
 #include "gromacs/trajectoryanalysis/analysismodule.h"
 

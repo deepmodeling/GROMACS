@@ -62,7 +62,7 @@ public:
     //! \copydoc DensitySimilarityMeasure::gradient(DensitySimilarityMeasure::density comparedDensity)
     virtual density gradient(density comparedDensity) = 0;
     //! \copydoc DensitySimilarityMeasure::similarity(density comparedDensity)
-    virtual real similarity(density comparedDensity) = 0;
+    virtual real similarity(density comparedDensity) const = 0;
     //! clone to allow copy operations
     virtual std::unique_ptr<DensitySimilarityMeasureImpl> clone() = 0;
 };
@@ -88,7 +88,7 @@ public:
     //! Clone this
     std::unique_ptr<DensitySimilarityMeasureImpl> clone() override;
     //! The similarity between reference density and compared density
-    real similarity(density comparedDensity) override;
+    real similarity(density comparedDensity) const override;
 
 private:
     //! A view on the reference density
@@ -108,7 +108,7 @@ DensitySimilarityInnerProduct::DensitySimilarityInnerProduct(density referenceDe
                    [numVoxels](float x) { return x / numVoxels; });
 }
 
-real DensitySimilarityInnerProduct::similarity(density comparedDensity)
+real DensitySimilarityInnerProduct::similarity(density comparedDensity) const
 {
     if (comparedDensity.extents() != referenceDensity_.extents())
     {
@@ -173,7 +173,7 @@ public:
     //! Clone this
     std::unique_ptr<DensitySimilarityMeasureImpl> clone() override;
     //! The similarity between reference density and compared density
-    real similarity(density comparedDensity) override;
+    real similarity(density comparedDensity) const override;
 
 private:
     //! A view on the reference density
@@ -188,7 +188,7 @@ DensitySimilarityRelativeEntropy::DensitySimilarityRelativeEntropy(density refer
 {
 }
 
-real DensitySimilarityRelativeEntropy::similarity(density comparedDensity)
+real DensitySimilarityRelativeEntropy::similarity(density comparedDensity) const
 {
     if (comparedDensity.extents() != referenceDensity_.extents())
     {
@@ -312,7 +312,7 @@ public:
     //! Clone this
     std::unique_ptr<DensitySimilarityMeasureImpl> clone() override;
     //! The similarity between reference density and compared density
-    real similarity(density comparedDensity) override;
+    real similarity(density comparedDensity) const override;
 
 private:
     //! A view on the reference density
@@ -327,7 +327,7 @@ DensitySimilarityCrossCorrelation::DensitySimilarityCrossCorrelation(density ref
 {
 }
 
-real DensitySimilarityCrossCorrelation::similarity(density comparedDensity)
+real DensitySimilarityCrossCorrelation::similarity(density comparedDensity) const
 {
     if (comparedDensity.extents() != referenceDensity_.extents())
     {
@@ -401,7 +401,7 @@ DensitySimilarityMeasure::density DensitySimilarityMeasure::gradient(density com
     return impl_->gradient(comparedDensity);
 }
 
-real DensitySimilarityMeasure::similarity(density comparedDensity)
+real DensitySimilarityMeasure::similarity(density comparedDensity) const
 {
     return impl_->similarity(comparedDensity);
 }
