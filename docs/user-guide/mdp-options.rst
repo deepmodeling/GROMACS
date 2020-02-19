@@ -2040,8 +2040,13 @@ AWH adaptive biasing
 
    .. mdp-value:: pull
 
-      The module providing the reaction coordinate for this dimension.
-      Currently AWH can only act on pull coordinates.
+      The pull module is providing the reaction coordinate for this dimension.
+
+   .. mdp-value:: fe-lambda
+
+      The free energy lambda (the specified lambda states) is the reaction coordinate
+      for this dimension. This is not compatible with delta-lambda. It also requires
+      calc-lambda-neighbors to be -1.
 
 .. mdp:: awh1-dim1-coord-index
 
