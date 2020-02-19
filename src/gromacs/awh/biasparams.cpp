@@ -124,20 +124,29 @@ int64_t calcCheckCoveringInterval(const AwhParams&              awhParams,
     int minNumSamplesCover = 0;
     for (size_t d = 0; d < gridAxis.size(); d++)
     {
-        GMX_RELEASE_ASSERT(dimParams[d].betak > 0,
-                           "Inverse temperature (beta) and force constant (k) should be positive.");
-        double sigma = 1.0 / std::sqrt(dimParams[d].betak);
+        int numSamplesCover;
+        if (!dimParams[d].isLambdaDimension())
+        {
+            GMX_RELEASE_ASSERT(
+                    dimParams[d].betak > 0,
+                    "Inverse temperature (beta) and force constant (k) should be positive.");
+            double sigma = 1.0 / std::sqrt(dimParams[d].betak);
 
-        /* The additional sample is here because to cover a discretized
-           axis of length sigma one needs two samples, one for each
-           end point. */
-        GMX_RELEASE_ASSERT(gridAxis[d].length() / sigma < std::numeric_limits<int>::max(),
-                           "The axis length in units of sigma should fit in an int");
-        int numSamplesCover = static_cast<int>(std::ceil(gridAxis[d].length() / sigma)) + 1;
-
+            /* The additional sample is here because to cover a discretized
+            axis of length sigma one needs two samples, one for each
+            end point. */
+            GMX_RELEASE_ASSERT(gridAxis[d].length() / sigma < std::numeric_limits<int>::max(),
+                               "The axis length in units of sigma should fit in an int");
+            numSamplesCover = static_cast<int>(std::ceil(gridAxis[d].length() / sigma)) + 1;
+        }
+        else
+        {
+            /* TODO: Evaluate this */
+            numSamplesCover = dimParams[d].numLambdaStates;
+        }
         /* The minimum number of samples needed for simultaneously
-           covering all axes is limited by the axis requiring most
-           samples. */
+        covering all axes is limited by the axis requiring most
+        samples. */
         minNumSamplesCover = std::max(minNumSamplesCover, numSamplesCover);
     }
 
@@ -260,7 +269,11 @@ double getInitialHistogramSizeEstimate(const std::vector<DimParams>& dimParams,
         {
             crossingTime += awhBiasParams.dimParams[d].diffusion / (axisLength * axisLength);
             /* The sigma of the Gaussian distribution in the umbrella */
-            double sigma = 1. / std::sqrt(dimParams[d].betak);
+            double sigma = 1.;
+            if (dimParams[d].betak != 0)
+            {
+                sigma /= std::sqrt(dimParams[d].betak);
+            }
             x.push_back(sigma / axisLength);
         }
     }

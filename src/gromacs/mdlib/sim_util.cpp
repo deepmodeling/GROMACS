@@ -624,12 +624,12 @@ static void computeSpecialForces(FILE*                          fplog,
     {
         pull_potential_wrapper(cr, inputrec, box, x, forceWithVirial, mdatoms, enerd, pull_work,
                                lambda.data(), t, wcycle);
-
-        if (awh)
-        {
-            enerd->term[F_COM_PULL] += awh->applyBiasForcesAndUpdateBias(
-                    inputrec->pbcType, mdatoms->massT, box, forceWithVirial, t, step, wcycle, fplog);
-        }
+    }
+    if (awh)
+    {
+        enerd->term[F_COM_PULL] += awh->applyBiasForcesAndUpdateBias(
+                inputrec->pbcType, mdatoms->massT, enerd->foreignLambdaTerms, box,
+                forceWithVirial, t, step, wcycle, fplog);
     }
 
     rvec* f = as_rvec_array(forceWithVirial->force_.data());

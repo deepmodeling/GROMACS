@@ -207,12 +207,14 @@ double freeEnergyMinimumValue(gmx::ArrayRef<const PointState> pointState)
  * w(point|value) = exp(bias(point) - U(value,point)),
  * where U is a harmonic umbrella potential.
  *
- * \param[in] dimParams     The bias dimensions parameters
- * \param[in] points        The point state.
- * \param[in] grid          The grid.
- * \param[in] pointIndex    Point to evaluate probability weight for.
- * \param[in] pointBias     Bias for the point (as a log weight).
- * \param[in] value         Coordinate value.
+ * \param[in] dimParams              The bias dimensions parameters
+ * \param[in] points                 The point state.
+ * \param[in] grid                   The grid.
+ * \param[in] pointIndex             Point to evaluate probability weight for.
+ * \param[in] pointBias              Bias for the point (as a log weight).
+ * \param[in] value                  Coordinate value.
+ * \param[in] neighborLambdaEnergies The energy of the system in neighboring lambdas.
+ * \param[in] gridpointIndex         The index of the current grid point.
  * \returns the log of the biased probability weight.
  */
 double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
@@ -220,11 +222,13 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
                                 const BiasGrid&                grid,
                                 int                            pointIndex,
                                 double                         pointBias,
-                                const awh_dvec                 value)
+                                const awh_dvec                 value,
+                                gmx::ArrayRef<const double>    neighborLambdaEnergies,
+                                int                            gridpointIndex)
 {
     double logWeight = detail::c_largeNegativeExponent;
 
-    /* Only points in the target reigon have non-zero weight */
+    /* Only points in the target region have non-zero weight */
     if (points[pointIndex].inTargetRegion())
     {
         logWeight = pointBias;
@@ -232,11 +236,27 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
         /* Add potential for all parameter dimensions */
         for (size_t d = 0; d < dimParams.size(); d++)
         {
-            double dev = getDeviationFromPointAlongGridAxis(grid, d, pointIndex, value[d]);
-            logWeight -= 0.5 * dimParams[d].betak * dev * dev;
+            /* If this function is called from calcConvolvedBias() (used when writing
+             * energy subblocks) neighborLambdaEnergies will be empty. No convolution
+             * is required along the lambda dimension. */
+            if (dimParams[d].isLambdaDimension() && !neighborLambdaEnergies.empty())
+            {
+                const int pointLambdaIndex     = grid.point(pointIndex).coordValue[d];
+                const int gridpointLambdaIndex = grid.point(gridpointIndex).coordValue[d];
+                /* Index 0 in neighborLambdaEnergies corresponds to the current lambda state.
+                 * Index 1..[numLambdaPoints] corresponds to the neighbor lambda states. Therefore
+                 * the index in neighborLambdaEnergies is increased by 1. */
+                logWeight -= dimParams[d].beta
+                             * (neighborLambdaEnergies[pointLambdaIndex + 1]
+                                - neighborLambdaEnergies[gridpointLambdaIndex + 1]);
+            }
+            else
+            {
+                double dev = getDeviationFromPointAlongGridAxis(grid, d, pointIndex, value[d]);
+                logWeight -= 0.5 * dimParams[d].betak * dev * dev;
+            }
         }
     }
-
     return logWeight;
 }
 
@@ -267,7 +287,7 @@ void BiasState::calcConvolvedPmf(const std::vector<DimParams>& dimParams,
                Note that this function only adds point within the target > 0 region.
                Sum weights, take the logarithm last to get the free energy. */
             double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
-                                                        biasNeighbor, point.coordValue);
+                                                        biasNeighbor, point.coordValue, {}, m);
             freeEnergyWeights += std::exp(logWeight);
         }
 
@@ -416,19 +436,31 @@ int BiasState::warnForHistogramAnomalies(const BiasGrid& grid, int biasIndex, do
 double BiasState::calcUmbrellaForceAndPotential(const std::vector<DimParams>& dimParams,
                                                 const BiasGrid&               grid,
                                                 int                           point,
+                                                ArrayRef<const double>        neighborLambdaDhdl,
                                                 gmx::ArrayRef<double>         force) const
 {
     double potential = 0;
     for (size_t d = 0; d < dimParams.size(); d++)
     {
-        double deviation =
-                getDeviationFromPointAlongGridAxis(grid, d, point, coordState_.coordValue()[d]);
+        if (dimParams[d].isLambdaDimension())
+        {
+            const int coordpointLambdaIndex = grid.point(point).coordValue[d];
+            /* Index 0 in neighborLambdaEnergies corresponds to the current lambda state.
+             * Index 1..[numLambdaPoints] corresponds to the neighbor lambda states. Therefore
+             * the index in neighborLambdaEnergies is increased by 1. */
+            force[d] = neighborLambdaDhdl[coordpointLambdaIndex + 1];
+            /* The potential should not be affected by the lambda dimension. */
+        }
+        else
+        {
+            double deviation =
+                    getDeviationFromPointAlongGridAxis(grid, d, point, coordState_.coordValue()[d]);
+            double k = dimParams[d].k;
 
-        double k = dimParams[d].k;
-
-        /* Force from harmonic potential 0.5*k*dev^2 */
-        force[d] = -k * deviation;
-        potential += 0.5 * k * deviation * deviation;
+            /* Force from harmonic potential 0.5*k*dev^2 */
+            force[d] = -k * deviation;
+            potential += 0.5 * k * deviation * deviation;
+        }
     }
 
     return potential;
@@ -437,6 +469,7 @@ double BiasState::calcUmbrellaForceAndPotential(const std::vector<DimParams>& di
 void BiasState::calcConvolvedForce(const std::vector<DimParams>& dimParams,
                                    const BiasGrid&               grid,
                                    gmx::ArrayRef<const double>   probWeightNeighbor,
+                                   ArrayRef<const double>        neighborLambdaDhdl,
                                    gmx::ArrayRef<double>         forceWorkBuffer,
                                    gmx::ArrayRef<double>         force) const
 {
@@ -454,7 +487,7 @@ void BiasState::calcConvolvedForce(const std::vector<DimParams>& dimParams,
         int    indexNeighbor  = neighbor[n];
 
         /* Get the umbrella force from this point. The returned potential is ignored here. */
-        calcUmbrellaForceAndPotential(dimParams, grid, indexNeighbor, forceFromNeighbor);
+        calcUmbrellaForceAndPotential(dimParams, grid, indexNeighbor, neighborLambdaDhdl, forceFromNeighbor);
 
         /* Add the weighted umbrella force to the convolved force. */
         for (size_t d = 0; d < dimParams.size(); d++)
@@ -467,18 +500,25 @@ void BiasState::calcConvolvedForce(const std::vector<DimParams>& dimParams,
 double BiasState::moveUmbrella(const std::vector<DimParams>& dimParams,
                                const BiasGrid&               grid,
                                gmx::ArrayRef<const double>   probWeightNeighbor,
+                               ArrayRef<const double>        neighborLambdaDhdl,
                                gmx::ArrayRef<double>         biasForce,
                                int64_t                       step,
                                int64_t                       seed,
-                               int                           indexSeed)
+                               int                           indexSeed,
+                               bool                          onlySampleUmbrellaGridpoint)
 {
     /* Generate and set a new coordinate reference value */
     coordState_.sampleUmbrellaGridpoint(grid, coordState_.gridpointIndex(), probWeightNeighbor,
                                         step, seed, indexSeed);
 
+    if (onlySampleUmbrellaGridpoint)
+    {
+        return 0;
+    }
+
     std::vector<double> newForce(dimParams.size());
-    double              newPotential =
-            calcUmbrellaForceAndPotential(dimParams, grid, coordState_.umbrellaGridpoint(), newForce);
+    double              newPotential = calcUmbrellaForceAndPotential(
+            dimParams, grid, coordState_.umbrellaGridpoint(), neighborLambdaDhdl, newForce);
 
     /*  A modification of the reference value at time t will lead to a different
         force over t-dt/2 to t and over t to t+dt/2. For high switching rates
@@ -923,7 +963,15 @@ bool BiasState::isSamplingRegionCovered(const BiasParams&             params,
     double weightThreshold = 1;
     for (int d = 0; d < grid.numDimensions(); d++)
     {
-        weightThreshold *= grid.axis(d).spacing() * std::sqrt(dimParams[d].betak * 0.5 * M_1_PI);
+        if (grid.axis(d).isLambdaAxis())
+        {
+            /* TODO: Check if this is good. */
+            weightThreshold *= 1.0;
+        }
+        else
+        {
+            weightThreshold *= grid.axis(d).spacing() * std::sqrt(dimParams[d].betak * 0.5 * M_1_PI);
+        }
     }
 
     /* Project the sampling weights onto each dimension */
@@ -1154,6 +1202,7 @@ void BiasState::updateFreeEnergyAndAddSamplesToHistogram(const std::vector<DimPa
 
 double BiasState::updateProbabilityWeightsAndConvolvedBias(const std::vector<DimParams>& dimParams,
                                                            const BiasGrid&               grid,
+                                                           gmx::ArrayRef<const double> neighborLambdaEnergies,
                                                            std::vector<double, AlignedAllocator<double>>* weight) const
 {
     /* Only neighbors of the current coordinate value will have a non-negligible chance of getting sampled */
@@ -1179,9 +1228,9 @@ double BiasState::updateProbabilityWeightsAndConvolvedBias(const std::vector<Dim
             if (n < neighbors.size())
             {
                 const int neighbor = neighbors[n];
-                (*weight)[n] =
-                        biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
-                                                 points_[neighbor].bias(), coordState_.coordValue());
+                (*weight)[n]       = biasedLogWeightFromPoint(
+                        dimParams, points_, grid, neighbor, points_[neighbor].bias(),
+                        coordState_.coordValue(), neighborLambdaEnergies, coordState_.gridpointIndex());
             }
             else
             {
@@ -1201,6 +1250,30 @@ double BiasState::updateProbabilityWeightsAndConvolvedBias(const std::vector<Dim
 
     /* Normalize probabilities to sum to 1 */
     double invWeightSum = 1 / weightSum;
+
+    /* If there is a lambda axis remove the convolved contributions along that axis from the total
+     * bias. This must be done after calculating invWeightSum (since weightSum will be modified),
+     * but before normalizing the weights (below). */
+    if (grid.hasLambdaAxis())
+    {
+        /* If there is only one axis the bias will not be convolved in any dimension. */
+        if (grid.axis().size() == 1)
+        {
+            weightSum = gmx::exp(points_[coordState_.gridpointIndex()].bias());
+        }
+        else
+        {
+            for (size_t i = 0; i < neighbors.size(); i++)
+            {
+                const int neighbor = neighbors[i];
+                if (pointsHaveDifferentLambda(grid, coordState_.gridpointIndex(), neighbor))
+                {
+                    weightSum -= weightData[i];
+                }
+            }
+        }
+    }
+
     for (double& w : *weight)
     {
         w *= invWeightSum;
@@ -1221,8 +1294,13 @@ double BiasState::calcConvolvedBias(const std::vector<DimParams>& dimParams,
     double weightSum = 0;
     for (int neighbor : gridPoint.neighbor)
     {
+        /* No convolution is required along the lambda dimension. */
+        if (pointsHaveDifferentLambda(grid, point, neighbor))
+        {
+            continue;
+        }
         double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
-                                                    points_[neighbor].bias(), coordValue);
+                                                    points_[neighbor].bias(), coordValue, {}, point);
         weightSum += std::exp(logWeight);
     }
 

@@ -159,7 +159,8 @@ public:
      * \param[in] mdTimeStep             The MD time step.
      * \param[in] numSharingSimulations  The number of simulations to share the bias across.
      * \param[in] biasInitFilename       Name of file to read PMF and target from.
-     * \param[in] thisRankWillDoIO       Tells whether this MPI rank will do I/O (checkpointing, AWH output), normally (only) the master rank does I/O.
+     * \param[in] thisRankWillDoIO       Tells whether this MPI rank will do I/O (checkpointing, AWH output),
+     * normally (only) the master rank does I/O.
      * \param[in] disableUpdateSkips     If to disable update skips, useful for testing.
      */
     Bias(int                            biasIndexInCollection,
@@ -192,6 +193,14 @@ public:
      * - reweight samples to extract the PMF.
      *
      * \param[in]     coordValue     The current coordinate value(s).
+     * \param[in]     neighborLambdaEnergies An array containing the energy of the system
+     * in neighboring lambdas. The array is of length numLambdas+1, where element 0 is the energy
+     * of the current state and elements 1..numLambdas contain the energy of the system in the
+     * neighboring lambda states (also including the current state).
+     * \param[in]     neighborLambdaDhdl     An array containing the dHdL at the neighboring lambda
+     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * of the current state and elements 1..numLambdas contain the dHdL of the system in the
+     * neighboring lambda states (also including the current state).
      * \param[out]    awhPotential   Bias potential.
      * \param[out]    potentialJump  Change in bias potential for this bias.
      * \param[in]     commRecord     Struct for intra-simulation communication.
@@ -202,15 +211,17 @@ public:
      * \param[in,out] fplog          Log file.
      * \returns a reference to the bias force, size \ref ndim(), valid until the next call of this method or destruction of Bias, whichever comes first.
      */
-    gmx::ArrayRef<const double> calcForceAndUpdateBias(const awh_dvec        coordValue,
-                                                       double*               awhPotential,
-                                                       double*               potentialJump,
-                                                       const t_commrec*      commRecord,
-                                                       const gmx_multisim_t* ms,
-                                                       double                t,
-                                                       int64_t               step,
-                                                       int64_t               seed,
-                                                       FILE*                 fplog);
+    gmx::ArrayRef<const double> calcForceAndUpdateBias(const awh_dvec         coordValue,
+                                                       ArrayRef<const double> neighborLambdaEnergies,
+                                                       ArrayRef<const double> neighborLambdaDhdl,
+                                                       double*                awhPotential,
+                                                       double*                potentialJump,
+                                                       const t_commrec*       commRecord,
+                                                       const gmx_multisim_t*  ms,
+                                                       double                 t,
+                                                       int64_t                step,
+                                                       int64_t                seed,
+                                                       FILE*                  fplog);
 
     /*! \brief
      * Calculates the convolved bias for a given coordinate value.
@@ -301,9 +312,15 @@ private:
      * Collect samples for the force correlation analysis on the grid.
      *
      * \param[in] probWeightNeighbor  Probability weight of the neighboring points.
+     * \param[in] neighborLambdaDhdl  An array containing the dHdL at the neighboring lambda
+     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * of the current state and elements 1..numLambdas contain the dHdL of the system in the
+     * neighboring lambda states (also including the current state).
      * \param[in] t                   The time.
      */
-    void updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeighbor, double t);
+    void updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeighbor,
+                                    ArrayRef<const double>      neighborLambdaDhdl,
+                                    double                      t);
 
 public:
     /*! \brief Return a const reference to the force correlation grid.
@@ -327,6 +344,20 @@ public:
      * \returns the number of subblocks written.
      */
     int writeToEnergySubblocks(t_enxsubblock* subblock) const;
+
+    /*! \brief Counts the number of dimensions using lambda as coordinate provider.
+     *
+     * \returns the number of dimensions using lambda as coordinate provider.
+     */
+    int numLambdaDims() const;
+
+    /*! \brief Returns if the specified dimension is a lambda dimension.
+     *
+     * \param[in] dim      The dimension to check.
+     *
+     * \returns true if the specified dimension is a lambda dimension.
+     */
+    bool isLambdaDim(int dim) const;
 
     /* Data members. */
 private:

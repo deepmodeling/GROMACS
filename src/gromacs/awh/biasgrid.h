@@ -90,8 +90,9 @@ public:
      * \param[in] end              End value.
      * \param[in] period           Period, pass 0 if not periodic.
      * \param[in] numPoints        The number of points.
+     * \param[in] isLambdaAxis     If this axis is controlling lambda.
      */
-    GridAxis(double origin, double end, double period, int numPoints);
+    GridAxis(double origin, double end, double period, int numPoints, bool isLambdaAxis);
 
     /*! \brief Returns if the axis has periodic boundaries.
      */
@@ -135,6 +136,10 @@ public:
      */
     int nearestIndex(double value) const;
 
+    /*! \brief Returns if this axis is coupled to lambda states.
+     */
+    bool isLambdaAxis() const { return isLambdaAxis_; }
+
 private:
     double origin_;            /**< Interval start value */
     double length_;            /**< Interval length */
@@ -142,6 +147,7 @@ private:
     double spacing_;           /**< Point spacing */
     int    numPoints_;         /**< Number of points in the interval */
     int    numPointsInPeriod_; /**< Number of points in a period (0 if no periodicity) */
+    bool   isLambdaAxis_;      /**< If this axis is coupled to the system's lambda state */
 };
 
 /*! \internal
@@ -186,7 +192,8 @@ public:
 
     /*! \brief Construct a grid using AWH input parameters.
      *
-     * \param[in] dimParams     Dimension parameters including the expected inverse variance of the coordinate living on the grid (determines the grid spacing).
+     * \param[in] dimParams     Dimension parameters including the expected inverse variance of the
+     * coordinate living on the grid (determines the grid spacing).
      * \param[in] awhDimParams  Dimension params from inputrec.
      */
     BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* awhDimParams);
@@ -236,6 +243,14 @@ public:
      * \note It is assumed that any periodicity of value has already been taken care of.
      */
     bool covers(const awh_dvec value) const;
+
+    /*! \brief Returns true if the grid has a lambda axis at all.
+     */
+    bool hasLambdaAxis() const
+    {
+        return std::any_of(std::begin(axis_), std::end(axis_),
+                           [](const auto& axis) { return axis.isLambdaAxis(); });
+    }
 
 private:
     std::vector<GridPoint> point_; /**< Points on the grid */
@@ -334,6 +349,37 @@ void mapGridToDataGrid(std::vector<int>*    gridpointToDatapoint,
  * \returns the deviation of the given value to the given point.
  */
 double getDeviationFromPointAlongGridAxis(const BiasGrid& grid, int dimIndex, int pointIndex, double value);
+
+/*! \brief
+ * Get the deviation from one point to another along one dimension in the grid.
+ *
+ * \param[in] grid        The grid.
+ * \param[in] dimIndex    Dimensional index in [0, ndim -1].
+ * \param[in] pointIndex1 Grid point index of the first point.
+ * \param[in] pointIndex2 Grid point index of the second point.
+ * \returns the deviation of the two points along the given axis.
+ */
+double getDeviationFromPointAlongGridAxis(const BiasGrid& grid, int dimIndex, int pointIndex1, int pointIndex2);
+
+/*! \brief
+ * Checks if two points are along a lambda axis.
+ *
+ * \param[in] grid        The grid.
+ * \param[in] pointIndex1 Grid point index of the first point.
+ * \param[in] pointIndex2 Grid point index of the second point.
+ * \returns true if the two points are along a lambda axis.
+ */
+bool pointsAlongLambdaAxis(const BiasGrid& grid, int pointIndex1, int pointIndex2);
+
+/*! \brief
+ * Checks if two points are different in the lambda dimension (if any).
+ *
+ * \param[in] grid        The grid.
+ * \param[in] pointIndex1 Grid point index of the first point.
+ * \param[in] pointIndex2 Grid point index of the second point.
+ * \returns true if the two points have different lambda values.
+ */
+bool pointsHaveDifferentLambda(const BiasGrid& grid, int pointIndex1, int pointIndex2);
 
 } // namespace gmx
 
