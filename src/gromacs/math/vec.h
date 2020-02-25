@@ -223,7 +223,15 @@ static inline void copy_dvec_to_rvec(const dvec a, rvec b)
     b[ZZ] = static_cast<real>(a[ZZ]);
 }
 
-static inline void copy_rvecn(const rvec* a, rvec* b, int startn, int endn)
+#if defined(__ARM_FEATURE_SVE) && defined(__clang__)
+/* work around a bug in LLVM based compilers that causes bad code
+   to be generated when inlining this function on ARMv8+SVE arch */
+__attribute__((noinline))
+#else
+inline
+#endif
+static void
+copy_rvecn(const rvec* a, rvec* b, int startn, int endn)
 {
     int i;
     for (i = startn; i < endn; i++)
