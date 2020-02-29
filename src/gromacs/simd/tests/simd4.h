@@ -68,6 +68,7 @@ namespace test
 /*! \{ */
 
 #    if GMX_SIMD4_HAVE_REAL
+#        if GMX_SIMD4_HAVE_REAL_GLOBAL
 extern const Simd4Real rSimd4_c0c1c2; //!< c0,c1,c2 repeated
 extern const Simd4Real rSimd4_c3c4c5; //!< c3,c4,c5 repeated
 extern const Simd4Real rSimd4_c6c7c8; //!< c6,c7,c8 repeated
@@ -83,12 +84,12 @@ extern const Simd4Real rSimd4_m3p75;  //!< Negative value that rounds down.
 //! Three large floating-point values whose exponents are >32.
 extern const Simd4Real rSimd4_Exp;
 
-#        if GMX_SIMD_HAVE_LOGICAL
+#            if GMX_SIMD_HAVE_LOGICAL
 extern const Simd4Real rSimd4_logicalA;         //!< Bit pattern to test logical ops
 extern const Simd4Real rSimd4_logicalB;         //!< Bit pattern to test logical ops
 extern const Simd4Real rSimd4_logicalResultOr;  //!< Result or bitwise 'or' of A and B
 extern const Simd4Real rSimd4_logicalResultAnd; //!< Result or bitwise 'and' of A and B
-#        endif                                  // GMX_SIMD_HAVE_LOGICAL
+#            endif                              // GMX_SIMD_HAVE_LOGICAL
 
 extern const Simd4Real rSimd4_Bits1; //!< Pattern F0 repeated to fill single/double.
 extern const Simd4Real rSimd4_Bits2; //!< Pattern CC repeated to fill single/double.
@@ -96,6 +97,55 @@ extern const Simd4Real rSimd4_Bits3; //!< Pattern C0 repeated to fill single/dou
 extern const Simd4Real rSimd4_Bits4; //!< Pattern 0C repeated to fill single/double.
 extern const Simd4Real rSimd4_Bits5; //!< Pattern FC repeated to fill single/double.
 extern const Simd4Real rSimd4_Bits6; //!< Pattern 3C repeated to fill single/double.
+#        else                        // GMX_SIMD4_HAVE_REAL_GLOBAL
+//!< c0,c1,c2 repeated
+#            define rSimd4_c0c1c2 setSimd4RealFrom3R(c0, c1, c2)
+//!< c3,c4,c5 repeated
+#            define rSimd4_c3c4c5 setSimd4RealFrom3R(c3, c4, c5)
+//!< c6,c7,c8 repeated
+#            define rSimd4_c6c7c8 setSimd4RealFrom3R(c6, c7, c8)
+//!< c3,c0,c4 repeated
+#            define rSimd4_c3c0c4 setSimd4RealFrom3R(c3, c0, c4)
+//!< c4,c6,c8 repeated
+#            define rSimd4_c4c6c8 setSimd4RealFrom3R(c4, c6, c8)
+//!< c7,c2,c3 repeated
+#            define rSimd4_c7c2c3 setSimd4RealFrom3R(c7, c2, c3)
+//!< -c0,-c1,-c2 repeated
+#            define rSimd4_m0m1m2 setSimd4RealFrom3R(-c0, -c1, -c2)
+//!< -c3,-c0,-c4 repeated
+#            define rSimd4_m3m0m4 setSimd4RealFrom3R(-c3, -c0, -c4)
+//!< Value that rounds down.
+#            define rSimd4_2p25 setSimd4RealFrom1R(2.25)
+//!< Value that rounds up.
+#            define rSimd4_3p75 setSimd4RealFrom1R(3.75)
+//!< Negative value that rounds up.
+#            define rSimd4_m2p25 setSimd4RealFrom1R(-2.25)
+//!< Negative value that rounds down.
+#            define rSimd4_m3p75 setSimd4RealFrom1R(-3.75)
+//! Three large floating-point values whose exponents are >32.
+
+#            if GMX_SIMD_HAVE_LOGICAL
+//!< Result or bitwise 'and' of A and B
+#                if GMX_DOUBLE
+#                    define rSimd4_logicalA setSimd4RealFrom1R(1.3333333332557231188)
+//!< Bit pattern to test logical ops
+#                    define rSimd4_logicalB setSimd4RealFrom1R(1.7999999998137354851)
+//!< Result or bitwise 'or' of A and B
+#                    define rSimd4_logicalResultAnd setSimd4RealFrom1R(1.266666666604578495)
+//!< Bit pattern to test logical ops
+#                    define rSimd4_logicalResultOr setSimd4RealFrom1R(1.8666666664648801088)
+#                else // GMX_DOUBLE
+//!< Bit pattern to test logical ops
+#                    define rSimd4_logicalA setSimd4RealFrom1R(1.3333282470703125)
+//!< Bit pattern to test logical ops
+define rSimd4_logicalB setSimd4RealFrom1R(1.79998779296875)
+//!< Result or bitwise 'or' of A and B
+#                    define rSimd4_logicalResultAnd setSimd4RealFrom1R(1.26666259765625)
+//!< Bit pattern to test logical ops
+#                    define rSimd4_logicalResultOr setSimd4RealFrom1R(1.8666534423828125)
+#                endif // GMX_DOUBLE
+#            endif     // GMX_SIMD_HAVE_LOGICAL
+#        endif         // GMX_SIMD4_HAVE_REAL_GLOBAL
 
 /*! \internal
  * \brief

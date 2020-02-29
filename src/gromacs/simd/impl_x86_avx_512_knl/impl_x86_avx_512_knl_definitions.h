@@ -42,8 +42,10 @@
 #define GMX_SIMD 1
 #define GMX_SIMD_HAVE_FLOAT 1
 #define GMX_SIMD_HAVE_FLOAT_ARRAY 1
+#define GMX_SIMD_HAVE_FLOAT_GLOBAL 1
 #define GMX_SIMD_HAVE_DOUBLE 1
 #define GMX_SIMD_HAVE_DOUBLE_ARRAY 1
+#define GMX_SIMD_HAVE_DOUBLE_GLOBAL 1
 #define GMX_SIMD_HAVE_LOADU 1
 #define GMX_SIMD_HAVE_STOREU 1
 #define GMX_SIMD_HAVE_LOGICAL 1
@@ -51,12 +53,14 @@
 #define GMX_SIMD_HAVE_FINT32_EXTRACT 0
 #define GMX_SIMD_HAVE_FINT32_LOGICAL 1
 #define GMX_SIMD_HAVE_FINT32_ARITHMETICS 1
+#define GMX_SIMD_HAVE_FINT32_GLOBAL 1
 // Technically it is straightforward to emulate extract on AVX-512F through
 // memory operations, but when applied to 16 elements as part of a table lookup
 // it will be faster to just store the entire vector once, so we avoid setting it.
 #define GMX_SIMD_HAVE_DINT32_EXTRACT 0
 #define GMX_SIMD_HAVE_DINT32_LOGICAL 1
 #define GMX_SIMD_HAVE_DINT32_ARITHMETICS 1
+#define GMX_SIMD_HAVE_DINT32_GLOBAL 1
 #define GMX_SIMD_HAVE_NATIVE_COPYSIGN_FLOAT 1
 #define GMX_SIMD_HAVE_NATIVE_RSQRT_ITER_FLOAT 0
 #define GMX_SIMD_HAVE_NATIVE_RCP_ITER_FLOAT 0
@@ -78,8 +82,10 @@
 
 #define GMX_SIMD4_HAVE_FLOAT 1
 #define GMX_SIMD4_HAVE_FLOAT_ARRAY 1
+#define GMX_SIMD4_HAVE_FLOAT_GLOBAL 1
 #define GMX_SIMD4_HAVE_DOUBLE 1
 #define GMX_SIMD4_HAVE_DOUBLE_ARRAY 1
+#define GMX_SIMD4_HAVE_DOUBLE_GLOBAL 1
 
 // Implementation details
 #define GMX_SIMD_FLOAT_WIDTH 16

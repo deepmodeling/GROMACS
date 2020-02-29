@@ -110,6 +110,7 @@ namespace test
  * them in a single place makes sure they are consistent.
  */
 #    if GMX_SIMD_HAVE_REAL
+#        if GMX_SIMD_HAVE_REAL_GLOBAL
 extern const SimdReal rSimd_c0c1c2; //!< c0,c1,c2 repeated
 extern const SimdReal rSimd_c3c4c5; //!< c3,c4,c5 repeated
 extern const SimdReal rSimd_c6c7c8; //!< c6,c7,c8 repeated
@@ -128,17 +129,17 @@ extern const SimdReal rSimd_m3p75; //!< Negative value that rounds down.
 //! Three large floating-point values whose exponents are >32.
 extern const SimdReal rSimd_Exp;
 
-#        if GMX_SIMD_HAVE_LOGICAL
+#            if GMX_SIMD_HAVE_LOGICAL
 extern const SimdReal rSimd_logicalA;         //!< Bit pattern to test logical ops
 extern const SimdReal rSimd_logicalB;         //!< Bit pattern to test logical ops
 extern const SimdReal rSimd_logicalResultOr;  //!< Result or bitwise 'or' of A and B
 extern const SimdReal rSimd_logicalResultAnd; //!< Result or bitwise 'and' of A and B
-#        endif                                // GMX_SIMD_HAVE_LOGICAL
+#            endif                            // GMX_SIMD_HAVE_LOGICAL
 
-#        if GMX_SIMD_HAVE_DOUBLE && GMX_DOUBLE
+#            if GMX_SIMD_HAVE_DOUBLE && GMX_DOUBLE
 // Make sure we also test exponents outside single precision when we use double
 extern const SimdReal rSimd_ExpDouble;
-#        endif
+#            endif
 // Magic FP numbers corresponding to specific bit patterns
 extern const SimdReal rSimd_Bits1; //!< Pattern F0 repeated to fill single/double.
 extern const SimdReal rSimd_Bits2; //!< Pattern CC repeated to fill single/double.
@@ -146,8 +147,74 @@ extern const SimdReal rSimd_Bits3; //!< Pattern C0 repeated to fill single/doubl
 extern const SimdReal rSimd_Bits4; //!< Pattern 0C repeated to fill single/double.
 extern const SimdReal rSimd_Bits5; //!< Pattern FC repeated to fill single/double.
 extern const SimdReal rSimd_Bits6; //!< Pattern 3C repeated to fill single/double.
-#    endif                         // GMX_SIMD_HAVE_REAL
+#        else                      // GMX_SIMD_HAVE_REAL_GLOBAL
+//!< c0,c1,c2 repeated
+#            define rSimd_c0c1c2 setSimdRealFrom3R(c0, c1, c2)
+//!< c3,c4,c5 repeated
+#            define rSimd_c3c4c5 setSimdRealFrom3R(c3, c4, c5)
+//!< c6,c7,c8 repeated
+#            define rSimd_c6c7c8 setSimdRealFrom3R(c6, c7, c8)
+//!< c3,c0,c4 repeated
+#            define rSimd_c3c0c4 setSimdRealFrom3R(c3, c0, c4)
+//!< c4,c6,c8 repeated
+#            define rSimd_c4c6c8 setSimdRealFrom3R(c4, c6, c8)
+//!< c7,c2,c3 repeated
+#            define rSimd_c7c2c3 setSimdRealFrom3R(c7, c2, c3)
+//!< -c0,-c1,-c2 repeated
+#            define rSimd_m0m1m2 setSimdRealFrom3R(-c0, -c1, -c2)
+//!< -c3,-c0,-c4 repeated
+#            define rSimd_m3m0m4 setSimdRealFrom3R(-c3, -c0, -c4)
+
+//!< Value that rounds down.
+#            define rSimd_2p25 setSimdRealFrom1R(2.25)
+//!< Value that rounds down.
+#            define rSimd_3p25 setSimdRealFrom1R(3.25)
+//!< Value that rounds up.
+#            define rSimd_3p75 setSimdRealFrom1R(3.75)
+//!< Negative value that rounds up.
+#            define rSimd_m2p25 setSimdRealFrom1R(-2.25)
+//!< Negative value that rounds up.
+#            define rSimd_m3p25 setSimdRealFrom1R(-3.25)
+//!< Negative value that rounds down.
+#            define rSimd_m3p75 setSimdRealFrom1R(-3.75)
+//! Three large floating-point values whose exponents are >32.
+#            define rSimd_Exp                                                                       \
+                setSimdRealFrom3R(1.4055235171027452623914516e+18, 5.3057102734253445623914516e-13, \
+                                  -2.1057102745623934534514516e+16)
+
+#            if GMX_SIMD_HAVE_DOUBLE && GMX_DOUBLE
+// Make sure we also test exponents outside single precision when we use double
+#                define rSimd_ExpDouble                                                                 \
+                    setSimdRealFrom3R(6.287393598732017379054414e+176, 8.794495252903116023030553e-140, \
+                                      -3.637060701570496477655022e+202)
+#            endif // GMX_SIMD_HAVE_DOUBLE && GMX_DOUBLE
+
+#            if GMX_SIMD_HAVE_LOGICAL
+#                if GMX_DOUBLE
+//!< Bit pattern to test logical ops
+#                    define rSimd_logicalA setSimdRealFrom1R(1.3333333332557231188)
+//!< Bit pattern to test logical ops
+#                    define rSimd_logicalB setSimdRealFrom1R(1.7999999998137354851)
+//!< Result or bitwise 'or' of A and B
+#                    define rSimd_logicalResultAnd setSimdRealFrom1R(1.266666666604578495)
+//!< Result or bitwise 'and' of A and B
+#                    define rSimd_logicalResultOr setSimdRealFrom1R(1.8666666664648801088)
+#                else // GMX_DOUBLE
+//!< Bit pattern to test logical ops
+#                    define rSimd_logicalA setSimdRealFrom1R(1.3333282470703125)
+//!< Bit pattern to test logical ops
+#                    define rSimd_logicalB setSimdRealFrom1R(1.79998779296875)
+//!< Result or bitwise 'or' of A and B
+#                    define rSimd_logicalResultAnd setSimdRealFrom1R(1.26666259765625)
+//!< Result or bitwise 'and' of A and B
+#                    define rSimd_logicalResultOr setSimdRealFrom1R(1.8666534423828125)
+#                endif // GMX_DOUBLE
+#            endif     // GMX_SIMD_HAVE_LOGICAL
+
+#        endif // GMX_SIMD_HAVE_REAL_GLOBAL
+#    endif     // GMX_SIMD_HAVE_REAL
 #    if GMX_SIMD_HAVE_INT32_ARITHMETICS
+#        if GMX_SIMD_HAVE_INT32_GLOBAL
 extern const SimdInt32 iSimd_1_2_3;    //!< Three generic ints.
 extern const SimdInt32 iSimd_4_5_6;    //!< Three generic ints.
 extern const SimdInt32 iSimd_7_8_9;    //!< Three generic ints.
@@ -155,12 +222,34 @@ extern const SimdInt32 iSimd_5_7_9;    //!< iSimd_1_2_3 + iSimd_4_5_6.
 extern const SimdInt32 iSimd_1M_2M_3M; //!< Term1 for 32bit add/sub.
 extern const SimdInt32 iSimd_4M_5M_6M; //!< Term2 for 32bit add/sub.
 extern const SimdInt32 iSimd_5M_7M_9M; //!< iSimd_1M_2M_3M + iSimd_4M_5M_6M.
+#        else                          // GMX_SIMD_HAVE_INT32_GLOBAL
+//!< Three generic ints.
+#            define iSimd_1_2_3 setSimdIntFrom3I(1, 2, 3)
+//!< Three generic ints.
+#            define iSimd_4_5_6 setSimdIntFrom3I(4, 5, 6)
+//!< Three generic ints.
+#            define iSimd_7_8_9 setSimdIntFrom3I(7, 8, 9)
+//!< iSimd_1_2_3 + iSimd_4_5_6.
+#            define iSimd_5_7_9 setSimdIntFrom3I(5, 7, 9)
+//!< Term1 for 32bit add/sub.
+#            define iSimd_1M_2M_3M setSimdIntFrom3I(1000000, 2000000, 3000000)
+//!< Term2 for 32bit add/sub.
+#            define iSimd_4M_5M_6M setSimdIntFrom3I(4000000, 5000000, 6000000)
+//!< iSimd_1M_2M_3M + iSimd_4M_5M_6M.
+#            define iSimd_5M_7M_9M setSimdIntFrom3I(5000000, 7000000, 9000000)
+#        endif // GMX_SIMD_HAVE_INT32_GLOBAL
 #    endif
 #    if GMX_SIMD_HAVE_INT32_LOGICAL
+#        if GMX_SIMD_HAVE_INT32_GLOBAL
 extern const SimdInt32 iSimd_0xF0F0F0F0; //!< Bitpattern to test integer logical operations.
 extern const SimdInt32 iSimd_0xCCCCCCCC; //!< Bitpattern to test integer logical operations.
+#        else                            // GMX_SIMD_HAVE_INT32_GLOBAL
+//!< Bitpattern to test integer logical operations.
+#            define iSimd_0xF0F0F0F0 setSimdIntFrom1I(0xF0F0F0F0)
+//!< Bitpattern to test integer logical operations.
+#            define iSimd_0xCCCCCCCC setSimdIntFrom1I(0xCCCCCCCC)
+#        endif // GMX_SIMD_HAVE_INT32_GLOBAL
 #    endif
-
 
 /*! \internal
  * \brief

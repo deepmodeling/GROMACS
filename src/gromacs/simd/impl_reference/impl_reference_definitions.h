@@ -73,11 +73,17 @@ namespace gmx
 //! \brief 1 when SIMD float array is supported, otherwise 0
 #define GMX_SIMD_HAVE_FLOAT_ARRAY 1
 
+//! \brief 1 when SimdFloat can be a global variable, otherwise 0
+#define GMX_SIMD_HAVE_FLOAT_GLOBAL 1
+
 //! \brief 1 if SIMD double support is present, otherwise 0
 #define GMX_SIMD_HAVE_DOUBLE 1
 
 //! \brief 1 when SIMD double array is supported, otherwise 0
 #define GMX_SIMD_HAVE_DOUBLE_ARRAY 1
+
+//! \brief 1 when SimdDouble can be a global variable, otherwise 0
+#define GMX_SIMD_HAVE_DOUBLE_GLOBAL 1
 
 //! \brief 1 if the SIMD implementation supports unaligned loads, otherwise 0
 #define GMX_SIMD_HAVE_LOADU 1
@@ -106,6 +112,9 @@ namespace gmx
 //! \brief 1 if SIMD arithmetic ops are supported for \ref gmx::SimdFInt32, otherwise 0
 #define GMX_SIMD_HAVE_FINT32_ARITHMETICS 1
 
+//! \brief 1 if SimdFInt32 can be a global variable, otherwse 0
+#define GMX_SIMD_HAVE_FINT32_GLOBAL 1
+
 //! \brief Support for extracting integer from \ref gmx::SimdDInt32 (1/0 for present/absent)
 #define GMX_SIMD_HAVE_DINT32_EXTRACT 1
 
@@ -114,6 +123,9 @@ namespace gmx
 
 //! \brief 1 if SIMD arithmetic ops are supported for \ref gmx::SimdDInt32, otherwise 0
 #define GMX_SIMD_HAVE_DINT32_ARITHMETICS 1
+
+//! \brief 1 if SimdDInt32 can be a global variable, otherwise 0
+#define GMX_SIMD_HAVE_DINT32_GLOBAL 1
 
 /*! \brief 1 if implementation provides single precision copysign()
  *
@@ -229,11 +241,17 @@ namespace gmx
 //! \brief 1 when SIMD4 float array is supported, otherwise 0
 #define GMX_SIMD4_HAVE_FLOAT_ARRAY 1
 
+//! \brief 1 when Simd4Float can be a global variable, otherwise 0
+#define GMX_SIMD4_HAVE_FLOAT_GLOBAL 1
+
 //! \brief 1 if the implementation provides \ref gmx::Simd4Double, otherwise 0.
 #define GMX_SIMD4_HAVE_DOUBLE 1
 
 //! \brief 1 when SIMD4 double array is supported, otherwise 0
 #define GMX_SIMD4_HAVE_DOUBLE_ARRAY 1
+
+//! \brief 1 when Simd4Double can be a global variable, otherwise 0
+#define GMX_SIMD4_HAVE_DOUBLE_GLOBAL 1
 
 //! \brief Width of the \ref gmx::SimdFInt32 datatype.
 #define GMX_SIMD_FINT32_WIDTH GMX_SIMD_FLOAT_WIDTH

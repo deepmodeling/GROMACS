@@ -54,6 +54,7 @@ namespace test
 
 #    if GMX_SIMD4_HAVE_REAL
 
+#        if GMX_SIMD4_HAVE_REAL_GLOBAL
 const Simd4Real rSimd4_c0c1c2 = setSimd4RealFrom3R(c0, c1, c2);
 const Simd4Real rSimd4_c3c4c5 = setSimd4RealFrom3R(c3, c4, c5);
 const Simd4Real rSimd4_c6c7c8 = setSimd4RealFrom3R(c6, c7, c8);
@@ -67,10 +68,10 @@ const Simd4Real rSimd4_3p75   = setSimd4RealFrom1R(3.75);
 const Simd4Real rSimd4_m2p25  = setSimd4RealFrom1R(-2.25);
 const Simd4Real rSimd4_m3p75  = setSimd4RealFrom1R(-3.75);
 
-#        if GMX_SIMD_HAVE_LOGICAL
+#            if GMX_SIMD_HAVE_LOGICAL
 // The numbers below all have exponent (2^0), which will not change with AND/OR operations.
 // We also leave the last part of the mantissa as zeros, to avoid rounding issues in the compiler
-#            if GMX_DOUBLE
+#                if GMX_DOUBLE
 const Simd4Real rSimd4_logicalA =
         setSimd4RealFrom1R(1.3333333332557231188); // mantissa 01010101010101010101010101010101
 const Simd4Real rSimd4_logicalB =
@@ -79,13 +80,14 @@ const Simd4Real rSimd4_logicalResultAnd =
         setSimd4RealFrom1R(1.266666666604578495); // mantissa 01000100010001000100010001000100
 const Simd4Real rSimd4_logicalResultOr =
         setSimd4RealFrom1R(1.8666666664648801088); // mantissa 11011101110111011101110111011101
-#            else                                  // GMX_DOUBLE
+#                else                              // GMX_DOUBLE
 const Simd4Real rSimd4_logicalA = setSimd4RealFrom1R(1.3333282470703125); // mantissa 0101010101010101
 const Simd4Real rSimd4_logicalB = setSimd4RealFrom1R(1.79998779296875); // mantissa 1100110011001100
 const Simd4Real rSimd4_logicalResultAnd = setSimd4RealFrom1R(1.26666259765625); // mantissa 0100010001000100
 const Simd4Real rSimd4_logicalResultOr = setSimd4RealFrom1R(1.8666534423828125); // mantissa 1101110111011101
-#            endif                                 // GMX_DOUBLE
-#        endif                                     // GMX_SIMD_HAVE_LOGICAL
+#                endif                             // GMX_DOUBLE
+#            endif                                 // GMX_SIMD_HAVE_LOGICAL
+#        endif                                     // GMX_SIMD4_HAVE_REAL_GLOBAL
 
 ::std::vector<real> simd4Real2Vector(const Simd4Real simd4)
 {

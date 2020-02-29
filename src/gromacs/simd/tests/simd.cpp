@@ -64,7 +64,7 @@ namespace test
  * occasionally have many digits that need to be exactly right, and keeping
  * them in a single place makes sure they are consistent.
  */
-#    if GMX_SIMD_HAVE_REAL
+#    if GMX_SIMD_HAVE_REAL && GMX_SIMD_HAVE_REAL_GLOBAL
 const SimdReal rSimd_c0c1c2 = setSimdRealFrom3R(c0, c1, c2);
 const SimdReal rSimd_c3c4c5 = setSimdRealFrom3R(c3, c4, c5);
 const SimdReal rSimd_c6c7c8 = setSimdRealFrom3R(c6, c7, c8);
@@ -111,7 +111,7 @@ const SimdReal rSimd_logicalResultOr = setSimdRealFrom1R(1.8666534423828125); //
 #        endif                                    // GMX_SIMD_HAVE_LOGICAL
 
 #    endif // GMX_SIMD_HAVE_REAL
-#    if GMX_SIMD_HAVE_INT32_ARITHMETICS
+#    if GMX_SIMD_HAVE_INT32_ARITHMETICS && GMX_SIMD_HAVE_INT32_GLOBAL
 const SimdInt32 iSimd_1_2_3    = setSimdIntFrom3I(1, 2, 3);
 const SimdInt32 iSimd_4_5_6    = setSimdIntFrom3I(4, 5, 6);
 const SimdInt32 iSimd_7_8_9    = setSimdIntFrom3I(7, 8, 9);
@@ -120,7 +120,7 @@ const SimdInt32 iSimd_1M_2M_3M = setSimdIntFrom3I(1000000, 2000000, 3000000);
 const SimdInt32 iSimd_4M_5M_6M = setSimdIntFrom3I(4000000, 5000000, 6000000);
 const SimdInt32 iSimd_5M_7M_9M = setSimdIntFrom3I(5000000, 7000000, 9000000);
 #    endif
-#    if GMX_SIMD_HAVE_INT32_LOGICAL
+#    if GMX_SIMD_HAVE_INT32_LOGICAL && GMX_SIMD_HAVE_INT32_GLOBAL
 const SimdInt32 iSimd_0xF0F0F0F0 = setSimdIntFrom1I(0xF0F0F0F0);
 const SimdInt32 iSimd_0xCCCCCCCC = setSimdIntFrom1I(0xCCCCCCCC);
 #    endif
