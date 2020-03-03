@@ -62,6 +62,12 @@
 #if defined CHECK_EXCLS && (defined CALC_COULOMB || defined LJ_EWALD_GEOM)
 #    define EXCL_FORCES
 #endif
+#if defined CALC_COULOMB || defined CALC_COUL_TAB || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH \
+        || defined LJ_COULOMB_LB || defined HALF_LJ || defined EXCL_FORCES || defined LJ_COMB_LB
+#    define SKIP_INVSQRT 0
+#else
+#    define SKIP_INVSQRT 1
+#endif
 
 {
     int cj, aj, ajx, ajy, ajz;
@@ -82,8 +88,11 @@
     SimdReal dx_S2, dy_S2, dz_S2;
     SimdReal tx_S0, ty_S0, tz_S0;
     SimdReal tx_S2, ty_S2, tz_S2;
-    SimdReal rsq_S0, rinv_S0, rinvsq_S0;
-    SimdReal rsq_S2, rinv_S2, rinvsq_S2;
+    SimdReal rsq_S0, rinvsq_S0;
+    SimdReal rsq_S2, rinvsq_S2;
+#if !SKIP_INVSQRT
+    SimdReal rinv_S0, rinv_S2;
+#endif
     /* wco: within cut-off, mask of all 1's or 0's */
     SimdBool wco_S0;
     SimdBool wco_S2;
@@ -301,8 +310,13 @@
     rsq_S2 = max(rsq_S2, minRsq_S);
 
     /* Calculate 1/r */
+#if SKIP_INVSQRT
+    rinvsq_S0 = inv(rsq_S0);
+    rinvsq_S2 = inv(rsq_S2);
+#else
     rinv_S0 = invsqrt(rsq_S0);
     rinv_S2 = invsqrt(rsq_S2);
+#endif
 
 #ifdef CALC_COULOMB
     /* Load parameters for j atom */
@@ -348,12 +362,17 @@
 
 #endif /* CALC_LJ */
 
+#if SKIP_INVSQRT
+    rinvsq_S0 = selectByMask(rinvsq_S0, wco_S0);
+    rinvsq_S2 = selectByMask(rinvsq_S2, wco_S2);
+#else
     /* Set rinv to zero for r beyond the cut-off */
     rinv_S0 = selectByMask(rinv_S0, wco_S0);
     rinv_S2 = selectByMask(rinv_S2, wco_S2);
 
     rinvsq_S0 = rinv_S0 * rinv_S0;
     rinvsq_S2 = rinv_S2 * rinv_S2;
+#endif
 
 #ifdef CALC_COULOMB
     /* Note that here we calculate force*r, not the usual force/r.
@@ -865,7 +884,7 @@
     fscal_S0 = rinvsq_S0 * frLJ_S0;
 #    endif
 #else
-    fscal_S0 = rinvsq_S0 * frcoul_S0;
+    fscal_S0  = rinvsq_S0 * frcoul_S0;
 #endif /* CALC_LJ */
 #if defined CALC_LJ && !defined HALF_LJ
 #    ifdef CALC_COULOMB
@@ -907,3 +926,4 @@
 #undef wco_vdw_S2
 
 #undef EXCL_FORCES
+#undef SKIP_INVSQRT
