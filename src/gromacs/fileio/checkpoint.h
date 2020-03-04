@@ -63,6 +63,61 @@ namespace gmx
 struct MdModulesNotifier;
 class KeyValueTreeObject;
 
+/*! \brief Read to a key-value-tree value used for checkpointing.
+ *
+ * \tparam ValueType
+ *
+ * \param[in] value the value to be checkpointed
+ * \param[in] name name of the value to be checkpointed
+ * \param[in] identifier uniquely identifies the module that is checkpointing
+ *                       typically the module name
+ * \param[in] kvt the key value tree to read from
+ */
+template<typename ValueType>
+void readKvtCheckpointValue(ValueType*                value,
+                            const std::string&        name,
+                            const std::string&        identifier,
+                            const KeyValueTreeObject& kvt);
+//! \copydoc readKvtCheckpointValue
+extern template void readKvtCheckpointValue(std::int64_t*             value,
+                                            const std::string&        name,
+                                            const std::string&        identifier,
+                                            const KeyValueTreeObject& kvt);
+//! \copydoc readKvtCheckpointValue
+extern template void readKvtCheckpointValue(real*                     value,
+                                            const std::string&        name,
+                                            const std::string&        identifier,
+                                            const KeyValueTreeObject& kvt);
+
+/*! \brief Write to a key-value-tree used for checkpointing.
+ *
+ * \tparam ValueType
+ *
+ * \param[in] value name of the value to be checkpointed
+ * \param[in] name the value to be checkpointed
+ * \param[in] identifier uniquely identifies the module that is checkpointing
+ *                       typically the module name
+ * \param[in] kvtBuilder the key-value-tree builder used to store the checkpoint values
+ */
+template<typename ValueType>
+void writeKvtCheckpointValue(const ValueType&          value,
+                             const std::string&        name,
+                             const std::string&        identifier,
+                             KeyValueTreeObjectBuilder kvtBuilder);
+//! \copydoc writeKvtCheckpointValue
+extern template void writeKvtCheckpointValue(const std::int64_t&       value,
+                                             const std::string&        name,
+                                             const std::string&        identifier,
+                                             KeyValueTreeObjectBuilder kvtBuilder);
+//! \copydoc writeKvtCheckpointValue
+extern template void writeKvtCheckpointValue(const real&               value,
+                                             const std::string&        name,
+                                             const std::string&        identifier,
+                                             KeyValueTreeObjectBuilder kvtBuilder);
+
+/*! \libinternal
+ * \brief Provides the MdModules with the checkpointed data on the master rank.
+ */
 struct MdModulesCheckpointReadingDataOnMaster
 {
     //! The data of the MdModules that is stored in the checkpoint file
