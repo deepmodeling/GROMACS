@@ -464,13 +464,15 @@ public:
      * These samples do not affect the (future) sampling and are thus
      * pure observables. Statisics of these are stored in the energy file.
      *
+     * \param[in] dimParams           The bias dimensions parameters
      * \param[in] grid                The grid.
      * \param[in] probWeightNeighbor  Probability weights of the neighbors.
      * \param[in] convolvedBias       The convolved bias.
      */
-    void sampleCoordAndPmf(const BiasGrid&             grid,
-                           gmx::ArrayRef<const double> probWeightNeighbor,
-                           double                      convolvedBias);
+    void sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
+                           const BiasGrid&               grid,
+                           gmx::ArrayRef<const double>   probWeightNeighbor,
+                           double                        convolvedBias);
     /*! \brief
      * Calculates the convolved bias for a given coordinate value.
      *

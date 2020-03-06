@@ -146,7 +146,7 @@ gmx::ArrayRef<const double> Bias::calcForceAndUpdateBias(const awh_dvec         
         {
             updateForceCorrelationGrid(probWeightNeighbor, neighborLambdaDhdl, t);
 
-            state_.sampleCoordAndPmf(grid_, probWeightNeighbor, convolvedBias);
+            state_.sampleCoordAndPmf(dimParams_, grid_, probWeightNeighbor, convolvedBias);
         }
         /* Set the umbrella grid point (for the lambda axis) to the
          * current grid point. */

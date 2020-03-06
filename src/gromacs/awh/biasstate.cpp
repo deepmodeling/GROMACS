@@ -236,8 +236,8 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
         /* Add potential for all parameter dimensions */
         for (size_t d = 0; d < dimParams.size(); d++)
         {
-            /* If this function is called from calcConvolvedBias() (used when writing
-             * energy subblocks) neighborLambdaEnergies will be empty. No convolution
+            /* If this function is called from calcConvolvedBias(), when writing
+             * energy subblocks, neighborLambdaEnergies will be empty. No convolution
              * is required along the lambda dimension. */
             if (dimParams[d].isLambdaDimension() && !neighborLambdaEnergies.empty())
             {
@@ -258,6 +258,35 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
         }
     }
     return logWeight;
+}
+
+/*! \brief
+ * Calculates the marginal distribution (marginal probability) for each value along
+ * a free energy lambda axis.
+ * The marginal distribution of one coordinate dimension value is the sum of the probability
+ * distribution of all values (herein all neighbor values) with the same value in the dimension
+ * of interest.
+ * \param[in] grid               The bias grid.
+ * \param[in] neighbors          The points to use for the calculation of the marginal distribution.
+ * \param[in] probWeightNeighbor Probability weights of the neighbors.
+ * \returns The calculated marginal distribution in a 1D array with
+ * as many elements as there are points along the axis of interest.
+ */
+std::vector<double> calculateFELambdaMarginalDistribution(const BiasGrid&          grid,
+                                                          gmx::ArrayRef<const int> neighbors,
+                                                          gmx::ArrayRef<const double> probWeightNeighbor)
+{
+    const int           lambdaAxisIndex = grid.lambdaAxisIndex();
+    const int           numLambdaStates = grid.numLambdaStates();
+    std::vector<double> lambdaMarginalDistribution(numLambdaStates, 0);
+
+    for (size_t i = 0; i < neighbors.size(); i++)
+    {
+        const int neighbor    = neighbors[i];
+        const int lambdaState = grid.point(neighbor).coordValue[lambdaAxisIndex];
+        lambdaMarginalDistribution[lambdaState] += probWeightNeighbor[i];
+    }
+    return lambdaMarginalDistribution;
 }
 
 } // namespace
@@ -1362,9 +1391,10 @@ void BiasState::sampleProbabilityWeights(const BiasGrid& grid, gmx::ArrayRef<con
     }
 }
 
-void BiasState::sampleCoordAndPmf(const BiasGrid&             grid,
-                                  gmx::ArrayRef<const double> probWeightNeighbor,
-                                  double                      convolvedBias)
+void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
+                                  const BiasGrid&               grid,
+                                  gmx::ArrayRef<const double>   probWeightNeighbor,
+                                  double                        convolvedBias)
 {
     /* Sampling-based deconvolution extracting the PMF.
      * Update the PMF histogram with the current coordinate value.
@@ -1379,13 +1409,60 @@ void BiasState::sampleCoordAndPmf(const BiasGrid&             grid,
      * it works (mainly because how the PMF histogram is rescaled).
      */
 
-    /* Only save coordinate data that is in range (the given index is always
-     * in range even if the coordinate value is not).
-     */
-    if (grid.covers(coordState_.coordValue()))
+    const int gridPointIndex  = coordState_.gridpointIndex();
+    const int lambdaAxisIndex = grid.lambdaAxisIndex();
+
+    /* Update the PMF of points along a lambda axis with their bias. */
+    if (lambdaAxisIndex >= 0)
     {
-        /* Save PMF sum and keep a histogram of the sampled coordinate values */
-        points_[coordState_.gridpointIndex()].samplePmf(convolvedBias);
+        const std::vector<int>& neighbors = grid.point(gridPointIndex).neighbor;
+
+        std::vector<double> lambdaMarginalDistribution =
+                calculateFELambdaMarginalDistribution(grid, neighbors, probWeightNeighbor);
+
+        awh_dvec coordValueAlongLambda = { coordState_.coordValue()[0], coordState_.coordValue()[1],
+                                           coordState_.coordValue()[2], coordState_.coordValue()[3] };
+        for (size_t i = 0; i < neighbors.size(); i++)
+        {
+            const int neighbor = neighbors[i];
+            double    bias;
+            if (pointsAlongLambdaAxis(grid, gridPointIndex, neighbor))
+            {
+                const double neighborLambda = grid.point(neighbor).coordValue[lambdaAxisIndex];
+                if (neighbor == gridPointIndex)
+                {
+                    bias = convolvedBias;
+                }
+                else
+                {
+                    coordValueAlongLambda[lambdaAxisIndex] = neighborLambda;
+                    bias = calcConvolvedBias(dimParams, grid, coordValueAlongLambda);
+                }
+
+                const double probWeight   = lambdaMarginalDistribution[neighborLambda];
+                const double weightedBias = bias - std::log(probWeight);
+
+                if (neighbor == gridPointIndex && grid.covers(coordState_.coordValue()))
+                {
+                    points_[neighbor].samplePmf(weightedBias);
+                }
+                else
+                {
+                    points_[neighbor].updatePmfUnvisited(weightedBias);
+                }
+            }
+        }
+    }
+    else
+    {
+        /* Only save coordinate data that is in range (the given index is always
+         * in range even if the coordinate value is not).
+         */
+        if (grid.covers(coordState_.coordValue()))
+        {
+            /* Save PMF sum and keep a histogram of the sampled coordinate values */
+            points_[gridPointIndex].samplePmf(convolvedBias);
+        }
     }
 
     /* Save probability weights for the update */

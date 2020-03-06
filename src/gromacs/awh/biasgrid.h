@@ -252,6 +252,19 @@ public:
                            [](const auto& axis) { return axis.isLambdaAxis(); });
     }
 
+    /*! \brief
+     * Returns the index of a free energy lambda axis (there can be
+     * no more than one) or -1 if there are no free energy lambda axes.
+     */
+    int lambdaAxisIndex() const;
+
+    /*! \brief
+     * Returns the number of free energy lambda states in the grid (the number
+     * of points along a free energy lambda axis) or 0 if there are no free energy
+     * lambda axes.
+     */
+    int numLambdaStates() const;
+
 private:
     std::vector<GridPoint> point_; /**< Points on the grid */
     std::vector<GridAxis>  axis_;  /**< Axes, one for each dimension. */

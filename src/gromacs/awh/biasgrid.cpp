@@ -578,6 +578,30 @@ bool BiasGrid::covers(const awh_dvec value) const
     return valueIsInGrid(value, axis());
 }
 
+int BiasGrid::lambdaAxisIndex() const
+{
+    for (size_t i = 0; i < axis_.size(); i++)
+    {
+        if (axis_[i].isLambdaAxis())
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int BiasGrid::numLambdaStates() const
+{
+    for (size_t i = 0; i < axis_.size(); i++)
+    {
+        if (axis_[i].isLambdaAxis())
+        {
+            return axis_[i].numPoints();
+        }
+    }
+    return 0;
+}
+
 int GridAxis::nearestIndex(double value) const
 {
     /* Get the point distance to the origin. This may by an out of index range for the axis. */
