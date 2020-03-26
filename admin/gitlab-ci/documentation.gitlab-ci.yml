@@ -36,11 +36,10 @@
     - echo $CMAKE_GMXAPI_OPTIONS
     - echo $REL_OPTION
     - if [[ -d $BUILD_DIR ]] ; then
-      rm -rf $BUILD_DIR && mkdir $BUILD_DIR ;
-      else
-      echo "Preparing new build directory" ;
-      mkdir $BUILD_DIR ;
+      rm -rf $BUILD_DIR ;
       fi
+    - echo "Preparing new build directory"
+    - mkdir $BUILD_DIR
     - cd $BUILD_DIR
     - cmake ..
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -139,12 +138,10 @@
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
     - if [[ -d $RELEASE_BUILD_DIR ]] ; then
-      echo "Cleaning up build directory" ;
-      rm -rf $RELEASE_BUILD_DIR && mkdir $RELEASE_BUILD_DIR ;
-      else
-      echo "Preparing new build directory" ;
-      mkdir $RELEASE_BUILD_DIR ;
+      rm -rf $RELEASE_BUILD_DIR ;
       fi
+    - echo "Preparing new build directory"
+    - mkdir $RELEASE_BUILD_DIR
     - cd $RELEASE_BUILD_DIR
     - cmake ../$RELEASE_SOURCE/
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

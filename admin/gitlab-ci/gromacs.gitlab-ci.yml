@@ -31,12 +31,10 @@ simple-build:
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
     - if [[ -d $BUILD_DIR ]] ; then
-      echo "Cleaning up build directory" ;
-      rm -rf $BUILD_DIR && mkdir $BUILD_DIR ;
-      else
-      echo "Preparing new build directory" ;
-      mkdir $BUILD_DIR ;
+      rm -rf $BUILD_DIR ;
       fi
+    - echo "Preparing new build directory"
+    - mkdir $BUILD_DIR
     - cd $BUILD_DIR
     - cmake ..
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -104,11 +102,10 @@ simple-build:
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
     - if [[ -d $BUILD_DIR ]] ; then
-      rm -rf $BUILD_DIR && mkdir $BUILD_DIR ;
-      else
-      echo "Preparing new build directory" ;
-      mkdir $BUILD_DIR ;
+      rm -rf $BUILD_DIR ;
       fi
+    - echo "Preparing new build directory"
+    - mkdir $BUILD_DIR
     - cd $BUILD_DIR
     - cmake ..
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -183,12 +180,10 @@ simple-build:
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
     - if [[ -d $RELEASE_BUILD_DIR ]] ; then
-      echo "Cleaning up build directory" ;
-      rm -rf $RELEASE_BUILD_DIR && mkdir $RELEASE_BUILD_DIR ;
-      else
-      echo "Preparing new build directory" ;
-      mkdir $RELEASE_BUILD_DIR ;
+      rm -rf $RELEASE_BUILD_DIR ;
       fi
+    - echo "Preparing new build directory"
+    - mkdir $RELEASE_BUILD_DIR
     - cd $RELEASE_BUILD_DIR
     - cmake ../$RELEASE_SOURCE/
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -383,6 +378,8 @@ gromacs:clang-8:release:configure:
     - cmake --build . --target install 2>&1 | tee installBuildLogFile.log
     - if [ -s buildErrors.log ] ; then echo "Found compiler warning during build"; cat buildErrors.log; exit 1; fi
     - cd ..
+  retry:
+    max: 1
   artifacts:
     when: always
     paths:
@@ -580,7 +577,7 @@ gromacs:clang-8:release:build:
     REGRESSIONTEST_DOUBLE: ""
   stage: test
   retry:
-    max: 2
+    max: 1
   script:
     - cd $BUILD_DIR
     - ctest -D ExperimentalTest --output-on-failure | tee ctestLog.log || true
