@@ -23,9 +23,10 @@
     - time apt-get -qq update
     - time apt-get -qqy --no-install-suggests --no-install-recommends install
       $EXTRA_INSTALLS
-    - mkdir -p ccache
+    - export GMX_CCACHE_DIR=ccache-$CI_JOB_NAME
+    - mkdir -p $GMX_CCACHE_DIR
     - export CCACHE_BASEDIR=${PWD}
-    - export CCACHE_DIR=${PWD}/ccache
+    - export CCACHE_DIR=${PWD}/$GMX_CCACHE_DIR
 
 # Rule to run a job only in nightly release-preparation pipelines.
 # Checks if the GROMACS_RELEASE variable was set (typically through the GitLab web interface).
@@ -69,7 +70,7 @@
   cache:
     key: "$CI_JOB_NAME-$CI_JOB_STAGE-$CI_COMMIT_REF_SLUG"
     paths:
-      - ccache/
+      - $CCACHE_DIR
 
 # Tool chains
 
@@ -92,9 +93,10 @@
     - time apt-get -qq update
     - time apt-get -qqy --no-install-suggests --no-install-recommends install
       $EXTRA_INSTALLS
-    - mkdir -p ccache
+    - export GMX_CCACHE_DIR=ccache-$CI_JOB_NAME
+    - mkdir -p $GMX_CCACHE_DIR
     - export CCACHE_BASEDIR=${PWD}
-    - export CCACHE_DIR=${PWD}/ccache
+    - export CCACHE_DIR=${PWD}/$GMX_CCACHE_DIR
 
 .use-gcc7:
   image: gromacs/ci-gcc-7:master
@@ -128,9 +130,10 @@
     - time apt-get -qq update
     - time apt-get -qqy --no-install-suggests --no-install-recommends install
       $EXTRA_INSTALLS
-    - mkdir -p ccache
+    - export GMX_CCACHE_DIR=ccache-$CI_JOB_NAME
+    - mkdir -p $GMX_CCACHE_DIR
     - export CCACHE_BASEDIR=${PWD}
-    - export CCACHE_DIR=${PWD}/ccache
+    - export CCACHE_DIR=${PWD}/$GMX_CCACHE_DIR
 
 .use-clang6:
   image: gromacs/ci-clang-6:master
