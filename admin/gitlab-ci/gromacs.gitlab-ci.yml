@@ -30,9 +30,7 @@ simple-build:
     - echo $CMAKE_PRECISION_OPTIONS
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
-    - if [[ -d $BUILD_DIR ]] ; then
-      rm -rf $BUILD_DIR ;
-      fi
+    - rm -rf $BUILD_DIR
     - echo "Preparing new build directory"
     - mkdir $BUILD_DIR
     - cd $BUILD_DIR
@@ -101,9 +99,7 @@ simple-build:
     - echo $CMAKE_PRECISION_OPTIONS
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
-    - if [[ -d $BUILD_DIR ]] ; then
-      rm -rf $BUILD_DIR ;
-      fi
+    - rm -rf $BUILD_DIR
     - echo "Preparing new build directory"
     - mkdir $BUILD_DIR
     - cd $BUILD_DIR
@@ -179,9 +175,7 @@ simple-build:
     - echo $CMAKE_PRECISION_OPTIONS
     - echo $CMAKE_BUILD_TYPE_OPTIONS
     - echo $CMAKE_GMXAPI_OPTIONS
-    - if [[ -d $RELEASE_BUILD_DIR ]] ; then
-      rm -rf $RELEASE_BUILD_DIR ;
-      fi
+    - rm -rf $RELEASE_BUILD_DIR
     - echo "Preparing new build directory"
     - mkdir $RELEASE_BUILD_DIR
     - cd $RELEASE_BUILD_DIR
