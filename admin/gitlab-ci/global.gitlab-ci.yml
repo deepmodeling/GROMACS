@@ -23,11 +23,11 @@
     - time apt-get -qq update
     - time apt-get -qqy --no-install-suggests --no-install-recommends install
       $EXTRA_INSTALLS
-    - if [ -z $GMX_CCACHE_DIR ] ; then
+    - if [ ! -z $GMX_CCACHE_DIR ] ; then
       mkdir -p $GMX_CCACHE_DIR ;
+      export CCACHE_BASEDIR=$CI_PROJECT_DIR ;
+      export CCACHE_DIR=$CI_PROJECT_DIR/$GMX_CCACHE_DIR ;
       fi
-    - export CCACHE_BASEDIR=$CI_PROJECT_DIR
-    - export CCACHE_DIR=$CI_PROJECT_DIR/$GMX_CCACHE_DIR
 
 # Rule to run a job only in nightly release-preparation pipelines.
 # Checks if the GROMACS_RELEASE variable was set (typically through the GitLab web interface).
@@ -96,11 +96,11 @@
     - time apt-get -qq update
     - time apt-get -qqy --no-install-suggests --no-install-recommends install
       $EXTRA_INSTALLS
-    - if [ -z $GMX_CCACHE_DIR ] ; then
+    - if [ ! -z $GMX_CCACHE_DIR ] ; then
       mkdir -p $GMX_CCACHE_DIR ;
+      export CCACHE_BASEDIR=$CI_PROJECT_DIR ;
+      export CCACHE_DIR=$CI_PROJECT_DIR/$GMX_CCACHE_DIR ;
       fi
-    - export CCACHE_BASEDIR=$CI_PROJECT_DIR
-    - export CCACHE_DIR=$CI_PROJECT_DIR/$GMX_CCACHE_DIR
 
 .use-gcc7:
   image: gromacs/ci-gcc-7:master
@@ -134,11 +134,11 @@
     - time apt-get -qq update
     - time apt-get -qqy --no-install-suggests --no-install-recommends install
       $EXTRA_INSTALLS
-    - if [ -z $GMX_CCACHE_DIR ] ; then
+    - if [ ! -z $GMX_CCACHE_DIR ] ; then
       mkdir -p $GMX_CCACHE_DIR ;
+      export CCACHE_BASEDIR=$CI_PROJECT_DIR ;
+      export CCACHE_DIR=$CI_PROJECT_DIR/$GMX_CCACHE_DIR ;
       fi
-    - export CCACHE_BASEDIR=$CI_PROJECT_DIR
-    - export CCACHE_DIR=$CI_PROJECT_DIR/$GMX_CCACHE_DIR
 
 .use-clang6:
   image: gromacs/ci-clang-6:master
