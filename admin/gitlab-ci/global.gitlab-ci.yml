@@ -121,6 +121,7 @@
   variables:
     CUDA_BASE_VERSION: "10.2"
     COMPILER_MAJOR_VERSION: 8
+  extends: use-gcc:base
 
 # Base definition, not to be used directly.
 # Use version-specific `.use-clangX` definitions when defining jobs.
