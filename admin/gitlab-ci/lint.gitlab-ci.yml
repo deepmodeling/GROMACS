@@ -30,14 +30,12 @@ clang-tidy:build:
 
 clang-format:
   extends:
-    - .gromacs:base:build
     - .variables:default
     - .use-clang7
     - .rules:not-for-release
   cache: {}
-  stage: source-check
+  stage: pre-build
   when: always
-  dependencies: []
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
@@ -56,14 +54,12 @@ clang-format:
 
 copyright-check:
   extends:
-    - .gromacs:base:build
     - .variables:default
     - .use-clang7
     - .rules:not-for-release
   cache: {}
-  stage: source-check
+  stage: pre-build
   when: always
-  dependencies: []
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
