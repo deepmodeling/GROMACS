@@ -220,9 +220,7 @@ gromacs:gcc-7:configure:
     - .gromacs:base:configure
     - .use-gcc7
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
 
 gromacs:gcc-7:release:configure:
   extends:
@@ -242,9 +240,7 @@ gromacs:gcc-7-simd-sse41:configure:
     - .gromacs:base:configure
     - .use-gcc7
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=SSE4.1"
 
@@ -253,9 +249,7 @@ gromacs:gcc-7-double:configure:
     - .gromacs:base:configure
     - .use-gcc7
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
   variables:
     CMAKE_PRECISION_OPTIONS: -DGMX_DOUBLE=ON
 
@@ -278,9 +272,7 @@ gromacs:gcc-8:configure:
     - .gromacs:base:configure
     - .use-gcc8
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
 
 gromacs:gcc-8:release:configure:
   extends:
@@ -304,9 +296,7 @@ gromacs:gcc-8-cuda-10.2:configure:
   variables:
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=OFF"
   # TODO: Enable GMX_PYTHON_PACKAGE when dependencies are in Docker image.
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
 
 # For version of clang before 7, we need to always provide the full version
 # Use something like this instead in the download script:
@@ -316,9 +306,7 @@ gromacs:clang-6:configure:
     - .gromacs:base:configure
     - .use-clang6
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
   variables:
     COMPILER_MAJOR_VERSION: "6.0"
     CMAKE_MPI_OPTIONS: -DGMX_OPENMP=OFF
@@ -328,9 +316,7 @@ gromacs:clang-7:configure:
     - .gromacs:base:configure
     - .use-clang7
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
 
 gromacs:clang-7:release:configure:
   extends:
@@ -350,9 +336,7 @@ gromacs:clang-8:configure:
     - .gromacs:base:configure
     - .use-clang8
     - .rules:not-for-release
-  needs:
-    - job: simple-build
-      artifacts: false
+  dependencies: []
 
 gromacs:clang-8:release:configure:
   extends:
@@ -397,8 +381,6 @@ gromacs:gcc-7:build:
     - .use-gcc7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-7:configure
       artifacts: true
 
@@ -424,8 +406,6 @@ gromacs:gcc-7-simd-sse41:build:
     - .use-gcc7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-7-simd-sse41:configure
       artifacts: true
 
@@ -437,8 +417,6 @@ gromacs:gcc-7-double:build:
     - .use-gcc7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-7-double:configure
       artifacts: true
 
@@ -464,8 +442,6 @@ gromacs:gcc-8:build:
     - .use-gcc8
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-8:configure
       artifacts: true
 
@@ -495,8 +471,6 @@ gromacs:gcc-8-cuda-10.2:build:
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=OFF"
   # TODO: Enable GMX_PYTHON_PACKAGE when dependencies are in Docker image.
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-8-cuda-10.2:configure
       artifacts: true
 
@@ -508,8 +482,6 @@ gromacs:clang-6:build:
     - .use-clang6
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:clang-6:configure
       artifacts: true
 
@@ -521,8 +493,6 @@ gromacs:clang-7:build:
     - .use-clang7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:clang-7:configure
       artifacts: true
 
@@ -548,8 +518,6 @@ gromacs:clang-8:build:
     - .use-clang8
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:clang-8:configure
       artifacts: true
 
@@ -613,8 +581,6 @@ gromacs:gcc-7:test:
     - .use-gcc7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-7:build
     - job: regressiontests:prepare
 
@@ -639,8 +605,6 @@ gromacs:gcc-7-simd-sse41:test:
     - .use-gcc7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-7-simd-sse41:build
     - job: regressiontests:prepare
 
@@ -652,8 +616,6 @@ gromacs:gcc-7-double:test:
   variables:
     REGRESSIONTEST_DOUBLE: "-double"
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-7-double:build
     - job: regressiontests:prepare
 
@@ -678,8 +640,6 @@ gromacs:gcc-8:test:
     - .use-gcc8
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-8:build
     - job: regressiontests:prepare
 
@@ -713,8 +673,6 @@ gromacs:gcc-8-cuda-10.2:test:
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=OFF"
   # TODO: Enable GMX_PYTHON_PACKAGE when dependencies are in Docker image.
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:gcc-8-cuda-10.2:build
     - job: regressiontests:prepare
 
@@ -726,8 +684,6 @@ gromacs:clang-6:test:
   variables:
     REGRESSIONTEST_OMP_RANK_NUMBER: 0
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:clang-6:build
     - job: regressiontests:prepare
 
@@ -737,8 +693,6 @@ gromacs:clang-7:test:
     - .use-clang7
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:clang-7:build
     - job: regressiontests:prepare
 
@@ -763,8 +717,6 @@ gromacs:clang-8:test:
     - .use-clang8
     - .rules:not-for-release
   needs:
-    - job: simple-build
-      artifacts: false
     - job: gromacs:clang-8:build
     - job: regressiontests:prepare
 
