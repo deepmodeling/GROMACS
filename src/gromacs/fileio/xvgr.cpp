@@ -713,8 +713,7 @@ int read_xvg_legend(const char* fn, double*** y, int* ny, char** subtitle, char*
 
 int read_xvg(const char* fn, double*** y, int* ny)
 {
-    gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> xvgData =
-            readXvgData(std::string(fn));
+    gmx::MultiDimArray<std::vector<double>, dynamicExtents2D> xvgData = readXvgData(std::string(fn));
 
     int numColumns = xvgData.extent(0);
     int numRows    = xvgData.extent(1);
@@ -736,7 +735,7 @@ int read_xvg(const char* fn, double*** y, int* ny)
     return nx;
 }
 
-gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> readXvgData(const std::string& fn)
+gmx::MultiDimArray<std::vector<double>, dynamicExtents2D> readXvgData(const std::string& fn)
 {
     FILE* fp = gmx_fio_fopen(fn.c_str(), "r");
     char* ptr;
@@ -804,11 +803,10 @@ gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> readXvgData(const
     sfree(base);
     sfree(fmt);
 
-    gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> xvgDataAsArray(numRows, numColumns);
+    gmx::MultiDimArray<std::vector<double>, dynamicExtents2D> xvgDataAsArray(numRows, numColumns);
     std::copy(std::begin(xvgData), std::end(xvgData), begin(xvgDataAsArray.asView()));
 
-    gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> xvgDataAsArrayTransposed(
-            numColumns, numRows);
+    gmx::MultiDimArray<std::vector<double>, dynamicExtents2D> xvgDataAsArrayTransposed(numColumns, numRows);
     for (std::ptrdiff_t row = 0; row < numRows; ++row)
     {
         for (std::ptrdiff_t column = 0; column < numColumns; ++column)

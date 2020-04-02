@@ -85,8 +85,7 @@ struct t_mapping
 
 //! Convenience typedef
 template<typename T>
-using DynamicMatrix2D =
-        gmx::MultiDimArray<std::vector<T>, gmx::extents<gmx::dynamic_extent, gmx::dynamic_extent>>;
+using DynamicMatrix2D = gmx::MultiDimArray<std::vector<T>, extents<dynamic_extent, dynamic_extent>>;
 
 /*! \brief A matrix of integers, plus supporting values, such as used in XPM output
  *

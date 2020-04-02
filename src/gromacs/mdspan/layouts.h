@@ -88,9 +88,6 @@
 
 #include <type_traits>
 
-namespace gmx
-{
-
 /*! \libinternal \brief Right-aligned array layout indexer.
  * Carries the mapping class performing the translation from multidimensional
  * index to one-dimensional number.
@@ -220,5 +217,4 @@ public:
 
 }; // class layout_right
 
-} // namespace gmx
 #endif /* end of include guard: MDSPAN_LAYOUTS_H */

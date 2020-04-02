@@ -608,8 +608,8 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
 
     nny               = 2 * ntab + 1;
     std::string libfn = gmx::findLibraryFile(filename);
-    gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> xvgData    = readXvgData(libfn);
-    int                                                            numColumns = xvgData.extent(0);
+    gmx::MultiDimArray<std::vector<double>, dynamicExtents2D> xvgData    = readXvgData(libfn);
+    int                                                       numColumns = xvgData.extent(0);
     if (numColumns != nny)
     {
         gmx_fatal(FARGS, "Trying to read file %s, but nr columns = %d, should be %d", libfn.c_str(),

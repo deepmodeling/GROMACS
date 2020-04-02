@@ -92,9 +92,6 @@
 
 #include <array>
 
-namespace gmx
-{
-
 /*! \brief Define constant that signals dynamic extent.
  */
 enum : std::ptrdiff_t
@@ -467,5 +464,4 @@ constexpr bool operator!=(const extents<LHS...>& lhs, const extents<RHS...>& rhs
     return !(lhs == rhs);
 }
 
-} // namespace gmx
 #endif /* end of include guard: MDSPAN_EXTENTS_H */

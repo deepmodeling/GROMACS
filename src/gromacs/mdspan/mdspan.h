@@ -96,9 +96,6 @@
 #include "extents.h"
 #include "layouts.h"
 
-namespace gmx
-{
-
 /*! \libinternal \brief Multidimensional array indexing and memory access with flexible mapping and access model.
  *
  * \tparam ElementType Type of elemnt to be viewed
@@ -343,7 +340,5 @@ private:
 //! basic_mdspan with wrapped indices, basic_accessor policiy and right-aligned  memory layout.
 template<class T, ptrdiff_t... Indices>
 using mdspan = basic_mdspan<T, extents<Indices...>, layout_right, accessor_basic<T>>;
-
-} // namespace gmx
 
 #endif /* end of include guard: MDSPAN_MDSPAN_H */

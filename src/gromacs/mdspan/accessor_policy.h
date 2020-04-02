@@ -89,9 +89,6 @@
 
 #include <cstddef>
 
-namespace gmx
-{
-
 /*! \libinternal \brief The most basic memory access model for mdspan.
  * \tparam ElementType the type held in memory to be accessed
  */
@@ -132,5 +129,4 @@ public:
     constexpr ElementType* decay(pointer p) const noexcept { return p; }
 };
 
-} // namespace gmx
 #endif /* end of include guard: MDSPAN_ACCESSOR_POLICY_H */

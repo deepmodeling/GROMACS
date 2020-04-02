@@ -234,7 +234,7 @@ int read_xvg(const char* fn, double*** y, int* ny);
  * \param[out] XvgData Data in row major.
  * \param[in]  fn      Xvg file to read.
  */
-gmx::MultiDimArray<std::vector<double>, gmx::dynamicExtents2D> readXvgData(const std::string& fn);
+gmx::MultiDimArray<std::vector<double>, dynamicExtents2D> readXvgData(const std::string& fn);
 
 
 void write_xvg(const char*                    fn,

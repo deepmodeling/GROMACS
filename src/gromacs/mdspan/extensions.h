@@ -49,9 +49,6 @@
 
 #include "gromacs/mdspan/mdspan.h"
 
-namespace gmx
-{
-
 /*! \brief
  * Free begin function addressing memory of a contiguously laid out basic_mdspan.
  *
@@ -123,7 +120,5 @@ constexpr BasicMdspan divideElementwise(const BasicMdspan& span1, const BasicMds
                    std::divides<typename BasicMdspan::element_type>());
     return result;
 }
-
-} // namespace gmx
 
 #endif // GMX_MDSPAN_EXTENSIONS_H_

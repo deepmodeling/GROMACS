@@ -96,7 +96,7 @@ template<ptrdiff_t... E_STATIC>
 class ExtentsTest
 {
 public:
-    using extents_type = gmx::extents<E_STATIC...>;
+    using extents_type = extents<E_STATIC...>;
 
     extents_type my_extents_explicit;
     extents_type my_extents_array;

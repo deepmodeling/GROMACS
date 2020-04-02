@@ -32,6 +32,53 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+add_library(mdspan "")
+target_sources(mdspan
+        PUBLIC
+        ${CMAKE_CURRENT_LIST_DIR}/accessor_policy.h
+        ${CMAKE_CURRENT_LIST_DIR}/extensions.h
+        ${CMAKE_CURRENT_LIST_DIR}/extents.h
+        ${CMAKE_CURRENT_LIST_DIR}/layouts.h
+        ${CMAKE_CURRENT_LIST_DIR}/mdspan.h
+)
+set_target_properties(mdspan
+        PROPERTIES
+        POSITION_INDEPENDENT_CODE 1
+        LINKER_LANGUAGE CXX
+        PUBLIC_HEADER "accessor_policy.h;extensions.h;extents.h;layouts.h;mdspan.h"
+        OUTPUT_NAME "mdspan"
+)
+
+add_library(mdspan-static
+        STATIC
+        accessor_policy.h
+        extensions.h
+        extents.h
+        layouts.h
+        mdspan.h
+)
+set_target_properties(mdspan-static
+        PROPERTIES
+        POSITION_INDEPENDENT_CODE 1
+        LINKER_LANGUAGE CXX
+        OUTPUT_NAME "mdspan"
+)
+
+install(
+        TARGETS
+            mdspan
+            mdspan-static
+        ARCHIVE
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT lib
+        LIBRARY
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            COMPONENT lib
+        PUBLIC_HEADER
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mdspan
+            COMPONENT dev
+)
+
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()
