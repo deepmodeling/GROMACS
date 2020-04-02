@@ -79,12 +79,12 @@ public:
      * launch receive of coordinate data from PP rank
      * \param[in] ppRank  PP rank to send data
      */
-    void launchReceiveCoordinatesFromPpCudaDirect(int ppRank);
+    void launchReceiveCoordinatesFromPp(int ppRank);
 
     /*! \brief
      * enqueue wait for coordinate data from PP ranks
      */
-    void enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+    void waitOrEnqueueWaitReceiveCoordinatesFromPp();
 
 private:
     class Impl;

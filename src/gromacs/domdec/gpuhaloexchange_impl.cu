@@ -176,20 +176,25 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
 
     // Coordinates buffer:
 #if GMX_MPI
-    int pulseOffset = 0;
-    for (int p = pulse_ - 1; p >= 0; p--)
+    // Exchange of remote addresses from neighboring ranks is needed only with CUDA-direct as cudamemcpy needs both src/dst pointer
+    // MPI calls such as MPI_send doesn't worry about receiving address, that is taken care by MPI_recv call in neighboring rank
+    if (GMX_THREAD_MPI)
     {
-        pulseOffset += cd.ind[p].nrecv[nzone_ + 1];
-    }
-    //    void* recvPtr = static_cast<void*>(&d_coordinatesBuffer[numHomeAtoms_ + pulseOffset]);
-    void* recvPtr = static_cast<void*>(&d_x_[numHomeAtoms_ + pulseOffset]);
-    MPI_Sendrecv(&recvPtr, sizeof(void*), MPI_BYTE, recvRankX_, 0, &remoteXPtr_, sizeof(void*),
-                 MPI_BYTE, sendRankX_, 0, mpi_comm_mysim_, MPI_STATUS_IGNORE);
+        int pulseOffset = 0;
+        for (int p = pulse_ - 1; p >= 0; p--)
+        {
+            pulseOffset += cd.ind[p].nrecv[nzone_ + 1];
+        }
+        //    void* recvPtr = static_cast<void*>(&d_coordinatesBuffer[numHomeAtoms_ + pulseOffset]);
+        void* recvPtr = static_cast<void*>(&d_x_[numHomeAtoms_ + pulseOffset]);
+        MPI_Sendrecv(&recvPtr, sizeof(void*), MPI_BYTE, recvRankX_, 0, &remoteXPtr_, sizeof(void*),
+                     MPI_BYTE, sendRankX_, 0, mpi_comm_mysim_, MPI_STATUS_IGNORE);
 
-    // Force buffer:
-    recvPtr = static_cast<void*>(d_recvBuf_);
-    MPI_Sendrecv(&recvPtr, sizeof(void*), MPI_BYTE, recvRankF_, 0, &remoteFPtr_, sizeof(void*),
-                 MPI_BYTE, sendRankF_, 0, mpi_comm_mysim_, MPI_STATUS_IGNORE);
+        // Force buffer:
+        recvPtr = static_cast<void*>(d_recvBuf_);
+        MPI_Sendrecv(&recvPtr, sizeof(void*), MPI_BYTE, recvRankF_, 0, &remoteFPtr_, sizeof(void*),
+                     MPI_BYTE, sendRankF_, 0, mpi_comm_mysim_, MPI_STATUS_IGNORE);
+    }
 #endif
 
     return;
@@ -322,7 +327,9 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
 {
 
     void* sendPtr;
+    void* recvPtr;
     int   sendSize;
+    int   recvSize;
     void* remotePtr;
     int   sendRank;
     int   recvRank;
@@ -330,20 +337,29 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
     if (haloQuantity == HaloQuantity::HaloCoordinates)
     {
         sendPtr   = static_cast<void*>(d_sendBuf_);
+        recvPtr   = static_cast<void*>(&d_ptr[numHomeAtoms_]);
         sendSize  = xSendSize_;
+        recvSize  = xRecvSize_;
         remotePtr = remoteXPtr_;
         sendRank  = sendRankX_;
         recvRank  = recvRankX_;
-
 #if GMX_MPI
-        // Wait for event from receiving task that remote coordinates are ready, and enqueue that event to stream used
-        // for subsequent data push. This avoids a race condition with the remote data being written in the previous timestep.
-        // Similarly send event to task that will push data to this task.
-        GpuEventSynchronizer* remoteCoordinatesReadyOnDeviceEvent;
-        MPI_Sendrecv(&coordinatesReadyOnDeviceEvent, sizeof(GpuEventSynchronizer*), MPI_BYTE,
-                     recvRank, 0, &remoteCoordinatesReadyOnDeviceEvent, sizeof(GpuEventSynchronizer*),
-                     MPI_BYTE, sendRank, 0, mpi_comm_mysim_, MPI_STATUS_IGNORE);
-        remoteCoordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
+        // wait for remote co-ordinates is implicit with process-MPI as non-local stream is synchronized before MPI calls
+        // and MPI_Waitall call makes sure both neighboring ranks' non-local stream is synchronized before data transfer is initiated
+        if (GMX_THREAD_MPI)
+        {
+            GMX_ASSERT(coordinatesReadyOnDeviceEvent != nullptr,
+                       "Co-ordinate Halo exchange requires valid co-ordinate ready event");
+
+            // Wait for event from receiving task that remote coordinates are ready, and enqueue that event to stream used
+            // for subsequent data push. This avoids a race condition with the remote data being written in the previous timestep.
+            // Similarly send event to task that will push data to this task.
+            GpuEventSynchronizer* remoteCoordinatesReadyOnDeviceEvent;
+            MPI_Sendrecv(&coordinatesReadyOnDeviceEvent, sizeof(GpuEventSynchronizer*), MPI_BYTE, recvRank,
+                         0, &remoteCoordinatesReadyOnDeviceEvent, sizeof(GpuEventSynchronizer*),
+                         MPI_BYTE, sendRank, 0, mpi_comm_mysim_, MPI_STATUS_IGNORE);
+            remoteCoordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
+        }
 #else
         GMX_UNUSED_VALUE(coordinatesReadyOnDeviceEvent);
 #endif
@@ -356,13 +372,50 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
             recvOffset -= dd_->comm->cd[0].ind[p].nrecv[nzone_ + 1];
         }
         sendPtr   = static_cast<void*>(&(d_ptr[recvOffset]));
+        recvPtr   = static_cast<void*>(d_recvBuf_);
         sendSize  = fSendSize_;
+        recvSize  = fRecvSize_;
         remotePtr = remoteFPtr_;
         sendRank  = sendRankF_;
         recvRank  = recvRankF_;
     }
 
-    communicateHaloDataWithCudaDirect(sendPtr, sendSize, sendRank, remotePtr, recvRank);
+    if (GMX_THREAD_MPI)
+    {
+        communicateHaloDataWithCudaDirect(sendPtr, sendSize, sendRank, remotePtr, recvRank);
+    }
+    else
+    {
+        communicateHaloDataWithCudaMPI(sendPtr, sendSize, sendRank, recvPtr, recvSize, recvRank);
+    }
+}
+
+void GpuHaloExchange::Impl::communicateHaloDataWithCudaMPI(void* sendPtr,
+                                                           int   sendSize,
+                                                           int   sendRank,
+                                                           void* recvPtr,
+                                                           int   recvSize,
+                                                           int   recvRank)
+{
+    // wait for non local stream to complete all outstanding
+    // activities, to ensure that buffer is up-to-date in GPU memory
+    // before transferring to remote rank
+    cudaError_t stat = cudaStreamSynchronize(nonLocalStream_.stream());
+    CU_RET_ERR(stat, "cudaStreamSynchronize on nonLocalStream_ failed");
+
+    // perform halo exchange directly in device buffers
+#if GMX_MPI
+    MPI_Request request[2];
+    MPI_Status  status[2];
+
+    // recv remote data into halo region
+    MPI_Irecv(recvPtr, recvSize * DIM, MPI_FLOAT, recvRank, 0, mpi_comm_mysim_, &request[1]);
+
+    // send data to remote halo region
+    MPI_Isend(sendPtr, sendSize * DIM, MPI_FLOAT, sendRank, 0, mpi_comm_mysim_, &request[0]);
+
+    MPI_Waitall(2, request, status);
+#endif
 }
 
 void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
@@ -395,6 +448,9 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
     // to its stream.
     GpuEventSynchronizer* haloDataTransferRemote;
 
+    GMX_ASSERT(haloDataTransferLaunched_ != nullptr,
+               "Halo exchange requires valid event to synchronize data transfer initiated in "
+               "remote rank");
     haloDataTransferLaunched_->markEvent(nonLocalStream_);
 
     MPI_Sendrecv(&haloDataTransferLaunched_, sizeof(GpuEventSynchronizer*), MPI_BYTE, sendRank, 0,
@@ -426,17 +482,13 @@ GpuHaloExchange::Impl::Impl(gmx_domdec_t*        dd,
     sendRankF_(dd->neighbor[0][0]),
     recvRankF_(dd->neighbor[0][1]),
     usePBC_(dd->ci[dd->dim[0]] == 0),
-    haloDataTransferLaunched_(new GpuEventSynchronizer()),
+    haloDataTransferLaunched_(GMX_THREAD_MPI ? new GpuEventSynchronizer() : nullptr),
     mpi_comm_mysim_(mpi_comm_mysim),
     deviceContext_(deviceContext),
     localStream_(localStream),
     nonLocalStream_(nonLocalStream),
     pulse_(pulse)
 {
-
-    GMX_RELEASE_ASSERT(GMX_THREAD_MPI,
-                       "GPU Halo exchange is currently only supported with thread-MPI enabled");
-
     if (dd->ndim > 1)
     {
         gmx_fatal(FARGS, "Error: dd->ndim > 1 is not yet supported in GPU halo exchange");

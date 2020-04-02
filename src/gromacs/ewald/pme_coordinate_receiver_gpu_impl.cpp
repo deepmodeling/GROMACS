@@ -82,14 +82,14 @@ void PmeCoordinateReceiverGpu::sendCoordinateBufferAddressToPpRanks(DeviceBuffer
                "correct implementation.");
 }
 
-void PmeCoordinateReceiverGpu::launchReceiveCoordinatesFromPpCudaDirect(int /* ppRank */)
+void PmeCoordinateReceiverGpu::launchReceiveCoordinatesFromPp(int /* ppRank */)
 {
     GMX_ASSERT(false,
                "A CPU stub for PME-PP GPU communication was called instead of the correct "
                "implementation.");
 }
 
-void PmeCoordinateReceiverGpu::enqueueWaitReceiveCoordinatesFromPpCudaDirect()
+void PmeCoordinateReceiverGpu::waitOrEnqueueWaitReceiveCoordinatesFromPp()
 {
     GMX_ASSERT(false,
                "A CPU stub for PME-PP GPU communication was called instead of the correct "

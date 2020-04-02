@@ -222,8 +222,8 @@ static void gmx_pme_send_coeffs_coords(t_forcerec*      fr,
                 void* sendPtr = sendCoordinatesFromGpu
                                         ? static_cast<void*>(fr->stateGpu->getCoordinates())
                                         : static_cast<void*>(xRealPtr);
-                fr->pmePpCommGpu->sendCoordinatesToPmeCudaDirect(sendPtr, n, sendCoordinatesFromGpu,
-                                                                 coordinatesReadyOnDeviceEvent);
+                fr->pmePpCommGpu->sendCoordinatesToPme(sendPtr, n, sendCoordinatesFromGpu,
+                                                       coordinatesReadyOnDeviceEvent);
             }
             else
             {
@@ -418,7 +418,7 @@ static void recvFFromPme(gmx::PmePpCommGpu* pmePpCommGpu,
     {
         GMX_ASSERT(pmePpCommGpu != nullptr, "Need valid pmePpCommGpu");
         // Receive directly using CUDA memory copy
-        pmePpCommGpu->receiveForceFromPmeCudaDirect(recvptr, n, receivePmeForceToGpu);
+        pmePpCommGpu->receiveForceFromPme(recvptr, n, receivePmeForceToGpu);
     }
     else
     {

@@ -128,6 +128,13 @@ private:
      */
     void communicateHaloDataWithCudaDirect(void* sendPtr, int sendSize, int sendRank, void* remotePtr, int recvRank);
 
+    void communicateHaloDataWithCudaMPI(void* sendPtr,
+                                        int   sendSize,
+                                        int   sendRank,
+                                        void* recvPtr,
+                                        int   recvSize,
+                                        int   recvRank);
+
     //! Domain decomposition object
     gmx_domdec_t* dd_ = nullptr;
     //! map of indices to be sent from this rank

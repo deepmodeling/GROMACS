@@ -204,9 +204,11 @@ static DevelopmentFeatureFlags manageDevelopmentFeatures(const gmx::MDLogger& md
                                   && (GMX_GPU == GMX_GPU_CUDA) && useGpuForNonbonded;
     devFlags.forceGpuUpdateDefault = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr);
     devFlags.enableGpuHaloExchange =
-            (getenv("GMX_GPU_DD_COMMS") != nullptr && GMX_THREAD_MPI && (GMX_GPU == GMX_GPU_CUDA));
+            (getenv("GMX_GPU_DD_COMMS") != nullptr && (GMX_THREAD_MPI || GMX_CUDA_AWARE_MPI)
+             && (GMX_GPU == GMX_GPU_CUDA));
     devFlags.enableGpuPmePPComm =
-            (getenv("GMX_GPU_PME_PP_COMMS") != nullptr && GMX_THREAD_MPI && (GMX_GPU == GMX_GPU_CUDA));
+            (getenv("GMX_GPU_PME_PP_COMMS") != nullptr && (GMX_THREAD_MPI || GMX_CUDA_AWARE_MPI)
+             && (GMX_GPU == GMX_GPU_CUDA));
 #pragma GCC diagnostic pop
 
     if (devFlags.enableGpuBufferOps)

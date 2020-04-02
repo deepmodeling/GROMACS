@@ -82,13 +82,13 @@ public:
      * Initialization of GPU PME Force sender
      * \param[in] d_f   force buffer in GPU memory
      */
-    void sendForceBufferAddressToPpRanks(rvec* d_f);
+    void setForceBufferAddress(rvec* d_f);
 
     /*! \brief
      * Send PP data to PP rank
      * \param[in] ppRank           PP rank to receive data
      */
-    void sendFToPpCudaDirect(int ppRank);
+    void sendFToPp(int ppRank);
 
 private:
     class Impl;

@@ -105,8 +105,9 @@
 #include "pme_pp_communication.h"
 
 /*! \brief environment variable to enable GPU P2P communication */
-static const bool c_enableGpuPmePpComms =
-        (getenv("GMX_GPU_PME_PP_COMMS") != nullptr) && GMX_THREAD_MPI && (GMX_GPU == GMX_GPU_CUDA);
+static const bool c_enableGpuPmePpComms = (getenv("GMX_GPU_PME_PP_COMMS") != nullptr)
+                                          && (GMX_THREAD_MPI || GMX_CUDA_AWARE_MPI)
+                                          && (GMX_GPU == GMX_GPU_CUDA);
 
 /*! \brief Master PP-PME communication data structure */
 struct gmx_pme_pp
@@ -433,7 +434,7 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                     // This rank will have its data accessed directly by PP rank, so needs to send the remote addresses.
                     pme_pp->pmeCoordinateReceiverGpu->sendCoordinateBufferAddressToPpRanks(
                             stateGpu->getCoordinates());
-                    pme_pp->pmeForceSenderGpu->sendForceBufferAddressToPpRanks(
+                    pme_pp->pmeForceSenderGpu->setForceBufferAddress(
                             reinterpret_cast<rvec*>(pme_gpu_get_device_f(pme)));
                 }
             }
@@ -455,8 +456,7 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                 {
                     if (pme_pp->useGpuDirectComm)
                     {
-                        pme_pp->pmeCoordinateReceiverGpu->launchReceiveCoordinatesFromPpCudaDirect(
-                                sender.rankId);
+                        pme_pp->pmeCoordinateReceiverGpu->launchReceiveCoordinatesFromPp(sender.rankId);
                     }
                     else
                     {
@@ -476,14 +476,18 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
 
             if (pme_pp->useGpuDirectComm)
             {
-                pme_pp->pmeCoordinateReceiverGpu->enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+                pme_pp->pmeCoordinateReceiverGpu->waitOrEnqueueWaitReceiveCoordinatesFromPp();
             }
 
             status = pmerecvqxX;
         }
 
         /* Wait for the coordinates and/or charges to arrive */
-        MPI_Waitall(messages, pme_pp->req.data(), pme_pp->stat.data());
+        if (messages > 0)
+        {
+            MPI_Waitall(messages, pme_pp->req.data(), pme_pp->stat.data());
+        }
+
         messages = 0;
     } while (status == -1);
 #else
@@ -524,7 +528,7 @@ static void sendFToPP(void* sendbuf, PpRanks receiver, gmx_pme_pp* pme_pp, int* 
                    "The use of GPU direct communication for PME-PP is enabled, "
                    "but the PME GPU force reciever object does not exist");
 
-        pme_pp->pmeForceSenderGpu->sendFToPpCudaDirect(receiver.rankId);
+        pme_pp->pmeForceSenderGpu->sendFToPp(receiver.rankId);
     }
     else
     {

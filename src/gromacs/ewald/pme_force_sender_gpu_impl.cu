@@ -60,16 +60,33 @@ PmeForceSenderGpu::Impl::Impl(const DeviceStream& pmeStream, MPI_Comm comm, gmx:
     comm_(comm),
     ppRanks_(ppRanks)
 {
-    GMX_RELEASE_ASSERT(
-            GMX_THREAD_MPI,
-            "PME-PP GPU Communication is currently only supported with thread-MPI enabled");
+    request_.resize(ppRanks.size(), MPI_REQUEST_NULL);
 }
 
-PmeForceSenderGpu::Impl::~Impl() = default;
+PmeForceSenderGpu::Impl::~Impl()
+{
+#if GMX_MPI
+
+#    if GMX_THREAD_MPI
+#    else
+    // free resources as MPI_waitall might not get called on these requests
+    std::for_each(request_.begin(), request_.end(), [](MPI_Request& req) {
+        if (req != MPI_REQUEST_NULL)
+        {
+            MPI_Request_free(&req);
+            req = MPI_REQUEST_NULL;
+        }
+    });
+#    endif
+#endif
+}
 
 /*! \brief  sends force buffer address to PP ranks */
-void PmeForceSenderGpu::Impl::sendForceBufferAddressToPpRanks(rvec* d_f)
+void PmeForceSenderGpu::Impl::setForceBufferAddress(rvec* d_f)
 {
+#if GMX_MPI
+
+#    if GMX_THREAD_MPI
     int ind_start = 0;
     int ind_end   = 0;
     for (const auto& receiver : ppRanks_)
@@ -80,26 +97,60 @@ void PmeForceSenderGpu::Impl::sendForceBufferAddressToPpRanks(rvec* d_f)
         // Data will be transferred directly from GPU.
         void* sendBuf = reinterpret_cast<void*>(&d_f[ind_start]);
 
-#if GMX_MPI
         MPI_Send(&sendBuf, sizeof(void**), MPI_BYTE, receiver.rankId, 0, comm_);
-#else
-        GMX_UNUSED_VALUE(sendBuf);
-#endif
     }
+#    else
+    // Just store the pointer which will be sent later
+    d_f_ = d_f;
+#    endif
+
+#else
+    GMX_UNUSED_VALUE(d_f);
+#endif
 }
 
 /*! \brief Send PME data directly using CUDA memory copy */
-void PmeForceSenderGpu::Impl::sendFToPpCudaDirect(int ppRank)
+void PmeForceSenderGpu::Impl::sendFToPp(int ppRank)
 {
+#if GMX_MPI
+#    if GMX_THREAD_MPI
     // Data will be pulled directly from PP task
 
     // Record and send event to ensure PME force calcs are completed before PP task pulls data
     pmeSync_.markEvent(pmeStream_);
     GpuEventSynchronizer* pmeSyncPtr = &pmeSync_;
-#if GMX_MPI
+
     // TODO Using MPI_Isend would be more efficient, particularly when
     // sending to multiple PP ranks
     MPI_Send(&pmeSyncPtr, sizeof(GpuEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_);
+
+#    else  // ToDo: split the logic in different functions
+
+    int ind_start = 0;
+    int i         = 0;
+    // Calculate starting atom for given PP rank
+    for (; i < ppRanks_.size() && ppRanks_[i].rankId != ppRank; ++i)
+    {
+        ind_start += ppRanks_[i].numAtoms;
+    }
+
+    GMX_ASSERT(i < ppRanks_.size(), "ppRank value different from expected values");
+
+    // This is needed to free resources; MPI_ISend call below is expected to be finished by now as
+    // PP rank has MPI_Wait to receive the data.
+    if (request_[i] != MPI_REQUEST_NULL)
+    {
+        MPI_Request_free(&request_[i]);
+        request_[i] = MPI_REQUEST_NULL;
+    }
+
+    // Ensure PME force calcs are completed before data is sent
+    cudaError_t stat = cudaStreamSynchronize(pmeStream_.stream());
+    CU_RET_ERR(stat, "cudaStreamSynchronize on pmeStream_ failed");
+
+    MPI_Isend(&d_f_[ind_start], ppRanks_[i].numAtoms * sizeof(rvec), MPI_BYTE, ppRank, 0, comm_,
+              &request_[i]);
+#    endif // GMX_THREAD_MPI
 #else
     GMX_UNUSED_VALUE(pmeSyncPtr);
     GMX_UNUSED_VALUE(ppRank);
@@ -115,14 +166,14 @@ PmeForceSenderGpu::PmeForceSenderGpu(const DeviceStream&    pmeStream,
 
 PmeForceSenderGpu::~PmeForceSenderGpu() = default;
 
-void PmeForceSenderGpu::sendForceBufferAddressToPpRanks(rvec* d_f)
+void PmeForceSenderGpu::setForceBufferAddress(rvec* d_f)
 {
-    impl_->sendForceBufferAddressToPpRanks(d_f);
+    impl_->setForceBufferAddress(d_f);
 }
 
-void PmeForceSenderGpu::sendFToPpCudaDirect(int ppRank)
+void PmeForceSenderGpu::sendFToPp(int ppRank)
 {
-    impl_->sendFToPpCudaDirect(ppRank);
+    impl_->sendFToPp(ppRank);
 }
 
 

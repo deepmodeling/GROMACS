@@ -1710,12 +1710,12 @@ void do_force(FILE*                               fplog,
                         ? (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
                                                          : // PME force buffer on same GPU
                                    static_cast<GpuEventSynchronizer*>(
-                                           fr->pmePpCommGpu->getForcesReadySynchronizer())) // buffer received from other GPU
+                                           fr->pmePpCommGpu->waitForcesReadyOrGetSynchronizer())) // buffer received from other GPU
                         : nullptr; // PME reduction not active on GPU
 
         gmx::FixedCapacityVector<GpuEventSynchronizer*, 3> dependencyList;
 
-        if (stepWork.useGpuPmeFReduction)
+        if (pmeSynchronizer != nullptr)
         {
             dependencyList.push_back(pmeSynchronizer);
         }
