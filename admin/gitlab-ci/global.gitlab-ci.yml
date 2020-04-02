@@ -126,3 +126,20 @@
     - export CCACHE_DIR=${PWD}/ccache
     - export ASAN_SYMBOLIZER_PATH=/usr/local/bin/llvm-symbolizer
 
+# Base definition for using icc.
+.use-icc:base:
+  variables:
+    CMAKE_COMPILER_SCRIPT: -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc
+    CMAKE_EXTRA_OPTIONS: -DGMX_FFT_LIBRARY=mkl
+  before_script:
+    # TODO Either we place the COM_L__CPP_CNT6-WFMBPBXC.lic file on
+    # the k8s host(s) and follow
+    # https://docs.gitlab.com/runner/executors/kubernetes.html#host-path-volumes
+    # to get them mounted into all the containers, or we find out how
+    # to bind mount the file created here into directory
+    # /opt/intel/licenses/ in the container.
+    - echo $INTEL_LICENCE_LINUX | base64 -d > COM_L__CPP_CNT6-WFMBPBXC.lic
+    - mkdir -p ccache
+    - export CCACHE_BASEDIR=${PWD}
+    - export CCACHE_DIR=${PWD}/ccache
+

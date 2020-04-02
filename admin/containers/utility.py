@@ -39,6 +39,7 @@ Authors:
     * Paul Bauer <paul.bauer.q@gmail.com>
     * Eric Irrgang <ericirrgang@gmail.com>
     * Joe Jordan <e.jjordan12@gmail.com>
+    * Mark Abraham <mark.j.abraham@gmail.com>
 
 """
 
@@ -69,10 +70,9 @@ compiler_group.add_argument('--llvm', type=int, nargs='?', const=7, default=None
                             choices=[3, 6, 7, 8, 9],
                             help='Select LLVM compiler tool chain. '
                                  'Some checking is implemented to avoid incompatible combinations')
-compiler_group.add_argument('--icc', type=int, nargs='?', const=19, default=None,
-                            choices=[19, 20],
-                            help='Select Intel compiler tool chain. '
-                                 'Some checking is implemented to avoid incompatible combinations')
+compiler_group.add_argument('--icc', type=str, nargs='?', const="", default=None,
+                            help='The Intel compiler tool chain tarball relative to the docker build directory. '
+                                 'Note that you must arrange to download the ...compiler_for_cpp.tgz beforehand')
 
 linux_group = parser.add_mutually_exclusive_group()
 linux_group.add_argument('--ubuntu', type=str, nargs='?', const='18.04', default='18.04',

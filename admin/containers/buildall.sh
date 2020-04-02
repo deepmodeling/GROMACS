@@ -78,6 +78,11 @@ tag="gromacs/cmake-3.13.0-llvm-9-amdopencl-openmpi:master"
 tags[${#tags[@]}]=$tag
 python3 $SCRIPT --cmake 3.13.0 --llvm 9 --opencl amd --mpi openmpi | docker build -t $tag -
 
+# Only run this if you have downloaded a suitable tarball
+# tag="gromacs/cmake-3.15.7-icc-20-openmpi:master"
+# tags[${#tags[@]}]=$tag
+# python3 $SCRIPT --cmake 3.15.7 --icc parallel_studio_xe_2020_update1_composer_edition_for_cpp.tgz --gcc 7 --mpi openmpi | docker build -t $tag -
+
 tag=gromacs/ci-docs-llvm:master
 tags[${#tags[@]}]=$tag
 python3 $SCRIPT --llvm --doxygen | docker build -t $tag -

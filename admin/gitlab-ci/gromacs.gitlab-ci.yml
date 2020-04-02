@@ -291,6 +291,15 @@ gromacs:clang-ASAN:configure:
     COMPILER_MAJOR_VERSION: 8
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=ASAN"
 
+gromacs:icc-19.1:configure:
+  extends:
+   - .gromacs:base:configure
+   - .use-icc:base
+   - .rules:merge-requests
+  image: gromacs/cmake-3.15.7-icc-19.1-openmpi:master
+  variables:
+    COMPILER_MAJOR_VERSION: 19.1
+
 gromacs:gcc-8-cuda-10.1:release:configure:
   extends:
     - .gromacs:base:release:configure
@@ -466,6 +475,19 @@ gromacs:clang-9:build:
   image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
   needs:
     - job: gromacs:clang-9:configure
+
+gromacs:icc-19.1:build:
+  extends:
+    - .variables:default
+    - .gromacs:base:build
+    - .before_script:default
+    - .use-ccache
+    - .rules:merge-requests
+  image: gromacs/cmake-3.15.7-icc-19.1-openmpi:master
+  needs:
+    - job: gromacs:icc-19.1:configure
+  variables:
+    COMPILER_MAJOR_VERSION: 19.1
 
 gromacs:gcc-8-cuda-10.1:release:build:
   extends:
@@ -644,6 +666,14 @@ gromacs:clang-9:test:
   needs:
     - job: gromacs:clang-9:build
 
+gromacs:icc-19.1:test:
+  extends:
+    - .gromacs:base:test
+    - .rules:merge-requests
+  image: gromacs/cmake-3.15.7-icc-19.1-openmpi:master
+  needs:
+    - job: gromacs:icc-19.1:build
+
 gromacs:gcc-7:regressiontest:
   extends:
     - .gromacs:base:regressiontest
@@ -712,6 +742,15 @@ gromacs:clang-9:regressiontest:
     REGRESSIONTEST_PARALLEL: "-np"
   needs:
     - job: gromacs:clang-9:build
+    - job: regressiontests:prepare
+
+gromacs:icc-19.1:regressiontest:
+  extends:
+    - .gromacs:base:regressiontest
+    - .rules:merge-requests
+  image: gromacs/cmake-3.15.7-icc-19.1-openmpi:master
+  needs:
+    - job: gromacs:icc-19.1:build
     - job: regressiontests:prepare
 
 gromacs:gcc-8-cuda-10.1:release:test:

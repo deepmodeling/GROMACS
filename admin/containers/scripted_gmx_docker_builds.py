@@ -48,6 +48,7 @@ Authors:
     * Paul Bauer <paul.bauer.q@gmail.com>
     * Eric Irrgang <ericirrgang@gmail.com>
     * Joe Jordan <e.jjordan12@gmail.com>
+    * Mark Abraham <mark.j.abraham@gmail.com>
 
 Usage::
 
@@ -179,18 +180,62 @@ def get_llvm_packages(args) -> typing.Iterable[str]:
         return []
 
 
-def get_compiler(args, tsan_stage: hpccm.Stage = None) -> bb_base:
-    # Compiler
-    if args.icc is not None:
-        raise RuntimeError('Intel compiler toolchain recipe not implemented yet')
+def add_icc_compiler_build_stage(input_args, output_stages: typing.Mapping[str, hpccm.Stage]):
+    """Isolate the icc compiler installation stage.
 
+    Installing icc requires copying a local tarball that is then
+    present in an image layer. However, its output is easily
+    compartmentalized (/opt/intel) so we can isolate this build stage
+    using the docker builder pattern to maximize build cache hits and
+    reduce rebuild time, bookkeeping, and final image size.
+
+    """
+
+    if input_args.gcc is None:
+        raise RuntimeError('Using the icc compiler on Linux requires also a gcc compiler!')
+
+    # To build a new icc container, register for an Intel open-source
+    # developer account, wait to get approved, download a compiler
+    # tarball, put it in the working dir of the Dockerfile produced by
+    # hccm, and name the tarball at the parameter below. However, the
+    # full "parallel_studio...composer_edition.tgz" will not be usable
+    # with the GROMACS CI licenses. Instead, seek to download a
+    # tarball like
+    # "parallel_studio..._composer_edition_for_cpp.tgz". Roland Schulz
+    # may be able to help with a direct download link.
+    #
+    # A proper license is needed at install time, but should not be
+    # distributed with the container, so it is removed later and needs
+    # to be provided at run time, e.g. in a docker volume
+    # mount. Provide a temporary proper license called "license.lic"
+    # in the working dir of the Dockerfile.
+    icc_stage = hpccm.Stage()
+    icc_stage += hpccm.primitives.baseimage(image=base_image_tag(input_args), _as='icc-install')
+    prefix = "/opt/intel"
+    icc_stage += hpccm.building_blocks.intel_psxe(eula=True,
+                                                  ifort=False, ipp=False,
+                                                  mkl=True,
+                                                  components=["intel-openmp__x86_64","intel-icc__x86_64","intel-mkl-core-c__x86_64"],
+                                                  license="license.lic",
+                                                  prefix=prefix,
+                                                  tarball=input_args.icc,
+    )
+    # Remove license that should not be distributed
+    icc_stage += hpccm.primitives.shell(commands=['rm ' + prefix + '/licenses/license.lic'])
+    # Remove useless 32-bit MKL libraries. MKL is the largest
+    # installed component even after this.
+    icc_stage += hpccm.primitives.shell(commands=['rm -rf ' + prefix + '/compilers_and_libraries_20??.*/linux/mkl/lib/ia32_lin'])
+    output_stages['compiler_build'] = icc_stage
+
+def get_compiler(args, compiler_build_stage: hpccm.Stage = None) -> bb_base:
+    # Compiler
     if args.llvm is not None:
         # Build our own version instead to get TSAN + OMP
         if args.tsan is not None:
-            if tsan_stage is not None:
-                compiler = tsan_stage.runtime(_from='tsan')
+            if compiler_build_stage is not None:
+                compiler = compiler_build_stage.runtime(_from='tsan')
             else:
-                raise RuntimeError('No TSAN stage!')
+                raise RuntimeError('No TSAN compiler build stage!')
         # Build the default compiler if we don't need special support
         else:
             compiler = hpccm.building_blocks.llvm(extra_repository=True, version=args.llvm)
@@ -199,10 +244,18 @@ def get_compiler(args, tsan_stage: hpccm.Stage = None) -> bb_base:
         compiler = hpccm.building_blocks.gnu(extra_repository=True,
                                              version=args.gcc,
                                              fortran=False)
+        # Note that the ICC compiler on linux also needs gcc to build
+        # other components and provide libstdc++.
+        if args.icc is not None:
+            if compiler_build_stage is not None:
+                compiler += hpccm.primitives.copy(_from='icc-install',
+                                                  files={"/opt/intel": "/opt/intel",
+                                                         "/etc/bash.bashrc": "/etc/bash.bashrc"})
+            else:
+                raise RuntimeError('No ICC compiler build stage!')
     else:
         raise RuntimeError('Logic error: no compiler toolchain selected.')
     return compiler
-
 
 def get_mpi(args, compiler):
     # If needed, add MPI to the image
@@ -260,7 +313,7 @@ def get_clfft(args):
         return None
 
 
-def add_tsan_stage(input_args, output_stages: typing.Mapping[str, hpccm.Stage]):
+def add_tsan_compiler_build_stage(input_args, output_stages: typing.Mapping[str, hpccm.Stage]):
     """Isolate the expensive TSAN preparation stage.
 
     This is a very expensive stage, but has few and disjoint dependencies, and
@@ -295,7 +348,7 @@ def add_tsan_stage(input_args, output_stages: typing.Mapping[str, hpccm.Stage]):
                      'ln -s /usr/local/bin/clang-format /usr/local/bin/clang-format-' + str(input_args.llvm),
                      'ln -s /usr/local/bin/clang-tidy /usr/local/bin/clang-tidy-' + str(input_args.llvm),
                      'ln -s /usr/local/libexec/c++-analyzer /usr/local/bin/c++-analyzer-' + str(input_args.llvm)])
-    output_stages['tsan'] = tsan_stage
+    output_stages['compiler_build'] = tsan_stage
 
 
 def prepare_venv(version: StrictVersion) -> typing.Sequence[str]:
@@ -415,16 +468,20 @@ def build_stages(args) -> typing.Iterable[hpccm.Stage]:
     # object early in this function.
     stages = collections.OrderedDict()
 
-    # If we need the TSAN compilers, the early build is more involved.
+    # If we need the TSAN support or ICC compiler, the early build is more involved.
+    # so that our compiler images don't have all the cruft needed to get those things
+    # installed.
     if args.llvm is not None and args.tsan is not None:
-        add_tsan_stage(input_args=args, output_stages=stages)
+        add_tsan_compiler_build_stage(input_args=args, output_stages=stages)
+    elif args.icc is not None:
+        add_icc_compiler_build_stage(input_args=args, output_stages=stages)
 
     # Building blocks are chunks of container-builder instructions that can be
     # copied to any build stage with the addition operator.
     building_blocks = collections.OrderedDict()
 
     # These are the most expensive and most reusable layers, so we put them first.
-    building_blocks['compiler'] = get_compiler(args, tsan_stage=stages.get('tsan'))
+    building_blocks['compiler'] = get_compiler(args, compiler_build_stage=stages.get('compiler_build'))
     building_blocks['mpi'] = get_mpi(args, building_blocks['compiler'])
 
     # Install additional packages early in the build to optimize Docker build layer cache.
