@@ -878,6 +878,11 @@ void gmx::LegacySimulator::do_md()
             }
         }
 
+        if(bNS && havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange
+                    && useGpuForNonbonded && is1D(*cr->dd))
+        {
+            constructGpuHaloExchange(mdlog, *cr, *fr->deviceStreamManager);
+        }
         if (MASTER(cr) && do_log)
         {
             energyOutput.printHeader(fplog, step, t); /* can we improve the information printed here? */
