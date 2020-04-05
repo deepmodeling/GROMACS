@@ -36,7 +36,6 @@ clang-format:
   cache: {}
   stage: pre-build
   tags: []
-  when: always
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
@@ -61,7 +60,6 @@ copyright-check:
   cache: {}
   stage: pre-build
   tags: []
-  when: always
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1

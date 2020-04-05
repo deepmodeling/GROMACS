@@ -25,13 +25,14 @@ Pipeline execution
 
 .. todo:: Comment on the number of pipelines that can be or which are likely to be running at the same time.
 
-.. warning::
+.. note::
 
     Full automated testing is only available for merge requests originating from
     branches of the main https://gitlab.com/gromacs/gromacs repository.
-    GitLab CI pipelines created for forked repositories will include jobs that
-    cannot run because Runners with required tag(s) will not be available.
-    These jobs can be canceled manually or will eventually time out.
+    GitLab CI pipelines created for forked repositories will include fewer jobs
+    in the testing pipeline. Non-trivial merge requests may need to be issued
+    from a branch in the ``gromacs`` project namespace in order to receive
+    sufficient testing before acceptance.
 
 Configuration files
 ~~~~~~~~~~~~~~~~~~~
@@ -171,6 +172,12 @@ or passed along to the environment of executed commands.
 Other important variable keys are as follows.
 
 .. glossary::
+    CI_PROJECT_NAMESPACE
+        Distinguishes pipelines created for repositories in the ``gromacs``
+        GitLab project space. May be used to pre-screen jobs to determine
+        whether |Gromacs| GitLab infrastructure is available to the pipeline
+        before the job is created.
+
     COMPILER_MAJOR_VERSION
         Integer version number provided by toolchain mix-in for convenience and
         internal use.

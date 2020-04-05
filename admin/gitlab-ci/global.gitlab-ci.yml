@@ -32,35 +32,35 @@
 # Excludes merge_requests
 # TODO: Update to *rules* syntax.
 .rules:nightly-only-for-release:
-  only:
-    refs:
-      - web
-      - schedules
-    variables:
-      - $GROMACS_RELEASE
+  rules:
+    - if: '$GROMACS_RELEASE && $CI_PIPELINE_SOURCE == "web"'
+      when: always
+    - if: '$GROMACS_RELEASE && $CI_PIPELINE_SOURCE == "schedule"'
+      when: always
 
 # Jobs that run on schedules, but not for merge requests or when GROMACS_RELEASE
 # is set.
 .rules:nightly-not-for-release:
-  only:
-    - web
-    - schedules
-  except:
-    variables:
-      - $GROMACS_RELEASE
+  rules:
+    - if: '$GROMACS_RELEASE'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule"'
+      when: always
 
 # Jobs that run for merge requests and schedules, but not when GROMACS_RELEASE
 # is set.
 .rules:not-for-release:
-  only:
-    refs:
-      - web
-      - pushes
-      - schedules
-      - merge_requests
-  except:
-    variables:
-      - $GROMACS_RELEASE
+  rules:
+    - if: '$GROMACS_RELEASE'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
 
 # Behavioral templates
 
