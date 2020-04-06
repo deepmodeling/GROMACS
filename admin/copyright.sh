@@ -50,7 +50,7 @@ function usage() {
 
 action="check-workdir"
 declare -a diffargs
-baserev="origin/master"
+baserev="HEAD"
 force=
 copyright_mode=update
 warning_file=

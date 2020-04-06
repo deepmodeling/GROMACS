@@ -51,7 +51,7 @@ clang-format:
     EXTRA_INSTALLS: clang-format-$COMPILER_MAJOR_VERSION
   script:
     - export CLANG_FORMAT=clang-format-$COMPILER_MAJOR_VERSION
-    - admin/clang-format.sh check --rev=HEAD^ --warnings=clang-format.log
+    - admin/clang-format.sh check --rev=origin/master --warnings=clang-format.log
     - grep -iq "needs formatting" clang-format.log | tee formatting.txt || true
     - if [ -s formatting.txt ] ; then echo "clang-format.sh found issues"; exit 1; fi
   artifacts:
@@ -77,7 +77,7 @@ copyright-check:
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_MEMORY_LIMIT: 2Gi
   script:
-    - admin/copyright.sh check --rev=HEAD^ --warnings=copyright.log
+    - admin/copyright.sh check --rev=origin/master --warnings=copyright.log
     - grep -iq "copyright year" copyright.log | tee years.log || true
     - grep -iq "copyright header" copyright.log | tee headers.log || true
     - if [[ -s years.log || -s headers.log ]] ; then

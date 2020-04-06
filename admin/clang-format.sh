@@ -49,7 +49,7 @@ function usage() {
 
 action="check-workdir"
 declare -a diffargs
-baserev="origin/master"
+baserev="HEAD"
 force=
 format_mode=check
 warning_file=
