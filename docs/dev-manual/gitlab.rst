@@ -1,9 +1,6 @@
 GitLab
 ======
 
-|Gromacs| is transitioning to GitLab for source code management, issue tracking,
-and integrated automation for testing and documentation.
-
 The repository contains DockerFiles and GitLab Runner configuration
 files to support automated testing and documentation builds.
 General information on configuring GitLab CI pipelines can be found
@@ -15,7 +12,7 @@ Configuration templates are found in the files in the
 :file:`admin/ci-templates/` directory.
 
 Docker images used by GitLab Runner are available on `Docker Hub <https://hub.docker.com/u/gromacs>`__.
-Images are (re)built manually from DockerFiles in :file:`admin/dockerfiles`.
+Images are (re)built manually using details in :file:`admin/containers`.
 
 This documentation is incomplete, pending resolution of :issue:`3275`.
 
@@ -27,6 +24,14 @@ Pipeline execution
 .. todo:: Discuss the distinct characteristics of |Gromacs| CI pipelines to relevant to job configuration.
 
 .. todo:: Comment on the number of pipelines that can be or which are likely to be running at the same time.
+
+.. warning::
+
+    Full automated testing is only available for merge requests originating from
+    branches of the main https://gitlab.com/gromacs/gromacs repository.
+    GitLab CI pipelines created for forked repositories will include jobs that
+    cannot run because Runners with required tag(s) will not be available.
+    These jobs can be canceled manually or will eventually time out.
 
 Configuration files
 ~~~~~~~~~~~~~~~~~~~
@@ -83,6 +88,13 @@ GitLab CI job parameters, but note the following GROMACS-specific conventions.
         with a *.rules...* template.
         To reduce errors and unexpected behavior, restrict usage of these controls
         to regular job definitions (don't use in "hidden" or parent jobs).
+
+    tags
+        By `default <https://docs.gitlab.com/ee/ci/yaml/#setting-default-parameters>`__,
+        jobs require the ``k8s-scilifelab`` tag, which identifies Runners in the
+        |Gromacs| infrastructure. A small number of jobs in the first pipeline
+        stage override the default with an empty tag list so that all GitLab
+        users can run basic tests in their forked project.
 
     variables
         Many job definitions will add or override keys in *variables*.
