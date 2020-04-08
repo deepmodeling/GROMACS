@@ -8,7 +8,7 @@ simple-build:
     - .use-gcc7
     - .rules:not-for-release
   stage: pre-build
-  tags: {}
+  tags: []
   variables:
     KUBERNETES_CPU_LIMIT: 8
     KUBERNETES_CPU_REQUEST: 4
