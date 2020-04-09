@@ -109,7 +109,7 @@ RealType generateCanonical(Rng& g)
     const uint64_t range    = Rng::max() - Rng::min() + uint64_t(1);
     uint64_t       log2R    = (range == 0) ? std::numeric_limits<uint64_t>::digits : log2I(range);
     uint64_t       k        = realBits / log2R + (realBits % log2R != 0) + (realBits == 0);
-    RealType       r        = Rng::max() - Rng::min() + RealType(1);
+    RealType       r        = static_cast<RealType>(Rng::max() - Rng::min()) + RealType(1);
     RealType       s        = g() - Rng::min();
     RealType       base     = r;
     RealType       result;
