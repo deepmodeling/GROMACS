@@ -6,7 +6,7 @@ simple-build:
     - .use-ccache
     - .variables:default
     - .use-gcc7
-    - .rules:not-for-release
+    - .rules:basic
   stage: pre-build
   tags: []
   variables:

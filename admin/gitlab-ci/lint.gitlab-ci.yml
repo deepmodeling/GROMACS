@@ -32,7 +32,7 @@ clang-format:
   extends:
     - .variables:default
     - .use-clang7
-    - .rules:not-for-release
+    - .rules:basic
   cache: {}
   stage: pre-build
   tags: []
@@ -56,7 +56,7 @@ copyright-check:
   extends:
     - .variables:default
     - .use-clang7
-    - .rules:not-for-release
+    - .rules:basic
   cache: {}
   stage: pre-build
   tags: []
