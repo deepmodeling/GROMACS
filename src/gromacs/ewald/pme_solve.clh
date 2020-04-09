@@ -69,9 +69,9 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_solve_kernel)(const struct PmeOpenCLKer
                                                        __global float2* __restrict__ gm_grid)
 {
     /* This kernel supports 2 different grid dimension orderings: YZX and XYZ */
-    int majorDim;
-    int middleDim;
-    int minorDim;
+    int majorDim;  // NOLINT(cppcoreguidelines-init-variables)
+    int middleDim; // NOLINT(cppcoreguidelines-init-variables)
+    int minorDim;  // NOLINT(cppcoreguidelines-init-variables)
     if (gridOrdering == YZX)
     {
         majorDim  = YY;
@@ -161,9 +161,9 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_solve_kernel)(const struct PmeOpenCLKer
         /* We should skip the k-space point (0,0,0) */
         const bool notZeroPoint = (kMinor > 0) | (kMajor > 0) | (kMiddle > 0);
 
-        float mX;
-        float mY;
-        float mZ;
+        float mX; // NOLINT(cppcoreguidelines-init-variables)
+        float mY; // NOLINT(cppcoreguidelines-init-variables)
+        float mZ; // NOLINT(cppcoreguidelines-init-variables)
         if (gridOrdering == YZX)
         {
             mX = mMinor;

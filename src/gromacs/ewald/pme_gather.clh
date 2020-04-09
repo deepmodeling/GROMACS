@@ -49,8 +49,8 @@
  *  \author Aleksei Iupinov <a.yupinov@gmail.com>
  */
 
-#include "pme_gpu_types.h"
 #include "pme_gpu_calculate_splines.clh"
+#include "pme_gpu_types.h"
 
 #ifndef COMPILE_GATHER_HELPERS_ONCE
 #    define COMPILE_GATHER_HELPERS_ONCE

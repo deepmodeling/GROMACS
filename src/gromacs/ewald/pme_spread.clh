@@ -51,10 +51,10 @@
  *  \author Aleksei Iupinov <a.yupinov@gmail.com>
  */
 
-#include "gromacs/gpu_utils/vectype_ops.clh"
-
-#include "pme_gpu_types.h"
 #include "pme_gpu_calculate_splines.clh"
+#include "pme_gpu_types.h"
+
+#include "gromacs/gpu_utils/vectype_ops.clh"
 
 /*
  * This define affects the spline calculation behaviour in the kernel.
@@ -179,10 +179,10 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
         /* Indices interpolation */
         if (orderIndex == 0)
         {
-            int          tableIndex;
-            int          tInt;
-            float        n;
-            float        t;
+            int          tableIndex; // NOLINT(cppcoreguidelines-init-variables)
+            int          tInt; // NOLINT(cppcoreguidelines-init-variables)
+            float        n; // NOLINT(cppcoreguidelines-init-variables)
+            float        t; // NOLINT(cppcoreguidelines-init-variables)
             const float3 x = vload3(atomIndexLocal, sm_coordinates);
 
             /* Accessing fields in fshOffset/nXYZ/recipbox/... with dimIndex offset
@@ -240,7 +240,7 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
         const int chargeCheck = pme_gpu_check_atom_charge(sm_coefficients[atomIndexLocal]);
         if (chargeCheck)
         {
-            float div;
+            float div;  // NOLINT(cppcoreguidelines-init-variables)
             int o = orderIndex; // This is an index that is set once for PME_GPU_PARALLEL_SPLINE == 1
 
             const float dr = sm_fractCoords[sharedMemoryIndex];
