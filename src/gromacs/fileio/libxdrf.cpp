@@ -62,7 +62,7 @@ const char* xdr_datatype_names[] = { "int", "float", "double", "large int", "cha
  | with some routines to assist in this task (those are marked
  | static and cannot be called from user programs)
  */
-#define MAXABS_FLOAT static_cast<float>(INT_MAX - 2)
+constexpr float maxAbsoluteInt = float(INT_MAX - 2);
 
 #ifndef SQR
 #    define SQR(x) ((x) * (x))
@@ -490,7 +490,7 @@ int xdr3dfcoord(XDR* xdrs, float* fp, int* size, float* precision)
             {
                 lf = *lfp * *precision - 0.5;
             }
-            if (std::fabs(lf) > MAXABS_FLOAT)
+            if (std::fabs(lf) > maxAbsoluteInt)
             {
                 /* scaling would cause overflow */
                 errval = 0;
@@ -514,7 +514,7 @@ int xdr3dfcoord(XDR* xdrs, float* fp, int* size, float* precision)
             {
                 lf = *lfp * *precision - 0.5;
             }
-            if (std::fabs(lf) > MAXABS_FLOAT)
+            if (std::fabs(lf) > maxAbsoluteInt)
             {
                 /* scaling would cause overflow */
                 errval = 0;
@@ -538,7 +538,7 @@ int xdr3dfcoord(XDR* xdrs, float* fp, int* size, float* precision)
             {
                 lf = *lfp * *precision - 0.5;
             }
-            if (std::abs(lf) > MAXABS_FLOAT)
+            if (std::abs(lf) > maxAbsoluteInt)
             {
                 /* scaling would cause overflow */
                 errval = 0;
@@ -575,9 +575,9 @@ int xdr3dfcoord(XDR* xdrs, float* fp, int* size, float* precision)
             return 0;
         }
 
-        if (static_cast<float>(maxint[0]) - static_cast<float>(minint[0]) >= MAXABS_FLOAT
-            || static_cast<float>(maxint[1]) - static_cast<float>(minint[1]) >= MAXABS_FLOAT
-            || static_cast<float>(maxint[2]) - static_cast<float>(minint[2]) >= MAXABS_FLOAT)
+        if (static_cast<float>(maxint[0]) - static_cast<float>(minint[0]) >= maxAbsoluteInt
+            || static_cast<float>(maxint[1]) - static_cast<float>(minint[1]) >= maxAbsoluteInt
+            || static_cast<float>(maxint[2]) - static_cast<float>(minint[2]) >= maxAbsoluteInt)
         {
             /* turning value in unsigned by subtracting minint
              * would cause overflow
