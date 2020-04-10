@@ -1027,8 +1027,8 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
             case etabLJ12Encad:
                 if (r < rc)
                 {
-                    Vtab = -(r12 - 12.0 * (rc - r) * rc12 / rc - rc12);
-                    Ftab = -(12.0 * r12 / r - 12.0 * rc12 / rc);
+                    Vtab = (r12 - 12.0 * (rc - r) * rc12 / rc - rc12);
+                    Ftab = (12.0 * r12 / r - 12.0 * rc12 / rc);
                 }
                 else /* r>rc */
                 {
