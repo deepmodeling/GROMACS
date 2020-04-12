@@ -23,6 +23,7 @@ simple-build:
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=OFF"
     BUILD_DIR: simple-build
   script:
+    - exit 1
     - echo $CMAKE_COMPILER_SCRIPT
     - echo $CMAKE_EXTRA_OPTIONS
     - echo $CMAKE_SIMD_OPTIONS
