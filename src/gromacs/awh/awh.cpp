@@ -387,7 +387,7 @@ void Awh::writeToEnergyFrame(int64_t step, t_enxframe* frame) const
 
     /* Get the total number of energy subblocks that AWH needs */
     int numSubblocks = 0;
-    for (auto& biasCoupledToSystem : biasCoupledToSystem_)
+    for (const auto& biasCoupledToSystem : biasCoupledToSystem_)
     {
         numSubblocks += biasCoupledToSystem.bias_.numEnergySubblocksToWrite();
     }
@@ -405,7 +405,7 @@ void Awh::writeToEnergyFrame(int64_t step, t_enxframe* frame) const
 
     /* Transfer AWH data blocks to energy sub blocks */
     int energySubblockCount = 0;
-    for (auto& biasCoupledToSystem : biasCoupledToSystem_)
+    for (const auto& biasCoupledToSystem : biasCoupledToSystem_)
     {
         energySubblockCount += biasCoupledToSystem.bias_.writeToEnergySubblocks(
                 &(awhEnergyBlock->sub[energySubblockCount]));

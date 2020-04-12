@@ -130,8 +130,7 @@ AnalysisDataPointSetRef::AnalysisDataPointSetRef(const AnalysisDataPointSetRef& 
 
 bool AnalysisDataPointSetRef::allPresent() const
 {
-    AnalysisDataValuesRef::const_iterator i;
-    for (i = values_.begin(); i != values_.end(); ++i)
+    for (const auto* i = values_.begin(); i != values_.end(); ++i)
     {
         if (!i->isPresent())
         {
@@ -189,8 +188,7 @@ AnalysisDataFrameRef::AnalysisDataFrameRef(const AnalysisDataFrameRef& frame, in
 bool AnalysisDataFrameRef::allPresent() const
 {
     GMX_ASSERT(isValid(), "Invalid data frame accessed");
-    AnalysisDataValuesRef::const_iterator i;
-    for (i = values_.begin(); i != values_.end(); ++i)
+    for (const auto* i = values_.begin(); i != values_.end(); ++i)
     {
         if (!i->isPresent())
         {

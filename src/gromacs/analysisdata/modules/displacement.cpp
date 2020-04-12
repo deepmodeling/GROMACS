@@ -252,8 +252,6 @@ void AnalysisDataDisplacementModule::frameFinished(const AnalysisDataFrameHeader
         return;
     }
 
-    int step, i;
-
     if (_impl->nstored == 2)
     {
         if (_impl->histm)
@@ -266,6 +264,7 @@ void AnalysisDataDisplacementModule::frameFinished(const AnalysisDataFrameHeader
     AnalysisDataFrameHeader header(_impl->nstored - 2, _impl->t, 0);
     moduleManager().notifyFrameStart(header);
 
+    int step = 0, i = 0;
     for (i = _impl->ci - _impl->nmax, step = 1; step < _impl->nstored && i != _impl->ci;
          i -= _impl->nmax, ++step)
     {
@@ -274,7 +273,7 @@ void AnalysisDataDisplacementModule::frameFinished(const AnalysisDataFrameHeader
             i += _impl->max_store;
         }
         _impl->currValues_.clear();
-        _impl->currValues_.emplace_back(step * _impl->dt);
+        _impl->currValues_.emplace_back(float(step) * _impl->dt);
         int k = 1;
         for (int j = 0; j < _impl->nmax; j += _impl->ndim, ++k)
         {

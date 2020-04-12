@@ -1,4 +1,4 @@
-/*
+const /*
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
@@ -208,7 +208,7 @@ static int n_hydro(gmx::ArrayRef<const int> a, char*** atomname)
 {
     int nh = 0;
 
-    for (auto atom = a.begin(); atom < a.end(); atom += 3)
+    for (const auto* atom = a.begin(); atom < a.end(); atom += 3)
     {
         const char* aname = *atomname[*atom];
         char        c0    = toupper(aname[0]);
@@ -256,7 +256,7 @@ static std::vector<InteractionOfType> clean_dih(gmx::ArrayRef<const InteractionO
          * the .rtp file preceding those that were automatically
          * generated. We remove the latter if the former exist. */
         int i = 0;
-        for (auto dihedral = dih.begin(); dihedral != dih.end(); dihedral++)
+        for (const auto* dihedral = dih.begin(); dihedral != dih.end(); dihedral++)
         {
             /* Keep the dihedrals that were defined in the .rtp file,
              * and the dihedrals that were generated and different
@@ -277,7 +277,7 @@ static std::vector<InteractionOfType> clean_dih(gmx::ArrayRef<const InteractionO
         {
             /* Remove the dihedral if there is an improper on the same
              * bond. */
-            for (auto imp = improper.begin(); imp != improper.end() && bKeep; ++imp)
+            for (const auto* imp = improper.begin(); imp != improper.end() && bKeep; ++imp)
             {
                 bKeep = !is_dihedral_on_same_bond(dihedral->first, *imp);
             }

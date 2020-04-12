@@ -2634,7 +2634,7 @@ static void combine_nblists(gmx::ArrayRef<const NbnxnPairlistGpu> nbls, NbnxnPai
     int nsci  = nblc->sci.size();
     int ncj4  = nblc->cj4.size();
     int nexcl = nblc->excl.size();
-    for (auto& nbl : nbls)
+    for (const auto& nbl : nbls)
     {
         nsci += nbl.sci.size();
         ncj4 += nbl.cj4.size();
@@ -2695,7 +2695,7 @@ static void combine_nblists(gmx::ArrayRef<const NbnxnPairlistGpu> nbls, NbnxnPai
         GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
 
-    for (auto& nbl : nbls)
+    for (const auto& nbl : nbls)
     {
         nblc->nci_tot += nbl.nci_tot;
     }
@@ -4246,7 +4246,7 @@ void PairlistSets::construct(const InteractionLocality iLocality,
 void nonbonded_verlet_t::constructPairlist(const InteractionLocality iLocality,
                                            const ListOfLists<int>&   exclusions,
                                            int64_t                   step,
-                                           t_nrnb*                   nrnb)
+                                           t_nrnb*                   nrnb) const
 {
     pairlistSets_->construct(iLocality, pairSearch_.get(), nbat.get(), exclusions, step, nrnb);
 

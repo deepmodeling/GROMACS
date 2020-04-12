@@ -72,7 +72,7 @@ bool ForceProviders::hasForceProvider() const
 void ForceProviders::calculateForces(const ForceProviderInput& forceProviderInput,
                                      ForceProviderOutput*      forceProviderOutput) const
 {
-    for (auto provider : impl_->providers_)
+    for (auto* provider : impl_->providers_)
     {
         provider->calculateForces(forceProviderInput, forceProviderOutput);
     }

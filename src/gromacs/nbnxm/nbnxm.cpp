@@ -114,12 +114,12 @@ gmx::ArrayRef<const int> nonbonded_verlet_t::getLocalAtomOrder() const
     return gmx::constArrayRefFromArray(pairSearch_->gridSet().atomIndices().data(), numIndices);
 }
 
-void nonbonded_verlet_t::setLocalAtomOrder()
+void nonbonded_verlet_t::setLocalAtomOrder() const
 {
     pairSearch_->setLocalAtomOrder();
 }
 
-void nonbonded_verlet_t::setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo)
+void nonbonded_verlet_t::setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo) const
 {
     nbnxn_atomdata_set(nbat.get(), pairSearch_->gridSet(), &mdatoms, atomInfo.data());
 }
@@ -231,13 +231,13 @@ real nonbonded_verlet_t::pairlistOuterRadius() const
     return pairlistSets_->params().rlistOuter;
 }
 
-void nonbonded_verlet_t::changePairlistRadii(real rlistOuter, real rlistInner)
+void nonbonded_verlet_t::changePairlistRadii(real rlistOuter, real rlistInner) const
 {
     pairlistSets_->changePairlistRadii(rlistOuter, rlistInner);
 }
 
 void nonbonded_verlet_t::setupGpuShortRangeWork(const gmx::GpuBonded*          gpuBonded,
-                                                const gmx::InteractionLocality iLocality)
+                                                const gmx::InteractionLocality iLocality) const
 {
     if (useGpu() && !emulateGpu())
     {
@@ -245,12 +245,12 @@ void nonbonded_verlet_t::setupGpuShortRangeWork(const gmx::GpuBonded*          g
     }
 }
 
-void nonbonded_verlet_t::atomdata_init_copy_x_to_nbat_x_gpu()
+void nonbonded_verlet_t::atomdata_init_copy_x_to_nbat_x_gpu() const
 {
     Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv);
 }
 
-void nonbonded_verlet_t::insertNonlocalGpuDependency(const gmx::InteractionLocality interactionLocality)
+void nonbonded_verlet_t::insertNonlocalGpuDependency(const gmx::InteractionLocality interactionLocality) const
 {
     Nbnxm::nbnxnInsertNonlocalGpuDependency(gpu_nbv, interactionLocality);
 }

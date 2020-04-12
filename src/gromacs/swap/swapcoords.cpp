@@ -1474,8 +1474,8 @@ t_swap* init_swapcoords(FILE*                       fplog,
         gmx_fatal(FARGS, "Position swapping is only implemented for domain decomposition!");
     }
 
-    auto sc = ir->swap;
-    auto s  = new t_swap();
+    auto* sc = ir->swap;
+    auto* s  = new t_swap();
 
     if (mdrunOptions.rerun)
     {
@@ -1914,7 +1914,7 @@ static void translate_positions(rvec* x, int apm, rvec old_com, rvec new_com, t_
 /*! \brief Write back the modified local positions from the collective array to the official positions. */
 static void apply_modified_positions(swap_group* g, rvec x[])
 {
-    auto collectiveIndex = g->atomset.collectiveIndex().begin();
+    const auto* collectiveIndex = g->atomset.collectiveIndex().begin();
     for (const auto localIndex : g->atomset.localIndex())
     {
         /* Copy the possibly modified position */

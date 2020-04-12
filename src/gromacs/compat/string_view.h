@@ -920,7 +920,7 @@ private:
 #endif
     }
 
-private:
+//private:
     const_pointer data_;
     size_type     size_;
 

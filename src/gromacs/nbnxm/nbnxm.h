@@ -243,7 +243,7 @@ public:
     gmx::ArrayRef<const int> getLocalAtomOrder() const;
 
     //! Sets the order of the local atoms to the order grid atom ordering
-    void setLocalAtomOrder();
+    void setLocalAtomOrder() const;
 
     //! Returns the index position of the atoms on the search grid
     gmx::ArrayRef<const int> getGridIndices() const;
@@ -263,10 +263,10 @@ public:
     void constructPairlist(gmx::InteractionLocality     iLocality,
                            const gmx::ListOfLists<int>& exclusions,
                            int64_t                      step,
-                           t_nrnb*                      nrnb);
+                           t_nrnb*                      nrnb) const;
 
     //! Updates all the atom properties in Nbnxm
-    void setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo);
+    void setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo) const;
 
     /*!\brief Convert the coordinates to NBNXM format for the given locality.
      *
@@ -293,10 +293,10 @@ public:
                                GpuEventSynchronizer*   xReadyOnDevice);
 
     //! Init for GPU version of setup coordinates in Nbnxm
-    void atomdata_init_copy_x_to_nbat_x_gpu();
+    void atomdata_init_copy_x_to_nbat_x_gpu() const;
 
     //! Sync the nonlocal GPU stream with dependent tasks in the local queue.
-    void insertNonlocalGpuDependency(gmx::InteractionLocality interactionLocality);
+    void insertNonlocalGpuDependency(gmx::InteractionLocality interactionLocality) const;
 
     //! Returns a reference to the pairlist sets
     const PairlistSets& pairlistSets() const { return *pairlistSets_; }
@@ -308,7 +308,7 @@ public:
     bool isDynamicPruningStepGpu(int64_t step) const;
 
     //! Dispatches the dynamic pruning kernel for the given locality, for CPU lists
-    void dispatchPruneKernelCpu(gmx::InteractionLocality iLocality, const rvec* shift_vec);
+    void dispatchPruneKernelCpu(gmx::InteractionLocality iLocality, const rvec* shift_vec) const;
 
     //! Dispatches the dynamic pruning kernel for GPU lists
     void dispatchPruneKernelGpu(int64_t step);
@@ -375,13 +375,12 @@ public:
     real pairlistOuterRadius() const;
 
     //! Changes the pair-list outer and inner radius
-    void changePairlistRadii(real rlistOuter, real rlistInner);
+    void changePairlistRadii(real rlistOuter, real rlistInner) const;
 
     //! Set up internal flags that indicate what type of short-range work there is.
-    void setupGpuShortRangeWork(const gmx::GpuBonded* gpuBonded, gmx::InteractionLocality iLocality);
+    void setupGpuShortRangeWork(const gmx::GpuBonded* gpuBonded, gmx::InteractionLocality iLocality) const;
 
     // TODO: Make all data members private
-public:
     //! All data related to the pair lists
     std::unique_ptr<PairlistSets> pairlistSets_;
     //! Working data for constructing the pairlists

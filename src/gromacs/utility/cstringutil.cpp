@@ -306,7 +306,7 @@ unsigned int gmx_string_fullhash_func(const char* s, unsigned int hash_init)
 {
     int c;
 
-    while ((c = (*s++)) != '\0')
+    while (unsigned(c = static_cast<unsigned char>(*s++)) != '\0')
     {
         hash_init = ((hash_init << 5) + hash_init) ^ c; /* (hash * 33) xor c */
     }
@@ -317,7 +317,7 @@ unsigned int gmx_string_hash_func(const char* s, unsigned int hash_init)
 {
     int c;
 
-    while ((c = toupper(*s++)) != '\0')
+    while ((c = toupper(static_cast<unsigned char>(*s++))) != '\0')
     {
         if (isalnum(c))
         {

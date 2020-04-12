@@ -221,7 +221,7 @@ private:
         }
     }
 
-    bool areSimpleValuesOfSameTypeEqual(const KeyValueTreeValue& value1, const KeyValueTreeValue& value2)
+    bool areSimpleValuesOfSameTypeEqual(const KeyValueTreeValue& value1, const KeyValueTreeValue& value2) const
     {
         GMX_ASSERT(value1.type() == value2.type(), "Caller should ensure that types are equal");
         if (value1.isType<bool>())

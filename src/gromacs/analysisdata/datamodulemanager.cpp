@@ -134,7 +134,7 @@ public:
      * calls the notification functions in \p module as if the module had
      * been registered to the data object when the data was added.
      */
-    void presentData(AbstractAnalysisData* data, IAnalysisDataModule* module);
+    void presentData(AbstractAnalysisData* data, IAnalysisDataModule* module) const;
 
     //! List of modules added to the data.
     ModuleList modules_;
@@ -216,7 +216,7 @@ void AnalysisDataModuleManager::Impl::checkModuleProperties(const IAnalysisDataM
     }
 }
 
-void AnalysisDataModuleManager::Impl::presentData(AbstractAnalysisData* data, IAnalysisDataModule* module)
+void AnalysisDataModuleManager::Impl::presentData(AbstractAnalysisData* data, IAnalysisDataModule* module) const
 {
     if (state_ == eNotStarted)
     {

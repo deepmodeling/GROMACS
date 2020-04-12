@@ -193,7 +193,6 @@ private:
      */
     void prepareBiasOutput(const Bias& bias);
 
-private:
     std::vector<AwhEnergyBlock>       block_; /**< The data blocks */
     std::map<AwhOutputEntryType, int> outputTypeToBlock_; /**< Start block index for each variable, -1 when variable should not be written */
 };

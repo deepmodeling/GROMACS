@@ -179,7 +179,7 @@ public:
      * Do conversion from Cal->Joule and from
      * Angstrom -> nm and from a pointer array to arrays to 3*N array.
      */
-    void copyToMDForces();
+    void copyToMDForces() const;
     /*! \brief Return true if any of the forces or indices changed. */
     bool bForcesChanged() const;
     /*! \brief Update the old_f_ind and old_forces arrays to contain the current values. */
@@ -201,7 +201,7 @@ public:
     /*! \brief Creates the molecule start-end position array of molecules in the IMD group. */
     void prepareMoleculesInImdGroup(const gmx_mtop_t* top_global);
     /*! \brief Removes shifts of molecules diffused outside of the box. */
-    void removeMolecularShifts(const matrix box);
+    void removeMolecularShifts(const matrix box) const;
     /*! \brief Initialize arrays used to assemble the positions from the other nodes. */
     void prepareForPositionAssembly(const t_commrec* cr, const rvec x[]);
     /*! \brief Interact with any connected VMD session */
@@ -725,7 +725,7 @@ void ImdSession::Impl::prepareMDForces()
 }
 
 
-void ImdSession::Impl::copyToMDForces()
+void ImdSession::Impl::copyToMDForces() const
 {
     int  i;
     real conversion = CAL2JOULE * NM2A;
@@ -1151,7 +1151,7 @@ static void shift_positions(const matrix box,
 }
 
 
-void ImdSession::Impl::removeMolecularShifts(const matrix box)
+void ImdSession::Impl::removeMolecularShifts(const matrix box) const
 {
     /* for each molecule also present in IMD group */
     for (int i = 0; i < mols.nr; i++)
@@ -1304,7 +1304,7 @@ std::unique_ptr<ImdSession> makeImdSession(const t_inputrec*           ir,
                                            const gmx::StartingBehavior startingBehavior)
 {
     std::unique_ptr<ImdSession> session(new ImdSession(mdlog));
-    auto                        impl = session->impl_.get();
+    auto*                       impl = session->impl_.get();
 
     /* We will allow IMD sessions only if supported by the binary and
        explicitly enabled in the .tpr file */

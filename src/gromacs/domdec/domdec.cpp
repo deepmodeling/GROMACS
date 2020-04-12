@@ -1935,7 +1935,7 @@ static gmx_domdec_comm_t* init_dd_comm()
 /* Returns whether mtop contains constraints and/or vsites */
 static bool systemHasConstraintsOrVsites(const gmx_mtop_t& mtop)
 {
-    auto ilistLoop = gmx_mtop_ilistloop_init(mtop);
+    auto* ilistLoop = gmx_mtop_ilistloop_init(mtop);
     int  nmol;
     while (const InteractionLists* ilists = gmx_mtop_ilistloop_next(ilistLoop, &nmol))
     {

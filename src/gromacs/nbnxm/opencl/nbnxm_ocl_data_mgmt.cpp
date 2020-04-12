@@ -564,7 +564,7 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
 {
     GMX_ASSERT(ic, "Need a valid interaction constants object");
 
-    auto nb            = new NbnxmGpu();
+    auto* nb            = new NbnxmGpu();
     nb->deviceContext_ = &deviceStreamManager.context();
     snew(nb->atdat, 1);
     snew(nb->nbparam, 1);
@@ -910,16 +910,17 @@ void gpu_free(NbnxmGpu* nb)
     }
 
     /* Free kernels */
-    int kernel_count = sizeof(nb->kernel_ener_noprune_ptr) / sizeof(nb->kernel_ener_noprune_ptr[0][0]);
+    int kernel_count = sizeof(nb->kernel_ener_noprune_ptr) / sizeof(decltype(nb->kernel_ener_noprune_ptr[0][0]));
+    fprintf(stderr, "kernel_count: %d\n", kernel_count);
     free_kernels(nb->kernel_ener_noprune_ptr[0], kernel_count);
 
-    kernel_count = sizeof(nb->kernel_ener_prune_ptr) / sizeof(nb->kernel_ener_prune_ptr[0][0]);
+    kernel_count = sizeof(nb->kernel_ener_prune_ptr) / sizeof(decltype(nb->kernel_ener_prune_ptr[0][0]));
     free_kernels(nb->kernel_ener_prune_ptr[0], kernel_count);
 
-    kernel_count = sizeof(nb->kernel_noener_noprune_ptr) / sizeof(nb->kernel_noener_noprune_ptr[0][0]);
+    kernel_count = sizeof(nb->kernel_noener_noprune_ptr) / sizeof(decltype(nb->kernel_noener_noprune_ptr[0][0]));
     free_kernels(nb->kernel_noener_noprune_ptr[0], kernel_count);
 
-    kernel_count = sizeof(nb->kernel_noener_prune_ptr) / sizeof(nb->kernel_noener_prune_ptr[0][0]);
+    kernel_count = sizeof(nb->kernel_noener_prune_ptr) / sizeof(decltype(nb->kernel_noener_prune_ptr[0][0]));
     free_kernels(nb->kernel_noener_prune_ptr[0], kernel_count);
 
     free_kernel(&(nb->kernel_zero_e_fshift));

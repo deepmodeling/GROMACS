@@ -1994,7 +1994,7 @@ int pdb2gmx::run()
     {
         int si               = swap_index[i];
         chains[i].chainid    = pdb_ch[si].chainid;
-        chains[i].chainnum   = pdb_ch[si].chainnum;
+        chains[i].chainnum   = static_cast<unsigned char>(pdb_ch[si].chainnum);
         chains[i].bAllWat    = pdb_ch[si].bAllWat;
         chains[i].nterpairs  = pdb_ch[si].nterpairs;
         chains[i].chainstart = pdb_ch[si].chainstart;

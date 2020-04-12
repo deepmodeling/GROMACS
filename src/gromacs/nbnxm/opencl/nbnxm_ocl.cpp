@@ -656,7 +656,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
 
     auto*          timingEvent  = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
     constexpr char kernelName[] = "k_calc_nb";
-    const auto     kernel =
+    auto* const    kernel =
             select_nbnxn_kernel(nb, nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy,
                                 (plist->haveFreshList && !nb->timers->interaction[iloc].didPrune));
 
@@ -666,7 +666,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     const int computeFshift = static_cast<int>(stepWork.computeVirial);
     if (useLjCombRule(nb->nbparam->vdwtype))
     {
-        const auto kernelArgs = prepareGpuKernelArguments(
+        auto* const kernelArgs = prepareGpuKernelArguments(
                 kernel, config, &nbparams_params, &adat->xq, &adat->f, &adat->e_lj, &adat->e_el,
                 &adat->fshift, &adat->lj_comb, &adat->shift_vec, &nbp->nbfp_climg2d, &nbp->nbfp_comb_climg2d,
                 &nbp->coulomb_tab_climg2d, &plist->sci, &plist->cj4, &plist->excl, &computeFshift);
@@ -675,7 +675,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     }
     else
     {
-        const auto kernelArgs = prepareGpuKernelArguments(
+        auto* const kernelArgs = prepareGpuKernelArguments(
                 kernel, config, &adat->ntypes, &nbparams_params, &adat->xq, &adat->f, &adat->e_lj,
                 &adat->e_el, &adat->fshift, &adat->atom_types, &adat->shift_vec, &nbp->nbfp_climg2d,
                 &nbp->nbfp_comb_climg2d, &nbp->coulomb_tab_climg2d, &plist->sci, &plist->cj4,
@@ -818,8 +818,8 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
 
     auto*          timingEvent  = bDoTime ? timer->fetchNextEvent() : nullptr;
     constexpr char kernelName[] = "k_pruneonly";
-    const auto     pruneKernel  = selectPruneKernel(nb->kernel_pruneonly, plist->haveFreshList);
-    const auto     kernelArgs   = prepareGpuKernelArguments(pruneKernel, config, &nbparams_params,
+    auto* const    pruneKernel  = selectPruneKernel(nb->kernel_pruneonly, plist->haveFreshList);
+    auto* const    kernelArgs   = prepareGpuKernelArguments(pruneKernel, config, &nbparams_params,
                                                       &adat->xq, &adat->shift_vec, &plist->sci,
                                                       &plist->cj4, &plist->imask, &numParts, &part);
     launchGpuKernel(pruneKernel, config, deviceStream, timingEvent, kernelName, kernelArgs);

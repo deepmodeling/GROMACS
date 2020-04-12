@@ -192,7 +192,7 @@ void prepareGpuKernelArgument(cl_kernel                 kernel,
                               const CurrentArg*         argPtr,
                               const RemainingArgs*... otherArgsPtrs)
 {
-    cl_int gmx_used_in_debug clError = clSetKernelArg(kernel, argIndex, sizeof(CurrentArg), argPtr);
+    cl_int gmx_used_in_debug clError = clSetKernelArg(kernel, argIndex, sizeof(decltype(*argPtr)), argPtr);
     GMX_ASSERT(CL_SUCCESS == clError, ocl_get_error_string(clError).c_str());
 
     // Assert on types not allowed to be passed to a kernel

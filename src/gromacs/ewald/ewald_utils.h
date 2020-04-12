@@ -122,7 +122,7 @@ public:
      * \param[in] box        The current box matrix
      * \param[out] scaledBox Scaled copy of the box matrix.
      */
-    void scaleBox(const matrix box, matrix scaledBox)
+    void scaleBox(const matrix box, matrix scaledBox) const
     {
         GMX_ASSERT(box, "invalid source box pointer");
         GMX_ASSERT(scaledBox, "invalid target box pointer");

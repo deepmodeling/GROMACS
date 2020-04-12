@@ -114,7 +114,7 @@ ResidueType::~ResidueType() {}
 static gmx::compat::optional<gmx::ArrayRef<const ResidueTypeEntry>::const_iterator>
 findResidueEntryWithName(gmx::ArrayRef<const ResidueTypeEntry> entries, const std::string& residueName)
 {
-    auto foundIt =
+    const auto* foundIt =
             std::find_if(entries.begin(), entries.end(), [&residueName](const ResidueTypeEntry& old) {
                 return gmx::equalCaseInsensitive(residueName, old.residueName);
             });

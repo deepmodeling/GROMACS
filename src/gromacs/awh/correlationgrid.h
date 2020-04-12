@@ -149,7 +149,6 @@ public:
      */
     int getNumBlocks() const;
 
-public:
     const double             dtSample;           /**< Time in between samples. */
     const BlockLengthMeasure blockLengthMeasure; /**< The measure for the block length. */
 private:

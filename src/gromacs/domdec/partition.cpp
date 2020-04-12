@@ -552,7 +552,7 @@ static void check_index_consistency(const gmx_domdec_t* dd, int natoms_sys, cons
     int ngl = 0;
     for (int i = 0; i < natoms_sys; i++)
     {
-        if (const auto entry = dd->ga2la->find(i))
+        if (const auto* const entry = dd->ga2la->find(i))
         {
             const int a = entry->la;
             if (a >= numAtomsInZones)
@@ -3152,7 +3152,7 @@ void dd_partition_system(FILE*                        fplog,
     /* Update atom data for mdatoms and several algorithms */
     mdAlgorithmsSetupAtomData(cr, ir, top_global, top_local, fr, f, mdAtoms, constr, vsite, nullptr);
 
-    auto mdatoms = mdAtoms->mdatoms();
+    auto* mdatoms = mdAtoms->mdatoms();
     if (!thisRankHasDuty(cr, DUTY_PME))
     {
         /* Send the charges and/or c6/sigmas to our PME only node */

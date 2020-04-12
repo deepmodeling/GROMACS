@@ -370,7 +370,7 @@ static void draw_boxes(t_psdata* ps, real x0, real y0, real w, gmx::ArrayRef<t_m
     ps_rgb(ps, BLACK);
     ps_linewidth(ps, static_cast<int>(psr->boxlinewidth));
     yy00 = y0;
-    for (auto m = mat.begin(); m != mat.end(); ++m)
+    for (auto* m = mat.begin(); m != mat.end(); ++m)
     {
         dy = box_height(*m, psr);
         ps_box(ps, x0 - 1, yy00 - 1, x0 + w + 1, yy00 + dy + 1);
@@ -379,10 +379,10 @@ static void draw_boxes(t_psdata* ps, real x0, real y0, real w, gmx::ArrayRef<t_m
 
     /* Draw the ticks on the axes */
     ps_linewidth(ps, static_cast<int>(psr->ticklinewidth));
-    xx00         = x0 - 1;
-    yy00         = y0 - 1;
-    auto halfway = mat.begin() + (mat.size() / 2);
-    for (auto m = mat.begin(); m != mat.end(); ++m)
+    xx00          = x0 - 1;
+    yy00          = y0 - 1;
+    auto* halfway = mat.begin() + (mat.size() / 2);
+    for (auto* m = mat.begin(); m != mat.end(); ++m)
     {
         if (m->flags & MAT_SPATIAL_X)
         {
@@ -517,7 +517,7 @@ static void draw_zerolines(t_psdata* out, real x0, real y0, real w, gmx::ArrayRe
     xx00 = x0 - 1.5;
     yy00 = y0 - 1.5;
     ps_linewidth(out, static_cast<int>(psr->zerolinewidth));
-    for (auto m = mat.begin(); m != mat.end(); ++m)
+    for (auto* m = mat.begin(); m != mat.end(); ++m)
     {
         dy = box_height(*m, psr);
         /* m->axis_x and _y were already set by draw_boxes */
