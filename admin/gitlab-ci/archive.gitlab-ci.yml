@@ -112,7 +112,6 @@ archive:configure:nightly:
     - .docs:configure
     - .rules:nightly-not-for-release
   stage: nightly-configure
-  dependencies: []
   variables:
     BUILD_DIR: build-package
     CMAKE_SIMD_OPTIONS: -DGMX_SIMD=None
