@@ -2952,15 +2952,6 @@ static bool canMake1DDomainDecomposition(const DDSettings&              ddSettin
     return canMake1DDD;
 }
 
-bool is1D(const gmx_domdec_t& dd)
-{
-    const int maxDimensionSize = std::max(dd.numCells[XX], std::max(dd.numCells[YY], dd.numCells[ZZ]));
-    const int  productOfDimensionSizes      = dd.numCells[XX] * dd.numCells[YY] * dd.numCells[ZZ];
-    const bool decompositionHasOneDimension = (maxDimensionSize == productOfDimensionSizes);
-
-    return decompositionHasOneDimension;
-}
-
 namespace gmx
 {
 
@@ -3227,9 +3218,8 @@ void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
     GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedNonLocal),
                        "Non-local non-bonded stream should be valid when using "
                        "GPU halo exchange.");
-    int gpuHaloExchangeSize = 0;
-    int pulseStart          = 0;
-    if (cr.dd->gpuHaloExchange.empty())
+
+    if (cr.dd->gpuHaloExchange[0].empty())
     {
         GMX_LOG(mdlog.warning)
                 .asParagraph()
@@ -3238,17 +3228,13 @@ void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
                         "by the "
                         "GMX_GPU_DD_COMMS environment variable.");
     }
-    else
+
+    for (int d = 0; d < cr.dd->ndim; d++)
     {
-        gpuHaloExchangeSize = static_cast<int>(cr.dd->gpuHaloExchange.size());
-        pulseStart          = gpuHaloExchangeSize - 1;
-    }
-    if (cr.dd->comm->cd[0].numPulses() > gpuHaloExchangeSize)
-    {
-        for (int pulse = pulseStart; pulse < cr.dd->comm->cd[0].numPulses(); pulse++)
+        for (int pulse = cr.dd->gpuHaloExchange[d].size(); pulse < cr.dd->comm->cd[d].numPulses(); pulse++)
         {
-            cr.dd->gpuHaloExchange.push_back(std::make_unique<gmx::GpuHaloExchange>(
-                    cr.dd, cr.mpi_comm_mysim, deviceStreamManager.context(),
+            cr.dd->gpuHaloExchange[d].push_back(std::make_unique<gmx::GpuHaloExchange>(
+                    cr.dd, d, cr.mpi_comm_mysim, deviceStreamManager.context(),
                     deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal),
                     deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal), pulse, wcycle));
         }
@@ -3259,9 +3245,12 @@ void reinitGpuHaloExchange(const t_commrec&              cr,
                            const DeviceBuffer<gmx::RVec> d_coordinatesBuffer,
                            const DeviceBuffer<gmx::RVec> d_forcesBuffer)
 {
-    for (int pulse = 0; pulse < cr.dd->comm->cd[0].numPulses(); pulse++)
+    for (int d = 0; d < cr.dd->ndim; d++)
     {
-        cr.dd->gpuHaloExchange[pulse]->reinitHalo(d_coordinatesBuffer, d_forcesBuffer);
+        for (int pulse = 0; pulse < cr.dd->comm->cd[d].numPulses(); pulse++)
+        {
+            cr.dd->gpuHaloExchange[d][pulse]->reinitHalo(d_coordinatesBuffer, d_forcesBuffer);
+        }
     }
 }
 
@@ -3269,16 +3258,22 @@ void communicateGpuHaloCoordinates(const t_commrec&      cr,
                                    const matrix          box,
                                    GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
-    for (int pulse = 0; pulse < cr.dd->comm->cd[0].numPulses(); pulse++)
+    for (int d = 0; d < cr.dd->ndim; d++)
     {
-        cr.dd->gpuHaloExchange[pulse]->communicateHaloCoordinates(box, coordinatesReadyOnDeviceEvent);
+        for (int pulse = 0; pulse < cr.dd->comm->cd[d].numPulses(); pulse++)
+        {
+            cr.dd->gpuHaloExchange[d][pulse]->communicateHaloCoordinates(box, coordinatesReadyOnDeviceEvent);
+        }
     }
 }
 
 void communicateGpuHaloForces(const t_commrec& cr, bool accumulateForces)
 {
-    for (int pulse = cr.dd->comm->cd[0].numPulses() - 1; pulse >= 0; pulse--)
+    for (int d = cr.dd->ndim - 1; d >= 0; d--)
     {
-        cr.dd->gpuHaloExchange[pulse]->communicateHaloForces(accumulateForces);
+        for (int pulse = cr.dd->comm->cd[d].numPulses() - 1; pulse >= 0; pulse--)
+        {
+            cr.dd->gpuHaloExchange[d][pulse]->communicateHaloForces(accumulateForces);
+        }
     }
 }
