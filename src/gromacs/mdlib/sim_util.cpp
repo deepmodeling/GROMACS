@@ -1099,19 +1099,6 @@ void do_force(FILE*                               fplog,
         haveCopiedXFromGpu = true;
     }
 
-#if GMX_MPI
-    // If coordinates are to be sent to PME task from GPU memory, perform that send here.
-    // Otherwise the send will occur before the H2D coordinate transfer.
-    if (pmeSendCoordinatesFromGpu)
-    {
-        /* Send particle coordinates to the pme nodes */
-        gmx_pme_send_coordinates(fr, cr, box, as_rvec_array(x.unpaddedArrayRef().data()), lambda[efptCOUL],
-                                 lambda[efptVDW], (stepWork.computeVirial || stepWork.computeEnergy),
-                                 step, simulationWork.useGpuPmePpCommunication, reinitGpuPmePpComms,
-                                 pmeSendCoordinatesFromGpu, localXReadyOnDevice, wcycle);
-    }
-#endif /* GMX_MPI */
-
     if (useGpuPmeOnThisRank)
     {
         launchPmeGpuSpread(fr->pmedata, box, stepWork, localXReadyOnDevice, wcycle);
@@ -1263,6 +1250,19 @@ void do_force(FILE*                               fplog,
         wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
         wallcycle_stop(wcycle, ewcLAUNCH_GPU);
     }
+
+#if GMX_MPI
+    // If coordinates are to be sent to PME task from GPU memory, perform that send here.
+    // Otherwise the send will occur before the H2D coordinate transfer.
+    if (pmeSendCoordinatesFromGpu)
+    {
+        /* Send particle coordinates to the pme nodes */
+        gmx_pme_send_coordinates(fr, cr, box, as_rvec_array(x.unpaddedArrayRef().data()), lambda[efptCOUL],
+                                 lambda[efptVDW], (stepWork.computeVirial || stepWork.computeEnergy),
+                                 step, simulationWork.useGpuPmePpCommunication, reinitGpuPmePpComms,
+                                 pmeSendCoordinatesFromGpu, localXReadyOnDevice, wcycle);
+    }
+#endif /* GMX_MPI */
 
     if (useGpuPmeOnThisRank)
     {
@@ -1594,6 +1594,19 @@ void do_force(FILE*                               fplog,
         }
     }
 
+    // If on GPU PME-PP comms or GPU update path, receive forces from PME before GPU buffer ops
+    // TODO refactor this and unify with below default-path call to the same function
+    if (PAR(cr) && !thisRankHasDuty(cr, DUTY_PME)
+        && (simulationWork.useGpuPmePpCommunication || simulationWork.useGpuUpdate))
+    {
+        /* In case of node-splitting, the PP nodes receive the long-range
+         * forces, virial and energy from the PME nodes here.
+         */
+        pme_receive_force_ener(fr, cr, &forceOut.forceWithVirial(), enerd,
+                               simulationWork.useGpuPmePpCommunication,
+                               stepWork.useGpuPmeFReduction, wcycle);
+    }
+
     if (havePPDomainDecomposition(cr))
     {
         /* We are done with the CPU compute.
@@ -1678,20 +1691,6 @@ void do_force(FILE*                               fplog,
                      DOMAINDECOMP(cr) ? enbvClearFNo : enbvClearFYes, step, nrnb, wcycle);
         wallcycle_stop(wcycle, ewcFORCE);
     }
-
-    // If on GPU PME-PP comms or GPU update path, receive forces from PME before GPU buffer ops
-    // TODO refactor this and unify with below default-path call to the same function
-    if (PAR(cr) && !thisRankHasDuty(cr, DUTY_PME)
-        && (simulationWork.useGpuPmePpCommunication || simulationWork.useGpuUpdate))
-    {
-        /* In case of node-splitting, the PP nodes receive the long-range
-         * forces, virial and energy from the PME nodes here.
-         */
-        pme_receive_force_ener(fr, cr, &forceOut.forceWithVirial(), enerd,
-                               simulationWork.useGpuPmePpCommunication,
-                               stepWork.useGpuPmeFReduction, wcycle);
-    }
-
 
     /* Do the nonbonded GPU (or emulation) force buffer reduction
      * on the non-alternating path. */
