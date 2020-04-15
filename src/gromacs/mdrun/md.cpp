@@ -1302,6 +1302,18 @@ void gmx::LegacySimulator::do_md()
         }
         else
         {
+            /* With multiple time stepping we need to do an additional normal
+             * update step to obtain the virial, as the actual MTS integration
+             * using an acceleration where the fast forces a multiplied by mtsFactor.
+             */
+            if (fr->useMts && bCalcVir && constr != nullptr)
+            {
+                upd.update_for_constraint_virial(*ir, *mdatoms, *state, f.view().forceWithPadding(), *ekind);
+
+                constrain_coordinates(constr, do_log, do_ene, step, state,
+                                      upd.xp()->arrayRefWithPadding(), &dvdl_constr, bCalcVir, shake_vir);
+            }
+
             ArrayRefWithPadding<const RVec> forceCombined =
                     (fr->useMts && step % ir->mtsLevels[1].stepFactor == 0)
                             ? f.view().forceMtsCombinedWithPadding()
@@ -1311,8 +1323,8 @@ void gmx::LegacySimulator::do_md()
 
             wallcycle_stop(wcycle, ewcUPDATE);
 
-            constrain_coordinates(constr, do_log, do_ene, step, state,
-                                  upd.xp()->arrayRefWithPadding(), &dvdl_constr, bCalcVir, shake_vir);
+            constrain_coordinates(constr, do_log, do_ene, step, state, upd.xp()->arrayRefWithPadding(),
+                                  &dvdl_constr, bCalcVir && !fr->useMts, shake_vir);
 
             upd.update_sd_second_half(*ir, step, &dvdl_constr, mdatoms, state, cr, nrnb, wcycle,
                                       constr, do_log, do_ene);
