@@ -458,6 +458,24 @@ void StatePropagatorDataGpu::Impl::copyForcesToGpu(const gmx::ArrayRef<const gmx
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
 }
 
+void StatePropagatorDataGpu::Impl::copyForcesToGpuInUpdateStream(const gmx::ArrayRef<const gmx::RVec> h_f,
+                                                   AtomLocality atomLocality)
+{
+    GMX_ASSERT(atomLocality < AtomLocality::Count, "Wrong atom locality.");
+    const DeviceStream* deviceStream = updateStream_;
+    GMX_ASSERT(commandStream != nullptr,
+               "No stream is valid for copying forces with given atom locality.");
+
+    wallcycle_start_nocount(wcycle_, ewcLAUNCH_GPU);
+    wallcycle_sub_start(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
+
+    copyToDevice(d_f_, h_f, d_fSize_, atomLocality, *deviceStream);
+    fReadyOnDevice_[atomLocality].markEvent(*deviceStream);
+
+    wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
+    wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
+}
+
 GpuEventSynchronizer* StatePropagatorDataGpu::Impl::getForcesReadyOnDeviceEvent(AtomLocality atomLocality,
                                                                                 bool useGpuFBufferOps)
 {
@@ -626,6 +644,12 @@ DeviceBuffer<RVec> StatePropagatorDataGpu::getForces()
 void StatePropagatorDataGpu::copyForcesToGpu(const gmx::ArrayRef<const gmx::RVec> h_f, AtomLocality atomLocality)
 {
     return impl_->copyForcesToGpu(h_f, atomLocality);
+}
+
+
+void StatePropagatorDataGpu::copyForcesToGpuInUpdateStream(const gmx::ArrayRef<const gmx::RVec> h_f, AtomLocality atomLocality)
+{
+    return impl_->copyForcesToGpuInUpdateStream(h_f, atomLocality);
 }
 
 GpuEventSynchronizer* StatePropagatorDataGpu::getForcesReadyOnDeviceEvent(AtomLocality atomLocality,

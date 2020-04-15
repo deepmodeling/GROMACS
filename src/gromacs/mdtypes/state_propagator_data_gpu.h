@@ -266,6 +266,8 @@ public:
      *  \param[in] atomLocality  Locality of the particles to copy.
      */
     void copyForcesToGpu(gmx::ArrayRef<const gmx::RVec> h_f, AtomLocality atomLocality);
+    
+    void copyForcesToGpuInUpdateStream(gmx::ArrayRef<const gmx::RVec> h_f, AtomLocality atomLocality);
 
     /*! \brief Get the event synchronizer for the forces ready on device.
      *

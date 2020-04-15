@@ -1553,6 +1553,16 @@ void do_force(FILE*                               fplog,
                 wallcycle_stop(wcycle, ewcFORCE);
             }
 
+            if (useGpuForcesHaloExchange)
+            {
+                if (domainWork.haveCpuLocalForceWork)
+                {
+                    stateGpu->copyForcesToGpuInUpdateStream(forceOut.forceWithShiftForces().force(), AtomLoca\
+lity::Local);
+                }
+            }
+
+
             if (stepWork.useGpuFBufferOps)
             {
                 gmx::FixedCapacityVector<GpuEventSynchronizer*, 1> dependencyList;
@@ -1621,10 +1631,6 @@ void do_force(FILE*                               fplog,
 
             if (useGpuForcesHaloExchange)
             {
-                if (domainWork.haveCpuLocalForceWork)
-                {
-                    stateGpu->copyForcesToGpu(forceOut.forceWithShiftForces().force(), AtomLocality::Local);
-                }
                 communicateGpuHaloForces(*cr, domainWork.haveCpuLocalForceWork);
             }
             else

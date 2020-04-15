@@ -261,6 +261,8 @@ public:
      */
     void copyForcesToGpu(gmx::ArrayRef<const gmx::RVec> h_f, AtomLocality atomLocality);
 
+    void copyForcesToGpuInUpdateStream(gmx::ArrayRef<const gmx::RVec> h_f, AtomLocality atomLocality);
+     
     /*! \brief Get the event synchronizer for the forces ready on device.
      *
      *  Returns either of the event synchronizers, depending on the offload scenario
