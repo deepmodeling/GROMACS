@@ -61,6 +61,7 @@
 #include "gromacs/mdlib/stat.h"
 #include "gromacs/mdlib/update.h"
 #include "gromacs/mdrun/replicaexchange.h"
+#include "gromacs/mdrun/simulatorbuilder.h"
 #include "gromacs/mdrun/shellfc.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 #include "gromacs/mdrunutility/printtime.h"
@@ -94,6 +95,86 @@
 
 namespace gmx
 {
+
+
+//! Constructor implementation (here to avoid template-related linker problems)
+ModularSimulator::ModularSimulator(FILE*                               fplog,
+                                   t_commrec*                          cr,
+                                   const gmx_multisim_t*               ms,
+                                   const MDLogger&                     mdlog,
+                                   int                                 nfile,
+                                   const t_filenm*                     fnm,
+                                   const gmx_output_env_t*             oenv,
+                                   const MdrunOptions&                 mdrunOptions,
+                                   StartingBehavior                    startingBehavior,
+                                   gmx_vsite_t*                        vsite,
+                                   Constraints*                        constr,
+                                   gmx_enfrot*                         enforcedRotation,
+                                   BoxDeformation*                     deform,
+                                   IMDOutputProvider*                  outputProvider,
+                                   const MdModulesNotifier&            mdModulesNotifier,
+                                   t_inputrec*                         inputrec,
+                                   ImdSession*                         imdSession,
+                                   pull_t*                             pull_work,
+                                   t_swap*                             swap,
+                                   gmx_mtop_t*                         top_global,
+                                   t_fcdata*                           fcd,
+                                   t_state*                            state_global,
+                                   ObservablesHistory*                 observablesHistory,
+                                   MDAtoms*                            mdAtoms,
+                                   t_nrnb*                             nrnb,
+                                   gmx_wallcycle*                      wcycle,
+                                   t_forcerec*                         fr,
+                                   gmx_enerdata_t*                     enerd,
+                                   gmx_ekindata_t*                     ekind,
+                                   MdrunScheduleWorkload*              runScheduleWork,
+                                   const ReplicaExchangeParameters&    replExParams,
+                                   gmx_membed_t*                       membed,
+                                   gmx_walltime_accounting*            walltime_accounting,
+                                   std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
+                                   bool                                doRerun) :
+    fplog(fplog),
+    cr(cr),
+    ms(ms),
+    mdlog(mdlog),
+    nfile(nfile),
+    fnm(fnm),
+    oenv(oenv),
+    mdrunOptions(mdrunOptions),
+    startingBehavior(startingBehavior),
+    vsite(vsite),
+    constr(constr),
+    enforcedRotation(enforcedRotation),
+    deform(deform),
+    outputProvider(outputProvider),
+    mdModulesNotifier(mdModulesNotifier),
+    inputrec(inputrec),
+    imdSession(imdSession),
+    pull_work(pull_work),
+    swap(swap),
+    top_global(top_global),
+    fcd(fcd),
+    state_global(state_global),
+    observablesHistory(observablesHistory),
+    mdAtoms(mdAtoms),
+    nrnb(nrnb),
+    wcycle(wcycle),
+    fr(fr),
+    enerd(enerd),
+    ekind(ekind),
+    runScheduleWork(runScheduleWork),
+    replExParams(replExParams),
+    membed(membed),
+    walltime_accounting(walltime_accounting),
+    stopHandlerBuilder(std::move(stopHandlerBuilder)),
+    doRerun(doRerun)
+{
+    nstglobalcomm_ = computeGlobalCommunicationPeriod(mdlog, inputrec, cr);
+    signalHelper_  = std::make_unique<SignalHelper>();
+    checkInputForDisabledFunctionality();
+}
+
+
 void ModularSimulator::run()
 {
     GMX_LOG(mdlog.info).asParagraph().appendText("Using the modular simulator.");
@@ -965,5 +1046,57 @@ SignallerCallbackPtr ModularSimulator::SignalHelper::registerNSCallback()
 {
     return std::make_unique<SignallerCallback>(
             [this](Step step, Time gmx_unused time) { this->nextNSStep_ = step; });
+}
+
+// Question: Is ModularSimulator a public interface that needs its details
+// (like the complex constructor) marked 'private'? Or should we reduce its
+// exposure and make the constructor public so that Builder does not have to
+// be a member type?
+// Note that the signature with all of the internal type parameters uses names
+// that shadow the members in the ModularSimulator class, but this will be resolved
+// by works in progress to remove the parameters from build() to add() functions.
+std::unique_ptr<ISimulator> ModularSimulator::Builder::build(FILE*                   fplog,
+                                                             t_commrec*              cr,
+                                                             const gmx_multisim_t*   ms,
+                                                             const MDLogger&         mdlog,
+                                                             int                     nfile,
+                                                             const t_filenm*         fnm,
+                                                             const gmx_output_env_t* oenv,
+                                                             const MdrunOptions&     mdrunOptions,
+                                                             StartingBehavior   startingBehavior,
+                                                             gmx_vsite_t*       vsite,
+                                                             Constraints*       constr,
+                                                             gmx_enfrot*        enforcedRotation,
+                                                             BoxDeformation*    deform,
+                                                             IMDOutputProvider* outputProvider,
+                                                             const MdModulesNotifier& mdModulesNotifier,
+                                                             t_inputrec*              inputrec,
+                                                             ImdSession*              imdSession,
+                                                             pull_t*                  pull_work,
+                                                             t_swap*                  swap,
+                                                             gmx_mtop_t*              top_global,
+                                                             t_fcdata*                fcd,
+                                                             t_state*                 state_global,
+                                                             ObservablesHistory* observablesHistory,
+                                                             MDAtoms*            mdAtoms,
+                                                             t_nrnb*             nrnb,
+                                                             gmx_wallcycle*      wcycle,
+                                                             t_forcerec*         fr,
+                                                             gmx_enerdata_t*     enerd,
+                                                             gmx_ekindata_t*     ekind,
+                                                             MdrunScheduleWorkload* runScheduleWork,
+                                                             const ReplicaExchangeParameters& replExParams,
+                                                             gmx_membed_t*            membed,
+                                                             gmx_walltime_accounting* walltime_accounting,
+                                                             std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
+                                                             bool doRerun)
+{
+    auto simulator = ModularSimulator(
+            fplog, cr, ms, mdlog, nfile, fnm, oenv, mdrunOptions, startingBehavior, vsite, constr,
+            enforcedRotation, deform, outputProvider, mdModulesNotifier, inputrec, imdSession,
+            pull_work, swap, top_global, fcd, state_global, observablesHistory, mdAtoms, nrnb,
+            wcycle, fr, enerd, ekind, runScheduleWork, replExParams, membed, walltime_accounting,
+            std::move(stopHandlerBuilder), doRerun);
+    return std::make_unique<ModularSimulator>(std::move(simulator));
 }
 } // namespace gmx

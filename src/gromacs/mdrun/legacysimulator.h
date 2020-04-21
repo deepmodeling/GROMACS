@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -50,12 +50,16 @@
 #include "gromacs/utility/real.h"
 
 #include "isimulator.h"
+#include "simulatorbuilder.h"
+#include "simulatorbuilder_detail.h"
 
 namespace gmx
 {
 
 //! Function type for simulator code.
 using SimulatorFunctionType = void();
+
+class LegacySimulatorBuilder;
 
 /*! \internal
  * \brief Struct to handle setting up and running the different simulation types.
@@ -73,6 +77,88 @@ using SimulatorFunctionType = void();
  */
 class LegacySimulator : public ISimulator
 {
+public:
+    LegacySimulator(LegacySimulator&&) = default;
+    ~LegacySimulator() override        = default;
+
+    /*! \brief Function to run the correct SimulatorFunctionType,
+     * based on the .mdp integrator field. */
+    void run() override;
+
+    // The only client of this complex constructor is an instance of the Builder.
+    LegacySimulator(FILE*                               fplog,
+                    t_commrec*                          cr,
+                    const gmx_multisim_t*               ms,
+                    const MDLogger&                     mdlog,
+                    int                                 nfile,
+                    const t_filenm*                     fnm,
+                    const gmx_output_env_t*             oenv,
+                    const MdrunOptions&                 mdrunOptions,
+                    StartingBehavior                    startingBehavior,
+                    gmx_vsite_t*                        vsite,
+                    Constraints*                        constr,
+                    gmx_enfrot*                         enforcedRotation,
+                    BoxDeformation*                     deform,
+                    IMDOutputProvider*                  outputProvider,
+                    const MdModulesNotifier&            mdModulesNotifier,
+                    t_inputrec*                         inputrec,
+                    ImdSession*                         imdSession,
+                    pull_t*                             pull_work,
+                    t_swap*                             swap,
+                    gmx_mtop_t*                         top_global,
+                    t_fcdata*                           fcd,
+                    t_state*                            state_global,
+                    ObservablesHistory*                 observablesHistory,
+                    MDAtoms*                            mdAtoms,
+                    t_nrnb*                             nrnb,
+                    gmx_wallcycle*                      wcycle,
+                    t_forcerec*                         fr,
+                    gmx_enerdata_t*                     enerd,
+                    gmx_ekindata_t*                     ekind,
+                    MdrunScheduleWorkload*              runScheduleWork,
+                    const ReplicaExchangeParameters&    replExParams,
+                    gmx_membed_t*                       membed,
+                    gmx_walltime_accounting*            walltime_accounting,
+                    std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
+                    bool                                doRerun) :
+        fplog(fplog),
+        cr(cr),
+        ms(ms),
+        mdlog(mdlog),
+        nfile(nfile),
+        fnm(fnm),
+        oenv(oenv),
+        mdrunOptions(mdrunOptions),
+        startingBehavior(startingBehavior),
+        vsite(vsite),
+        constr(constr),
+        enforcedRotation(enforcedRotation),
+        deform(deform),
+        outputProvider(outputProvider),
+        mdModulesNotifier(mdModulesNotifier),
+        inputrec(inputrec),
+        imdSession(imdSession),
+        pull_work(pull_work),
+        swap(swap),
+        top_global(top_global),
+        fcd(fcd),
+        state_global(state_global),
+        observablesHistory(observablesHistory),
+        mdAtoms(mdAtoms),
+        nrnb(nrnb),
+        wcycle(wcycle),
+        fr(fr),
+        enerd(enerd),
+        ekind(ekind),
+        runScheduleWork(runScheduleWork),
+        replExParams(replExParams),
+        membed(membed),
+        walltime_accounting(walltime_accounting),
+        stopHandlerBuilder(std::move(stopHandlerBuilder)),
+        doRerun(doRerun)
+    {
+    }
+
 private:
     //! Implements the normal MD simulations.
     SimulatorFunctionType do_md;
@@ -90,17 +176,120 @@ private:
     SimulatorFunctionType do_tpi;
     //! Implements MiMiC QM/MM workflow
     SimulatorFunctionType do_mimic;
-    // Use the constructor of the base class
-    using ISimulator::ISimulator;
 
-public:
-    // Only builder can construct
-    friend class SimulatorBuilder;
-
-    /*! \brief Function to run the correct SimulatorFunctionType,
-     * based on the .mdp integrator field. */
-    void run() override;
+    //! Handles logging.
+    FILE* fplog;
+    //! Handles communication.
+    t_commrec* cr;
+    //! Coordinates multi-simulations.
+    const gmx_multisim_t* ms;
+    //! Handles logging.
+    const MDLogger& mdlog;
+    //! Count of input file options.
+    int nfile;
+    //! Content of input file options.
+    const t_filenm* fnm;
+    //! Handles writing text output.
+    const gmx_output_env_t* oenv;
+    //! Contains command-line options to mdrun.
+    const MdrunOptions& mdrunOptions;
+    //! Whether the simulation will start afresh, or restart with/without appending.
+    StartingBehavior startingBehavior;
+    //! Handles virtual sites.
+    gmx_vsite_t* vsite;
+    //! Handles constraints.
+    Constraints* constr;
+    //! Handles enforced rotation.
+    gmx_enfrot* enforcedRotation;
+    //! Handles box deformation.
+    BoxDeformation* deform;
+    //! Handles writing output files.
+    IMDOutputProvider* outputProvider;
+    //! Handles notifications to MdModules for checkpoint writing
+    const MdModulesNotifier& mdModulesNotifier;
+    //! Contains user input mdp options.
+    t_inputrec* inputrec;
+    //! The Interactive Molecular Dynamics session.
+    ImdSession* imdSession;
+    //! The pull work object.
+    pull_t* pull_work;
+    //! The coordinate-swapping session.
+    t_swap* swap;
+    //! Full system topology.
+    const gmx_mtop_t* top_global;
+    //! Helper struct for force calculations.
+    t_fcdata* fcd;
+    //! Full simulation state (only non-nullptr on master rank).
+    t_state* state_global;
+    //! History of simulation observables.
+    ObservablesHistory* observablesHistory;
+    //! Atom parameters for this domain.
+    MDAtoms* mdAtoms;
+    //! Manages flop accounting.
+    t_nrnb* nrnb;
+    //! Manages wall cycle accounting.
+    gmx_wallcycle* wcycle;
+    //! Parameters for force calculations.
+    t_forcerec* fr;
+    //! Data for energy output.
+    gmx_enerdata_t* enerd;
+    //! Kinetic energy data.
+    gmx_ekindata_t* ekind;
+    //! Schedule of work for each MD step for this task.
+    MdrunScheduleWorkload* runScheduleWork;
+    //! Parameters for replica exchange algorihtms.
+    const ReplicaExchangeParameters& replExParams;
+    //! Parameters for membrane embedding.
+    gmx_membed_t* membed;
+    //! Manages wall time accounting.
+    gmx_walltime_accounting* walltime_accounting;
+    //! Registers stop conditions
+    std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder;
+    //! Whether we're doing a rerun.
+    bool doRerun;
 };
+
+
+class LegacySimulatorBuilder : public SimulatorBuilderImplementation
+{
+public:
+    std::unique_ptr<ISimulator> build(FILE*                               fplog,
+                                      t_commrec*                          cr,
+                                      const gmx_multisim_t*               ms,
+                                      const MDLogger&                     mdlog,
+                                      int                                 nfile,
+                                      const t_filenm*                     fnm,
+                                      const gmx_output_env_t*             oenv,
+                                      const MdrunOptions&                 mdrunOptions,
+                                      StartingBehavior                    startingBehavior,
+                                      gmx_vsite_t*                        vsite,
+                                      Constraints*                        constr,
+                                      gmx_enfrot*                         enforcedRotation,
+                                      BoxDeformation*                     deform,
+                                      IMDOutputProvider*                  outputProvider,
+                                      const MdModulesNotifier&            mdModulesNotifier,
+                                      t_inputrec*                         inputrec,
+                                      ImdSession*                         imdSession,
+                                      pull_t*                             pull_work,
+                                      t_swap*                             swap,
+                                      gmx_mtop_t*                         top_global,
+                                      t_fcdata*                           fcd,
+                                      t_state*                            state_global,
+                                      ObservablesHistory*                 observablesHistory,
+                                      MDAtoms*                            mdAtoms,
+                                      t_nrnb*                             nrnb,
+                                      gmx_wallcycle*                      wcycle,
+                                      t_forcerec*                         fr,
+                                      gmx_enerdata_t*                     enerd,
+                                      gmx_ekindata_t*                     ekind,
+                                      MdrunScheduleWorkload*              runScheduleWork,
+                                      const ReplicaExchangeParameters&    replExParams,
+                                      gmx_membed_t*                       membed,
+                                      gmx_walltime_accounting*            walltime_accounting,
+                                      std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
+                                      bool                                doRerun) override;
+};
+
 
 } // namespace gmx
 

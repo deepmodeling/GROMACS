@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,9 +46,11 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/utility/exceptions.h"
+#include "gromacs/mdrun/simulatorbuilder.h"
 
 namespace gmx
 {
+
 //! \brief Run the correct integrator function.
 void LegacySimulator::run()
 {
@@ -98,6 +100,51 @@ void LegacySimulator::run()
         case eiSD2_REMOVED: GMX_THROW(NotImplementedError("SD2 integrator has been removed"));
         default: GMX_THROW(APIError("Non existing integrator selected"));
     }
+}
+
+std::unique_ptr<ISimulator> LegacySimulatorBuilder::build(FILE*                    fplog,
+                                                          t_commrec*               cr,
+                                                          const gmx_multisim_t*    ms,
+                                                          const MDLogger&          mdlog,
+                                                          int                      nfile,
+                                                          const t_filenm*          fnm,
+                                                          const gmx_output_env_t*  oenv,
+                                                          const MdrunOptions&      mdrunOptions,
+                                                          StartingBehavior         startingBehavior,
+                                                          gmx_vsite_t*             vsite,
+                                                          Constraints*             constr,
+                                                          gmx_enfrot*              enforcedRotation,
+                                                          BoxDeformation*          deform,
+                                                          IMDOutputProvider*       outputProvider,
+                                                          const MdModulesNotifier& mdModulesNotifier,
+                                                          t_inputrec*              inputrec,
+                                                          ImdSession*              imdSession,
+                                                          pull_t*                  pull_work,
+                                                          t_swap*                  swap,
+                                                          gmx_mtop_t*              top_global,
+                                                          t_fcdata*                fcd,
+                                                          t_state*                 state_global,
+                                                          ObservablesHistory*    observablesHistory,
+                                                          MDAtoms*               mdAtoms,
+                                                          t_nrnb*                nrnb,
+                                                          gmx_wallcycle*         wcycle,
+                                                          t_forcerec*            fr,
+                                                          gmx_enerdata_t*        enerd,
+                                                          gmx_ekindata_t*        ekind,
+                                                          MdrunScheduleWorkload* runScheduleWork,
+                                                          const ReplicaExchangeParameters& replExParams,
+                                                          gmx_membed_t*                    membed,
+                                                          gmx_walltime_accounting* walltime_accounting,
+                                                          std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
+                                                          bool doRerun)
+{
+    LegacySimulator simulator(fplog, cr, ms, mdlog, nfile, fnm, oenv, mdrunOptions,
+                              startingBehavior, vsite, constr, enforcedRotation, deform,
+                              outputProvider, mdModulesNotifier, inputrec, imdSession, pull_work,
+                              swap, top_global, fcd, state_global, observablesHistory, mdAtoms,
+                              nrnb, wcycle, fr, enerd, ekind, runScheduleWork, replExParams, membed,
+                              walltime_accounting, std::move(stopHandlerBuilder), doRerun);
+    return std::make_unique<LegacySimulator>(std::move(simulator));
 }
 
 } // namespace gmx

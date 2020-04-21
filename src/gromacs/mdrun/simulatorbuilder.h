@@ -32,7 +32,7 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \internal
+/*! \file
  * \brief Declares the simulator builder for mdrun
  *
  * \author Pascal Merz <pascal.merz@me.com>
@@ -43,11 +43,8 @@
 
 #include <memory>
 
-#include "gromacs/modularsimulator/modularsimulator.h"
-
-#include "legacysimulator.h"
-
 class energyhistory_t;
+struct gmx_ekindata_t;
 struct gmx_enerdata_t;
 struct gmx_enfrot;
 struct gmx_mtop_t;
@@ -79,9 +76,20 @@ class IMDOutputProvider;
 class ImdSession;
 class MDLogger;
 class MDAtoms;
+struct MdModulesNotifier;
 class ISimulator;
 class StopHandlerBuilder;
 struct MdrunOptions;
+
+//! Express the intended Simulator code path.
+enum class SimulatorVersion
+{
+    ModularSimulator,
+    LegacySimulator
+};
+
+// Forward declaration for implementation detail
+class SimulatorBuilderImplementation;
 
 /*! \libinternal
  * \brief Class preparing the creation of Simulator objects
@@ -94,6 +102,9 @@ struct MdrunOptions;
 class SimulatorBuilder
 {
 public:
+    //! SimulatorBuilders are acquired through the getSimulatorBuilder() creation helper.
+    explicit SimulatorBuilder(std::unique_ptr<SimulatorBuilderImplementation> impl);
+
     /*! \brief Build a Simulator object based on input data
      *
      * Return a pointer to a simulation object. The use of a parameter
@@ -102,8 +113,7 @@ public:
      *
      * @return  Unique pointer to a Simulator object
      */
-    std::unique_ptr<ISimulator> build(bool                                useModularSimulator,
-                                      FILE*                               fplog,
+    std::unique_ptr<ISimulator> build(FILE*                               fplog,
                                       t_commrec*                          cr,
                                       const gmx_multisim_t*               ms,
                                       const MDLogger&                     mdlog,
@@ -138,66 +148,12 @@ public:
                                       gmx_walltime_accounting*            walltime_accounting,
                                       std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
                                       bool                                doRerun);
+
+private:
+    std::unique_ptr<SimulatorBuilderImplementation> impl_;
 };
 
-// The build function will use members in a future change, and so should not be static.
-//! Build a Simulator object
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-std::unique_ptr<ISimulator> SimulatorBuilder::build(bool                     useModularSimulator,
-                                                    FILE*                    fplog,
-                                                    t_commrec*               cr,
-                                                    const gmx_multisim_t*    ms,
-                                                    const MDLogger&          mdlog,
-                                                    int                      nfile,
-                                                    const t_filenm*          fnm,
-                                                    const gmx_output_env_t*  oenv,
-                                                    const MdrunOptions&      mdrunOptions,
-                                                    StartingBehavior         startingBehavior,
-                                                    gmx_vsite_t*             vsite,
-                                                    Constraints*             constr,
-                                                    gmx_enfrot*              enforcedRotation,
-                                                    BoxDeformation*          deform,
-                                                    IMDOutputProvider*       outputProvider,
-                                                    const MdModulesNotifier& mdModulesNotifier,
-                                                    t_inputrec*              inputrec,
-                                                    ImdSession*              imdSession,
-                                                    pull_t*                  pull_work,
-                                                    t_swap*                  swap,
-                                                    gmx_mtop_t*              top_global,
-                                                    t_fcdata*                fcd,
-                                                    t_state*                 state_global,
-                                                    ObservablesHistory*      observablesHistory,
-                                                    MDAtoms*                 mdAtoms,
-                                                    t_nrnb*                  nrnb,
-                                                    gmx_wallcycle*           wcycle,
-                                                    t_forcerec*              fr,
-                                                    gmx_enerdata_t*          enerd,
-                                                    gmx_ekindata_t*          ekind,
-                                                    MdrunScheduleWorkload*   runScheduleWork,
-                                                    const ReplicaExchangeParameters& replExParams,
-                                                    gmx_membed_t*                    membed,
-                                                    gmx_walltime_accounting* walltime_accounting,
-                                                    std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder,
-                                                    bool                                doRerun)
-{
-    if (useModularSimulator)
-    {
-        // NOLINTNEXTLINE(modernize-make-unique): make_unique does not work with private constructor
-        return std::unique_ptr<ModularSimulator>(new ModularSimulator(
-                fplog, cr, ms, mdlog, nfile, fnm, oenv, mdrunOptions, startingBehavior, vsite,
-                constr, enforcedRotation, deform, outputProvider, mdModulesNotifier, inputrec,
-                imdSession, pull_work, swap, top_global, fcd, state_global, observablesHistory,
-                mdAtoms, nrnb, wcycle, fr, enerd, ekind, runScheduleWork, replExParams, membed,
-                walltime_accounting, std::move(stopHandlerBuilder), doRerun));
-    }
-    // NOLINTNEXTLINE(modernize-make-unique): make_unique does not work with private constructor
-    return std::unique_ptr<LegacySimulator>(new LegacySimulator(
-            fplog, cr, ms, mdlog, nfile, fnm, oenv, mdrunOptions, startingBehavior, vsite, constr,
-            enforcedRotation, deform, outputProvider, mdModulesNotifier, inputrec, imdSession,
-            pull_work, swap, top_global, fcd, state_global, observablesHistory, mdAtoms, nrnb,
-            wcycle, fr, enerd, ekind, runScheduleWork, replExParams, membed, walltime_accounting,
-            std::move(stopHandlerBuilder), doRerun));
-}
+SimulatorBuilder getSimulatorBuilder(SimulatorVersion simulatorChoice);
 
 } // namespace gmx
 

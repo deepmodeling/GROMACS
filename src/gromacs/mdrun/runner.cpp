@@ -124,6 +124,7 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/nbnxm/pairlist_tuning.h"
@@ -893,6 +894,10 @@ int Mdrunner::mdrunner()
     const DevelopmentFeatureFlags devFlags =
             manageDevelopmentFeatures(mdlog, useGpuForNonbonded, pmeRunMode);
 
+    // Warning: This helper function uses templating that requires a fully
+    // defined ModularSimulator type. To decouple from modularsimulator.h, the
+    // helper function and its dependencies could be factored out into a public
+    // function that is less coupled to the ModularSimulator details.
     const bool useModularSimulator = checkUseModularSimulator(
             false, inputrec, doRerun, mtop, ms, replExParams, nullptr, doEssentialDynamics, doMembed);
 
@@ -1632,12 +1637,24 @@ int Mdrunner::mdrunner()
         }
 
         GMX_ASSERT(stopHandlerBuilder_, "Runner must provide StopHandlerBuilder to simulator.");
-        SimulatorBuilder simulatorBuilder;
+
+        // Note: this could be merged with the checkUseModularSimulator() helper and local
+        // useModularSimulator boolean.
+        SimulatorVersion simulatorVersion;
+        if (useModularSimulator)
+        {
+            simulatorVersion = SimulatorVersion::ModularSimulator;
+        }
+        else
+        {
+            simulatorVersion = SimulatorVersion::LegacySimulator;
+        }
+        SimulatorBuilder simulatorBuilder = getSimulatorBuilder(simulatorVersion);
 
         // build and run simulator object based on user-input
         auto simulator = simulatorBuilder.build(
-                useModularSimulator, fplog, cr, ms, mdlog, static_cast<int>(filenames.size()),
-                filenames.data(), oenv, mdrunOptions, startingBehavior, vsite.get(), constr.get(),
+                fplog, cr, ms, mdlog, static_cast<int>(filenames.size()), filenames.data(), oenv,
+                mdrunOptions, startingBehavior, vsite.get(), constr.get(),
                 enforcedRotation ? enforcedRotation->getLegacyEnfrot() : nullptr, deform.get(),
                 mdModules_->outputProvider(), mdModules_->notifier(), inputrec, imdSession.get(),
                 pull_work, swap, &mtop, fcd, globalState.get(), &observablesHistory, mdAtoms.get(),
