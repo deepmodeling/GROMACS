@@ -513,6 +513,22 @@ if (GMX_HWLOC)
     set(HWLOC_FIND_QUIETLY_AFTER_FIRST_RUN TRUE CACHE INTERNAL "Be quiet during future attempts to find HWLOC")
 endif()
 
+option(GMX_USE_SYCL "Use SYCL for compiling code for devices." OFF)
+mark_as_advanced(GMX_USE_SYCL)
+if(GMX_USE_SYCL)
+    # Try to find SYCL
+    if (SYCL_FIND_QUIETLY_AFTER_FIRST_RUN)
+        set(SYCL_FIND_QUIETLY TRUE)
+    endif()
+    find_package(SYCL) # Decide on minimal version to detect.
+    if (NOT SYCL_FOUND)
+        message(FATAL_ERROR "Could not find SYCL installation to use.")
+    endif()
+    include_directories(SYSTEM ${SYCL_INCLUDE_DIRS})
+    list(APPEND GMX_EXTRA_LIBRARIES ${SYCL_LIBRARIES})
+    set(SYCL_FIND_QUIETLY_AFTER_FIRST_RUN TRUE CACHE INTERNAL "Be quiet during future attempts to find SYCL")
+endif()
+
 option(GMX_EXTERNAL_TINYXML2 "Use external TinyXML-2 instead of compiling the version bundled with GROMACS." OFF)
 mark_as_advanced(GMX_EXTERNAL_TINYXML2)
 if(GMX_EXTERNAL_TINYXML2)
