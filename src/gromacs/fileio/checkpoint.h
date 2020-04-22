@@ -60,7 +60,7 @@ struct t_trxframe;
 namespace gmx
 {
 
-struct MdModulesNotifier;
+struct CheckpointingNotification;
 class KeyValueTreeObject;
 
 /*! \brief Read to a key-value-tree value used for checkpointing.
@@ -238,23 +238,23 @@ struct CheckpointHeaderContents
  * Appends the _step<step>.cpt with bNumberAndKeep,
  * otherwise moves the previous <fn>.cpt to <fn>_prev.cpt
  */
-void write_checkpoint(const char*                   fn,
-                      gmx_bool                      bNumberAndKeep,
-                      FILE*                         fplog,
-                      const t_commrec*              cr,
-                      ivec                          domdecCells,
-                      int                           nppnodes,
-                      int                           eIntegrator,
-                      int                           simulation_part,
-                      gmx_bool                      bExpanded,
-                      int                           elamstats,
-                      int64_t                       step,
-                      double                        t,
-                      t_state*                      state,
-                      ObservablesHistory*           observablesHistory,
-                      const gmx::MdModulesNotifier& notifier,
-                      bool                          applyMpiBarrierBeforeRename,
-                      MPI_Comm                      mpiBarrierCommunicator);
+void write_checkpoint(const char*                           fn,
+                      gmx_bool                              bNumberAndKeep,
+                      FILE*                                 fplog,
+                      const t_commrec*                      cr,
+                      ivec                                  domdecCells,
+                      int                                   nppnodes,
+                      int                                   eIntegrator,
+                      int                                   simulation_part,
+                      gmx_bool                              bExpanded,
+                      int                                   elamstats,
+                      int64_t                               step,
+                      double                                t,
+                      t_state*                              state,
+                      ObservablesHistory*                   observablesHistory,
+                      const gmx::CheckpointingNotification& checkpointingNotifier,
+                      bool                                  applyMpiBarrierBeforeRename,
+                      MPI_Comm                              mpiBarrierCommunicator);
 
 /* Loads a checkpoint from fn for run continuation.
  * Generates a fatal error on system size mismatch.
@@ -263,15 +263,15 @@ void write_checkpoint(const char*                   fn,
  * but not the state itself.
  * With reproducibilityRequested warns about version, build, #ranks differences.
  */
-void load_checkpoint(const char*                   fn,
-                     t_fileio*                     logfio,
-                     const t_commrec*              cr,
-                     const ivec                    dd_nc,
-                     t_inputrec*                   ir,
-                     t_state*                      state,
-                     ObservablesHistory*           observablesHistory,
-                     gmx_bool                      reproducibilityRequested,
-                     const gmx::MdModulesNotifier& mdModulesNotifier);
+void load_checkpoint(const char*                           fn,
+                     t_fileio*                             logfio,
+                     const t_commrec*                      cr,
+                     const ivec                            dd_nc,
+                     t_inputrec*                           ir,
+                     t_state*                              state,
+                     ObservablesHistory*                   observablesHistory,
+                     gmx_bool                              reproducibilityRequested,
+                     const gmx::CheckpointingNotification& checkpointNotifier);
 
 /* Read everything that can be stored in t_trxframe from a checkpoint file */
 void read_checkpoint_trxframe(struct t_fileio* fp, t_trxframe* fr);

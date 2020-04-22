@@ -120,6 +120,8 @@ public:
     void subscribeToSimulationSetupNotifications(MdModulesNotifier* notifier) override;
     //! Subscribe to pre processing notifications
     void subscribeToPreProcessingNotifications(MdModulesNotifier* notifier) override;
+    //! Subcribe to checkpointing notifications
+    void subscribeToCheckpointingNotifications(CheckpointingNotification* notifier) override;
 
 private:
     /*!

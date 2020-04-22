@@ -914,6 +914,7 @@ int Mdrunner::mdrunner()
     mdModules_->assignOptionsToModules(*inputrec->params, nullptr);
     // now that the MdModules know their options, they know which callbacks to sign up to
     mdModules_->subscribeToSimulationSetupNotifications();
+    mdModules_->subscribeToCheckpointingNotifications();
     const auto& mdModulesNotifier = mdModules_->notifier().simulationSetupNotifications_;
 
     if (inputrec->internalParameters != nullptr)
@@ -1070,7 +1071,7 @@ int Mdrunner::mdrunner()
 
         load_checkpoint(opt2fn_master("-cpi", filenames.size(), filenames.data(), cr),
                         logFileHandle, cr, domdecOptions.numCells, inputrec, globalState.get(),
-                        &observablesHistory, mdrunOptions.reproducible, mdModules_->notifier());
+                        &observablesHistory, mdrunOptions.reproducible, mdModules_->checkpoint());
 
         if (startingBehavior == StartingBehavior::RestartWithAppending && logFileHandle)
         {

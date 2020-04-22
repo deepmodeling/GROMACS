@@ -198,6 +198,8 @@ void RestraintMDModule::subscribeToSimulationSetupNotifications(MdModulesNotifie
 
 void RestraintMDModule::subscribeToPreProcessingNotifications(MdModulesNotifier* /*notifier*/) {}
 
+void RestraintMDModule::subscribeToCheckpointingNotifications(CheckpointingNotification* /*notifier*/){};
+
 // private constructor to implement static create() method.
 RestraintMDModule::RestraintMDModule(std::unique_ptr<RestraintMDModuleImpl> restraint) :
     impl_{ std::move(restraint) }

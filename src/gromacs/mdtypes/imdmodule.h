@@ -52,6 +52,7 @@ class ForceProviders;
 class IMDOutputProvider;
 class IMdpOptionProvider;
 struct MdModulesNotifier;
+struct CheckpointingNotification;
 
 /*! \libinternal \brief
  * Extension module for \Gromacs simulations.
@@ -78,6 +79,8 @@ public:
     virtual void subscribeToSimulationSetupNotifications(MdModulesNotifier* notifier) = 0;
     //! Subscribe to pre processing notifications
     virtual void subscribeToPreProcessingNotifications(MdModulesNotifier* notifier) = 0;
+    //! Subscribe to checkpointing notifications
+    virtual void subscribeToCheckpointingNotifications(CheckpointingNotification* notifier) = 0;
 };
 
 } // namespace gmx

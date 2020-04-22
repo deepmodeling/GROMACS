@@ -291,9 +291,9 @@ void gmx::LegacySimulator::do_md()
     {
         pleaseCiteCouplingAlgorithms(fplog, *ir);
     }
-    gmx_mdoutf* outf =
-            init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider, mdModulesNotifier, ir,
-                        top_global, oenv, wcycle, startingBehavior, simulationsShareState, ms);
+    gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
+                                   checkpointingNotification, ir, top_global, oenv, wcycle,
+                                   startingBehavior, simulationsShareState, ms);
     gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, ir, pull_work,
                                    mdoutf_get_fp_dhdl(outf), false, startingBehavior, mdModulesNotifier);
 

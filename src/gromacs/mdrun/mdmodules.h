@@ -58,6 +58,7 @@ class IKeyValueTreeErrorHandler;
 class IKeyValueTreeTransformRules;
 class IMDModule;
 class IMDOutputProvider;
+struct CheckpointingNotification;
 struct MdModulesNotifier;
 
 /*! \libinternal \brief
@@ -160,6 +161,13 @@ public:
      */
     void subscribeToPreProcessingNotifications();
 
+    /*! \brief Subscribe MdModules to notifications for checkpointing.
+     *
+     * Allows MdModules to subscribe to notifications that are called back
+     * during checkpointing an MD simulation.
+     */
+    void subscribeToCheckpointingNotifications();
+
     /*!
      * \brief Add a module to the container.
      *
@@ -187,6 +195,12 @@ public:
     /*! \brief Return a handle to the callbacks.
      */
     const MdModulesNotifier& notifier();
+
+    /*! \brief Return a handle to the checkpointing callbacks.
+     * \todo move the CheckpointingNotification out of MdModule into a
+     *       separate checkpointing class
+     */
+    const CheckpointingNotification& checkpoint();
 
 private:
     class Impl;

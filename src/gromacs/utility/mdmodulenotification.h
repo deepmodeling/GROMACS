@@ -59,9 +59,6 @@ class KeyValueTreeObject;
 class KeyValueTreeObjectBuilder;
 class LocalAtomSetManager;
 class IndexGroupsAndNames;
-struct MdModulesCheckpointReadingDataOnMaster;
-struct MdModulesCheckpointReadingBroadcast;
-struct MdModulesWriteCheckpointData;
 
 /*! \libinternal \brief Check if module outputs energy to a specific field.
  *
@@ -124,7 +121,6 @@ struct SimulationTimeStep
  * The members of the struct represent callbacks at these run-times:
  *
  *  When pre-processing the simulation data
- *  When reading and writing check-pointing data
  *  When setting up simulation after reading in the tpr file
  *
    \msc
@@ -174,22 +170,6 @@ struct MdModulesNotifier
      *                           .tpr files.
      */
     registerMdModuleNotification<EnergyCalculationFrequencyErrors*, IndexGroupsAndNames, KeyValueTreeObjectBuilder>::type preProcessingNotifications_;
-
-    /*! \brief Checkpointing callback functions.
-     *
-     * MdModulesCheckpointReadingDataOnMaster provides modules with their
-     *                                        checkpointed data on the master
-     *                                        node and checkpoint file version
-     * MdModulesCheckpointReadingBroadcast provides modules with a communicator
-     *                                     and the checkpoint file version to
-     *                                     distribute their data
-     * MdModulesWriteCheckpointData provides the modules with a key-value-tree
-     *                              builder to store their checkpoint data and
-     *                              the checkpoint file version
-     */
-    registerMdModuleNotification<MdModulesCheckpointReadingDataOnMaster,
-                                 MdModulesCheckpointReadingBroadcast,
-                                 MdModulesWriteCheckpointData>::type checkpointingNotifications_;
 
     /*! \brief Callbacks during simulation setup.
      *

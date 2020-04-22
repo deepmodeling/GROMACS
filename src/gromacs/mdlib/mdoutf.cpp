@@ -83,19 +83,19 @@ struct gmx_mdoutf
     gmx_wallcycle_t               wcycle;
     rvec*                         f_global;
     gmx::IMDOutputProvider*       outputProvider;
-    const gmx::MdModulesNotifier* mdModulesNotifier;
+    const gmx::CheckpointingNotification* checkpointingNotifier;
     bool                          simulationsShareState;
     MPI_Comm                      mpiCommMasters;
 };
 
 
-gmx_mdoutf_t init_mdoutf(FILE*                         fplog,
-                         int                           nfile,
-                         const t_filenm                fnm[],
-                         const gmx::MdrunOptions&      mdrunOptions,
-                         const t_commrec*              cr,
-                         gmx::IMDOutputProvider*       outputProvider,
-                         const gmx::MdModulesNotifier& mdModulesNotifier,
+gmx_mdoutf_t init_mdoutf(FILE*                                 fplog,
+                         int                                   nfile,
+                         const t_filenm                        fnm[],
+                         const gmx::MdrunOptions&              mdrunOptions,
+                         const t_commrec*                      cr,
+                         gmx::IMDOutputProvider*               outputProvider,
+                         const gmx::CheckpointingNotification& checkpointingNotifier,
                          const t_inputrec*             ir,
                          const gmx_mtop_t*             top_global,
                          const gmx_output_env_t*       oenv,
@@ -209,7 +209,7 @@ gmx_mdoutf_t init_mdoutf(FILE*                         fplog,
         }
 
         outputProvider->initOutput(fplog, nfile, fnm, restartWithAppending, oenv);
-        of->mdModulesNotifier = &mdModulesNotifier;
+        of->checkpointingNotifier = &checkpointingNotifier;
 
         /* Set up atom counts so they can be passed to actual
            trajectory-writing routines later. Also, XTC writing needs
@@ -319,7 +319,7 @@ void mdoutf_write_to_trajectory_files(FILE*                    fplog,
                              DOMAINDECOMP(cr) ? cr->dd->numCells : one_ivec,
                              DOMAINDECOMP(cr) ? cr->dd->nnodes : cr->nnodes, of->eIntegrator,
                              of->simulation_part, of->bExpanded, of->elamstats, step, t,
-                             state_global, observablesHistory, *(of->mdModulesNotifier),
+                             state_global, observablesHistory, *(of->checkpointingNotifier),
                              of->simulationsShareState, of->mpiCommMasters);
         }
 

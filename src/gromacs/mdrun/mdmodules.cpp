@@ -50,6 +50,7 @@
 #include "gromacs/options/optionsection.h"
 #include "gromacs/options/treesupport.h"
 #include "gromacs/swap/swapcoords.h"
+#include "gromacs/utility/checkpointingnotification.h"
 #include "gromacs/utility/keyvaluetree.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
 #include "gromacs/utility/keyvaluetreetransform.h"
@@ -97,6 +98,13 @@ public:
      *       not be destructed before the modules are destructed.
      */
     MdModulesNotifier notifier_;
+
+    /*! \brief Manages callbacks for checkpointing and notifies the MD modules.
+     *
+     * \note The notifier must be constructed before the modules and shall
+     *       not be destructed before the modules are destructed.
+     */
+    CheckpointingNotification checkpointingNotification_;
 
     std::unique_ptr<IMDModule>      densityFitting_;
     std::unique_ptr<IMDModule>      field_;
@@ -184,6 +192,11 @@ void MDModules::subscribeToSimulationSetupNotifications()
     impl_->densityFitting_->subscribeToSimulationSetupNotifications(&impl_->notifier_);
 }
 
+void MDModules::subscribeToCheckpointingNotifications()
+{
+    impl_->densityFitting_->subscribeToCheckpointingNotifications(&impl_->checkpointingNotification_);
+}
+
 void MDModules::add(std::shared_ptr<gmx::IMDModule> module)
 {
     impl_->modules_.emplace_back(std::move(module));
@@ -192,6 +205,11 @@ void MDModules::add(std::shared_ptr<gmx::IMDModule> module)
 const MdModulesNotifier& MDModules::notifier()
 {
     return impl_->notifier_;
+}
+
+const CheckpointingNotification& MDModules::checkpoint()
+{
+    return impl_->checkpointingNotification_;
 }
 
 } // namespace gmx

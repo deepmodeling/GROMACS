@@ -1084,7 +1084,7 @@ void LegacySimulator::do_cg()
             &top, nrnb, fr, mdAtoms, &gstat, vsite, constr, nullptr);
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
-                                   mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
+                                   checkpointingNotification, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
     gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work, nullptr,
                                    false, StartingBehavior::NewSimulation, mdModulesNotifier);
@@ -1697,7 +1697,7 @@ void LegacySimulator::do_lbfgs()
             &ems, &top, nrnb, fr, mdAtoms, &gstat, vsite, constr, nullptr);
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
-                                   mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
+                                   checkpointingNotification, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
     gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work, nullptr,
                                    false, StartingBehavior::NewSimulation, mdModulesNotifier);
@@ -2376,7 +2376,7 @@ void LegacySimulator::do_steep()
             &top, nrnb, fr, mdAtoms, &gstat, vsite, constr, nullptr);
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
-                                   mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
+                                   checkpointingNotification, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
     gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work, nullptr,
                                    false, StartingBehavior::NewSimulation, mdModulesNotifier);
@@ -2619,7 +2619,7 @@ void LegacySimulator::do_nm()
             &state_work, &top, nrnb, fr, mdAtoms, &gstat, vsite, constr, &shellfc);
     const bool  simulationsShareState = false;
     gmx_mdoutf* outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
-                                   mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
+                                   checkpointingNotification, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
 
     std::vector<int>       atom_index = get_atom_index(top_global);

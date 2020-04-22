@@ -479,8 +479,8 @@ void ModularSimulator::constructElementsAndSignallers()
     trajectorySignallerBuilder.registerSignallerClient(compat::make_not_null(energySignaller.get()));
     loggingSignallerBuilder.registerSignallerClient(compat::make_not_null(energySignaller.get()));
     auto trajectoryElement = trajectoryElementBuilder.build(
-            fplog, nfile, fnm, mdrunOptions, cr, outputProvider, mdModulesNotifier, inputrec,
-            top_global, oenv, wcycle, startingBehavior, simulationsShareState);
+            fplog, nfile, fnm, mdrunOptions, cr, outputProvider, checkpointingNotification,
+            inputrec, top_global, oenv, wcycle, startingBehavior, simulationsShareState);
     loggingSignallerBuilder.registerSignallerClient(compat::make_not_null(trajectoryElement.get()));
     trajectorySignallerBuilder.registerSignallerClient(compat::make_not_null(trajectoryElement.get()));
     auto trajectorySignaller = trajectorySignallerBuilder.build(

@@ -173,6 +173,7 @@ public:
 
     void subscribeToSimulationSetupNotifications(MdModulesNotifier* /* notifier */) override {}
     void subscribeToPreProcessingNotifications(MdModulesNotifier* /* notifier */) override {}
+    void subscribeToCheckpointingNotifications(CheckpointingNotification* /*notifier*/) override {}
 
 private:
     //! Return whether or not to apply a field

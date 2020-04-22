@@ -53,6 +53,7 @@
 #include "gromacs/math/coordinatetransformation.h"
 #include "gromacs/math/multidimarray.h"
 #include "gromacs/mdtypes/imdmodule.h"
+#include "gromacs/utility/checkpointingnotification.h"
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
@@ -322,7 +323,14 @@ public:
                     this->setEnergyOutputRequest(energyOutputRequest);
                 };
         notifier->simulationSetupNotifications_.subscribe(requestEnergyOutput);
+    }
 
+    void subscribeToCheckpointingNotifications(CheckpointingNotification* notifier) override
+    {
+        if (!densityFittingOptions_.active())
+        {
+            return;
+        }
         // writing checkpoint data
         const auto checkpointDataWriting = [this](MdModulesWriteCheckpointData checkpointData) {
             forceProvider_->writeCheckpointData(checkpointData, DensityFittingModuleInfo::name_);

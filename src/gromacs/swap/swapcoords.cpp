@@ -128,6 +128,7 @@ class SwapCoordinates final : public IMDModule
     void                initForceProviders(ForceProviders* /* forceProviders */) override {}
     void subscribeToSimulationSetupNotifications(MdModulesNotifier* /* notifier */) override {}
     void subscribeToPreProcessingNotifications(MdModulesNotifier* /* notifier */) override {}
+    void subscribeToCheckpointingNotifications(CheckpointingNotification* /*notifier*/) override {}
 };
 
 std::unique_ptr<IMDModule> createSwapCoordinatesModule()

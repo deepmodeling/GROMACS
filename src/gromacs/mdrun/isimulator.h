@@ -72,6 +72,7 @@ class Constraints;
 class MdrunScheduleWorkload;
 class IMDOutputProvider;
 struct MdModulesNotifier;
+struct CheckpointingNotification;
 class ImdSession;
 class MDLogger;
 class MDAtoms;
@@ -113,6 +114,7 @@ public:
                BoxDeformation*                     deform,
                IMDOutputProvider*                  outputProvider,
                const MdModulesNotifier&            mdModulesNotifier,
+               const CheckpointingNotification&    checkpointingNotification,
                t_inputrec*                         inputrec,
                ImdSession*                         imdSession,
                pull_t*                             pull_work,
@@ -147,6 +149,7 @@ public:
         deform(deform),
         outputProvider(outputProvider),
         mdModulesNotifier(mdModulesNotifier),
+        checkpointingNotification(checkpointingNotification),
         inputrec(inputrec),
         imdSession(imdSession),
         pull_work(pull_work),
@@ -198,8 +201,10 @@ protected:
     BoxDeformation* deform;
     //! Handles writing output files.
     IMDOutputProvider* outputProvider;
-    //! Handles notifications to MdModules for checkpoint writing
+    //! Handles notifications to MdModules for energy writing
     const MdModulesNotifier& mdModulesNotifier;
+    //! Handles notifications to MdModules for checkpoint writing
+    const CheckpointingNotification& checkpointingNotification;
     //! Contains user input mdp options.
     t_inputrec* inputrec;
     //! The Interactive Molecular Dynamics session.

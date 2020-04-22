@@ -76,6 +76,7 @@
 #include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/baseversion.h"
+#include "gromacs/utility/checkpointingnotification.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"
@@ -84,7 +85,6 @@
 #include "gromacs/utility/keyvaluetree.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
 #include "gromacs/utility/keyvaluetreeserializer.h"
-#include "gromacs/utility/mdmodulenotification.h"
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/sysinfo.h"
@@ -2117,9 +2117,9 @@ static int do_cpt_awh(XDR* xd, gmx_bool bRead, int fflags, gmx::AwhHistory* awhH
     return ret;
 }
 
-static void do_cpt_mdmodules(int                           fileVersion,
-                             t_fileio*                     checkpointFileHandle,
-                             const gmx::MdModulesNotifier& mdModulesNotifier)
+static void do_cpt_mdmodules(int                                   fileVersion,
+                             t_fileio*                             checkpointFileHandle,
+                             const gmx::CheckpointingNotification& checkpointingNotifier)
 {
     if (fileVersion >= cptv_MdModules)
     {
@@ -2129,7 +2129,7 @@ static void do_cpt_mdmodules(int                           fileVersion,
         gmx::MdModulesCheckpointReadingDataOnMaster mdModuleCheckpointReadingDataOnMaster = {
             mdModuleCheckpointParameterTree, fileVersion
         };
-        mdModulesNotifier.checkpointingNotifications_.notify(mdModuleCheckpointReadingDataOnMaster);
+        checkpointingNotifier.checkpointingNotifications_.notify(mdModuleCheckpointReadingDataOnMaster);
     }
 }
 
@@ -2230,23 +2230,23 @@ static void mpiBarrierBeforeRename(const bool applyMpiBarrierBeforeRename, MPI_C
     }
 }
 
-void write_checkpoint(const char*                   fn,
-                      gmx_bool                      bNumberAndKeep,
-                      FILE*                         fplog,
-                      const t_commrec*              cr,
-                      ivec                          domdecCells,
-                      int                           nppnodes,
-                      int                           eIntegrator,
-                      int                           simulation_part,
-                      gmx_bool                      bExpanded,
-                      int                           elamstats,
-                      int64_t                       step,
-                      double                        t,
-                      t_state*                      state,
-                      ObservablesHistory*           observablesHistory,
-                      const gmx::MdModulesNotifier& mdModulesNotifier,
-                      bool                          applyMpiBarrierBeforeRename,
-                      MPI_Comm                      mpiBarrierCommunicator)
+void write_checkpoint(const char*                           fn,
+                      gmx_bool                              bNumberAndKeep,
+                      FILE*                                 fplog,
+                      const t_commrec*                      cr,
+                      ivec                                  domdecCells,
+                      int                                   nppnodes,
+                      int                                   eIntegrator,
+                      int                                   simulation_part,
+                      gmx_bool                              bExpanded,
+                      int                                   elamstats,
+                      int64_t                               step,
+                      double                                t,
+                      t_state*                              state,
+                      ObservablesHistory*                   observablesHistory,
+                      const gmx::CheckpointingNotification& checkpointingNotifier,
+                      bool                                  applyMpiBarrierBeforeRename,
+                      MPI_Comm                              mpiBarrierCommunicator)
 {
     t_fileio* fp;
     char*     fntemp; /* the temporary checkpoint file name */
@@ -2431,7 +2431,7 @@ void write_checkpoint(const char*                   fn,
         gmx::KeyValueTreeBuilder          builder;
         gmx::MdModulesWriteCheckpointData mdModulesWriteCheckpoint = { builder.rootObject(),
                                                                        headerContents.file_version };
-        mdModulesNotifier.checkpointingNotifications_.notify(mdModulesWriteCheckpoint);
+        checkpointingNotifier.checkpointingNotifications_.notify(mdModulesWriteCheckpoint);
         auto                     tree = builder.build();
         gmx::FileIOXdrSerializer serializer(fp);
         gmx::serializeKeyValueTree(tree, &serializer);
@@ -2655,17 +2655,17 @@ static void check_match(FILE*                           fplog,
     }
 }
 
-static void read_checkpoint(const char*                   fn,
-                            t_fileio*                     logfio,
-                            const t_commrec*              cr,
-                            const ivec                    dd_nc,
-                            int                           eIntegrator,
-                            int*                          init_fep_state,
-                            CheckpointHeaderContents*     headerContents,
-                            t_state*                      state,
-                            ObservablesHistory*           observablesHistory,
-                            gmx_bool                      reproducibilityRequested,
-                            const gmx::MdModulesNotifier& mdModulesNotifier)
+static void read_checkpoint(const char*                           fn,
+                            t_fileio*                             logfio,
+                            const t_commrec*                      cr,
+                            const ivec                            dd_nc,
+                            int                                   eIntegrator,
+                            int*                                  init_fep_state,
+                            CheckpointHeaderContents*             headerContents,
+                            t_state*                              state,
+                            ObservablesHistory*                   observablesHistory,
+                            gmx_bool                              reproducibilityRequested,
+                            const gmx::CheckpointingNotification& checkpointingNotifier)
 {
     t_fileio* fp;
     char      buf[STEPSTRSIZE];
@@ -2845,7 +2845,7 @@ static void read_checkpoint(const char*                   fn,
     {
         cp_error();
     }
-    do_cpt_mdmodules(headerContents->file_version, fp, mdModulesNotifier);
+    do_cpt_mdmodules(headerContents->file_version, fp, checkpointingNotifier);
     ret = do_cpt_footer(gmx_fio_getxdr(fp), headerContents->file_version);
     if (ret)
     {
@@ -2858,22 +2858,22 @@ static void read_checkpoint(const char*                   fn,
 }
 
 
-void load_checkpoint(const char*                   fn,
-                     t_fileio*                     logfio,
-                     const t_commrec*              cr,
-                     const ivec                    dd_nc,
-                     t_inputrec*                   ir,
-                     t_state*                      state,
-                     ObservablesHistory*           observablesHistory,
-                     gmx_bool                      reproducibilityRequested,
-                     const gmx::MdModulesNotifier& mdModulesNotifier)
+void load_checkpoint(const char*                           fn,
+                     t_fileio*                             logfio,
+                     const t_commrec*                      cr,
+                     const ivec                            dd_nc,
+                     t_inputrec*                           ir,
+                     t_state*                              state,
+                     ObservablesHistory*                   observablesHistory,
+                     gmx_bool                              reproducibilityRequested,
+                     const gmx::CheckpointingNotification& checkpointingNotifier)
 {
     CheckpointHeaderContents headerContents;
     if (SIMMASTER(cr))
     {
         /* Read the state from the checkpoint file */
         read_checkpoint(fn, logfio, cr, dd_nc, ir->eI, &(ir->fepvals->init_fep_state), &headerContents,
-                        state, observablesHistory, reproducibilityRequested, mdModulesNotifier);
+                        state, observablesHistory, reproducibilityRequested, checkpointingNotifier);
     }
     if (PAR(cr))
     {
@@ -2881,7 +2881,7 @@ void load_checkpoint(const char*                   fn,
         gmx::MdModulesCheckpointReadingBroadcast broadcastCheckPointData = {
             cr->mpi_comm_mygroup, PAR(cr), headerContents.file_version
         };
-        mdModulesNotifier.checkpointingNotifications_.notify(broadcastCheckPointData);
+        checkpointingNotifier.checkpointingNotifications_.notify(broadcastCheckPointData);
     }
     ir->bContinuation = TRUE;
     if (ir->nsteps >= 0)
@@ -3002,8 +3002,8 @@ static CheckpointHeaderContents read_checkpoint_data(t_fileio*                  
     {
         cp_error();
     }
-    gmx::MdModulesNotifier mdModuleNotifier;
-    do_cpt_mdmodules(headerContents.file_version, fp, mdModuleNotifier);
+    gmx::CheckpointingNotification checkpointingNotifier;
+    do_cpt_mdmodules(headerContents.file_version, fp, checkpointingNotifier);
     ret = do_cpt_footer(gmx_fio_getxdr(fp), headerContents.file_version);
     if (ret)
     {

@@ -57,7 +57,7 @@ namespace gmx
 {
 enum class StartingBehavior;
 class IMDOutputProvider;
-struct MdModulesNotifier;
+struct CheckpointingNotification;
 struct MdrunOptions;
 } // namespace gmx
 
@@ -74,7 +74,7 @@ gmx_mdoutf_t init_mdoutf(FILE*                         fplog,
                          const gmx::MdrunOptions&      mdrunOptions,
                          const t_commrec*              cr,
                          gmx::IMDOutputProvider*       outputProvider,
-                         const gmx::MdModulesNotifier& mdModulesNotifier,
+                         const gmx::CheckpointingNotification& checkpointingNotifier,
                          const t_inputrec*             ir,
                          const gmx_mtop_t*             mtop,
                          const gmx_output_env_t*       oenv,
