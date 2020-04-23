@@ -1293,7 +1293,8 @@ int Mdrunner::mdrunner()
     // Only for DD, only master PP rank needs to perform setup, and only if thread MPI plus
     // any of the GPU communication features are active.
     if (DOMAINDECOMP(cr) && MASTER(cr) && thisRankHasDuty(cr, DUTY_PP) && GMX_THREAD_MPI
-        && (devFlags.enableGpuHaloExchange || devFlags.enableGpuPmePPComm))
+        && (devFlags.enableGpuHaloExchange || devFlags.enableGpuPmePPComm)
+        && (getenv("GMX_DISABLE_PEER_ACCESS") == nullptr))
     {
         setupGpuDevicePeerAccess(gpuIdsToUse, mdlog);
     }
