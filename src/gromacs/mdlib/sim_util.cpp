@@ -1027,9 +1027,9 @@ void do_force(FILE*                               fplog,
         /* Send particle coordinates to the pme nodes */
         if (!stepWork.doNeighborSearch && simulationWork.useGpuUpdate)
         {
-            GMX_RELEASE_ASSERT(false,
-                               "GPU update and separate PME ranks are only supported with GPU "
-                               "direct communication!");
+            //GMX_RELEASE_ASSERT(false,
+            //                 "GPU update and separate PME ranks are only supported with GPU "
+            //                 "direct communication!");
             // TODO: when this code-path becomes supported add:
             // stateGpu->waitCoordinatesReadyOnHost(AtomLocality::Local);
         }

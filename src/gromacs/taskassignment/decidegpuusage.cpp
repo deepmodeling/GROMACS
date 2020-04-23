@@ -554,7 +554,7 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     {
         if (!devFlags.enableGpuHaloExchange)
         {
-            errorMessage += "Domain decomposition without GPU halo exchange is not supported.\n ";
+            //errorMessage += "Domain decomposition without GPU halo exchange is not supported.\n ";
         }
         else
         {
@@ -582,10 +582,10 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
             errorMessage += "With separate PME rank(s), PME must run fully on the GPU.\n";
         }
 
-        if (!devFlags.enableGpuPmePPComm)
-        {
-            errorMessage += "With separate PME rank(s), PME must use direct communication.\n";
-        }
+        //        if (!devFlags.enableGpuPmePPComm)
+        //{
+        //  errorMessage += "With separate PME rank(s), PME must use direct communication.\n";
+        //}
     }
 
     if (inputrec.eConstrAlg == econtSHAKE && hasAnyConstraints && gmx_mtop_ftype_count(mtop, F_CONSTR) > 0)
