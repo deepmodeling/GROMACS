@@ -56,7 +56,6 @@
 namespace gmx
 {
 
-class DeviceStreamManager;
 namespace test
 {
 

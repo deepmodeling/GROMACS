@@ -83,6 +83,24 @@ class PmeSplineAndSpreadTest : public ::testing::TestWithParam<SplineAndSpreadIn
 {
 public:
     PmeSplineAndSpreadTest() = default;
+
+    //! Sets the programs once
+    static void SetUpTestCase()
+    {
+        const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+        s_pmePrograms.resize(hardwareContexts.size());
+        for (unsigned contextIndex = 0; contextIndex < hardwareContexts.size(); contextIndex++)
+        {
+            const auto&          context  = hardwareContexts.at(contextIndex);
+            CodePath             codePath = context->codePath();
+            PmeGpuProgramStorage pmeGpuProgramStorage;
+            if (codePath == CodePath::GPU && context->deviceContext() != nullptr)
+            {
+                s_pmePrograms.at(contextIndex) = buildPmeGpuProgram(*context->deviceContext());
+            }
+        }
+    }
+
     //! The test
     void runTest()
     {
@@ -105,8 +123,6 @@ public:
         inputRec.coulombtype = eelPME;
         inputRec.epsilon_r   = 1.0;
 
-        TestReferenceData refData;
-
         const std::map<PmeSplineAndSpreadOptions, std::string> optionsToTest = {
             { PmeSplineAndSpreadOptions::SplineAndSpreadUnified,
               "spline computation and charge spreading (fused)" },
@@ -124,10 +140,13 @@ public:
         bool   gridValuesSizeAssigned = false;
         size_t previousGridValuesSize;
 
-        for (const auto& context : getTestHardwareEnvironment()->getHardwareContexts())
+        TestReferenceData refData;
+        const auto&       hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+        for (unsigned contextIndex = 0; contextIndex < hardwareContexts.size(); contextIndex++)
         {
-            CodePath   codePath       = context->codePath();
-            const bool supportedInput = pmeSupportsInputForMode(
+            const auto& context        = hardwareContexts.at(contextIndex);
+            CodePath    codePath       = context->codePath();
+            const bool  supportedInput = pmeSupportsInputForMode(
                     *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
@@ -149,16 +168,9 @@ public:
 
                 /* Running the test */
 
-                PmeGpuProgram*       pmeGpuProgram = nullptr;
-                PmeGpuProgramStorage pmeGpuProgramStorage;
-                if (codePath == CodePath::GPU && context->deviceContext() != nullptr)
-                {
-                    pmeGpuProgramStorage = buildPmeGpuProgram(*context->deviceContext());
-                    pmeGpuProgram        = pmeGpuProgramStorage.get();
-                }
-
                 PmeSafePointer pmeSafe = pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
-                                                        context->deviceStream(), pmeGpuProgram, box);
+                                                        context->deviceStream(),
+                                                        s_pmePrograms.at(contextIndex).get(), box);
                 std::unique_ptr<StatePropagatorDataGpu> stateGpu =
                         (codePath == CodePath::GPU)
                                 ? makeStatePropagatorDataGpu(*pmeSafe.get(), context->deviceContext(),
@@ -269,7 +281,11 @@ public:
             }
         }
     }
+
+    static std::vector<PmeGpuProgramStorage> s_pmePrograms;
 };
+
+std::vector<PmeGpuProgramStorage> PmeSplineAndSpreadTest::s_pmePrograms;
 
 
 /*! \brief Test for spline parameter computation and charge spreading. */
