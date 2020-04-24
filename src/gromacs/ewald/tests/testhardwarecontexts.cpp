@@ -94,14 +94,38 @@ static gmx_hw_info_t* hardwareInit()
     return gmx_detect_hardware(MDLogger{}, physicalNodeComm);
 }
 
+static bool deviceBuildIsSupported()
+{
+    if (GMX_DOUBLE)
+    {
+        return false;
+    }
+    if (GMX_GPU == GMX_GPU_NONE)
+    {
+        return false;
+    }
+    return true;
+}
+
+static bool deviceIsSupported()
+{
+    if (GMX_GPU == GMX_GPU_OPENCL)
+    {
+#ifdef __APPLE__
+        return false;
+#endif
+    }
+    return true;
+}
+
 void PmeTestEnvironment::SetUp()
 {
     hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(CodePath::CPU, "(CPU) "));
 
     hardwareInfo_ = hardwareInit();
-    if (!pme_gpu_supports_build(nullptr) || !pme_gpu_supports_hardware(*hardwareInfo_, nullptr))
+    if (!deviceBuildIsSupported() || !deviceIsSupported())
     {
-        // PME can only run on the CPU, so don't make any more test contexts.
+        // The build of hardware do not support the device runs
         return;
     }
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
