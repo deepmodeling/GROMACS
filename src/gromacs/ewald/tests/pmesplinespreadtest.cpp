@@ -149,9 +149,16 @@ public:
 
                 /* Running the test */
 
-                PmeSafePointer pmeSafe =
-                        pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
-                                       context->deviceStream(), context->pmeGpuProgram(), box);
+                PmeGpuProgram*       pmeGpuProgram = nullptr;
+                PmeGpuProgramStorage pmeGpuProgramStorage;
+                if (codePath == CodePath::GPU && context->deviceContext() != nullptr)
+                {
+                    pmeGpuProgramStorage = buildPmeGpuProgram(*context->deviceContext());
+                    pmeGpuProgram        = pmeGpuProgramStorage.get();
+                }
+
+                PmeSafePointer pmeSafe = pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
+                                                        context->deviceStream(), pmeGpuProgram, box);
                 std::unique_ptr<StatePropagatorDataGpu> stateGpu =
                         (codePath == CodePath::GPU)
                                 ? makeStatePropagatorDataGpu(*pmeSafe.get(), context->deviceContext(),

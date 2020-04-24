@@ -128,15 +128,6 @@ PmeSafePointer pmeInitWrapper(const t_inputrec*    inputRec,
                               const Matrix3x3&     box,
                               real                 ewaldCoeff_q  = 1.0F,
                               real                 ewaldCoeff_lj = 1.0F);
-//! Simple PME initialization (no atom data)
-PmeSafePointer pmeInitEmpty(const t_inputrec*    inputRec,
-                            CodePath             mode,
-                            const DeviceContext* deviceContext,
-                            const DeviceStream*  deviceStream,
-                            const PmeGpuProgram* pmeGpuProgram,
-                            const Matrix3x3&     box,
-                            real                 ewaldCoeff_q,
-                            real                 ewaldCoeff_lj);
 
 //! Simple PME initialization based on inputrec only
 PmeSafePointer pmeInitEmpty(const t_inputrec* inputRec);

@@ -86,7 +86,6 @@ TestHardwareContext::TestHardwareContext(CodePath                 codePath,
                        "in CPU build.");
     deviceContext_ = new DeviceContext(deviceInfo);
     deviceStream_  = new DeviceStream(*deviceContext_, DeviceStreamPriority::Normal, false);
-    program_       = buildPmeGpuProgram(*deviceContext_);
 }
 
 TestHardwareContext::~TestHardwareContext()

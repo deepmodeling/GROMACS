@@ -115,8 +115,8 @@ public:
             if (!supportedInput)
             {
                 /* Testing the failure for the unsupported input */
-                EXPECT_THROW_GMX(pmeInitEmpty(&inputRec, codePath, nullptr, nullptr, nullptr, box,
-                                              ewaldCoeff_q, ewaldCoeff_lj),
+                EXPECT_THROW_GMX(pmeInitWrapper(&inputRec, codePath, nullptr, nullptr, nullptr, box,
+                                                ewaldCoeff_q, ewaldCoeff_lj),
                                  NotImplementedError);
                 continue;
             }
@@ -141,9 +141,17 @@ public:
                             gridSize[XX], gridSize[YY], gridSize[ZZ], ewaldCoeff_q, ewaldCoeff_lj));
 
                     /* Running the test */
-                    PmeSafePointer pmeSafe = pmeInitEmpty(
+                    PmeGpuProgram*       pmeGpuProgram = nullptr;
+                    PmeGpuProgramStorage pmeGpuProgramStorage;
+                    if (codePath == CodePath::GPU && context->deviceContext() != nullptr)
+                    {
+                        pmeGpuProgramStorage = buildPmeGpuProgram(*context->deviceContext());
+                        pmeGpuProgram        = pmeGpuProgramStorage.get();
+                    }
+
+                    PmeSafePointer pmeSafe = pmeInitWrapper(
                             &inputRec, codePath, context->deviceContext(), context->deviceStream(),
-                            context->pmeGpuProgram(), box, ewaldCoeff_q, ewaldCoeff_lj);
+                            pmeGpuProgram, box, ewaldCoeff_q, ewaldCoeff_lj);
                     pmeSetComplexGrid(pmeSafe.get(), codePath, gridOrdering.first, nonZeroGridValues);
                     const real cellVolume = box[0] * box[4] * box[8];
                     // FIXME - this is box[XX][XX] * box[YY][YY] * box[ZZ][ZZ], should be stored in the PME structure

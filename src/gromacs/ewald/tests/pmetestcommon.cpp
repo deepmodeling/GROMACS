@@ -152,21 +152,6 @@ PmeSafePointer pmeInitWrapper(const t_inputrec*    inputRec,
     return pme;
 }
 
-//! Simple PME initialization based on input, no atom data
-PmeSafePointer pmeInitEmpty(const t_inputrec*    inputRec,
-                            const CodePath       mode,
-                            const DeviceContext* deviceContext,
-                            const DeviceStream*  deviceStream,
-                            const PmeGpuProgram* pmeGpuProgram,
-                            const Matrix3x3&     box,
-                            const real           ewaldCoeff_q,
-                            const real           ewaldCoeff_lj)
-{
-    return pmeInitWrapper(inputRec, mode, deviceContext, deviceStream, pmeGpuProgram, box,
-                          ewaldCoeff_q, ewaldCoeff_lj);
-    // hiding the fact that PME actually needs to know the number of atoms in advance
-}
-
 PmeSafePointer pmeInitEmpty(const t_inputrec* inputRec)
 {
     const Matrix3x3 defaultBox = { { 1.0F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, 0.0F, 1.0F } };

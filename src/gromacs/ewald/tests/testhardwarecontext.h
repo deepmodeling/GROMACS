@@ -83,8 +83,6 @@ struct TestHardwareContext
     DeviceContext* deviceContext_ = nullptr;
     //! Device stream
     DeviceStream* deviceStream_ = nullptr;
-    //! Persistent compiled GPU kernels for PME.
-    PmeGpuProgramStorage program_;
 
 public:
     //! Retuns the code path for this context.
@@ -97,8 +95,6 @@ public:
     const DeviceContext* deviceContext() const;
     //! Get the device stream
     const DeviceStream* deviceStream() const;
-    //! Returns the persistent PME GPU kernels
-    const PmeGpuProgram* pmeGpuProgram() const { return program_.get(); }
     //! Constructs the context for CPU builds
     TestHardwareContext(CodePath codePath, const char* description);
     //! Constructs the context for GPU builds
