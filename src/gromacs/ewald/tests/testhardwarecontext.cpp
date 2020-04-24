@@ -48,7 +48,6 @@
 
 #include <memory>
 
-#include "gromacs/ewald/pme.h"
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
@@ -82,7 +81,7 @@ TestHardwareContext::TestHardwareContext(CodePath                 codePath,
     description_(description)
 {
     GMX_RELEASE_ASSERT(codePath == CodePath::GPU,
-                       "TestHardwareContext tries to construct DeviceContext and PmeGpuProgram "
+                       "TestHardwareContext tries to construct DeviceContext and DeviceStream "
                        "in CPU build.");
     deviceContext_ = new DeviceContext(deviceInfo);
     deviceStream_  = new DeviceStream(*deviceContext_, DeviceStreamPriority::Normal, false);

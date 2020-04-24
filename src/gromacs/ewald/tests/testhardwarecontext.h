@@ -48,7 +48,6 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/ewald/pme_gpu_program.h"
 #include "gromacs/utility/gmxassert.h"
 
 class DeviceContext;
@@ -70,8 +69,8 @@ enum class CodePath
 const char* codePathToString(CodePath codePath);
 
 /*! \internal \brief
- * A structure to describe a hardware context  that persists over the lifetime
- * of the test binary - an abstraction over PmeGpuProgram with a human-readable string.
+ * A structure to describe a hardware context that persists over the lifetime
+ * of the test binary.
  */
 struct TestHardwareContext
 {

@@ -278,11 +278,11 @@ public:
         inputRec.epsilon_r   = 1.0;
 
         TestReferenceData refData;
-        for (const auto& context : getPmeTestEnv()->getHardwareContexts())
+        for (const auto& context : getTestHardwareEnvironment()->getHardwareContexts())
         {
-            CodePath   codePath = context->codePath();
-            const bool supportedInput =
-                    pmeSupportsInputForMode(*getPmeTestEnv()->hwinfo(), &inputRec, codePath);
+            CodePath   codePath       = context->codePath();
+            const bool supportedInput = pmeSupportsInputForMode(
+                    *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
                 /* Testing the failure for the unsupported input */

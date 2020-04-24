@@ -48,7 +48,6 @@
 
 #include <gtest/gtest.h>
 
-#include "gromacs/ewald/pme_gpu_program.h"
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/gmxassert.h"
 
@@ -67,7 +66,7 @@ typedef std::vector<std::unique_ptr<TestHardwareContext>> TestHardwareContexts;
 /*! \internal \brief
  * This class performs one-time test initialization (enumerating the hardware)
  */
-class PmeTestEnvironment : public ::testing::Environment
+class TestHardwareEnvironment : public ::testing::Environment
 {
 private:
     //! General hardware info
@@ -87,7 +86,7 @@ public:
 };
 
 //! Get the test environment
-const PmeTestEnvironment* getPmeTestEnv();
+const TestHardwareEnvironment* getTestHardwareEnvironment();
 
 /*! \brief This constructs the test environment during setup of the
  * unit test so that they can use the hardware context. */
