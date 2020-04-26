@@ -54,6 +54,9 @@
  * \inlibraryapi
  */
 //! \cond
+#ifndef GMXPRE_H
+#define GMXPRE_H
+
 #ifdef HAVE_CONFIG_H
 #    include "gmxpre-config.h"
 #endif
@@ -90,4 +93,6 @@
 #    define USE_FAH_XDR 1
 #    include "swindirect.h"
 #endif
+
 //! \endcond
+#endif //GMXPRE_H

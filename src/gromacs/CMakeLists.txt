@@ -130,6 +130,8 @@ list(APPEND LIBGROMACS_SOURCES ${GMXLIB_SOURCES} ${MDLIB_SOURCES} ${PROPERTY_SOU
 #target_link_libraries(gmx ${GMX_EXTRA_LIBRARIES} ${THREAD_MPI_LIB})
 tmpi_get_source_list(THREAD_MPI_SOURCES ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/src)
 add_library(thread_mpi OBJECT ${THREAD_MPI_SOURCES})
+target_precompile_headers(thread_mpi PRIVATE ${PROJECT_SOURCE_DIR}/src/pch.h)
+
 target_compile_definitions(thread_mpi PRIVATE HAVE_CONFIG_H)
 gmx_target_compile_options(thread_mpi)
 if (WIN32)
@@ -190,6 +192,8 @@ if (GMX_USE_CUDA)
 else()
     add_library(libgromacs ${LIBGROMACS_SOURCES})
 endif()
+
+target_precompile_headers(libgromacs PRIVATE "../pch.h")
 
 # Add these contents first because linking their tests can take a lot
 # of time, so we want lots of parallel work still available after

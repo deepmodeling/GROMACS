@@ -36,6 +36,7 @@ file(GLOB MODULARSIMULATOR_SOURCES *.cpp)
 
 add_library(modularsimulator OBJECT ${MODULARSIMULATOR_SOURCES})
 gmx_target_compile_options(modularsimulator)
+target_precompile_headers(modularsimulator PRIVATE ${PROJECT_SOURCE_DIR}/src/pch.h)
 target_compile_definitions(modularsimulator PRIVATE HAVE_CONFIG_H)
 target_include_directories(modularsimulator SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
 

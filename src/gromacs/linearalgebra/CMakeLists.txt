@@ -47,6 +47,7 @@ set(LINEARALGEBRA_SOURCES
 
 add_library(linearalgebra OBJECT ${LINEARALGEBRA_SOURCES})
 gmx_target_compile_options(linearalgebra)
+target_precompile_headers(linearalgebra PRIVATE ${PROJECT_SOURCE_DIR}/src/pch.h)
 target_compile_definitions(linearalgebra PRIVATE HAVE_CONFIG_H)
 # The linearalgebra code is all considered external, and we will
 # not keep it free of warnings. Any compiler suppressions required

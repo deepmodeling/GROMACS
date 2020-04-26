@@ -433,7 +433,7 @@ static inline SimdFloat gmx_simdcall cbrt(SimdFloat x)
     // will work just A-OK on all SIMD implementations, which avoids diverging code paths.
 
     // The  0.1 here is the safety margin due to  truncation described in item 4 in the comments above.
-    SimdFloat offsetExp = cvtI2R(exponent) + SimdFloat(static_cast<float>(3 * offsetDiv3) + 0.1);
+    SimdFloat offsetExp = cvtI2R(exponent) + SimdFloat(3.f * offsetDiv3 + 0.1f);
 
     SimdFloat offsetExpDiv3 =
             trunc(offsetExp * oneThird); // important to truncate here to mimic integer division
@@ -502,7 +502,7 @@ static inline SimdFloat gmx_simdcall invcbrt(SimdFloat x)
     SimdFloat invDenom = inv(z * fma(two, y, w));
 
     // The  0.1 here is the safety margin due to  truncation described in item 4 in the comments above.
-    SimdFloat offsetExp = cvtI2R(exponent) + SimdFloat(static_cast<float>(3 * offsetDiv3) + 0.1);
+    SimdFloat offsetExp = cvtI2R(exponent) + SimdFloat(3.f * offsetDiv3 + 0.1f);
     SimdFloat offsetExpDiv3 =
             trunc(offsetExp * oneThird); // important to truncate here to mimic integer division
 
@@ -1301,12 +1301,12 @@ static inline SimdFloat gmx_simdcall tan(SimdFloat x)
     const SimdFloat argred2(-7.54953362047672271729e-08F);
     const SimdFloat argred3(-2.56334406825708960298e-12F);
     const SimdFloat two_over_pi(static_cast<float>(2.0F / M_PI));
-    const SimdFloat CT6(0.009498288995810566122993911);
-    const SimdFloat CT5(0.002895755790837379295226923);
-    const SimdFloat CT4(0.02460087336161924491836265);
-    const SimdFloat CT3(0.05334912882656359828045988);
-    const SimdFloat CT2(0.1333989091464957704418495);
-    const SimdFloat CT1(0.3333307599244198227797507);
+    const SimdFloat CT6(0.009498288995810566122993911f);
+    const SimdFloat CT5(0.002895755790837379295226923f);
+    const SimdFloat CT4(0.02460087336161924491836265f);
+    const SimdFloat CT3(0.05334912882656359828045988f);
+    const SimdFloat CT2(0.1333989091464957704418495f);
+    const SimdFloat CT1(0.3333307599244198227797507f);
 
     SimdFloat x2, p, y, z;
     SimdFBool m;

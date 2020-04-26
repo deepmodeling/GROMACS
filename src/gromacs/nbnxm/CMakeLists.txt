@@ -43,4 +43,24 @@ if(GMX_USE_OPENCL)
     set(NBNXM_OPENCL_KERNELS ${NBNXM_OPENCL_KERNELS} PARENT_SCOPE)
 endif()
 
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${NBNXM_SOURCES} PARENT_SCOPE)
+#set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${NBNXM_SOURCES} PARENT_SCOPE)
+#TODO CUDA and OPENCL
+
+add_library(nbnxm OBJECT ${NBNXM_SOURCES})
+gmx_target_compile_options(nbnxm)
+target_precompile_headers(nbnxm PRIVATE "pch.h")
+target_compile_definitions(nbnxm PRIVATE HAVE_CONFIG_H)
+target_include_directories(nbnxm SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
+
+if(GMX_OPENMP)
+    # Explicitly set properties for modular simulator module to compile with openmp
+    set_target_properties(nbnxm PROPERTIES COMPILE_OPTIONS $<TARGET_PROPERTY:OpenMP::OpenMP_CXX,INTERFACE_COMPILE_OPTIONS>)
+endif()
+
+if (WIN32)
+    gmx_target_warning_suppression(nbnxm /wd4244 HAS_NO_MSVC_LOSSY_CONVERSION)
+    #gmx_target_warning_suppression(nbnxm /wd4996 HAS_NO_MSVC_UNSAFE_FUNCTION)
+endif()
+
+list(APPEND libgromacs_object_library_dependencies nbnxm)
+set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependencies} PARENT_SCOPE)

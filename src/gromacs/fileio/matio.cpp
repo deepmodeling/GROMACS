@@ -725,9 +725,9 @@ static void pr_discrete_cmap(FILE* out, int* nlevel, int i0)
     {
         fprintf(out, "\"%c%c c #%02X%02X%02X \" /* \"%3d\" */,\n", mapper[(i + i0) % NMAP],
                 (n <= NMAP) ? ' ' : mapper[(i + i0) / NMAP],
-                static_cast<unsigned int>(round(255 * rgbd[i].r)),
-                static_cast<unsigned int>(round(255 * rgbd[i].g)),
-                static_cast<unsigned int>(round(255 * rgbd[i].b)), i);
+                static_cast<unsigned int>(std::round(255 * rgbd[i].r)),
+                static_cast<unsigned int>(std::round(255 * rgbd[i].g)),
+                static_cast<unsigned int>(std::round(255 * rgbd[i].b)), i);
     }
 }
 
@@ -1008,9 +1008,9 @@ void write_xpm_m(FILE* out, t_matrix m)
     for (const auto& map : m.map)
     {
         fprintf(out, "\"%c%c c #%02X%02X%02X \" /* \"%s\" */,\n", map.code.c1,
-                bOneChar ? ' ' : map.code.c2, static_cast<unsigned int>(round(map.rgb.r * 255)),
-                static_cast<unsigned int>(round(map.rgb.g * 255)),
-                static_cast<unsigned int>(round(map.rgb.b * 255)), map.desc);
+                bOneChar ? ' ' : map.code.c2, static_cast<unsigned int>(std::round(map.rgb.r * 255)),
+                static_cast<unsigned int>(std::round(map.rgb.g * 255)),
+                static_cast<unsigned int>(std::round(map.rgb.b * 255)), map.desc);
     }
     writeXpmAxis(out, "x", m.axis_x);
     writeXpmAxis(out, "y", m.axis_y);
