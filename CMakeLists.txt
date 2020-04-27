@@ -37,7 +37,7 @@ cmake_minimum_required(VERSION 3.9.6)
 if(POLICY CMP0074) #3.12
     cmake_policy(SET CMP0074 NEW)
 endif()
-cmake_policy(SET CMP0007 NEW) # From CMake-2.6
+cmake_policy(SET CMP0007 OLD) # From CMake-2.6
 cmake_policy(SET CMP0068 NEW) # From CMake-3.9
 
 # CMake modules/macros are in a subdirectory to keep this file cleaner
