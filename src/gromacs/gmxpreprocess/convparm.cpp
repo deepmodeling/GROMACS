@@ -556,7 +556,7 @@ void convertInteractionsOfType(int                                      atnr,
                 && ((flags & IF_BOND) || (flags & IF_VSITE) || (flags & IF_CONSTRAINT)))
             {
                 enter_function(&(interactions[i]), static_cast<t_functype>(i), comb, reppow, ffp,
-                               &molt->ilist[i], FALSE, (i == F_POSRES || i == F_FBPOSRES));
+                               &molt->ilist[i], FALSE, (i == F_POSRES || i == F_FBPOSRES || i == F_DISRES));
             }
         }
     }
