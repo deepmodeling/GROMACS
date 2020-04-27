@@ -297,8 +297,6 @@ gromacs:icc-19.1:configure:
    - .use-icc:base
    - .rules:merge-requests
   image: gromacs/cmake-3.15.7-icc-19.1-openmpi:master
-  variables:
-    COMPILER_MAJOR_VERSION: 19.1
 
 gromacs:gcc-8-cuda-10.1:release:configure:
   extends:
@@ -486,8 +484,6 @@ gromacs:icc-19.1:build:
   image: gromacs/cmake-3.15.7-icc-19.1-openmpi:master
   needs:
     - job: gromacs:icc-19.1:configure
-  variables:
-    COMPILER_MAJOR_VERSION: 19.1
 
 gromacs:gcc-8-cuda-10.1:release:build:
   extends:
