@@ -129,7 +129,7 @@
 # Base definition for using icc.
 .use-icc:base:
   variables:
-    CMAKE_COMPILER_SCRIPT: -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc
+    CMAKE_COMPILER_SCRIPT: -DCMAKE_C_COMPILER=icc /opt/intel/compilers_and_libraries_2020.1.217/linux/bin/intel64/icc -DCMAKE_CXX_COMPILER=/opt/intel/compilers_and_libraries_2020.1.217/linux/bin/intel64/icpc
     CMAKE_EXTRA_OPTIONS: -DGMX_FFT_LIBRARY=mkl
   before_script:
     # TODO Either we place the COM_L__CPP_CNT6-WFMBPBXC.lic file on
