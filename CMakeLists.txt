@@ -1,7 +1,8 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2009,2010,2011,2012,2013,2014, The GROMACS development team.
+# Copyright (c) 2015,2016,2017,2018,2019,2020, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -36,9 +37,7 @@ cmake_minimum_required(VERSION 3.9.6)
 if(POLICY CMP0074) #3.12
     cmake_policy(SET CMP0074 NEW)
 endif()
-if(POLICY CMP0007) #3.16.3
-    cmake_policy(SET CMP0007 NEW)
-endif()
+cmake_policy(SET CMP0007 NEW) # From CMake-2.6
 cmake_policy(SET CMP0068 NEW) # From CMake-3.9
 
 # CMake modules/macros are in a subdirectory to keep this file cleaner
