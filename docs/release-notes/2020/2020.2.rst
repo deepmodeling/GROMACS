@@ -71,6 +71,14 @@ The tool would fail with a segmentation fault.
 
 :issue:`3444`
 
+Reduce time spend in grompp for large numbers of distance restraints
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:ref:`gmx grompp` would spend hours for processing large numbers of distance restraints
+due to an issue with the computational cost scaling quadratically.
+
+:issue:`3457`
+
 Fixes that affect portability
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
