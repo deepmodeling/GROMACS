@@ -187,8 +187,7 @@
     diagonal_mask_S2 = (zero_S < diagonal_jmi_S);
     diagonal_jmi_S   = diagonal_jmi_S - one_S;
     diagonal_mask_S3 = (zero_S < diagonal_jmi_S);
-#else
-#    if UNROLLI == 2 * UNROLLJ || 2 * UNROLLI == UNROLLJ
+#elif UNROLLI == 2 * UNROLLJ || 2 * UNROLLI == UNROLLJ
     diagonal_mask0_S0 = (zero_S < diagonal_jmi_S);
     diagonal_jmi_S    = diagonal_jmi_S - one_S;
     diagonal_mask0_S1 = (zero_S < diagonal_jmi_S);
@@ -198,10 +197,10 @@
     diagonal_mask0_S3 = (zero_S < diagonal_jmi_S);
     diagonal_jmi_S    = diagonal_jmi_S - one_S;
 
-#        if UNROLLI == 2 * UNROLLJ
+#    if UNROLLI == 2 * UNROLLJ
     /* Load j-i for the second half of the j-cluster */
     diagonal_jmi_S = load<SimdReal>(nbat->simdMasks.diagonal_4xn_j_minus_i.data() + UNROLLJ);
-#        endif
+#    endif
 
     diagonal_mask1_S0                                  = (zero_S < diagonal_jmi_S);
     diagonal_jmi_S                                     = diagonal_jmi_S - one_S;
@@ -210,7 +209,6 @@
     diagonal_mask1_S2                                  = (zero_S < diagonal_jmi_S);
     diagonal_jmi_S                                     = diagonal_jmi_S - one_S;
     diagonal_mask1_S3                                  = (zero_S < diagonal_jmi_S);
-#    endif
 #endif
 
 #if GMX_DOUBLE && !GMX_SIMD_HAVE_INT32_LOGICAL
@@ -417,11 +415,9 @@
 #ifdef ENERGY_GROUPS
         egps_i = nbatParams.energrp[ci];
         {
-            int ia, egp_ia;
-
-            for (ia = 0; ia < UNROLLI; ia++)
+            for (int ia = 0; ia < UNROLLI; ia++)
             {
-                egp_ia     = (egps_i >> (ia * egps_ishift)) & egps_imask;
+                int egp_ia = (egps_i >> (ia * egps_ishift)) & egps_imask;
                 vvdwtp[ia] = Vvdw + egp_ia * Vstride_i;
                 vctp[ia]   = Vc + egp_ia * Vstride_i;
             }
@@ -436,68 +432,59 @@
 #    endif
 #    if UNROLLJ == 4
         if (do_self && l_cj[ciEntry.cj_ind_start].cj == ci_sh)
+#    elif UNROLLJ == 2
+        if (do_self && l_cj[ciEntry.cj_ind_start].cj == (ci_sh << 1))
+#    elif UNROLLJ == 8
+        if (do_self && l_cj[ciEntry.cj_ind_start].cj == (ci_sh >> 1))
 #    endif
-#    if UNROLLJ == 2
-            if (do_self && l_cj[ciEntry.cj_ind_start].cj == (ci_sh << 1))
-#    endif
-#    if UNROLLJ == 8
-                if (do_self && l_cj[ciEntry.cj_ind_start].cj == (ci_sh >> 1))
-#    endif
-                {
-                    if (do_coul)
-                    {
-                        real Vc_sub_self;
-                        int  ia;
+        {
+            if (do_coul)
+            {
+                real Vc_sub_self;
 
-#    ifdef CALC_COUL_RF
-                        Vc_sub_self = 0.5 * ic->c_rf;
-#    endif
-#    ifdef CALC_COUL_TAB
-#        ifdef TAB_FDV0
-                        Vc_sub_self = 0.5 * tab_coul_F[2];
-#        else
-                        Vc_sub_self = 0.5 * tab_coul_V[0];
-#        endif
-#    endif
 #    ifdef CALC_COUL_EWALD
-                        /* beta/sqrt(pi) */
-                        Vc_sub_self = 0.5 * ic->ewaldcoeff_q * M_2_SQRTPI;
+                /* beta/sqrt(pi) */
+                Vc_sub_self = 0.5 * ic->ewaldcoeff_q * M_2_SQRTPI;
+#    elif defined CALC_COUL_TAB
+#        ifdef TAB_FDV0
+                Vc_sub_self = 0.5 * tab_coul_F[2];
+#        else
+                Vc_sub_self = 0.5 * tab_coul_V[0];
+#        endif
+#    elif defined CALC_COUL_RF
+                Vc_sub_self = 0.5 * ic->c_rf;
+#    else
+#        error "Vc_sub_self is uninitialized"
 #    endif
 
-                        for (ia = 0; ia < UNROLLI; ia++)
-                        {
-                            real qi;
-
-                            qi = q[sci + ia];
+                for (int ia = 0; ia < UNROLLI; ia++)
+                {
+                    real qi = q[sci + ia];
 #    ifdef ENERGY_GROUPS
-                            vctp[ia][((egps_i >> (ia * egps_ishift)) & egps_imask) * egps_jstride]
+                    vctp[ia][((egps_i >> (ia * egps_ishift)) & egps_imask) * egps_jstride]
 #    else
                     Vc[0]
 #    endif
-                                    -= facel * qi * qi * Vc_sub_self;
-                        }
-                    }
+                            -= facel * qi * qi * Vc_sub_self;
+                }
+            }
 
 #    ifdef LJ_EWALD_GEOM
-                    {
-                        int ia;
-
-                        for (ia = 0; ia < UNROLLI; ia++)
-                        {
-                            real c6_i;
-
-                            c6_i = nbatParams.nbfp[nbatParams.type[sci + ia] * (nbatParams.numTypes + 1) * 2]
-                                   / 6;
+            {
+                for (int ia = 0; ia < UNROLLI; ia++)
+                {
+                    real c6_i =
+                            nbatParams.nbfp[nbatParams.type[sci + ia] * (nbatParams.numTypes + 1) * 2] / 6;
 #        ifdef ENERGY_GROUPS
-                            vvdwtp[ia][((egps_i >> (ia * egps_ishift)) & egps_imask) * egps_jstride]
+                    vvdwtp[ia][((egps_i >> (ia * egps_ishift)) & egps_imask) * egps_jstride]
 #        else
-                            Vvdw[0]
+                    Vvdw[0]
 #        endif
-                                    += 0.5 * c6_i * lj_ewaldcoeff6_6;
-                        }
-                    }
-#    endif /* LJ_EWALD_GEOM */
+                            += 0.5 * c6_i * lj_ewaldcoeff6_6;
                 }
+            }
+#    endif /* LJ_EWALD_GEOM */
+        }
 #endif
 
         /* Load i atom data */
@@ -533,8 +520,7 @@
         seps_i_S1 = SimdReal(ljc[sci2 + STRIDE + 1]);
         seps_i_S2 = SimdReal(ljc[sci2 + STRIDE + 2]);
         seps_i_S3 = SimdReal(ljc[sci2 + STRIDE + 3]);
-#else
-#    ifdef LJ_COMB_GEOM
+#elif defined LJ_COMB_GEOM
         SimdReal c6s_S0 = SimdReal(ljc[sci2 + 0]);
         SimdReal c6s_S1 = SimdReal(ljc[sci2 + 1]);
         SimdReal c6s_S2, c6s_S3;
@@ -561,7 +547,7 @@
             c12s_S2 = setZero();
             c12s_S3 = setZero();
         }
-#    else
+#else
         const int   numTypes = nbatParams.numTypes;
         const real* nbfp0    = nbfp_ptr + type[sci] * numTypes * c_simdBestPairAlignment;
         const real* nbfp1    = nbfp_ptr + type[sci + 1] * numTypes * c_simdBestPairAlignment;
@@ -571,7 +557,6 @@
             nbfp2 = nbfp_ptr + type[sci + 2] * numTypes * c_simdBestPairAlignment;
             nbfp3 = nbfp_ptr + type[sci + 3] * numTypes * c_simdBestPairAlignment;
         }
-#    endif
 #endif
 #ifdef LJ_EWALD_GEOM
         /* We need the geometrically combined C6 for the PME grid correction */
