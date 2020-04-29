@@ -115,7 +115,7 @@ real ta_disres(int              nfa,
                real*            dvdlambda,
                const t_mdatoms* md,
                t_fcdata*        fcd,
-               int*             global_atom_index);
+               const int*       global_atom_index);
 
 //! Copies the new time averages that have been calculated in calc_disres_R_6.
 void update_disres_history(const t_fcdata* fcd, history_t* hist);

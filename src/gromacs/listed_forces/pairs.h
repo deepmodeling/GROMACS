@@ -79,6 +79,6 @@ void do_pairs(int                      ftype,
               bool                     havePerturbedPairs,
               const gmx::StepWorkload& stepWork,
               gmx_grppairener_t*       grppener,
-              int*                     global_atom_index);
+              const int*               global_atom_index);
 
 #endif

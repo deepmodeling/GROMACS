@@ -114,12 +114,7 @@ real cmap_dihs(int                 nbonds,
                const rvec          x[],
                rvec4               f[],
                rvec                fshift[],
-               const struct t_pbc* pbc,
-               real gmx_unused lambda,
-               real gmx_unused* dvdlambda,
-               const t_mdatoms gmx_unused* md,
-               t_fcdata gmx_unused* fcd,
-               int gmx_unused* global_atom_index);
+               const struct t_pbc* pbc);
 
 /*! \brief For selecting which flavor of bonded kernel is used for simple bonded types */
 enum class BondedKernelFlavor
@@ -169,8 +164,8 @@ real calculateSimpleBond(int                 ftype,
                          real*               dvdlambda,
                          const t_mdatoms*    md,
                          t_fcdata*           fcd,
-                         int gmx_unused*    global_atom_index,
-                         BondedKernelFlavor bondedKernelFlavor);
+                         const int gmx_unused* global_atom_index,
+                         BondedKernelFlavor    bondedKernelFlavor);
 
 //! Getter for finding the flop count for an \c ftype interaction.
 int nrnbIndex(int ftype);

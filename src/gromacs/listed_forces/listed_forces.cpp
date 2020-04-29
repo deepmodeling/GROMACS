@@ -297,93 +297,99 @@ BondedKernelFlavor selectBondedKernelFlavor(const gmx::StepWorkload& stepWork,
     return flavor;
 }
 
-/*! \brief Calculate one element of the list of bonded interactions
-    for this thread */
-real calc_one_bond(int                           thread,
-                   int                           ftype,
-                   const InteractionDefinitions& idef,
-                   ArrayRef<const int>           iatoms,
-                   const int                     numNonperturbedInteractions,
-                   const WorkDivision&           workDivision,
-                   const rvec                    x[],
-                   rvec4                         f[],
-                   rvec                          fshift[],
-                   const t_forcerec*             fr,
-                   const t_pbc*                  pbc,
-                   gmx_grppairener_t*            grpp,
-                   t_nrnb*                       nrnb,
-                   const real*                   lambda,
-                   real*                         dvdl,
-                   const t_mdatoms*              md,
-                   t_fcdata*                     fcd,
-                   const gmx::StepWorkload&      stepWork,
-                   int*                          global_atom_index)
-{
-    GMX_ASSERT(idef.ilsort == ilsortNO_FE || idef.ilsort == ilsortFE_SORTED,
-               "The topology should be marked either as no FE or sorted on FE");
-
-    const bool havePerturbedInteractions =
-            (idef.ilsort == ilsortFE_SORTED && numNonperturbedInteractions < iatoms.ssize());
-    BondedKernelFlavor flavor =
-            selectBondedKernelFlavor(stepWork, fr->use_simd_kernels, havePerturbedInteractions);
-    int efptFTYPE;
-    if (IS_RESTRAINT_TYPE(ftype))
-    {
-        efptFTYPE = efptRESTRAINT;
-    }
-    else
-    {
-        efptFTYPE = efptBONDED;
-    }
-
-    const int nat1   = interaction_function[ftype].nratoms + 1;
-    const int nbonds = iatoms.ssize() / nat1;
-
-    GMX_ASSERT(fr->gpuBonded != nullptr || workDivision.end(ftype) == iatoms.ssize(),
-               "The thread division should match the topology");
-
-    const int nb0 = workDivision.bound(ftype, thread);
-    const int nbn = workDivision.bound(ftype, thread + 1) - nb0;
-
-    ArrayRef<const t_iparams> iparams = idef.iparams;
-
-    real v = 0;
-    if (!isPairInteraction(ftype))
-    {
-        if (ftype == F_CMAP)
-        {
-            /* TODO The execution time for CMAP dihedrals might be
-               nice to account to its own subtimer, but first
-               wallcycle needs to be extended to support calling from
-               multiple threads. */
-            v = cmap_dihs(nbn, iatoms.data() + nb0, iparams.data(), &idef.cmap_grid, x, f, fshift,
-                          pbc, lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd, global_atom_index);
-        }
-        else
-        {
-            v = calculateSimpleBond(ftype, nbn, iatoms.data() + nb0, iparams.data(), x, f, fshift,
-                                    pbc, lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd,
-                                    global_atom_index, flavor);
-        }
-    }
-    else
-    {
-        /* TODO The execution time for pairs might be nice to account
-           to its own subtimer, but first wallcycle needs to be
-           extended to support calling from multiple threads. */
-        do_pairs(ftype, nbn, iatoms.data() + nb0, iparams.data(), x, f, fshift, pbc, lambda, dvdl,
-                 md, fr, havePerturbedInteractions, stepWork, grpp, global_atom_index);
-    }
-
-    if (thread == 0)
-    {
-        inc_nrnb(nrnb, nrnbIndex(ftype), nbonds);
-    }
-
-    return v;
-}
-
 } // namespace
+
+//! \brief Enum to determine what type of interactions to construct with InteractionsManager
+enum class InteractionsManagerSelector
+{
+    nonPerturbedInteractions,
+    perturbedInteractions,
+    count
+};
+
+//! \brief Helper object for setting up interaction data for listed forces
+class InteractionsManager
+{
+public:
+    /*! \brief constructor
+     *
+     * @param interactionsManagerSelector Whether to build perturbed or non-perturbed interactions
+     * @param ftype The type of interaction
+     * @param thread Which thread we are on; currently always 0 for perturbed interactions
+     * @param useGpuBonded Whether there are any bonded terms being computed on the GPU
+     * @param workDivision Object that manages bonded threading
+     * @param interactionDefinitions Object that holds topology information
+     */
+    InteractionsManager(InteractionsManagerSelector   interactionsManagerSelector,
+                        int                           ftype,
+                        int                           thread,
+                        bool                          useGpuBonded,
+                        WorkDivision&                 workDivision,
+                        const InteractionDefinitions& interactionDefinitions)
+    {
+        GMX_ASSERT(interactionDefinitions.ilsort == ilsortNO_FE
+                           || interactionDefinitions.ilsort == ilsortFE_SORTED,
+                   "The topology should be marked either as no FE or sorted on FE");
+
+        numNonPerturbedInteractions_ = interactionDefinitions.numNonperturbedInteractions[ftype];
+
+        havePerturbedInteractions_ = (interactionDefinitions.ilsort == ilsortFE_SORTED
+                                      && numNonPerturbedInteractions() < numInteractionAtoms());
+        GMX_ASSERT(interactionsManagerSelector != InteractionsManagerSelector::count,
+                   "You must select either perturbed or non-perturbed interactions.");
+        if (interactionsManagerSelector == InteractionsManagerSelector::nonPerturbedInteractions)
+        {
+            interactionAtoms_ = gmx::makeConstArrayRef(interactionDefinitions.il[ftype].iatoms);
+        }
+        if (interactionsManagerSelector == InteractionsManagerSelector::perturbedInteractions)
+        {
+            interactionAtoms_ = gmx::constArrayRefFromArray(
+                    interactionDefinitions.il[ftype].iatoms.data() + numNonPerturbedInteractions(),
+                    interactionDefinitions.il[ftype].iatoms.size() - numNonPerturbedInteractions());
+            // For non-perturbed interactions this is managed by divide_bondeds_by_locality()
+            workDivision.setBound(ftype, thread, 0);
+            workDivision.setBound(ftype, thread + 1, numInteractionAtoms());
+        }
+        GMX_ASSERT(useGpuBonded || workDivision.end(ftype) == numInteractionAtoms(),
+                   "The thread division should match the topology");
+
+        numAtomsWithInteraction_   = interaction_function[ftype].nratoms + 1;
+        numBondsOfInteractionType_ = numInteractionAtoms() / numAtomsWithInteraction_;
+
+        firstInteractionThisThread_ = workDivision.bound(ftype, thread);
+        numInteractionsThisThread_ = workDivision.bound(ftype, thread + 1) - firstInteractionThisThread_;
+    }
+
+    int numInteractionAtoms() const { return interactionAtoms_.ssize(); }
+
+    int numBondsOfInteractionType() const { return numBondsOfInteractionType_; }
+
+    int numInteractionsThisThread() const { return numInteractionsThisThread_; }
+
+    const int* interactionAtomsThisThread() const
+    {
+        return interactionAtoms_.data() + firstInteractionThisThread_;
+    }
+
+    bool havePerturbedInteractions() const { return havePerturbedInteractions_; }
+
+    int numNonPerturbedInteractions() const { return numNonPerturbedInteractions_; }
+
+private:
+    ArrayRef<const int> interactionAtoms_;
+
+    int numAtomsWithInteraction_ = 0;
+
+    int numBondsOfInteractionType_ = 0;
+
+    int firstInteractionThisThread_ = 0;
+
+    int numInteractionsThisThread_ = 0;
+
+    int numNonPerturbedInteractions_ = 0;
+
+    bool havePerturbedInteractions_ = false;
+};
 
 /*! \brief Compute the bonded part of the listed forces, parallelized over threads
  */
@@ -399,7 +405,7 @@ static void calcBondedForces(const InteractionDefinitions& idef,
                              const t_mdatoms*              md,
                              t_fcdata*                     fcd,
                              const gmx::StepWorkload&      stepWork,
-                             int*                          global_atom_index)
+                             const int*                    global_atom_index)
 {
     bonded_threading_t* bt = fr->bondedThreading;
 
@@ -410,7 +416,7 @@ static void calcBondedForces(const InteractionDefinitions& idef,
         {
             f_thread_t& threadBuffers = *bt->f_t[thread];
             int         ftype;
-            real *      epot, v;
+            real*       epot;
             /* thread stuff */
             rvec*              fshift;
             real*              dvdlt;
@@ -440,13 +446,50 @@ static void calcBondedForces(const InteractionDefinitions& idef,
             /* Loop over all bonded force types to calculate the bonded forces */
             for (ftype = 0; (ftype < F_NRE); ftype++)
             {
-                const InteractionList& ilist = idef.il[ftype];
-                if (!ilist.empty() && ftype_is_bonded_potential(ftype))
+                real v = 0;
+                if (!idef.il[ftype].empty() && ftype_is_bonded_potential(ftype))
                 {
-                    ArrayRef<const int> iatoms = gmx::makeConstArrayRef(ilist.iatoms);
-                    v = calc_one_bond(thread, ftype, idef, iatoms, idef.numNonperturbedInteractions[ftype],
-                                      fr->bondedThreading->workDivision, x, ft, fshift, fr, pbc_null,
-                                      grpp, nrnb, lambda, dvdlt, md, fcd, stepWork, global_atom_index);
+                    InteractionsManager interactionTracker(
+                            InteractionsManagerSelector::nonPerturbedInteractions, ftype, thread,
+                            fr->gpuBonded != nullptr, fr->bondedThreading->workDivision, idef);
+
+                    if (!isPairInteraction(ftype))
+                    {
+                        if (ftype == F_CMAP)
+                        {
+                            /* TODO The execution time for CMAP dihedrals might be
+                               nice to account to its own subtimer, but first
+                               wallcycle needs to be extended to support calling from
+                               multiple threads. */
+                            v = cmap_dihs(interactionTracker.numInteractionsThisThread(),
+                                          interactionTracker.interactionAtomsThisThread(),
+                                          idef.iparams.data(), &idef.cmap_grid, x, ft, fshift, pbc_null);
+                        }
+                        else
+                        {
+                            BondedKernelFlavor flavor =
+                                    selectBondedKernelFlavor(stepWork, fr->use_simd_kernels,
+                                                             interactionTracker.numInteractionAtoms());
+                            int efptFTYPE = IS_RESTRAINT_TYPE(ftype) ? efptRESTRAINT : efptBONDED;
+                            v             = calculateSimpleBond(
+                                    ftype, interactionTracker.numInteractionsThisThread(),
+                                    interactionTracker.interactionAtomsThisThread(),
+                                    idef.iparams.data(), x, ft, fshift, pbc_null, lambda[efptFTYPE],
+                                    &(dvdlt[efptFTYPE]), md, fcd, global_atom_index, flavor);
+                        }
+                    }
+                    else
+                    {
+                        do_pairs(ftype, interactionTracker.numInteractionsThisThread(),
+                                 interactionTracker.interactionAtomsThisThread(),
+                                 idef.iparams.data(), x, ft, fshift, pbc_null, lambda, dvdlt, md,
+                                 fr, interactionTracker.havePerturbedInteractions(), stepWork, grpp,
+                                 global_atom_index);
+                    }
+                    if (thread == 0)
+                    {
+                        inc_nrnb(nrnb, nrnbIndex(ftype), interactionTracker.numBondsOfInteractionType());
+                    }
                     epot[ftype] += v;
                 }
             }
@@ -486,7 +529,7 @@ void calc_listed(struct gmx_wallcycle*         wcycle,
                  const real*                   lambda,
                  const t_mdatoms*              md,
                  t_fcdata*                     fcd,
-                 int*                          global_atom_index,
+                 const int*                    global_atom_index,
                  const gmx::StepWorkload&      stepWork)
 {
     bonded_threading_t* bt = fr->bondedThreading;
@@ -541,22 +584,13 @@ void calc_listed_lambda(const InteractionDefinitions& idef,
                         const real*                   lambda,
                         const t_mdatoms*              md,
                         t_fcdata*                     fcd,
-                        int*                          global_atom_index)
+                        const int*                    global_atom_index)
 {
-    real          v;
     rvec4*        f;
     rvec*         fshift;
-    const t_pbc*  pbc_null;
+    const t_pbc*  pbc_null     = fr->bMolPBC ? pbc : nullptr;
     WorkDivision& workDivision = fr->bondedThreading->foreignLambdaWorkDivision;
-
-    if (fr->bMolPBC)
-    {
-        pbc_null = pbc;
-    }
-    else
-    {
-        pbc_null = nullptr;
-    }
+    constexpr int thread       = 0;
 
     /* We already have the forces, so we use temp buffers here */
     // TODO: Get rid of these allocations by using permanent force buffers
@@ -566,24 +600,39 @@ void calc_listed_lambda(const InteractionDefinitions& idef,
     /* Loop over all bonded force types to calculate the bonded energies */
     for (int ftype = 0; (ftype < F_NRE); ftype++)
     {
+        real v = 0;
         if (ftype_is_bonded_potential(ftype))
         {
-            const InteractionList& ilist = idef.il[ftype];
-            /* Create a temporary iatom list with only perturbed interactions */
-            const int           numNonperturbed = idef.numNonperturbedInteractions[ftype];
-            ArrayRef<const int> iatomsPerturbed = gmx::constArrayRefFromArray(
-                    ilist.iatoms.data() + numNonperturbed, ilist.size() - numNonperturbed);
-            if (!iatomsPerturbed.empty())
+            if (!idef.il[ftype].empty())
             {
-                /* Set the work range of thread 0 to the perturbed bondeds */
-                workDivision.setBound(ftype, 0, 0);
-                workDivision.setBound(ftype, 1, iatomsPerturbed.ssize());
+                InteractionsManager interactionsManager(
+                        InteractionsManagerSelector::perturbedInteractions, ftype, thread,
+                        fr->gpuBonded != nullptr, workDivision, idef);
 
                 gmx::StepWorkload tempFlags;
                 tempFlags.computeEnergy = true;
-                v = calc_one_bond(0, ftype, idef, iatomsPerturbed, iatomsPerturbed.ssize(),
-                                  workDivision, x, f, fshift, fr, pbc_null, grpp, nrnb, lambda,
-                                  dvdl.data(), md, fcd, tempFlags, global_atom_index);
+                if (isPairInteraction(ftype))
+                {
+                    do_pairs(ftype, interactionsManager.numInteractionsThisThread(),
+                             interactionsManager.interactionAtomsThisThread(), idef.iparams.data(),
+                             x, f, fshift, pbc_null, lambda, dvdl.data(), md, fr,
+                             interactionsManager.havePerturbedInteractions(), tempFlags, grpp,
+                             global_atom_index);
+                }
+                else
+                {
+                    BondedKernelFlavor flavor =
+                            selectBondedKernelFlavor(tempFlags, fr->use_simd_kernels,
+                                                     interactionsManager.havePerturbedInteractions());
+                    int efptFTYPE = IS_RESTRAINT_TYPE(ftype) ? efptRESTRAINT : efptBONDED;
+                    v = calculateSimpleBond(ftype, interactionsManager.numInteractionsThisThread(),
+                                            interactionsManager.interactionAtomsThisThread(),
+                                            idef.iparams.data(), x, f, fshift, pbc_null, lambda[efptFTYPE],
+                                            &(dvdl[efptFTYPE]), md, fcd, global_atom_index, flavor);
+                }
+
+                inc_nrnb(nrnb, nrnbIndex(ftype), interactionsManager.numBondsOfInteractionType());
+
                 epot[ftype] += v;
             }
         }

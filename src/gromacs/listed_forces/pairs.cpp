@@ -74,7 +74,7 @@
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 
 /*! \brief Issue a warning if a listed interaction is beyond a table limit */
-static void warning_rlimit(const rvec* x, int ai, int aj, int* global_atom_index, real r, real rlimit)
+static void warning_rlimit(const rvec* x, int ai, int aj, const int* global_atom_index, real r, real rlimit)
 {
     gmx_warning(
             "Listed nonbonded interaction between particles %d and %d\n"
@@ -368,7 +368,7 @@ static real do_pairs_general(int                 ftype,
                              const t_mdatoms*    md,
                              const t_forcerec*   fr,
                              gmx_grppairener_t*  grppener,
-                             int*                global_atom_index)
+                             const int*          global_atom_index)
 {
     real            qq, c6, c12;
     rvec            dx;
@@ -676,7 +676,7 @@ void do_pairs(int                      ftype,
               const bool               havePerturbedInteractions,
               const gmx::StepWorkload& stepWork,
               gmx_grppairener_t*       grppener,
-              int*                     global_atom_index)
+              const int*               global_atom_index)
 {
     if (ftype == F_LJ14 && fr->ic->vdwtype != evdwUSER && !EEL_USER(fr->ic->eeltype)
         && !havePerturbedInteractions && (!stepWork.computeVirial && !stepWork.computeEnergy))

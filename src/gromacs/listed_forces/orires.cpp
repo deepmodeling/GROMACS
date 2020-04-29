@@ -656,7 +656,7 @@ real orires(int             nfa,
             real gmx_unused* dvdlambda,
             const t_mdatoms gmx_unused* md,
             t_fcdata*                   fcd,
-            int gmx_unused* global_atom_index)
+            const int gmx_unused* global_atom_index)
 {
     int                 ex, power, ki = CENTRAL;
     real                r2, invr, invr2, fc, smooth_fc, dev, devins, pfac;
