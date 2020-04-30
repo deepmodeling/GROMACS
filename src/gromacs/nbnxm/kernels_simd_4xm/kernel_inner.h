@@ -273,7 +273,7 @@
 #    if UNROLLJ == STRIDE
     ajx = aj * DIM;
 #    else
-    ajx     = (cj >> 1) * DIM * STRIDE + (cj & 1) * UNROLLJ;
+    ajx      = (cj >> 1) * DIM * STRIDE + (cj & 1) * UNROLLJ;
 #    endif
     ajy = ajx + STRIDE;
     ajz = ajy + STRIDE;
@@ -396,15 +396,15 @@
 
     /* Calculate 1/r */
 #    if SKIP_INVSQRT
-    rinvsq_S0 = inv(rsq_S0);
-    rinvsq_S1 = inv(rsq_S1);
-    rinvsq_S2 = inv(rsq_S2);
-    rinvsq_S3 = inv(rsq_S3);
+    rinvsq_S0 = invMask(rsq_S0, wco_S0);
+    rinvsq_S1 = invMask(rsq_S1, wco_S1);
+    rinvsq_S2 = invMask(rsq_S2, wco_S2);
+    rinvsq_S3 = invMask(rsq_S3, wco_S3);
 #    elif !GMX_DOUBLE
-    rinv_S0 = invsqrt(rsq_S0);
-    rinv_S1 = invsqrt(rsq_S1);
-    rinv_S2 = invsqrt(rsq_S2);
-    rinv_S3 = invsqrt(rsq_S3);
+    rinv_S0  = invsqrt(rsq_S0);
+    rinv_S1  = invsqrt(rsq_S1);
+    rinv_S2  = invsqrt(rsq_S2);
+    rinv_S3  = invsqrt(rsq_S3);
 #    else
     invsqrtPair(rsq_S0, rsq_S1, &rinv_S0, &rinv_S1);
     invsqrtPair(rsq_S2, rsq_S3, &rinv_S2, &rinv_S3);
@@ -466,12 +466,7 @@
 
 #    endif /* CALC_LJ */
 
-#    if SKIP_INVSQRT
-    rinvsq_S0 = selectByMask(rinvsq_S0, wco_S0);
-    rinvsq_S1 = selectByMask(rinvsq_S1, wco_S1);
-    rinvsq_S2 = selectByMask(rinvsq_S2, wco_S2);
-    rinvsq_S3 = selectByMask(rinvsq_S3, wco_S3);
-#    else
+#    if !SKIP_INVSQRT
     /* Set rinv to zero for r beyond the cut-off */
     rinv_S0 = selectByMask(rinv_S0, wco_S0);
     rinv_S1 = selectByMask(rinv_S1, wco_S1);
@@ -1178,8 +1173,8 @@
     fscal_S1 = rinvsq_S1 * frLJ_S1;
 #        endif
 #    else
-    fscal_S0  = rinvsq_S0 * frcoul_S0;
-    fscal_S1  = rinvsq_S1 * frcoul_S1;
+    fscal_S0 = rinvsq_S0 * frcoul_S0;
+    fscal_S1 = rinvsq_S1 * frcoul_S1;
 #    endif /* CALC_LJ */
 #    if defined CALC_LJ && !defined HALF_LJ
 #        ifdef CALC_COULOMB

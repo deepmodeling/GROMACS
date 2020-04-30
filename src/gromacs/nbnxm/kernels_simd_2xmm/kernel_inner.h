@@ -311,11 +311,11 @@
 
     /* Calculate 1/r */
 #if SKIP_INVSQRT
-    rinvsq_S0 = inv(rsq_S0);
-    rinvsq_S2 = inv(rsq_S2);
+    rinvsq_S0 = invMask(rsq_S0, wco_S0);
+    rinvsq_S2 = invMask(rsq_S2, wco_S2);
 #else
-    rinv_S0 = invsqrt(rsq_S0);
-    rinv_S2 = invsqrt(rsq_S2);
+    rinv_S0  = invsqrt(rsq_S0);
+    rinv_S2  = invsqrt(rsq_S2);
 #endif
 
 #ifdef CALC_COULOMB
@@ -362,10 +362,7 @@
 
 #endif /* CALC_LJ */
 
-#if SKIP_INVSQRT
-    rinvsq_S0 = selectByMask(rinvsq_S0, wco_S0);
-    rinvsq_S2 = selectByMask(rinvsq_S2, wco_S2);
-#else
+#if !SKIP_INVSQRT
     /* Set rinv to zero for r beyond the cut-off */
     rinv_S0 = selectByMask(rinv_S0, wco_S0);
     rinv_S2 = selectByMask(rinv_S2, wco_S2);
@@ -890,7 +887,7 @@
     fscal_S0 = rinvsq_S0 * frLJ_S0;
 #    endif
 #else
-    fscal_S0  = rinvsq_S0 * frcoul_S0;
+    fscal_S0 = rinvsq_S0 * frcoul_S0;
 #endif /* CALC_LJ */
 #if defined CALC_LJ && !defined HALF_LJ
 #    ifdef CALC_COULOMB
