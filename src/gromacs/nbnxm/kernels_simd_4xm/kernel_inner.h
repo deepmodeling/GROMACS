@@ -513,10 +513,11 @@
     frcoul_S3 = qq_S3 * fma(rsq_S3, mrc_3_S, rinv_ex_S3);
 
 #            ifdef CALC_ENERGIES
-    vcoul_S0 = qq_S0 * (rinv_ex_S0 + fma(rsq_S0, hrc_3_S, moh_rc_S));
-    vcoul_S1 = qq_S1 * (rinv_ex_S1 + fma(rsq_S1, hrc_3_S, moh_rc_S));
-    vcoul_S2 = qq_S2 * (rinv_ex_S2 + fma(rsq_S2, hrc_3_S, moh_rc_S));
-    vcoul_S3 = qq_S3 * (rinv_ex_S3 + fma(rsq_S3, hrc_3_S, moh_rc_S));
+    /* and (merge) mask energy for cut-off and diagonal */
+    vcoul_S0 = maskzMul(qq_S0, rinv_ex_S0 + fma(rsq_S0, hrc_3_S, moh_rc_S), wco_S0);
+    vcoul_S1 = maskzMul(qq_S1, rinv_ex_S1 + fma(rsq_S1, hrc_3_S, moh_rc_S), wco_S1);
+    vcoul_S2 = maskzMul(qq_S2, rinv_ex_S2 + fma(rsq_S2, hrc_3_S, moh_rc_S), wco_S2);
+    vcoul_S3 = maskzMul(qq_S3, rinv_ex_S3 + fma(rsq_S3, hrc_3_S, moh_rc_S), wco_S3);
 #            endif
 #        endif
 
@@ -648,19 +649,12 @@
 #                endif
 #            endif
 
-    vcoul_S0 = qq_S0 * (rinv_ex_S0 - vc_sub_S0);
-    vcoul_S1 = qq_S1 * (rinv_ex_S1 - vc_sub_S1);
-    vcoul_S2 = qq_S2 * (rinv_ex_S2 - vc_sub_S2);
-    vcoul_S3 = qq_S3 * (rinv_ex_S3 - vc_sub_S3);
+    /* and (merge) mask energy for cut-off and diagonal */
+    vcoul_S0 = maskzMul(qq_S0, rinv_ex_S0 - vc_sub_S0, wco_S0);
+    vcoul_S1 = maskzMul(qq_S1, rinv_ex_S1 - vc_sub_S1, wco_S1);
+    vcoul_S2 = maskzMul(qq_S2, rinv_ex_S2 - vc_sub_S2, wco_S2);
+    vcoul_S3 = maskzMul(qq_S3, rinv_ex_S3 - vc_sub_S3, wco_S3);
 
-#        endif
-
-#        ifdef CALC_ENERGIES
-    /* Mask energy for cut-off and diagonal */
-    vcoul_S0 = selectByMask(vcoul_S0, wco_S0);
-    vcoul_S1 = selectByMask(vcoul_S1, wco_S1);
-    vcoul_S2 = selectByMask(vcoul_S2, wco_S2);
-    vcoul_S3 = selectByMask(vcoul_S3, wco_S3);
 #        endif
 
 #    endif /* CALC_COULOMB */

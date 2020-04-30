@@ -397,8 +397,9 @@
     frcoul_S2 = qq_S2 * fma(rsq_S2, mrc_3_S, rinv_ex_S2);
 
 #        ifdef CALC_ENERGIES
-    vcoul_S0 = qq_S0 * (rinv_ex_S0 + fma(rsq_S0, hrc_3_S, moh_rc_S));
-    vcoul_S2 = qq_S2 * (rinv_ex_S2 + fma(rsq_S2, hrc_3_S, moh_rc_S));
+    /* and (merge) mask energy for cut-off and diagonal */
+    vcoul_S0 = maskzMul(qq_S0, rinv_ex_S0 + fma(rsq_S0, hrc_3_S, moh_rc_S), wco_S0);
+    vcoul_S2 = maskzMul(qq_S2, rinv_ex_S2 + fma(rsq_S2, hrc_3_S, moh_rc_S), wco_S2);
 #        endif
 #    endif
 
@@ -488,15 +489,10 @@
 #            endif
 #        endif
 
-    vcoul_S0 = qq_S0 * (rinv_ex_S0 - vc_sub_S0);
-    vcoul_S2 = qq_S2 * (rinv_ex_S2 - vc_sub_S2);
+    /* and (merge) mask energy for cut-off and diagonal */
+    vcoul_S0 = maskzMul(qq_S0, rinv_ex_S0 - vc_sub_S0, wco_S0);
+    vcoul_S2 = maskzMul(qq_S2, rinv_ex_S2 - vc_sub_S2, wco_S2);
 
-#    endif
-
-#    ifdef CALC_ENERGIES
-    /* Mask energy for cut-off and diagonal */
-    vcoul_S0 = selectByMask(vcoul_S0, wco_S0);
-    vcoul_S2 = selectByMask(vcoul_S2, wco_S2);
 #    endif
 
 #endif /* CALC_COULOMB */
