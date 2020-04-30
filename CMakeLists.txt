@@ -229,8 +229,12 @@ else()
     endif()
 endif()
 
-if(GMX_GPU AND GMX_USE_CUDA AND ${CUDA_VERSION} STREQUAL "9.0" AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
-    message(FATAL_ERROR "Building with CUDA 9.0 and a gcc compiler version lower than 6 does not work. Please use a more recent compiler")
+if(GMX_USE_CUDA)
+    if(${CUDA_VERSION} STREQUAL "9.0")
+        if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
+            message(FATAL_ERROR "Building with CUDA 9.0 and a gcc compiler version lower than 6 does not work. Please use a more recent compiler")
+        endif()
+    endif()
 endif()
 
 gmx_option_multichoice(
