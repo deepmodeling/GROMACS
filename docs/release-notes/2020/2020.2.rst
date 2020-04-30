@@ -83,6 +83,13 @@ The tool would fail with a segmentation fault.
 Fixes that affect portability
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Disallow CUDA 9.0 and gcc less than 6
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The GPU code would not compile with this combination of CUDA and early gcc versions.
+
+:issue:`2958`
+
 Miscellaneous
 ^^^^^^^^^^^^^
 

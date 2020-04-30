@@ -1,7 +1,9 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019, by the GROMACS development team, led by
+# Copyright (c) 2009,2010,2011,2012,2013, The GROMACS development team.
+# Copyright (c) 2014,2015,2016,2017,2018, The GROMACS development team.
+# Copyright (c) 2019,2020, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -225,6 +227,10 @@ else()
     else()
         message(FATAL_ERROR "OpenCL requested but GPU option is not enabled (try -DGMX_GPU=on) ")
     endif()
+endif()
+
+if(GMX_USE_CUDA AND ${CUDA_VERSION} STREQUAL "9.0" AND "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
+    message(FATAL_ERROR "Building with CUDA 9.0 and a gcc compiler version lower than 6 does not work. Please use a more recent compiler")
 endif()
 
 gmx_option_multichoice(
