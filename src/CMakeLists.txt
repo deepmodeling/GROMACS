@@ -67,12 +67,6 @@ set(IGNORED_CLANG_ALL_WARNINGS
     "-Wno-covered-switch-default" #GCC gives maybe-uninitialized without default label and checks for illegal enum values.
     "-Wno-switch-enum" # default statement for enum is OK
 
-    # We need to use macros like
-    # GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR. Those will look strange
-    # if they don't have a semicolon after them, and might confuse
-    # tools like IDEs also.
-    "-Wno-extra-semi-stmt"
-
     #Following ones are undecided/TODO
     "-Wno-disabled-macro-expansion"
     "-Wno-cast-align"
@@ -92,6 +86,16 @@ set(IGNORED_CLANG_ALL_WARNINGS
     "-Wno-old-style-cast"
     "-Wno-conversion"
     "-Wno-double-promotion")
+
+if(NOT "${CMAKE_CXX_COMPILER}" MATCHES "FCC")
+    set(IGNORED_CLANG_ALL_WARNINGS ${IGNORED_CLANG_ALL_WARNINGS}
+        # We need to use macros like
+        # GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR. Those will look strange
+        # if they don't have a semicolon after them, and might confuse
+        # tools like IDEs also.
+        "-Wno-extra-semi-stmt")
+endif()
+
 string(REPLACE " " ";" IGNORED_CLANG_ALL_WARNINGS "${IGNORED_CLANG_ALL_WARNINGS}")
 
 option(GMX_CLANG_TIDY "Use clang-tidy" OFF)
