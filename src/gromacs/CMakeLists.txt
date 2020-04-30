@@ -330,6 +330,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
      /wd6031  #return value ignored (important - mostly warnigns about sscanf)
      /wd6244  #hides declaration (known issue - we ingore similar warnings for other compilers)
      /wd6246  #hides declaration
+     # Add new options for compiling
+     /GL      # Enables "link time codegen", highest optimization level for MSVC
+     /Oi      # Intrinsic expansion is typically many times faster than intrinsic function calls.
+     /Ob3     # Increases the internal thresholds of the inliner to be closer to what other compilers use
+     /Zc:throwingNew # Tell the compiler that operator new doesn't throw
      >
    )
 endif()
