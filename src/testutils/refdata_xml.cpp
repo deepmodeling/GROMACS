@@ -371,7 +371,7 @@ void writeReferenceDataFile(const std::string& path, const ReferenceDataEntry& r
     XMLElementPtr rootElement = createRootElement(&document);
     createChildElements(rootElement, rootEntry);
 
-    if (document.SaveFile(path.c_str()) != tinyxml2::XML_NO_ERROR)
+    if (document.SaveFile(path.c_str()) != tinyxml2::XML_SUCCESS)
     {
         GMX_THROW(TestException("Reference data saving failed in " + path));
     }
