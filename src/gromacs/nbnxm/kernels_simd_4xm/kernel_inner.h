@@ -273,7 +273,7 @@
 #    if UNROLLJ == STRIDE
     ajx = aj * DIM;
 #    else
-    ajx      = (cj >> 1) * DIM * STRIDE + (cj & 1) * UNROLLJ;
+    ajx = (cj >> 1) * DIM * STRIDE + (cj & 1) * UNROLLJ;
 #    endif
     ajy = ajx + STRIDE;
     ajz = ajy + STRIDE;
@@ -401,13 +401,20 @@
     rinvsq_S2 = invMask(rsq_S2, wco_S2);
     rinvsq_S3 = invMask(rsq_S3, wco_S3);
 #    elif !GMX_DOUBLE
-    rinv_S0  = invsqrt(rsq_S0);
-    rinv_S1  = invsqrt(rsq_S1);
-    rinv_S2  = invsqrt(rsq_S2);
-    rinv_S3  = invsqrt(rsq_S3);
+    /* and set rinv to zero for r beyond the cut-off */
+    rinv_S0  = invsqrtMask(rsq_S0, wco_S0);
+    rinv_S1  = invsqrtMask(rsq_S1, wco_S1);
+    rinv_S2  = invsqrtMask(rsq_S2, wco_S2);
+    rinv_S3  = invsqrtMask(rsq_S3, wco_S3);
 #    else
     invsqrtPair(rsq_S0, rsq_S1, &rinv_S0, &rinv_S1);
     invsqrtPair(rsq_S2, rsq_S3, &rinv_S2, &rinv_S3);
+    /* Set rinv to zero for r beyond the cut-off */
+    rinv_S0 = selectByMask(rinv_S0, wco_S0);
+    rinv_S1 = selectByMask(rinv_S1, wco_S1);
+    rinv_S2 = selectByMask(rinv_S2, wco_S2);
+    rinv_S3 = selectByMask(rinv_S3, wco_S3);
+
 #    endif
 
 #    ifdef CALC_COULOMB
@@ -467,12 +474,6 @@
 #    endif /* CALC_LJ */
 
 #    if !SKIP_INVSQRT
-    /* Set rinv to zero for r beyond the cut-off */
-    rinv_S0 = selectByMask(rinv_S0, wco_S0);
-    rinv_S1 = selectByMask(rinv_S1, wco_S1);
-    rinv_S2 = selectByMask(rinv_S2, wco_S2);
-    rinv_S3 = selectByMask(rinv_S3, wco_S3);
-
     rinvsq_S0 = rinv_S0 * rinv_S0;
     rinvsq_S1 = rinv_S1 * rinv_S1;
     rinvsq_S2 = rinv_S2 * rinv_S2;

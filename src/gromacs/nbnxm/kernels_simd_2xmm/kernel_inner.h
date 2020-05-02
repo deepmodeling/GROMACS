@@ -314,8 +314,9 @@
     rinvsq_S0 = invMask(rsq_S0, wco_S0);
     rinvsq_S2 = invMask(rsq_S2, wco_S2);
 #else
-    rinv_S0  = invsqrt(rsq_S0);
-    rinv_S2  = invsqrt(rsq_S2);
+    /* and set rinv to zero for r beyond the cut-off */
+    rinv_S0  = invsqrtMask(rsq_S0, wco_S0);
+    rinv_S2  = invsqrtMask(rsq_S2, wco_S2);
 #endif
 
 #ifdef CALC_COULOMB
@@ -363,10 +364,6 @@
 #endif /* CALC_LJ */
 
 #if !SKIP_INVSQRT
-    /* Set rinv to zero for r beyond the cut-off */
-    rinv_S0 = selectByMask(rinv_S0, wco_S0);
-    rinv_S2 = selectByMask(rinv_S2, wco_S2);
-
     rinvsq_S0 = rinv_S0 * rinv_S0;
     rinvsq_S2 = rinv_S2 * rinv_S2;
 #endif
