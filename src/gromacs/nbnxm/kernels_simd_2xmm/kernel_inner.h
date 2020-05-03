@@ -582,20 +582,26 @@
 #        ifndef HALF_LJ
     sir2_S2 = sir_S2 * sir_S2;
 #        endif
-    sir6_S0 = sir2_S0 * sir2_S0 * sir2_S0;
+#        ifdef VDW_CUTOFF_CHECK
+    sir6_S0 = maskzMul(sir2_S0, sir2_S0, wco_vdw_S0);
+#        else
+    sir6_S0    = sir2_S0 * sir2_S0;
+#        endif
 #        ifdef EXCL_FORCES
-    sir6_S0 = selectByMask(sir6_S0, interact_S0);
+    sir6_S0 = maskzMul(sir6_S0, sir2_S0, interact_S0);
+#        else
+    sir6_S0    = sir6_S0 * sir2_S0;
 #        endif
 #        ifndef HALF_LJ
-    sir6_S2 = sir2_S2 * sir2_S2 * sir2_S2;
-#            ifdef EXCL_FORCES
-    sir6_S2 = selectByMask(sir6_S2, interact_S2);
+#            ifdef VDW_CUTOFF_CHECK
+    sir6_S2 = maskzMul(sir2_S2, sir2_S2, wco_vdw_S2);
+#            else
+    sir6_S2    = sir2_S2 * sir2_S2;
 #            endif
-#        endif
-#        ifdef VDW_CUTOFF_CHECK
-    sir6_S0 = selectByMask(sir6_S0, wco_vdw_S0);
-#            ifndef HALF_LJ
-    sir6_S2 = selectByMask(sir6_S2, wco_vdw_S2);
+#            ifdef EXCL_FORCES
+    sir6_S2 = maskzMul(sir6_S2, sir2_S2, interact_S2);
+#            else
+    sir6_S2    = sir6_S2 * sir2_S2;
 #            endif
 #        endif
     FrLJ6_S0 = eps_S0 * sir6_S0;

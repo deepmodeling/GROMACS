@@ -777,26 +777,34 @@
     sir2_S2 = sir_S2 * sir_S2;
     sir2_S3 = sir_S3 * sir_S3;
 #            endif
-    sir6_S0 = sir2_S0 * sir2_S0 * sir2_S0;
-    sir6_S1 = sir2_S1 * sir2_S1 * sir2_S1;
+#            ifdef VDW_CUTOFF_CHECK
+    sir6_S0 = maskzMul(sir2_S0, sir2_S0, wco_vdw_S0);
+    sir6_S1 = maskzMul(sir2_S1, sir2_S1, wco_vdw_S1);
+#            else
+    sir6_S0    = sir2_S0 * sir2_S0;
+    sir6_S1    = sir2_S1 * sir2_S1;
+#            endif
 #            ifdef EXCL_FORCES
-    sir6_S0 = selectByMask(sir6_S0, interact_S0);
-    sir6_S1 = selectByMask(sir6_S1, interact_S1);
+    sir6_S0 = maskzMul(sir6_S0, sir2_S0, interact_S0);
+    sir6_S1 = maskzMul(sir6_S1, sir2_S1, interact_S1);
+#            else
+    sir6_S0    = sir6_S0 * sir2_S0;
+    sir6_S1    = sir6_S1 * sir2_S1;
 #            endif
 #            ifndef HALF_LJ
-    sir6_S2 = sir2_S2 * sir2_S2 * sir2_S2;
-    sir6_S3 = sir2_S3 * sir2_S3 * sir2_S3;
-#                ifdef EXCL_FORCES
-    sir6_S2 = selectByMask(sir6_S2, interact_S2);
-    sir6_S3 = selectByMask(sir6_S3, interact_S3);
+#                ifdef VDW_CUTOFF_CHECK
+    sir6_S2 = maskzMul(sir2_S2, sir2_S2, wco_vdw_S2);
+    sir6_S3 = maskzMul(sir2_S3, sir2_S3, wco_vdw_S3);
+#                else
+    sir6_S2    = sir2_S2 * sir2_S2;
+    sir6_S3    = sir2_S3 * sir2_S3;
 #                endif
-#            endif
-#            ifdef VDW_CUTOFF_CHECK
-    sir6_S0 = selectByMask(sir6_S0, wco_vdw_S0);
-    sir6_S1 = selectByMask(sir6_S1, wco_vdw_S1);
-#                ifndef HALF_LJ
-    sir6_S2 = selectByMask(sir6_S2, wco_vdw_S2);
-    sir6_S3 = selectByMask(sir6_S3, wco_vdw_S3);
+#                ifdef EXCL_FORCES
+    sir6_S2 = maskzMul(sir6_S2, sir2_S2, interact_S2);
+    sir6_S3 = maskzMul(sir6_S3, sir2_S3, interact_S3);
+#                else
+    sir6_S2    = sir6_S2 * sir2_S2;
+    sir6_S3    = sir6_S3 * sir2_S3;
 #                endif
 #            endif
     FrLJ6_S0 = eps_S0 * sir6_S0;
