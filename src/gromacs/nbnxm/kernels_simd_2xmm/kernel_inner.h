@@ -70,7 +70,7 @@
 #endif
 
 {
-    int cj, aj, ajx, ajy, ajz;
+    int cj, aj;
 
 #ifdef ENERGY_GROUPS
     /* Energy group indices for two atoms packed into one int */
@@ -223,9 +223,6 @@
 #if defined CALC_LJ && (defined LJ_COMB_GEOM || defined LJ_COMB_LB || defined LJ_EWALD_GEOM)
     aj2 = aj * 2;
 #endif
-    ajx = aj * DIM;
-    ajy = ajx + STRIDE;
-    ajz = ajy + STRIDE;
 
 #ifdef CHECK_EXCLS
     gmx_load_simd_2xnn_interactions(static_cast<int>(l_cj[cjind].excl), filter_S0, filter_S2,
@@ -233,9 +230,7 @@
 #endif /* CHECK_EXCLS */
 
     /* load j atom coordinates */
-    jx_S = loadDuplicateHsimd(x + ajx);
-    jy_S = loadDuplicateHsimd(x + ajy);
-    jz_S = loadDuplicateHsimd(x + ajz);
+    loadDuplicate3Hsimd<STRIDE>(x + aj * DIM, &jx_S, &jy_S, &jz_S);
 
     /* Calculate distance */
     dx_S0 = ix_S0 - jx_S;
@@ -337,8 +332,7 @@
 #    endif /* not defined any LJ rule */
 
 #    ifdef LJ_COMB_GEOM
-    c6s_j_S        = loadDuplicateHsimd(ljc + aj2);
-    c12s_j_S       = loadDuplicateHsimd(ljc + aj2 + STRIDE);
+    loadDuplicate2Hsimd<STRIDE>(ljc + aj2, &c6s_j_S, &c12s_j_S);
     SimdReal c6_S0 = c6s_S0 * c6s_j_S;
 #        ifndef HALF_LJ
     SimdReal c6_S2 = c6s_S2 * c6s_j_S;
@@ -350,8 +344,7 @@
 #    endif /* LJ_COMB_GEOM */
 
 #    ifdef LJ_COMB_LB
-    hsig_j_S = loadDuplicateHsimd(ljc + aj2);
-    seps_j_S = loadDuplicateHsimd(ljc + aj2 + STRIDE);
+    loadDuplicate2Hsimd<STRIDE>(ljc + aj2, &hsig_j_S, &seps_j_S);
 
     sig_S0 = hsig_i_S0 + hsig_j_S;
     eps_S0 = seps_i_S0 * seps_j_S;
@@ -914,9 +907,7 @@
     fiz_S2 = fiz_S2 + tz_S2;
 
     /* Decrement j atom force */
-    decrHsimd(f + ajx, tx_S0 + tx_S2);
-    decrHsimd(f + ajy, ty_S0 + ty_S2);
-    decrHsimd(f + ajz, tz_S0 + tz_S2);
+    decr3Hsimd<STRIDE>(f + aj * DIM, tx_S0 + tx_S2, ty_S0 + ty_S2, tz_S0 + tz_S2);
 }
 
 #undef rinv_ex_S0
