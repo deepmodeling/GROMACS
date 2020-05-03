@@ -589,10 +589,10 @@
     gatherLoadUBySimdIntTranspose<1>(tab_coul_F, ti_S1, &ctab0_S1, &ctab1_S1);
     gatherLoadUBySimdIntTranspose<1>(tab_coul_F, ti_S2, &ctab0_S2, &ctab1_S2);
     gatherLoadUBySimdIntTranspose<1>(tab_coul_F, ti_S3, &ctab0_S3, &ctab1_S3);
-    ctab1_S0  = ctab1_S0 - ctab0_S0;
-    ctab1_S1  = ctab1_S1 - ctab0_S1;
-    ctab1_S2  = ctab1_S2 - ctab0_S2;
-    ctab1_S3  = ctab1_S3 - ctab0_S3;
+    ctab1_S0   = ctab1_S0 - ctab0_S0;
+    ctab1_S1   = ctab1_S1 - ctab0_S1;
+    ctab1_S2   = ctab1_S2 - ctab0_S2;
+    ctab1_S3   = ctab1_S3 - ctab0_S3;
 #                endif
 #            else
 #                ifdef TAB_FDV0
@@ -641,10 +641,10 @@
     vc_sub_S2 = maskAdd(vc_sub_S2, sh_ewald_S, interact_S2);
     vc_sub_S3 = maskAdd(vc_sub_S3, sh_ewald_S, interact_S3);
 #                else
-    vc_sub_S0 = vc_sub_S0 + sh_ewald_S;
-    vc_sub_S1 = vc_sub_S1 + sh_ewald_S;
-    vc_sub_S2 = vc_sub_S2 + sh_ewald_S;
-    vc_sub_S3 = vc_sub_S3 + sh_ewald_S;
+    vc_sub_S0  = vc_sub_S0 + sh_ewald_S;
+    vc_sub_S1  = vc_sub_S1 + sh_ewald_S;
+    vc_sub_S2  = vc_sub_S2 + sh_ewald_S;
+    vc_sub_S3  = vc_sub_S3 + sh_ewald_S;
 #                endif
 #            endif
 
@@ -684,18 +684,24 @@
 #        endif
 
 #        ifndef LJ_COMB_LB
-    rinvsix_S0 = rinvsq_S0 * rinvsq_S0 * rinvsq_S0;
-    rinvsix_S1 = rinvsq_S1 * rinvsq_S1 * rinvsq_S1;
+    rinvsix_S0 = rinvsq_S0 * rinvsq_S0;
+    rinvsix_S1 = rinvsq_S1 * rinvsq_S1;
 #            ifdef EXCL_FORCES
-    rinvsix_S0 = selectByMask(rinvsix_S0, interact_S0);
-    rinvsix_S1 = selectByMask(rinvsix_S1, interact_S1);
+    rinvsix_S0 = maskzMul(rinvsix_S0, rinvsq_S0, interact_S0);
+    rinvsix_S1 = maskzMul(rinvsix_S1, rinvsq_S1, interact_S1);
+#            else
+    rinvsix_S0 = rinvsix_S0 * rinvsq_S0;
+    rinvsix_S1 = rinvsix_S1 * rinvsq_S1;
 #            endif
 #            ifndef HALF_LJ
-    rinvsix_S2 = rinvsq_S2 * rinvsq_S2 * rinvsq_S2;
-    rinvsix_S3 = rinvsq_S3 * rinvsq_S3 * rinvsq_S3;
+    rinvsix_S2 = rinvsq_S2 * rinvsq_S2;
+    rinvsix_S3 = rinvsq_S3 * rinvsq_S3;
 #                ifdef EXCL_FORCES
-    rinvsix_S2 = selectByMask(rinvsix_S2, interact_S2);
-    rinvsix_S3 = selectByMask(rinvsix_S3, interact_S3);
+    rinvsix_S2 = maskzMul(rinvsix_S2, rinvsq_S2, interact_S2);
+    rinvsix_S3 = maskzMul(rinvsix_S3, rinvsq_S3, interact_S3);
+#                else
+    rinvsix_S2 = rinvsix_S2 * rinvsq_S2;
+    rinvsix_S3 = rinvsix_S3 * rinvsq_S3;
 #                endif
 #            endif
 
