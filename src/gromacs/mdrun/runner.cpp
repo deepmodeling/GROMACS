@@ -1206,7 +1206,8 @@ int Mdrunner::mdrunner()
             dd_setup_dlb_resource_sharing(cr, deviceId);
         }
         deviceStreamManager = std::make_unique<DeviceStreamManager>(
-                *deviceInfo, useGpuForPme, useGpuForNonbonded, havePPDomainDecomposition(cr),
+                                                                    //                *deviceInfo, useGpuForPme, useGpuForNonbonded, havePPDomainDecomposition(cr),
+                                                                    *deviceInfo, useGpuForPme, useGpuForNonbonded, true,
                 useGpuForUpdate, useTiming);
     }
 
