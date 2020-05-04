@@ -45,7 +45,6 @@
 
 #include <vector>
 
-#include "gromacs/coordinateio/coordinatefileenums.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/options/ioptionscontainer.h"
 
