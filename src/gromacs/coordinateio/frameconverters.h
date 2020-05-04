@@ -43,7 +43,8 @@
 #ifndef GMX_COORDINATEIO_FRAMECONVERTERS_H
 #define GMX_COORDINATEIO_FRAMECONVERTERS_H
 
-#include "gromacs/coordinateio/iframeconverter.h"
 #include "gromacs/coordinateio/frameconverters/register.h"
+
+#include "iframeconverter.h"
 
 #endif

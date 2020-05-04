@@ -44,7 +44,7 @@
 
 #include <memory>
 
-#include "gromacs/coordinateio/frameconverterenums.h"
+#include "frameconverterenums.h"
 
 struct t_trxframe;
 

@@ -162,6 +162,4 @@
 #include "gromacs/coordinateio/outputadapters/settimestep.h"
 #include "gromacs/coordinateio/outputadapters/setvelocities.h"
 
-#include "coordinateio/enums.h"
-
 #endif

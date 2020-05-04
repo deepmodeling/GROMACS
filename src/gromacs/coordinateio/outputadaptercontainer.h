@@ -47,11 +47,12 @@
 #include <memory>
 #include <vector>
 
-#include "gromacs/coordinateio/coordinatefileenums.h"
 #include "gromacs/coordinateio/ioutputadapter.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/enumerationhelpers.h"
+
+#include "coordinatefileenums.h"
 
 namespace gmx
 {
