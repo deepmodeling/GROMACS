@@ -203,6 +203,8 @@ private:
     GpuEventSynchronizer fReadyOnDevice_;
     //! The pulse corresponding to this halo exchange instance
     int pulse_ = 0;
+    //! The receive offset for this pulse
+    int pulseOffset_ = 0;
     //! Number of zones. Always 1 for 1-D case.
     const int nzone_ = 1;
 };

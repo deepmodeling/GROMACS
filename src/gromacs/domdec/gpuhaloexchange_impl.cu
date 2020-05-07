@@ -178,13 +178,15 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
 #if GMX_MPI
     // Exchange of remote addresses from neighboring ranks is needed only with CUDA-direct as cudamemcpy needs both src/dst pointer
     // MPI calls such as MPI_send doesn't worry about receiving address, that is taken care by MPI_recv call in neighboring rank
+    int pulseOffset = 0;
+    for (int p = pulse_ - 1; p >= 0; p--)
+    {
+        pulseOffset += cd.ind[p].nrecv[nzone_ + 1];
+    }
+    pulseOffset_=pulseOffset;
+
     if (GMX_THREAD_MPI)
     {
-        int pulseOffset = 0;
-        for (int p = pulse_ - 1; p >= 0; p--)
-        {
-            pulseOffset += cd.ind[p].nrecv[nzone_ + 1];
-        }
         //    void* recvPtr = static_cast<void*>(&d_coordinatesBuffer[numHomeAtoms_ + pulseOffset]);
         void* recvPtr = static_cast<void*>(&d_x_[numHomeAtoms_ + pulseOffset]);
         MPI_Sendrecv(&recvPtr, sizeof(void*), MPI_BYTE, recvRankX_, 0, &remoteXPtr_, sizeof(void*),
@@ -337,7 +339,7 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
     if (haloQuantity == HaloQuantity::HaloCoordinates)
     {
         sendPtr   = static_cast<void*>(d_sendBuf_);
-        recvPtr   = static_cast<void*>(&d_ptr[numHomeAtoms_]);
+        recvPtr   = static_cast<void*>(&d_ptr[numHomeAtoms_+pulseOffset_]);
         sendSize  = xSendSize_;
         recvSize  = xRecvSize_;
         remotePtr = remoteXPtr_;
