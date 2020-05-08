@@ -206,21 +206,12 @@ ReferenceDataEntry::EntryPointer readReferenceDataFile(const std::string& path)
     document.LoadFile(path.c_str());
     if (document.Error())
     {
-        const char* errorStr1 = document.GetErrorStr1();
-        const char* errorStr2 = document.GetErrorStr2();
+        const char* errorStr = document.ErrorStr();
         std::string errorString("Error was ");
-        if (errorStr1)
-        {
-            errorString += errorStr1;
-        }
-        if (errorStr2)
-        {
-            errorString += errorStr2;
-        }
-        if (!errorStr1 && !errorStr2)
-        {
+        if (errorStr)
+            errorString += errorStr;
+        else
             errorString += "not specified.";
-        }
         GMX_THROW(TestException("Reference data not parsed successfully: " + path + "\n."
                                 + errorString + "\n"));
     }
