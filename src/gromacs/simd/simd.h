@@ -191,6 +191,7 @@ struct SimdDInt32Tag
         GMX_SIMD_HAVE_HSIMD_UTIL_LOADDUPLICATE3_DOUBLE
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_REAL GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_DOUBLE
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_DOUBLE
+#    define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_DOUBLE
 #    define GMX_SIMD4_HAVE_REAL GMX_SIMD4_HAVE_DOUBLE
 #    define GMX_SIMD4_HAVE_REAL_ARRAY GMX_SIMD4_HAVE_DOUBLE_ARRAY
 #    define GMX_SIMD4_HAVE_REAL_GLOBAL GMX_SIMD4_HAVE_DOUBLE_GLOBAL
@@ -292,6 +293,13 @@ struct SimdDInt32Tag
  *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_FLOAT.
  */
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_FLOAT
+
+/*! \brief 1 if a native loadU14DualHsimd() implementation is available, otherwise 0
+ *
+ *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_DOUBLE if GMX_DOUBLE is 1, otherwise
+ *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_FLOAT.
+ */
+#    define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_FLOAT
 
 /*! \brief 1 if Simd4Real is available, otherwise 0.
  *
@@ -838,6 +846,16 @@ static inline void gmx_simdcall loadU12DualHsimd(const real* m, SimdReal* v0, Si
 {
     *v0 = loadU1DualHsimd(m);
     *v1 = loadU1DualHsimd(m + 2);
+}
+#endif
+
+#if GMX_SIMD_HAVE_HSIMD_UTIL_REAL && !GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_REAL
+template<int stride>
+static inline void gmx_simdcall
+                   loadU14DualHsimd(const real* m, SimdReal* v0, SimdReal* v1, SimdReal* v2, SimdReal* v3)
+{
+    loadU12DualHsimd(m, v0, v1);
+    loadU12DualHsimd(m + stride, v2, v3);
 }
 #endif
 

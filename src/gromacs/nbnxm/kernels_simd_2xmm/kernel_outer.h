@@ -479,8 +479,7 @@
         /* Load i atom data */
         int sciy = scix + STRIDE;
         int sciz = sciy + STRIDE;
-        loadU12DualHsimd(x + scix, &ix_S0, &ix_S2);
-        loadU12DualHsimd(x + sciy, &iy_S0, &iy_S2);
+        loadU14DualHsimd<STRIDE>(x + scix, &ix_S0, &ix_S2, &iy_S0, &iy_S2);
         loadU12DualHsimd(x + sciz, &iz_S0, &iz_S2);
         ix_S0 = ix_S0 + shX_S;
         ix_S2 = ix_S2 + shX_S;
