@@ -613,14 +613,18 @@
         ninner += cjind1 - cjind0;
 
         /* Add accumulated i-forces to the force array */
+#ifdef CALC_SHIFTFORCES
         real fShiftX = reduceIncr4ReturnSumHsimd(f + scix, fix_S0, fix_S2);
         real fShiftY = reduceIncr4ReturnSumHsimd(f + sciy, fiy_S0, fiy_S2);
         real fShiftZ = reduceIncr4ReturnSumHsimd(f + sciz, fiz_S0, fiz_S2);
 
-#ifdef CALC_SHIFTFORCES
         fshift[ish3 + 0] += fShiftX;
         fshift[ish3 + 1] += fShiftY;
         fshift[ish3 + 2] += fShiftZ;
+#else
+        reduceIncr4Hsimd(f + scix, fix_S0, fix_S2);
+        reduceIncr4Hsimd(f + sciy, fiy_S0, fiy_S2);
+        reduceIncr4Hsimd(f + sciz, fiz_S0, fiz_S2);
 #endif
 
 #ifdef CALC_ENERGIES

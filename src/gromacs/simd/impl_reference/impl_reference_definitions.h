@@ -238,6 +238,12 @@ namespace gmx
  */
 #define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_FLOAT 0
 
+/*! \brief 1 if implementation provides single reduceIncr4DualHsimd()
+ *
+ *  Only used in simd.h to selectively override the generic implementation.
+ */
+#define GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_FLOAT 0
+
 //! \brief 1 if double half-register load/store/reduce utils present, otherwise 0
 #define GMX_SIMD_HAVE_HSIMD_UTIL_DOUBLE 1
 
@@ -270,6 +276,12 @@ namespace gmx
  *  Only used in simd.h to selectively override the generic implementation.
  */
 #define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_DOUBLE 0
+
+/*! \brief 1 if implementation provides double reduceIncr4Hsimd()
+ *
+ *  Only used in simd.h to selectively override the generic implementation.
+ */
+#define GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_DOUBLE 0
 
 #ifdef GMX_SIMD_REF_FLOAT_WIDTH
 #    define GMX_SIMD_FLOAT_WIDTH GMX_SIMD_REF_FLOAT_WIDTH
