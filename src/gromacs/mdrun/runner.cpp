@@ -1723,7 +1723,7 @@ int Mdrunner::mdrunner()
         physicalNodeComm.barrier();
     }
 
-    free_gpu(deviceInfo);
+//  free_gpu(deviceInfo);
     sfree(fcd);
 
     if (doMembed)
