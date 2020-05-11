@@ -44,8 +44,8 @@
 #include "densityfittingforceprovider.h"
 
 #include <numeric>
+#include <optional>
 
-#include "gromacs/compat/optional.h"
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/math/densityfit.h"
 #include "gromacs/math/densityfittingforce.h"
@@ -124,7 +124,7 @@ private:
     PbcType                       pbcType_;
 
     //! Optionally scale the force according to a moving average of the similarity
-    compat::optional<ExponentialMovingAverage> expAverageSimilarity_;
+    std::optional<ExponentialMovingAverage> expAverageSimilarity_;
 };
 
 DensityFittingForceProvider::Impl::~Impl() = default;
@@ -149,7 +149,7 @@ DensityFittingForceProvider::Impl::Impl(const DensityFittingParameters&         
     amplitudeLookup_(parameters_.amplitudeLookupMethod_),
     transformationToDensityLattice_(transformationToDensityLattice),
     pbcType_(pbcType),
-    expAverageSimilarity_(compat::nullopt)
+    expAverageSimilarity_(std::nullopt)
 {
     if (parameters_.adaptiveForceScaling_)
     {

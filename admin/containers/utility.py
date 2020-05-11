@@ -1,3 +1,4 @@
+#
 # This file is part of the GROMACS molecular simulation package.
 #
 # Copyright (c) 2020, by the GROMACS development team, led by
@@ -58,15 +59,15 @@ parsers for tools.
 
 # TODO: Try using distutils.version.StrictVersion.
 parser.add_argument('--cmake', type=str, default='3.13.0',
-                    choices=['3.9.6', '3.11.4', '3.13.0', '3.14.7', '3.15.7'],
+                    choices=['3.9.6', '3.11.4', '3.13.0', '3.14.7', '3.15.7', '3.16.6', '3.17.2'],
                     help='Selection of CMake version to provide to base image')
 compiler_group = parser.add_mutually_exclusive_group()
 compiler_group.add_argument('--gcc', type=int, nargs='?', const=7, default=7,
                             choices=[5, 6, 7, 8, 9],
                             help='Select GNU compiler tool chain. (Default) '
                                  'Some checking is implemented to avoid incompatible combinations')
-compiler_group.add_argument('--llvm', type=int, nargs='?', const=7, default=None,
-                            choices=[3, 6, 7, 8, 9],
+compiler_group.add_argument('--llvm', type=str, nargs='?', const='7', default=None,
+                            choices=['3.6', '6', '7', '8'],
                             help='Select LLVM compiler tool chain. '
                                  'Some checking is implemented to avoid incompatible combinations')
 compiler_group.add_argument('--icc', type=int, nargs='?', const=19, default=None,

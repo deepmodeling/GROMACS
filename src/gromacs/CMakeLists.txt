@@ -66,6 +66,14 @@ function (gmx_compile_cpp_as_cuda)
     _gmx_add_files_to_property(GMX_LIBGROMACS_GPU_IMPL_SOURCES ${ARGN})
 endfunction ()
 
+# Permit the configuration to disable compiling the many nbnxm kernels
+# and others involved in force calculations. Currently only
+# short-ranged and bonded kernels are disabled this way, but in future
+# others may be appropriate. Thus the cmake option is not specific to
+# nbnxm module.
+option(GMX_USE_SIMD_KERNELS "Whether to compile NBNXM and other SIMD kernels" ON)
+mark_as_advanced(GMX_USE_SIMD_KERNELS)
+
 # Add these contents first because linking their tests can take a lot
 # of time, so we want lots of parallel work still available after
 # linking starts.
@@ -266,19 +274,6 @@ endif()
 # TODO Perhaps generalize this for all headers from src/external
 target_include_directories(libgromacs SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
 
-# Temporary fix to allow external access to restraintpotentail
-target_include_directories(libgromacs PUBLIC
-                           $<INSTALL_INTERFACE:include>
-                           )
-
-# Permit the configuration to disable compiling the many nbnxm kernels
-# and others involved in force calculations. Currently only
-# short-ranged and bonded kernels are disabled this way, but in future
-# others may be appropriate. Thus the cmake option is not specific to
-# nbnxm module.
-option(GMX_USE_SIMD_KERNELS "Whether to compile NBNXM and other SIMD kernels" ON)
-mark_as_advanced(GMX_USE_SIMD_KERNELS)
-
 if(SIMD_AVX_512_CXX_SUPPORTED AND NOT ("${GMX_SIMD_ACTIVE}" STREQUAL "AVX_512_KNL"))
     # Since we might be overriding -march=core-avx2, add a flag so we don't warn for this specific file.
     # On KNL this can cause illegal instruction because the compiler might use non KNL AVX instructions
@@ -348,6 +343,13 @@ endif()
 if (GMX_CLANG_TIDY)
    set_target_properties(libgromacs PROPERTIES CXX_CLANG_TIDY
        "${CLANG_TIDY_EXE};-warnings-as-errors=*")
+endif()
+
+# clang-3.6 warns about a number of issues that are not reported by more modern compilers
+# and we know they are not real issues. So we only check that it can compile without error
+# but ignore all warnings.
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^3\.6")
+    target_compile_options(libgromacs PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-w>)
 endif()
 
 # Only install the library in mdrun-only mode if it is actually necessary
