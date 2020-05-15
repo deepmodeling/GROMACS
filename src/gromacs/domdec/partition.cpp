@@ -2640,7 +2640,7 @@ void dd_partition_system(FILE*                        fplog,
                          gmx::MDAtoms*                mdAtoms,
                          gmx_localtop_t*              top_local,
                          t_forcerec*                  fr,
-                         gmx_vsite_t*                 vsite,
+                         gmx::VirtualSitesHandler*    vsite,
                          gmx::Constraints*            constr,
                          t_nrnb*                      nrnb,
                          gmx_wallcycle*               wcycle,
@@ -3088,7 +3088,7 @@ void dd_partition_system(FILE*                        fplog,
         switch (range)
         {
             case DDAtomRanges::Type::Vsites:
-                if (vsite && vsite->numInterUpdategroupVsites)
+                if (vsite && vsite->numInterUpdategroupVirtualSites())
                 {
                     n = dd_make_local_vsites(dd, n, top_local->idef.il);
                 }
@@ -3117,9 +3117,9 @@ void dd_partition_system(FILE*                        fplog,
 
     state_change_natoms(state_local, state_local->natoms);
 
-    if (fr->haveDirectVirialContributions)
+    if (fr->forceHelperBuffers->haveDirectVirialContributions())
     {
-        if (vsite && vsite->numInterUpdategroupVsites)
+        if (vsite && vsite->numInterUpdategroupVirtualSites())
         {
             nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
         }
@@ -3186,7 +3186,7 @@ void dd_partition_system(FILE*                        fplog,
      * the last vsite construction, we need to communicate the constructing
      * atom coordinates again (for spreading the forces this MD step).
      */
-    dd_move_x_vsites(dd, state_local->box, state_local->x.rvec_array());
+    dd_move_x_vsites(*dd, state_local->box, state_local->x.rvec_array());
 
     wallcycle_sub_stop(wcycle, ewcsDD_TOPOTHER);
 
