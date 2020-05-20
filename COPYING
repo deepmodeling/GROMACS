@@ -1409,8 +1409,9 @@ external contributions to this project including patches, pull requests, etc.
 19. Reference implementation of std::string_view
 ================================================
 
-Used with minor modifications from commit bf5824916b6895ccab0dbc2431520ee3b6d4f27f of
-https://github.com/martinmoene/string-view-lite.git, which is licensed as below.
+Used with minor modifications from commit 50561d345dafd6577654b0aa7c88983c745e83d8
+(version 1.4.0) of https://github.com/martinmoene/string-view-lite.git,
+which is licensed as below.
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
