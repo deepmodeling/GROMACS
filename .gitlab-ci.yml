@@ -1,7 +1,8 @@
 # test a hacked local gitlab-runner instance 
 # NOTE: THIS SHOULD NEVER BE MERGED!!!!
 default:
-  tags: gitlab-runner-test
+  tags:
+  - gitlab-runner-test
 
 # Declare and sequence the stages to which jobs may be assigned.
 # The pipeline is organized into stages so that if early stages fail
