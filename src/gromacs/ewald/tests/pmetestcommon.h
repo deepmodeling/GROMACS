@@ -50,11 +50,13 @@
 #include "gromacs/ewald/pme_gpu_internal.h"
 #include "gromacs/math/gmxcomplex.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
-#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/unique_cptr.h"
 
 namespace gmx
 {
+
+template<typename>
+class ArrayRef;
 
 namespace test
 {

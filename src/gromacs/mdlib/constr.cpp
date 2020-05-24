@@ -76,7 +76,6 @@
 #include "gromacs/topology/ifunc.h"
 #include "gromacs/topology/mtop_lookup.h"
 #include "gromacs/topology/mtop_util.h"
-#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
@@ -458,9 +457,10 @@ bool Constraints::Impl::apply(bool                      bLog,
 
     if (lincsd != nullptr)
     {
-        bOK = constrain_lincs(bLog || bEner, ir, step, lincsd, md, cr, ms, x, xprime, min_proj, box,
-                              pbc_null, lambda, dvdlambda, invdt, v.unpaddedArrayRef(),
-                              vir != nullptr, vir_r_m_dr, econq, nrnb, maxwarn, &warncount_lincs);
+        bOK = constrain_lincs(bLog || bEner, ir, step, lincsd, md.invmass, cr, ms, x, xprime,
+                              min_proj, box, pbc_null, md.nMassPerturbed != 0, lambda, dvdlambda,
+                              invdt, v.unpaddedArrayRef(), vir != nullptr, vir_r_m_dr, econq, nrnb,
+                              maxwarn, &warncount_lincs);
         if (!bOK && maxwarn < INT_MAX)
         {
             if (log != nullptr)
@@ -663,7 +663,7 @@ bool Constraints::Impl::apply(bool                      bLog,
                 t = ir.init_t;
             }
             set_pbc(&pbc, ir.pbcType, box);
-            pull_constraint(pull_work, &md, &pbc, cr, ir.delta_t, t,
+            pull_constraint(pull_work, md.massT, &pbc, cr, ir.delta_t, t,
                             as_rvec_array(x.unpaddedArrayRef().data()),
                             as_rvec_array(xprime.unpaddedArrayRef().data()),
                             as_rvec_array(v.unpaddedArrayRef().data()), *vir);
@@ -700,7 +700,7 @@ bool Constraints::Impl::apply(bool                      bLog,
     }
 
     return bOK;
-}
+} // namespace gmx
 
 ArrayRef<real> Constraints::rmsdData() const
 {
@@ -885,7 +885,7 @@ void Constraints::Impl::setConstraints(gmx_localtop_t* top, const t_mdatoms& md)
          */
         if (ir.eConstrAlg == econtLINCS)
         {
-            set_lincs(*idef, md, EI_DYNAMICS(ir.eI), cr, lincsd);
+            set_lincs(*idef, md.nr, md.invmass, md.lambda, EI_DYNAMICS(ir.eI), cr, lincsd);
         }
         if (ir.eConstrAlg == econtSHAKE)
         {
@@ -897,14 +897,14 @@ void Constraints::Impl::setConstraints(gmx_localtop_t* top, const t_mdatoms& md)
             }
             else
             {
-                make_shake_sblock_serial(shaked.get(), &top->idef, md);
+                make_shake_sblock_serial(shaked.get(), &top->idef, md.nr);
             }
         }
     }
 
     if (settled)
     {
-        settle_set_constraints(settled, idef->il[F_SETTLE], md);
+        settle_set_constraints(settled, idef->il[F_SETTLE], md.homenr, md.massT, md.invmass);
     }
 
     /* Make a selection of the local atoms for essential dynamics */

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,40 +33,63 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- * \brief Declares helper functionality for device transfers for tests
- * for GPU host allocator.
- *
- * Undefined symbols in Google Test, GROMACS use of -Wundef, and the
- * implementation of FindCUDA.cmake and/or nvcc mean that no
- * compilation unit should include a gtest header while being compiled
- * by nvcc. None of -isystem, -Wno-undef, nor the pragma GCC
- * diagnostic work.
- *
- * Thus, this header isolates CUDA-specific functionality to its own
- * translation unit. The OpenCL and no-GPU implementations do not
- * require this separation, but do so for consistency.
+ * \brief
+ * This implements tests on tool help writing. Based on mdrun test version.
  *
  * \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \author Paul Bauer <paul.bauer.q@gmail.com>
  */
-#ifndef GMX_GPU_UTILS_TESTS_DEVICETRANSFERS_H
-#define GMX_GPU_UTILS_TESTS_DEVICETRANSFERS_H
+#include "gmxpre.h"
 
-struct gmx_gpu_info_t;
+#include <memory>
+
+#include "gromacs/commandline/cmdlinehelpcontext.h"
+#include "gromacs/commandline/cmdlinemodule.h"
+#include "gromacs/commandline/cmdlineoptionsmodule.h"
+#include "gromacs/tools/convert_tpr.h"
+#include "gromacs/tools/dump.h"
+#include "gromacs/tools/report_methods.h"
+#include "gromacs/utility/stringstream.h"
+#include "gromacs/utility/textwriter.h"
+
+#include "testutils/cmdlinetest.h"
+#include "testutils/refdata.h"
 
 namespace gmx
 {
-template<typename>
-class ArrayRef;
+namespace test
+{
+namespace
+{
 
-/*! \brief Helper function for GPU test code to be platform agnostic.
- *
- * Transfers \c input to device 0, if present, and transfers it back
- * into \c output. Both sizes must match. If no devices are present,
- * do a simple host-side buffer copy instead.
- *
- * \throws InternalError  Upon any GPU API error condition. */
-void doDeviceTransfers(const gmx_gpu_info_t& gpuInfo, ArrayRef<const char> input, ArrayRef<char> output);
+class HelpwritingTest : public gmx::test::CommandLineTestBase
+{
+public:
+    void runTest(gmx::ICommandLineModule* module) { testWriteHelp(module); }
+};
 
+TEST_F(HelpwritingTest, ConvertTprWritesHelp)
+{
+    const std::unique_ptr<gmx::ICommandLineModule> module(gmx::ICommandLineOptionsModule::createModule(
+            "convert-tpr", "Dummy Info", ConvertTprInfo::create()));
+    runTest(module.get());
+};
+
+
+TEST_F(HelpwritingTest, DumpWritesHelp)
+{
+    const std::unique_ptr<gmx::ICommandLineModule> module(
+            gmx::ICommandLineOptionsModule::createModule("dump", "Dummy Info", DumpInfo::create()));
+    runTest(module.get());
+};
+
+TEST_F(HelpwritingTest, ReportMethodsWritesHelp)
+{
+    const std::unique_ptr<gmx::ICommandLineModule> module(gmx::ICommandLineOptionsModule::createModule(
+            "report-methods", "Dummy Info", ReportMethodsInfo::create()));
+    runTest(module.get());
+};
+
+} // namespace
+} // namespace test
 } // namespace gmx
-
-#endif
