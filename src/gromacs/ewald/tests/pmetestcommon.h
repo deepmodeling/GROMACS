@@ -52,6 +52,8 @@
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
 #include "gromacs/utility/unique_cptr.h"
 
+#include "testhardwarecontext.h"
+
 namespace gmx
 {
 
@@ -189,6 +191,53 @@ SparseRealGridValuesOutput pmeGetRealGrid(const gmx_pme_t* pme, CodePath mode);
 SparseComplexGridValuesOutput pmeGetComplexGrid(const gmx_pme_t* pme, CodePath mode, GridOrdering gridOrdering);
 //! Getting the reciprocal energy and virial
 PmeOutput pmeGetReciprocalEnergyAndVirial(const gmx_pme_t* pme, CodePath mode, PmeSolveAlgorithm method);
+
+//! Hardware code path being tested
+enum class CodePath
+{
+    CPU,
+    GPU
+};
+//! Return a string useful for human-readable messages describing a \c codePath.
+const char* codePathToString(CodePath codePath);
+
+struct PmeTestHardwareContext
+{
+    //! Hardware path for the code being tested.
+    CodePath codePath_;
+    //! Pointer to the global test hardware context (if on GPU
+    TestHardwareContext* testHardwareContext_;
+    //! PME GPU program if needed
+    PmeGpuProgramStorage pmeGpuProgram_;
+    // Constructor
+    PmeTestHardwareContext(CodePath codePath, TestHardwareContext* testHardwareContext);
+
+public:
+    //! Get the code path
+    CodePath          codePath() const { return codePath_; }
+    const std::string description() const
+    {
+        return codePath() == CodePath::GPU ? testHardwareContext_->description() : "CPU";
+    }
+    //! Get the device context
+    const DeviceContext* deviceContext() const
+    {
+        return codePath() == CodePath::GPU ? &testHardwareContext_->deviceContext() : nullptr;
+    }
+    //! Get the device stream
+    const DeviceStream* deviceStream() const
+    {
+        return codePath() == CodePath::GPU ? &testHardwareContext_->deviceStream() : nullptr;
+    }
+    //! Get the PME GPU program
+    const PmeGpuProgram* pmeGpuProgram() const
+    {
+        return codePath() == CodePath::GPU ? pmeGpuProgram_.get() : nullptr;
+    }
+};
+
+void fillPmeTestHardwareContexts(std::vector<std::unique_ptr<PmeTestHardwareContext>> pmeTestHardwareContexts);
+
 } // namespace test
 } // namespace gmx
 

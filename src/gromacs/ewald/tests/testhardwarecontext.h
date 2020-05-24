@@ -48,6 +48,7 @@
 #include <string>
 #include <vector>
 
+#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxassert.h"
 
 class DeviceContext;
@@ -58,48 +59,32 @@ namespace gmx
 {
 namespace test
 {
-//! Hardware code path being tested
-enum class CodePath
-{
-    CPU,
-    GPU
-};
-
-//! Return a string useful for human-readable messages describing a \c codePath.
-const char* codePathToString(CodePath codePath);
 
 /*! \internal \brief
  * A structure to describe a hardware context that persists over the lifetime
  * of the test binary.
  */
-struct TestHardwareContext
+class TestHardwareContext
 {
-    //! Hardware path for the code being tested.
-    CodePath codePath_;
-    //! Readable description
-    std::string description_;
-    //! Device context
-    DeviceContext* deviceContext_ = nullptr;
-    //! Device stream
-    DeviceStream* deviceStream_ = nullptr;
-
 public:
-    //! Retuns the code path for this context.
-    CodePath codePath() const { return codePath_; }
     //! Returns a human-readable context description line
-    std::string description() const { return description_; }
+    const std::string description() const;
     //! Returns the device info pointer
-    const DeviceInformation* deviceInfo() const;
+    const DeviceInformation& deviceInfo() const;
     //! Get the device context
-    const DeviceContext* deviceContext() const;
+    const DeviceContext& deviceContext() const;
     //! Get the device stream
-    const DeviceStream* deviceStream() const;
-    //! Constructs the context for CPU builds
-    TestHardwareContext(CodePath codePath, const char* description);
-    //! Constructs the context for GPU builds
-    TestHardwareContext(CodePath codePath, const char* description, const DeviceInformation& deviceInfo);
+    const DeviceStream& deviceStream() const;
+    //! Constructs the context
+    TestHardwareContext(const char* description, const DeviceInformation& deviceInfo);
     //! Destructor
     ~TestHardwareContext();
+
+private:
+    //! Implementation type.
+    class Impl;
+    //! Implementation object.
+    PrivateImplPointer<Impl> impl_;
 };
 
 } // namespace test

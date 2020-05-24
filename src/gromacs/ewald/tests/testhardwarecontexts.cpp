@@ -44,6 +44,8 @@
 
 #include "testhardwarecontexts.h"
 
+#include "config.h"
+
 #include <memory>
 
 #include "gromacs/gpu_utils/gpu_utils.h"
@@ -121,8 +123,6 @@ static bool deviceIsSupported()
 
 void TestHardwareEnvironment::SetUp()
 {
-    hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(CodePath::CPU, "(CPU) "));
-
     hardwareInfo_ = hardwareInit();
     if (!deviceBuildIsSupported() || !deviceIsSupported())
     {
@@ -138,8 +138,8 @@ void TestHardwareEnvironment::SetUp()
         char stmp[200] = {};
         get_gpu_device_info_string(stmp, hardwareInfo_->gpu_info, gpuIndex);
         std::string description = "(GPU " + std::string(stmp) + ") ";
-        hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(
-                CodePath::GPU, description.c_str(), *deviceInfo));
+        hardwareContexts_.emplace_back(
+                std::make_unique<TestHardwareContext>(description.c_str(), *deviceInfo));
     }
 }
 

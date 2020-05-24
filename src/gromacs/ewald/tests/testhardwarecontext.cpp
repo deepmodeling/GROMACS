@@ -63,60 +63,68 @@ namespace gmx
 namespace test
 {
 
-TestHardwareContext::TestHardwareContext(CodePath codePath, const char* description) :
-    codePath_(codePath),
-    description_(description)
+class TestHardwareContext::Impl
 {
-    GMX_RELEASE_ASSERT(codePath == CodePath::CPU,
-                       "A GPU code path should provide DeviceInformation to the "
-                       "TestHerdwareContext constructor.");
-    deviceContext_ = nullptr;
-    deviceStream_  = nullptr;
+public:
+    Impl(const char* description, const DeviceInformation& deviceInfo);
+    ~Impl();
+    //! Returns a human-readable context description line
+    std::string description() const { return description_; }
+    //! Returns the device info pointer
+    const DeviceInformation& deviceInfo() const { return deviceContext_.deviceInfo(); }
+    //! Get the device context
+    const DeviceContext& deviceContext() const { return deviceContext_; }
+    //! Get the device stream
+    const DeviceStream& deviceStream() const { return deviceStream_; }
+
+private:
+    //! Readable description
+    std::string description_;
+    //! Device context
+    DeviceContext deviceContext_;
+    //! Device stream
+    DeviceStream deviceStream_;
+};
+
+//! Constructs the context
+TestHardwareContext::Impl::Impl(const char* description, const DeviceInformation& deviceInfo) :
+    description_(description),
+    deviceContext_(deviceInfo),
+    deviceStream_(deviceContext_, DeviceStreamPriority::Normal, false)
+{
+}
+TestHardwareContext::Impl::~Impl() = default;
+
+
+//! Constructs the context
+TestHardwareContext::TestHardwareContext(const char* description, const DeviceInformation& deviceInfo) :
+    impl_(new Impl(description, deviceInfo))
+{
 }
 
-TestHardwareContext::TestHardwareContext(CodePath                 codePath,
-                                         const char*              description,
-                                         const DeviceInformation& deviceInfo) :
-    codePath_(codePath),
-    description_(description)
+TestHardwareContext::~TestHardwareContext() = default;
+
+const std::string TestHardwareContext::description() const
 {
-    GMX_RELEASE_ASSERT(codePath == CodePath::GPU,
-                       "TestHardwareContext tries to construct DeviceContext and DeviceStream "
-                       "in CPU build.");
-    deviceContext_ = new DeviceContext(deviceInfo);
-    deviceStream_  = new DeviceStream(*deviceContext_, DeviceStreamPriority::Normal, false);
+    return impl_->description();
 }
 
-TestHardwareContext::~TestHardwareContext()
+const DeviceInformation& TestHardwareContext::deviceInfo() const
 {
-    delete (deviceStream_);
-    delete (deviceContext_);
+    return impl_->deviceInfo();
 }
-
-const DeviceInformation* TestHardwareContext::deviceInfo() const
+//! Get the device context
+const DeviceContext& TestHardwareContext::deviceContext() const
 {
-    return &deviceContext_->deviceInfo();
-}
-
-const DeviceContext* TestHardwareContext::deviceContext() const
-{
-    return deviceContext_;
+    return impl_->deviceContext();
 }
 //! Get the device stream
-const DeviceStream* TestHardwareContext::deviceStream() const
+const DeviceStream& TestHardwareContext::deviceStream() const
 {
-    return deviceStream_;
+    return impl_->deviceStream();
+    ;
 }
 
-const char* codePathToString(CodePath codePath)
-{
-    switch (codePath)
-    {
-        case CodePath::CPU: return "CPU";
-        case CodePath::GPU: return "GPU";
-        default: GMX_THROW(NotImplementedError("This CodePath should support codePathToString"));
-    }
-}
 
 } // namespace test
 } // namespace gmx

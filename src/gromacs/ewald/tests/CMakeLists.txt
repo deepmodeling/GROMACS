@@ -48,6 +48,7 @@ gmx_add_libgromacs_sources(
 )
 if (GMX_USE_CUDA)
 gmx_compile_cpp_as_cuda(
+    pmetestcommon.cpp
     testhardwarecontext.cpp
 )
 endif()

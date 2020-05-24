@@ -256,17 +256,14 @@ public:
             s_inputAtomDataSets_[atomCount] = atomData;
         }
 
+
+        s_pmeTestHardwareContexts.emplace_back(
+                std::make_unique<PmeTestHardwareContext>(CodePath::CPU, nullptr));
         const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-        s_pmePrograms.resize(hardwareContexts.size());
-        for (unsigned contextIndex = 0; contextIndex < hardwareContexts.size(); contextIndex++)
+        for (const auto& context : hardwareContexts)
         {
-            const auto&          context  = hardwareContexts.at(contextIndex);
-            CodePath             codePath = context->codePath();
-            PmeGpuProgramStorage pmeGpuProgramStorage;
-            if (codePath == CodePath::GPU && context->deviceContext() != nullptr)
-            {
-                s_pmePrograms.at(contextIndex) = buildPmeGpuProgram(*context->deviceContext());
-            }
+            s_pmeTestHardwareContexts.emplace_back(
+                    std::make_unique<PmeTestHardwareContext>(CodePath::GPU, context.get()));
         }
     }
 
@@ -293,12 +290,10 @@ public:
         inputRec.epsilon_r   = 1.0;
 
         TestReferenceData refData;
-        const auto&       hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-        for (unsigned contextIndex = 0; contextIndex < hardwareContexts.size(); contextIndex++)
+        for (const auto& context : s_pmeTestHardwareContexts)
         {
-            const auto& context        = hardwareContexts.at(contextIndex);
-            CodePath    codePath       = context->codePath();
-            const bool  supportedInput = pmeSupportsInputForMode(
+            CodePath   codePath       = context->codePath();
+            const bool supportedInput = pmeSupportsInputForMode(
                     *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
@@ -315,9 +310,9 @@ public:
                                  codePathToString(codePath), context->description().c_str(),
                                  gridSize[XX], gridSize[YY], gridSize[ZZ], pmeOrder, atomCount));
 
-            PmeSafePointer pmeSafe = pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
-                                                    context->deviceStream(),
-                                                    s_pmePrograms.at(contextIndex).get(), box);
+            PmeSafePointer pmeSafe =
+                    pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
+                                   context->deviceStream(), context->pmeGpuProgram(), box);
             std::unique_ptr<StatePropagatorDataGpu> stateGpu =
                     (codePath == CodePath::GPU)
                             ? makeStatePropagatorDataGpu(*pmeSafe.get(), context->deviceContext(),
@@ -355,10 +350,10 @@ public:
         }
     }
 
-    static std::vector<PmeGpuProgramStorage> s_pmePrograms;
+    static std::vector<std::unique_ptr<PmeTestHardwareContext>> s_pmeTestHardwareContexts;
 };
 
-std::vector<PmeGpuProgramStorage> PmeGatherTest::s_pmePrograms;
+std::vector<std::unique_ptr<PmeTestHardwareContext>> PmeGatherTest::s_pmeTestHardwareContexts;
 
 // An instance of static atom data
 InputDataByAtomCount PmeGatherTest::s_inputAtomDataSets_;

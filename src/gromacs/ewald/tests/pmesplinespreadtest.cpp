@@ -87,17 +87,13 @@ public:
     //! Sets the programs once
     static void SetUpTestCase()
     {
+        s_pmeTestHardwareContexts.emplace_back(
+                std::make_unique<PmeTestHardwareContext>(CodePath::CPU, nullptr));
         const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-        s_pmePrograms.resize(hardwareContexts.size());
-        for (unsigned contextIndex = 0; contextIndex < hardwareContexts.size(); contextIndex++)
+        for (const auto& context : hardwareContexts)
         {
-            const auto&          context  = hardwareContexts.at(contextIndex);
-            CodePath             codePath = context->codePath();
-            PmeGpuProgramStorage pmeGpuProgramStorage;
-            if (codePath == CodePath::GPU && context->deviceContext() != nullptr)
-            {
-                s_pmePrograms.at(contextIndex) = buildPmeGpuProgram(*context->deviceContext());
-            }
+            s_pmeTestHardwareContexts.emplace_back(
+                    std::make_unique<PmeTestHardwareContext>(CodePath::GPU, context.get()));
         }
     }
 
@@ -141,12 +137,10 @@ public:
         size_t previousGridValuesSize;
 
         TestReferenceData refData;
-        const auto&       hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-        for (unsigned contextIndex = 0; contextIndex < hardwareContexts.size(); contextIndex++)
+        for (const auto& context : s_pmeTestHardwareContexts)
         {
-            const auto& context        = hardwareContexts.at(contextIndex);
-            CodePath    codePath       = context->codePath();
-            const bool  supportedInput = pmeSupportsInputForMode(
+            CodePath   codePath       = context->codePath();
+            const bool supportedInput = pmeSupportsInputForMode(
                     *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
@@ -168,9 +162,9 @@ public:
 
                 /* Running the test */
 
-                PmeSafePointer pmeSafe = pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
-                                                        context->deviceStream(),
-                                                        s_pmePrograms.at(contextIndex).get(), box);
+                PmeSafePointer pmeSafe =
+                        pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
+                                       context->deviceStream(), context->pmeGpuProgram(), box);
                 std::unique_ptr<StatePropagatorDataGpu> stateGpu =
                         (codePath == CodePath::GPU)
                                 ? makeStatePropagatorDataGpu(*pmeSafe.get(), context->deviceContext(),
@@ -282,10 +276,10 @@ public:
         }
     }
 
-    static std::vector<PmeGpuProgramStorage> s_pmePrograms;
+    static std::vector<std::unique_ptr<PmeTestHardwareContext>> s_pmeTestHardwareContexts;
 };
 
-std::vector<PmeGpuProgramStorage> PmeSplineAndSpreadTest::s_pmePrograms;
+std::vector<std::unique_ptr<PmeTestHardwareContext>> PmeSplineAndSpreadTest::s_pmeTestHardwareContexts;
 
 
 /*! \brief Test for spline parameter computation and charge spreading. */
