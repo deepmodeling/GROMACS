@@ -214,8 +214,8 @@ struct PmeTestHardwareContext
 
 public:
     //! Get the code path
-    CodePath          codePath() const { return codePath_; }
-    const std::string description() const
+    CodePath    codePath() const { return codePath_; }
+    std::string description() const
     {
         return codePath() == CodePath::GPU ? testHardwareContext_->description() : "CPU";
     }

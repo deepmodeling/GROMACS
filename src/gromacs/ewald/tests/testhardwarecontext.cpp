@@ -104,7 +104,7 @@ TestHardwareContext::TestHardwareContext(const char* description, const DeviceIn
 
 TestHardwareContext::~TestHardwareContext() = default;
 
-const std::string TestHardwareContext::description() const
+std::string TestHardwareContext::description() const
 {
     return impl_->description();
 }
