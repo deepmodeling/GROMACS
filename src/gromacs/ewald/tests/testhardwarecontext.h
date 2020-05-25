@@ -68,7 +68,7 @@ class TestHardwareContext
 {
 public:
     //! Returns a human-readable context description line
-    const std::string description() const;
+    std::string description() const;
     //! Returns the device info pointer
     const DeviceInformation& deviceInfo() const;
     //! Get the device context
