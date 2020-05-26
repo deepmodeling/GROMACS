@@ -54,6 +54,7 @@
 class DeviceContext;
 struct DeviceInformation;
 class DeviceStream;
+class DeviceStreamWrapper;
 
 namespace gmx
 {
@@ -82,7 +83,7 @@ struct TestHardwareContext
     //! Device context
     DeviceContext* deviceContext_ = nullptr;
     //! Device stream
-    DeviceStream* deviceStream_ = nullptr;
+    DeviceStreamWrapper* deviceStreamWrapper_ = nullptr;
     //! Persistent compiled GPU kernels for PME.
     PmeGpuProgramStorage program_;
 

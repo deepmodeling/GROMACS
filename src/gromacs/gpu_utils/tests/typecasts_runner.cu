@@ -47,6 +47,7 @@
 #include <vector>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/utility/exceptions.h"
@@ -110,9 +111,10 @@ static __global__ void convertRVecToFloat3OnDevice_kernel(DeviceBuffer<float3> g
 
 void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>& h_rVecOutput, const std::vector<gmx::RVec>& h_rVecInput)
 {
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    DeviceInformation         deviceInfo;
+    const DeviceContext       deviceContext(deviceInfo);
+    const DeviceStreamWrapper deviceStreamWrapper(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceStream        deviceStream = deviceStreamWrapper.deviceStream();
 
     const int numElements = h_rVecInput.size();
 

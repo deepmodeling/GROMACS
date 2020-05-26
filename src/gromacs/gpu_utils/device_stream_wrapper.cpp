@@ -42,17 +42,17 @@
  */
 #include "gmxpre.h"
 
-#include "device_stream.h"
+#include "device_stream_wrapper.h"
 
-DeviceStream::DeviceStream() = default;
+DeviceStreamWrapper::DeviceStreamWrapper() = default;
 
-void DeviceStream::init(const DeviceContext& /* deviceContext */,
-                        DeviceStreamPriority /* priority */,
-                        const bool /* useTiming */)
+void DeviceStreamWrapper::init(const DeviceContext& /* deviceContext */,
+                               DeviceStreamPriority /* priority */,
+                               const bool /* useTiming */)
 {
 }
 
-DeviceStream::~DeviceStream() = default;
+DeviceStreamWrapper::~DeviceStreamWrapper() = default;
 
 // NOLINTNEXTLINE readability-convert-member-functions-to-static
 bool DeviceStream::isValid() const

@@ -32,8 +32,8 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_GPU_UTILS_DEVICE_STREAM_H
-#define GMX_GPU_UTILS_DEVICE_STREAM_H
+#ifndef GMX_GPU_UTILS_DEVICE_STREAM_WRAPPER_H
+#define GMX_GPU_UTILS_DEVICE_STREAM_WRAPPER_H
 
 /*! \libinternal \file
  *
@@ -53,19 +53,11 @@
 #endif
 #include "gromacs/utility/classhelpers.h"
 
+#include "gromacs/gpu_utils/device_stream.h"
+
 struct DeviceInformation;
 class DeviceContext;
-
-//! Enumeration describing the priority with which a stream operates.
-enum class DeviceStreamPriority : int
-{
-    //! High-priority stream
-    High,
-    //! Normal-priority stream
-    Normal,
-    //! Conventional termination of the enumeration
-    Count
-};
+class DeviceStream;
 
 /*! \libinternal \brief Declaration of platform-agnostic device stream/queue.
  *
@@ -81,39 +73,44 @@ enum class DeviceStreamPriority : int
  * and the \p DeviceStream object should be passed as a pointer or constant reference.
  *
  */
-class DeviceStream
+class DeviceStreamWrapper
 {
 public:
-    /*! \brief Check if the underlying stream is valid.
+    //! Default constructor
+    DeviceStreamWrapper();
+    //! Destructor
+    ~DeviceStreamWrapper();
+
+    /*! \brief Initialize
      *
-     *  \returns Whether the stream is valid (false in CPU-only builds).
+     * \param[in] deviceContext  Device context (not used in CUDA).
+     * \param[in] priority       Stream priority: high or normal.
+     * \param[in] useTiming      If the timing should be enabled (not used in CUDA).
      */
-    bool isValid() const;
+    void init(const DeviceContext& deviceContext, DeviceStreamPriority priority, bool useTiming);
 
-    //! Synchronize the steam
-    void synchronize() const;
+    /*! \brief Construct and init.
+     *
+     * \param[in] deviceContext  Device context (only used in OpenCL).
+     * \param[in] priority       Stream priority: high or normal (only used in CUDA).
+     * \param[in] useTiming      If the timing should be enabled (only used in OpenCL).
+     */
+    DeviceStreamWrapper(const DeviceContext& deviceContext, DeviceStreamPriority priority, const bool useTiming)
+    {
+        init(deviceContext, priority, useTiming);
+    }
 
-#if GMX_GPU == GMX_GPU_CUDA
-
-    //! Getter
-    cudaStream_t stream() const { return stream_; }
-    //! Setter
-    void setStream(cudaStream_t stream) { stream_ = stream; }
-
-private:
-    cudaStream_t stream_ = nullptr;
-
-#elif GMX_GPU == GMX_GPU_OPENCL
-
-    //! Getter
-    cl_command_queue stream() const { return stream_; }
-    //! Setter
-    void setStream(cl_command_queue stream) { stream_ = stream; }
+    /*! Get the device stream container.
+     *
+     * \returns Contained device stream.
+     */
+    const DeviceStream& deviceStream() const { return deviceStream_; }
 
 private:
-    cl_command_queue stream_ = nullptr;
+    //! Contained for device stream
+    DeviceStream deviceStream_;
 
-#endif
+    GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceStreamWrapper);
 };
 
-#endif // GMX_GPU_UTILS_DEVICE_STREAM_H
+#endif // GMX_GPU_UTILS_DEVICE_STREAM_WRAPPER_H

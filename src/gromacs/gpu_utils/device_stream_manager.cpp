@@ -47,6 +47,7 @@
 
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/exceptions.h"
@@ -82,7 +83,7 @@ public:
     //! Device context.
     DeviceContext context_;
     //! GPU command streams.
-    EnumerationArray<DeviceStreamType, DeviceStream> streams_;
+    EnumerationArray<DeviceStreamType, DeviceStreamWrapper> streams_;
 };
 
 // DeviceStreamManager::Impl
@@ -153,7 +154,7 @@ const DeviceContext& DeviceStreamManager::context() const
 
 const DeviceStream& DeviceStreamManager::stream(DeviceStreamType streamToGet) const
 {
-    return impl_->streams_[streamToGet];
+    return impl_->streams_[streamToGet].deviceStream();
 }
 
 const DeviceStream& DeviceStreamManager::bondedStream(bool hasPPDomainDecomposition) const
@@ -176,7 +177,7 @@ const DeviceStream& DeviceStreamManager::bondedStream(bool hasPPDomainDecomposit
 
 bool DeviceStreamManager::streamIsValid(DeviceStreamType streamToCheck) const
 {
-    return impl_->streams_[streamToCheck].isValid();
+    return impl_->streams_[streamToCheck].deviceStream().isValid();
 }
 
 } // namespace gmx

@@ -51,6 +51,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/devicebuffer.cuh"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/mdlib/lincs_gpu.cuh"
@@ -70,9 +71,10 @@ namespace test
  */
 void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc)
 {
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    DeviceInformation         deviceInfo;
+    const DeviceContext       deviceContext(deviceInfo);
+    const DeviceStreamWrapper deviceStreamWrapper(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceStream        deviceStream = deviceStreamWrapper.deviceStream();
 
     auto lincsGpu = std::make_unique<LincsGpu>(testData->ir_.nLincsIter, testData->ir_.nProjOrder,
                                                deviceContext, deviceStream);

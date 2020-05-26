@@ -51,7 +51,7 @@
 
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
-#include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/pmalloc_cuda.h"
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/basedefinitions.h"
@@ -216,12 +216,13 @@ static int do_sanity_checks(int dev_id, const cudaDeviceProp& dev_prop)
     try
     {
         KernelLaunchConfig config;
-        config.blockSize[0]                = 512;
-        const auto          dummyArguments = prepareGpuKernelArguments(k_dummy_test, config);
-        DeviceInformation   deviceInfo;
-        const DeviceContext deviceContext(deviceInfo);
-        const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
-        launchGpuKernel(k_dummy_test, config, deviceStream, nullptr, "Dummy kernel", dummyArguments);
+        config.blockSize[0]                      = 512;
+        const auto                dummyArguments = prepareGpuKernelArguments(k_dummy_test, config);
+        DeviceInformation         deviceInfo;
+        const DeviceContext       deviceContext(deviceInfo);
+        const DeviceStreamWrapper deviceStreamWrapper(deviceContext, DeviceStreamPriority::Normal, false);
+        launchGpuKernel(k_dummy_test, config, deviceStreamWrapper.deviceStream(), nullptr,
+                        "Dummy kernel", dummyArguments);
     }
     catch (gmx::GromacsException& ex)
     {

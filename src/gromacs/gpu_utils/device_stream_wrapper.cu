@@ -42,27 +42,29 @@
  */
 #include "gmxpre.h"
 
-#include "device_stream.h"
+#include "device_stream_wrapper.h"
 
 #include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-DeviceStream::DeviceStream()
+DeviceStreamWrapper::DeviceStreamWrapper()
 {
-    stream_ = nullptr;
+    deviceStream_.setStream(nullptr);
 }
 
-void DeviceStream::init(const DeviceContext& /* deviceContext */,
-                        DeviceStreamPriority priority,
-                        const bool /* useTiming */)
+void DeviceStreamWrapper::init(const DeviceContext& /* deviceContext */,
+                               DeviceStreamPriority priority,
+                               const bool /* useTiming */)
 {
-    cudaError_t stat;
+    cudaError_t  stat;
+    cudaStream_t stream;
 
     if (priority == DeviceStreamPriority::Normal)
     {
-        stat = cudaStreamCreate(&stream_);
+        stat = cudaStreamCreate(&stream);
         if (stat != cudaSuccess)
         {
             GMX_THROW(gmx::InternalError(gmx::formatString(
@@ -83,7 +85,7 @@ void DeviceStream::init(const DeviceContext& /* deviceContext */,
                     cudaGetErrorString(stat))));
         }
 
-        stat = cudaStreamCreateWithPriority(&stream_, cudaStreamDefault, highestPriority);
+        stat = cudaStreamCreateWithPriority(&stream, cudaStreamDefault, highestPriority);
         if (stat != cudaSuccess)
         {
             GMX_THROW(gmx::InternalError(gmx::formatString(
@@ -91,24 +93,20 @@ void DeviceStream::init(const DeviceContext& /* deviceContext */,
                     cudaGetErrorString(stat))));
         }
     }
+    deviceStream_.setStream(stream);
 }
 
-DeviceStream::~DeviceStream()
+DeviceStreamWrapper::~DeviceStreamWrapper()
 {
-    if (isValid())
+    if (deviceStream_.isValid())
     {
-        cudaError_t stat = cudaStreamDestroy(stream_);
+        cudaError_t stat = cudaStreamDestroy(deviceStream_.stream());
         GMX_RELEASE_ASSERT(stat == cudaSuccess,
                            gmx::formatString("Failed to release CUDA stream (CUDA error %d: %s).",
                                              stat, cudaGetErrorString(stat))
                                    .c_str());
-        stream_ = nullptr;
+        deviceStream_.setStream(nullptr);
     }
-}
-
-cudaStream_t DeviceStream::stream() const
-{
-    return stream_;
 }
 
 bool DeviceStream::isValid() const

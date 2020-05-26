@@ -51,6 +51,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/devicebuffer.cuh"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/mdlib/settle_gpu.cuh"
@@ -86,9 +87,10 @@ void applySettleGpu(SettleTestData*  testData,
     // TODO: Here we should check that at least 1 suitable GPU is available
     GMX_RELEASE_ASSERT(canPerformGpuDetection(), "Can't detect CUDA-capable GPUs.");
 
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    DeviceInformation         deviceInfo;
+    const DeviceContext       deviceContext(deviceInfo);
+    const DeviceStreamWrapper deviceStreamWrapper(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceStream        deviceStream = deviceStreamWrapper.deviceStream();
 
     auto settleGpu = std::make_unique<SettleGpu>(testData->mtop_, deviceContext, deviceStream);
 

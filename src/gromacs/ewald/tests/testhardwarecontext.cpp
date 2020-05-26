@@ -50,7 +50,7 @@
 
 #include "gromacs/ewald/pme.h"
 #include "gromacs/gpu_utils/device_context.h"
-#include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/detecthardware.h"
 #include "gromacs/hardware/hw_info.h"
@@ -71,8 +71,8 @@ TestHardwareContext::TestHardwareContext(CodePath codePath, const char* descript
     GMX_RELEASE_ASSERT(codePath == CodePath::CPU,
                        "A GPU code path should provide DeviceInformation to the "
                        "TestHerdwareContext constructor.");
-    deviceContext_ = nullptr;
-    deviceStream_  = nullptr;
+    deviceContext_       = nullptr;
+    deviceStreamWrapper_ = nullptr;
 }
 
 TestHardwareContext::TestHardwareContext(CodePath                 codePath,
@@ -84,14 +84,14 @@ TestHardwareContext::TestHardwareContext(CodePath                 codePath,
     GMX_RELEASE_ASSERT(codePath == CodePath::GPU,
                        "TestHardwareContext tries to construct DeviceContext and PmeGpuProgram "
                        "in CPU build.");
-    deviceContext_ = new DeviceContext(deviceInfo);
-    deviceStream_  = new DeviceStream(*deviceContext_, DeviceStreamPriority::Normal, false);
-    program_       = buildPmeGpuProgram(*deviceContext_);
+    deviceContext_       = new DeviceContext(deviceInfo);
+    deviceStreamWrapper_ = new DeviceStreamWrapper(*deviceContext_, DeviceStreamPriority::Normal, false);
+    program_             = buildPmeGpuProgram(*deviceContext_);
 }
 
 TestHardwareContext::~TestHardwareContext()
 {
-    delete (deviceStream_);
+    delete (deviceStreamWrapper_);
     delete (deviceContext_);
 }
 
@@ -107,7 +107,7 @@ const DeviceContext* TestHardwareContext::deviceContext() const
 //! Get the device stream
 const DeviceStream* TestHardwareContext::deviceStream() const
 {
-    return deviceStream_;
+    return &(deviceStreamWrapper_->deviceStream());
 }
 
 const char* codePathToString(CodePath codePath)

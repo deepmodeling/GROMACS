@@ -43,47 +43,46 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/device_context_ocl.h"
-#include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-DeviceStream::DeviceStream()
+DeviceStreamWrapper::DeviceStreamWrapper()
 {
-    stream_ = nullptr;
+    deviceStream_.setStream(nullptr);
 }
 
-void DeviceStream::init(const DeviceContext& deviceContext, DeviceStreamPriority /* priority */, const bool useTiming)
+void DeviceStreamWrapper::init(const DeviceContext& deviceContext,
+                               DeviceStreamPriority /* priority */,
+                               const bool useTiming)
 {
     const DeviceInformation&    deviceInfo      = deviceContext.deviceInfo();
     cl_command_queue_properties queueProperties = useTiming ? CL_QUEUE_PROFILING_ENABLE : 0;
     cl_device_id                deviceId        = deviceInfo.oclDeviceId;
     cl_int                      clError;
-    stream_ = clCreateCommandQueue(deviceContext.context(), deviceId, queueProperties, &clError);
+    cl_command_queue            stream =
+            clCreateCommandQueue(deviceContext.context(), deviceId, queueProperties, &clError);
     if (clError != CL_SUCCESS)
     {
         GMX_THROW(gmx::InternalError(gmx::formatString(
                 "Failed to create OpenCL command queue on GPU %s (OpenCL error ID %d).",
                 deviceInfo.device_name, clError)));
     }
+    deviceStream_.setStream(stream);
 }
 
-DeviceStream::~DeviceStream()
+DeviceStreamWrapper::~DeviceStreamWrapper()
 {
-    if (isValid())
+    if (deviceStream_.isValid())
     {
-        cl_int clError = clReleaseCommandQueue(stream_);
+        cl_int clError = clReleaseCommandQueue(deviceStream_.stream());
         GMX_RELEASE_ASSERT(
                 clError == CL_SUCCESS,
                 gmx::formatString("Failed to release OpenCL stream (OpenCL error ID %d).", clError).c_str());
-        stream_ = nullptr;
+        deviceStream_.setStream(nullptr);
     }
-}
-
-cl_command_queue DeviceStream::stream() const
-{
-    return stream_;
 }
 
 bool DeviceStream::isValid() const

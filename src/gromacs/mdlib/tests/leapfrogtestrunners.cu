@@ -52,6 +52,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "gromacs/gpu_utils/device_stream_wrapper.h"
 #include "gromacs/gpu_utils/devicebuffer.cuh"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/math/vec.h"
@@ -66,9 +67,10 @@ namespace test
 
 void integrateLeapFrogGpu(LeapFrogTestData* testData, int numSteps)
 {
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    DeviceInformation         deviceInfo;
+    const DeviceContext       deviceContext(deviceInfo);
+    const DeviceStreamWrapper deviceStreamWrapper(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceStream        deviceStream = deviceStreamWrapper.deviceStream();
 
     int numAtoms = testData->numAtoms_;
 
