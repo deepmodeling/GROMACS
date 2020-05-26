@@ -522,7 +522,8 @@ public:
         iterator operator++(int gmx_unused dummy)
         {
             iterator tmp(listPtr_, listEnd_, flags_);
-            (*this)++;
+            listPtr_++;
+            findValidList();
             return tmp;
         }
 
