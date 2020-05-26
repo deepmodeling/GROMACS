@@ -216,7 +216,7 @@ static void get_vsite_masses(const gmx_moltype_t&  moltype,
     {
         if (ilist.functionType() != F_VSITEN)
         {
-            for (const auto& entry : ilist)
+            for (const auto entry : ilist)
             {
                 const t_iparams& ip = ffparams.iparams[entry.parameterType];
                 const int        a1 = entry.atoms[0];
@@ -1187,7 +1187,7 @@ static std::vector<AtomConstraintProps> getAtomConstraintProps(const gmx_moltype
             continue;
         }
 
-        for (const auto& entry : ilist)
+        for (const auto entry : ilist)
         {
             int  type   = entry.parameterType;
             int  a1     = entry.atoms[0];

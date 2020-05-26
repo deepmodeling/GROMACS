@@ -93,7 +93,7 @@ static bool hasIncompatibleVsites(const gmx_moltype_t& moltype, gmx::ArrayRef<co
     {
         if (ilist.functionType() == F_VSITE2 || ilist.functionType() == F_VSITE3)
         {
-            for (const auto& entry : ilist)
+            for (const auto entry : ilist)
             {
                 const t_iparams& iparam = iparams[entry.parameterType];
                 real             coeffMin;
@@ -167,7 +167,7 @@ static AtomIndexExtremes vsiteConstructRange(int a, const gmx_moltype_t& moltype
 
     for (auto& ilist : moltype.ilist.selection(IF_VSITE))
     {
-        for (const auto& entry : ilist)
+        for (const auto entry : ilist)
         {
             if (entry.atoms[0] == a)
             {
@@ -214,7 +214,7 @@ static std::vector<bool> buildIsParticleVsite(const gmx_moltype_t& moltype)
 
     for (auto& ilist : moltype.ilist.selection(IF_VSITE))
     {
-        for (const auto& entry : ilist)
+        for (const auto entry : ilist)
         {
             int vsiteAtom      = entry.atoms[0];
             isVsite[vsiteAtom] = true;

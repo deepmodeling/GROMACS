@@ -404,7 +404,7 @@ public:
     std::size_t numAtoms() const { return stride_ - 1; }
 
     //! Return an entry from the list
-    const InteractionListEntry operator[](std::size_t interactionIndex) const
+    InteractionListEntry operator[](std::size_t interactionIndex) const
     {
         return InteractionListEntry(indices_.data() + interactionIndex * stride_, stride_);
     }
@@ -555,13 +555,13 @@ public:
     }
 
     //! Returns iterator to begin
-    const iterator begin() const
+    iterator begin() const
     {
         return iterator(ilists_.data(), ilists_.data() + ilists_.size(), flags_);
     }
 
     //! Returns iterator to end
-    const iterator end() const
+    iterator end() const
     {
         return iterator(ilists_.data() + ilists_.size(), ilists_.data() + ilists_.size(), flags_);
     }
