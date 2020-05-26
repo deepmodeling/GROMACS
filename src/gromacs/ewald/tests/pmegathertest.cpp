@@ -51,9 +51,9 @@
 
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"
+#include "testutils/testhardwarecontexts.h"
 
 #include "pmetestcommon.h"
-#include "testhardwarecontexts.h"
 
 namespace gmx
 {

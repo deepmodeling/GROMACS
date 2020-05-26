@@ -71,8 +71,7 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "testutils/testasserts.h"
-
-#include "testhardwarecontexts.h"
+#include "testutils/testhardwarecontexts.h"
 
 namespace gmx
 {

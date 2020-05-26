@@ -54,6 +54,8 @@ set(TESTUTILS_SOURCES
     testasserts.cpp
     testfilemanager.cpp
     testfileredirector.cpp
+    testhardwarecontext.cpp
+    testhardwarecontexts.cpp
     testinit.cpp
     testmatchers.cpp
     testoptions.cpp
@@ -108,5 +110,10 @@ endif()
 set(TESTUTILS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(TESTUTILS_DIR ${TESTUTILS_DIR} PARENT_SCOPE)
 set(GMX_CAN_RUN_MPI_TESTS ${GMX_CAN_RUN_MPI_TESTS} PARENT_SCOPE)
+
+if (GMX_USE_CUDA)
+    set_source_files_properties(src/testutils/testhardwarecontext.cpp PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
+endif()
+
 
 add_subdirectory(tests)

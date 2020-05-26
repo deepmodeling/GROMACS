@@ -52,7 +52,7 @@
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
 #include "gromacs/utility/unique_cptr.h"
 
-#include "testhardwarecontext.h"
+#include "testutils/testhardwarecontext.h"
 
 namespace gmx
 {
