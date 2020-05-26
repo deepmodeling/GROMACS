@@ -51,7 +51,7 @@
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "testhardwarecontext.h"
+#include "testutils/testhardwarecontext.h"
 
 struct gmx_hw_info_t;
 

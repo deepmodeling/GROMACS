@@ -122,7 +122,6 @@ const DeviceContext& TestHardwareContext::deviceContext() const
 const DeviceStream& TestHardwareContext::deviceStream() const
 {
     return impl_->deviceStream();
-    ;
 }
 
 

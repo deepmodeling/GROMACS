@@ -48,10 +48,10 @@
 
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/utility/stringutil.h"
-#include "testutils/testhardwarecontexts.h"
 
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"
+#include "testutils/testhardwarecontexts.h"
 
 #include "pmetestcommon.h"
 
