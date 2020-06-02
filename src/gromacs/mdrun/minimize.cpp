@@ -388,7 +388,7 @@ static void init_em(FILE*                fplog,
     {
         state_global->ngtc = 0;
     }
-    initialize_lambdas(fplog, *ir, MASTER(cr), &(state_global->fep_state), state_global->lambda, nullptr);
+    initialize_lambdas(fplog, *ir, MASTER(cr), &(state_global->fep_state), state_global->lambda);
 
     if (ir->eI == eiNM)
     {

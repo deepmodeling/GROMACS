@@ -162,7 +162,7 @@ void gmx::LegacySimulator::do_md()
     // will go away eventually.
     t_inputrec*  ir = inputrec;
     int64_t      step, step_rel;
-    double       t, t0 = ir->init_t, lam0[efptNR];
+    double       t, t0 = ir->init_t;
     gmx_bool     bGStatEveryStep, bGStat, bCalcVir, bCalcEnerStep, bCalcEner;
     gmx_bool     bNS, bNStList, bStopCM, bFirstStep, bInitStep, bLastStep = FALSE;
     gmx_bool     bDoDHDL = FALSE, bDoFEP = FALSE, bDoExpanded = FALSE;
@@ -253,7 +253,7 @@ void gmx::LegacySimulator::do_md()
                   "Either specify the -ei option to mdrun, or do not use this checkpoint file.");
     }
 
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
+    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda);
     Update     upd(ir, deform);
     const bool doSimulatedAnnealing = initSimulatedAnnealing(ir, &upd);
     const bool useReplicaExchange   = (replExParams.exchangeInterval > 0);
@@ -782,7 +782,7 @@ void gmx::LegacySimulator::do_md()
         if (ir->efep != efepNO || ir->bSimTemp)
         {
             /* find and set the current lambdas */
-            setCurrentLambdasLocal(step, ir->fepvals, lam0, state->lambda, state->fep_state);
+            state->lambda = currentLambdas(step, *(ir->fepvals));
 
             bDoDHDL     = do_per_step(step, ir->fepvals->nstdhdl);
             bDoFEP      = ((ir->efep != efepNO) && do_per_step(step, nstfep));

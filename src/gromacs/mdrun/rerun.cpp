@@ -279,7 +279,7 @@ void gmx::LegacySimulator::do_rerun()
         nonConstGlobalTopology->intermolecularExclusionGroup = genQmmmIndices(*top_global);
     }
 
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
+    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda);
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
                                    mdModulesNotifier, ir, top_global, oenv, wcycle,
@@ -476,7 +476,7 @@ void gmx::LegacySimulator::do_rerun()
 
         if (ir->efep != efepNO && MASTER(cr))
         {
-            setCurrentLambdasRerun(step, ir->fepvals, &rerun_fr, lam0, state_global);
+            state_global->lambda = currentLambdas(step, *(ir->fepvals));
         }
 
         if (MASTER(cr))
