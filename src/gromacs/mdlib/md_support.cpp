@@ -318,89 +318,142 @@ void compute_globals(gmx_global_stat*               gstat,
     }
 }
 
-void setCurrentLambdasRerun(int64_t           step,
-                            const t_lambda*   fepvals,
-                            const t_trxframe* rerun_fr,
-                            const double*     lam0,
-                            t_state*          globalState)
+namespace
 {
-    GMX_RELEASE_ASSERT(globalState != nullptr,
-                       "setCurrentLambdasGlobalRerun should be called with a valid state object");
 
-    if (rerun_fr->bLambda)
+std::array<real, efptNR> initialLambdas(const int      initialFEPStateIndex,
+                                        const double   initialLambda,
+                                        double** const lambdaArray,
+                                        const int      lambdaArrayExtent)
+{
+    std::array<real, efptNR> lambda;
+    // set lambda from an fep state index from initialFEPStateIndex, if initialFEPStateIndex was defined (> -1)
+    if (initialFEPStateIndex >= 0 && initialFEPStateIndex < lambdaArrayExtent)
     {
-        if (fepvals->delta_lambda == 0)
-        {
-            globalState->lambda[efptFEP] = rerun_fr->lambda;
-        }
-        else
-        {
-            /* find out between which two value of lambda we should be */
-            real frac      = step * fepvals->delta_lambda;
-            int  fep_state = static_cast<int>(std::floor(frac * fepvals->n_lambda));
-            /* interpolate between this state and the next */
-            /* this assumes that the initial lambda corresponds to lambda==0, which is verified in grompp */
-            frac = frac * fepvals->n_lambda - fep_state;
-            for (int i = 0; i < efptNR; i++)
-            {
-                globalState->lambda[i] =
-                        lam0[i] + (fepvals->all_lambda[i][fep_state])
-                        + frac * (fepvals->all_lambda[i][fep_state + 1] - fepvals->all_lambda[i][fep_state]);
-            }
-        }
-    }
-    else if (rerun_fr->bFepState)
-    {
-        globalState->fep_state = rerun_fr->fep_state;
         for (int i = 0; i < efptNR; i++)
         {
-            globalState->lambda[i] = fepvals->all_lambda[i][globalState->fep_state];
+            lambda[i] = lambdaArray[i][initialFEPStateIndex];
         }
     }
+
+    // set lambda from an fep state index from initialLambda, if initialLambda was defined (> -1)
+    if (initialLambda > -1)
+    {
+        for (int i = 0; i < efptNR; i++)
+        {
+            lambda[i] = initialLambda;
+        }
+    }
+
+    // TODO throw if neither initialLambda nor initialFEPStateIndex are valid
+
+    return lambda;
 }
 
-void setCurrentLambdasLocal(const int64_t       step,
-                            const t_lambda*     fepvals,
-                            const double*       lam0,
-                            gmx::ArrayRef<real> lambda,
-                            const int           currentFEPState)
-/* find the current lambdas.  If rerunning, we either read in a state, or a lambda value,
-   requiring different logic. */
+/*! \brief Evaluates where in the lambda arrays we are at currently.
+ *
+ * \param[in] step the current simulation step
+ * \param[in] deltaLambdaPerStep the change of the overall controlling lambda parameter per step
+ * \param[in] initialFEPStateIndex the FEP state at the start of the simulation. -1 if not set.
+ * \param[in] initialLambda the lambda at the start of the simulation . -1 if not set.
+ * \param[in] lambdaArrayExtent how many lambda values we have
+ * \returns a number that reflects where in the lambda arrays we are at the moment
+ */
+double currentGlobalLambda(const int64_t step,
+                           const double  deltaLambdaPerStep,
+                           const int     initialFEPStateIndex,
+                           const double  initialLambda,
+                           const int     lambdaArrayExtent)
 {
-    if (fepvals->delta_lambda != 0)
+    const real fracSimulationLambda = step * deltaLambdaPerStep;
+
+    // Set initial lambda value for the simulation either from initialFEPStateIndex or,
+    // if not set, from the initial lambda.
+    double initialGlobalLambda = 0;
+    if (initialFEPStateIndex > -1)
     {
-        /* find out between which two value of lambda we should be */
-        real frac = step * fepvals->delta_lambda;
-        if (fepvals->n_lambda > 0)
+        if (lambdaArrayExtent > 1)
         {
-            int fep_state = static_cast<int>(std::floor(frac * fepvals->n_lambda));
-            /* interpolate between this state and the next */
-            /* this assumes that the initial lambda corresponds to lambda==0, which is verified in grompp */
-            frac = frac * fepvals->n_lambda - fep_state;
-            for (int i = 0; i < efptNR; i++)
-            {
-                lambda[i] = lam0[i] + (fepvals->all_lambda[i][fep_state])
-                            + frac * (fepvals->all_lambda[i][fep_state + 1] - fepvals->all_lambda[i][fep_state]);
-            }
-        }
-        else
-        {
-            for (int i = 0; i < efptNR; i++)
-            {
-                lambda[i] = lam0[i] + frac;
-            }
+            initialGlobalLambda = initialFEPStateIndex / (lambdaArrayExtent - 1);
         }
     }
     else
     {
-        /* if < 0, fep_state was never defined, and we should not set lambda from the state */
-        if (currentFEPState > -1)
+        if (initialLambda > -1)
         {
-            for (int i = 0; i < efptNR; i++)
-            {
-                lambda[i] = fepvals->all_lambda[i][currentFEPState];
-            }
+            initialGlobalLambda = initialLambda;
         }
+    }
+
+    return initialGlobalLambda + fracSimulationLambda;
+}
+
+/*! \brief Returns an array of lambda values from linear interpolation of a lambda value matrix.
+ *
+ * \note If there is nothing to interpolate, fills the array with the global current lambda.
+ * \note Returns array boundary values if currentGlobalLambda <0 or >1 .
+ *
+ * \param[in] currentGlobalLambda determines at which position in the lambda array to interpolate
+ * \param[in] lambdaArray array of lambda values
+ * \param[in] lambdaArrayExtent number of lambda values
+ */
+std::array<real, efptNR> interpolatedLambdas(const double   currentGlobalLambda,
+                                             double** const lambdaArray,
+                                             const int      lambdaArrayExtent)
+{
+    std::array<real, efptNR> lambda;
+    // when there is no lambda value array, set all lambdas to steps * deltaLambdaPerStep
+    if (lambdaArrayExtent <= 0)
+    {
+        std::fill(std::begin(lambda), std::end(lambda), currentGlobalLambda);
+        return lambda;
+    }
+
+    // if we run over the boundary of the lambda array, return the boundary array values
+    if (currentGlobalLambda <= 0)
+    {
+        for (int i = 0; i < efptNR; i++)
+        {
+            lambda[i] = lambdaArray[i][0];
+        }
+        return lambda;
+    }
+    if (currentGlobalLambda >= 1)
+    {
+        for (int i = 0; i < efptNR; i++)
+        {
+            lambda[i] = lambdaArray[i][lambdaArrayExtent - 1];
+        }
+        return lambda;
+    }
+
+    // find out between which two value lambda array elements to interpolate
+    const int fepStateLeft  = static_cast<int>(std::floor(currentGlobalLambda));
+    const int fepStateRight = fepStateLeft + 1;
+    // interpolate between this state and the next
+    const double fracBetween = currentGlobalLambda - fepStateLeft;
+    for (int i = 0; i < efptNR; i++)
+    {
+        lambda[i] = lambdaArray[i][fepStateLeft]
+                    + fracBetween * (lambdaArray[i][fepStateRight] - lambdaArray[i][fepStateLeft]);
+    }
+    return lambda;
+}
+
+} // namespace
+
+std::array<real, efptNR> currentLambdas(const int64_t step, const t_lambda& fepvals)
+{
+    if (fepvals.delta_lambda == 0)
+    {
+        return initialLambdas(fepvals.init_fep_state, fepvals.init_lambda, fepvals.all_lambda,
+                              fepvals.n_lambda);
+    }
+    else
+    {
+        const double globalLambda = currentGlobalLambda(step, fepvals.delta_lambda, fepvals.init_fep_state,
+                                                        fepvals.init_lambda, fepvals.n_lambda);
+        return interpolatedLambdas(globalLambda, fepvals.all_lambda, fepvals.n_lambda);
     }
 }
 

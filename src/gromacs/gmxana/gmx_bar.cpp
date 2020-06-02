@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2010-2018, The GROMACS development team.
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -3096,7 +3096,7 @@ static void read_barsim_edr(const char* fn, real* temp, sim_data_t* sd)
                 old_start_lambda = fr->block[i].sub[0].dval[3];
                 delta_lambda     = fr->block[i].sub[0].dval[4];
 
-                if (delta_lambda > 0)
+                if (delta_lambda != 0)
                 {
                     gmx_fatal(FARGS, "Lambda values not constant in %s: can't apply BAR method", fn);
                 }

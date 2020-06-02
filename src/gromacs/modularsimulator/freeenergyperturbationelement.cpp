@@ -56,7 +56,6 @@ FreeEnergyPerturbationElement::FreeEnergyPerturbationElement(FILE*             f
                                                              const t_inputrec* inputrec,
                                                              MDAtoms*          mdAtoms) :
     lambda_(),
-    lambda0_(),
     currentFEPState_(0),
     lambdasChange_(inputrec->fepvals->delta_lambda != 0),
     fplog_(fplog),
@@ -64,8 +63,7 @@ FreeEnergyPerturbationElement::FreeEnergyPerturbationElement(FILE*             f
     mdAtoms_(mdAtoms)
 {
     lambda_.fill(0);
-    lambda0_.fill(0);
-    initialize_lambdas(fplog_, *inputrec_, true, &currentFEPState_, lambda_, lambda0_.data());
+    initialize_lambdas(fplog_, *inputrec_, true, &currentFEPState_, lambda_);
     update_mdatoms(mdAtoms_->mdatoms(), lambda_[efptMASS]);
 }
 
@@ -83,7 +81,7 @@ void FreeEnergyPerturbationElement::scheduleTask(Step step,
 void FreeEnergyPerturbationElement::updateLambdas(Step step)
 {
     // at beginning of step (if lambdas change...)
-    setCurrentLambdasLocal(step, inputrec_->fepvals, lambda0_.data(), lambda_, currentFEPState_);
+    lambda_ = currentLambdas(step, *(inputrec_->fepvals));
     update_mdatoms(mdAtoms_->mdatoms(), lambda_[efptMASS]);
 }
 

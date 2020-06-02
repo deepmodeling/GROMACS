@@ -38,7 +38,10 @@
 #ifndef GMX_MDLIB_MD_SUPPORT_H
 #define GMX_MDLIB_MD_SUPPORT_H
 
+#include <array>
+
 #include "gromacs/mdlib/vcm.h"
+#include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/timing/wallcycle.h"
 
 struct gmx_ekindata_t;
@@ -107,19 +110,13 @@ void rerun_parallel_comm(t_commrec* cr, t_trxframe* fr, gmx_bool* bLastStep);
 //! \brief Allocate and initialize node-local state entries
 void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimulator);
 
-/* Set the lambda values in the global state from a frame read with rerun */
-void setCurrentLambdasRerun(int64_t           step,
-                            const t_lambda*   fepvals,
-                            const t_trxframe* rerun_fr,
-                            const double*     lam0,
-                            t_state*          globalState);
-
-/* Set the lambda values at each step of mdrun when they change */
-void setCurrentLambdasLocal(int64_t             step,
-                            const t_lambda*     fepvals,
-                            const double*       lam0,
-                            gmx::ArrayRef<real> lambda,
-                            int                 currentFEPState);
+/*! \brief Evaluate the current lambdas
+ *
+ * \param[in] step the current simulation step
+ * \param[in] fepvals describing the lambda setup
+ * \returns the current lambda-value array
+ */
+std::array<real, efptNR> currentLambdas(int64_t step, const t_lambda& fepvals);
 
 int multisim_min(const gmx_multisim_t* ms, int nmin, int n);
 /* Set an appropriate value for n across the whole multi-simulation */
