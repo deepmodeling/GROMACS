@@ -359,7 +359,7 @@ double currentGlobalLambda(const int64_t step,
     {
         if (lambdaArrayExtent > 1)
         {
-            initialGlobalLambda = initialFEPStateIndex / (lambdaArrayExtent - 1);
+            initialGlobalLambda = static_cast<double>(initialFEPStateIndex) / (lambdaArrayExtent - 1);
         }
     }
     else
@@ -441,19 +441,13 @@ std::array<real, efptNR> currentLambdas(const int64_t step, const t_lambda& fepv
             return lambdasAtState(fepvals.init_fep_state, fepvals.all_lambda, fepvals.n_lambda);
         }
 
-        if (fepvals.init_lambda > -1)
-        {
-            std::array<real, efptNR> lambdas;
-            std::fill(std::begin(lambdas), std::end(lambdas), fepvals.init_lambda);
-            return lambdas;
-        }
+        std::array<real, efptNR> lambdas;
+        std::fill(std::begin(lambdas), std::end(lambdas), fepvals.init_lambda);
+        return lambdas;
     }
-    else
-    {
-        const double globalLambda = currentGlobalLambda(step, fepvals.delta_lambda, fepvals.init_fep_state,
-                                                        fepvals.init_lambda, fepvals.n_lambda);
-        return interpolatedLambdas(globalLambda, fepvals.all_lambda, fepvals.n_lambda);
-    }
+    const double globalLambda = currentGlobalLambda(step, fepvals.delta_lambda, fepvals.init_fep_state,
+                                                    fepvals.init_lambda, fepvals.n_lambda);
+    return interpolatedLambdas(globalLambda, fepvals.all_lambda, fepvals.n_lambda);
 }
 
 static void min_zero(int* n, int i)
