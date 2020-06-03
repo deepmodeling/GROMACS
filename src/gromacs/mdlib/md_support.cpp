@@ -321,32 +321,17 @@ void compute_globals(gmx_global_stat*               gstat,
 namespace
 {
 
-std::array<real, efptNR> initialLambdas(const int      initialFEPStateIndex,
-                                        const double   initialLambda,
-                                        double** const lambdaArray,
-                                        const int      lambdaArrayExtent)
+std::array<real, efptNR> lambdasAtState(const int stateIndex, double** const lambdaArray, const int lambdaArrayExtent)
 {
     std::array<real, efptNR> lambda;
-    // set lambda from an fep state index from initialFEPStateIndex, if initialFEPStateIndex was defined (> -1)
-    if (initialFEPStateIndex >= 0 && initialFEPStateIndex < lambdaArrayExtent)
+    // set lambda from an fep state index from stateIndex, if stateIndex was defined (> -1)
+    if (stateIndex >= 0 && stateIndex < lambdaArrayExtent)
     {
         for (int i = 0; i < efptNR; i++)
         {
-            lambda[i] = lambdaArray[i][initialFEPStateIndex];
+            lambda[i] = lambdaArray[i][stateIndex];
         }
     }
-
-    // set lambda from an fep state index from initialLambda, if initialLambda was defined (> -1)
-    if (initialLambda > -1)
-    {
-        for (int i = 0; i < efptNR; i++)
-        {
-            lambda[i] = initialLambda;
-        }
-    }
-
-    // TODO throw if neither initialLambda nor initialFEPStateIndex are valid
-
     return lambda;
 }
 
@@ -442,12 +427,26 @@ std::array<real, efptNR> interpolatedLambdas(const double   currentGlobalLambda,
 
 } // namespace
 
-std::array<real, efptNR> currentLambdas(const int64_t step, const t_lambda& fepvals)
+std::array<real, efptNR> currentLambdas(const int64_t step, const t_lambda& fepvals, const int currentLambdaState)
 {
     if (fepvals.delta_lambda == 0)
     {
-        return initialLambdas(fepvals.init_fep_state, fepvals.init_lambda, fepvals.all_lambda,
-                              fepvals.n_lambda);
+        if (currentLambdaState > -1)
+        {
+            return lambdasAtState(currentLambdaState, fepvals.all_lambda, fepvals.n_lambda);
+        }
+
+        if (fepvals.init_fep_state > -1)
+        {
+            return lambdasAtState(fepvals.init_fep_state, fepvals.all_lambda, fepvals.n_lambda);
+        }
+
+        if (fepvals.init_lambda > -1)
+        {
+            std::array<real, efptNR> lambdas;
+            std::fill(std::begin(lambdas), std::end(lambdas), fepvals.init_lambda);
+            return lambdas;
+        }
     }
     else
     {

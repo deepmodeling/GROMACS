@@ -81,7 +81,7 @@ void FreeEnergyPerturbationElement::scheduleTask(Step step,
 void FreeEnergyPerturbationElement::updateLambdas(Step step)
 {
     // at beginning of step (if lambdas change...)
-    lambda_ = currentLambdas(step, *(inputrec_->fepvals));
+    lambda_ = currentLambdas(step, *(inputrec_->fepvals), currentFEPState_);
     update_mdatoms(mdAtoms_->mdatoms(), lambda_[efptMASS]);
 }
 

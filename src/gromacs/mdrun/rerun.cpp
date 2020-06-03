@@ -476,7 +476,11 @@ void gmx::LegacySimulator::do_rerun()
 
         if (ir->efep != efepNO && MASTER(cr))
         {
-            state_global->lambda = currentLambdas(step, *(ir->fepvals));
+            if (rerun_fr.bFepState)
+            {
+                state->fep_state = rerun_fr.fep_state;
+            }
+            state_global->lambda = currentLambdas(step, *(ir->fepvals), state->fep_state);
         }
 
         if (MASTER(cr))

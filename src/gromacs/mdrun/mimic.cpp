@@ -371,7 +371,7 @@ void gmx::LegacySimulator::do_mimic()
 
         if (ir->efep != efepNO)
         {
-            state->lambda = currentLambdas(step, *(ir->fepvals));
+            state->lambda = currentLambdas(step, *(ir->fepvals), state_global->fep_state);
         }
 
         if (MASTER(cr))

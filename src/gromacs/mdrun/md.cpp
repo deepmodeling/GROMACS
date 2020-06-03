@@ -782,7 +782,7 @@ void gmx::LegacySimulator::do_md()
         if (ir->efep != efepNO || ir->bSimTemp)
         {
             /* find and set the current lambdas */
-            state->lambda = currentLambdas(step, *(ir->fepvals));
+            state->lambda = currentLambdas(step, *(ir->fepvals), state->fep_state);
 
             bDoDHDL     = do_per_step(step, ir->fepvals->nstdhdl);
             bDoFEP      = ((ir->efep != efepNO) && do_per_step(step, nstfep));

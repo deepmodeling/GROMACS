@@ -114,9 +114,10 @@ void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimu
  *
  * \param[in] step the current simulation step
  * \param[in] fepvals describing the lambda setup
+ * \param[in] currentLambdaState the lambda state to use to set the lambdas, -1 if not set
  * \returns the current lambda-value array
  */
-std::array<real, efptNR> currentLambdas(int64_t step, const t_lambda& fepvals);
+std::array<real, efptNR> currentLambdas(int64_t step, const t_lambda& fepvals, const int currentLambdaState);
 
 int multisim_min(const gmx_multisim_t* ms, int nmin, int n);
 /* Set an appropriate value for n across the whole multi-simulation */
