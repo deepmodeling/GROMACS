@@ -34,7 +34,7 @@
  */
 /*! \internal \file
  *
- * \brief Implements the DeviceStream for OpenCL.
+ * \brief Implements the DeviceStream for CPU builds.
  *
  * \author Artem Zhmurov <zhmurov@gmail.com>
  *
@@ -42,58 +42,46 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/gpu_utils/device_context_ocl.h"
-#include "gromacs/gpu_utils/device_stream_wrapper.h"
-#include "gromacs/gpu_utils/gputraits_ocl.h"
-#include "gromacs/utility/exceptions.h"
-#include "gromacs/utility/gmxassert.h"
-#include "gromacs/utility/stringutil.h"
+#include "device_stream_wrapper_impl.h"
 
-DeviceStreamWrapper::DeviceStreamWrapper()
+#include "gromacs/gpu_utils/device_stream.h"
+
+DeviceStreamWrapper::Impl::Impl() {}
+
+void DeviceStreamWrapper::Impl::init(const DeviceContext& /* deviceContext */,
+                                     DeviceStreamPriority /* priority */,
+                                     const bool /* useTiming */)
 {
-    deviceStream_.setStream(nullptr);
 }
 
-void DeviceStreamWrapper::init(const DeviceContext& deviceContext,
+DeviceStreamWrapper::Impl::~Impl() {}
+
+DeviceStreamWrapper::DeviceStreamWrapper() : impl_(nullptr) {}
+
+void DeviceStreamWrapper::init(const DeviceContext& /* deviceContext */,
                                DeviceStreamPriority /* priority */,
-                               const bool useTiming)
+                               const bool /* useTiming */)
 {
-    const DeviceInformation&    deviceInfo      = deviceContext.deviceInfo();
-    cl_command_queue_properties queueProperties = useTiming ? CL_QUEUE_PROFILING_ENABLE : 0;
-    cl_device_id                deviceId        = deviceInfo.oclDeviceId;
-    cl_int                      clError;
-    cl_command_queue            stream =
-            clCreateCommandQueue(deviceContext.context(), deviceId, queueProperties, &clError);
-    if (clError != CL_SUCCESS)
-    {
-        GMX_THROW(gmx::InternalError(gmx::formatString(
-                "Failed to create OpenCL command queue on GPU %s (OpenCL error ID %d).",
-                deviceInfo.device_name, clError)));
-    }
-    deviceStream_.setStream(stream);
 }
 
-DeviceStreamWrapper::~DeviceStreamWrapper()
+DeviceStreamWrapper::DeviceStreamWrapper(const DeviceContext& /* deviceContext */,
+                                         DeviceStreamPriority /* priority */,
+                                         const bool /* useTiming */) :
+    impl_(nullptr)
 {
-    if (deviceStream_.isValid())
-    {
-        cl_int clError = clReleaseCommandQueue(deviceStream_.stream());
-        GMX_RELEASE_ASSERT(
-                clError == CL_SUCCESS,
-                gmx::formatString("Failed to release OpenCL stream (OpenCL error ID %d).", clError).c_str());
-        deviceStream_.setStream(nullptr);
-    }
 }
 
+DeviceStreamWrapper::~DeviceStreamWrapper() = default;
+
+const DeviceStream& DeviceStreamWrapper::deviceStream() const
+{
+    return impl_->deviceStream();
+}
+
+// NOLINTNEXTLINE readability-convert-member-functions-to-static
 bool DeviceStream::isValid() const
 {
-    return (stream_ != nullptr);
+    return false;
 }
 
-void DeviceStream::synchronize() const
-{
-    cl_int clError = clFinish(stream_);
-    GMX_RELEASE_ASSERT(
-            CL_SUCCESS == clError,
-            gmx::formatString("Error caught during clFinish (OpenCL error ID %d).", clError).c_str());
-}
+void DeviceStream::synchronize() const {};

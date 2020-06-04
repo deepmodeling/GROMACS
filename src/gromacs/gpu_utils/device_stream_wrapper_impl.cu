@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "device_stream_wrapper.h"
+#include "device_stream_wrapper_impl.h"
 
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gputraits.h"
@@ -50,14 +50,14 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-DeviceStreamWrapper::DeviceStreamWrapper()
+DeviceStreamWrapper::Impl::Impl()
 {
     deviceStream_.setStream(nullptr);
 }
 
-void DeviceStreamWrapper::init(const DeviceContext& /* deviceContext */,
-                               DeviceStreamPriority priority,
-                               const bool /* useTiming */)
+void DeviceStreamWrapper::Impl::init(const DeviceContext& /* deviceContext */,
+                                     DeviceStreamPriority priority,
+                                     const bool /* useTiming */)
 {
     cudaError_t  stat;
     cudaStream_t stream;
@@ -96,7 +96,7 @@ void DeviceStreamWrapper::init(const DeviceContext& /* deviceContext */,
     deviceStream_.setStream(stream);
 }
 
-DeviceStreamWrapper::~DeviceStreamWrapper()
+DeviceStreamWrapper::Impl::~Impl()
 {
     if (deviceStream_.isValid())
     {
@@ -108,6 +108,28 @@ DeviceStreamWrapper::~DeviceStreamWrapper()
         deviceStream_.setStream(nullptr);
     }
 }
+
+DeviceStreamWrapper::DeviceStreamWrapper() : impl_(new Impl()) {}
+
+DeviceStreamWrapper::DeviceStreamWrapper(const DeviceContext& deviceContext,
+                                         DeviceStreamPriority priority,
+                                         const bool           useTiming) :
+    impl_(new Impl(deviceContext, priority, useTiming))
+{
+}
+
+DeviceStreamWrapper::~DeviceStreamWrapper() = default;
+
+void DeviceStreamWrapper::init(const DeviceContext& deviceContext, DeviceStreamPriority priority, const bool useTiming)
+{
+    return impl_->init(deviceContext, priority, useTiming);
+}
+
+const DeviceStream& DeviceStreamWrapper::deviceStream() const
+{
+    return impl_->deviceStream();
+}
+
 
 bool DeviceStream::isValid() const
 {

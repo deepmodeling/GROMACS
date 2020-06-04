@@ -107,7 +107,7 @@ const DeviceContext* TestHardwareContext::deviceContext() const
 //! Get the device stream
 const DeviceStream* TestHardwareContext::deviceStream() const
 {
-    return &(deviceStreamWrapper_->deviceStream());
+    return deviceStreamWrapper_ ? &(deviceStreamWrapper_->deviceStream()) : nullptr;
 }
 
 const char* codePathToString(CodePath codePath)

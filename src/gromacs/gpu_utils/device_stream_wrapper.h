@@ -46,17 +46,23 @@
  * \inlibraryapi
  */
 
-#include "config.h"
 
-#include "gromacs/gpu_utils/device_stream.h"
-#if GMX_GPU == GMX_GPU_OPENCL
-#    include "gromacs/gpu_utils/gmxopencl.h"
-#endif
 #include "gromacs/utility/classhelpers.h"
 
 struct DeviceInformation;
 class DeviceContext;
 class DeviceStream;
+
+//! Enumeration describing the priority with which a stream operates.
+enum class DeviceStreamPriority : int
+{
+    //! High-priority stream
+    High,
+    //! Normal-priority stream
+    Normal,
+    //! Conventional termination of the enumeration
+    Count
+};
 
 /*! \libinternal \brief Declaration of platform-agnostic device stream/queue.
  *
@@ -94,22 +100,19 @@ public:
      * \param[in] priority       Stream priority: high or normal (only used in CUDA).
      * \param[in] useTiming      If the timing should be enabled (only used in OpenCL).
      */
-    DeviceStreamWrapper(const DeviceContext& deviceContext, DeviceStreamPriority priority, const bool useTiming)
-    {
-        init(deviceContext, priority, useTiming);
-    }
+    DeviceStreamWrapper(const DeviceContext& deviceContext, DeviceStreamPriority priority, const bool useTiming);
 
     /*! \brief Get the device stream container.
      *
      * \returns Contained device stream.
      */
-    const DeviceStream& deviceStream() const { return deviceStream_; }
+    const DeviceStream& deviceStream() const;
 
 private:
-    //! Contained for device stream
-    DeviceStream deviceStream_;
-
-    GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceStreamWrapper);
+    //! Implementation type.
+    class Impl;
+    //! Implementation object.
+    gmx::PrivateImplPointer<Impl> impl_;
 };
 
 #endif // GMX_GPU_UTILS_DEVICE_STREAM_WRAPPER_H
