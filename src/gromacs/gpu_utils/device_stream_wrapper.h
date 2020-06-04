@@ -48,12 +48,11 @@
 
 #include "config.h"
 
+#include "gromacs/gpu_utils/device_stream.h"
 #if GMX_GPU == GMX_GPU_OPENCL
 #    include "gromacs/gpu_utils/gmxopencl.h"
 #endif
 #include "gromacs/utility/classhelpers.h"
-
-#include "gromacs/gpu_utils/device_stream.h"
 
 struct DeviceInformation;
 class DeviceContext;
@@ -100,7 +99,7 @@ public:
         init(deviceContext, priority, useTiming);
     }
 
-    /*! Get the device stream container.
+    /*! \brief Get the device stream container.
      *
      * \returns Contained device stream.
      */

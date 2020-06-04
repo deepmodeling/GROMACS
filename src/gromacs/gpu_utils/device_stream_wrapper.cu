@@ -44,8 +44,8 @@
 
 #include "device_stream_wrapper.h"
 
-#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
