@@ -402,6 +402,47 @@ def add_python_stages(building_blocks: typing.Mapping[str, bb_base],
     output_stages['pyenv'] = pyenv_stage
 
 
+def add_documentation_dependencies(input_args,
+                                   output_stages: typing.MutableMapping[str, hpccm.Stage]):
+    """Add appropriate layers according to doxygen input arguments."""
+    if input_args.doxygen is None:
+        return
+    output_stages['main'] += hpccm.primitives.shell(
+        commands=['sed -i \'/\"XPS\"/d;/\"PDF\"/d;/\"PS\"/d;/\"EPS\"/d;/disable ghostscript format types/d\' /etc/ImageMagick-6/policy.xml'])
+    output_stages['main'] += hpccm.building_blocks.pip(pip='pip3', packages=['sphinx==1.6.1'])
+    if input_args.doxygen == '1.8.5':
+        doxygen_commit = 'ed4ed873ab0e7f15116e2052119a6729d4589f7a'
+        output_stages['main'] += hpccm.building_blocks.generic_autotools(
+            repository='https://github.com/westes/flex.git',
+            commit='f7788a9a0ecccdc953ed12043ccb59ca25714018',
+            prefix='/tmp/install-of-flex',
+            configure_opts=['--disable-shared'],
+            preconfigure=['./autogen.sh'])
+        output_stages['main'] += hpccm.building_blocks.generic_autotools(
+            repository='https://github.com/doxygen/doxygen.git',
+            commit=doxygen_commit,
+            prefix='',
+            configure_opts=[
+                '--flex /tmp/install-of-flex/bin/flex',
+                '--static'])
+    else:
+        version = input_args.doxygen
+        archive_name = 'doxygen-{}.linux.bin.tar.gz'.format(version)
+        archive_url = 'https://sourceforge.net/projects/doxygen/files/rel-{}/{}'.format(
+            version,
+            archive_name
+        )
+        binary_path = 'doxygen-{}/bin/doxygen'.format(version)
+        commands = [
+            'mkdir doxygen && cd doxygen',
+            'wget {}'.format(archive_url),
+            'tar xf {} {}'.format(archive_name, binary_path),
+            'cp {} /usr/local/bin/'.format(binary_path),
+            'cd .. && rm -rf doxygen'
+        ]
+        output_stages['main'] += hpccm.primitives.shell(commands=commands)
+
+
 def build_stages(args) -> typing.Iterable[hpccm.Stage]:
     """Define and sequence the stages for the recipe corresponding to *args*."""
 
@@ -455,27 +496,8 @@ def build_stages(args) -> typing.Iterable[hpccm.Stage]:
                                                 packages=['pytest', 'networkx', 'numpy'])
 
     # Add documentation requirements (doxygen and sphinx + misc).
-    if (args.doxygen is not None):
-        if (args.doxygen == '1.8.5'):
-            doxygen_commit = 'ed4ed873ab0e7f15116e2052119a6729d4589f7a'
-        else:
-            doxygen_commit = 'a6d4f4df45febe588c38de37641513fd576b998f'
-        stages['main'] += hpccm.building_blocks.generic_autotools(
-            repository='https://github.com/westes/flex.git',
-            commit='f7788a9a0ecccdc953ed12043ccb59ca25714018',
-            prefix='/tmp/install-of-flex',
-            configure_opts=['--disable-shared'],
-            preconfigure=['./autogen.sh'])
-        stages['main'] += hpccm.building_blocks.generic_autotools(
-            repository='https://github.com/doxygen/doxygen.git',
-            commit=doxygen_commit,
-            prefix='',
-            configure_opts=[
-                '--flex /tmp/install-of-flex/bin/flex',
-                '--static'],
-            postinstall=[
-                'sed -i \'/\"XPS\"/d;/\"PDF\"/d;/\"PS\"/d;/\"EPS\"/d;/disable ghostscript format types/d\' /etc/ImageMagick-6/policy.xml'])
-        stages['main'] += hpccm.building_blocks.pip(pip='pip3', packages=['sphinx==1.6.1'])
+    if args.doxygen is not None:
+        add_documentation_dependencies(args, stages)
 
     if 'pyenv' in stages and stages['pyenv'] is not None:
         stages['main'] += hpccm.primitives.copy(_from='pyenv', _mkdir=True, src=['/root/.pyenv/'],
