@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -100,6 +100,9 @@ static inline void gmx_simdcall pbc_correct_dx_simd(gmx::SimdReal* dx,
     shx = round(*dx * load<SimdReal>(pbc_simd + 7 * GMX_SIMD_REAL_WIDTH)); // load inv_bxx
     *dx = *dx - shx * load<SimdReal>(pbc_simd + 8 * GMX_SIMD_REAL_WIDTH);  // load bxx
 }
+#endif /* GMX_SIMD_HAVE_REAL */
+
+#if GMX_SIMD_HAVE_REAL_ARRAY
 
 /*! \brief Calculates the PBC corrected distance between SIMD coordinates.
  *
@@ -124,6 +127,6 @@ static inline void gmx_simdcall pbc_dx_aiuc(const real*          pbc_simd,
     pbc_correct_dx_simd(&dx[XX], &dx[YY], &dx[ZZ], pbc_simd);
 }
 
-#endif /* GMX_SIMD_HAVE_REAL */
+#endif /* GMX_SIMD_HAVE_REAL_ARRAY */
 
 #endif

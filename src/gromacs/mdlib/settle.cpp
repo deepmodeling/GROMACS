@@ -762,7 +762,7 @@ void csettle(const SettleData&               settled,
     real*       xprimePtr = as_rvec_array(xprime.paddedArrayRef().data())[0];
     real*       vPtr      = as_rvec_array(v.paddedArrayRef().data())[0];
 
-#if GMX_SIMD_HAVE_REAL
+#if GMX_SIMD_HAVE_REAL_ARRAY
     if (settled.useSimd())
     {
         /* Convert the pbc struct for SIMD */

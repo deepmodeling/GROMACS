@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2014,2015,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -57,7 +57,9 @@
 
 #define GMX_SIMD 1
 #define GMX_SIMD_HAVE_FLOAT 1
+#define GMX_SIMD_HAVE_FLOAT_ARRAY 1
 // GMX_SIMD_HAVE_DOUBLE is conditionally defined further down
+// GMX_SIMD_HAVE_DOUBLE_ARRAY is conditionally defined further down
 #define GMX_SIMD_HAVE_LOADU 1
 #define GMX_SIMD_HAVE_STOREU 1
 #define GMX_SIMD_HAVE_LOGICAL 1
@@ -93,12 +95,14 @@
 #if defined(__ibmxl__) || defined(__xlC__) \
         || !(defined(__GNUC__) && ((__GNUC__ < 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ < 9))))
 #    define GMX_SIMD_HAVE_DOUBLE 1
+#    define GMX_SIMD_HAVE_DOUBLE_ARRAY 1
 #    define GMX_SIMD_HAVE_DINT32_EXTRACT 1
 #    define GMX_SIMD_HAVE_DINT32_LOGICAL 1
 #    define GMX_SIMD_HAVE_DINT32_ARITHMETICS 1
 #    define GMX_SIMD_HAVE_GATHER_LOADU_BYSIMDINT_TRANSPOSE_DOUBLE 1
 #else
 #    define GMX_SIMD_HAVE_DOUBLE 0
+#    define GMX_SIMD_HAVE_DOUBLE_ARRAY 0
 #    define GMX_SIMD_HAVE_DINT32_EXTRACT 0
 #    define GMX_SIMD_HAVE_DINT32_LOGICAL 0
 #    define GMX_SIMD_HAVE_DINT32_ARITHMETICS 0

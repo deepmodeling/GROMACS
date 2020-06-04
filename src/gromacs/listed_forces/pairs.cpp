@@ -661,7 +661,7 @@ void do_pairs(int                      ftype,
          * and sum the virial for the shifts. But we should do this
          * at once for the angles and dihedrals as well.
          */
-#if GMX_SIMD_HAVE_REAL
+#if GMX_SIMD_HAVE_REAL_ARRAY
         if (fr->use_simd_kernels)
         {
             alignas(GMX_SIMD_ALIGNMENT) real pbc_simd[9 * GMX_SIMD_REAL_WIDTH];

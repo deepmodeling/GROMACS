@@ -70,8 +70,14 @@ namespace gmx
  */
 #define GMX_SIMD_HAVE_FLOAT 1
 
+//! \brief 1 when SIMD float array is supported, otherwise 0
+#define GMX_SIMD_HAVE_FLOAT_ARRAY 1
+
 //! \brief 1 if SIMD double support is present, otherwise 0
 #define GMX_SIMD_HAVE_DOUBLE 1
+
+//! \brief 1 when SIMD double array is supported, otherwise 0
+#define GMX_SIMD_HAVE_DOUBLE_ARRAY 1
 
 //! \brief 1 if the SIMD implementation supports unaligned loads, otherwise 0
 #define GMX_SIMD_HAVE_LOADU 1
