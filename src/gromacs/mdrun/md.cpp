@@ -169,11 +169,10 @@ void gmx::LegacySimulator::do_md()
     gmx_bool     do_ene, do_log, do_verbose;
     gmx_bool     bMasterState;
     unsigned int force_flags;
-    tensor force_vir = { { 0 } }, shake_vir = { { 0 } }, total_vir = { { 0 } }, tmp_vir = { { 0 } },
-           pres = { { 0 } };
-    int                         i, m;
-    rvec                        mu_tot;
-    matrix                      pressureCouplingMu, M;
+    tensor force_vir = { { 0 } }, shake_vir = { { 0 } }, total_vir = { { 0 } }, pres = { { 0 } };
+    int    i, m;
+    rvec   mu_tot;
+    matrix pressureCouplingMu, M;
     gmx_repl_ex_t               repl_ex = nullptr;
     PaddedHostVector<gmx::RVec> f{};
     gmx_global_stat_t           gstat;
