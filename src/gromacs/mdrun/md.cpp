@@ -1330,8 +1330,8 @@ void gmx::LegacySimulator::do_md()
             constrain_coordinates(step, &dvdl_constr, state, shake_vir, &upd, constr, bCalcVir,
                                   do_log, do_ene);
 
-            update_sd_second_half(step, &dvdl_constr, ir, mdatoms, state, cr, nrnb, wcycle, &upd,
-                                  constr, do_log, do_ene);
+            upd.update_sd_second_half(step, &dvdl_constr, mdatoms, state, cr, nrnb, wcycle, constr,
+                                      do_log, do_ene);
             upd.finish_update(mdatoms, state, wcycle, constr);
         }
 

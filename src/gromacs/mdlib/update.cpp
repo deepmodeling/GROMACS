@@ -133,10 +133,27 @@ public:
                        const gmx_ekindata_t*                            ekind,
                        const matrix                                     M,
                        int                                              UpdatePart,
-                       const t_commrec* cr, /* these shouldn't be here -- need to think about it */
-                       const gmx::Constraints* constr);
+                       const t_commrec*                                 cr,
+                       const gmx::Constraints*                          constr);
 
     void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr);
+
+    void update_sd_second_half(int64_t           step,
+                               real*             dvdlambda,
+                               const t_mdatoms*  md,
+                               t_state*          state,
+                               const t_commrec*  cr,
+                               t_nrnb*           nrnb,
+                               gmx_wallcycle_t   wcycle,
+                               gmx::Constraints* constr,
+                               bool              do_log,
+                               bool              do_ene);
+
+    void update_temperature_constants();
+
+    std::vector<bool> getAndersenRandomizeGroup() const { return sd_->randomize_group; }
+
+    std::vector<real> getBoltzmanFactor() const { return sd_->boltzfac; }
 
 private:
     const t_inputrec& inputRecord_;
@@ -147,9 +164,14 @@ Update::Update(const t_inputrec& ir, BoxDeformation* boxDeformation) :
 
 Update::~Update(){};
 
-gmx_stochd_t* Update::sd() const
+std::vector<bool> Update::getAndersenRandomizeGroup() const
 {
-    return impl_->sd_.get();
+    return impl_->getAndersenRandomizeGroup();
+}
+
+std::vector<real> Update::getBoltzmanFactor() const
+{
+    return impl_->getBoltzmanFactor();
 }
 
 PaddedVector<RVec>* Update::xp()
@@ -179,6 +201,25 @@ void Update::update_coords(int64_t                                          step
 void Update::finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr)
 {
     return impl_->finish_update(md, state, wcycle, constr);
+}
+
+void Update::update_sd_second_half(int64_t step,
+                                   real* dvdlambda, /* the contribution to be added to the bonded interactions */
+                                   const t_mdatoms*  md,
+                                   t_state*          state,
+                                   const t_commrec*  cr,
+                                   t_nrnb*           nrnb,
+                                   gmx_wallcycle_t   wcycle,
+                                   gmx::Constraints* constr,
+                                   bool              do_log,
+                                   bool              do_ene)
+{
+    return impl_->update_sd_second_half(step, dvdlambda, md, state, cr, nrnb, wcycle, constr, do_log, do_ene);
+}
+
+void Update::update_temperature_constants()
+{
+    return impl_->update_temperature_constants();
 }
 
 /*! \brief Sets the velocities of virtual sites to zero */
@@ -835,32 +876,33 @@ gmx_stochd_t::gmx_stochd_t(const t_inputrec* ir)
     }
 }
 
-void update_temperature_constants(gmx_stochd_t* sd, const t_inputrec* ir)
+void Update::Impl::update_temperature_constants()
 {
-    if (ir->eI == eiBD)
+    if (inputRecord_.eI == eiBD)
     {
-        if (ir->bd_fric != 0)
+        if (inputRecord_.bd_fric != 0)
         {
-            for (int gt = 0; gt < ir->opts.ngtc; gt++)
+            for (int gt = 0; gt < inputRecord_.opts.ngtc; gt++)
             {
-                sd->bd_rf[gt] = std::sqrt(2.0 * BOLTZ * ir->opts.ref_t[gt] / (ir->bd_fric * ir->delta_t));
+                sd_->bd_rf[gt] = std::sqrt(2.0 * BOLTZ * inputRecord_.opts.ref_t[gt]
+                                           / (inputRecord_.bd_fric * inputRecord_.delta_t));
             }
         }
         else
         {
-            for (int gt = 0; gt < ir->opts.ngtc; gt++)
+            for (int gt = 0; gt < inputRecord_.opts.ngtc; gt++)
             {
-                sd->bd_rf[gt] = std::sqrt(2.0 * BOLTZ * ir->opts.ref_t[gt]);
+                sd_->bd_rf[gt] = std::sqrt(2.0 * BOLTZ * inputRecord_.opts.ref_t[gt]);
             }
         }
     }
-    if (ir->eI == eiSD1)
+    if (inputRecord_.eI == eiSD1)
     {
-        for (int gt = 0; gt < ir->opts.ngtc; gt++)
+        for (int gt = 0; gt < inputRecord_.opts.ngtc; gt++)
         {
-            real kT = BOLTZ * ir->opts.ref_t[gt];
+            real kT = BOLTZ * inputRecord_.opts.ref_t[gt];
             /* The mass is accounted for later, since this differs per atom */
-            sd->sdsig[gt].V = std::sqrt(kT * (1 - sd->sdc[gt].em * sd->sdc[gt].em));
+            sd_->sdsig[gt].V = std::sqrt(kT * (1 - sd_->sdc[gt].em * sd_->sdc[gt].em));
         }
     }
 }
@@ -868,7 +910,7 @@ void update_temperature_constants(gmx_stochd_t* sd, const t_inputrec* ir)
 Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) : inputRecord_(ir)
 {
     sd_ = std::make_unique<gmx_stochd_t>(&ir);
-    update_temperature_constants(sd_.get(), &ir);
+    update_temperature_constants();
     xp_.resizeWithPadding(0);
     deform_ = boxDeformation;
 }
@@ -1551,24 +1593,22 @@ void constrain_coordinates(int64_t step,
     }
 }
 
-void update_sd_second_half(int64_t step,
-                           real* dvdlambda, /* the contribution to be added to the bonded interactions */
-                           const t_inputrec* inputrec, /* input record and box stuff	*/
-                           const t_mdatoms*  md,
-                           t_state*          state,
-                           const t_commrec*  cr,
-                           t_nrnb*           nrnb,
-                           gmx_wallcycle_t   wcycle,
-                           Update*           upd,
-                           gmx::Constraints* constr,
-                           bool              do_log,
-                           bool              do_ene)
+void Update::Impl::update_sd_second_half(int64_t step,
+                                         real* dvdlambda, /* the contribution to be added to the bonded interactions */
+                                         const t_mdatoms*  md,
+                                         t_state*          state,
+                                         const t_commrec*  cr,
+                                         t_nrnb*           nrnb,
+                                         gmx_wallcycle_t   wcycle,
+                                         gmx::Constraints* constr,
+                                         bool              do_log,
+                                         bool              do_ene)
 {
     if (!constr)
     {
         return;
     }
-    if (inputrec->eI == eiSD1)
+    if (inputRecord_.eI == eiSD1)
     {
         int homenr = md->homenr;
 
@@ -1579,7 +1619,7 @@ void update_sd_second_half(int64_t step,
          * integral += dt*integrand the increment is nearly always (much) smaller
          * than the integral (and the integrand has real precision).
          */
-        real dt = inputrec->delta_t;
+        real dt = inputRecord_.delta_t;
 
         wallcycle_start(wcycle, ewcUPDATE);
 
@@ -1594,9 +1634,9 @@ void update_sd_second_half(int64_t step,
                 getThreadAtomRange(nth, th, homenr, &start_th, &end_th);
 
                 doSDUpdateGeneral<SDUpdate::FrictionAndNoiseOnly>(
-                        *upd->sd(), start_th, end_th, dt, inputrec->opts.acc, inputrec->opts.nFreeze,
+                        *sd_, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
                         md->invmass, md->ptype, md->cFREEZE, nullptr, md->cTC, state->x.rvec_array(),
-                        upd->xp()->rvec_array(), state->v.rvec_array(), nullptr, step, inputrec->ld_seed,
+                        xp_.rvec_array(), state->v.rvec_array(), nullptr, step, inputRecord_.ld_seed,
                         DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
             }
             GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
@@ -1606,7 +1646,7 @@ void update_sd_second_half(int64_t step,
 
         /* Constrain the coordinates upd->xp for half a time step */
         constr->apply(do_log, do_ene, step, 1, 0.5, state->x.arrayRefWithPadding(),
-                      upd->xp()->arrayRefWithPadding(), ArrayRef<RVec>(), state->box,
+                      xp_.arrayRefWithPadding(), ArrayRef<RVec>(), state->box,
                       state->lambda[efptBONDED], dvdlambda, state->v.arrayRefWithPadding(), nullptr,
                       ConstraintVariable::Positions);
     }
@@ -1900,7 +1940,8 @@ extern gmx_bool update_randomize_velocities(const t_inputrec*        ir,
        particle andersen or 2) it's massive andersen and it's tau_t/dt */
     if ((ir->etc == etcANDERSEN) || do_per_step(step, roundToInt(1.0 / rate)))
     {
-        andersen_tcoupl(ir, step, cr, md, v, rate, upd->sd()->randomize_group, upd->sd()->boltzfac);
+        andersen_tcoupl(ir, step, cr, md, v, rate, upd->getAndersenRandomizeGroup(),
+                        upd->getBoltzmanFactor());
         return TRUE;
     }
     return FALSE;

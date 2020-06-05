@@ -60,9 +60,6 @@ struct t_mdatoms;
 struct t_nrnb;
 class t_state;
 
-/* Abstract type for update */
-struct gmx_stochd_t;
-
 namespace gmx
 {
 class BoxDeformation;
@@ -77,9 +74,6 @@ public:
     //! Constructor
     Update(const t_inputrec& ir, BoxDeformation* boxDeformation);
     ~Update();
-    // TODO Get rid of getters when more free functions are incorporated as member methods
-    //! Returns handle to stochd_t struct
-    gmx_stochd_t* sd() const;
     //! Returns pointer to PaddedVector xp
     PaddedVector<gmx::RVec>* xp();
     //! Returns handle to box deformation class
@@ -101,6 +95,26 @@ public:
 
     void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr);
 
+    void update_sd_second_half(int64_t           step,
+                               real*             dvdlambda,
+                               const t_mdatoms*  md,
+                               t_state*          state,
+                               const t_commrec*  cr,
+                               t_nrnb*           nrnb,
+                               gmx_wallcycle_t   wcycle,
+                               gmx::Constraints* constr,
+                               bool              do_log,
+                               bool              do_ene);
+    /* Update pre-computed constants that depend on the reference
+     * temperature for coupling.
+     *
+     * This could change e.g. in simulated annealing. */
+    void update_temperature_constants();
+
+    // This is needed for Andersen
+    std::vector<bool> getAndersenRandomizeGroup() const;
+    std::vector<real> getBoltzmanFactor() const;
+
 private:
     //! Implementation type.
     class Impl;
@@ -110,11 +124,6 @@ private:
 
 }; // namespace gmx
 
-/* Update pre-computed constants that depend on the reference
- * temperature for coupling.
- *
- * This could change e.g. in simulated annealing. */
-void update_temperature_constants(gmx_stochd_t* sd, const t_inputrec* ir);
 
 /* Update the size of per-atom arrays (e.g. after DD re-partitioning,
    which might increase the number of home atoms). */
@@ -181,26 +190,6 @@ void constrain_coordinates(int64_t step,
                            gmx_bool          bCalcVir,
                            bool              do_log,
                            bool              do_ene);
-
-void update_sd_second_half(int64_t step,
-                           real* dvdlambda, /* the contribution to be added to the bonded interactions */
-                           const t_inputrec* inputrec, /* input record and box stuff */
-                           const t_mdatoms*  md,
-                           t_state*          state,
-                           const t_commrec*  cr,
-                           t_nrnb*           nrnb,
-                           gmx_wallcycle_t   wcycle,
-                           gmx::Update*      upd,
-                           gmx::Constraints* constr,
-                           bool              do_log,
-                           bool              do_ene);
-
-void finish_update(const t_inputrec*       inputrec,
-                   const t_mdatoms*        md,
-                   t_state*                state,
-                   gmx_wallcycle_t         wcycle,
-                   gmx::Update*            upd,
-                   const gmx::Constraints* constr);
 
 /* Return TRUE if OK, FALSE in case of Shake Error */
 
