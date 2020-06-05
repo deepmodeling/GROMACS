@@ -115,7 +115,7 @@ class Update::Impl
 {
 public:
     //! Constructor
-    Impl(const t_inputrec* ir, BoxDeformation* boxDeformation);
+    Impl(const t_inputrec& ir, BoxDeformation* boxDeformation);
     //! Destructor
     ~Impl() = default;
     //! stochastic dynamics struct
@@ -124,9 +124,23 @@ public:
     PaddedVector<RVec> xp;
     //! Box deformation handler (or nullptr if inactive).
     BoxDeformation* deform = nullptr;
+
+    void update_coords(int64_t                                          step,
+                       const t_mdatoms*                                 md,
+                       t_state*                                         state,
+                       const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
+                       const t_fcdata*                                  fcd,
+                       const gmx_ekindata_t*                            ekind,
+                       const matrix                                     M,
+                       int                                              UpdatePart,
+                       const t_commrec* cr, /* these shouldn't be here -- need to think about it */
+                       const gmx::Constraints* constr);
+
+private:
+    const t_inputrec& inputRecord_;
 };
 
-Update::Update(const t_inputrec* ir, BoxDeformation* boxDeformation) :
+Update::Update(const t_inputrec& ir, BoxDeformation* boxDeformation) :
     impl_(new Impl(ir, boxDeformation)){};
 
 Update::~Update(){};
@@ -144,6 +158,20 @@ PaddedVector<RVec>* Update::xp()
 BoxDeformation* Update::deform() const
 {
     return impl_->deform;
+}
+
+void Update::update_coords(int64_t                                          step,
+                           const t_mdatoms*                                 md,
+                           t_state*                                         state,
+                           const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
+                           const t_fcdata*                                  fcd,
+                           const gmx_ekindata_t*                            ekind,
+                           const matrix                                     M,
+                           int                                              UpdatePart,
+                           const t_commrec* cr, /* these shouldn't be here -- need to think about it */
+                           const gmx::Constraints* constr)
+{
+    return impl_->update_coords(step, md, state, f, fcd, ekind, M, UpdatePart, cr, constr);
 }
 
 /*! \brief Sets the velocities of virtual sites to zero */
@@ -830,10 +858,10 @@ void update_temperature_constants(gmx_stochd_t* sd, const t_inputrec* ir)
     }
 }
 
-Update::Impl::Impl(const t_inputrec* ir, BoxDeformation* boxDeformation)
+Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) : inputRecord_(ir)
 {
-    sd = std::make_unique<gmx_stochd_t>(ir);
-    update_temperature_constants(sd.get(), ir);
+    sd = std::make_unique<gmx_stochd_t>(&ir);
+    update_temperature_constants(sd.get(), &ir);
     xp.resizeWithPadding(0);
     deform = boxDeformation;
 }
@@ -1728,23 +1756,21 @@ void update_pcouple_after_coordinates(FILE*             fplog,
     }
 }
 
-void update_coords(int64_t           step,
-                   const t_inputrec* inputrec, /* input record and box stuff	*/
-                   const t_mdatoms*  md,
-                   t_state*          state,
-                   gmx::ArrayRefWithPadding<const gmx::RVec> f,
-                   const t_fcdata*                           fcd,
-                   const gmx_ekindata_t*                     ekind,
-                   const matrix                              M,
-                   Update*                                   upd,
-                   int                                       UpdatePart,
-                   const t_commrec* cr, /* these shouldn't be here -- need to think about it */
-                   const gmx::Constraints* constr)
+void Update::Impl::update_coords(int64_t                                          step,
+                                 const t_mdatoms*                                 md,
+                                 t_state*                                         state,
+                                 const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
+                                 const t_fcdata*                                  fcd,
+                                 const gmx_ekindata_t*                            ekind,
+                                 const matrix                                     M,
+                                 int                                              UpdatePart,
+                                 const t_commrec* cr, /* these shouldn't be here -- need to think about it */
+                                 const gmx::Constraints* constr)
 {
     gmx_bool bDoConstr = (nullptr != constr);
 
     /* Running the velocity half does nothing except for velocity verlet */
-    if ((UpdatePart == etrtVELOCITY1 || UpdatePart == etrtVELOCITY2) && !EI_VV(inputrec->eI))
+    if ((UpdatePart == etrtVELOCITY1 || UpdatePart == etrtVELOCITY2) && !EI_VV(inputRecord_.eI))
     {
         gmx_incons("update_coords called for velocity without VV integrator");
     }
@@ -1752,7 +1778,7 @@ void update_coords(int64_t           step,
     int homenr = md->homenr;
 
     /* Cast to real for faster code, no loss in precision (see comment above) */
-    real dt = inputrec->delta_t;
+    real dt = inputRecord_.delta_t;
 
     /* We need to update the NMR restraint history when time averaging is used */
     if (state->flags & (1 << estDISRE_RM3TAV))
@@ -1776,14 +1802,14 @@ void update_coords(int64_t           step,
             getThreadAtomRange(nth, th, homenr, &start_th, &end_th);
 
             const rvec* x_rvec  = state->x.rvec_array();
-            rvec*       xp_rvec = upd->xp()->rvec_array();
+            rvec*       xp_rvec = xp.rvec_array();
             rvec*       v_rvec  = state->v.rvec_array();
-            const rvec* f_rvec  = as_rvec_array(f.unpaddedArrayRef().data());
+            const rvec* f_rvec  = as_rvec_array(f.unpaddedConstArrayRef().data());
 
-            switch (inputrec->eI)
+            switch (inputRecord_.eI)
             {
                 case (eiMD):
-                    do_update_md(start_th, end_th, step, dt, inputrec, md, ekind, state->box,
+                    do_update_md(start_th, end_th, step, dt, &inputRecord_, md, ekind, state->box,
                                  x_rvec, xp_rvec, v_rvec, f_rvec, state->nosehoover_vxi.data(), M);
                     break;
                 case (eiSD1):
@@ -1791,44 +1817,45 @@ void update_coords(int64_t           step,
                     {
                         // With constraints, the SD update is done in 2 parts
                         doSDUpdateGeneral<SDUpdate::ForcesOnly>(
-                                *upd->sd(), start_th, end_th, dt, inputrec->opts.acc, inputrec->opts.nFreeze,
+                                *sd, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
                                 md->invmass, md->ptype, md->cFREEZE, md->cACC, nullptr, x_rvec,
-                                xp_rvec, v_rvec, f_rvec, step, inputrec->ld_seed, nullptr);
+                                xp_rvec, v_rvec, f_rvec, step, inputRecord_.ld_seed, nullptr);
                     }
                     else
                     {
                         doSDUpdateGeneral<SDUpdate::Combined>(
-                                *upd->sd(), start_th, end_th, dt, inputrec->opts.acc,
-                                inputrec->opts.nFreeze, md->invmass, md->ptype, md->cFREEZE, md->cACC,
-                                md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec, step, inputrec->ld_seed,
+                                *sd, start_th, end_th, dt, inputRecord_.opts.acc,
+                                inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE, md->cACC,
+                                md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec, step, inputRecord_.ld_seed,
                                 DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
                     }
                     break;
                 case (eiBD):
-                    do_update_bd(start_th, end_th, dt, inputrec->opts.nFreeze, md->invmass,
+                    do_update_bd(start_th, end_th, dt, inputRecord_.opts.nFreeze, md->invmass,
                                  md->ptype, md->cFREEZE, md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec,
-                                 inputrec->bd_fric, upd->sd()->bd_rf.data(), step, inputrec->ld_seed,
+                                 inputRecord_.bd_fric, sd->bd_rf.data(), step, inputRecord_.ld_seed,
                                  DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
                     break;
                 case (eiVV):
                 case (eiVVAK):
                 {
-                    gmx_bool bExtended = (inputrec->etc == etcNOSEHOOVER || inputrec->epc == epcPARRINELLORAHMAN
-                                          || inputrec->epc == epcMTTK);
+                    gmx_bool bExtended = (inputRecord_.etc == etcNOSEHOOVER || inputRecord_.epc == epcPARRINELLORAHMAN
+                                          || inputRecord_.epc == epcMTTK);
 
                     /* assuming barostat coupled to group 0 */
-                    real alpha = 1.0 + DIM / static_cast<real>(inputrec->opts.nrdf[0]);
+                    real alpha = 1.0 + DIM / static_cast<real>(inputRecord_.opts.nrdf[0]);
                     switch (UpdatePart)
                     {
                         case etrtVELOCITY1:
                         case etrtVELOCITY2:
-                            do_update_vv_vel(start_th, end_th, dt, inputrec->opts.acc,
-                                             inputrec->opts.nFreeze, md->invmass, md->ptype, md->cFREEZE,
+                            do_update_vv_vel(start_th, end_th, dt, inputRecord_.opts.acc,
+                                             inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE,
                                              md->cACC, v_rvec, f_rvec, bExtended, state->veta, alpha);
                             break;
                         case etrtPOSITION:
-                            do_update_vv_pos(start_th, end_th, dt, inputrec->opts.nFreeze, md->ptype,
-                                             md->cFREEZE, x_rvec, xp_rvec, v_rvec, bExtended, state->veta);
+                            do_update_vv_pos(start_th, end_th, dt, inputRecord_.opts.nFreeze,
+                                             md->ptype, md->cFREEZE, x_rvec, xp_rvec, v_rvec,
+                                             bExtended, state->veta);
                             break;
                     }
                     break;

@@ -254,7 +254,7 @@ void gmx::LegacySimulator::do_md()
     }
 
     initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
-    Update     upd(ir, deform);
+    Update     upd(*ir, deform);
     const bool doSimulatedAnnealing = initSimulatedAnnealing(ir, &upd);
     const bool useReplicaExchange   = (replExParams.exchangeInterval > 0);
 
@@ -1006,8 +1006,8 @@ void gmx::LegacySimulator::do_md()
                                trotter_seq, ettTSEQ1);
             }
 
-            update_coords(step, ir, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M, &upd,
-                          etrtVELOCITY1, cr, constr);
+            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+                              etrtVELOCITY1, cr, constr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
             constrain_velocities(step, nullptr, state, shake_vir, constr, bCalcVir, do_log, do_ene);
@@ -1256,8 +1256,8 @@ void gmx::LegacySimulator::do_md()
         if (EI_VV(ir->eI))
         {
             /* velocity half-step update */
-            update_coords(step, ir, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M, &upd,
-                          etrtVELOCITY2, cr, constr);
+            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+                              etrtVELOCITY2, cr, constr);
         }
 
         /* Above, initialize just copies ekinh into ekin,
@@ -1322,8 +1322,8 @@ void gmx::LegacySimulator::do_md()
         }
         else
         {
-            update_coords(step, ir, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M, &upd,
-                          etrtPOSITION, cr, constr);
+            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+                              etrtPOSITION, cr, constr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
 
@@ -1354,8 +1354,8 @@ void gmx::LegacySimulator::do_md()
             /* now we know the scaling, we can compute the positions again */
             std::copy(cbuf.begin(), cbuf.end(), state->x.begin());
 
-            update_coords(step, ir, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M, &upd,
-                          etrtPOSITION, cr, constr);
+            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+                              etrtPOSITION, cr, constr);
             wallcycle_stop(wcycle, ewcUPDATE);
 
             /* do we need an extra constraint here? just need to copy out of as_rvec_array(state->v.data()) to upd->xp? */

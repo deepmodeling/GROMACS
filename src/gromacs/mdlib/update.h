@@ -75,7 +75,7 @@ class Update
 {
 public:
     //! Constructor
-    Update(const t_inputrec* ir, BoxDeformation* boxDeformation);
+    Update(const t_inputrec& ir, BoxDeformation* boxDeformation);
     ~Update();
     // TODO Get rid of getters when more free functions are incorporated as member methods
     //! Returns handle to stochd_t struct
@@ -86,6 +86,18 @@ public:
     BoxDeformation* deform() const;
     //! Resizes xp
     void setNumAtoms(int nAtoms);
+
+    //! Perform numerical integration step
+    void update_coords(int64_t                                          step,
+                       const t_mdatoms*                                 md,
+                       t_state*                                         state,
+                       const gmx::ArrayRefWithPadding<const gmx::RVec>& f, /* forces on home particles */
+                       const t_fcdata*                                  fcd,
+                       const gmx_ekindata_t*                            ekind,
+                       const matrix                                     M,
+                       int                                              bUpdatePart,
+                       const t_commrec* cr, /* these shouldn't be here -- need to think about it */
+                       const gmx::Constraints* constr);
 
 private:
     //! Implementation type.
@@ -138,19 +150,6 @@ void update_pcouple_after_coordinates(FILE*             fplog,
                                       t_nrnb*           nrnb,
                                       gmx::Update*      upd,
                                       bool              scaleCoordinates);
-
-void update_coords(int64_t           step,
-                   const t_inputrec* inputrec, /* input record and box stuff	*/
-                   const t_mdatoms*  md,
-                   t_state*          state,
-                   gmx::ArrayRefWithPadding<const gmx::RVec> f, /* forces on home particles */
-                   const t_fcdata*                           fcd,
-                   const gmx_ekindata_t*                     ekind,
-                   const matrix                              M,
-                   gmx::Update*                              upd,
-                   int                                       bUpdatePart,
-                   const t_commrec* cr, /* these shouldn't be here -- need to think about it */
-                   const gmx::Constraints* constr);
 
 /* Return TRUE if OK, FALSE in case of Shake Error */
 

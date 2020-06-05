@@ -180,7 +180,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
     mdAtoms_.havePartiallyFrozenAtoms = false;
     mdAtoms_.cFREEZE                  = nullptr;
 
-    update_ = std::make_unique<Update>(&inputRecord_, nullptr);
+    update_ = std::make_unique<Update>(inputRecord_, nullptr);
     update_->setNumAtoms(numAtoms);
 
     doPressureCouple_ = (nstpcouple != 0);
