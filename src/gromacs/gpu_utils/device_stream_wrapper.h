@@ -100,7 +100,7 @@ public:
      * \param[in] priority       Stream priority: high or normal (only used in CUDA).
      * \param[in] useTiming      If the timing should be enabled (only used in OpenCL).
      */
-    DeviceStreamWrapper(const DeviceContext& deviceContext, DeviceStreamPriority priority, const bool useTiming);
+    DeviceStreamWrapper(const DeviceContext& deviceContext, DeviceStreamPriority priority, bool useTiming);
 
     /*! \brief Get the device stream container.
      *
