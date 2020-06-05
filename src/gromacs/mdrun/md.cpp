@@ -1332,7 +1332,7 @@ void gmx::LegacySimulator::do_md()
 
             update_sd_second_half(step, &dvdl_constr, ir, mdatoms, state, cr, nrnb, wcycle, &upd,
                                   constr, do_log, do_ene);
-            finish_update(ir, mdatoms, state, wcycle, &upd, constr);
+            upd.finish_update(mdatoms, state, wcycle, constr);
         }
 
         if (ir->bPull && ir->pull->bSetPbcRefToPrevStepCOM)
@@ -1363,7 +1363,7 @@ void gmx::LegacySimulator::do_md()
              * to numerical errors, or are they important
              * physically? I'm thinking they are just errors, but not completely sure.
              * For now, will call without actually constraining, constr=NULL*/
-            finish_update(ir, mdatoms, state, wcycle, &upd, nullptr);
+            upd.finish_update(mdatoms, state, wcycle, nullptr);
         }
         if (EI_VV(ir->eI))
         {

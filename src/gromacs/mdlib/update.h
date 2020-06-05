@@ -99,6 +99,8 @@ public:
                        const t_commrec* cr, /* these shouldn't be here -- need to think about it */
                        const gmx::Constraints* constr);
 
+    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr);
+
 private:
     //! Implementation type.
     class Impl;

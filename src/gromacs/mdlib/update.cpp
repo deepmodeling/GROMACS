@@ -119,11 +119,11 @@ public:
     //! Destructor
     ~Impl() = default;
     //! stochastic dynamics struct
-    std::unique_ptr<gmx_stochd_t> sd;
+    std::unique_ptr<gmx_stochd_t> sd_;
     //! xprime for constraint algorithms
-    PaddedVector<RVec> xp;
+    PaddedVector<RVec> xp_;
     //! Box deformation handler (or nullptr if inactive).
-    BoxDeformation* deform = nullptr;
+    BoxDeformation* deform_ = nullptr;
 
     void update_coords(int64_t                                          step,
                        const t_mdatoms*                                 md,
@@ -136,6 +136,8 @@ public:
                        const t_commrec* cr, /* these shouldn't be here -- need to think about it */
                        const gmx::Constraints* constr);
 
+    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr);
+
 private:
     const t_inputrec& inputRecord_;
 };
@@ -147,17 +149,17 @@ Update::~Update(){};
 
 gmx_stochd_t* Update::sd() const
 {
-    return impl_->sd.get();
+    return impl_->sd_.get();
 }
 
 PaddedVector<RVec>* Update::xp()
 {
-    return &impl_->xp;
+    return &impl_->xp_;
 }
 
 BoxDeformation* Update::deform() const
 {
-    return impl_->deform;
+    return impl_->deform_;
 }
 
 void Update::update_coords(int64_t                                          step,
@@ -172,6 +174,11 @@ void Update::update_coords(int64_t                                          step
                            const gmx::Constraints* constr)
 {
     return impl_->update_coords(step, md, state, f, fcd, ekind, M, UpdatePart, cr, constr);
+}
+
+void Update::finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr)
+{
+    return impl_->finish_update(md, state, wcycle, constr);
 }
 
 /*! \brief Sets the velocities of virtual sites to zero */
@@ -860,16 +867,16 @@ void update_temperature_constants(gmx_stochd_t* sd, const t_inputrec* ir)
 
 Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) : inputRecord_(ir)
 {
-    sd = std::make_unique<gmx_stochd_t>(&ir);
-    update_temperature_constants(sd.get(), &ir);
-    xp.resizeWithPadding(0);
-    deform = boxDeformation;
+    sd_ = std::make_unique<gmx_stochd_t>(&ir);
+    update_temperature_constants(sd_.get(), &ir);
+    xp_.resizeWithPadding(0);
+    deform_ = boxDeformation;
 }
 
 void Update::setNumAtoms(int nAtoms)
 {
 
-    impl_->xp.resizeWithPadding(nAtoms);
+    impl_->xp_.resizeWithPadding(nAtoms);
 }
 
 /*! \brief Sets the SD update type */
@@ -1605,12 +1612,10 @@ void update_sd_second_half(int64_t step,
     }
 }
 
-void finish_update(const t_inputrec*       inputrec, /* input record and box stuff	*/
-                   const t_mdatoms*        md,
-                   t_state*                state,
-                   gmx_wallcycle_t         wcycle,
-                   Update*                 upd,
-                   const gmx::Constraints* constr)
+void Update::Impl::finish_update(const t_mdatoms*        md,
+                                 t_state*                state,
+                                 gmx_wallcycle_t         wcycle,
+                                 const gmx::Constraints* constr)
 {
     /* NOTE: Currently we always integrate to a temporary buffer and
      * then copy the results back here.
@@ -1619,7 +1624,7 @@ void finish_update(const t_inputrec*       inputrec, /* input record and box stu
     wallcycle_start_nocount(wcycle, ewcUPDATE);
 
     const int homenr = md->homenr;
-    auto      xp     = makeConstArrayRef(*upd->xp()).subArray(0, homenr);
+    auto      xp     = makeConstArrayRef(xp_).subArray(0, homenr);
     auto      x      = makeArrayRef(state->x).subArray(0, homenr);
 
     if (md->havePartiallyFrozenAtoms && constr != nullptr)
@@ -1628,7 +1633,7 @@ void finish_update(const t_inputrec*       inputrec, /* input record and box stu
          * then constraints will have moved them also along the frozen dimensions.
          * To freeze such degrees of freedom we do not copy them back here.
          */
-        const ivec* nFreeze = inputrec->opts.nFreeze;
+        const ivec* nFreeze = inputRecord_.opts.nFreeze;
 
         for (int i = 0; i < homenr; i++)
         {
@@ -1802,7 +1807,7 @@ void Update::Impl::update_coords(int64_t                                        
             getThreadAtomRange(nth, th, homenr, &start_th, &end_th);
 
             const rvec* x_rvec  = state->x.rvec_array();
-            rvec*       xp_rvec = xp.rvec_array();
+            rvec*       xp_rvec = xp_.rvec_array();
             rvec*       v_rvec  = state->v.rvec_array();
             const rvec* f_rvec  = as_rvec_array(f.unpaddedConstArrayRef().data());
 
@@ -1817,14 +1822,14 @@ void Update::Impl::update_coords(int64_t                                        
                     {
                         // With constraints, the SD update is done in 2 parts
                         doSDUpdateGeneral<SDUpdate::ForcesOnly>(
-                                *sd, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
+                                *sd_, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
                                 md->invmass, md->ptype, md->cFREEZE, md->cACC, nullptr, x_rvec,
                                 xp_rvec, v_rvec, f_rvec, step, inputRecord_.ld_seed, nullptr);
                     }
                     else
                     {
                         doSDUpdateGeneral<SDUpdate::Combined>(
-                                *sd, start_th, end_th, dt, inputRecord_.opts.acc,
+                                *sd_, start_th, end_th, dt, inputRecord_.opts.acc,
                                 inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE, md->cACC,
                                 md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec, step, inputRecord_.ld_seed,
                                 DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
@@ -1833,7 +1838,7 @@ void Update::Impl::update_coords(int64_t                                        
                 case (eiBD):
                     do_update_bd(start_th, end_th, dt, inputRecord_.opts.nFreeze, md->invmass,
                                  md->ptype, md->cFREEZE, md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec,
-                                 inputRecord_.bd_fric, sd->bd_rf.data(), step, inputRecord_.ld_seed,
+                                 inputRecord_.bd_fric, sd_->bd_rf.data(), step, inputRecord_.ld_seed,
                                  DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
                     break;
                 case (eiVV):
