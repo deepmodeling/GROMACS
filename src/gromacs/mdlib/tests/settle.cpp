@@ -83,6 +83,7 @@
 #include "gromacs/gpu_utils/gpu_testutils.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/mdlib/tests/watersystem.h"
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/topology/idef.h"
@@ -91,9 +92,9 @@
 #include "gromacs/utility/stringutil.h"
 #include "gromacs/utility/unique_cptr.h"
 
-#include "gromacs/mdlib/tests/watersystem.h"
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"
+#include "testutils/testhardwarecontexts.h"
 
 #include "settletestdata.h"
 #include "settletestrunners.h"
@@ -144,10 +145,6 @@ class SettleTest : public ::testing::TestWithParam<SettleTestParameters>
 public:
     //! PBC setups
     std::unordered_map<std::string, t_pbc> pbcs_;
-    //! Runners (CPU and GPU versions of SETTLE)
-    std::unordered_map<std::string,
-                       void (*)(SettleTestData* testData, const t_pbc pbc, const bool updateVelocities, const bool calcVirial, const std::string& testDescription)>
-            runners_;
     //! Reference data
     TestReferenceData refData_;
     //! Checker for reference data
@@ -176,24 +173,6 @@ public:
         matrix boxXyz = { { real(1.86206), 0, 0 }, { 0, real(1.86206), 0 }, { 0, 0, real(1.86206) } };
         set_pbc(&pbc, PbcType::Xyz, boxXyz);
         pbcs_["PBCXYZ"] = pbc;
-
-        //
-        // All SETTLE runners should be registered here under appropriate conditions
-        //
-        runners_["SETTLE"] = applySettle;
-
-        // CUDA version will be tested only if:
-        // 1. The code was compiled with CUDA
-        // 2. There is a CUDA-capable GPU in a system
-        // 3. This GPU is detectable
-        // 4. GPU detection was not disabled by GMX_DISABLE_GPU_DETECTION environment variable
-        if (s_hasCompatibleGpus)
-        {
-            if (GMX_GPU == GMX_GPU_CUDA && s_hasCompatibleGpus)
-            {
-                runners_["SETTLE_GPU"] = applySettleGpu;
-            }
-        }
     }
 
     /*! \brief Check if the final interatomic distances are equal to target set by constraints.
@@ -326,20 +305,36 @@ public:
         virialRef.checkReal(virial[ZZ][ZZ], "ZZ");
     }
 
-    //! Store whether any compatible GPUs exist.
-    static bool s_hasCompatibleGpus;
+    //! List of available runners
+    static std::vector<std::unique_ptr<SettleTestRunner>> s_runners;
     //! Before any test is run, work out whether any compatible GPUs exist.
-    static void SetUpTestCase() { s_hasCompatibleGpus = canComputeOnGpu(); }
+    static void SetUpTestCase()
+    {
+        // CUDA version will be tested only if:
+        // 1. The code was compiled with CUDA
+        // 2. There is a CUDA-capable GPU in a system
+        // 3. This GPU is detectable
+        // 4. GPU detection was not disabled by GMX_DISABLE_GPU_DETECTION environment variable
+        const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+        for (const auto& context : hardwareContexts)
+        {
+            if (context->codePath() == CodePath::CPU
+                || (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
+            {
+                s_runners.emplace_back(std::make_unique<SettleTestRunner>(context.get()));
+            }
+        }
+    }
 };
 
-bool SettleTest::s_hasCompatibleGpus = false;
+std::vector<std::unique_ptr<SettleTestRunner>> SettleTest::s_runners;
 
 TEST_P(SettleTest, SatisfiesConstraints)
 {
     // Cycle through all available runners
-    for (const auto& runner : runners_)
+    for (const auto& runner : s_runners)
     {
-        std::string runnerName = runner.first;
+        std::string runnerName = runner->name();
 
         // Make some symbolic names for the parameter combination.
         SettleTestParameters params = GetParam();
@@ -367,7 +362,7 @@ TEST_P(SettleTest, SatisfiesConstraints)
         t_pbc pbc = pbcs_.at(pbcName);
 
         // Apply SETTLE
-        runner.second(testData.get(), pbc, updateVelocities, calcVirial, testDescription);
+        runner->applySettle(testData.get(), pbc, updateVelocities, calcVirial, testDescription);
 
         // The necessary tolerances for the test to pass were determined
         // empirically. This isn't nice, but the required behavior that

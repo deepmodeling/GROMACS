@@ -78,13 +78,10 @@ public:
     //! Sets the programs once
     static void SetUpTestCase()
     {
-        s_pmeTestHardwareContexts.emplace_back(
-                std::make_unique<PmeTestHardwareContext>(CodePath::CPU, nullptr));
         const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
         for (const auto& context : hardwareContexts)
         {
-            s_pmeTestHardwareContexts.emplace_back(
-                    std::make_unique<PmeTestHardwareContext>(CodePath::GPU, context.get()));
+            s_pmeTestHardwareContexts.emplace_back(std::make_unique<PmeTestHardwareContext>(context.get()));
         }
     }
 
@@ -120,10 +117,11 @@ public:
         }
 
         TestReferenceData refData;
-        for (const auto& context : s_pmeTestHardwareContexts)
+        for (const auto& pmeTestHardwareContext : s_pmeTestHardwareContexts)
         {
-            CodePath   codePath       = context->codePath();
-            const bool supportedInput = pmeSupportsInputForMode(
+            const auto* context        = pmeTestHardwareContext->testHardwareContext_;
+            CodePath    codePath       = context->codePath();
+            const bool  supportedInput = pmeSupportsInputForMode(
                     *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
@@ -156,7 +154,7 @@ public:
                     /* Running the test */
                     PmeSafePointer pmeSafe = pmeInitWrapper(
                             &inputRec, codePath, context->deviceContext(), context->deviceStream(),
-                            context->pmeGpuProgram(), box, ewaldCoeff_q, ewaldCoeff_lj);
+                            pmeTestHardwareContext->pmeGpuProgram(), box, ewaldCoeff_q, ewaldCoeff_lj);
                     pmeSetComplexGrid(pmeSafe.get(), codePath, gridOrdering.first, nonZeroGridValues);
                     const real cellVolume = box[0] * box[4] * box[8];
                     // FIXME - this is box[XX][XX] * box[YY][YY] * box[ZZ][ZZ], should be stored in the PME structure

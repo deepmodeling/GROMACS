@@ -47,6 +47,8 @@
 
 #include "settletestdata.h"
 
+#include "testutils/testhardwarecontext.h"
+
 struct t_pbc;
 
 namespace gmx
@@ -65,28 +67,57 @@ namespace test
  * \param[in]     calcVirial        If the virial should be computed.
  * \param[in]     testDescription   Brief description that will be printed in case of test failure.
  */
-void applySettle(SettleTestData*    testData,
-                 t_pbc              pbc,
-                 bool               updateVelocities,
-                 bool               calcVirial,
-                 const std::string& testDescription);
+void applySettleCpu(SettleTestData*    testData,
+                    t_pbc              pbc,
+                    bool               updateVelocities,
+                    bool               calcVirial,
+                    const std::string& testDescription);
 
 /*! \brief Apply SETTLE using GPU version of the algorithm
  *
  * Initializes SETTLE object, copied data to the GPU, applies algorithm, copies the data back,
  * destroys the object. The coordinates, velocities and virial are updated in the testData object.
  *
- * \param[in,out] testData          An object, containing all the data structures needed by SETTLE.
- * \param[in]     pbc               Periodic boundary setup.
- * \param[in]     updateVelocities  If the velocities should be updated.
- * \param[in]     calcVirial        If the virial should be computed.
- * \param[in]     testDescription   Brief description that will be printed in case of test failure.
+ * \param[in,out] testData             An object, containing all the data structures needed by
+ * SETTLE. \param[in]     pbc                  Periodic boundary setup. \param[in] updateVelocities
+ * If the velocities should be updated. \param[in]     calcVirial           If the virial should be
+ * computed. \param[in]     testHardwareContext  GPU hardware context to use.
  */
-void applySettleGpu(SettleTestData*    testData,
-                    t_pbc              pbc,
-                    bool               updateVelocities,
-                    bool               calcVirial,
-                    const std::string& testDescription);
+void applySettleGpu(SettleTestData*      testData,
+                    t_pbc                pbc,
+                    bool                 updateVelocities,
+                    bool                 calcVirial,
+                    TestHardwareContext* testHardwareContext);
+
+class SettleTestRunner
+{
+public:
+    SettleTestRunner(TestHardwareContext* testHardwareContext) :
+        testHardwareContext_(testHardwareContext)
+    {
+    }
+    void applySettle(SettleTestData*    testData,
+                     const t_pbc        pbc,
+                     const bool         updateVelocities,
+                     const bool         calcVirial,
+                     const std::string& testDescription)
+    {
+        if (testHardwareContext_->codePath() == CodePath::CPU)
+        {
+            applySettleCpu(testData, pbc, updateVelocities, calcVirial, testDescription);
+        }
+        else
+        {
+            applySettleGpu(testData, pbc, updateVelocities, calcVirial, testHardwareContext_);
+        }
+    }
+
+    std::string name() { return codePathToString(testHardwareContext_->codePath()); }
+
+private:
+    //! Pointer to the global test hardware context (if on GPU)
+    TestHardwareContext* testHardwareContext_;
+};
 
 } // namespace test
 } // namespace gmx

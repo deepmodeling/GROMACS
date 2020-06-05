@@ -57,11 +57,11 @@ namespace gmx
 namespace test
 {
 
-void applySettle(SettleTestData*    testData,
-                 const t_pbc        pbc,
-                 const bool         updateVelocities,
-                 const bool         calcVirial,
-                 const std::string& testDescription)
+void applySettleCpu(SettleTestData*    testData,
+                    const t_pbc        pbc,
+                    const bool         updateVelocities,
+                    const bool         calcVirial,
+                    const std::string& testDescription)
 {
     settledata* settled = settle_init(testData->mtop_);
 
@@ -81,11 +81,11 @@ void applySettle(SettleTestData*    testData,
 
 #if GMX_GPU != GMX_GPU_CUDA
 
-void applySettleGpu(gmx_unused SettleTestData* testData,
-                    gmx_unused const t_pbc pbc,
-                    gmx_unused const bool  updateVelocities,
-                    gmx_unused const bool  calcVirial,
-                    gmx_unused const std::string& testDescription)
+void applySettleGpu(SettleTestData* /* testData */,
+                    const t_pbc /* pbc */,
+                    const bool /* updateVelocities */,
+                    const bool /* calcVirial */,
+                    TestHardwareContext* /* testHardwareContext */)
 {
     FAIL() << "Dummy SETTLE GPU function was called instead of the real one in the SETTLE test.";
 }

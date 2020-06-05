@@ -123,13 +123,14 @@ static bool deviceIsSupported()
 
 void TestHardwareEnvironment::SetUp()
 {
+    hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>("CPU"));
     hardwareInfo_ = hardwareInit();
     if (!deviceBuildIsSupported() || !deviceIsSupported())
     {
         // The build of hardware do not support the device runs
         return;
     }
-    // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
+    // Constructing contexts for all compatible GPUs - will not add anything for non-GPU builds
     for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
     {
         const DeviceInformation* deviceInfo = getDeviceInfo(hardwareInfo_->gpu_info, gpuIndex);

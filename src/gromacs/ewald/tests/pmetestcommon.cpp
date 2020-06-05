@@ -858,35 +858,22 @@ PmeOutput pmeGetReciprocalEnergyAndVirial(const gmx_pme_t* pme, CodePath mode, P
     return output;
 }
 
-const char* codePathToString(CodePath codePath)
-{
-    switch (codePath)
-    {
-        case CodePath::CPU: return "CPU";
-        case CodePath::GPU: return "GPU";
-        default: GMX_THROW(NotImplementedError("This CodePath should support codePathToString"));
-    }
-}
-
-PmeTestHardwareContext::PmeTestHardwareContext(CodePath codePath, TestHardwareContext* testHardwareContext) :
-    codePath_(codePath),
+PmeTestHardwareContext::PmeTestHardwareContext(TestHardwareContext* testHardwareContext) :
     testHardwareContext_(testHardwareContext)
 {
-    if (codePath == CodePath::GPU)
+    if (testHardwareContext->codePath() == CodePath::GPU)
     {
-        pmeGpuProgram_ = buildPmeGpuProgram(testHardwareContext_->deviceContext());
+        pmeGpuProgram_ = buildPmeGpuProgram(*testHardwareContext_->deviceContext());
     }
 }
 
 
 void fillPmeTestHardwareContexts(std::vector<std::unique_ptr<PmeTestHardwareContext>> pmeTestHardwareContexts)
 {
-    pmeTestHardwareContexts.emplace_back(std::make_unique<PmeTestHardwareContext>(CodePath::CPU, nullptr));
     const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
     for (const auto& context : hardwareContexts)
     {
-        pmeTestHardwareContexts.emplace_back(
-                std::make_unique<PmeTestHardwareContext>(CodePath::GPU, context.get()));
+        pmeTestHardwareContexts.emplace_back(std::make_unique<PmeTestHardwareContext>(context.get()));
     }
 }
 

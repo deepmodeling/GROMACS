@@ -60,6 +60,15 @@ namespace gmx
 namespace test
 {
 
+//! Hardware code path being tested
+enum class CodePath
+{
+    CPU,
+    GPU
+};
+//! Return a string useful for human-readable messages describing a \c codePath.
+const char* codePathToString(CodePath codePath);
+
 /*! \internal \brief
  * A structure to describe a hardware context that persists over the lifetime
  * of the test binary.
@@ -67,15 +76,19 @@ namespace test
 class TestHardwareContext
 {
 public:
+    //! Get the code path
+    CodePath codePath() const;
     //! Returns a human-readable context description line
     std::string description() const;
     //! Returns the device info pointer
     const DeviceInformation& deviceInfo() const;
     //! Get the device context
-    const DeviceContext& deviceContext() const;
+    const DeviceContext* deviceContext() const;
     //! Get the device stream
-    const DeviceStream& deviceStream() const;
-    //! Constructs the context
+    const DeviceStream* deviceStream() const;
+    //! Constructs the context for CPU builds
+    TestHardwareContext(const char* description);
+    //! Constructs the context for GPU builds
     TestHardwareContext(const char* description, const DeviceInformation& deviceInfo);
     //! Destructor
     ~TestHardwareContext();

@@ -87,13 +87,10 @@ public:
     //! Sets the programs once
     static void SetUpTestCase()
     {
-        s_pmeTestHardwareContexts.emplace_back(
-                std::make_unique<PmeTestHardwareContext>(CodePath::CPU, nullptr));
         const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
         for (const auto& context : hardwareContexts)
         {
-            s_pmeTestHardwareContexts.emplace_back(
-                    std::make_unique<PmeTestHardwareContext>(CodePath::GPU, context.get()));
+            s_pmeTestHardwareContexts.emplace_back(std::make_unique<PmeTestHardwareContext>(context.get()));
         }
     }
 
@@ -137,10 +134,11 @@ public:
         size_t previousGridValuesSize;
 
         TestReferenceData refData;
-        for (const auto& context : s_pmeTestHardwareContexts)
+        for (const auto& pmeTestHardwareContext : s_pmeTestHardwareContexts)
         {
-            CodePath   codePath       = context->codePath();
-            const bool supportedInput = pmeSupportsInputForMode(
+            const auto* context        = pmeTestHardwareContext->testHardwareContext_;
+            CodePath    codePath       = context->codePath();
+            const bool  supportedInput = pmeSupportsInputForMode(
                     *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
@@ -162,9 +160,9 @@ public:
 
                 /* Running the test */
 
-                PmeSafePointer pmeSafe =
-                        pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
-                                       context->deviceStream(), context->pmeGpuProgram(), box);
+                PmeSafePointer pmeSafe = pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
+                                                        context->deviceStream(),
+                                                        pmeTestHardwareContext->pmeGpuProgram(), box);
                 std::unique_ptr<StatePropagatorDataGpu> stateGpu =
                         (codePath == CodePath::GPU)
                                 ? makeStatePropagatorDataGpu(*pmeSafe.get(), context->deviceContext(),

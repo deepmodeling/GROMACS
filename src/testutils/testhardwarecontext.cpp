@@ -63,46 +63,76 @@ namespace gmx
 namespace test
 {
 
+const char* codePathToString(CodePath codePath)
+{
+    switch (codePath)
+    {
+        case CodePath::CPU: return "CPU";
+        case CodePath::GPU: return "GPU";
+        default: GMX_THROW(NotImplementedError("This CodePath should support codePathToString"));
+    }
+}
+
 class TestHardwareContext::Impl
 {
 public:
+    Impl(const char* description);
     Impl(const char* description, const DeviceInformation& deviceInfo);
     ~Impl();
     //! Returns a human-readable context description line
     std::string description() const { return description_; }
+    //! Get the code path
+    CodePath codePath() const { return codePath_; }
     //! Returns the device info pointer
-    const DeviceInformation& deviceInfo() const { return deviceContext_.deviceInfo(); }
+    const DeviceInformation& deviceInfo() const { return deviceContext_->deviceInfo(); }
     //! Get the device context
-    const DeviceContext& deviceContext() const { return deviceContext_; }
+    const DeviceContext* deviceContext() const { return deviceContext_.get(); }
     //! Get the device stream
-    const DeviceStream& deviceStream() const { return deviceStream_; }
+    const DeviceStream* deviceStream() const { return deviceStream_.get(); }
 
 private:
+    //! Hardware path for the code being tested.
+    CodePath codePath_;
     //! Readable description
     std::string description_;
     //! Device context
-    DeviceContext deviceContext_;
+    std::unique_ptr<DeviceContext> deviceContext_;
     //! Device stream
-    DeviceStream deviceStream_;
+    std::unique_ptr<DeviceStream> deviceStream_;
 };
 
-//! Constructs the context
-TestHardwareContext::Impl::Impl(const char* description, const DeviceInformation& deviceInfo) :
+TestHardwareContext::Impl::Impl(const char* description) :
+    codePath_(CodePath::CPU),
     description_(description),
-    deviceContext_(deviceInfo),
-    deviceStream_(deviceContext_, DeviceStreamPriority::Normal, false)
+    deviceContext_(nullptr),
+    deviceStream_(nullptr)
 {
 }
+
+TestHardwareContext::Impl::Impl(const char* description, const DeviceInformation& deviceInfo) :
+    codePath_(CodePath::GPU),
+    description_(description),
+    deviceContext_(std::make_unique<DeviceContext>(deviceInfo)),
+    deviceStream_(std::make_unique<DeviceStream>(*deviceContext_, DeviceStreamPriority::Normal, false))
+{
+}
+
 TestHardwareContext::Impl::~Impl() = default;
 
 
-//! Constructs the context
+TestHardwareContext::TestHardwareContext(const char* description) : impl_(new Impl(description)) {}
+
 TestHardwareContext::TestHardwareContext(const char* description, const DeviceInformation& deviceInfo) :
     impl_(new Impl(description, deviceInfo))
 {
 }
 
 TestHardwareContext::~TestHardwareContext() = default;
+
+CodePath TestHardwareContext::codePath() const
+{
+    return impl_->codePath();
+}
 
 std::string TestHardwareContext::description() const
 {
@@ -114,12 +144,12 @@ const DeviceInformation& TestHardwareContext::deviceInfo() const
     return impl_->deviceInfo();
 }
 //! Get the device context
-const DeviceContext& TestHardwareContext::deviceContext() const
+const DeviceContext* TestHardwareContext::deviceContext() const
 {
     return impl_->deviceContext();
 }
 //! Get the device stream
-const DeviceStream& TestHardwareContext::deviceStream() const
+const DeviceStream* TestHardwareContext::deviceStream() const
 {
     return impl_->deviceStream();
 }

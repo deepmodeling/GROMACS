@@ -64,14 +64,6 @@
 #ifndef TEST_USES_HARDWARE_DETECTION
 //! Whether the test expects/supports running with knowledge of the hardware.
 #    define TEST_USES_HARDWARE_DETECTION false
-namespace gmx
-{
-namespace test
-{
-//! Implement a stub definition for tests that don't ask for a real one.
-void callAddGlobalTestEnvironment(){};
-} // namespace test
-} // namespace gmx
 #endif
 
 /*! \brief

@@ -71,6 +71,7 @@
 #include "testutils/mpi_printer.h"
 #include "testutils/refdata.h"
 #include "testutils/testfilemanager.h"
+#include "testutils/testhardwarecontexts.h"
 #include "testutils/testoptions.h"
 
 namespace gmx
@@ -175,7 +176,7 @@ void initTestUtils(const char* dataPath,
             finalizeForCommandLine();
             std::exit(1);
         }
-        if (usesHardwareDetection)
+        // if (usesHardwareDetection)
         {
             callAddGlobalTestEnvironment();
         }
