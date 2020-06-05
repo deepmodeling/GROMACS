@@ -176,7 +176,7 @@ void initTestUtils(const char* dataPath,
             finalizeForCommandLine();
             std::exit(1);
         }
-        // if (usesHardwareDetection)
+        if (usesHardwareDetection)
         {
             callAddGlobalTestEnvironment();
         }
