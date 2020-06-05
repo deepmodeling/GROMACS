@@ -1840,36 +1840,24 @@ void update_coords(int64_t           step,
     }
 }
 
-extern gmx_bool update_randomize_velocities(const t_inputrec*        ir,
-                                            int64_t                  step,
-                                            const t_commrec*         cr,
-                                            const t_mdatoms*         md,
-                                            gmx::ArrayRef<gmx::RVec> v,
-                                            const Update*            upd,
-                                            const gmx::Constraints*  constr)
+void update_randomize_velocities(const t_inputrec*        ir,
+                                 int64_t                  step,
+                                 const t_commrec*         cr,
+                                 const t_mdatoms*         md,
+                                 gmx::ArrayRef<gmx::RVec> v,
+                                 const Update*            upd,
+                                 const bool               hasConstraints)
 {
 
-    real rate = (ir->delta_t) / ir->opts.tau_t[0];
-
-    if (ir->etc == etcANDERSEN && constr != nullptr)
-    {
-        /* Currently, Andersen thermostat does not support constrained
-           systems. Functionality exists in the andersen_tcoupl
-           function in GROMACS 4.5.7 to allow this combination. That
-           code could be ported to the current random-number
-           generation approach, but has not yet been done because of
-           lack of time and resources. */
-        gmx_fatal(FARGS,
-                  "Normal Andersen is currently not supported with constraints, use massive "
-                  "Andersen instead");
-    }
+    GMX_ASSERT(!hasConstraints,
+               "Normal Andersen is currently not supported with constraints, use massive "
+               "Andersen instead");
 
     /* proceed with andersen if 1) it's fixed probability per
-       particle andersen or 2) it's massive andersen and it's tau_t/dt */
-    if ((ir->etc == etcANDERSEN) || do_per_step(step, roundToInt(1.0 / rate)))
+    particle andersen or 2) it's massive andersen and it's tau_t/dt */
+    real rate = (ir->delta_t) / ir->opts.tau_t[0];
+    if (do_per_step(step, roundToInt(1.0 / rate)))
     {
         andersen_tcoupl(ir, step, cr, md, v, rate, upd->sd()->randomize_group, upd->sd()->boltzfac);
-        return TRUE;
     }
-    return FALSE;
 }
