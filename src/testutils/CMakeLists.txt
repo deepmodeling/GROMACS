@@ -64,6 +64,10 @@ set(TESTUTILS_SOURCES
     xvgtest.cpp
     )
 
+if(GMX_USE_CUDA)
+    set_source_files_properties(testhardwarecontext.cpp PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
+endif()
+
 if(NOT HAVE_TINYXML2)
     list(APPEND TESTUTILS_SOURCES ../external/tinyxml2/tinyxml2.cpp)
 endif()
