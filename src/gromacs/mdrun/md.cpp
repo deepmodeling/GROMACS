@@ -1476,7 +1476,7 @@ void gmx::LegacySimulator::do_md()
         }
 
         update_pcouple_after_coordinates(fplog, step, ir, mdatoms, pres, force_vir, shake_vir,
-                                         pressureCouplingMu, state, nrnb, &upd, !useGpuForUpdate);
+                                         pressureCouplingMu, state, nrnb, upd.deform(), !useGpuForUpdate);
 
         const bool doBerendsenPressureCoupling =
                 (inputrec->epc == epcBERENDSEN && do_per_step(step, inputrec->nstpcouple));

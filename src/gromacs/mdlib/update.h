@@ -149,18 +149,18 @@ void update_pcouple_before_coordinates(FILE*             fplog,
  * and scales the coordinates.
  * When the deform option is used, scales coordinates and box here.
  */
-void update_pcouple_after_coordinates(FILE*             fplog,
-                                      int64_t           step,
-                                      const t_inputrec* inputrec,
-                                      const t_mdatoms*  md,
-                                      const matrix      pressure,
-                                      const matrix      forceVirial,
-                                      const matrix      constraintVirial,
-                                      matrix            pressureCouplingMu,
-                                      t_state*          state,
-                                      t_nrnb*           nrnb,
-                                      gmx::Update*      upd,
-                                      bool              scaleCoordinates);
+void update_pcouple_after_coordinates(FILE*                fplog,
+                                      int64_t              step,
+                                      const t_inputrec*    inputrec,
+                                      const t_mdatoms*     md,
+                                      const matrix         pressure,
+                                      const matrix         forceVirial,
+                                      const matrix         constraintVirial,
+                                      matrix               pressureCouplingMu,
+                                      t_state*             state,
+                                      t_nrnb*              nrnb,
+                                      gmx::BoxDeformation* boxDeformation,
+                                      bool                 scaleCoordinates);
 
 /* Return TRUE if OK, FALSE in case of Shake Error */
 

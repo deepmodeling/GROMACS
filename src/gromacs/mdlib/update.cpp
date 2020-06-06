@@ -1705,18 +1705,18 @@ void Update::Impl::finish_update(const t_mdatoms*        md,
     wallcycle_stop(wcycle, ewcUPDATE);
 }
 
-void update_pcouple_after_coordinates(FILE*             fplog,
-                                      int64_t           step,
-                                      const t_inputrec* inputrec,
-                                      const t_mdatoms*  md,
-                                      const matrix      pressure,
-                                      const matrix      forceVirial,
-                                      const matrix      constraintVirial,
-                                      matrix            pressureCouplingMu,
-                                      t_state*          state,
-                                      t_nrnb*           nrnb,
-                                      Update*           upd,
-                                      const bool        scaleCoordinates)
+void update_pcouple_after_coordinates(FILE*                fplog,
+                                      int64_t              step,
+                                      const t_inputrec*    inputrec,
+                                      const t_mdatoms*     md,
+                                      const matrix         pressure,
+                                      const matrix         forceVirial,
+                                      const matrix         constraintVirial,
+                                      matrix               pressureCouplingMu,
+                                      t_state*             state,
+                                      t_nrnb*              nrnb,
+                                      gmx::BoxDeformation* boxDeformation,
+                                      const bool           scaleCoordinates)
 {
     int start  = 0;
     int homenr = md->homenr;
@@ -1794,10 +1794,10 @@ void update_pcouple_after_coordinates(FILE*             fplog,
         default: break;
     }
 
-    if (upd->deform())
+    if (boxDeformation)
     {
         auto localX = makeArrayRef(state->x).subArray(start, homenr);
-        upd->deform()->apply(localX, state->box, step);
+        boxDeformation->apply(localX, state->box, step);
     }
 }
 
