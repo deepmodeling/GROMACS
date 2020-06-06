@@ -1044,6 +1044,41 @@ static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
     }
 }
 
+static void do_update_sd(const gmx_stochd_t&  sd,
+                         int                  start,
+                         int                  nrend,
+                         real                 dt,
+                         const rvec           accel[],
+                         const ivec           nFreeze[],
+                         const real           invmass[],
+                         const unsigned short ptype[],
+                         const unsigned short cFREEZE[],
+                         const unsigned short cACC[],
+                         const unsigned short cTC[],
+                         const rvec           x[],
+                         rvec                 xprime[],
+                         rvec                 v[],
+                         const rvec           f[],
+                         int64_t              step,
+                         int                  seed,
+                         const t_commrec*     cr,
+                         bool                 haveConstraints)
+{
+    if (haveConstraints)
+    {
+        // With constraints, the SD update is done in 2 parts
+        doSDUpdateGeneral<SDUpdate::ForcesOnly>(sd, start, nrend, dt, accel, nFreeze, invmass,
+                                                ptype, cFREEZE, cACC, nullptr, x, xprime, v, f,
+                                                step, seed, nullptr);
+    }
+    else
+    {
+        doSDUpdateGeneral<SDUpdate::Combined>(
+                sd, start, nrend, dt, accel, nFreeze, invmass, ptype, cFREEZE, cACC, cTC, x, xprime,
+                v, f, step, seed, DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
+    }
+}
+
 static void do_update_bd(int                  start,
                          int                  nrend,
                          real                 dt,
@@ -1858,22 +1893,10 @@ void Update::Impl::update_coords(int64_t                                        
                                  x_rvec, xp_rvec, v_rvec, f_rvec, state->nosehoover_vxi.data(), M);
                     break;
                 case (eiSD1):
-                    if (bDoConstr)
-                    {
-                        // With constraints, the SD update is done in 2 parts
-                        doSDUpdateGeneral<SDUpdate::ForcesOnly>(
-                                *sd_, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
-                                md->invmass, md->ptype, md->cFREEZE, md->cACC, nullptr, x_rvec,
-                                xp_rvec, v_rvec, f_rvec, step, inputRecord_.ld_seed, nullptr);
-                    }
-                    else
-                    {
-                        doSDUpdateGeneral<SDUpdate::Combined>(
-                                *sd_, start_th, end_th, dt, inputRecord_.opts.acc,
-                                inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE, md->cACC,
-                                md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec, step, inputRecord_.ld_seed,
-                                DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
-                    }
+                    do_update_sd(*sd_, start_th, end_th, dt, inputRecord_.opts.acc,
+                                 inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE,
+                                 md->cACC, md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec, step,
+                                 inputRecord_.ld_seed, cr, bDoConstr);
                     break;
                 case (eiBD):
                     do_update_bd(start_th, end_th, dt, inputRecord_.opts.nFreeze, md->invmass,
