@@ -568,18 +568,18 @@ static void updateMDLeapfrogGeneral(int                   start,
 }
 
 /*! \brief Handles the Leap-frog MD x and v integration */
-static void do_update_md(int                   start,
-                         int                   nrend,
-                         int64_t               step,
-                         real                  dt,
-                         const t_inputrec*     ir,
-                         const t_mdatoms*      md,
-                         const gmx_ekindata_t* ekind,
-                         const matrix          box,
+static void do_update_md(int         start,
+                         int         nrend,
+                         real        dt,
+                         int64_t     step,
                          const rvec* gmx_restrict x,
                          rvec* gmx_restrict xprime,
                          rvec* gmx_restrict v,
                          const rvec* gmx_restrict f,
+                         const t_inputrec*        ir,
+                         const t_mdatoms*         md,
+                         const gmx_ekindata_t*    ekind,
+                         const matrix             box,
                          const double* gmx_restrict nh_vxi,
                          const matrix               M)
 {
@@ -1044,25 +1044,25 @@ static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
     }
 }
 
-static void do_update_sd(const gmx_stochd_t&  sd,
-                         int                  start,
-                         int                  nrend,
-                         real                 dt,
-                         const rvec           accel[],
-                         const ivec           nFreeze[],
-                         const real           invmass[],
-                         const unsigned short ptype[],
-                         const unsigned short cFREEZE[],
-                         const unsigned short cACC[],
-                         const unsigned short cTC[],
-                         const rvec           x[],
-                         rvec                 xprime[],
-                         rvec                 v[],
-                         const rvec           f[],
-                         int64_t              step,
-                         int                  seed,
-                         const t_commrec*     cr,
-                         bool                 haveConstraints)
+static void do_update_sd(int         start,
+                         int         nrend,
+                         real        dt,
+                         int64_t     step,
+                         const rvec* gmx_restrict x,
+                         rvec* gmx_restrict xprime,
+                         rvec* gmx_restrict v,
+                         const rvec* gmx_restrict f,
+                         const rvec               accel[],
+                         const ivec               nFreeze[],
+                         const real               invmass[],
+                         const unsigned short     ptype[],
+                         const unsigned short     cFREEZE[],
+                         const unsigned short     cACC[],
+                         const unsigned short     cTC[],
+                         int                      seed,
+                         const t_commrec*         cr,
+                         const gmx_stochd_t&      sd,
+                         bool                     haveConstraints)
 {
     if (haveConstraints)
     {
@@ -1079,23 +1079,23 @@ static void do_update_sd(const gmx_stochd_t&  sd,
     }
 }
 
-static void do_update_bd(int                  start,
-                         int                  nrend,
-                         real                 dt,
-                         const ivec           nFreeze[],
-                         const real           invmass[],
-                         const unsigned short ptype[],
-                         const unsigned short cFREEZE[],
-                         const unsigned short cTC[],
-                         const rvec           x[],
-                         rvec                 xprime[],
-                         rvec                 v[],
-                         const rvec           f[],
-                         real                 friction_coefficient,
-                         const real*          rf,
-                         int64_t              step,
-                         int                  seed,
-                         const int*           gatindex)
+static void do_update_bd(int         start,
+                         int         nrend,
+                         real        dt,
+                         int64_t     step,
+                         const rvec* gmx_restrict x,
+                         rvec* gmx_restrict xprime,
+                         rvec* gmx_restrict v,
+                         const rvec* gmx_restrict f,
+                         const ivec               nFreeze[],
+                         const real               invmass[],
+                         const unsigned short     ptype[],
+                         const unsigned short     cFREEZE[],
+                         const unsigned short     cTC[],
+                         real                     friction_coefficient,
+                         const real*              rf,
+                         int                      seed,
+                         const int*               gatindex)
 {
     /* note -- these appear to be full step velocities . . .  */
     int  gf = 0, gt = 0;
@@ -1889,19 +1889,19 @@ void Update::Impl::update_coords(int64_t                                        
             switch (inputRecord_.eI)
             {
                 case (eiMD):
-                    do_update_md(start_th, end_th, step, dt, &inputRecord_, md, ekind, state->box,
-                                 x_rvec, xp_rvec, v_rvec, f_rvec, state->nosehoover_vxi.data(), M);
+                    do_update_md(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
+                                 &inputRecord_, md, ekind, state->box, state->nosehoover_vxi.data(), M);
                     break;
                 case (eiSD1):
-                    do_update_sd(*sd_, start_th, end_th, dt, inputRecord_.opts.acc,
-                                 inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE,
-                                 md->cACC, md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec, step,
-                                 inputRecord_.ld_seed, cr, bDoConstr);
+                    do_update_sd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
+                                 inputRecord_.opts.acc, inputRecord_.opts.nFreeze, md->invmass,
+                                 md->ptype, md->cFREEZE, md->cACC, md->cTC, inputRecord_.ld_seed,
+                                 cr, *sd_, bDoConstr);
                     break;
                 case (eiBD):
-                    do_update_bd(start_th, end_th, dt, inputRecord_.opts.nFreeze, md->invmass,
-                                 md->ptype, md->cFREEZE, md->cTC, x_rvec, xp_rvec, v_rvec, f_rvec,
-                                 inputRecord_.bd_fric, sd_->bd_rf.data(), step, inputRecord_.ld_seed,
+                    do_update_bd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
+                                 inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE,
+                                 md->cTC, inputRecord_.bd_fric, sd_->bd_rf.data(), inputRecord_.ld_seed,
                                  DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
                     break;
                 case (eiVV):
