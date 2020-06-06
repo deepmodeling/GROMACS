@@ -134,9 +134,9 @@ public:
                        const matrix                                     M,
                        int                                              UpdatePart,
                        const t_commrec*                                 cr,
-                       const gmx::Constraints*                          constr);
+                       bool                                             haveConstraints);
 
-    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr);
+    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, bool haveConstraints);
 
     void update_sd_second_half(int64_t           step,
                                real*             dvdlambda,
@@ -151,25 +151,25 @@ public:
 
     void update_temperature_constants();
 
-    std::vector<bool> getAndersenRandomizeGroup() const { return sd_->randomize_group; }
+    const std::vector<bool>& getAndersenRandomizeGroup() const { return sd_->randomize_group; }
 
-    std::vector<real> getBoltzmanFactor() const { return sd_->boltzfac; }
+    const std::vector<real>& getBoltzmanFactor() const { return sd_->boltzfac; }
 
 private:
     const t_inputrec& inputRecord_;
 };
 
-Update::Update(const t_inputrec& ir, BoxDeformation* boxDeformation) :
-    impl_(new Impl(ir, boxDeformation)){};
+Update::Update(const t_inputrec& inputRecord, BoxDeformation* boxDeformation) :
+    impl_(new Impl(inputRecord, boxDeformation)){};
 
 Update::~Update(){};
 
-std::vector<bool> Update::getAndersenRandomizeGroup() const
+const std::vector<bool>& Update::getAndersenRandomizeGroup() const
 {
     return impl_->getAndersenRandomizeGroup();
 }
 
-std::vector<real> Update::getBoltzmanFactor() const
+const std::vector<real>& Update::getBoltzmanFactor() const
 {
     return impl_->getBoltzmanFactor();
 }
@@ -191,16 +191,16 @@ void Update::update_coords(int64_t                                          step
                            const t_fcdata*                                  fcd,
                            const gmx_ekindata_t*                            ekind,
                            const matrix                                     M,
-                           int                                              UpdatePart,
-                           const t_commrec* cr, /* these shouldn't be here -- need to think about it */
-                           const gmx::Constraints* constr)
+                           int                                              updatePart,
+                           const t_commrec*                                 cr,
+                           const bool                                       haveConstraints)
 {
-    return impl_->update_coords(step, md, state, f, fcd, ekind, M, UpdatePart, cr, constr);
+    return impl_->update_coords(step, md, state, f, fcd, ekind, M, updatePart, cr, haveConstraints);
 }
 
-void Update::finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr)
+void Update::finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const bool haveConstraints)
 {
-    return impl_->finish_update(md, state, wcycle, constr);
+    return impl_->finish_update(md, state, wcycle, haveConstraints);
 }
 
 void Update::update_sd_second_half(int64_t step,
@@ -915,10 +915,10 @@ Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) : input
     deform_ = boxDeformation;
 }
 
-void Update::setNumAtoms(int nAtoms)
+void Update::setNumAtoms(int numAtoms)
 {
 
-    impl_->xp_.resizeWithPadding(nAtoms);
+    impl_->xp_.resizeWithPadding(numAtoms);
 }
 
 /*! \brief Sets the SD update type */
@@ -1687,10 +1687,7 @@ void Update::Impl::update_sd_second_half(int64_t step,
     }
 }
 
-void Update::Impl::finish_update(const t_mdatoms*        md,
-                                 t_state*                state,
-                                 gmx_wallcycle_t         wcycle,
-                                 const gmx::Constraints* constr)
+void Update::Impl::finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const bool haveConstraints)
 {
     /* NOTE: Currently we always integrate to a temporary buffer and
      * then copy the results back here.
@@ -1702,7 +1699,7 @@ void Update::Impl::finish_update(const t_mdatoms*        md,
     auto      xp     = makeConstArrayRef(xp_).subArray(0, homenr);
     auto      x      = makeArrayRef(state->x).subArray(0, homenr);
 
-    if (md->havePartiallyFrozenAtoms && constr != nullptr)
+    if (md->havePartiallyFrozenAtoms && haveConstraints)
     {
         /* We have atoms that are frozen along some, but not all dimensions,
          * then constraints will have moved them also along the frozen dimensions.
@@ -1843,14 +1840,12 @@ void Update::Impl::update_coords(int64_t                                        
                                  const t_fcdata*                                  fcd,
                                  const gmx_ekindata_t*                            ekind,
                                  const matrix                                     M,
-                                 int                                              UpdatePart,
-                                 const t_commrec* cr, /* these shouldn't be here -- need to think about it */
-                                 const gmx::Constraints* constr)
+                                 int                                              updatePart,
+                                 const t_commrec*                                 cr,
+                                 const bool                                       haveConstraints)
 {
-    gmx_bool bDoConstr = (nullptr != constr);
-
     /* Running the velocity half does nothing except for velocity verlet */
-    if ((UpdatePart == etrtVELOCITY1 || UpdatePart == etrtVELOCITY2) && !EI_VV(inputRecord_.eI))
+    if ((updatePart == etrtVELOCITY1 || updatePart == etrtVELOCITY2) && !EI_VV(inputRecord_.eI))
     {
         gmx_incons("update_coords called for velocity without VV integrator");
     }
@@ -1896,7 +1891,7 @@ void Update::Impl::update_coords(int64_t                                        
                     do_update_sd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
                                  inputRecord_.opts.acc, inputRecord_.opts.nFreeze, md->invmass,
                                  md->ptype, md->cFREEZE, md->cACC, md->cTC, inputRecord_.ld_seed,
-                                 cr, *sd_, bDoConstr);
+                                 cr, *sd_, haveConstraints);
                     break;
                 case (eiBD):
                     do_update_bd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
@@ -1912,7 +1907,7 @@ void Update::Impl::update_coords(int64_t                                        
 
                     /* assuming barostat coupled to group 0 */
                     real alpha = 1.0 + DIM / static_cast<real>(inputRecord_.opts.nrdf[0]);
-                    switch (UpdatePart)
+                    switch (updatePart)
                     {
                         case etrtVELOCITY1:
                         case etrtVELOCITY2:

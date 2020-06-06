@@ -1007,7 +1007,7 @@ void gmx::LegacySimulator::do_md()
             }
 
             upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
-                              etrtVELOCITY1, cr, constr);
+                              etrtVELOCITY1, cr, constr != nullptr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
             constrain_velocities(step, nullptr, state, shake_vir, constr, bCalcVir, do_log, do_ene);
@@ -1257,7 +1257,7 @@ void gmx::LegacySimulator::do_md()
         {
             /* velocity half-step update */
             upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
-                              etrtVELOCITY2, cr, constr);
+                              etrtVELOCITY2, cr, constr != nullptr);
         }
 
         /* Above, initialize just copies ekinh into ekin,
@@ -1323,7 +1323,7 @@ void gmx::LegacySimulator::do_md()
         else
         {
             upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
-                              etrtPOSITION, cr, constr);
+                              etrtPOSITION, cr, constr != nullptr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
 
@@ -1332,7 +1332,7 @@ void gmx::LegacySimulator::do_md()
 
             upd.update_sd_second_half(step, &dvdl_constr, mdatoms, state, cr, nrnb, wcycle, constr,
                                       do_log, do_ene);
-            upd.finish_update(mdatoms, state, wcycle, constr);
+            upd.finish_update(mdatoms, state, wcycle, constr != nullptr);
         }
 
         if (ir->bPull && ir->pull->bSetPbcRefToPrevStepCOM)
@@ -1355,7 +1355,7 @@ void gmx::LegacySimulator::do_md()
             std::copy(cbuf.begin(), cbuf.end(), state->x.begin());
 
             upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
-                              etrtPOSITION, cr, constr);
+                              etrtPOSITION, cr, constr != nullptr);
             wallcycle_stop(wcycle, ewcUPDATE);
 
             /* do we need an extra constraint here? just need to copy out of as_rvec_array(state->v.data()) to upd->xp? */
@@ -1363,7 +1363,7 @@ void gmx::LegacySimulator::do_md()
              * to numerical errors, or are they important
              * physically? I'm thinking they are just errors, but not completely sure.
              * For now, will call without actually constraining, constr=NULL*/
-            upd.finish_update(mdatoms, state, wcycle, nullptr);
+            upd.finish_update(mdatoms, state, wcycle, false);
         }
         if (EI_VV(ir->eI))
         {

@@ -86,8 +86,8 @@ void integrateLeapFrogSimple(LeapFrogTestData* testData, int numSteps)
     {
         testData->update_->update_coords(step, &testData->mdAtoms_, &testData->state_, testData->f_,
                                          &testData->forceCalculationData_, &testData->kineticEnergyData_,
-                                         testData->velocityScalingMatrix_, etrtNONE, nullptr, nullptr);
-        testData->update_->finish_update(&testData->mdAtoms_, &testData->state_, nullptr, nullptr);
+                                         testData->velocityScalingMatrix_, etrtNONE, nullptr, false);
+        testData->update_->finish_update(&testData->mdAtoms_, &testData->state_, nullptr, false);
     }
     auto xp = makeArrayRef(*testData->update_->xp()).subArray(0, testData->numAtoms_);
     for (int i = 0; i < testData->numAtoms_; i++)

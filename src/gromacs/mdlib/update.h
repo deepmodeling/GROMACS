@@ -71,30 +71,85 @@ class Constraints;
 class Update
 {
 public:
-    //! Constructor
-    Update(const t_inputrec& ir, BoxDeformation* boxDeformation);
+    /*! \brief Constructor
+     *
+     * \param[in] ir              Input record, local copy will be saved.
+     * \param[in] boxDeformation  Periodic box deformation object.
+     */
+    Update(const t_inputrec& inputRecord, BoxDeformation* boxDeformation);
+    //! Destructor
     ~Update();
-    //! Returns pointer to PaddedVector xp
+    /*! \brief Get the pointer to updated coordinates
+     *
+     * Update saves the updated coordinates into separate buffer, so that constraints will have
+     * access to both updated and not update coordinates. For that, update owns a separate buffer.
+     * See finish_update(...) for details.
+     *
+     * \returns The pointer to the intermediate coordinates buffer.
+     */
     PaddedVector<gmx::RVec>* xp();
-    //! Returns handle to box deformation class
+    /*!\brief Getter to local copy of box deformation class.
+     *
+     * \returns handle to box deformation class
+     */
     BoxDeformation* deform() const;
-    //! Resizes xp
-    void setNumAtoms(int nAtoms);
+    /*! \brief Resizes buffer that stores intermediate coordinates.
+     *
+     * \param[in] numAtoms  Updated number of atoms.
+     */
+    void setNumAtoms(int numAtoms);
 
-    //! Perform numerical integration step
+    /*! \brief Perform numerical integration step.
+     *
+     * Selects the appropriate integrator, based on the input record and performs a numerical integration step.
+     *
+     * \param[in]  step             Current timestep.
+     * \param[in]  md               MD atoms data.
+     * \param[in]  state            System state object.
+     * \param[in]  f                Buffer with atomic forces for home particles.
+     * \param[in]  fcd              Force calculation data to update distance and orientation restraints.
+     * \param[in]  ekind            Kinetic energy data (for temperature coupling, energy groups, etc.).
+     * \param[in]  M                Parrinello-Rahman velocity scaling matrix.
+     * \param[in]  updatePart       What should be updated, coordinates or velocities. This enum only used in VV integrator.
+     * \param[in]  cr               Comunication record  (Old comment: these shouldn't be here -- need to think about it).
+     * \param[in]  haveConstraints  If the system has constraints.
+     */
     void update_coords(int64_t                                          step,
                        const t_mdatoms*                                 md,
                        t_state*                                         state,
-                       const gmx::ArrayRefWithPadding<const gmx::RVec>& f, /* forces on home particles */
+                       const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
                        const t_fcdata*                                  fcd,
                        const gmx_ekindata_t*                            ekind,
                        const matrix                                     M,
-                       int                                              bUpdatePart,
-                       const t_commrec* cr, /* these shouldn't be here -- need to think about it */
-                       const gmx::Constraints* constr);
+                       int                                              updatePart,
+                       const t_commrec*                                 cr,
+                       bool                                             haveConstraints);
 
-    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, const gmx::Constraints* constr);
+    /*! \brief Finalize the coordinate update.
+     *
+     * Copy the updated coordinates to the main coordinates buffer for the atoms that are not frozen.
+     *
+     * \param[in]  md               MD atoms data.
+     * \param[in]  state            System state object.
+     * \param[in]  wcycle           Wall-clock cycle counter.
+     * \param[in]  haveConstraints  If the system has constraints.
+     */
+    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, bool haveConstraints);
 
+    /*! \brief Secong part of the SD integrator.
+     *
+     * The first part of integration is performed in the update_coords(...) method.
+     *
+     * \param[in]  step       Current timestep.
+     * \param[in]  dvdlambda  Free energy derivative.
+     * \param[in]  state      System state object.
+     * \param[in]  cr         Comunication record.
+     * \param[in]  nrnb       Cycle counters.
+     * \param[in]  wcycle     Wall-clock cycle counter.
+     * \param[in]  constr     Constraints object. The constraints are applied on coordinates after update.
+     * \param[in]  do_log     If this is logging step.
+     * \param[in]  do_ene     If this is an energy evaluation step.
+     */
     void update_sd_second_half(int64_t           step,
                                real*             dvdlambda,
                                const t_mdatoms*  md,
@@ -105,15 +160,26 @@ public:
                                gmx::Constraints* constr,
                                bool              do_log,
                                bool              do_ene);
-    /* Update pre-computed constants that depend on the reference
-     * temperature for coupling.
+    /*! \brief Update pre-computed constants that depend on the reference temperature for coupling.
      *
-     * This could change e.g. in simulated annealing. */
+     * This could change e.g. in simulated annealing.
+     */
     void update_temperature_constants();
 
-    // This is needed for Andersen
-    std::vector<bool> getAndersenRandomizeGroup() const;
-    std::vector<real> getBoltzmanFactor() const;
+    /*!\brief Getter for the list of the randomize groups.
+     *
+     *  Needed for Andersen temperature control.
+     *
+     * \returns Reference to the groups from the SD data object.
+     */
+    const std::vector<bool>& getAndersenRandomizeGroup() const;
+    /*!\brief Getter for the list of the Boltzmann factors.
+     *
+     *  Needed for Andersen temperature control.
+     *
+     * \returns Reference to the Boltzmann factors from the SD data object.
+     */
+    const std::vector<real>& getBoltzmanFactor() const;
 
 private:
     //! Implementation type.
