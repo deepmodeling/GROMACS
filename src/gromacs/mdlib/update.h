@@ -73,7 +73,7 @@ class Update
 public:
     /*! \brief Constructor
      *
-     * \param[in] ir              Input record, local copy will be saved.
+     * \param[in] inputRecord     Input record, local copy will be saved.
      * \param[in] boxDeformation  Periodic box deformation object.
      */
     Update(const t_inputrec& inputRecord, BoxDeformation* boxDeformation);
@@ -142,6 +142,7 @@ public:
      *
      * \param[in]  step       Current timestep.
      * \param[in]  dvdlambda  Free energy derivative.
+     * \param[in]  md         MD atoms data.
      * \param[in]  state      System state object.
      * \param[in]  cr         Comunication record.
      * \param[in]  nrnb       Cycle counters.
