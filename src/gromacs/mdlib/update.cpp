@@ -1840,24 +1840,25 @@ void update_coords(int64_t           step,
     }
 }
 
-void update_randomize_velocities(const t_inputrec*        ir,
+bool update_randomize_velocities(const t_inputrec*        ir,
                                  int64_t                  step,
                                  const t_commrec*         cr,
                                  const t_mdatoms*         md,
                                  gmx::ArrayRef<gmx::RVec> v,
                                  const Update*            upd,
-                                 const bool               hasConstraints)
+                                 bool                     hasConstraints)
 {
-
-    GMX_ASSERT(!hasConstraints,
+    GMX_ASSERT(!(ir->etc == etcANDERSEN && hasConstraints),
                "Normal Andersen is currently not supported with constraints, use massive "
                "Andersen instead");
-
     /* proceed with andersen if 1) it's fixed probability per
     particle andersen or 2) it's massive andersen and it's tau_t/dt */
     real rate = (ir->delta_t) / ir->opts.tau_t[0];
-    if (do_per_step(step, roundToInt(1.0 / rate)))
+    if (ir->etc == etcANDERSEN
+        || (ir->etc == etcANDERSENMASSIVE && do_per_step(step, roundToInt(1.0 / rate))))
     {
         andersen_tcoupl(ir, step, cr, md, v, rate, upd->sd()->randomize_group, upd->sd()->boltzfac);
+        return true;
     }
+    return false;
 }

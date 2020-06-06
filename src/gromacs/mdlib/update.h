@@ -154,7 +154,7 @@ void update_coords(int64_t           step,
 
 /* Return TRUE if OK, FALSE in case of Shake Error */
 
-void update_randomize_velocities(const t_inputrec*        ir,
+bool update_randomize_velocities(const t_inputrec*        ir,
                                  int64_t                  step,
                                  const t_commrec*         cr,
                                  const t_mdatoms*         md,

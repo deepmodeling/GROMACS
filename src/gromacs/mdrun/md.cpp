@@ -1215,10 +1215,14 @@ void gmx::LegacySimulator::do_md()
 
         /* at the start of step, randomize or scale the velocities ((if vv. Restriction of Andersen
            controlled in preprocessing */
-
-        if (ir->etc == etcANDERSEN) /* keep this outside of update_tcouple because of the extra info required to pass */
+        if (ETC_ANDERSEN(ir->etc)) /* keep this outside of update_tcouple because of the extra info required to pass */
         {
-            update_randomize_velocities(ir, step, cr, mdatoms, state->v, &upd, constr != nullptr);
+            bool bIfRandomized = update_randomize_velocities(ir, step, cr, mdatoms, state->v, &upd,
+                                                             constr != nullptr);
+            if (bIfRandomized)
+            {
+                constrain_velocities(step, nullptr, state, nullptr, constr, false, do_log, do_ene);
+            }
         }
         /* Box is changed in update() when we do pressure coupling,
          * but we should still use the old box for energy corrections and when
