@@ -119,7 +119,7 @@ public:
     //! Destructor
     ~Impl() = default;
     //! stochastic dynamics struct
-    std::unique_ptr<gmx_stochd_t> sd_;
+    gmx_stochd_t sd_;
     //! xprime for constraint algorithms
     PaddedVector<RVec> xp_;
     //! Box deformation handler (or nullptr if inactive).
@@ -151,9 +151,9 @@ public:
 
     void update_temperature_constants();
 
-    const std::vector<bool>& getAndersenRandomizeGroup() const { return sd_->randomize_group; }
+    const std::vector<bool>& getAndersenRandomizeGroup() const { return sd_.randomize_group; }
 
-    const std::vector<real>& getBoltzmanFactor() const { return sd_->boltzfac; }
+    const std::vector<real>& getBoltzmanFactor() const { return sd_.boltzfac; }
 
 private:
     const t_inputrec& inputRecord_;
@@ -884,15 +884,15 @@ void Update::Impl::update_temperature_constants()
         {
             for (int gt = 0; gt < inputRecord_.opts.ngtc; gt++)
             {
-                sd_->bd_rf[gt] = std::sqrt(2.0 * BOLTZ * inputRecord_.opts.ref_t[gt]
-                                           / (inputRecord_.bd_fric * inputRecord_.delta_t));
+                sd_.bd_rf[gt] = std::sqrt(2.0 * BOLTZ * inputRecord_.opts.ref_t[gt]
+                                          / (inputRecord_.bd_fric * inputRecord_.delta_t));
             }
         }
         else
         {
             for (int gt = 0; gt < inputRecord_.opts.ngtc; gt++)
             {
-                sd_->bd_rf[gt] = std::sqrt(2.0 * BOLTZ * inputRecord_.opts.ref_t[gt]);
+                sd_.bd_rf[gt] = std::sqrt(2.0 * BOLTZ * inputRecord_.opts.ref_t[gt]);
             }
         }
     }
@@ -902,17 +902,18 @@ void Update::Impl::update_temperature_constants()
         {
             real kT = BOLTZ * inputRecord_.opts.ref_t[gt];
             /* The mass is accounted for later, since this differs per atom */
-            sd_->sdsig[gt].V = std::sqrt(kT * (1 - sd_->sdc[gt].em * sd_->sdc[gt].em));
+            sd_.sdsig[gt].V = std::sqrt(kT * (1 - sd_.sdc[gt].em * sd_.sdc[gt].em));
         }
     }
 }
 
-Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) : inputRecord_(ir)
+Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) :
+    sd_(&ir),
+    deform_(boxDeformation),
+    inputRecord_(ir)
 {
-    sd_ = std::make_unique<gmx_stochd_t>(&ir);
     update_temperature_constants();
     xp_.resizeWithPadding(0);
-    deform_ = boxDeformation;
 }
 
 void Update::setNumAtoms(int numAtoms)
@@ -1457,7 +1458,7 @@ void Update::Impl::update_sd_second_half(int64_t step,
                 getThreadAtomRange(nth, th, homenr, &start_th, &end_th);
 
                 doSDUpdateGeneral<SDUpdate::FrictionAndNoiseOnly>(
-                        *sd_, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
+                        sd_, start_th, end_th, dt, inputRecord_.opts.acc, inputRecord_.opts.nFreeze,
                         md->invmass, md->ptype, md->cFREEZE, nullptr, md->cTC, state->x.rvec_array(),
                         xp_.rvec_array(), state->v.rvec_array(), nullptr, step, inputRecord_.ld_seed,
                         DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
@@ -1679,12 +1680,12 @@ void Update::Impl::update_coords(int64_t                                        
                     do_update_sd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
                                  inputRecord_.opts.acc, inputRecord_.opts.nFreeze, md->invmass,
                                  md->ptype, md->cFREEZE, md->cACC, md->cTC, inputRecord_.ld_seed,
-                                 cr, *sd_, haveConstraints);
+                                 cr, sd_, haveConstraints);
                     break;
                 case (eiBD):
                     do_update_bd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
                                  inputRecord_.opts.nFreeze, md->invmass, md->ptype, md->cFREEZE,
-                                 md->cTC, inputRecord_.bd_fric, sd_->bd_rf.data(), inputRecord_.ld_seed,
+                                 md->cTC, inputRecord_.bd_fric, sd_.bd_rf.data(), inputRecord_.ld_seed,
                                  DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr);
                     break;
                 case (eiVV):
