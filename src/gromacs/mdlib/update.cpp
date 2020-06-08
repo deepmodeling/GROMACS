@@ -446,20 +446,26 @@ enum class AccelerationType
     cosine
 };
 
-/*! \brief Integrate using leap-frog with support for everything
+/*! \brief Integrate using leap-frog with support for everything.
  *
- * \tparam       accelerationType       Type of NEMD acceleration
- * \param[in]    start                  Index of first atom to update
- * \param[in]    nrend                  Last atom to update: \p nrend - 1
- * \param[in]    doNoseHoover           If to apply Nose-Hoover T-coupling
- * \param[in]    dt                     The time step
- * \param[in]    dtPressureCouple       Time step for pressure coupling, is 0 when no pressure
- * coupling should be applied at this step \param[in]    ir                     The input parameter
- * record \param[in]    md                     Atom properties \param[in]    ekind Kinetic energy
- * data \param[in]    box                    The box dimensions \param[in]    x Input coordinates \param[out]
- * xprime                 Updated coordinates \param[inout] v                      Velocities \param[in]
- * f                      Forces \param[in]    nh_vxi                 Nose-Hoover velocity scaling
- * factors \param[in]    M                      Parrinello-Rahman scaling matrix
+ * \tparam        accelerationType  Type of NEMD acceleration.
+ * \param[in]     start             Index of first atom to update.
+ * \param[in]     nrend             Last atom to update: \p nrend - 1.
+ * \param[in]     doNoseHoover      If to apply Nose-Hoover T-coupling.
+ * \param[in]     dt                The time step.
+ * \param[in]     dtPressureCouple  Time step for pressure coupling, is 0 when no pressure
+ *                                  coupling should be applied at this step.
+ * \param[in]     accel             Acceleration per group.
+ * \param[in]     md                Atom properties.
+ * \param[in]     ekind             Kinetic energy data.
+ * \param[in]     box               The box dimensions.
+ * \param[in]     x                 Input coordinates.
+ * \param[out]    xprime            Updated coordinates.
+ * \param[inout]  v                 Velocities.
+ * \param[in]     f                 Forces.
+ * \param[in]     nh_vxi            Nose-Hoover velocity scaling factors.
+ * \param[in]     nsttcouple        Frequency of the temperature coupling steps.
+ * \param[in]     M                 Parrinello-Rahman scaling matrix.
  */
 template<AccelerationType accelerationType>
 static void updateMDLeapfrogGeneral(int                   start,
@@ -467,7 +473,7 @@ static void updateMDLeapfrogGeneral(int                   start,
                                     bool                  doNoseHoover,
                                     real                  dt,
                                     real                  dtPressureCouple,
-                                    const t_inputrec*     ir,
+                                    const rvec*           accel,
                                     const t_mdatoms*      md,
                                     const gmx_ekindata_t* ekind,
                                     const matrix          box,
@@ -476,6 +482,7 @@ static void updateMDLeapfrogGeneral(int                   start,
                                     rvec* gmx_restrict v,
                                     const rvec* gmx_restrict f,
                                     const double* gmx_restrict nh_vxi,
+                                    const int                  nsttcouple,
                                     const matrix               M)
 {
     /* This is a version of the leap-frog integrator that supports
@@ -488,14 +495,12 @@ static void updateMDLeapfrogGeneral(int                   start,
     gmx::ArrayRef<const t_grp_acc>    grpstat = ekind->grpstat;
     const unsigned short*             cTC     = md->cTC;
     const unsigned short*             cACC    = md->cACC;
-    const rvec*                       accel   = ir->opts.acc;
 
     const rvec* gmx_restrict invMassPerDim = md->invMassPerDim;
 
     /* Initialize group values, changed later when multiple groups are used */
-    int  ga       = 0;
-    int  gt       = 0;
-    real factorNH = 0;
+    int ga = 0;
+    int gt = 0;
 
     real omega_Z = 2 * static_cast<real>(M_PI) / box[ZZ][ZZ];
 
@@ -532,12 +537,14 @@ static void updateMDLeapfrogGeneral(int                   start,
                 break;
         }
 
+        real factorNH = 0.0;
         if (doNoseHoover)
         {
             /* Here we account for multiple time stepping, by increasing
              * the Nose-Hoover correction by nsttcouple
+             * TODO: This can be pre-computed.
              */
-            factorNH = 0.5 * ir->nsttcouple * dt * nh_vxi[gt];
+            factorNH = 0.5 * nsttcouple * dt * nh_vxi[gt];
         }
 
         for (int d = 0; d < DIM; d++)
@@ -576,7 +583,11 @@ static void do_update_md(int         start,
                          rvec* gmx_restrict xprime,
                          rvec* gmx_restrict v,
                          const rvec* gmx_restrict f,
-                         const t_inputrec*        ir,
+                         const rvec* gmx_restrict accel,
+                         const int                etc,
+                         const int                epc,
+                         const int                nsttcouple,
+                         const int                nstpcouple,
                          const t_mdatoms*         md,
                          const gmx_ekindata_t*    ekind,
                          const matrix             box,
@@ -585,17 +596,15 @@ static void do_update_md(int         start,
 {
     GMX_ASSERT(nrend == start || xprime != x,
                "For SIMD optimization certain compilers need to have xprime != x");
-    GMX_ASSERT(ir->eI == eiMD,
-               "Leap-frog integrator was called while another integrator was requested");
 
     /* Note: Berendsen pressure scaling is handled after do_update_md() */
-    bool doTempCouple = (ir->etc != etcNO && do_per_step(step + ir->nsttcouple - 1, ir->nsttcouple));
-    bool doNoseHoover = (ir->etc == etcNOSEHOOVER && doTempCouple);
+    bool doTempCouple = (etc != etcNO && do_per_step(step + nsttcouple - 1, nsttcouple));
+    bool doNoseHoover = (etc == etcNOSEHOOVER && doTempCouple);
     bool doParrinelloRahman =
-            (ir->epc == epcPARRINELLORAHMAN && do_per_step(step + ir->nstpcouple - 1, ir->nstpcouple));
+            (epc == epcPARRINELLORAHMAN && do_per_step(step + nstpcouple - 1, nstpcouple));
     bool doPROffDiagonal = (doParrinelloRahman && (M[YY][XX] != 0 || M[ZZ][XX] != 0 || M[ZZ][YY] != 0));
 
-    real dtPressureCouple = (doParrinelloRahman ? ir->nstpcouple * dt : 0);
+    real dtPressureCouple = (doParrinelloRahman ? nstpcouple * dt : 0);
 
     /* NEMD (also cosine) acceleration is applied in updateMDLeapFrogGeneral */
     bool doAcceleration = (ekind->bNEMD || ekind->cosacc.cos_accel != 0);
@@ -616,20 +625,20 @@ static void do_update_md(int         start,
         if (!doAcceleration)
         {
             updateMDLeapfrogGeneral<AccelerationType::none>(start, nrend, doNoseHoover, dt,
-                                                            dtPressureCouple, ir, md, ekind, box, x,
-                                                            xprime, v, f, nh_vxi, stepM);
+                                                            dtPressureCouple, accel, md, ekind, box, x,
+                                                            xprime, v, f, nh_vxi, nsttcouple, stepM);
         }
         else if (ekind->bNEMD)
         {
-            updateMDLeapfrogGeneral<AccelerationType::group>(start, nrend, doNoseHoover, dt,
-                                                             dtPressureCouple, ir, md, ekind, box,
-                                                             x, xprime, v, f, nh_vxi, stepM);
+            updateMDLeapfrogGeneral<AccelerationType::group>(
+                    start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x,
+                    xprime, v, f, nh_vxi, nsttcouple, stepM);
         }
         else
         {
-            updateMDLeapfrogGeneral<AccelerationType::cosine>(start, nrend, doNoseHoover, dt,
-                                                              dtPressureCouple, ir, md, ekind, box,
-                                                              x, xprime, v, f, nh_vxi, stepM);
+            updateMDLeapfrogGeneral<AccelerationType::cosine>(
+                    start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x,
+                    xprime, v, f, nh_vxi, nsttcouple, stepM);
         }
     }
     else
@@ -1674,7 +1683,9 @@ void Update::Impl::update_coords(int64_t                                        
             {
                 case (eiMD):
                     do_update_md(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
-                                 &inputRecord_, md, ekind, state->box, state->nosehoover_vxi.data(), M);
+                                 inputRecord_.opts.acc, inputRecord_.etc, inputRecord_.epc,
+                                 inputRecord_.nsttcouple, inputRecord_.nstpcouple, md, ekind,
+                                 state->box, state->nosehoover_vxi.data(), M);
                     break;
                 case (eiSD1):
                     do_update_sd(start_th, end_th, dt, step, x_rvec, xp_rvec, v_rvec, f_rvec,
