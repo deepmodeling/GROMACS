@@ -73,7 +73,7 @@ class Update
 public:
     /*! \brief Constructor
      *
-     * \param[in] inputRecord     Input record, local copy will be saved.
+     * \param[in] inputRecord     Input record, used to construct SD object.
      * \param[in] boxDeformation  Periodic box deformation object.
      */
     Update(const t_inputrec& inputRecord, BoxDeformation* boxDeformation);
@@ -103,6 +103,7 @@ public:
      *
      * Selects the appropriate integrator, based on the input record and performs a numerical integration step.
      *
+     * \param[in]  inputRecord      Input record.
      * \param[in]  step             Current timestep.
      * \param[in]  md               MD atoms data.
      * \param[in]  state            System state object.
@@ -114,7 +115,8 @@ public:
      * \param[in]  cr               Comunication record  (Old comment: these shouldn't be here -- need to think about it).
      * \param[in]  haveConstraints  If the system has constraints.
      */
-    void update_coords(int64_t                                          step,
+    void update_coords(const t_inputrec&                                inputRecord,
+                       int64_t                                          step,
                        const t_mdatoms*                                 md,
                        t_state*                                         state,
                        const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
@@ -129,29 +131,33 @@ public:
      *
      * Copy the updated coordinates to the main coordinates buffer for the atoms that are not frozen.
      *
+     * \param[in]  inputRecord      Input record.
      * \param[in]  md               MD atoms data.
      * \param[in]  state            System state object.
      * \param[in]  wcycle           Wall-clock cycle counter.
      * \param[in]  haveConstraints  If the system has constraints.
      */
-    void finish_update(const t_mdatoms* md, t_state* state, gmx_wallcycle_t wcycle, bool haveConstraints);
+    void finish_update(const t_inputrec& inputRecord,
+                       const t_mdatoms*  md,
+                       t_state*          state,
+                       gmx_wallcycle_t   wcycle,
+                       bool              haveConstraints);
 
     /*! \brief Secong part of the SD integrator.
      *
      * The first part of integration is performed in the update_coords(...) method.
      *
-     * \param[in]  step       Current timestep.
-     * \param[in]  dvdlambda  Free energy derivative.
-     * \param[in]  md         MD atoms data.
-     * \param[in]  state      System state object.
-     * \param[in]  cr         Comunication record.
-     * \param[in]  nrnb       Cycle counters.
-     * \param[in]  wcycle     Wall-clock cycle counter.
-     * \param[in]  constr     Constraints object. The constraints are applied on coordinates after update.
-     * \param[in]  do_log     If this is logging step.
-     * \param[in]  do_ene     If this is an energy evaluation step.
+     * \param[in]  inputRecord  Input record.
+     * \param[in]  step         Current timestep.
+     * \param[in]  dvdlambda    Free energy derivative. Contribution to be added to the bonded
+     * interactions. \param[in]  md           MD atoms data. \param[in]  state        System state
+     * object. \param[in]  cr           Comunication record. \param[in]  nrnb         Cycle
+     * counters. \param[in]  wcycle       Wall-clock cycle counter. \param[in]  constr Constraints
+     * object. The constraints are applied on coordinates after update. \param[in]  do_log       If
+     * this is logging step. \param[in]  do_ene       If this is an energy evaluation step.
      */
-    void update_sd_second_half(int64_t           step,
+    void update_sd_second_half(const t_inputrec& inputRecord,
+                               int64_t           step,
                                real*             dvdlambda,
                                const t_mdatoms*  md,
                                t_state*          state,
@@ -164,8 +170,10 @@ public:
     /*! \brief Update pre-computed constants that depend on the reference temperature for coupling.
      *
      * This could change e.g. in simulated annealing.
+     *
+     * \param[in]  inputRecord  Input record.
      */
-    void update_temperature_constants();
+    void update_temperature_constants(const t_inputrec& inputRecord);
 
     /*!\brief Getter for the list of the randomize groups.
      *

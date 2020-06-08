@@ -1006,7 +1006,7 @@ void gmx::LegacySimulator::do_md()
                                trotter_seq, ettTSEQ1);
             }
 
-            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
                               etrtVELOCITY1, cr, constr != nullptr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
@@ -1256,7 +1256,7 @@ void gmx::LegacySimulator::do_md()
         if (EI_VV(ir->eI))
         {
             /* velocity half-step update */
-            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
                               etrtVELOCITY2, cr, constr != nullptr);
         }
 
@@ -1322,7 +1322,7 @@ void gmx::LegacySimulator::do_md()
         }
         else
         {
-            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
                               etrtPOSITION, cr, constr != nullptr);
 
             wallcycle_stop(wcycle, ewcUPDATE);
@@ -1330,9 +1330,9 @@ void gmx::LegacySimulator::do_md()
             constrain_coordinates(step, &dvdl_constr, state, shake_vir, &upd, constr, bCalcVir,
                                   do_log, do_ene);
 
-            upd.update_sd_second_half(step, &dvdl_constr, mdatoms, state, cr, nrnb, wcycle, constr,
-                                      do_log, do_ene);
-            upd.finish_update(mdatoms, state, wcycle, constr != nullptr);
+            upd.update_sd_second_half(*ir, step, &dvdl_constr, mdatoms, state, cr, nrnb, wcycle,
+                                      constr, do_log, do_ene);
+            upd.finish_update(*ir, mdatoms, state, wcycle, constr != nullptr);
         }
 
         if (ir->bPull && ir->pull->bSetPbcRefToPrevStepCOM)
@@ -1354,7 +1354,7 @@ void gmx::LegacySimulator::do_md()
             /* now we know the scaling, we can compute the positions again */
             std::copy(cbuf.begin(), cbuf.end(), state->x.begin());
 
-            upd.update_coords(step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
+            upd.update_coords(*ir, step, mdatoms, state, f.arrayRefWithPadding(), fcd, ekind, M,
                               etrtPOSITION, cr, constr != nullptr);
             wallcycle_stop(wcycle, ewcUPDATE);
 
@@ -1363,7 +1363,7 @@ void gmx::LegacySimulator::do_md()
              * to numerical errors, or are they important
              * physically? I'm thinking they are just errors, but not completely sure.
              * For now, will call without actually constraining, constr=NULL*/
-            upd.finish_update(mdatoms, state, wcycle, false);
+            upd.finish_update(*ir, mdatoms, state, wcycle, false);
         }
         if (EI_VV(ir->eI))
         {
