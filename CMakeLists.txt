@@ -246,7 +246,7 @@ gmx_option_multichoice(
     GMX_FFT_LIBRARY
     "FFT library"
     "${GMX_FFT_LIBRARY_DEFAULT}"
-    FFTW3 MKL "fftpack[built-in]")
+    FFTW3 MKL "FFTPACK[built-in]")
 gmx_dependent_option(
     GMX_BUILD_OWN_FFTW
     "Download and build FFTW 3 during the GROMACS build process, rather than fall back on the really slow fftpack."
