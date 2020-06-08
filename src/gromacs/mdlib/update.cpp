@@ -107,7 +107,7 @@ struct gmx_stochd_t
     std::vector<bool> randomize_group;
     std::vector<real> boltzfac;
 
-    explicit gmx_stochd_t(const t_inputrec* ir);
+    explicit gmx_stochd_t(const t_inputrec& inputRecord);
 };
 
 //! pImpled implementation for Update
@@ -115,15 +115,9 @@ class Update::Impl
 {
 public:
     //! Constructor
-    Impl(const t_inputrec& ir, BoxDeformation* boxDeformation);
+    Impl(const t_inputrec& inputRecord, BoxDeformation* boxDeformation);
     //! Destructor
     ~Impl() = default;
-    //! stochastic dynamics struct
-    gmx_stochd_t sd_;
-    //! xprime for constraint algorithms
-    PaddedVector<RVec> xp_;
-    //! Box deformation handler (or nullptr if inactive).
-    BoxDeformation* deform_ = nullptr;
 
     void update_coords(int64_t                                          step,
                        const t_mdatoms*                                 md,
@@ -155,8 +149,18 @@ public:
 
     const std::vector<real>& getBoltzmanFactor() const { return sd_.boltzfac; }
 
+    PaddedVector<RVec>* xp() { return &xp_; }
+
+    BoxDeformation* deform() const { return deform_; }
+
 private:
     const t_inputrec& inputRecord_;
+    //! stochastic dynamics struct
+    gmx_stochd_t sd_;
+    //! xprime for constraint algorithms
+    PaddedVector<RVec> xp_;
+    //! Box deformation handler (or nullptr if inactive).
+    BoxDeformation* deform_ = nullptr;
 };
 
 Update::Update(const t_inputrec& inputRecord, BoxDeformation* boxDeformation) :
@@ -176,12 +180,12 @@ const std::vector<real>& Update::getBoltzmanFactor() const
 
 PaddedVector<RVec>* Update::xp()
 {
-    return &impl_->xp_;
+    return impl_->xp();
 }
 
 BoxDeformation* Update::deform() const
 {
-    return impl_->deform_;
+    return impl_->deform();
 }
 
 void Update::update_coords(int64_t                                          step,
@@ -833,16 +837,16 @@ static void do_update_vv_pos(int                  start,
     }
 } /* do_update_vv_pos */
 
-gmx_stochd_t::gmx_stochd_t(const t_inputrec* ir)
+gmx_stochd_t::gmx_stochd_t(const t_inputrec& inputRecord)
 {
-    const t_grpopts* opts = &ir->opts;
+    const t_grpopts* opts = &inputRecord.opts;
     const int        ngtc = opts->ngtc;
 
-    if (ir->eI == eiBD)
+    if (inputRecord.eI == eiBD)
     {
         bd_rf.resize(ngtc);
     }
-    else if (EI_SD(ir->eI))
+    else if (EI_SD(inputRecord.eI))
     {
         sdc.resize(ngtc);
         sdsig.resize(ngtc);
@@ -851,7 +855,7 @@ gmx_stochd_t::gmx_stochd_t(const t_inputrec* ir)
         {
             if (opts->tau_t[gt] > 0)
             {
-                sdc[gt].em = std::exp(-ir->delta_t / opts->tau_t[gt]);
+                sdc[gt].em = std::exp(-inputRecord.delta_t / opts->tau_t[gt]);
             }
             else
             {
@@ -860,7 +864,7 @@ gmx_stochd_t::gmx_stochd_t(const t_inputrec* ir)
             }
         }
     }
-    else if (ETC_ANDERSEN(ir->etc))
+    else if (ETC_ANDERSEN(inputRecord.etc))
     {
         randomize_group.resize(ngtc);
         boltzfac.resize(ngtc);
@@ -916,10 +920,10 @@ void Update::Impl::update_temperature_constants()
     }
 }
 
-Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) :
-    sd_(&ir),
-    deform_(boxDeformation),
-    inputRecord_(ir)
+Update::Impl::Impl(const t_inputrec& inputRecord, BoxDeformation* boxDeformation) :
+    inputRecord_(inputRecord),
+    sd_(inputRecord),
+    deform_(boxDeformation)
 {
     update_temperature_constants();
     xp_.resizeWithPadding(0);
@@ -928,7 +932,7 @@ Update::Impl::Impl(const t_inputrec& ir, BoxDeformation* boxDeformation) :
 void Update::setNumAtoms(int numAtoms)
 {
 
-    impl_->xp_.resizeWithPadding(numAtoms);
+    impl_->xp()->resizeWithPadding(numAtoms);
 }
 
 /*! \brief Sets the SD update type */
