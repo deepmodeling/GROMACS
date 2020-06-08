@@ -237,16 +237,16 @@ gmx_option_multichoice(
     AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
 
 if(GMX_TARGET_MIC)
-    set(GMX_FFT_LIBRARY_DEFAULT "mkl")
+    set(GMX_FFT_LIBRARY_DEFAULT "MKL")
 else()
-    set(GMX_FFT_LIBRARY_DEFAULT "fftw3")
+    set(GMX_FFT_LIBRARY_DEFAULT "FFTW3")
 endif()
 
 gmx_option_multichoice(
     GMX_FFT_LIBRARY
     "FFT library"
     "${GMX_FFT_LIBRARY_DEFAULT}"
-    fftw3 mkl "fftpack[built-in]")
+    FFTW3 MKL "fftpack[built-in]")
 gmx_dependent_option(
     GMX_BUILD_OWN_FFTW
     "Download and build FFTW 3 during the GROMACS build process, rather than fall back on the really slow fftpack."
