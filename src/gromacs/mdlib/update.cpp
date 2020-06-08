@@ -1369,79 +1369,6 @@ void update_pcouple_before_coordinates(FILE*             fplog,
     }
 }
 
-void constrain_velocities(int64_t step,
-                          real* dvdlambda, /* the contribution to be added to the bonded interactions */
-                          t_state*          state,
-                          tensor            vir_part,
-                          gmx::Constraints* constr,
-                          gmx_bool          bCalcVir,
-                          bool              do_log,
-                          bool              do_ene)
-{
-    if (!constr)
-    {
-        return;
-    }
-
-    /*
-     *  Steps (7C, 8C)
-     *  APPLY CONSTRAINTS:
-     *  BLOCK SHAKE
-     */
-
-    {
-        tensor vir_con;
-
-        /* clear out constraints before applying */
-        clear_mat(vir_part);
-
-        /* Constrain the coordinates upd->xp */
-        constr->apply(do_log, do_ene, step, 1, 1.0, state->x.arrayRefWithPadding(),
-                      state->v.arrayRefWithPadding(), state->v.arrayRefWithPadding().unpaddedArrayRef(),
-                      state->box, state->lambda[efptBONDED], dvdlambda, ArrayRefWithPadding<RVec>(),
-                      bCalcVir ? &vir_con : nullptr, ConstraintVariable::Velocities);
-
-        if (bCalcVir)
-        {
-            m_add(vir_part, vir_con, vir_part);
-        }
-    }
-}
-
-void constrain_coordinates(int64_t step,
-                           real* dvdlambda, /* the contribution to be added to the bonded interactions */
-                           t_state*          state,
-                           tensor            vir_part,
-                           Update*           upd,
-                           gmx::Constraints* constr,
-                           gmx_bool          bCalcVir,
-                           bool              do_log,
-                           bool              do_ene)
-{
-    if (!constr)
-    {
-        return;
-    }
-
-    {
-        tensor vir_con;
-
-        /* clear out constraints before applying */
-        clear_mat(vir_part);
-
-        /* Constrain the coordinates upd->xp */
-        constr->apply(do_log, do_ene, step, 1, 1.0, state->x.arrayRefWithPadding(),
-                      upd->xp()->arrayRefWithPadding(), ArrayRef<RVec>(), state->box,
-                      state->lambda[efptBONDED], dvdlambda, state->v.arrayRefWithPadding(),
-                      bCalcVir ? &vir_con : nullptr, ConstraintVariable::Positions);
-
-        if (bCalcVir)
-        {
-            m_add(vir_part, vir_con, vir_part);
-        }
-    }
-}
-
 void Update::Impl::update_sd_second_half(const t_inputrec& inputRecord,
                                          int64_t           step,
                                          real*             dvdlambda,
@@ -1495,10 +1422,11 @@ void Update::Impl::update_sd_second_half(const t_inputrec& inputRecord,
         wallcycle_stop(wcycle, ewcUPDATE);
 
         /* Constrain the coordinates upd->xp for half a time step */
+        bool computeVirial = false;
         constr->apply(do_log, do_ene, step, 1, 0.5, state->x.arrayRefWithPadding(),
                       xp_.arrayRefWithPadding(), ArrayRef<RVec>(), state->box,
-                      state->lambda[efptBONDED], dvdlambda, state->v.arrayRefWithPadding(), nullptr,
-                      ConstraintVariable::Positions);
+                      state->lambda[efptBONDED], dvdlambda, state->v.arrayRefWithPadding(),
+                      computeVirial, nullptr, ConstraintVariable::Positions);
     }
 }
 
