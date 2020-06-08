@@ -35,6 +35,38 @@
 # Helper functions for managing more complex options
 #
 
+# Update/assign the value for a multichoice option that has already
+# been initialized with gmx_option_multichoice().
+#
+# Usage:
+#   gmx_option_multichoice_lowlevel(NAME NEWVALUE OVERWRITE)
+#
+# If OVERWRITE is TRUE, the present cache value is overwritten.
+#
+# This function is used internally to set or update a multichoice var.
+function(GMX_OPTION_MULTICHOICE_LOWLEVEL NAME NEWVALUE OVERWRITE)
+
+    if(NOT DEFINED _description_${NAME})
+        message(FATAL "Internal error - multichoice variable must be set before being updated.")
+    endif()
+
+    # Create a cache variable for the option
+    if(OVERWRITE)
+        set(${NAME} ${NEWVALUE} CACHE STRING "${_description_${NAME}}" FORCE)
+    else()
+        set(${NAME} ${NEWVALUE} CACHE STRING "${_description_${NAME}}")
+    endif()
+    # Limit the choices (e.g. in ccmake) to the allowed values
+    set_property(CACHE ${NAME} PROPERTY STRINGS ${_allowed_${NAME}})
+
+    # Validate that the choice was in the list of allowed values
+    list(FIND _allowed_${NAME} "${${NAME}}" _found_index)
+    if (_found_index EQUAL -1)
+        message(FATAL_ERROR "Invalid value for ${NAME}: ${${NAME}}.  "
+                            "Pick one of: ${_allowed_comma_separated_${NAME}}")
+    endif()
+endfunction()
+
 # Creates a string cache variable with multiple choices
 #
 # Usage:
@@ -57,35 +89,60 @@
 # when checking the user-provided value, but is added to all user-visible
 # messages.
 #
-# It appears that ccmake does not use the STRINGS property, but perhaps some
-# day...
-#
 function(GMX_OPTION_MULTICHOICE NAME DESCRIPTION DEFAULT)
     # Some processing of the input values
     string(REPLACE ";" ", " _allowed_comma_separated "${ARGN}")
-    set(_description "${DESCRIPTION}. Pick one of: ${_allowed_comma_separated}")
+    set(_allowed_comma_separated_${NAME} "${_allowed_comma_separated}"
+        CACHE INTERNAL "Comma-separated allowed names for multichoice variable ${NAME}")
+
+    # Extend the description with the allowed values
+    set(_description_${NAME} "${DESCRIPTION}. Pick one of: ${_allowed_comma_separated}"
+        CACHE INTERNAL "Description for multichoice variable ${NAME}")
     string(REPLACE "[built-in]" "" _allowed "${ARGN}")
 
-    # Set the cache properties
-    set(${NAME} ${DEFAULT} CACHE STRING "${_description}")
-    set_property(CACHE ${NAME} PROPERTY STRINGS ${_allowed})
+    set(_allowed_${NAME} "${_allowed}"
+        CACHE INTERNAL "Allowed values for multichoice variable ${NAME}")
 
-    # Check that the value is one of the allowed
-    set(_org_value "${${NAME}}")
-    string(TOUPPER "${${NAME}}" ${NAME})
-    string(TOUPPER "${_allowed}" _allowed_as_upper)
-    list(FIND _allowed_as_upper "${${NAME}}" _found_index)
-    if (_found_index EQUAL -1)
-        message(FATAL_ERROR "Invalid value for ${NAME}: ${_org_value}.  "
-                            "Pick one of: ${_allowed_comma_separated}")
-    endif()
-    # Always provide the upper-case value to the caller
-    set(${NAME} "${${NAME}}" PARENT_SCOPE)
+    gmx_option_multichoice_lowlevel(${NAME} ${DEFAULT} FALSE)
+endfunction()
+
+# Force-overwrite a previously initialized multichoice variable
+#
+# Usage:
+#   gmx_option_multichoice_update(NAME NEWVALUE)
+#
+# This will change the present value in the cache. To avoid confusing users,
+# only use it when the user expects the variable to change, i.e. when the
+# previous value was "AUTO".
+function(GMX_OPTION_MULTICHOICE_UPDATE NAME NEWVALUE)
+    gmx_option_multichoice_lowlevel(${NAME} ${NEWVALUE} TRUE)
 endfunction()
 
 # Convenience function for reporting a fatal error for an invalid input value
 function(GMX_INVALID_OPTION_VALUE NAME)
     message(FATAL_ERROR "Invalid value for ${NAME}: ${${NAME}}")
+endfunction()
+
+# Usage:
+#   gmx_option_trivalue_lowlevel(NAME NEWVALUE OVERWRITE)
+#
+# If OVERWRITE is TRUE, the present cache value is overwritten.
+#
+# This function is used internally to set or update a trivalue var.
+function(GMX_OPTION_TRIVALUE_LOWLEVEL NAME NEWVALUE)
+
+    if(NOT DEFINED _description_${NAME})
+        message(FATAL "Internal error - trivalue variable must be set before being updated.")
+    endif()
+
+    # Create a cache variable for the option
+    if(OVERWRITE)
+        set(${NAME} ${NEWVALUE} CACHE STRING "${_description_${NAME}}" FORCE)
+    else()
+        set(${NAME} ${NEWVALUE} CACHE STRING "${_description_${NAME}}")
+    endif()
+    # Limit the choices (e.g. in ccmake) to the allowed values
+    set_property(CACHE ${NAME} PROPERTY STRINGS ON OFF AUTO)
 endfunction()
 
 # Declares a cache variable with ON/OFF/AUTO values
@@ -100,25 +157,35 @@ endfunction()
 #   These make it convenient to check for any combination of states with simple
 #   if() statements (simple if(VAR) matches AUTO and ON).
 function(GMX_OPTION_TRIVALUE NAME DESCRIPTION DEFAULT)
-    set(_description "${DESCRIPTION}. ON/OFF/AUTO")
-    set(${NAME} ${DEFAULT} CACHE STRING "${_description}")
-    set_property(CACHE ${NAME} PROPERTY STRINGS ON OFF AUTO)
+    set(_description_${NAME} "${DESCRIPTION}. ON/OFF/AUTO"
+        CACHE INTERNAL "Description for trivalue variable ${NAME}")
 
-    set(${NAME}_AUTO OFF)
-    set(${NAME}_FORCE OFF)
-    string(TOUPPER "${${NAME}}" ${NAME})
-    if ("${${NAME}}" STREQUAL "AUTO")
-        set(${NAME}_AUTO ON)
-    elseif (${NAME})
-        set(${NAME}_FORCE ON)
-        set(${NAME} ON)
+    # Set internal cache variables to specify what the initial value was
+    if("${${NAME}}" STREQUAL "AUTO")
+        set(${NAME}_AUTO TRUE CACHE INTERNAL "Variable ${NAME} was initially specified as AUTO")
     else()
-        set(${NAME} OFF)
+        set(${NAME}_AUTO FALSE CACHE INTERNAL "Variable ${NAME} was initially specified as AUTO")
     endif()
-    # Always provide the sanitized value to the caller
-    set(${NAME}       "${${NAME}}"       PARENT_SCOPE)
-    set(${NAME}_AUTO  "${${NAME}_AUTO}"  PARENT_SCOPE)
-    set(${NAME}_FORCE "${${NAME}_FORCE}" PARENT_SCOPE)
+
+    if(${NAME})
+        set(${NAME}_FORCE TRUE CACHE INTERNAL "Variable ${NAME} was initially specified as ON")
+    else()
+        set(${NAME}_FORCE FALSE CACHE INTERNAL "Variable ${NAME} was initially specified as ON")
+    endif()
+
+    gmx_option_trivalue_lowlevel(${NAME} ${DEFAULT} FALSE)
+endfunction()
+
+# Force-overwrite a previously initialized trivalue variable
+#
+# Usage:
+#   gmx_option_trivalue_update(NAME NEWVALUE)
+#
+# This will change the present value in the cache. To avoid confusing users,
+# only use it when the user expects the variable to change, i.e. when the
+# previous value was "AUTO".
+function(GMX_OPTION_TRIVALUE_UPDATE NAME NEWVALUE)
+    gmx_option_trivalue_update_lowlevel(${NAME} ${NEWVALUE} TRUE)
 endfunction()
 
 # Hides or shows a cache value based on conditions

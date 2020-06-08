@@ -94,7 +94,7 @@ if(GMX_SIMD STREQUAL "AUTO")
     set(GMX_SIMD_ACTIVE ${GMX_SUGGESTED_SIMD})
 endif()
 
-if(GMX_SIMD_ACTIVE STREQUAL "NONE")
+if(GMX_SIMD_ACTIVE STREQUAL "None")
     # nothing to do configuration-wise
     set(SIMD_STATUS_MESSAGE "SIMD instructions disabled")
 elseif(GMX_SIMD_ACTIVE STREQUAL "SSE2")
@@ -289,14 +289,14 @@ elseif(GMX_SIMD_ACTIVE STREQUAL "IBM_VSX")
     set(GMX_SIMD_${GMX_SIMD_ACTIVE} 1)
     set(SIMD_STATUS_MESSAGE "Enabling IBM VSX SIMD instructions using CXX flags: ${SIMD_IBM_VSX_CXX_FLAGS}")
 
-elseif(GMX_SIMD_ACTIVE STREQUAL "SPARC64_HPC_ACE")
+elseif(GMX_SIMD_ACTIVE STREQUAL "Sparc64_HPC_ACE")
 
     # Note that GMX_RELAXED_DOUBLE_PRECISION is enabled by default in the top-level CMakeLists.txt
 
     set(GMX_SIMD_${GMX_SIMD_ACTIVE} 1)
     set(SIMD_STATUS_MESSAGE "Enabling Sparc64 HPC-ACE SIMD instructions without special flags.")
 
-elseif(GMX_SIMD_ACTIVE STREQUAL "REFERENCE")
+elseif(GMX_SIMD_ACTIVE STREQUAL "Reference")
 
     # NB: This file handles settings for the SIMD module, so in the interest 
     # of proper modularization, please do NOT put any verlet kernel settings in this file.
@@ -384,7 +384,7 @@ endif()
 # so we avoid searching for any.
 #
 if(NOT DEFINED GMX_SIMD_CALLING_CONVENTION)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND GMX_SIMD_ACTIVE STREQUAL "REFERENCE")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND GMX_SIMD_ACTIVE STREQUAL "Reference")
         set(CALLCONV_LIST __regcall " ")
    elseif(CMAKE_CXX_COMPILER_ID MATCHES "XL")
         set(CALLCONV_LIST " ")
@@ -409,7 +409,7 @@ int ${callconv} f(int i) {return i;} int main(void) {return f(0);}
     # If the build is not using SIMD, then we should not manage the
     # calling convention. Doing so seems to confuse
     # clang-static-analyzer in at least version 6.0.
-    if(GMX_SIMD_ACTIVE STREQUAL "NONE")
+    if(GMX_SIMD_ACTIVE STREQUAL "None")
         set(GMX_SIMD_CALLING_CONVENTION " ")
     else()
         set(GMX_SIMD_CALLING_CONVENTION ${GMX_SIMD_CALLING_CONVENTION_VALUE})
@@ -426,7 +426,7 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" _cmake_build_type)
-if (_cmake_build_type STREQUAL "TSAN" AND NOT (GMX_SIMD_ACTIVE STREQUAL "NONE" OR GMX_SIMD_ACTIVE STREQUAL "REFERENCE" OR GMX_SIMD_ACTIVE MATCHES "AVX_512" OR GMX_SIMD_ACTIVE STREQUAL AVX2_256))
+if (_cmake_build_type STREQUAL "TSAN" AND NOT (GMX_SIMD_ACTIVE STREQUAL "None" OR GMX_SIMD_ACTIVE STREQUAL "Reference" OR GMX_SIMD_ACTIVE MATCHES "AVX_512" OR GMX_SIMD_ACTIVE STREQUAL AVX2_256))
    message(WARNING "TSAN is only tested with SIMD None, Reference, AVX2_256, and AVX_512. It is known to detect (harmless) memory races with SSE and AVX.")
 endif()
 
