@@ -164,7 +164,7 @@ void checkPullDimParams(const std::string&   prefix,
 }
 
 /*! \brief
- * Check parameters of an AWH bias in a free energy lambda dimension.
+ * Check parameters of an AWH bias in a free energy lambda state dimension.
  *
  * \param[in] prefix         Prefix for dimension parameters.
  * \param[in,out] dimParams  AWH dimensional parameters.
@@ -181,54 +181,58 @@ void checkLambdaDimParams(const std::string&  prefix,
     if (!lambdaParams)
     {
         gmx_fatal(FARGS,
-                  "There must be free energy input if using AWH to steer free energy lambda.");
+                  "There must be free energy input if using AWH to steer the free energy lambda "
+                  "state.");
     }
 
     if (lambdaParams->lambda_neighbors != -1)
     {
         gmx_fatal(FARGS,
-                  "When running AWH coupled to free energy lambda all lambdas should be used as "
-                  "neighbors in order to get correct probabilities, i.e. "
+                  "When running AWH coupled to the free energy lambda state all lambda states "
+                  "should be used as neighbors in order to get correct probabilities, i.e. "
                   "calc-lambda-neighbors (%d) must be %d.",
                   lambdaParams->lambda_neighbors, -1);
     }
 
     if (lambdaParams->delta_lambda != 0)
     {
-        gmx_fatal(FARGS, "When running AWH coupled to free energy lambda delta-lambda must be 0.");
+        gmx_fatal(FARGS,
+                  "When running AWH coupled to the free energy lambda state delta-lambda "
+                  "must be 0.");
     }
 
     if (dimParams->origin < 0)
     {
         opt = prefix + "-start";
         gmx_fatal(FARGS,
-                  "When running AWH coupled to free energy lambda the lower lambda state for AWH, "
-                  "%s (%.0f), must be >= 0.",
+                  "When running AWH coupled to the free energy lambda state the lower lambda state "
+                  "for AWH, %s (%.0f), must be >= 0.",
                   opt.c_str(), dimParams->origin);
     }
     if (dimParams->end >= lambdaParams->n_lambda)
     {
         opt = prefix + "-end";
         gmx_fatal(FARGS,
-                  "When running AWH coupled to free energy lambda the upper lambda state for AWH, "
-                  "%s (%.0f), must be < n_lambda (%d).",
+                  "When running AWH coupled to the free energy lambda state the upper lambda state "
+                  "for AWH, %s (%.0f), must be < n_lambda (%d).",
                   opt.c_str(), dimParams->origin, lambdaParams->n_lambda);
     }
     if (gmx_within_tol(dimParams->end - dimParams->origin, 0, GMX_REAL_EPS))
     {
         auto message = formatString(
                 "The given interval length given by %s-start (%g) and %s-end (%g) is zero. "
-                "This will result in only one lambda point along this free energy lambda axis in "
-                "the coordinate value grid.",
+                "This will result in only one lambda point along this free energy lambda state "
+                "axis in the coordinate value grid.",
                 prefix.c_str(), dimParams->origin, prefix.c_str(), dimParams->end);
         warning(wi, message);
     }
 
     if (dimParams->forceConstant != 0)
     {
-        warning_error(wi,
-                      "The force AWH bias force constant is not used with free energy lambda as "
-                      "coordinate provider.");
+        warning_error(
+                wi,
+                "The force AWH bias force constant is not used with free energy lambda state as "
+                "coordinate provider.");
     }
 }
 
@@ -254,7 +258,7 @@ void readDimParams(std::vector<t_inpfile>* inp,
         printStringNoNewline(
                 inp,
                 "The provider of the reaction coordinate, "
-                "currently only 'pull' and 'fe-lambda' (free energy lambda) is supported");
+                "currently only 'pull' and 'fe-lambda' (free energy lambda state) is supported");
     }
     opt                       = prefix + "-coord-provider";
     dimParams->eCoordProvider = get_eeenum(inp, opt, eawhcoordprovider_names, wi);
@@ -309,28 +313,36 @@ void readDimParams(std::vector<t_inpfile>* inp,
  *
  * \param[in] prefix         Prefix for dimension parameters.
  * \param[in,out] dimParams  AWH dimensional parameters.
- * \param[in] pull_params    Pull parameters.
- * \param[in] lambdaParams   The free energy lambda related parameters.
+ * \param[in] ir             Input parameter struct.
  * \param[in,out] wi         Struct for bookeeping warnings.
  */
-void checkDimParams(const std::string&   prefix,
-                    AwhDimParams*        dimParams,
-                    const pull_params_t* pull_params,
-                    const t_lambda*      lambdaParams,
-                    warninp_t            wi)
+void checkDimParams(const std::string& prefix, AwhDimParams* dimParams, const t_inputrec* ir, warninp_t wi)
 {
     if (dimParams->eCoordProvider == eawhcoordproviderPULL)
     {
-        checkPullDimParams(prefix, dimParams, pull_params, wi);
+        if (!ir->bPull)
+        {
+            gmx_fatal(FARGS,
+                      "AWH biasing along a pull dimension is only compatible with COM pulling "
+                      "turned on");
+        }
+        checkPullDimParams(prefix, dimParams, ir->pull, wi);
     }
     else if (dimParams->eCoordProvider == eawhcoordproviderFREE_ENERGY_LAMBDA)
     {
-        checkLambdaDimParams(prefix, dimParams, lambdaParams, wi);
+        if (ir->efep == efepNO)
+        {
+            gmx_fatal(FARGS,
+                      "AWH biasing along a free energy lambda state dimension is only compatible "
+                      "with free energy turned on");
+        }
+        checkLambdaDimParams(prefix, dimParams, ir->fepvals, wi);
     }
     else
     {
         gmx_fatal(FARGS,
-                  "AWH biasing can only be  applied to pull and free energy lambda coordinates");
+                  "AWH biasing can only be  applied to pull and free energy lambda state "
+                  "coordinates");
     }
 }
 
@@ -558,7 +570,7 @@ void checkBiasParams(const AwhBiasParams* awhBiasParams, const std::string& pref
     for (int d = 0; d < awhBiasParams->ndim; d++)
     {
         std::string prefixdim = prefix + formatString("-dim%d", d + 1);
-        checkDimParams(prefixdim, &awhBiasParams->dimParams[d], ir->pull, ir->fepvals, wi);
+        checkDimParams(prefixdim, &awhBiasParams->dimParams[d], ir, wi);
     }
 
     /* Check consistencies here that cannot be checked at read time at a lower level. */
@@ -705,12 +717,6 @@ AwhParams* readAwhParams(std::vector<t_inpfile>* inp, warninp_t wi)
 void checkAwhParams(const AwhParams* awhParams, const t_inputrec* ir, warninp_t wi)
 {
     std::string opt;
-
-    if (!ir->bPull && ir->efep == efepNO)
-    {
-        gmx_fatal(FARGS,
-                  "AWH biasing is only compatible with COM pulling or free energy turned on");
-    }
 
     opt = "awh-nstout";
     if (awhParams->nstOut <= 0)
