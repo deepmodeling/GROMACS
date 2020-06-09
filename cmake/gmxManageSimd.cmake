@@ -88,7 +88,7 @@ endif()
 #
 
 set(GMX_SIMD_ACTIVE ${GMX_SIMD})
-if(GMX_SIMD STREQUAL "AUTO")
+if(GMX_SIMD STREQUAL "Auto")
     include(gmxDetectSimd)
     gmx_detect_simd(GMX_SUGGESTED_SIMD)
     set(GMX_SIMD_ACTIVE ${GMX_SUGGESTED_SIMD})

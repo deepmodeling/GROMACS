@@ -148,7 +148,7 @@ function(gmx_suggest_simd _suggested_simd)
 endfunction()
 
 function(gmx_detect_simd _suggested_simd)
-    if(GMX_SIMD STREQUAL "AUTO")
+    if(GMX_SIMD STREQUAL "Auto")
         if(GMX_TARGET_FUJITSU_SPARC64)
             # HPC-ACE is always present. In the future we
             # should add detection for HPC-ACE2 here.

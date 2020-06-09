@@ -233,8 +233,8 @@ endif()
 gmx_option_multichoice(
     GMX_SIMD
     "SIMD instruction set for CPU kernels and compiler optimization"
-    "AUTO"
-    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
+    "Auto"
+    Auto None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
 
 if(GMX_TARGET_MIC)
     set(GMX_FFT_LIBRARY_DEFAULT "MKL")
@@ -482,7 +482,7 @@ include(gmxManageSharedLibraries)
 gmx_option_trivalue(
     GMX_HWLOC
     "Use hwloc portable hardware locality library"
-    "AUTO")
+    Auto)
 
 if (GMX_HWLOC)
     # Find quietly the second time.
@@ -610,8 +610,8 @@ gmx_set_build_information()
 gmx_option_multichoice(
     GMX_USE_RDTSCP
     "Use low-latency RDTSCP instruction for CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments)"
-    "AUTO"
-    OFF ON AUTO DETECT)
+    "Auto"
+    OFF ON Auto Detect)
 mark_as_advanced(GMX_USE_RDTSCP)
 
 macro(gmx_check_rdtscp)
@@ -626,9 +626,9 @@ endmacro()
 set(HAVE_RDTSCP 0)
 if (GMX_USE_RDTSCP STREQUAL "ON")
     set(HAVE_RDTSCP 1)
-elseif(GMX_USE_RDTSCP STREQUAL "DETECT")
+elseif(GMX_USE_RDTSCP STREQUAL "Detect")
     gmx_check_rdtscp()
-elseif(GMX_USE_RDTSCP STREQUAL "AUTO")
+elseif(GMX_USE_RDTSCP STREQUAL "Auto")
     # If the user specified automated SIMD selection, that the choice
     # is made based on detection on the build host. If so, then RDTSCP
     # should be chosen the same way.
@@ -637,7 +637,7 @@ elseif(GMX_USE_RDTSCP STREQUAL "AUTO")
     # cross-compiling GROMACS) then they will get our best guess, ie
     # that in practice AVX mostly correlates with rdtscp (and anyway
     # is only relevant in rather old x86 hardware).
-    if (GMX_SIMD STREQUAL "AUTO")
+    if (GMX_SIMD STREQUAL "Auto")
         gmx_check_rdtscp()
     elseif (GMX_SIMD MATCHES "AVX")
         set(HAVE_RDTSCP 1)
@@ -685,6 +685,7 @@ endif()
 # and adds advanced options to control accuracy
 # for SIMD math operations.
 include(gmxManageSimd)
+gmx_option_multichoice_update(GMX_SIMD SSE2)
 gmx_manage_simd()
 
 ##################################################
@@ -730,9 +731,9 @@ if(GMX_FAHCORE)
   include_directories(${COREWRAP_INCLUDE_DIR})
 endif()
 
-# Value of GMX_BUILD_HELP=AUTO tries to generate things, but will only
+# Value of GMX_BUILD_HELP=Auto tries to generate things, but will only
 # produce warnings if that fails.
-set(build_help_default AUTO)
+set(build_help_default Auto)
 if (SOURCE_IS_SOURCE_DISTRIBUTION OR CMAKE_CROSSCOMPILING)
     set(build_help_default OFF)
 endif()

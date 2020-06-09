@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2016,2018,2019, by the GROMACS development team, led by
+# Copyright (c) 2016,2018,2019,2020, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -41,15 +41,15 @@ include(gmxOptionUtilities)
 # Make a three-state enumeration, defaulting to 
 gmx_option_multichoice(GMX_USE_LMFIT
     "How to handle the lmfit dependency of GROMACS"
-    INTERNAL
-    INTERNAL EXTERNAL NONE)
+    Internal
+    Internal External None)
 mark_as_advanced(GMX_USE_LMFIT)
 
 # Make a fully functional lmfit library target that libgromacs can
 # depend on regardless of how the user directed lmfit support and/or
 # linking to work.
 function(gmx_manage_lmfit)
-    if(GMX_USE_LMFIT STREQUAL "INTERNAL")
+    if(GMX_USE_LMFIT STREQUAL "Internal")
         # Create an object library for the lmfit sources
         set(BUNDLED_LMFIT_DIR "${CMAKE_SOURCE_DIR}/src/external/lmfit")
         file(GLOB LMFIT_SOURCES ${BUNDLED_LMFIT_DIR}/*.cpp)
@@ -72,7 +72,7 @@ function(gmx_manage_lmfit)
         install(TARGETS lmfit EXPORT libgromacs)
 
         set(HAVE_LMFIT 1 CACHE INTERNAL "Is lmfit found?")
-    elseif(GMX_USE_LMFIT STREQUAL "EXTERNAL")
+    elseif(GMX_USE_LMFIT STREQUAL "External")
         # Find an external lmfit library.
         find_package(Lmfit ${GMX_LMFIT_REQUIRED_VERSION})
         if(NOT LMFIT_FOUND OR LMFIT_VERSION VERSION_LESS GMX_LMFIT_REQUIRED_VERSION)
