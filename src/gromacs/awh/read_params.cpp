@@ -323,7 +323,7 @@ void checkDimParams(const std::string&   prefix,
     {
         checkPullDimParams(prefix, dimParams, pull_params, wi);
     }
-    else if (dimParams->eCoordProvider == eawhcoordproviderFELAMBDA)
+    else if (dimParams->eCoordProvider == eawhcoordproviderFREE_ENERGY_LAMBDA)
     {
         checkLambdaDimParams(prefix, dimParams, lambdaParams, wi);
     }
@@ -591,7 +591,7 @@ void checkInputConsistencyAwh(const AwhParams& awhParams, warninp_t wi)
         {
             for (int d1 = 0; d1 < awhBiasParams1.ndim; d1++)
             {
-                if (awhBiasParams1.dimParams[d1].eCoordProvider == eawhcoordproviderFELAMBDA)
+                if (awhBiasParams1.dimParams[d1].eCoordProvider == eawhcoordproviderFREE_ENERGY_LAMBDA)
                 {
                     continue;
                 }
@@ -600,7 +600,7 @@ void checkInputConsistencyAwh(const AwhParams& awhParams, warninp_t wi)
                 /* d1 is the reference dimension of the reference AWH. d2 is the dim index of the AWH to compare with. */
                 for (int d2 = 0; d2 < awhBiasParams2.ndim; d2++)
                 {
-                    if (awhBiasParams2.dimParams[d2].eCoordProvider == eawhcoordproviderFELAMBDA)
+                    if (awhBiasParams2.dimParams[d2].eCoordProvider == eawhcoordproviderFREE_ENERGY_LAMBDA)
                     {
                         continue;
                     }

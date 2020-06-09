@@ -226,7 +226,7 @@ Awh::Awh(FILE*                 fplog,
         {
             const AwhDimParams& awhDimParams = awhBiasParams.dimParams[d];
             if (awhDimParams.eCoordProvider != eawhcoordproviderPULL
-                && awhDimParams.eCoordProvider != eawhcoordproviderFELAMBDA)
+                && awhDimParams.eCoordProvider != eawhcoordproviderFREE_ENERGY_LAMBDA)
             {
                 GMX_THROW(
                         InvalidInputError("Currently only the pull code and lambda are supported "

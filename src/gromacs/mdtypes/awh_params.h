@@ -99,7 +99,7 @@ extern const char* eawhpotential_names[eawhpotentialNR + 1];
 enum
 {
     eawhcoordproviderPULL,
-    eawhcoordproviderFELAMBDA,
+    eawhcoordproviderFREE_ENERGY_LAMBDA,
     eawhcoordproviderNR
 };
 //! String for AWH bias reaction coordinate provider.
