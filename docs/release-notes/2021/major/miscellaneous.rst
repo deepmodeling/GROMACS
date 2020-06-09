@@ -7,8 +7,8 @@ Miscellaneous
    Also, please use the syntax :issue:`number` to reference issues on GitLab, without the
    a space between the colon and number!
 
-Gromacs configuration  multichoice and trivalue variables are now case sensitive
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+|Gromacs| configuration multichoice and trivalue options are now case sensitive
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 The multichoice variables for settings such as GMX_FFT_LIBRARY,
 GMX_SIMD, GMX_USE_RDTSCP and GMX_USE_LMFIT are now case-sensitive,
 and all trivalue variables now use "Auto" for the third choice
