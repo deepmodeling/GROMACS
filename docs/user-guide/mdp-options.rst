@@ -2044,8 +2044,9 @@ AWH adaptive biasing
 
    .. mdp-value:: fe-lambda
 
-      The free energy lambda (the specified lambda states) is the reaction coordinate
-      for this dimension. This is not compatible with delta-lambda. It also requires
+      The free energy lambda state is the reaction coordinate for this dimension.
+      The lambda states to use are specified by :mdp:`fep-lambdas`, :mdp:`vdw-lambdas`,
+      :mdp:`coul-lambdas` etc. This is not compatible with delta-lambda. It also requires
       calc-lambda-neighbors to be -1.
 
 .. mdp:: awh1-dim1-coord-index
