@@ -49,7 +49,7 @@ function(GMX_OPTION_MULTICHOICE_LOWLEVEL NAME NEWVALUE)
     cmake_parse_arguments(ARG "FORCE" "" "" ${ARGN})
 
     if(NOT DEFINED _description_${NAME})
-        message(FATAL "Internal error - multichoice variable must be set before being updated.")
+        message(FATAL_ERROR "Internal error - multichoice variable must be set before being updated.")
     endif()
 
     # Create a cache variable for the option
@@ -139,7 +139,7 @@ function(GMX_OPTION_TRIVALUE_LOWLEVEL NAME NEWVALUE)
     cmake_parse_arguments(ARG "FORCE" "" "" ${ARGN})
 
     if(NOT DEFINED _description_${NAME})
-        message(FATAL "Internal error - trivalue variable must be set before being updated.")
+        message(FATAL_ERROR "Internal error - trivalue variable must be set before being updated.")
     endif()
 
     # Create a cache variable for the option
