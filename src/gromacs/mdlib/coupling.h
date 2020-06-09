@@ -41,13 +41,13 @@
 #include "gromacs/math/paddedvector.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
-#include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
 struct gmx_ekindata_t;
 struct gmx_enerdata_t;
+struct t_commrec;
 struct t_extmass;
 struct t_grpopts;
 struct t_inputrec;
