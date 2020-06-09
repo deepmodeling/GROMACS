@@ -107,7 +107,7 @@ struct BiasCoupledToSystem
     /* Here AWH can be extended to work on other coordinates than pull. */
 };
 
-/*! \brief Checks if any dimension uses pulling as a coordinate provider.
+/*! \brief Checks whether any dimension uses pulling as a coordinate provider.
  *
  * \param[in] awhBiasParams The bias params to check.
  * \returns true if any dimension of the bias is linked to pulling.
@@ -125,7 +125,7 @@ static bool anyDimUsesPull(const AwhBiasParams& awhBiasParams)
     return (false);
 }
 
-/*! \brief Checks if any dimension uses pulling as a coordinate provider.
+/*! \brief Checks whether any dimension uses pulling as a coordinate provider.
  *
  * \param[in] awhParams The AWH params to check.
  * \returns true if any dimension of awh is linked to pulling.
@@ -143,7 +143,7 @@ static bool anyDimUsesPull(const AwhParams& awhParams)
     return (false);
 }
 
-/*! \brief Checks if any dimension uses pulling as a coordinate provider.
+/*! \brief Checks whether any dimension uses pulling as a coordinate provider.
  *
  * \param[in] biasCoupledToSystem The AWH biases to check.
  * \returns true if any dimension of the provided biases is linked to pulling.

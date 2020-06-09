@@ -216,9 +216,11 @@ public:
      * \param[in]     grid       The grid.
      * \param[in]     point      Point for umbrella center.
      * \param[in]     neighborLambdaDhdl     An array containing the dHdL at the neighboring lambda
-     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * points. The array is of length numLambdas+1, where numLambdas is the number of free
+     * energy lambda states. Element 0 in the array is the dHdL
      * of the current state and elements 1..numLambdas contain the dHdL of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in,out] force      Force vector to set.
      * Returns the umbrella potential.
      */
@@ -238,9 +240,11 @@ public:
      * \param[in]     grid                The grid.
      * \param[in]     probWeightNeighbor  Probability weights of the neighbors.
      * \param[in]     neighborLambdaDhdl     An array containing the dHdL at the neighboring lambda
-     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * points. The array is of length numLambdas+1, where numLambdas is the number of free
+     * energy lambda states. Element 0 in the array is the dHdL
      * of the current state and elements 1..numLambdas contain the dHdL of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in]     forceWorkBuffer     Force work buffer, values only used internally.
      * \param[in,out] force               Bias force vector to set.
      */
@@ -264,9 +268,11 @@ public:
      * \param[in] grid                        The grid.
      * \param[in] probWeightNeighbor          Probability weights of the neighbors.
      * \param[in] neighborLambdaDhdl          An array containing the dHdL at the neighboring lambda
-     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * points. The array is of length numLambdas+1, where numLambdas is the number of free
+     * energy lambda states. Element 0 in the array is the dHdL
      * of the current state and elements 1..numLambdas contain the dHdL of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in,out] biasForce               The AWH bias force.
      * \param[in] step                        Step number, needed for the random number generator.
      * \param[in] seed                        Random seed.
@@ -434,9 +440,11 @@ public:
      * \param[in]  dimParams              The bias dimensions parameters
      * \param[in]  grid                   The grid.
      * \param[in]  neighborLambdaEnergies An array containing the energy of the system
-     * in neighboring lambdas. The array is of length numLambdas+1, where element 0 is the energy
+     * in neighboring lambdas. The array is of length numLambdas+1, where numLambdas is
+     * the number of free energy lambda states. Element 0 in the array is the energy
      * of the current state and elements 1..numLambdas contain the energy of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[out] weight                 Probability weights of the neighbors, SIMD aligned.
      * \returns the convolved bias.
      */

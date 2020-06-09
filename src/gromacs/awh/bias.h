@@ -194,13 +194,17 @@ public:
      *
      * \param[in]     coordValue     The current coordinate value(s).
      * \param[in]     neighborLambdaEnergies An array containing the energy of the system
-     * in neighboring lambdas. The array is of length numLambdas+1, where element 0 is the energy
+     * in neighboring lambdas. The array is of length numLambdas+1, where numLambdas is
+     * the number of free energy lambda states. Element 0 in the array is the energy
      * of the current state and elements 1..numLambdas contain the energy of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in]     neighborLambdaDhdl     An array containing the dHdL at the neighboring lambda
-     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * points. The array is of length numLambdas+1, where numLambdas is the number of free
+     * energy lambda states. Element 0 in the array is the dHdL
      * of the current state and elements 1..numLambdas contain the dHdL of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[out]    awhPotential   Bias potential.
      * \param[out]    potentialJump  Change in bias potential for this bias.
      * \param[in]     commRecord     Struct for intra-simulation communication.
@@ -313,9 +317,11 @@ private:
      *
      * \param[in] probWeightNeighbor  Probability weight of the neighboring points.
      * \param[in] neighborLambdaDhdl  An array containing the dHdL at the neighboring lambda
-     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * points. The array is of length numLambdas+1, where numLambdas is the number of free
+     * energy lambda states. Element 0 in the array is the dHdL
      * of the current state and elements 1..numLambdas contain the dHdL of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in] t                   The time.
      */
     void updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeighbor,
@@ -345,17 +351,17 @@ public:
      */
     int writeToEnergySubblocks(t_enxsubblock* subblock) const;
 
-    /*! \brief Counts the number of dimensions using lambda as coordinate provider.
-     *
-     * \returns the number of dimensions using lambda as coordinate provider.
+    /*! \brief Returns the number of dimensions using the free energy lambda state
+     * as coordinate provider.
      */
     int numLambdaDims() const;
 
-    /*! \brief Returns if the specified dimension is a lambda dimension.
+    /*! \brief Returns whether the specified dimension is a free energy lambda
+     * state dimension.
      *
      * \param[in] dim      The dimension to check.
      *
-     * \returns true if the specified dimension is a lambda dimension.
+     * \returns true if the specified dimension is a free energy lambda state dimension.
      */
     bool isLambdaDim(int dim) const;
 

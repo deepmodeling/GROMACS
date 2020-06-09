@@ -213,7 +213,8 @@ double freeEnergyMinimumValue(gmx::ArrayRef<const PointState> pointState)
  * \param[in] pointIndex             Point to evaluate probability weight for.
  * \param[in] pointBias              Bias for the point (as a log weight).
  * \param[in] value                  Coordinate value.
- * \param[in] neighborLambdaEnergies The energy of the system in neighboring lambdas.
+ * \param[in] neighborLambdaEnergies The energy of the system in neighboring lambdas states. Can be
+ * empty when there are no free energy lambda state dimensions.
  * \param[in] gridpointIndex         The index of the current grid point.
  * \returns the log of the biased probability weight.
  */
@@ -1280,9 +1281,9 @@ double BiasState::updateProbabilityWeightsAndConvolvedBias(const std::vector<Dim
     /* Normalize probabilities to sum to 1 */
     double invWeightSum = 1 / weightSum;
 
-    /* If there is a lambda axis remove the convolved contributions along that axis from the total
-     * bias. This must be done after calculating invWeightSum (since weightSum will be modified),
-     * but before normalizing the weights (below). */
+    /* When there is a free energy lambda state axis remove the convolved contributions along that
+     * axis from the total bias. This must be done after calculating invWeightSum (since weightSum
+     * will be modified), but before normalizing the weights (below). */
     if (grid.hasLambdaAxis())
     {
         /* If there is only one axis the bias will not be convolved in any dimension. */

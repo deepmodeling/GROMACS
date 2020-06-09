@@ -128,8 +128,8 @@ public:
      * \param[in,out] pull_work          Pointer to a pull struct which AWH will
      * couple to, has to be initialized, is assumed not to change during the
      * lifetime of the Awh object.
-     * \param[in] numLambdaStates        The number of lambda states.
-     * \param[in] lambdaState            The initial lambda state of the system.
+     * \param[in] numLambdaStates        The number of free energy lambda states.
+     * \param[in] lambdaState            The initial free energy lambda state of the system.
      * \throws    InvalidInputError      If there is user input (or combinations thereof) that is not allowed.
      */
     Awh(FILE*                 fplog,
@@ -166,13 +166,17 @@ public:
      * \param[in]     pbcType          Type of periodic boundary conditions.
      * \param[in]     masses           Atoms masses.
      * \param[in]     neighborLambdaEnergies An array containing the energy of the system
-     * in neighboring lambdas. The array is of length numLambdas+1, where element 0 is the energy
+     * in neighboring lambdas. The array is of length numLambdas+1, where numLambdas is
+     * the number of free energy lambda states. Element 0 in the array is the energy
      * of the current state and elements 1..numLambdas contain the energy of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in]     neighborLambdaDhdl     An array containing the dHdL at the neighboring lambda
-     * points. The array is of length numLambdas+1, where element 0 is the dHdL
+     * points. The array is of length numLambdas+1, where numLambdas is the number of free
+     * energy lambda states. Element 0 in the array is the dHdL
      * of the current state and elements 1..numLambdas contain the dHdL of the system in the
-     * neighboring lambda states (also including the current state).
+     * neighboring lambda states (also including the current state). When there are no free
+     * energy lambda state dimensions this can be empty.
      * \param[in]     box              Box vectors.
      * \param[in,out] forceWithVirial  Force and virial buffers, should cover at least the local atoms.
      * \param[in]     t                Time.
@@ -250,7 +254,7 @@ public:
      */
     static void registerAwhWithPull(const AwhParams& awhParams, pull_t* pull_work);
 
-    /*! \brief Get the current lambda state.
+    /*! \brief Get the current free energy lambda state.
      * \returns The value of lambdaState_.
      */
     int lambdaState() const { return lambdaState_; }
@@ -270,8 +274,8 @@ private:
     const gmx_multisim_t* multiSimRecord_; /**< Handler for multi-simulations. */
     pull_t*               pull_;           /**< Pointer to the pull working data. */
     double                potentialOffset_; /**< The offset of the bias potential which changes due to bias updates. */
-    const int             numLambdaStates_; /**< The number of lambda states of the system. */
-    int                   lambdaState_;     /**< The current lambda state. */
+    const int numLambdaStates_; /**< The number of free energy lambda states of the system. */
+    int       lambdaState_;     /**< The current free energy lambda state. */
 };
 
 /*! \brief Makes an Awh and prepares to use it if the user input

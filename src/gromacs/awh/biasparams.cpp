@@ -141,7 +141,6 @@ int64_t calcCheckCoveringInterval(const AwhParams&              awhParams,
         }
         else
         {
-            /* TODO: Evaluate this */
             numSamplesCover = dimParams[d].numLambdaStates;
         }
         /* The minimum number of samples needed for simultaneously

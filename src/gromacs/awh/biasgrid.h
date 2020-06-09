@@ -94,7 +94,7 @@ public:
      */
     GridAxis(double origin, double end, double period, int numPoints, bool isLambdaAxis);
 
-    /*! \brief Returns if the axis has periodic boundaries.
+    /*! \brief Returns whether the axis has periodic boundaries.
      */
     bool isPeriodic() const { return period_ > 0; }
 
@@ -136,7 +136,7 @@ public:
      */
     int nearestIndex(double value) const;
 
-    /*! \brief Returns if this axis is coupled to lambda states.
+    /*! \brief Returns whether this axis is coupled to the free energy lambda state.
      */
     bool isLambdaAxis() const { return isLambdaAxis_; }
 
@@ -147,7 +147,7 @@ private:
     double spacing_;           /**< Point spacing */
     int    numPoints_;         /**< Number of points in the interval */
     int    numPointsInPeriod_; /**< Number of points in a period (0 if no periodicity) */
-    bool   isLambdaAxis_;      /**< If this axis is coupled to the system's lambda state */
+    bool   isLambdaAxis_; /**< If this axis is coupled to the system's free energy lambda state */
 };
 
 /*! \internal
@@ -244,7 +244,7 @@ public:
      */
     bool covers(const awh_dvec value) const;
 
-    /*! \brief Returns true if the grid has a lambda axis at all.
+    /*! \brief Returns true if the grid has a free energy lambda state axis at all.
      */
     bool hasLambdaAxis() const
     {
@@ -253,15 +253,15 @@ public:
     }
 
     /*! \brief
-     * Returns the index of a free energy lambda axis (there can be
-     * no more than one) or -1 if there are no free energy lambda axes.
+     * Returns the index of a free energy lambda state axis (there can be
+     * no more than one) or -1 if there are no free energy lambda state axes.
      */
     int lambdaAxisIndex() const;
 
     /*! \brief
      * Returns the number of free energy lambda states in the grid (the number
-     * of points along a free energy lambda axis) or 0 if there are no free energy
-     * lambda axes.
+     * of points along a free energy lambda state axis) or 0 if there are no free energy
+     * lambda state axes.
      */
     int numLambdaStates() const;
 
@@ -375,17 +375,18 @@ double getDeviationFromPointAlongGridAxis(const BiasGrid& grid, int dimIndex, in
 double getDeviationFromPointAlongGridAxis(const BiasGrid& grid, int dimIndex, int pointIndex1, int pointIndex2);
 
 /*! \brief
- * Checks if two points are along a lambda axis.
+ * Checks whether two points are along a free energy lambda state axis.
  *
  * \param[in] grid        The grid.
  * \param[in] pointIndex1 Grid point index of the first point.
  * \param[in] pointIndex2 Grid point index of the second point.
- * \returns true if the two points are along a lambda axis.
+ * \returns true if the two points are along a free energy lambda state axis.
  */
 bool pointsAlongLambdaAxis(const BiasGrid& grid, int pointIndex1, int pointIndex2);
 
 /*! \brief
- * Checks if two points are different in the lambda dimension (if any).
+ * Checks whether two points are different in the free energy lambda state
+ * dimension (if any).
  *
  * \param[in] grid        The grid.
  * \param[in] pointIndex1 Grid point index of the first point.
