@@ -685,7 +685,6 @@ endif()
 # and adds advanced options to control accuracy
 # for SIMD math operations.
 include(gmxManageSimd)
-gmx_option_multichoice_update(GMX_SIMD SSE2)
 gmx_manage_simd()
 
 ##################################################
