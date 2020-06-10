@@ -52,9 +52,7 @@
 namespace gmx
 {
 
-/*! \internal \brief
- * Holds state dependent values for a lambda coordinate.
- */
+//! Holds state dependent values for a lambda coordinate.
 struct LambdaCoordinateState
 {
     //! Lambda coordinate position.
@@ -63,9 +61,7 @@ struct LambdaCoordinateState
     real velocity = 0.0;
 };
 
-/*! \internal \brief
- * Holds all current values of a lambda.
- */
+//! Holds all current values of a lambda.
 struct LambdaState
 {
     //! State at start of simulation.
@@ -82,7 +78,8 @@ struct LambdaState
     real dvdl = 0.0;
 };
 
-/*! \internal \brief
+/*!\internal
+ * \brief
  * Defines a collection of atoms under control of a lambda.
  *
  * Should later be constructed and updated with information from domdec.
@@ -106,7 +103,8 @@ struct LambdaAtomCollection
     bool operator!=(const LambdaAtomCollection& other) { return !(*this == other); }
 };
 
-/*! \internal \brief
+/*!\internal
+ * \brief
  * Data needed to define a residue in cpHMD
  *
  * Used together with LambdaAtomCollections to provide current
@@ -130,7 +128,7 @@ struct constantpHResidue
     std::vector<real> chargeB_;
 };
 
-/*! \internal
+/*!\internal
  * \brief Holding all directly user-provided parameters for constant pH.
  *
  * Also used for setting all default parameters.
