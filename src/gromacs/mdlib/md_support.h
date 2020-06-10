@@ -38,8 +38,6 @@
 #ifndef GMX_MDLIB_MD_SUPPORT_H
 #define GMX_MDLIB_MD_SUPPORT_H
 
-#include <array>
-
 #include "gromacs/mdlib/vcm.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/timing/wallcycle.h"
@@ -53,7 +51,6 @@ struct t_extmass;
 struct t_forcerec;
 struct t_grpopts;
 struct t_inputrec;
-struct t_lambda;
 struct t_nrnb;
 class t_state;
 struct t_trxframe;
@@ -110,18 +107,8 @@ void rerun_parallel_comm(t_commrec* cr, t_trxframe* fr, gmx_bool* bLastStep);
 //! \brief Allocate and initialize node-local state entries
 void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimulator);
 
-/*! \brief Evaluate the current lambdas
- *
- * \param[in] step the current simulation step
- * \param[in] fepvals describing the lambda setup
- * \param[in] currentLambdaState the lambda state to use to set the lambdas, -1 if not set
- * \returns the current lambda-value array
- */
-std::array<real, efptNR> currentLambdas(int64_t step, const t_lambda& fepvals, int currentLambdaState);
-
 int multisim_min(const gmx_multisim_t* ms, int nmin, int n);
 /* Set an appropriate value for n across the whole multi-simulation */
-
 
 /* Compute global variables during integration
  *
