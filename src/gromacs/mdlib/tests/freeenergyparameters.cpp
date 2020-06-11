@@ -64,19 +64,19 @@ namespace
 struct FreeEnergyParameterTestParameters
 {
     //! current state of lambda in the simulation, -1 if not set
-    int currentLambdaState;
+    int currentLambdaState = -1;
     //! Fractional value of lambda to start from, -1 if not set
-    double initLambda;
+    double initLambda = -1;
     //! The initial number of the state, -1 if not set
-    int initFepState;
+    int initFepState = -1;
     //! Change of lambda per time step (fraction of (0.1)
-    double deltaLambda;
+    double deltaLambda = 0;
     //! number of lambda entries
-    int nLambda;
+    int nLambda = 0;
     //! the current simulation step
-    int64_t step;
+    int64_t step = 0;
     //! the expected lambda at the current simulation step
-    std::array<real, efptNR> expectedLambdas;
+    std::array<real, efptNR> expectedLambdas = { -1, -1, -1, -1, -1, -1, -1 };
 };
 
 
@@ -121,12 +121,12 @@ const FreeEnergyParameterTestParameters freeEnergyParameterSets[] = {
     { -1, -1, 1, -0.1, 3, 3, { 0.44, 0.44, 0.44, 0.44, 0.44, 0.44, 0.44 } },
 };
 
+/*! \brief Test for setting free energy parameters.
+ */
 class FreeEnergyParameterTest : public ::testing::TestWithParam<FreeEnergyParameterTestParameters>
 {
 public:
-    FreeEnergyParameterTest(){};
-
-    //! fill in the required FEP values for testing
+    //! Fills in the required FEP values for testing from the test parameters
     t_lambda getFepVals()
     {
         t_lambda fepvals;
@@ -138,7 +138,11 @@ public:
         return fepvals;
     }
 
-    //! construct a lambda matrix
+    /*! \brief construct a lambda matrix
+     *
+     * \param[in] nLambda
+     * \returns nLambda * eftpNR matrix with pre-defined values
+     */
     double** getLambdaMatrix(int nLambda)
     {
         for (int i = 0; i < efptNR; ++i)
