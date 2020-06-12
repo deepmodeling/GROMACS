@@ -45,11 +45,6 @@ if(GMX_USE_CUDA OR GMX_USE_OPENCL)
     gmx_add_libgromacs_sources(
        state_propagator_data_gpu_impl_gpu.cpp
        )
-    if(GMX_USE_CUDA)
-        gmx_compile_cpp_as_cuda(
-            state_propagator_data_gpu_impl_gpu.cpp
-            )
-    endif()
 else()
     gmx_add_libgromacs_sources(
       state_propagator_data_gpu_impl.cpp
