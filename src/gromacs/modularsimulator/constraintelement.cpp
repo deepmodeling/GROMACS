@@ -90,9 +90,10 @@ void ConstraintsElement<variable>::elementSetup()
                                           ? freeEnergyPerturbationElement_->constLambdaView()[efptBONDED]
                                           : 0;
         // Constrain the initial coordinates and velocities
-        do_constrain_first(fplog_, constr_, inputrec_, mdAtoms_, statePropagatorData_->localNumAtoms(),
-                           statePropagatorData_->positionsView(), statePropagatorData_->velocitiesView(),
-                           statePropagatorData_->box(), lambdaBonded);
+        do_constrain_first(
+                fplog_, constr_, inputrec_, statePropagatorData_->totalNumAtoms(),
+                statePropagatorData_->localNumAtoms(), statePropagatorData_->positionsView(),
+                statePropagatorData_->velocitiesView(), statePropagatorData_->box(), lambdaBonded);
 
         if (isMasterRank_)
         {
@@ -152,7 +153,7 @@ void ConstraintsElement<variable>::apply(Step step, bool calculateVirial, bool w
     }
 
     constr_->apply(writeLog, writeEnergy, step, 1, 1.0, x, xprime, min_proj, statePropagatorData_->box(),
-                   lambdaBonded, &dvdlambda, v, calculateVirial ? &vir_con : nullptr, variable);
+                   lambdaBonded, &dvdlambda, v, calculateVirial, vir_con, variable);
 
     if (calculateVirial)
     {

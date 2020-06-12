@@ -1,8 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,29 +33,63 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Internal API of the OpenCL non-bonded module.
+ * \brief
+ * This implements tests on tool help writing. Based on mdrun test version.
  *
- *  \author Szilárd Páll <pall.szilard@gmail.com>
- *  \ingroup module_nbnxm
+ * \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \author Paul Bauer <paul.bauer.q@gmail.com>
  */
-
 #include "gmxpre.h"
 
-#include "nbnxm_ocl_types.h"
+#include <memory>
 
-#ifndef NBNXN_OCL_INTERNAL_H
-#    define NBNXN_OCL_INTERNAL_H
+#include "gromacs/commandline/cmdlinehelpcontext.h"
+#include "gromacs/commandline/cmdlinemodule.h"
+#include "gromacs/commandline/cmdlineoptionsmodule.h"
+#include "gromacs/tools/convert_tpr.h"
+#include "gromacs/tools/dump.h"
+#include "gromacs/tools/report_methods.h"
+#include "gromacs/utility/stringstream.h"
+#include "gromacs/utility/textwriter.h"
 
-namespace Nbnxm
+#include "testutils/cmdlinetest.h"
+#include "testutils/refdata.h"
+
+namespace gmx
+{
+namespace test
+{
+namespace
 {
 
-/*! \brief Returns true if LJ combination rules are used in the non-bonded kernels.
- *
- *  \param[in] vdwType The VdW interaction/implementation type as defined by evdwOcl in
- * nbnxn_ocl_types.h. \returns           True if combination rules are used by the run
- */
-bool useLjCombRule(int vdwType);
+class HelpwritingTest : public gmx::test::CommandLineTestBase
+{
+public:
+    void runTest(gmx::ICommandLineModule* module) { testWriteHelp(module); }
+};
 
-} // namespace Nbnxm
+TEST_F(HelpwritingTest, ConvertTprWritesHelp)
+{
+    const std::unique_ptr<gmx::ICommandLineModule> module(gmx::ICommandLineOptionsModule::createModule(
+            "convert-tpr", "Dummy Info", ConvertTprInfo::create()));
+    runTest(module.get());
+};
 
-#endif /* NBNXN_OCL_INTERNAL_H */
+
+TEST_F(HelpwritingTest, DumpWritesHelp)
+{
+    const std::unique_ptr<gmx::ICommandLineModule> module(
+            gmx::ICommandLineOptionsModule::createModule("dump", "Dummy Info", DumpInfo::create()));
+    runTest(module.get());
+};
+
+TEST_F(HelpwritingTest, ReportMethodsWritesHelp)
+{
+    const std::unique_ptr<gmx::ICommandLineModule> module(gmx::ICommandLineOptionsModule::createModule(
+            "report-methods", "Dummy Info", ReportMethodsInfo::create()));
+    runTest(module.get());
+};
+
+} // namespace
+} // namespace test
+} // namespace gmx

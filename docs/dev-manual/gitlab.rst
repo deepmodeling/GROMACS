@@ -83,12 +83,14 @@ GitLab CI job parameters, but note the following GROMACS-specific conventions.
         intended to apply.)
         Instead of setting any of these directly in a job definition, try to use
         one of the pre-defined behaviors (defined as ``.rules:<something>`` in
-        :file:`admin/gitlab-ci/global.gitlab-ci.yml`).
+        :file:`admin/gitlab-ci/rules.gitlab-ci.yml`).
         Errors or unexpected behavior will occur if you specify more than one
         *.rules:...* template, or if you use these parameters in combination
         with a *.rules...* template.
         To reduce errors and unexpected behavior, restrict usage of these controls
         to regular job definitions (don't use in "hidden" or parent jobs).
+        Note that *rules* is not compatible with the older *only* and *except*
+        parameters. We have standardized on the (newer) *rules* mechanism.
 
     tags
         Jobs that can only run in the |Gromacs| GitLab CI Runner infrastructure
@@ -125,6 +127,8 @@ Global templates
 In addition to the templates in the main job definition files,
 common "mix-in" functionality and behavioral templates are defined in
 :file:`admin/gitlab-ci/global.gitlab-ci.yml`.
+For readability, some parameters may be separated into their own files, named
+according to the parameter (e.g. :file:`rules.gitlab-ci.yml`).
 
 Jobs beginning with ``.use-`` provide mix-in behavior, such as boilerplate for
 jobs using a particular tool chain.
@@ -155,6 +159,21 @@ basic job name from qualifiers or details. Also consider
 `grouping jobs <https://docs.gitlab.com/ee/ci/pipelines/index.html#grouping-jobs>`__
 
 .. _variables:
+
+Updating regression tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Changes in |Gromacs| that require changes in regression-tests are notoriously hard,
+because a merge request that tests against the non-updated version of the
+regression tests will necessarily fail, while updating regression tests while
+the current change is not integrated into master, might cause other
+merge request pipelines to fail.
+
+The solution is a new regression-test branch or commit, uploaded to gitlab.
+Then set that regression test branch with REGRESSIONTESTBRANCH or
+the specific commit with REGRESSIONTESTCOMMIT when
+running the specific pipeline that requires the regressiontest-update. 
+See below on how to set variables for specific pipelines.
 
 Variables
 ~~~~~~~~~
@@ -209,5 +228,23 @@ Other important variable keys are as follows.
         patch to the base Docker images to include the dependency to reduce
         pipeline execution time.
 
+    REGRESSIONTESTBRANCH
+        Use this branch of the regressiontests rather than master to allow for 
+        merge requests that require updated regression tests with valid CI tests.
+
+    REGRESSIONTESTCOMMIT
+        Use this commit to the regressiontests rather than the head on master to 
+        allow for merge requests that require updated regression tests with 
+        valid CI tests.
+
+
 .. todo:: Define common variables.
     ``BUILD_DIR``, ``INSTALL_DIR``, ``CACHE_FALLBACK_KEY``, ...
+
+Setting variables
+~~~~~~~~~~~~~~~~~
+
+Variables for individual piplelines are set in the gitlab interface under 
+``CI/CD``; ``Pipelines``. Then chose in the top right corner ``Run Piplelines``.
+Under ``Run for``, the desired branch may be selected, and variables may be set
+in the fields below.

@@ -50,8 +50,10 @@ clang-tidy:test:
     EXTRA_INSTALLS: clang-tidy-$COMPILER_MAJOR_VERSION
     KUBERNETES_CPU_LIMIT: 4
     KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_REQUEST: 4Gi
   script:
+    # Make sure that a Python interpreter can be found for `/bin/env python`
+    - test -x /usr/bin/python || update-alternatives --install /usr/bin/python python /usr/bin/python3 1
     # TODO (issue #3272) `master` is not appropriate for use on release-xxxx branches, how should we handle that?
     - REV=$(git fetch -q https://gitlab.com/gromacs/gromacs.git master && git show -s --pretty=format:"%h" `git merge-base FETCH_HEAD HEAD`)
     - HEAD_REV=$(git show -s --pretty=format:"%h" HEAD)
@@ -80,7 +82,7 @@ clang-format:
     COMPILER_MAJOR_VERSION: 7
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_LIMIT: 2Gi
+    KUBERNETES_MEMORY_REQUEST: 2Gi
     EXTRA_INSTALLS: clang-format-$COMPILER_MAJOR_VERSION
   script:
     # TODO (issue #3272) `master` is not appropriate for use on release-xxxx branches, how should we handle that?
@@ -110,7 +112,7 @@ copyright-check:
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_LIMIT: 2Gi
+    KUBERNETES_MEMORY_REQUEST: 2Gi
   script:
     # TODO (issue #3272) `master` is not appropriate for use on release-xxxx branches, how should we handle that?
     - REV=$(git fetch -q https://gitlab.com/gromacs/gromacs.git master && git show -s --pretty=format:"%h" `git merge-base FETCH_HEAD HEAD`)
@@ -148,14 +150,16 @@ check-source:
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_LIMIT: 2Gi
+    KUBERNETES_MEMORY_REQUEST: 2Gi
     BUILD_DIR: build-docs
   script:
     - cd $BUILD_DIR
     - cmake --build . --target check-source
     - awk '/warning.*include style.*order/,/You can use.*rst|^$/' docs/doxygen/check-source.log | tee doxygenError.txt || true
+    - awk '/warning:.*includes/,/unnecessarily|^$/' docs/doxygen/check-source.log | tee -a doxygenError.txt || true
     - awk '/Traceback/,/.*rror|^$/' docs/doxygen/doxygen*log docs/doxygen/check-source.log | tee -a doxygenError.txt || true
     - awk '/warning:/,/in doxygen.*|^$/' docs/doxygen/doxygen*log | tee -a doxygenError.txt || true
+    - grep -i "unused cycle suppression" docs/doxygen/check-source.log | tee -a doxygenError.txt || true
     - if [ -s doxygenError.txt ] ; then echo "Found errors while running doxygen"; exit 1; fi
   artifacts:
     name: docs-artifacts-$CI_COMMIT_REF_SLUG
@@ -175,7 +179,7 @@ linkchecker:
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
-    KUBERNETES_MEMORY_LIMIT: 2Gi
+    KUBERNETES_MEMORY_REQUEST: 2Gi
     BUILD_DIR: build-docs
   script:
     - cd $BUILD_DIR

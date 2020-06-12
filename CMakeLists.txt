@@ -479,10 +479,7 @@ include(gmxManageSharedLibraries)
 #    set(XML_LIBRARIES ${LIBXML2_LIBRARIES})
 #endif()
 
-gmx_option_trivalue(
-    GMX_HWLOC
-    "Use hwloc portable hardware locality library"
-    "AUTO")
+option(GMX_HWLOC "Use hwloc portable hardware locality library" OFF)
 
 if (GMX_HWLOC)
     # Find quietly the second time.
@@ -607,50 +604,9 @@ gmx_test_inline_asm_gcc_x86(GMX_X86_GCC_INLINE_ASM)
 include(gmxSetBuildInformation)
 gmx_set_build_information()
 
-gmx_option_multichoice(
-    GMX_USE_RDTSCP
-    "Use low-latency RDTSCP instruction for CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments)"
-    "AUTO"
-    OFF ON AUTO DETECT)
+# Anything but truly ancient hardware should support rdtscp, so we enable it by default
+option(GMX_USE_RDTSCP "Use low-latency RDTSCP instruction for CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments)" ON)
 mark_as_advanced(GMX_USE_RDTSCP)
-
-macro(gmx_check_rdtscp)
-    if (CPU_DETECTION_FEATURES MATCHES "rdtscp")
-        set(HAVE_RDTSCP 1)
-        set(RDTSCP_DETECTION_MESSAGE " - detected on the build host")
-    else()
-        set(RDTSCP_DETECTION_MESSAGE " - not detected on the build host")
-    endif()
-endmacro()
-
-set(HAVE_RDTSCP 0)
-if (GMX_USE_RDTSCP STREQUAL "ON")
-    set(HAVE_RDTSCP 1)
-elseif(GMX_USE_RDTSCP STREQUAL "DETECT")
-    gmx_check_rdtscp()
-elseif(GMX_USE_RDTSCP STREQUAL "AUTO")
-    # If the user specified automated SIMD selection, that the choice
-    # is made based on detection on the build host. If so, then RDTSCP
-    # should be chosen the same way.
-    #
-    # If the user specified an AVX SIMD level (e.g. when
-    # cross-compiling GROMACS) then they will get our best guess, ie
-    # that in practice AVX mostly correlates with rdtscp (and anyway
-    # is only relevant in rather old x86 hardware).
-    if (GMX_SIMD STREQUAL "AUTO")
-        gmx_check_rdtscp()
-    elseif (GMX_SIMD MATCHES "AVX")
-        set(HAVE_RDTSCP 1)
-    endif()
-endif()
-gmx_check_if_changed(HAVE_RDTSCP_CHANGED HAVE_RDTSCP)
-if (HAVE_RDTSCP_CHANGED)
-    if (HAVE_RDTSCP)
-        message(STATUS "Enabling RDTSCP support${RDTSCP_DETECTION_MESSAGE}")
-    else()
-        message(STATUS "Disabling RDTSCP support${RDTSCP_DETECTION_MESSAGE}")
-    endif()
-endif()
 
 include(gmxTestLargeFiles)
 gmx_test_large_files(GMX_LARGEFILES)
@@ -730,13 +686,7 @@ if(GMX_FAHCORE)
   include_directories(${COREWRAP_INCLUDE_DIR})
 endif()
 
-# Value of GMX_BUILD_HELP=AUTO tries to generate things, but will only
-# produce warnings if that fails.
-set(build_help_default AUTO)
-if (SOURCE_IS_SOURCE_DISTRIBUTION OR CMAKE_CROSSCOMPILING)
-    set(build_help_default OFF)
-endif()
-gmx_option_trivalue(GMX_BUILD_HELP "Build completions automatically (requires that compiled binaries can be executed on the build host) and install man pages if built (requires building the 'man' target manually)" ${build_help_default})
+option(GMX_BUILD_HELP "Build completions (requires that compiled binaries can be executed on build host) and install man pages if built (requires building the 'man' target manually)" OFF)
 mark_as_advanced(GMX_BUILD_HELP)
 if (GMX_BUILD_HELP AND SOURCE_IS_SOURCE_DISTRIBUTION AND BUILD_IS_INSOURCE)
     message(FATAL_ERROR

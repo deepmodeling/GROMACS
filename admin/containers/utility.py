@@ -67,7 +67,7 @@ compiler_group.add_argument('--gcc', type=int, nargs='?', const=7, default=7,
                             help='Select GNU compiler tool chain. (Default) '
                                  'Some checking is implemented to avoid incompatible combinations')
 compiler_group.add_argument('--llvm', type=str, nargs='?', const='7', default=None,
-                            choices=['3.6', '6', '7', '8'],
+                            choices=['3.6', '6', '7', '8', '9'],
                             help='Select LLVM compiler tool chain. '
                                  'Some checking is implemented to avoid incompatible combinations')
 compiler_group.add_argument('--icc', type=int, nargs='?', const=19, default=None,
@@ -104,5 +104,4 @@ parser.add_argument('--clfft', type=str, nargs='?', const='master', default=None
                     help='Add external clFFT libraries to the build image')
 
 parser.add_argument('--doxygen', type=str, nargs='?', const='1.8.5', default=None,
-                    choices=['1.8.5', '1.8.11'],
                     help='Add doxygen environment for documentation builds. Also adds other requirements needed for final docs images.')
