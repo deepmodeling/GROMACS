@@ -105,7 +105,7 @@ TEST_F(RegisterFrameconverterTest, RegistrationWorks)
     method()->addFrameConverter(std::make_unique<DummyConverter>(FrameConverterFlags::AtomsInBox));
     EXPECT_EQ(1, method()->getNumberOfConverters());
     method()->addFrameConverter(
-            std::make_unique<DummyConverter>(FrameConverterFlags::FitToReferencePrgressive));
+            std::make_unique<DummyConverter>(FrameConverterFlags::FitToReferenceProgressive));
     EXPECT_EQ(2, method()->getNumberOfConverters());
 
     runTest();

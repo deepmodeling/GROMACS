@@ -70,7 +70,7 @@ enum class FrameConverterFlags : unsigned long
      */
     MoleculesAreWhole = 1 << 1,
     /*! \brief
-     * Telss us that no jumps over periodic boundary are present. Implies molecules are made whole.
+     * Tells us that no jumps over periodic boundary are present. Implies molecules are made whole.
      */
     NoPBCJumps = 1 << 2,
     /*! \brief
@@ -132,14 +132,16 @@ enum class FrameConverterFlags : unsigned long
      *
      * Specific for progressive fit.
      */
-    FitToReferencePrgressive = 1 << 14,
+    FitToReferenceProgressive = 1 << 14,
     /*! \brief
      * Tells us that converter has set a new center for the system.
      *
      * This affects the routines that place atoms in the box and the unit cell changing routines,
      * so they have to be invalidated by any method setting this flag.
      */
-    NewSystemCenter = 1 << 15
+    NewSystemCenter = 1 << 15,
+    //! Final entry to get number of operations.
+    Count
 };
 
 //! Conversion of flag to its corresponding unsigned long value.
