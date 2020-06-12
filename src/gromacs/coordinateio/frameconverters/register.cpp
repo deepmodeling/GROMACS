@@ -54,10 +54,10 @@ namespace gmx
 void ProcessFrameConversion::addAndCheckGuarantee(const unsigned long flag)
 {
     listOfGuarantees_ |= flag;
-    if (((flag & convertFlag(FrameConverterFlags::NewSystemCenter)) != 0u)
-        || ((flag & convertFlag(FrameConverterFlags::UnitCellIsCompact)) != 0u)
-        || ((flag & convertFlag(FrameConverterFlags::UnitCellIsRectangular)) != 0u)
-        || ((flag & convertFlag(FrameConverterFlags::UnitCellIsTriclinic)) != 0u))
+    if (((flag & convertFlag(FrameConverterFlags::NewSystemCenter)) != 0U)
+        || ((flag & convertFlag(FrameConverterFlags::UnitCellIsCompact)) != 0U)
+        || ((flag & convertFlag(FrameConverterFlags::UnitCellIsRectangular)) != 0U)
+        || ((flag & convertFlag(FrameConverterFlags::UnitCellIsTriclinic)) != 0U))
     {
         listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::AtomsInBox);
         listOfGuarantees_ &= ~convertFlag(FrameConverterFlags::MoleculeCOMInBox);
