@@ -41,9 +41,3 @@ gmx_add_unit_test(EwaldUnitTests ewald-test HARDWARE_DETECTION
     GPU_CPP_SOURCE_FILES
         pmetestcommon.cpp
 )
-
-if (GMX_USE_CUDA)
-gmx_compile_cpp_as_cuda(
-    pmetestcommon.cpp
-)
-endif()
