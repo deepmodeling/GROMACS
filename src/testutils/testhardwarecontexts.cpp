@@ -48,7 +48,6 @@
 
 #include <memory>
 
-#include "gromacs/gpu_utils/gpu_testutils.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/detecthardware.h"
 #include "gromacs/hardware/hw_info.h"
@@ -102,20 +101,17 @@ void TestHardwareEnvironment::SetUp()
     hardwareContexts_.clear();
     hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>("CPU"));
     hardwareInfo_ = hardwareInit();
-    if (canComputeOnGpu())
+    // Constructing contexts for all compatible GPUs - will not add anything for non-GPU builds
+    for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
     {
-        // Constructing contexts for all compatible GPUs - will not add anything for non-GPU builds
-        for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
-        {
-            const DeviceInformation* deviceInfo = getDeviceInfo(hardwareInfo_->gpu_info, gpuIndex);
-            init_gpu(deviceInfo);
+        const DeviceInformation* deviceInfo = getDeviceInfo(hardwareInfo_->gpu_info, gpuIndex);
+        init_gpu(deviceInfo);
 
-            char stmp[200] = {};
-            get_gpu_device_info_string(stmp, hardwareInfo_->gpu_info, gpuIndex);
-            std::string description = "(GPU " + std::string(stmp) + ") ";
-            hardwareContexts_.emplace_back(
-                    std::make_unique<TestHardwareContext>(description.c_str(), *deviceInfo));
-        }
+        char stmp[200] = {};
+        get_gpu_device_info_string(stmp, hardwareInfo_->gpu_info, gpuIndex);
+        std::string description = "(GPU " + std::string(stmp) + ") ";
+        hardwareContexts_.emplace_back(
+                std::make_unique<TestHardwareContext>(description.c_str(), *deviceInfo));
     }
 }
 
