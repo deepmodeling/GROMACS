@@ -46,11 +46,11 @@
 #ifndef GMX_MDLIB_TESTS_CONSTRTESTRUNNERS_H
 #define GMX_MDLIB_TESTS_CONSTRTESTRUNNERS_H
 
-#include "constrtestdata.h"
-
 #include <gtest/gtest.h>
 
 #include "testutils/testhardwarecontext.h"
+
+#include "constrtestdata.h"
 
 struct t_pbc;
 
