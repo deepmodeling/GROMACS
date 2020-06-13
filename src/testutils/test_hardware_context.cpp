@@ -39,12 +39,12 @@
  * \author Aleksei Iupinov <a.yupinov@gmail.com>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  *
- * \ingroup module_ewald
+ * \ingroup module_testutils
  */
 
 #include "gmxpre.h"
 
-#include "testhardwarecontext.h"
+#include "test_hardware_context.h"
 
 #include <memory>
 

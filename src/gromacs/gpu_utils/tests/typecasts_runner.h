@@ -43,12 +43,13 @@
 
 #include "gmxpre.h"
 
-#include <gtest/gtest.h>
 #include <vector>
 
-#include "testutils/testhardwarecontext.h"
+#include <gtest/gtest.h>
 
 #include "gromacs/math/vectypes.h"
+
+#include "testutils/test_hardware_context.h"
 
 namespace gmx
 {

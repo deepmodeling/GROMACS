@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,8 +32,8 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_EWALD_TEST_HARDWARE_CONTEXT_H
-#define GMX_EWALD_TEST_HARDWARE_CONTEXT_H
+#ifndef GMX_TESTUTILS_TEST_HARDWARE_ENVIRONMENT_H
+#define GMX_TESTUTILS_TEST_HARDWARE_ENVIRONMENT_H
 
 /*! \internal \file
  * \brief
@@ -41,66 +41,59 @@
  *
  * \author Aleksei Iupinov <a.yupinov@gmail.com>
  * \author Artem Zhmurov <zhmurov@gmail.com>
- * \ingroup module_ewald
+ * 
+ * \ingroup module_testutils
  */
 
 #include <map>
-#include <string>
 #include <vector>
 
-#include "gromacs/utility/classhelpers.h"
+#include <gtest/gtest.h>
+
+#include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/gmxassert.h"
 
-class DeviceContext;
-struct DeviceInformation;
-class DeviceStream;
+#include "testutils/test_hardware_context.h"
+
+struct gmx_hw_info_t;
 
 namespace gmx
 {
 namespace test
 {
 
-//! Hardware code path being tested
-enum class CodePath
-{
-    CPU = 0,
-    GPU = 1,
-    Count
-};
-//! Return a string useful for human-readable messages describing a \c codePath.
-const char* codePathToString(CodePath codePath);
-
 /*! \internal \brief
- * A structure to describe a hardware context that persists over the lifetime
- * of the test binary.
+ * This class performs one-time test initialization (enumerating the hardware)
  */
-class TestHardwareContext
+class TestHardwareEnvironment : public ::testing::Environment
 {
-public:
-    //! Get the code path
-    CodePath codePath() const;
-    //! Returns a human-readable context description line
-    std::string description() const;
-    //! Returns the device info pointer
-    const DeviceInformation& deviceInfo() const;
-    //! Get the device context
-    const DeviceContext* deviceContext() const;
-    //! Get the device stream
-    const DeviceStream* deviceStream() const;
-    //! Constructs the context for CPU builds
-    TestHardwareContext(const char* description);
-    //! Constructs the context for GPU builds
-    TestHardwareContext(const char* description, const DeviceInformation& deviceInfo);
-    //! Destructor
-    ~TestHardwareContext();
-
 private:
-    //! Implementation type.
-    class Impl;
-    //! Implementation object.
-    PrivateImplPointer<Impl> impl_;
+    //! General hardware info
+    gmx_hw_info_t* hardwareInfo_;
+    //! Storage of hardware contexts
+    std::vector<std::unique_ptr<TestHardwareContext>> hardwareContexts_;
+
+public:
+    //! This is called by GTest framework once to query the hardware
+    void SetUp() override;
+    //! This is called by GTest framework once release the hardware
+    void TearDown() override;
+    //! Get available hardware contexts.
+    const std::vector<std::unique_ptr<TestHardwareContext>>& getHardwareContexts() const
+    {
+        return hardwareContexts_;
+    }
+    //! Get available hardware information.
+    const gmx_hw_info_t* hwinfo() const { return hardwareInfo_; }
 };
+
+//! Get the test environment
+const TestHardwareEnvironment* getTestHardwareEnvironment();
+
+/*! \brief This constructs the test environment during setup of the
+ * unit test so that they can use the hardware context. */
+void callAddGlobalTestEnvironment();
 
 } // namespace test
 } // namespace gmx
-#endif
+#endif // GMX_TESTUTILS_TEST_HARDWARE_ENVIRONMENT_H

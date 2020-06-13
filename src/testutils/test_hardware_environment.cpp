@@ -37,12 +37,14 @@
  * Implements test environment class which performs hardware enumeration for unit tests.
  *
  * \author Aleksei Iupinov <a.yupinov@gmail.com>
- * \ingroup module_ewald
+ * \author Artem Zhmurov <zhmurov@gmail.com>
+ * 
+ * \ingroup module_testutils
  */
 
 #include "gmxpre.h"
 
-#include "testhardwarecontexts.h"
+#include "test_hardware_environment.h"
 
 #include "config.h"
 

@@ -56,7 +56,7 @@
 #include "gromacs/mdlib/settle_gpu.cuh"
 #include "gromacs/utility/unique_cptr.h"
 
-#include "testutils/testhardwarecontext.h"
+#include "testutils/test_hardware_context.h"
 
 namespace gmx
 {

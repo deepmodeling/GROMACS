@@ -47,7 +47,7 @@
 
 #include <gtest/gtest.h>
 
-#include "testutils/testhardwarecontext.h"
+#include "testutils/test_hardware_context.h"
 
 #include "settletestdata.h"
 

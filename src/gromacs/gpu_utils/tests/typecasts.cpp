@@ -47,8 +47,8 @@
 #include "gromacs/gpu_utils/gpu_testutils.h"
 #include "gromacs/utility/exceptions.h"
 
+#include "testutils/test_hardware_environment.h"
 #include "testutils/testasserts.h"
-#include "testutils/testhardwarecontexts.h"
 #include "testutils/testmatchers.h"
 
 #include "typecasts_runner.h"

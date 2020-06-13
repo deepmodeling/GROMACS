@@ -70,8 +70,8 @@
 #include "gromacs/utility/logger.h"
 #include "gromacs/utility/stringutil.h"
 
+#include "testutils/test_hardware_environment.h"
 #include "testutils/testasserts.h"
-#include "testutils/testhardwarecontexts.h"
 
 namespace gmx
 {

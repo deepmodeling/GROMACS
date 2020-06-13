@@ -54,8 +54,8 @@ set(TESTUTILS_SOURCES
     testasserts.cpp
     testfilemanager.cpp
     testfileredirector.cpp
-    testhardwarecontext.cpp
-    testhardwarecontexts.cpp
+    test_hardware_context.cpp
+    test_hardware_environment.cpp
     testinit.cpp
     testmatchers.cpp
     testoptions.cpp
