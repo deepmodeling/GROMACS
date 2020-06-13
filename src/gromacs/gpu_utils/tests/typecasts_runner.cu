@@ -108,11 +108,12 @@ static __global__ void convertRVecToFloat3OnDevice_kernel(DeviceBuffer<float3> g
     }
 }
 
-void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>& h_rVecOutput, const std::vector<gmx::RVec>& h_rVecInput)
+void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>&       h_rVecOutput,
+                                 const std::vector<gmx::RVec>& h_rVecInput,
+                                 const TestHardwareContext*    testHardwareContext)
 {
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceContext& deviceContext = *testHardwareContext->deviceContext();
+    const DeviceStream&  deviceStream  = *testHardwareContext->deviceStream();
 
     const int numElements = h_rVecInput.size();
 

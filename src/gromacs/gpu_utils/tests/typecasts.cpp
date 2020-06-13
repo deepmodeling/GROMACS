@@ -48,6 +48,7 @@
 #include "gromacs/utility/exceptions.h"
 
 #include "testutils/testasserts.h"
+#include "testutils/testhardwarecontexts.h"
 #include "testutils/testmatchers.h"
 
 #include "typecasts_runner.h"
@@ -61,19 +62,13 @@ namespace test
 //! Test data in RVec format
 static const std::vector<RVec> rVecInput = { { 1.0, 2.0, 3.0 }, { 4.0, 5.0, 6.0 } };
 
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnHost)
+TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3)
 {
-    std::vector<RVec> rVecOutput(rVecInput.size());
-    convertRVecToFloat3OnHost(rVecOutput, rVecInput);
-    EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
-}
-
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnDevice)
-{
-    if (canComputeOnGpu())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
         std::vector<RVec> rVecOutput(rVecInput.size());
-        convertRVecToFloat3OnDevice(rVecOutput, rVecInput);
+        convertRVecToFloat3(rVecOutput, rVecInput, context.get());
         EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
     }
 }

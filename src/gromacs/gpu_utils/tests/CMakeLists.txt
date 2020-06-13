@@ -38,7 +38,7 @@
 # different files and strategies for the different GPU implementation
 # flavours.
 
-gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test
+gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test HARDWARE_DETECTION
     CPP_SOURCE_FILES
         # Infrastructure
         gputest.cpp

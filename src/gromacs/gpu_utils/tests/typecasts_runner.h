@@ -43,7 +43,10 @@
 
 #include "gmxpre.h"
 
+#include <gtest/gtest.h>
 #include <vector>
+
+#include "testutils/testhardwarecontext.h"
 
 #include "gromacs/math/vectypes.h"
 
@@ -62,10 +65,32 @@ void convertRVecToFloat3OnHost(std::vector<gmx::RVec>& rVecOutput, const std::ve
 
 /*! \brief Tests the compatibility of RVec and float3 using the conversion on device.
  *
- * \param[out] rVecOutput  Data in RVec format for the output.
- * \param[in]  rVecInput   Data in RVec format with the input.
+ * \param[out] rVecOutput           Data in RVec format for the output.
+ * \param[in]  rVecInput            Data in RVec format with the input.
+ * \param[in]  testHardwareContext  Test herdware environment to get DeviceContext and DeviceStream from.
  */
-void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>& rVecOutput, const std::vector<gmx::RVec>& rVecInput);
+void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>&       rVecOutput,
+                                 const std::vector<gmx::RVec>& rVecInput,
+                                 const TestHardwareContext*    testHardwareContext);
+
+/*! \brief Tests the compatibility of RVec and float3 using the conversion on device.
+ *
+ * \param[out] rVecOutput           Data in RVec format for the output.
+ * \param[in]  rVecInput            Data in RVec format with the input.
+ * \param[in]  testHardwareContext  Test herdware environment to get DeviceContext and DeviceStream from.
+ */
+static inline void convertRVecToFloat3(std::vector<gmx::RVec>&       rVecOutput,
+                                       const std::vector<gmx::RVec>& rVecInput,
+                                       const TestHardwareContext*    testHardwareContext)
+{
+    switch (testHardwareContext->codePath())
+    {
+        case CodePath::CPU: return convertRVecToFloat3OnHost(rVecOutput, rVecInput);
+        case CodePath::GPU:
+            return convertRVecToFloat3OnDevice(rVecOutput, rVecInput, testHardwareContext);
+        default: FAIL() << "Unknown code path: can only be CPU or GPU.";
+    }
+}
 
 } // namespace test
 } // namespace gmx
