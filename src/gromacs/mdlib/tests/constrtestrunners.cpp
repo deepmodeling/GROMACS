@@ -156,7 +156,9 @@ void applyLincs(ConstraintsTestData* testData, t_pbc pbc)
  * \param[in] testData        Test data structure.
  * \param[in] pbc             Periodic boundary data.
  */
-void applyLincsGpu(ConstraintsTestData gmx_unused* testData, t_pbc gmx_unused pbc)
+void applyLincsGpu(ConstraintsTestData* /* testData */,
+                   t_pbc /* pbc */,
+                   TestHardwareContext* /* testHardwareContext */)
 {
     FAIL() << "Dummy LINCS CUDA function was called instead of the real one.";
 }

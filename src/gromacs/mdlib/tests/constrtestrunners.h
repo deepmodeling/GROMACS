@@ -48,6 +48,10 @@
 
 #include "constrtestdata.h"
 
+#include <gtest/gtest.h>
+
+#include "testutils/testhardwarecontext.h"
+
 struct t_pbc;
 
 namespace gmx
@@ -55,18 +59,94 @@ namespace gmx
 namespace test
 {
 
+enum class ConstraintsAlgorithm : int
+{
+    Shake = 0,
+    Lincs = 1,
+    Count
+};
+
 /*! \brief Apply SHAKE constraints to the test data.
  */
 void applyShake(ConstraintsTestData* testData, t_pbc pbc);
 /*! \brief Apply LINCS constraints to the test data.
  */
 void applyLincs(ConstraintsTestData* testData, t_pbc pbc);
-/*! \brief Apply GPU version of LINCS constraints to the test data.
+/*! \brief
+ * Initialize and apply LINCS constraints on GPU.
  *
- * All the data is copied to the GPU device, then LINCS is applied and
- * the resulting coordinates are copied back.
+ * \param[in] testData             Test data structure.
+ * \param[in] pbc                  Periodic boundary data.
+ * \param[in] testHardwareContext  Test herdware environment to get DeviceContext and DeviceStream from.
  */
-void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc);
+void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc, TestHardwareContext* testHardwareContext);
+
+
+class ConstraintsTestRunner
+{
+public:
+    ConstraintsTestRunner(ConstraintsAlgorithm algorithm, TestHardwareContext* testHardwareContext) :
+        algorithm_(algorithm),
+        testHardwareContext_(testHardwareContext)
+    {
+    }
+    void applyConstraints(ConstraintsTestData* testData, t_pbc pbc)
+    {
+        switch (testHardwareContext_->codePath())
+        {
+            case CodePath::CPU:
+                switch (algorithm_)
+                {
+                    case ConstraintsAlgorithm::Shake: return applyShake(testData, pbc);
+
+                    case ConstraintsAlgorithm::Lincs: return applyLincs(testData, pbc);
+
+                    default:
+                        FAIL() << "Only SHAKE and LINCS are supported as CPU runners for the "
+                                  "constraints tests.";
+                }
+            case CodePath::GPU:
+                switch (algorithm_)
+                {
+                    case ConstraintsAlgorithm::Lincs: return applyLincs(testData, pbc);
+
+                    default:
+                        FAIL() << "Only LINCS is supported as a GPU runner for the constraints "
+                                  "tests.";
+                }
+            default: FAIL() << "Unknown code path: can only be CPU or GPU.";
+        }
+    }
+    std::string name()
+    {
+        switch (testHardwareContext_->codePath())
+        {
+            case CodePath::CPU:
+                switch (algorithm_)
+                {
+                    case ConstraintsAlgorithm::Shake: return "SHAKE";
+
+                    case ConstraintsAlgorithm::Lincs: return "LINCS";
+
+                    default: return "Unsupported";
+                }
+            case CodePath::GPU:
+                switch (algorithm_)
+                {
+                    case ConstraintsAlgorithm::Lincs: return "LINCS_GPU";
+
+                    default: return "Unsupported";
+                }
+            default: return "Unsupported";
+        }
+    }
+
+private:
+    ConstraintsAlgorithm algorithm_;
+    //! Pointer to the global test hardware context (if on GPU)
+    TestHardwareContext* testHardwareContext_;
+};
+
 
 } // namespace test
 } // namespace gmx

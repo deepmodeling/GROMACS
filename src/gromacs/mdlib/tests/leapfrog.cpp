@@ -71,6 +71,7 @@
 
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"
+#include "testutils/testhardwarecontexts.h"
 
 #include "leapfrogtestdata.h"
 #include "leapfrogtestrunners.h"
@@ -137,27 +138,12 @@ const LeapFrogTestParameters parametersSets[] = {
 class LeapFrogTest : public ::testing::TestWithParam<LeapFrogTestParameters>
 {
 public:
-    //! Availiable runners (CPU and GPU versions of the Leap-Frog)
-    static std::unordered_map<std::string, void (*)(LeapFrogTestData* testData, const int numSteps)> s_runners_;
     //! Reference data
     TestReferenceData refData_;
     //! Checker for reference data
     TestReferenceChecker checker_;
 
     LeapFrogTest() : checker_(refData_.rootChecker()) {}
-
-    //! Setup the runners one for all parameters sets
-    static void SetUpTestCase()
-    {
-        //
-        // All runners should be registered here under appropriate conditions
-        //
-        s_runners_["LeapFrogSimple"] = integrateLeapFrogSimple;
-        if (GMX_GPU == GMX_GPU_CUDA && canComputeOnGpu())
-        {
-            s_runners_["LeapFrogGpu"] = integrateLeapFrogGpu;
-        }
-    }
 
     /*! \brief Test the numerical integrator against analytical solution for simple constant force case.
      *
@@ -223,46 +209,58 @@ public:
     }
 };
 
-std::unordered_map<std::string, void (*)(LeapFrogTestData* testData, const int numSteps)> LeapFrogTest::s_runners_;
-
 TEST_P(LeapFrogTest, SimpleIntegration)
 {
-    // Cycle through all available runners
-    for (const auto& runner : s_runners_)
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        std::string runnerName = runner.first;
-
-        LeapFrogTestParameters parameters = GetParam();
-
-        std::string testDescription = formatString(
-                "Testing %s with %d atoms for %d timesteps with %d temperature coupling groups and "
-                "%s pressure coupling (dt = %f, v0=(%f, %f, %f), f0=(%f, %f, %f), nstpcouple = %d)",
-                runnerName.c_str(), parameters.numAtoms, parameters.numSteps,
-                parameters.numTCoupleGroups, parameters.nstpcouple == 0 ? "without" : "with",
-                parameters.timestep, parameters.v[XX], parameters.v[YY], parameters.v[ZZ],
-                parameters.f[XX], parameters.f[YY], parameters.f[ZZ], parameters.nstpcouple);
-        SCOPED_TRACE(testDescription);
-
-        std::unique_ptr<LeapFrogTestData> testData = std::make_unique<LeapFrogTestData>(
-                parameters.numAtoms, parameters.timestep, parameters.v, parameters.f,
-                parameters.numTCoupleGroups, parameters.nstpcouple);
-
-        runner.second(testData.get(), parameters.numSteps);
-
-        real totalTime = parameters.numSteps * parameters.timestep;
-        // TODO For the case of constant force, the numerical scheme is exact and
-        //      the only source of errors is floating point arithmetic. Hence,
-        //      the tolerance can be calculated.
-        FloatingPointTolerance tolerance = absoluteTolerance(parameters.numSteps * 0.000005);
-
-        // Test against the analytical solution (without temperature coupling)
-        if (parameters.numTCoupleGroups == 0 && parameters.nstpcouple == 0)
+        // Run only for supported options
+        if (context->codePath() == CodePath::CPU
+            || (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
         {
-            testAgainstAnalyticalSolution(tolerance, *testData, totalTime);
-        }
+            LeapFrogTestParameters parameters = GetParam();
 
-        checker_.setDefaultTolerance(tolerance);
-        testAgainstReferenceData(*testData);
+            std::string testDescription = formatString(
+                    "Testing on %s with %d atoms for %d timesteps with %d temperature coupling "
+                    "groups and "
+                    "%s pressure coupling (dt = %f, v0=(%f, %f, %f), f0=(%f, %f, %f), nstpcouple = "
+                    "%d)",
+                    context->description().c_str(), parameters.numAtoms, parameters.numSteps,
+                    parameters.numTCoupleGroups, parameters.nstpcouple == 0 ? "without" : "with",
+                    parameters.timestep, parameters.v[XX], parameters.v[YY], parameters.v[ZZ],
+                    parameters.f[XX], parameters.f[YY], parameters.f[ZZ], parameters.nstpcouple);
+            SCOPED_TRACE(testDescription);
+
+            std::unique_ptr<LeapFrogTestData> testData = std::make_unique<LeapFrogTestData>(
+                    parameters.numAtoms, parameters.timestep, parameters.v, parameters.f,
+                    parameters.numTCoupleGroups, parameters.nstpcouple);
+
+            switch (context->codePath())
+            {
+                case CodePath::CPU:
+                    integrateLeapFrogSimple(testData.get(), parameters.numSteps);
+                    break;
+                case CodePath::GPU:
+                    integrateLeapFrogGpu(testData.get(), parameters.numSteps);
+                    break;
+                default: FAIL() << "Unknown code path."; break;
+            }
+
+            real totalTime = parameters.numSteps * parameters.timestep;
+            // TODO For the case of constant force, the numerical scheme is exact and
+            //      the only source of errors is floating point arithmetic. Hence,
+            //      the tolerance can be calculated.
+            FloatingPointTolerance tolerance = absoluteTolerance(parameters.numSteps * 0.000005);
+
+            // Test against the analytical solution (without temperature coupling)
+            if (parameters.numTCoupleGroups == 0 && parameters.nstpcouple == 0)
+            {
+                testAgainstAnalyticalSolution(tolerance, *testData, totalTime);
+            }
+
+            checker_.setDefaultTolerance(tolerance);
+            testAgainstReferenceData(*testData);
+        }
     }
 }
 

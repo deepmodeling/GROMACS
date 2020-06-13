@@ -65,14 +65,14 @@ namespace test
 /*! \brief
  * Initialize and apply LINCS constraints on GPU.
  *
- * \param[in] testData        Test data structure.
- * \param[in] pbc             Periodic boundary data.
+ * \param[in] testData             Test data structure.
+ * \param[in] pbc                  Periodic boundary data.
+ * \param[in] testHardwareContext  Test herdware environment to get DeviceContext and DeviceStream from.
  */
-void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc)
+void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc, TestHardwareContext* testHardwareContext)
 {
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceContext& deviceContext = *testHardwareContext->deviceContext();
+    const DeviceStream&  deviceStream  = *testHardwareContext->deviceStream();
 
     auto lincsGpu = std::make_unique<LincsGpu>(testData->ir_.nLincsIter, testData->ir_.nProjOrder,
                                                deviceContext, deviceStream);

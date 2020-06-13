@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -78,10 +78,11 @@ void applySettleCpu(SettleTestData*    testData,
  * Initializes SETTLE object, copied data to the GPU, applies algorithm, copies the data back,
  * destroys the object. The coordinates, velocities and virial are updated in the testData object.
  *
- * \param[in,out] testData             An object, containing all the data structures needed by
- * SETTLE. \param[in]     pbc                  Periodic boundary setup. \param[in] updateVelocities
- * If the velocities should be updated. \param[in]     calcVirial           If the virial should be
- * computed. \param[in]     testHardwareContext  GPU hardware context to use.
+ * \param[in,out] testData             An object with the data structures needed by SETTLE.
+ * \param[in]     pbc                  Periodic boundary setup.
+ * \param[in]     updateVelocities     If the velocities should be updated.
+ * \param[in]     calcVirial           If the virial should be computed.
+ * \param[in]     testHardwareContext  GPU hardware context to use.
  */
 void applySettleGpu(SettleTestData*      testData,
                     t_pbc                pbc,

@@ -68,11 +68,12 @@ namespace test
  * Initializes SETTLE object, copied data to the GPU, applies algorithm, copies the data back,
  * destroys the object. The coordinates, velocities and virial are updated in the testData object.
  *
- * \param[in,out] testData          An object, containing all the data structures needed by SETTLE.
- * \param[in]     pbc               Periodic boundary setup.
- * \param[in]     updateVelocities  If the velocities should be updated.
- * \param[in]     calcVirial        If the virial should be computed.
- * \param[in]     testDescription   Brief description that will be printed in case of test failure.
+ * \param[in,out] testData             An object, containing all the data structures needed by SETTLE.
+ * \param[in]     pbc                  Periodic boundary setup.
+ * \param[in]     updateVelocities     If the velocities should be updated.
+ * \param[in]     calcVirial           If the virial should be computed.
+ * \param[in]     testDescription      Brief description that will be printed in case of test failure.
+ * \param[in]     testHardwareContext  Test herdware environment to get DeviceContext and DeviceStream from.
  */
 void applySettleGpu(SettleTestData*      testData,
                     const t_pbc          pbc,
@@ -88,8 +89,8 @@ void applySettleGpu(SettleTestData*      testData,
     // TODO: Here we should check that at least 1 suitable GPU is available
     GMX_RELEASE_ASSERT(canPerformGpuDetection(), "Can't detect CUDA-capable GPUs.");
 
-    const DeviceContext& deviceContext = testHardwareContext->deviceContext();
-    const DeviceStream&  deviceStream  = testHardwareContext->deviceStream();
+    const DeviceContext& deviceContext = *testHardwareContext->deviceContext();
+    const DeviceStream&  deviceStream  = *testHardwareContext->deviceStream();
 
     auto settleGpu = std::make_unique<SettleGpu>(testData->mtop_, deviceContext, deviceStream);
 

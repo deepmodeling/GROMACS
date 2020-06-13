@@ -64,15 +64,24 @@ set(TESTUTILS_SOURCES
     xvgtest.cpp
     )
 
-if(GMX_USE_CUDA)
-    set_source_files_properties(testhardwarecontext.cpp PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-endif()
-
 if(NOT HAVE_TINYXML2)
     list(APPEND TESTUTILS_SOURCES ../external/tinyxml2/tinyxml2.cpp)
 endif()
 
-add_library(testutils STATIC ${UNITTEST_TARGET_OPTIONS} ${TESTUTILS_SOURCES})
+if (GMX_USE_CUDA)
+    # Work around FindCUDA that prevents using target_link_libraries()
+    # with keywords otherwise...
+    set(CUDA_LIBRARIES PRIVATE ${CUDA_LIBRARIES})
+    if (NOT GMX_CLANG_CUDA)
+        gmx_cuda_add_library(testutils ${TESTUTILS_SOURCES})
+    else()
+        add_library(testutils STATIC ${TESTUTILS_SOURCES})
+    endif()
+    target_link_libraries(testutils PRIVATE ${CUDA_CUFFT_LIBRARIES})
+else()
+    add_library(testutils STATIC ${UNITTEST_TARGET_OPTIONS} ${TESTUTILS_SOURCES})
+endif()
+
 gmx_target_compile_options(testutils)
 target_compile_definitions(testutils PRIVATE HAVE_CONFIG_H)
 target_include_directories(testutils SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)

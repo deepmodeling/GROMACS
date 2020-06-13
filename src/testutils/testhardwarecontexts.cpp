@@ -76,6 +76,7 @@ const TestHardwareEnvironment* getTestHardwareEnvironment()
     static TestHardwareEnvironment* testHardwareEnvironment = nullptr;
     if (testHardwareEnvironment == nullptr)
     {
+        printf("Initializing the test hardware environment!\n");
         // Ownership of the TestEnvironment is taken by GoogleTest, so nothing can leak
         testHardwareEnvironment = static_cast<TestHardwareEnvironment*>(
                 ::testing::AddGlobalTestEnvironment(new TestHardwareEnvironment));
@@ -146,6 +147,10 @@ void TestHardwareEnvironment::SetUp()
 
 void TestHardwareEnvironment::TearDown()
 {
+    for (auto& context : hardwareContexts_)
+    {
+        context.reset(nullptr);
+    }
     hardwareContexts_.clear();
 }
 

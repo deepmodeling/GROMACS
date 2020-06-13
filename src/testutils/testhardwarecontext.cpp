@@ -117,7 +117,11 @@ TestHardwareContext::Impl::Impl(const char* description, const DeviceInformation
 {
 }
 
-TestHardwareContext::Impl::~Impl() = default;
+TestHardwareContext::Impl::~Impl()
+{
+    deviceStream_.reset(nullptr);
+    deviceContext_.reset(nullptr);
+}
 
 
 TestHardwareContext::TestHardwareContext(const char* description) : impl_(new Impl(description)) {}
@@ -127,7 +131,10 @@ TestHardwareContext::TestHardwareContext(const char* description, const DeviceIn
 {
 }
 
-TestHardwareContext::~TestHardwareContext() = default;
+TestHardwareContext::~TestHardwareContext()
+{
+    impl_.reset(nullptr);
+}
 
 CodePath TestHardwareContext::codePath() const
 {
