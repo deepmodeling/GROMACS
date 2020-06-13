@@ -243,7 +243,7 @@ TEST_P(LeapFrogTest, SimpleIntegration)
                 case CodePath::GPU:
                     integrateLeapFrogGpu(testData.get(), parameters.numSteps);
                     break;
-                default: FAIL() << "Unknown code path."; break;
+                default: FAIL() << "Unknown code path.";
             }
 
             real totalTime = parameters.numSteps * parameters.timestep;
