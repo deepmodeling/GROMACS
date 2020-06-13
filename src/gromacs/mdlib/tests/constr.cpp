@@ -349,12 +349,14 @@ TEST_P(ConstraintsTest, SingleConstraint)
             title, numAtoms, masses, constraints, constraintsR0, true, virialScaledRef, false, 0,
             real(0.0), real(0.001), x, xPrime, v, shakeTolerance, shakeUseSOR, lincsNIter,
             lincslincsExpansionOrder, lincsWarnAngle);
+
     std::string pbcName = GetParam();
     t_pbc       pbc     = pbcs_.at(pbcName);
 
     // Cycle through all available runners
     for (const auto& runner : s_runners)
     {
+        testData->reset();
         std::string runnerName = runner->name();
         SCOPED_TRACE(runnerName);
         // Apply constraints
@@ -368,7 +370,7 @@ TEST_P(ConstraintsTest, SingleConstraint)
         checkVirialTensor(absoluteTolerance(0.0001), *testData);
     }
 }
-/*
+
 TEST_P(ConstraintsTest, TwoDisjointConstraints)
 {
 
@@ -405,19 +407,24 @@ TEST_P(ConstraintsTest, TwoDisjointConstraints)
             real(0.0), real(0.001), x, xPrime, v, shakeTolerance, shakeUseSOR, lincsNIter,
             lincslincsExpansionOrder, lincsWarnAngle);
 
-    std::string           pbcName = GetParam();
-    t_pbc pbc                 = pbcs_.at(pbcName);
+    std::string pbcName = GetParam();
+    t_pbc       pbc     = pbcs_.at(pbcName);
 
+    // Cycle through all available runners
+    for (const auto& runner : s_runners)
+    {
+        testData->reset();
 
-    // Apply constraints
-    runner.applyConstraints(testData.get(), pbc);
+        // Apply constraints
+        runner->applyConstraints(testData.get(), pbc);
 
-    checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
-    checkConstrainsDirection(*testData, pbc);
-    checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
-    checkCOMVelocity(absoluteTolerance(0.0001), *testData);
+        checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
+        checkConstrainsDirection(*testData, pbc);
+        checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
+        checkCOMVelocity(absoluteTolerance(0.0001), *testData);
 
-    checkVirialTensor(absoluteTolerance(0.0001), *testData);
+        checkVirialTensor(absoluteTolerance(0.0001), *testData);
+    }
 }
 
 TEST_P(ConstraintsTest, ThreeSequentialConstraints)
@@ -456,19 +463,24 @@ TEST_P(ConstraintsTest, ThreeSequentialConstraints)
             real(0.0), real(0.001), x, xPrime, v, shakeTolerance, shakeUseSOR, lincsNIter,
             lincslincsExpansionOrder, lincsWarnAngle);
 
-    std::string           pbcName = GetParam();
-    t_pbc pbc                 = pbcs_.at(pbcName);
+    std::string pbcName = GetParam();
+    t_pbc       pbc     = pbcs_.at(pbcName);
 
+    // Cycle through all available runners
+    for (const auto& runner : s_runners)
+    {
+        testData->reset();
 
-    // Apply constraints
-    runner.applyConstraints(testData.get(), pbc);
+        // Apply constraints
+        runner->applyConstraints(testData.get(), pbc);
 
-    checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
-    checkConstrainsDirection(*testData, pbc);
-    checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
-    checkCOMVelocity(absoluteTolerance(0.0001), *testData);
+        checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
+        checkConstrainsDirection(*testData, pbc);
+        checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
+        checkCOMVelocity(absoluteTolerance(0.0001), *testData);
 
-    checkVirialTensor(absoluteTolerance(0.0001), *testData);
+        checkVirialTensor(absoluteTolerance(0.0001), *testData);
+    }
 }
 
 TEST_P(ConstraintsTest, ThreeConstraintsWithCentralAtom)
@@ -508,19 +520,24 @@ TEST_P(ConstraintsTest, ThreeConstraintsWithCentralAtom)
             real(0.0), real(0.001), x, xPrime, v, shakeTolerance, shakeUseSOR, lincsNIter,
             lincslincsExpansionOrder, lincsWarnAngle);
 
-    std::string           pbcName = GetParam();
-    t_pbc pbc                 = pbcs_.at(pbcName);
+    std::string pbcName = GetParam();
+    t_pbc       pbc     = pbcs_.at(pbcName);
 
+    // Cycle through all available runners
+    for (const auto& runner : s_runners)
+    {
+        testData->reset();
 
-    // Apply constraints
-    runner.applyConstraints(testData.get(), pbc);
+        // Apply constraints
+        runner->applyConstraints(testData.get(), pbc);
 
-    checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
-    checkConstrainsDirection(*testData, pbc);
-    checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
-    checkCOMVelocity(absoluteTolerance(0.0001), *testData);
+        checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
+        checkConstrainsDirection(*testData, pbc);
+        checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
+        checkCOMVelocity(absoluteTolerance(0.0001), *testData);
 
-    checkVirialTensor(absoluteTolerance(0.0001), *testData);
+        checkVirialTensor(absoluteTolerance(0.0001), *testData);
+    }
 }
 
 TEST_P(ConstraintsTest, FourSequentialConstraints)
@@ -559,19 +576,24 @@ TEST_P(ConstraintsTest, FourSequentialConstraints)
             real(0.0), real(0.001), x, xPrime, v, shakeTolerance, shakeUseSOR, lincsNIter,
             lincslincsExpansionOrder, lincsWarnAngle);
 
-    std::string           pbcName = GetParam();
-    t_pbc pbc                 = pbcs_.at(pbcName);
+    std::string pbcName = GetParam();
+    t_pbc       pbc     = pbcs_.at(pbcName);
 
+    // Cycle through all available runners
+    for (const auto& runner : s_runners)
+    {
+        testData->reset();
 
-    // Apply constraints
-    runner.applyConstraints(testData.get(), pbc);
+        // Apply constraints
+        runner->applyConstraints(testData.get(), pbc);
 
-    checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
-    checkConstrainsDirection(*testData, pbc);
-    checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
-    checkCOMVelocity(absoluteTolerance(0.0001), *testData);
+        checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
+        checkConstrainsDirection(*testData, pbc);
+        checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
+        checkCOMVelocity(absoluteTolerance(0.0001), *testData);
 
-    checkVirialTensor(absoluteTolerance(0.01), *testData);
+        checkVirialTensor(absoluteTolerance(0.01), *testData);
+    }
 }
 
 TEST_P(ConstraintsTest, TriangleOfConstraints)
@@ -609,20 +631,25 @@ TEST_P(ConstraintsTest, TriangleOfConstraints)
             real(0.0), real(0.001), x, xPrime, v, shakeTolerance, shakeUseSOR, lincsNIter,
             lincslincsExpansionOrder, lincsWarnAngle);
 
-    std::string           pbcName = GetParam();
-    t_pbc pbc                 = pbcs_.at(pbcName);
+    std::string pbcName = GetParam();
+    t_pbc       pbc     = pbcs_.at(pbcName);
 
+    // Cycle through all available runners
+    for (const auto& runner : s_runners)
+    {
+        testData->reset();
 
-    // Apply constraints
-    runner.applyConstraints(testData.get(), pbc);
+        // Apply constraints
+        runner->applyConstraints(testData.get(), pbc);
 
-    checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
-    checkConstrainsDirection(*testData, pbc);
-    checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
-    checkCOMVelocity(absoluteTolerance(0.0001), *testData);
+        checkConstrainsLength(absoluteTolerance(0.0002), *testData, pbc);
+        checkConstrainsDirection(*testData, pbc);
+        checkCOMCoordinates(absoluteTolerance(0.0001), *testData);
+        checkCOMVelocity(absoluteTolerance(0.0001), *testData);
 
-    checkVirialTensor(absoluteTolerance(0.00001), *testData);
-}*/
+        checkVirialTensor(absoluteTolerance(0.00001), *testData);
+    }
+}
 
 
 INSTANTIATE_TEST_CASE_P(WithParameters, ConstraintsTest, ::testing::Values("PBCNone", "PBCXYZ"));
