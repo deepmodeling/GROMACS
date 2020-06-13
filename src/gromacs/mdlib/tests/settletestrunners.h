@@ -92,12 +92,22 @@ void applySettleGpu(SettleTestData*            testData,
                     bool                       calcVirial,
                     const TestHardwareContext* testHardwareContext);
 
-void applySettle(SettleTestData*            testData,
-                 const t_pbc                pbc,
-                 const bool                 updateVelocities,
-                 const bool                 calcVirial,
-                 const std::string&         testDescription,
-                 const TestHardwareContext* testHardwareContext);
+static inline void applySettle(SettleTestData*            testData,
+                               const t_pbc                pbc,
+                               const bool                 updateVelocities,
+                               const bool                 calcVirial,
+                               const std::string&         testDescription,
+                               const TestHardwareContext* testHardwareContext)
+{
+    switch (testHardwareContext->codePath())
+    {
+        case CodePath::CPU:
+            return applySettleCpu(testData, pbc, updateVelocities, calcVirial, testDescription);
+        case CodePath::GPU:
+            return applySettleGpu(testData, pbc, updateVelocities, calcVirial, testHardwareContext);
+        default: FAIL() << "Unknown code path: can only be CPU or GPU.";
+    }
+}
 
 } // namespace test
 } // namespace gmx
