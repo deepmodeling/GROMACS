@@ -63,8 +63,9 @@ namespace test
 //! Hardware code path being tested
 enum class CodePath
 {
-    CPU,
-    GPU
+    CPU = 0,
+    GPU = 1,
+    Count
 };
 //! Return a string useful for human-readable messages describing a \c codePath.
 const char* codePathToString(CodePath codePath);

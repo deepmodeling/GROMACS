@@ -45,9 +45,11 @@
 #ifndef GMX_MDLIB_TESTS_SETTLETESTRUNNERS_H
 #define GMX_MDLIB_TESTS_SETTLETESTRUNNERS_H
 
-#include "settletestdata.h"
+#include <gtest/gtest.h>
 
 #include "testutils/testhardwarecontext.h"
+
+#include "settletestdata.h"
 
 struct t_pbc;
 
@@ -84,41 +86,18 @@ void applySettleCpu(SettleTestData*    testData,
  * \param[in]     calcVirial           If the virial should be computed.
  * \param[in]     testHardwareContext  GPU hardware context to use.
  */
-void applySettleGpu(SettleTestData*      testData,
-                    t_pbc                pbc,
-                    bool                 updateVelocities,
-                    bool                 calcVirial,
-                    TestHardwareContext* testHardwareContext);
+void applySettleGpu(SettleTestData*            testData,
+                    t_pbc                      pbc,
+                    bool                       updateVelocities,
+                    bool                       calcVirial,
+                    const TestHardwareContext* testHardwareContext);
 
-class SettleTestRunner
-{
-public:
-    SettleTestRunner(TestHardwareContext* testHardwareContext) :
-        testHardwareContext_(testHardwareContext)
-    {
-    }
-    void applySettle(SettleTestData*    testData,
-                     const t_pbc        pbc,
-                     const bool         updateVelocities,
-                     const bool         calcVirial,
-                     const std::string& testDescription)
-    {
-        if (testHardwareContext_->codePath() == CodePath::CPU)
-        {
-            applySettleCpu(testData, pbc, updateVelocities, calcVirial, testDescription);
-        }
-        else
-        {
-            applySettleGpu(testData, pbc, updateVelocities, calcVirial, testHardwareContext_);
-        }
-    }
-
-    std::string name() { return codePathToString(testHardwareContext_->codePath()); }
-
-private:
-    //! Pointer to the global test hardware context (if on GPU)
-    TestHardwareContext* testHardwareContext_;
-};
+void applySettle(SettleTestData*            testData,
+                 const t_pbc                pbc,
+                 const bool                 updateVelocities,
+                 const bool                 calcVirial,
+                 const std::string&         testDescription,
+                 const TestHardwareContext* testHardwareContext);
 
 } // namespace test
 } // namespace gmx

@@ -304,94 +304,80 @@ public:
         virialRef.checkReal(virial[ZZ][YY], "ZY");
         virialRef.checkReal(virial[ZZ][ZZ], "ZZ");
     }
-
-    //! List of available runners
-    static std::vector<std::unique_ptr<SettleTestRunner>> s_runners;
-    //! Before any test is run, work out whether any compatible GPUs exist.
-    static void SetUpTestCase()
-    {
-        // CUDA version will be tested only if:
-        // 1. The code was compiled with CUDA
-        // 2. There is a CUDA-capable GPU in a system
-        // 3. This GPU is detectable
-        // 4. GPU detection was not disabled by GMX_DISABLE_GPU_DETECTION environment variable
-        const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-        for (const auto& context : hardwareContexts)
-        {
-            if (context->codePath() == CodePath::CPU
-                || (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
-            {
-                s_runners.emplace_back(std::make_unique<SettleTestRunner>(context.get()));
-            }
-        }
-    }
 };
-
-std::vector<std::unique_ptr<SettleTestRunner>> SettleTest::s_runners;
 
 TEST_P(SettleTest, SatisfiesConstraints)
 {
-    // Cycle through all available runners
-    for (const auto& runner : s_runners)
+    // CUDA version will be tested only if:
+    // 1. The code was compiled with CUDA
+    // 2. There is a CUDA-capable GPU in a system
+    // 3. This GPU is detectable
+    // 4. GPU detection was not disabled by GMX_DISABLE_GPU_DETECTION environment variable
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        std::string runnerName = runner->name();
-
-        // Make some symbolic names for the parameter combination.
-        SettleTestParameters params = GetParam();
-
-        int         numSettles       = params.numSettles;
-        bool        updateVelocities = params.updateVelocities;
-        bool        calcVirial       = params.calcVirial;
-        std::string pbcName          = params.pbcName;
-
-
-        // Make a string that describes which parameter combination is
-        // being tested, to help make failing tests comprehensible.
-        std::string testDescription = formatString(
-                "Testing %s with %d SETTLEs, %s, %svelocities and %scalculating the virial.",
-                runnerName.c_str(), numSettles, pbcName.c_str(),
-                updateVelocities ? "with " : "without ", calcVirial ? "" : "not ");
-
-        SCOPED_TRACE(testDescription);
-
-        auto testData = std::make_unique<SettleTestData>(numSettles);
-
-        ASSERT_LE(numSettles, testData->xPrime_.size() / testData->atomsPerSettle_)
-                << "cannot test that many SETTLEs. " << testDescription;
-
-        t_pbc pbc = pbcs_.at(pbcName);
-
-        // Apply SETTLE
-        runner->applySettle(testData.get(), pbc, updateVelocities, calcVirial, testDescription);
-
-        // The necessary tolerances for the test to pass were determined
-        // empirically. This isn't nice, but the required behavior that
-        // SETTLE produces constrained coordinates consistent with
-        // sensible sampling needs to be tested at a much higher level.
-        // TODO: Re-evaluate the tolerances.
-        real                   dOH       = testData->dOH_;
-        FloatingPointTolerance tolerance = relativeToleranceAsPrecisionDependentUlp(dOH * dOH, 80, 380);
-        FloatingPointTolerance toleranceVirial = absoluteTolerance(0.000001);
-
-        FloatingPointTolerance tolerancePositions  = absoluteTolerance(0.000001);
-        FloatingPointTolerance toleranceVelocities = absoluteTolerance(0.0001);
-
-        checkConstrainsSatisfied(numSettles, tolerance, *testData);
-        checkVirialSymmetric(calcVirial, toleranceVirial, *testData);
-
-        checker_.setDefaultTolerance(tolerancePositions);
-        checkFinalPositions(numSettles, *testData);
-
-        if (updateVelocities)
+        // Check here if the hardware configuration is supported by this test.
+        if (context->codePath() == CodePath::CPU
+            || (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
         {
-            checker_.setDefaultTolerance(toleranceVelocities);
-            checkFinalVelocities(numSettles, *testData);
-        }
+            // Make some symbolic names for the parameter combination.
+            SettleTestParameters params = GetParam();
 
-        if (calcVirial)
-        {
-            checker_.setDefaultTolerance(toleranceVirial);
-            checkVirial(*testData);
+            int         numSettles       = params.numSettles;
+            bool        updateVelocities = params.updateVelocities;
+            bool        calcVirial       = params.calcVirial;
+            std::string pbcName          = params.pbcName;
+
+
+            // Make a string that describes which parameter combination is
+            // being tested, to help make failing tests comprehensible.
+            std::string testDescription = formatString(
+                    "Testing %s with %d SETTLEs, %s, %svelocities and %scalculating the virial.",
+                    context->description().c_str(), numSettles, pbcName.c_str(),
+                    updateVelocities ? "with " : "without ", calcVirial ? "" : "not ");
+
+            SCOPED_TRACE(testDescription);
+
+            auto testData = std::make_unique<SettleTestData>(numSettles);
+
+            ASSERT_LE(numSettles, testData->xPrime_.size() / testData->atomsPerSettle_)
+                    << "cannot test that many SETTLEs. " << testDescription;
+
+            t_pbc pbc = pbcs_.at(pbcName);
+
+            // Apply SETTLE
+            applySettle(testData.get(), pbc, updateVelocities, calcVirial, testDescription, context.get());
+
+            // The necessary tolerances for the test to pass were determined
+            // empirically. This isn't nice, but the required behavior that
+            // SETTLE produces constrained coordinates consistent with
+            // sensible sampling needs to be tested at a much higher level.
+            // TODO: Re-evaluate the tolerances.
+            real                   dOH = testData->dOH_;
+            FloatingPointTolerance tolerance =
+                    relativeToleranceAsPrecisionDependentUlp(dOH * dOH, 80, 380);
+            FloatingPointTolerance toleranceVirial = absoluteTolerance(0.000001);
+
+            FloatingPointTolerance tolerancePositions  = absoluteTolerance(0.000001);
+            FloatingPointTolerance toleranceVelocities = absoluteTolerance(0.0001);
+
+            checkConstrainsSatisfied(numSettles, tolerance, *testData);
+            checkVirialSymmetric(calcVirial, toleranceVirial, *testData);
+
+            checker_.setDefaultTolerance(tolerancePositions);
+            checkFinalPositions(numSettles, *testData);
+
+            if (updateVelocities)
+            {
+                checker_.setDefaultTolerance(toleranceVelocities);
+                checkFinalVelocities(numSettles, *testData);
+            }
+
+            if (calcVirial)
+            {
+                checker_.setDefaultTolerance(toleranceVirial);
+                checkVirial(*testData);
+            }
         }
     }
 }

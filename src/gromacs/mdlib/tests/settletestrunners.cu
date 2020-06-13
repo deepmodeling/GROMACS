@@ -75,11 +75,11 @@ namespace test
  * \param[in]     testDescription      Brief description that will be printed in case of test failure.
  * \param[in]     testHardwareContext  Test herdware environment to get DeviceContext and DeviceStream from.
  */
-void applySettleGpu(SettleTestData*      testData,
-                    const t_pbc          pbc,
-                    const bool           updateVelocities,
-                    const bool           calcVirial,
-                    TestHardwareContext* testHardwareContext)
+void applySettleGpu(SettleTestData*            testData,
+                    const t_pbc                pbc,
+                    const bool                 updateVelocities,
+                    const bool                 calcVirial,
+                    const TestHardwareContext* testHardwareContext)
 {
     // These should never fail since this function should only be called if CUDA is enabled and
     // there is a CUDA-capable device available.
