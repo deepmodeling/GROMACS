@@ -55,7 +55,6 @@
 #include "gromacs/utility/real.h"
 
 #include "gromacs/math/tests/testarrayrefs.h"
-
 #include "testutils/test_hardware_environment.h"
 
 #include "devicetransfers.h"

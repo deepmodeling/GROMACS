@@ -55,8 +55,6 @@
 
 #include "testutils/test_hardware_environment.h"
 
-#include "gputest.h"
-
 namespace gmx
 {
 
