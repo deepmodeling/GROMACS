@@ -50,6 +50,9 @@
 
 #include "config.h"
 
+#if GMX_GPU == GMX_GPU_OPENCL
+#    include "gromacs/gpu_utils/gmxopencl.h"
+#endif
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/utility/classhelpers.h"
 
@@ -60,9 +63,9 @@ class DeviceContext
 {
 public:
     //! Constructor.
-    DeviceContext(const DeviceInformation& deviceInfo) : deviceInfo_(deviceInfo) {}
+    DeviceContext(const DeviceInformation& deviceInfo);
     //! Destructor
-    ~DeviceContext() = default;
+    ~DeviceContext();
 
     //! Get the associated device information
     const DeviceInformation& deviceInfo() const { return deviceInfo_; }

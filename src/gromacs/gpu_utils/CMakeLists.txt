@@ -54,6 +54,7 @@ if(GMX_USE_OPENCL)
         )
 elseif(GMX_USE_CUDA)
     gmx_add_libgromacs_sources(
+        device_context.cpp
         device_stream.cu
         gpu_utils.cu
         pinning.cu
@@ -61,6 +62,7 @@ elseif(GMX_USE_CUDA)
         )
 else()
     gmx_add_libgromacs_sources(
+        device_context.cpp
         device_stream.cpp
     )
 endif()

@@ -33,47 +33,19 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- * \brief
- * Tests for CUDA float3 type layout.
  *
+ * \brief Implements the DeviceContext for CPU build
+ *
+ * \author Mark Abraham <mark.j.abraham@gmail.com>
  * \author Artem Zhmurov <zhmurov@gmail.com>
+ *
+ * \ingroup module_gpu_utils
  */
 #include "gmxpre.h"
 
-#include <vector>
+#include "device_context.h"
 
-#include <gtest/gtest.h>
-
-#include "gromacs/gpu_utils/gpu_testutils.h"
-#include "gromacs/gpu_utils/gputraits.h"
-#include "gromacs/utility/exceptions.h"
-
-#include "testutils/test_hardware_environment.h"
-#include "testutils/testasserts.h"
-#include "testutils/testmatchers.h"
-
-#include "typecasts_runner.h"
-
-namespace gmx
-{
-
-namespace test
-{
-
-//! Test data in RVec format
-static const std::vector<RVec> rVecInput = { { 1.0, 2.0, 3.0 }, { 4.0, 5.0, 6.0 } };
-
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3)
-{
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
-    {
-        context->activate();
-        std::vector<RVec> rVecOutput(rVecInput.size());
-        convertRVecToFloat3(rVecOutput, rVecInput, context.get());
-        EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
-    }
-}
-
-} // namespace test
-} // namespace gmx
+//! Constructor.
+DeviceContext::DeviceContext(const DeviceInformation& deviceInfo) : deviceInfo_(deviceInfo) {}
+//! Destructor
+DeviceContext::~DeviceContext() = default;
