@@ -115,6 +115,7 @@ TEST_F(DeviceStreamManagerTest, CorrectStreamsAreReturnedOnNonbondedDevice)
         if (context->codePath() == CodePath::GPU)
         {
             const DeviceInformation& deviceInfo = context->deviceInfo();
+            context->activate();
 
             {
                 SCOPED_TRACE("No DD, no PME rank, no GPU update");

@@ -215,9 +215,10 @@ TEST_P(LeapFrogTest, SimpleIntegration)
     for (const auto& context : hardwareContexts)
     {
         // Run only for supported options
-        if (context->codePath() == CodePath::CPU
-            || (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
+        CodePath codePath = context->codePath();
+        if (codePath == CodePath::CPU || (codePath == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
         {
+            context->activate();
             LeapFrogTestParameters parameters = GetParam();
 
             std::string testDescription = formatString(

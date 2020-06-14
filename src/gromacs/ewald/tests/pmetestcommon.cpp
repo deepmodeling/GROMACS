@@ -59,7 +59,7 @@
 #include "gromacs/ewald/pme_solve.h"
 #include "gromacs/ewald/pme_spread.h"
 #include "gromacs/fft/parallel_3dfft.h"
-#include "gromacs/gpu_utils/device_stream_manager.h"
+#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/math/invertmatrix.h"
 #include "gromacs/mdtypes/commrec.h"
@@ -863,6 +863,7 @@ PmeTestHardwareContext::PmeTestHardwareContext(TestHardwareContext* testHardware
 {
     if (testHardwareContext->codePath() == CodePath::GPU)
     {
+        testHardwareContext_->activate();
         pmeGpuProgram_ = buildPmeGpuProgram(*testHardwareContext_->deviceContext());
     }
 }

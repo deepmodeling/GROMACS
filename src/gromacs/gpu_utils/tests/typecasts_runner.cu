@@ -115,6 +115,8 @@ void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>&       h_rVecOutput,
     const DeviceContext& deviceContext = *testHardwareContext->deviceContext();
     const DeviceStream&  deviceStream  = *testHardwareContext->deviceStream();
 
+    init_gpu(&testHardwareContext->deviceInfo());
+
     const int numElements = h_rVecInput.size();
 
     DeviceBuffer<RVec> d_rVecInput;

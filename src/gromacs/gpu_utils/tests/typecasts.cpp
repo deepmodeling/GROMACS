@@ -45,6 +45,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/gpu_utils/gpu_testutils.h"
+#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/exceptions.h"
 
 #include "testutils/test_hardware_environment.h"
@@ -67,6 +68,8 @@ TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3)
     const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
     for (const auto& context : hardwareContexts)
     {
+        context->activate();
+        CodePath          codePath = context->codePath();
         std::vector<RVec> rVecOutput(rVecInput.size());
         convertRVecToFloat3(rVecOutput, rVecInput, context.get());
         EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));

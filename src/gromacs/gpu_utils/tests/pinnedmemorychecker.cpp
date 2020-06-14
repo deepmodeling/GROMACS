@@ -71,6 +71,7 @@ TEST_F(PinnedMemoryCheckerTest, DefaultContainerIsRecognized)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             std::vector<real> dummy(3, 1.5);
             EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
         }
@@ -84,6 +85,7 @@ TEST_F(PinnedMemoryCheckerTest, NonpinnedContainerIsRecognized)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             HostVector<real> dummy(3, 1.5);
             changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
             EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
@@ -98,6 +100,7 @@ TEST_F(PinnedMemoryCheckerTest, PinnedContainerIsRecognized)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             HostVector<real> dummy(3, 1.5);
             changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
             EXPECT_TRUE(isHostMemoryPinned(dummy.data()));
@@ -112,6 +115,7 @@ TEST_F(PinnedMemoryCheckerTest, DefaultCBufferIsRecognized)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             real* dummy;
             snew(dummy, 3);
             EXPECT_FALSE(isHostMemoryPinned(dummy));
@@ -127,6 +131,7 @@ TEST_F(PinnedMemoryCheckerTest, PinnedCBufferIsRecognized)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             real* dummy = nullptr;
             pmalloc(reinterpret_cast<void**>(&dummy), 3 * sizeof(real));
             EXPECT_TRUE(isHostMemoryPinned(dummy));

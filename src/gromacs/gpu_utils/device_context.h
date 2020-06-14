@@ -50,10 +50,8 @@
 
 #include "config.h"
 
-#if GMX_GPU == GMX_GPU_OPENCL
-#    include "gromacs/gpu_utils/device_context_ocl.h"
-#else
-#    include "gromacs/utility/classhelpers.h"
+#include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/utility/classhelpers.h"
 
 struct DeviceInformation;
 
@@ -69,12 +67,29 @@ public:
     //! Get the associated device information
     const DeviceInformation& deviceInfo() const { return deviceInfo_; }
 
+#if GMX_GPU == GMX_GPU_NONE
+    void activate() {}
+#else
+    void activate() { init_gpu(&deviceInfo_); }
+#endif
+
 private:
     //! A reference to the device information used upon context creation
     const DeviceInformation& deviceInfo_;
 
+#if GMX_GPU == GMX_GPU_OPENCL
+public:
+    //! Getter
+    cl_context context() const;
+
+private:
+    //! A reference to the device information used upon context creation
+    const DeviceInformation& deviceInfo_;
+    //! OpenCL context object
+    cl_context context_ = nullptr;
+#endif
+
     GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceContext);
 };
-#endif // GMX_GPU != GMX_GPU_OPENCL
 
 #endif // GMX_GPU_UTILS_DEVICE_CONTEXT_H

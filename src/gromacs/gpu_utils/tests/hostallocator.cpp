@@ -203,6 +203,7 @@ TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             typename TestFixture::VectorType input;
             fillInput(&input, 1);
             typename TestFixture::VectorType output;
@@ -304,6 +305,7 @@ TYPED_TEST(HostAllocatorTestCopyable, TransfersWithPinningWorkWithCuda)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             typename TestFixture::VectorType input;
             changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
             fillInput(&input, 1);
@@ -331,6 +333,7 @@ TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
     {
         if (context->codePath() == CodePath::GPU)
         {
+            context->activate();
             typename TestFixture::VectorType input;
             changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
             EXPECT_TRUE(input.get_allocator().pinningPolicy() == PinningPolicy::PinnedIfSupported);

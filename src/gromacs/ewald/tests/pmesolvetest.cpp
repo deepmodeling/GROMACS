@@ -119,9 +119,10 @@ public:
         TestReferenceData refData;
         for (const auto& pmeTestHardwareContext : s_pmeTestHardwareContexts)
         {
-            const auto* context        = pmeTestHardwareContext->testHardwareContext_;
-            CodePath    codePath       = context->codePath();
-            const bool  supportedInput = pmeSupportsInputForMode(
+            const auto* context = pmeTestHardwareContext->testHardwareContext_;
+            context->activate();
+            CodePath   codePath       = context->codePath();
+            const bool supportedInput = pmeSupportsInputForMode(
                     *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {

@@ -50,6 +50,7 @@
 
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/detecthardware.h"
 #include "gromacs/hardware/hw_info.h"
@@ -89,6 +90,8 @@ public:
     const DeviceContext* deviceContext() const { return deviceContext_.get(); }
     //! Get the device stream
     const DeviceStream* deviceStream() const { return deviceStream_.get(); }
+    //! Activate the context (set the device)
+    void activate() const;
 
 private:
     //! Hardware path for the code being tested.
@@ -123,6 +126,16 @@ TestHardwareContext::Impl::~Impl()
     deviceContext_.reset(nullptr);
 }
 
+void TestHardwareContext::Impl::activate() const
+{
+    if (codePath() == CodePath::GPU)
+    {
+        GMX_ASSERT(deviceContext_ != nullptr,
+                   "Trying to activate device context before it was created.");
+        deviceContext_->activate();
+    }
+}
+
 
 TestHardwareContext::TestHardwareContext(const char* description) : impl_(new Impl(description)) {}
 
@@ -150,15 +163,20 @@ const DeviceInformation& TestHardwareContext::deviceInfo() const
 {
     return impl_->deviceInfo();
 }
-//! Get the device context
+
 const DeviceContext* TestHardwareContext::deviceContext() const
 {
     return impl_->deviceContext();
 }
-//! Get the device stream
+
 const DeviceStream* TestHardwareContext::deviceStream() const
 {
     return impl_->deviceStream();
+}
+
+void TestHardwareContext::activate() const
+{
+    return impl_->activate();
 }
 
 

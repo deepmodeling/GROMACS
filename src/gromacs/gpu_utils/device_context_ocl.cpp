@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "device_context_ocl.h"
+#include "device_context.h"
 
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/exceptions.h"

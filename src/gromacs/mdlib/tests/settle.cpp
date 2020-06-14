@@ -317,9 +317,10 @@ TEST_P(SettleTest, SatisfiesConstraints)
     for (const auto& context : hardwareContexts)
     {
         // Check here if the hardware configuration is supported by this test.
-        if (context->codePath() == CodePath::CPU
-            || (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
+        CodePath codePath = context->codePath();
+        if (codePath == CodePath::CPU || (codePath == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA))
         {
+            context->activate();
             // Make some symbolic names for the parameter combination.
             SettleTestParameters params = GetParam();
 

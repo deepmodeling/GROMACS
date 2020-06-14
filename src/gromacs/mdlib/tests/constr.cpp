@@ -310,6 +310,7 @@ public:
             }
             else if (context->codePath() == CodePath::GPU && GMX_GPU == GMX_GPU_CUDA)
             {
+                context->activate();
                 s_runners.emplace_back(std::make_unique<ConstraintsTestRunner>(
                         ConstraintsAlgorithm::Lincs, context.get()));
             }

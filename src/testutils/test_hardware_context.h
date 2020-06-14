@@ -88,6 +88,8 @@ public:
     const DeviceContext* deviceContext() const;
     //! Get the device stream
     const DeviceStream* deviceStream() const;
+    //! Activate the context (set the device)
+    void activate() const;
     //! Constructs the context for CPU builds
     TestHardwareContext(const char* description);
     //! Constructs the context for GPU builds
