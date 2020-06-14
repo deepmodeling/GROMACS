@@ -40,8 +40,6 @@
 
 gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test HARDWARE_DETECTION
     CPP_SOURCE_FILES
-        # Infrastructure
-        gputest.cpp
         # Tests of code
         clfftinitializer.cpp
         hostallocator.cpp

@@ -41,7 +41,7 @@
  *
  * \author Aleksei Iupinov <a.yupinov@gmail.com>
  * \author Artem Zhmurov <zhmurov@gmail.com>
- * 
+ *
  * \ingroup module_testutils
  */
 

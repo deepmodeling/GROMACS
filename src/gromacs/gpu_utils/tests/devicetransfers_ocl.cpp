@@ -71,24 +71,16 @@ void throwUponFailure(cl_int status, const char* message)
 
 } // namespace
 
-void doDeviceTransfers(const gmx_gpu_info_t& gpuInfo, ArrayRef<const char> input, ArrayRef<char> output)
+void doDeviceTransfers(const DeviceInformation& deviceInfo, ArrayRef<const char> input, ArrayRef<char> output)
 {
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
-    const auto compatibleGpus = getCompatibleGpus(gpuInfo);
-    if (compatibleGpus.empty())
-    {
-        std::copy(input.begin(), input.end(), output.begin());
-        return;
-    }
     cl_int status;
 
-    const auto*           device       = getDeviceInfo(gpuInfo, compatibleGpus[0]);
     cl_context_properties properties[] = {
-        CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(device->oclPlatformId), 0
+        CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(deviceInfo.oclPlatformId), 0
     };
-    // Give uncrustify more space
 
-    auto deviceId = device->oclDeviceId;
+    auto deviceId = deviceInfo.oclDeviceId;
     auto context  = clCreateContext(properties, 1, &deviceId, nullptr, nullptr, &status);
     throwUponFailure(status, "creating context");
     auto commandQueue = clCreateCommandQueue(context, deviceId, 0, &status);

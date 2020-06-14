@@ -56,8 +56,9 @@
 
 #include "gromacs/math/tests/testarrayrefs.h"
 
+#include "testutils/test_hardware_environment.h"
+
 #include "devicetransfers.h"
-#include "gputest.h"
 
 namespace gmx
 {
@@ -68,7 +69,7 @@ namespace test
 /*! \internal \brief Typed test fixture for infrastructure for
  * host-side memory used for GPU transfers. */
 template<typename T>
-class HostMemoryTest : public test::GpuTest
+class HostMemoryTest : public ::testing::Test
 {
 public:
     //! Convenience type
@@ -97,7 +98,7 @@ ArrayRef<char> charArrayRefFromArray(T* data, size_t size)
 
 //! Does a device transfer of \c input to the device in \c gpuInfo, and back to \c output.
 template<typename T>
-void runTest(const gmx_gpu_info_t& gpuInfo, ArrayRef<T> input, ArrayRef<T> output)
+void runTest(const DeviceInformation& deviceInfo, ArrayRef<T> input, ArrayRef<T> output)
 {
     // Convert the views of input and output to flat non-const chars,
     // so that there's no templating when we call doDeviceTransfers.
@@ -105,7 +106,7 @@ void runTest(const gmx_gpu_info_t& gpuInfo, ArrayRef<T> input, ArrayRef<T> outpu
     auto outputRef = charArrayRefFromArray(output.data(), output.size());
 
     ASSERT_EQ(inputRef.size(), outputRef.size());
-    doDeviceTransfers(gpuInfo, inputRef, outputRef);
+    doDeviceTransfers(deviceInfo, inputRef, outputRef);
     compareViews(input, output);
 }
 
@@ -198,12 +199,19 @@ TYPED_TEST(HostAllocatorTestCopyable, VectorsWithDefaultHostAllocatorAlwaysWorks
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
 {
-    typename TestFixture::VectorType input;
-    fillInput(&input, 1);
-    typename TestFixture::VectorType output;
-    output.resizeWithPadding(input.size());
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
+    {
+        if (context->codePath() == CodePath::GPU)
+        {
+            typename TestFixture::VectorType input;
+            fillInput(&input, 1);
+            typename TestFixture::VectorType output;
+            output.resizeWithPadding(input.size());
 
-    runTest(*this->gpuInfo_, makeArrayRef(input), makeArrayRef(output));
+            runTest(context->deviceInfo(), makeArrayRef(input), makeArrayRef(output));
+        }
+    }
 }
 
 TYPED_TEST(HostAllocatorTestCopyable, FillInputAlsoWorksAfterCallingReserve)
@@ -292,19 +300,21 @@ TYPED_TEST(HostAllocatorTestNoMem, Comparison)
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithPinningWorkWithCuda)
 {
-    if (!this->haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            typename TestFixture::VectorType input;
+            changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
+            fillInput(&input, 1);
+            typename TestFixture::VectorType output;
+            changePinningPolicy(&output, PinningPolicy::PinnedIfSupported);
+            output.resizeWithPadding(input.size());
+
+            runTest(context->deviceInfo(), makeArrayRef(input), makeArrayRef(output));
+        }
     }
-
-    typename TestFixture::VectorType input;
-    changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
-    fillInput(&input, 1);
-    typename TestFixture::VectorType output;
-    changePinningPolicy(&output, PinningPolicy::PinnedIfSupported);
-    output.resizeWithPadding(input.size());
-
-    runTest(*this->gpuInfo_, makeArrayRef(input), makeArrayRef(output));
 }
 
 //! Helper function for wrapping a call to isHostMemoryPinned.
@@ -317,40 +327,42 @@ bool isPinned(const VectorType& v)
 
 TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
 {
-    if (!this->haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            typename TestFixture::VectorType input;
+            changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
+            EXPECT_TRUE(input.get_allocator().pinningPolicy() == PinningPolicy::PinnedIfSupported);
+            EXPECT_EQ(0, input.size());
+            EXPECT_EQ(0, input.paddedSize());
+            EXPECT_TRUE(input.empty());
+            EXPECT_FALSE(isPinned(input));
+
+            // Fill some contents, which will be pinned because of the policy.
+            fillInput(&input, 1);
+            EXPECT_TRUE(isPinned(input));
+
+            // Switching policy to CannotBePinned must unpin the buffer (via
+            // realloc and copy).
+            auto oldInputData = input.data();
+            changePinningPolicy(&input, PinningPolicy::CannotBePinned);
+            EXPECT_FALSE(isPinned(input));
+            // These cannot be equal as both had to be allocated at the same
+            // time for the contents to be able to be copied.
+            EXPECT_NE(oldInputData, input.data());
+
+            // Switching policy to PinnedIfSupported must pin the buffer (via
+            // realloc and copy).
+            oldInputData = input.data();
+            changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
+            EXPECT_TRUE(isPinned(input));
+            // These cannot be equal as both had to be allocated at the same
+            // time for the contents to be able to be copied.
+            EXPECT_NE(oldInputData, input.data());
+        }
     }
-
-    typename TestFixture::VectorType input;
-    changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
-    EXPECT_TRUE(input.get_allocator().pinningPolicy() == PinningPolicy::PinnedIfSupported);
-    EXPECT_EQ(0, input.size());
-    EXPECT_EQ(0, input.paddedSize());
-    EXPECT_TRUE(input.empty());
-    EXPECT_FALSE(isPinned(input));
-
-    // Fill some contents, which will be pinned because of the policy.
-    fillInput(&input, 1);
-    EXPECT_TRUE(isPinned(input));
-
-    // Switching policy to CannotBePinned must unpin the buffer (via
-    // realloc and copy).
-    auto oldInputData = input.data();
-    changePinningPolicy(&input, PinningPolicy::CannotBePinned);
-    EXPECT_FALSE(isPinned(input));
-    // These cannot be equal as both had to be allocated at the same
-    // time for the contents to be able to be copied.
-    EXPECT_NE(oldInputData, input.data());
-
-    // Switching policy to PinnedIfSupported must pin the buffer (via
-    // realloc and copy).
-    oldInputData = input.data();
-    changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
-    EXPECT_TRUE(isPinned(input));
-    // These cannot be equal as both had to be allocated at the same
-    // time for the contents to be able to be copied.
-    EXPECT_NE(oldInputData, input.data());
 }
 
 #endif

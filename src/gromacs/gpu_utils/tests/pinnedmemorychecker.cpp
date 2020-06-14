@@ -50,7 +50,7 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "gputest.h"
+#include "testutils/test_hardware_environment.h"
 
 namespace gmx
 {
@@ -62,67 +62,77 @@ namespace
 {
 
 //! Test fixture
-using PinnedMemoryCheckerTest = GpuTest;
+using PinnedMemoryCheckerTest = ::testing::Test;
 
 TEST_F(PinnedMemoryCheckerTest, DefaultContainerIsRecognized)
 {
-    if (!haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            std::vector<real> dummy(3, 1.5);
+            EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
+        }
     }
-
-    std::vector<real> dummy(3, 1.5);
-    EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
 }
 
 TEST_F(PinnedMemoryCheckerTest, NonpinnedContainerIsRecognized)
 {
-    if (!haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            HostVector<real> dummy(3, 1.5);
+            changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
+            EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
+        }
     }
-
-    HostVector<real> dummy(3, 1.5);
-    changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
-    EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
 }
 
 TEST_F(PinnedMemoryCheckerTest, PinnedContainerIsRecognized)
 {
-    if (!haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            HostVector<real> dummy(3, 1.5);
+            changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
+            EXPECT_TRUE(isHostMemoryPinned(dummy.data()));
+        }
     }
-
-    HostVector<real> dummy(3, 1.5);
-    changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
-    EXPECT_TRUE(isHostMemoryPinned(dummy.data()));
 }
 
 TEST_F(PinnedMemoryCheckerTest, DefaultCBufferIsRecognized)
 {
-    if (!haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            real* dummy;
+            snew(dummy, 3);
+            EXPECT_FALSE(isHostMemoryPinned(dummy));
+            sfree(dummy);
+        }
     }
-
-    real* dummy;
-    snew(dummy, 3);
-    EXPECT_FALSE(isHostMemoryPinned(dummy));
-    sfree(dummy);
 }
 
 TEST_F(PinnedMemoryCheckerTest, PinnedCBufferIsRecognized)
 {
-    if (!haveCompatibleGpus())
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
     {
-        return;
+        if (context->codePath() == CodePath::GPU)
+        {
+            real* dummy = nullptr;
+            pmalloc(reinterpret_cast<void**>(&dummy), 3 * sizeof(real));
+            EXPECT_TRUE(isHostMemoryPinned(dummy));
+            pfree(dummy);
+        }
     }
-
-    real* dummy = nullptr;
-    pmalloc(reinterpret_cast<void**>(&dummy), 3 * sizeof(real));
-    EXPECT_TRUE(isHostMemoryPinned(dummy));
-    pfree(dummy);
 }
 
 } // namespace

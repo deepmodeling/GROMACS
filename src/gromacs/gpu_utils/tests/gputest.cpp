@@ -66,8 +66,8 @@ GpuTest::GpuTest()
 
 GpuTest::~GpuTest()
 {
-    free_gpu_info(gpuInfo_);
-    sfree(gpuInfo_);
+    // free_gpu_info(gpuInfo_);
+    // sfree(gpuInfo_);
 }
 
 bool GpuTest::haveCompatibleGpus() const

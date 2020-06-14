@@ -38,7 +38,7 @@
  *
  * \author Aleksei Iupinov <a.yupinov@gmail.com>
  * \author Artem Zhmurov <zhmurov@gmail.com>
- * 
+ *
  * \ingroup module_testutils
  */
 
@@ -78,7 +78,6 @@ const TestHardwareEnvironment* getTestHardwareEnvironment()
     static TestHardwareEnvironment* testHardwareEnvironment = nullptr;
     if (testHardwareEnvironment == nullptr)
     {
-        printf("Initializing the test hardware environment!\n");
         // Ownership of the TestEnvironment is taken by GoogleTest, so nothing can leak
         testHardwareEnvironment = static_cast<TestHardwareEnvironment*>(
                 ::testing::AddGlobalTestEnvironment(new TestHardwareEnvironment));
