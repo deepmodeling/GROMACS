@@ -83,8 +83,6 @@ public:
     cl_context context() const;
 
 private:
-    //! A reference to the device information used upon context creation
-    const DeviceInformation& deviceInfo_;
     //! OpenCL context object
     cl_context context_ = nullptr;
 #endif
