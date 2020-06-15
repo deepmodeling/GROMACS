@@ -51,13 +51,13 @@ struct DeviceInformation;
  */
 enum class DeviceStatus : int
 {
-    Compatible = 0,
-    Nonexistent,
-    Incompatible,
-    IncompatibleClusterSize,
-    Insane,
-    Unavailable,
-    Count
+    Compatible              = 0,
+    Nonexistent             = 1,
+    Incompatible            = 2,
+    IncompatibleClusterSize = 3,
+    Insane                  = 4,
+    Unavailable             = 5,
+    Count                   = 6
 };
 
 /*! \brief Names of the GPU detection/check results
@@ -67,7 +67,7 @@ enum class DeviceStatus : int
  * array entry.
  *
  */
-const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
+static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
     "compatible",   "nonexistent",
     "incompatible", "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
     "insane",       "unavailable"
