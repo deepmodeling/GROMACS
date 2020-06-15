@@ -328,11 +328,11 @@ static bool is_gmx_supported_gpu(const cudaDeviceProp& dev_prop)
  *  \param[in]  deviceProp the CUDA device properties of the device checked.
  *  \returns               the status of the requested device
  */
-static int is_gmx_supported_gpu_id(int deviceId, const cudaDeviceProp& deviceProp)
+static DeviceStatus is_gmx_supported_gpu_id(int deviceId, const cudaDeviceProp& deviceProp)
 {
     if (!is_gmx_supported_gpu(deviceProp))
     {
-        return egpuIncompatible;
+        return DeviceStatus::Incompatible;
     }
 
     /* TODO: currently we do not make a distinction between the type of errors
@@ -343,12 +343,12 @@ static int is_gmx_supported_gpu_id(int deviceId, const cudaDeviceProp& devicePro
     const int checkResult = do_sanity_checks(deviceId, deviceProp);
     switch (checkResult)
     {
-        case 0: return egpuCompatible;
-        case -1: return egpuInsane;
-        case -2: return egpuUnavailable;
+        case 0: return DeviceStatus::Compatible;
+        case -1: return DeviceStatus::Insane;
+        case -2: return DeviceStatus::Unavailable;
         default:
             GMX_RELEASE_ASSERT(false, "Invalid do_sanity_checks() return value");
-            return egpuCompatible;
+            return DeviceStatus::Compatible;
     }
 }
 
@@ -432,11 +432,11 @@ void findGpus(gmx_gpu_info_t* gpu_info)
         cudaDeviceProp prop;
         memset(&prop, 0, sizeof(cudaDeviceProp));
         stat = cudaGetDeviceProperties(&prop, i);
-        int checkResult;
+        DeviceStatus checkResult;
         if (stat != cudaSuccess)
         {
             // Will handle the error reporting below
-            checkResult = egpuInsane;
+            checkResult = DeviceStatus::Insane;
         }
         else
         {
@@ -447,7 +447,7 @@ void findGpus(gmx_gpu_info_t* gpu_info)
         devs[i].prop = prop;
         devs[i].stat = checkResult;
 
-        if (checkResult == egpuCompatible)
+        if (checkResult == DeviceStatus::Compatible)
         {
             gpu_info->n_dev_compatible++;
         }
@@ -494,17 +494,17 @@ void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int ind
 
     DeviceInformation* dinfo = &gpu_info.deviceInfo[index];
 
-    bool bGpuExists = (dinfo->stat != egpuNonexistent && dinfo->stat != egpuInsane);
+    bool bGpuExists = (dinfo->stat != DeviceStatus::Nonexistent && dinfo->stat != DeviceStatus::Insane);
 
     if (!bGpuExists)
     {
-        sprintf(s, "#%d: %s, stat: %s", dinfo->id, "N/A", gpu_detect_res_str[dinfo->stat]);
+        sprintf(s, "#%d: %s, stat: %s", dinfo->id, "N/A", c_deviceStateString[dinfo->stat]);
     }
     else
     {
         sprintf(s, "#%d: NVIDIA %s, compute cap.: %d.%d, ECC: %3s, stat: %s", dinfo->id,
                 dinfo->prop.name, dinfo->prop.major, dinfo->prop.minor,
-                dinfo->prop.ECCEnabled ? "yes" : " no", gpu_detect_res_str[dinfo->stat]);
+                dinfo->prop.ECCEnabled ? "yes" : " no", c_deviceStateString[dinfo->stat]);
     }
 }
 
@@ -564,7 +564,7 @@ void resetGpuProfiler(void)
     }
 }
 
-int gpu_info_get_stat(const gmx_gpu_info_t& info, int index)
+DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& info, int index)
 {
     return info.deviceInfo[index].stat;
 }

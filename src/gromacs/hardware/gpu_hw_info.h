@@ -37,32 +37,41 @@
 #define GMX_HARDWARE_GPU_HW_INFO_H
 
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/enumerationhelpers.h"
 
 struct DeviceInformation;
 
 /*! \brief Possible results of the GPU detection/check.
  *
- * The egpuInsane value means that during the sanity checks an error
+ * The \p DeviceStatus::Insane value means that during the sanity checks an error
  * occurred that indicates malfunctioning of the device, driver, or
  * incompatible driver/runtime.
- * eGpuUnavailable indicates that CUDA devices are busy or unavailable
- * typically due to use of cudaComputeModeExclusive, cudaComputeModeProhibited modes.
+ * \p DeviceStatus::Unavailable indicates that CUDA devices are busy or unavailable
+ * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
  */
-typedef enum
+enum class DeviceStatus : int
 {
-    egpuCompatible = 0,
-    egpuNonexistent,
-    egpuIncompatible,
-    egpuIncompatibleClusterSize,
-    egpuInsane,
-    egpuUnavailable,
-    egpuNR
-} e_gpu_detect_res_t;
+    Compatible = 0,
+    Nonexistent,
+    Incompatible,
+    IncompatibleClusterSize,
+    Insane,
+    Unavailable,
+    Count
+};
 
 /*! \brief Names of the GPU detection/check results
  *
- * \todo Make a proper class enumeration with helper string */
-extern const char* const gpu_detect_res_str[egpuNR];
+ * Note that some of the following arrays must match the "GPU support
+ * enumeration" in src/config.h.cmakein, so that GMX_GPU looks up an
+ * array entry.
+ *
+ */
+const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
+    "compatible",   "nonexistent",
+    "incompatible", "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
+    "insane",       "unavailable"
+};
 
 /*! \brief Information about GPU devices on this physical node.
  *
