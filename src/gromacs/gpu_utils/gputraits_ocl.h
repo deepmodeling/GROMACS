@@ -78,6 +78,9 @@ struct DeviceInformation
     DeviceVendor   deviceVendor;        //!< Device vendor.
     size_t         maxWorkItemSizes[3]; //!< Workgroup size limits (CL_DEVICE_MAX_WORK_ITEM_SIZES).
     size_t maxWorkGroupSize; //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
+
+    // Get the status of this device
+    DeviceStatus deviceStatus() { return stat; }
 };
 
 //! \brief Single GPU call timing event

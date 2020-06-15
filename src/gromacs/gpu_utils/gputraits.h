@@ -48,19 +48,19 @@
 #include "config.h"
 
 #if GMX_GPU == GMX_GPU_CUDA
-
 #    include "gromacs/gpu_utils/gputraits.cuh"
-
 #elif GMX_GPU == GMX_GPU_OPENCL
-
 #    include "gromacs/gpu_utils/gputraits_ocl.h"
-
 #else
+#    include "gromacs/hardware/gpu_hw_info.h"
 
 //! Stub for device information.
 struct DeviceInformation
 {
-    // No member needed
+    DeviceStatus stat = DeviceStatus::Nonexistent;
+
+    // Get the status of this device
+    DeviceStatus deviceStatus() { return stat; }
 };
 
 //! \brief Single GPU call timing event

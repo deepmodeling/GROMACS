@@ -578,8 +578,3 @@ size_t sizeof_gpu_dev_info()
 {
     return sizeof(DeviceInformation);
 }
-
-DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& info, int index)
-{
-    return info.deviceInfo[index].stat;
-}

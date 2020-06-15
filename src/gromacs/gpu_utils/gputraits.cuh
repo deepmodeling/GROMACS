@@ -62,6 +62,8 @@ struct DeviceInformation
     cudaDeviceProp prop;
     //! Device status.
     DeviceStatus stat;
+    // Get the status of this device
+    DeviceStatus deviceStatus() { return stat; }
 };
 
 //! \brief Single GPU call timing event - meaningless in CUDA

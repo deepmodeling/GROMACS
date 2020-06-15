@@ -564,11 +564,6 @@ void resetGpuProfiler(void)
     }
 }
 
-DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& info, int index)
-{
-    return info.deviceInfo[index].stat;
-}
-
 /*! \brief Check status returned from peer access CUDA call, and error out or warn appropriately
  * \param[in] stat           CUDA call return status
  * \param[in] gpuA           ID for GPU initiating peer access call

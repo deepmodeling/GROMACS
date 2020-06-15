@@ -45,6 +45,7 @@
 
 #include <cassert>
 
+#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/smalloc.h"
@@ -69,13 +70,6 @@ bool canPerformGpuDetection()
     }
 }
 
-#if GMX_GPU == GMX_GPU_NONE
-DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& /*unused*/, int /*unused*/)
-{
-    return DeviceStatus::Nonexistent;
-}
-#endif
-
 void free_gpu_info(const gmx_gpu_info_t* gpu_info)
 {
     sfree(static_cast<void*>(gpu_info->deviceInfo)); // circumvent is_pod check in sfree
@@ -89,7 +83,7 @@ std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info)
     for (int i = 0; i < gpu_info.n_dev; i++)
     {
         assert(gpu_info.deviceInfo);
-        if (gpu_info_get_stat(gpu_info, i) == DeviceStatus::Compatible)
+        if (gpu_info.deviceInfo[i].deviceStatus() == DeviceStatus::Compatible)
         {
             compatibleGpus.push_back(i);
         }
@@ -100,7 +94,7 @@ std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info)
 const char* getGpuCompatibilityDescription(const gmx_gpu_info_t& gpu_info, int index)
 {
     return (index >= gpu_info.n_dev ? c_deviceStateString[DeviceStatus::Nonexistent]
-                                    : c_deviceStateString[gpu_info_get_stat(gpu_info, index)]);
+                                    : c_deviceStateString[gpu_info.deviceInfo[index].deviceStatus()]);
 }
 /*! \brief Help build a descriptive message in \c error if there are
  * \c errorReasons why nonbondeds on a GPU are not supported.
