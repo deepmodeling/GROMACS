@@ -190,15 +190,6 @@ GPU_FUNC_QUALIFIER
 DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& GPU_FUNC_ARGUMENT(gpu_info),
                                  int GPU_FUNC_ARGUMENT(deviceId)) GPU_FUNC_TERM_WITH_RETURN(nullptr);
 
-/*! \brief Returns the device ID of the CUDA GPU currently in use.
- *
- * The GPU used is the one that is active at the time of the call in the active context.
- *
- * \returns                 device ID of the GPU in use at the time of the call
- */
-CUDA_FUNC_QUALIFIER
-int get_current_cuda_gpu_device_id() CUDA_FUNC_TERM_WITH_RETURN(-1);
-
 /*! \brief Formats and returns a device information string for a given GPU.
  *
  * Given an index *directly* into the array of available GPUs (gpu_dev)

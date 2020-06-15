@@ -508,14 +508,6 @@ void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int ind
     }
 }
 
-int get_current_cuda_gpu_device_id(void)
-{
-    int gpuid;
-    CU_RET_ERR(cudaGetDevice(&gpuid), "cudaGetDevice failed");
-
-    return gpuid;
-}
-
 size_t sizeof_gpu_dev_info(void)
 {
     return sizeof(DeviceInformation);
