@@ -70,11 +70,6 @@ bool canPerformGpuDetection()
     }
 }
 
-void free_gpu_info(const DevicesManager* gpu_info)
-{
-    sfree(static_cast<void*>(gpu_info->deviceInfo_)); // circumvent is_pod check in sfree
-}
-
 /*! \brief Help build a descriptive message in \c error if there are
  * \c errorReasons why nonbondeds on a GPU are not supported.
  *

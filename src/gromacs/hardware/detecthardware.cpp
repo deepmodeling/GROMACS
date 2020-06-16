@@ -77,10 +77,7 @@ gmx_hw_info_t::gmx_hw_info_t(std::unique_ptr<gmx::CpuInfo>          cpuInfo,
 {
 }
 
-gmx_hw_info_t::~gmx_hw_info_t()
-{
-    free_gpu_info(&gpu_info);
-}
+gmx_hw_info_t::~gmx_hw_info_t() {}
 
 namespace gmx
 {

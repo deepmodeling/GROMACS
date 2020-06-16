@@ -66,7 +66,6 @@ GpuTest::GpuTest()
 
 GpuTest::~GpuTest()
 {
-    free_gpu_info(gpuInfo_);
     sfree(gpuInfo_);
 }
 

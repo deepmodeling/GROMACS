@@ -104,12 +104,6 @@ GPU_FUNC_QUALIFIER
 bool isGpuDetectionFunctional(std::string* GPU_FUNC_ARGUMENT(errorMessage))
         GPU_FUNC_TERM_WITH_RETURN(false);
 
-/*! \brief Frees the gpu_dev and dev_use array fields of \p gpu_info.
- *
- * \param[in]    gpu_info    pointer to structure holding GPU information
- */
-void free_gpu_info(const DevicesManager* gpu_info);
-
 /*! \brief Initializes the GPU described by \c deviceInfo.
  *
  * TODO Doxygen complains about these - probably a Doxygen bug, since
