@@ -43,6 +43,8 @@ DevicesManager::~DevicesManager() = default;
 
 void DevicesManager::findGpus() {}
 
+void DevicesManager::setDevice(int /* deviceId */) const {}
+
 std::string DevicesManager::getDeviceInformationString(int index) const
 {
     if (index < 0 && index >= numDevices_)

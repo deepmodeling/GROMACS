@@ -84,19 +84,6 @@ enum class GpuTaskCompletion
  * Does not throw. */
 bool canPerformGpuDetection();
 
-/*! \brief Initializes the GPU described by \c deviceInfo.
- *
- * TODO Doxygen complains about these - probably a Doxygen bug, since
- * the patterns here are the same as elsewhere in this header.
- *
- * \param[in]    deviceInfo   device info of the GPU to initialize
- *
- * Issues a fatal error for any critical errors that occur during
- * initialization.
- */
-GPU_FUNC_QUALIFIER
-void init_gpu(const DeviceInformation* GPU_FUNC_ARGUMENT(deviceInfo)) GPU_FUNC_TERM;
-
 /*! \brief Check if GROMACS has been built with GPU support.
  *
  * \param[in] error Pointer to error string or nullptr.

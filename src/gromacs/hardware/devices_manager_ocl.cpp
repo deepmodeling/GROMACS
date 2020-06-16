@@ -494,27 +494,51 @@ void DevicesManager::findGpus()
     sfree(ocl_platform_ids);
 }
 
-std::string DevicesManager::getDeviceInformationString(int index) const
+void DevicesManager::setDevice(int deviceId) const
+{
+    GMX_ASSERT(index >= 0 && index < numDevices_ && deviceInfo_ != nullptr,
+               "Trying to set invalid device");
+
+    // If the device is NVIDIA, for safety reasons we disable the JIT
+    // caching as this is known to be broken at least until driver 364.19;
+    // the cache does not always get regenerated when the source code changes,
+    // e.g. if the path to the kernel sources remains the same
+
+    if (deviceInfo_[deviceId].deviceVendor == DeviceVendor::Nvidia)
+    {
+        // Ignore return values, failing to set the variable does not mean
+        // that something will go wrong later.
+#ifdef _MSC_VER
+        _putenv("CUDA_CACHE_DISABLE=1");
+#else
+        // Don't override, maybe a dev is testing.
+        setenv("CUDA_CACHE_DISABLE", "1", 0);
+#endif
+    }
+}
+
+std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
 
-    if (index < 0 && index >= numDevices_)
+    if (deviceId < 0 && deviceId >= numDevices_)
     {
         return "";
     }
 
-    const DeviceInformation& deviceInfo = deviceInfo_[index];
+    const DeviceInformation& deviceInfo = deviceInfo_[deviceId];
 
     bool gpuExists =
             (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
 
     if (!gpuExists)
     {
-        return gmx::formatString("#%d: %s, stat: %s", index, "N/A", c_deviceStateString[deviceInfo.stat]);
+        return gmx::formatString("#%d: %s, stat: %s", deviceId, "N/A",
+                                 c_deviceStateString[deviceInfo.stat]);
     }
     else
     {
-        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, stat: %s", index,
-                                 deviceInfo.device_name, deviceInfo.vendorName,
+        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, stat: %s",
+                                 deviceId, deviceInfo.device_name, deviceInfo.vendorName,
                                  deviceInfo.device_version, c_deviceStateString[deviceInfo.stat]);
     }
 }

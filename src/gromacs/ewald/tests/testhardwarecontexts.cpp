@@ -108,7 +108,7 @@ void PmeTestEnvironment::SetUp()
     for (int gpuIndex : hardwareInfo_->gpu_info.getCompatibleGpus())
     {
         const DeviceInformation* deviceInfo = hardwareInfo_->gpu_info.getDeviceInformation(gpuIndex);
-        init_gpu(deviceInfo);
+        hardwareInfo_->gpu_info.setDevice(gpuIndex);
 
         std::string deviceDescription = hardwareInfo_->gpu_info.getDeviceInformationString(gpuIndex);
         std::string description       = "(GPU " + deviceDescription + ") ";

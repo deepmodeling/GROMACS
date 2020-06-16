@@ -108,6 +108,16 @@ public:
      */
     std::vector<int> getCompatibleGpus() const;
 
+
+    /*! \brief Set the active GPU
+     *
+     * \param[in] deviceId  Index of selected device.
+     *
+     * Issues a fatal error for any critical errors that occur during
+     * initialization.
+     */
+    void setDevice(int deviceId) const;
+
     /*! \brief Return a pointer to the device info for \c deviceId
      *
      * \param[in] deviceId      ID for the GPU device requested.
@@ -126,14 +136,14 @@ public:
      *
      * \returns A string describing the device.
      */
-    std::string getDeviceInformationString(int index) const;
+    std::string getDeviceInformationString(int deviceId) const;
 
     /*! \brief Return a string describing how compatible the GPU with given \c index is.
      *
      * \param[in]   index       index of GPU to ask about
      * \returns                 A null-terminated C string describing the compatibility status, useful for error messages.
      */
-    std::string getGpuCompatibilityDescription(int index) const;
+    std::string getGpuCompatibilityDescription(int deviceId) const;
 
     /*! \brief Returns the size of the gpu_dev_info struct.
      *

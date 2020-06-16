@@ -90,25 +90,6 @@ bool isHostMemoryPinned(const void* h_ptr)
     return result;
 }
 
-void init_gpu(const DeviceInformation* deviceInfo)
-{
-    cudaError_t stat;
-
-    assert(deviceInfo);
-
-    stat = cudaSetDevice(deviceInfo->id);
-    if (stat != cudaSuccess)
-    {
-        auto message = gmx::formatString("Failed to initialize GPU #%d", deviceInfo->id);
-        CU_RET_ERR(stat, message.c_str());
-    }
-
-    if (debug)
-    {
-        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceInfo->id, deviceInfo->prop.name);
-    }
-}
-
 void startGpuProfiler(void)
 {
     /* The NVPROF_ID environment variable is set by nvprof and indicates that

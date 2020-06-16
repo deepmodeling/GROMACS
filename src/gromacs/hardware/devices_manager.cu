@@ -422,14 +422,34 @@ void DevicesManager::findGpus()
     deviceInfo_ = devs;
 }
 
-std::string DevicesManager::getDeviceInformationString(int index) const
+void DevicesManager::setDevice(int deviceId) const
 {
-    if (index < 0 && index >= numDevices_)
+    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfo_ != nullptr,
+               "Trying to set invalid device");
+
+    cudaError_t stat;
+
+    stat = cudaSetDevice(deviceId);
+    if (stat != cudaSuccess)
+    {
+        auto message = gmx::formatString("Failed to initialize GPU #%d", deviceId);
+        CU_RET_ERR(stat, message.c_str());
+    }
+
+    if (debug)
+    {
+        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfo_[deviceId].prop.name);
+    }
+}
+
+std::string DevicesManager::getDeviceInformationString(int deviceId) const
+{
+    if (deviceId < 0 && deviceId >= numDevices_)
     {
         return "";
     }
 
-    const DeviceInformation& deviceInfo = deviceInfo_[index];
+    const DeviceInformation& deviceInfo = deviceInfo_[deviceId];
 
     bool gpuExists =
             (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
