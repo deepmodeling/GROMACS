@@ -231,7 +231,7 @@ void checkUserGpuIds(const DevicesManager&   gpu_info,
         {
             foundIncompatibleGpuIds = true;
             message += gmx::formatString("    GPU #%d: %s\n", gpuId,
-                                         getGpuCompatibilityDescription(gpu_info, gpuId));
+                                         gpu_info.getGpuCompatibilityDescription(gpuId).c_str());
         }
     }
     if (foundIncompatibleGpuIds)

@@ -61,3 +61,9 @@ DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
     }
     return &deviceInfo_[deviceId];
 }
+
+std::string DevicesManager::getGpuCompatibilityDescription(int index) const
+{
+    return (index >= n_dev ? c_deviceStateString[DeviceStatus::Nonexistent]
+                           : c_deviceStateString[deviceInfo_[index].deviceStatus()]);
+}

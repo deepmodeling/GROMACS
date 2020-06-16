@@ -104,14 +104,6 @@ GPU_FUNC_QUALIFIER
 bool isGpuDetectionFunctional(std::string* GPU_FUNC_ARGUMENT(errorMessage))
         GPU_FUNC_TERM_WITH_RETURN(false);
 
-/*! \brief Return a string describing how compatible the GPU with given \c index is.
- *
- * \param[in]   gpu_info    Information about detected GPUs
- * \param[in]   index       index of GPU to ask about
- * \returns                 A null-terminated C string describing the compatibility status, useful for error messages.
- */
-const char* getGpuCompatibilityDescription(const DevicesManager& gpu_info, int index);
-
 /*! \brief Frees the gpu_dev and dev_use array fields of \p gpu_info.
  *
  * \param[in]    gpu_info    pointer to structure holding GPU information
