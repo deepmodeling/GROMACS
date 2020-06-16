@@ -119,7 +119,7 @@ public:
      * returns a formatted info string for the respective GPU which includes
      * ID, name, compute capability, and detection status.
      *
-     * \param[in]   index       an index *directly* into the array of available GPUs
+     * \param[in]   deviceId       an index *directly* into the array of available GPUs
      *
      * \returns A string describing the device.
      */
@@ -127,7 +127,7 @@ public:
 
     /*! \brief Return a string describing how compatible the GPU with given \c index is.
      *
-     * \param[in]   index       index of GPU to ask about
+     * \param[in]   deviceId    index of GPU to ask about
      * \returns                 A null-terminated C string describing the compatibility status, useful for error messages.
      */
     std::string getGpuCompatibilityDescription(int deviceId) const;
