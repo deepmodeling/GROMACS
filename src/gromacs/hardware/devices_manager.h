@@ -54,14 +54,6 @@ class DevicesManager
 public:
     DevicesManager() = default;
     ~DevicesManager();
-    //! Did we attempt GPU detection?
-    bool bDetectGPUs = false;
-    //! Total number of GPU devices detected on this physical node
-    int numDevices_ = 0;
-    //! Information about each GPU device detected on this physical node
-    DeviceInformation* deviceInfo_ = nullptr;
-    //! Number of GPU devices detected on this physical node that are compatible.
-    int numCompatibleDevices_ = 0;
 
     /*! \brief Return whether GPUs can be detected
      *
@@ -75,24 +67,6 @@ public:
      *                           why GPUs cannot be detected.
      */
     static bool canPerformGpuDetection(std::string* errorMessage);
-
-    /*! \brief Return whether GPU detection is functioning correctly
-     *
-     * Returns true when this is a build of \Gromacs configured to support
-     * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
-     *
-     * This function is not intended to be called from build
-     * configurations that do not support GPUs, and there will be no
-     * descriptive message in that case.
-     *
-     * \param[out] errorMessage  When returning false on a build configured with
-     *                           GPU support and non-nullptr was passed,
-     *                           the string contains a descriptive message about
-     *                           why GPUs cannot be detected.
-     *
-     * Does not throw.
-     */
-    static bool isGpuDetectionFunctional(std::string* errorMessage);
 
     /*! \brief Find all GPUs in the system.
      *
@@ -165,6 +139,37 @@ public:
      * \returns                 size in bytes of gpu_dev_info
      */
     static size_t getDeviceInformationSize();
+
+    //! Total number of GPU devices detected on this physical node
+    int numDevices() const { return numDevices_; }
+    //! Number of GPU devices detected on this physical node that are compatible.
+    int numCompatibleDevices() const { return numCompatibleDevices_; }
+
+private:
+    //! Total number of GPU devices detected on this physical node
+    int numDevices_ = 0;
+    //! Number of GPU devices detected on this physical node that are compatible.
+    int numCompatibleDevices_ = 0;
+    //! Information about each GPU device detected on this physical node
+    DeviceInformation* deviceInfo_ = nullptr;
+
+    /*! \brief Return whether GPU detection is functioning correctly
+     *
+     * Returns true when this is a build of \Gromacs configured to support
+     * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
+     *
+     * This function is not intended to be called from build
+     * configurations that do not support GPUs, and there will be no
+     * descriptive message in that case.
+     *
+     * \param[out] errorMessage  When returning false on a build configured with
+     *                           GPU support and non-nullptr was passed,
+     *                           the string contains a descriptive message about
+     *                           why GPUs cannot be detected.
+     *
+     * Does not throw.
+     */
+    static bool isGpuDetectionFunctional(std::string* errorMessage);
 };
 
 #endif // GMX_HARDWARE_DEVICES_MANAGER_H

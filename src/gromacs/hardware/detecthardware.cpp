@@ -110,8 +110,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
                             compat::not_null<gmx_hw_info_t*> hardwareInfo)
 {
     std::string errorMessage;
-    bool        canPerformGpuDetection = hardwareInfo->gpu_info.bDetectGPUs =
-            DevicesManager::canPerformGpuDetection(&errorMessage);
+    bool        canPerformGpuDetection = DevicesManager::canPerformGpuDetection(&errorMessage);
 
     if (!canPerformGpuDetection)
     {
@@ -276,9 +275,9 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
     hardwareInfo->nhwthread_tot       = hardwareInfo->nthreads_hw_avail;
     hardwareInfo->nhwthread_min       = hardwareInfo->nthreads_hw_avail;
     hardwareInfo->nhwthread_max       = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->ngpu_compatible_tot = hardwareInfo->gpu_info.numCompatibleDevices_;
-    hardwareInfo->ngpu_compatible_min = hardwareInfo->gpu_info.numCompatibleDevices_;
-    hardwareInfo->ngpu_compatible_max = hardwareInfo->gpu_info.numCompatibleDevices_;
+    hardwareInfo->ngpu_compatible_tot = hardwareInfo->gpu_info.numCompatibleDevices();
+    hardwareInfo->ngpu_compatible_min = hardwareInfo->gpu_info.numCompatibleDevices();
+    hardwareInfo->ngpu_compatible_max = hardwareInfo->gpu_info.numCompatibleDevices();
     hardwareInfo->simd_suggest_min    = static_cast<int>(simdSuggested(cpuInfo));
     hardwareInfo->simd_suggest_max    = static_cast<int>(simdSuggested(cpuInfo));
     hardwareInfo->bIdenticalGPUs      = TRUE;

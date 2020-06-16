@@ -1697,7 +1697,7 @@ int Mdrunner::mdrunner()
     delete fr;
     fr = nullptr;
 
-    if (hwinfo->gpu_info.numDevices_ > 0)
+    if (hwinfo->gpu_info.numDevices() > 0)
     {
         /* stop the GPU profiler (only CUDA) */
         stopGpuProfiler();
