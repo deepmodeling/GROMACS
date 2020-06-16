@@ -76,14 +76,6 @@ enum class GpuTaskCompletion
     Check /*<< Only check whether the task has completed */
 };
 
-/*! \brief Return whether GPUs can be detected
- *
- * Returns true when this is a build of \Gromacs configured to support
- * GPU usage, GPU detection is not disabled by an environment variable
- * and a valid device driver, ICD, and/or runtime was detected.
- * Does not throw. */
-bool canPerformGpuDetection();
-
 /*! \brief Check if GROMACS has been built with GPU support.
  *
  * \param[in] error Pointer to error string or nullptr.

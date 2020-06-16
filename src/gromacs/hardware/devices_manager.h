@@ -63,6 +63,14 @@ public:
     //! Number of GPU devices detected on this physical node that are compatible.
     int numCompatibleDevices_ = 0;
 
+    /*! \brief Return whether GPUs can be detected
+     *
+     * Returns true when this is a build of \Gromacs configured to support
+     * GPU usage, GPU detection is not disabled by an environment variable
+     * and a valid device driver, ICD, and/or runtime was detected.
+     * Does not throw. */
+    static bool canPerformGpuDetection();
+
     /*! \brief Return whether GPU detection is functioning correctly
      *
      * Returns true when this is a build of \Gromacs configured to support

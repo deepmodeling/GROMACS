@@ -54,21 +54,6 @@
 #    pragma warning(disable : 6237)
 #endif
 
-//! Constant used to help minimize preprocessed code
-static constexpr bool c_binarySupportsGpus = (GMX_GPU != GMX_GPU_NONE);
-
-bool canPerformGpuDetection()
-{
-    if (c_binarySupportsGpus && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
-    {
-        return DevicesManager::isGpuDetectionFunctional(nullptr);
-    }
-    else
-    {
-        return false;
-    }
-}
-
 /*! \brief Help build a descriptive message in \c error if there are
  * \c errorReasons why nonbondeds on a GPU are not supported.
  *
@@ -91,7 +76,7 @@ bool buildSupportsNonbondedOnGpu(std::string* error)
     {
         errorReasons.emplace_back("double precision");
     }
-    if (!c_binarySupportsGpus)
+    if (GMX_GPU == GMX_GPU_NONE)
     {
         errorReasons.emplace_back("non-GPU build of GROMACS");
     }

@@ -109,7 +109,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
                             const PhysicalNodeCommunicator&  physicalNodeComm,
                             compat::not_null<gmx_hw_info_t*> hardwareInfo)
 {
-    hardwareInfo->gpu_info.bDetectGPUs = canPerformGpuDetection();
+    hardwareInfo->gpu_info.bDetectGPUs = DevicesManager::canPerformGpuDetection();
 
     if (!hardwareInfo->gpu_info.bDetectGPUs)
     {

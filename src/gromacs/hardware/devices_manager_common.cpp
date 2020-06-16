@@ -38,6 +38,18 @@
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
 
+bool DevicesManager::canPerformGpuDetection()
+{
+    if ((GMX_GPU != GMX_GPU_NONE) && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
+    {
+        return DevicesManager::isGpuDetectionFunctional(nullptr);
+    }
+    else
+    {
+        return false;
+    }
+}
+
 std::vector<int> DevicesManager::getCompatibleGpus() const
 {
     // Possible minor over-allocation here, but not important for anything

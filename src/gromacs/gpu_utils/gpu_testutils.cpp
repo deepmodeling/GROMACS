@@ -48,7 +48,7 @@ bool canComputeOnGpu()
 {
     bool           canComputeOnGpu = false;
     DevicesManager devicesManager{};
-    if (canPerformGpuDetection())
+    if (DevicesManager::canPerformGpuDetection())
     {
         devicesManager.findGpus();
         canComputeOnGpu = !devicesManager.getCompatibleGpus().empty();
