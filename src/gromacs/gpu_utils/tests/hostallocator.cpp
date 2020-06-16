@@ -203,7 +203,7 @@ TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
     typename TestFixture::VectorType output;
     output.resizeWithPadding(input.size());
 
-    runTest(*this->gpuInfo_, makeArrayRef(input), makeArrayRef(output));
+    runTest(this->deviceManager_, makeArrayRef(input), makeArrayRef(output));
 }
 
 TYPED_TEST(HostAllocatorTestCopyable, FillInputAlsoWorksAfterCallingReserve)
@@ -304,7 +304,7 @@ TYPED_TEST(HostAllocatorTestCopyable, TransfersWithPinningWorkWithCuda)
     changePinningPolicy(&output, PinningPolicy::PinnedIfSupported);
     output.resizeWithPadding(input.size());
 
-    runTest(*this->gpuInfo_, makeArrayRef(input), makeArrayRef(output));
+    runTest(this->deviceManager_, makeArrayRef(input), makeArrayRef(output));
 }
 
 //! Helper function for wrapping a call to isHostMemoryPinned.

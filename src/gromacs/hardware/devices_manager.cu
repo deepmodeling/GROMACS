@@ -216,6 +216,48 @@ static bool is_gmx_supported_gpu(const cudaDeviceProp& dev_prop)
     return (dev_prop.major >= 3);
 }
 
+
+/*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
+ *
+ * If \c deviceInfo is nullptr, then it is understood that no device
+ * was selected so no context is active to be freed. Otherwise, the
+ * context is explicitly destroyed and therefore all data uploaded to
+ * the GPU is lost. This must only be called when none of this data is
+ * required anymore, because subsequent attempts to free memory
+ * associated with the context will otherwise fail.
+ *
+ * Calls gmx_warning upon errors.
+ *
+ * TODO: This should go through all the devices, not only the one currently active.
+ *       Reseting only one device will not work, e.g. in CUDA.
+ */
+DevicesManager::~DevicesManager()
+{
+    // One should only attempt to clear the device context when
+    // it has been used, but currently the only way to know that a GPU
+    // device was used is that deviceInfo will be non-null.
+    if (deviceInfo_ != nullptr)
+    {
+        cudaError_t stat;
+
+        int gpuid;
+        stat = cudaGetDevice(&gpuid);
+        if (stat == cudaSuccess)
+        {
+            if (debug)
+            {
+                fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
+            }
+
+            stat = cudaDeviceReset();
+            if (stat != cudaSuccess)
+            {
+                gmx_warning("Failed to free GPU #%d: %s", gpuid, cudaGetErrorString(stat));
+            }
+        }
+    }
+}
+
 /*! \brief Checks if a GPU with a given ID is supported by the native GROMACS acceleration.
  *
  *  Returns a status value which indicates compatibility or one of the following

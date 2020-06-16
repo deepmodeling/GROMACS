@@ -45,6 +45,8 @@
 
 #include <gtest/gtest.h>
 
+#include "gromacs/hardware/devices_manager.h"
+
 struct DeviceInformation;
 class DevicesManager;
 
@@ -57,7 +59,7 @@ class GpuTest : public ::testing::Test
 {
 public:
     //! Information about GPUs that are present.
-    DevicesManager* gpuInfo_;
+    DevicesManager deviceManager_;
     //! Contains the IDs of all compatible GPUs
     std::vector<int> compatibleGpuIds_;
 

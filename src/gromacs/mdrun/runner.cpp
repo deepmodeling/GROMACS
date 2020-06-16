@@ -1686,7 +1686,7 @@ int Mdrunner::mdrunner()
     }
 
     // FIXME: this is only here to manually unpin mdAtoms->chargeA_ and state->x,
-    // before we destroy the GPU context(s) in free_gpu().
+    // before we destroy the GPU context(s)
     // Pinned buffers are associated with contexts in CUDA.
     // As soon as we destroy GPU contexts after mdrunner() exits, these lines should go.
     mdAtoms.reset(nullptr);
@@ -1704,11 +1704,10 @@ int Mdrunner::mdrunner()
     }
 
     /* With tMPI we need to wait for all ranks to finish deallocation before
-     * destroying the CUDA context in free_gpu() as some tMPI ranks may be sharing
+     * destroying the CUDA context as some tMPI ranks may be sharing
      * GPU and context.
      *
-     * This is not a concern in OpenCL where we use one context per rank which
-     * is freed in nbnxn_gpu_free().
+     * This is not a concern in OpenCL where we use one context per rank.
      *
      * Note: it is safe to not call the barrier on the ranks which do not use GPU,
      * but it is easier and more futureproof to call it on the whole node.
@@ -1724,7 +1723,6 @@ int Mdrunner::mdrunner()
         physicalNodeComm.barrier();
     }
 
-    free_gpu(deviceInfo);
     sfree(fcd);
 
     if (doMembed)

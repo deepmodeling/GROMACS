@@ -97,24 +97,6 @@ bool canPerformGpuDetection();
 GPU_FUNC_QUALIFIER
 void init_gpu(const DeviceInformation* GPU_FUNC_ARGUMENT(deviceInfo)) GPU_FUNC_TERM;
 
-/*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
- *
- * If \c deviceInfo is nullptr, then it is understood that no device
- * was selected so no context is active to be freed. Otherwise, the
- * context is explicitly destroyed and therefore all data uploaded to
- * the GPU is lost. This must only be called when none of this data is
- * required anymore, because subsequent attempts to free memory
- * associated with the context will otherwise fail.
- *
- * Calls gmx_warning upon errors.
- *
- * \param[in]  deviceInfo   device info of the GPU to clean up for
- *
- * \returns                 true if no error occurs during the freeing.
- */
-CUDA_FUNC_QUALIFIER
-void free_gpu(const DeviceInformation* CUDA_FUNC_ARGUMENT(deviceInfo)) CUDA_FUNC_TERM;
-
 /*! \brief Check if GROMACS has been built with GPU support.
  *
  * \param[in] error Pointer to error string or nullptr.

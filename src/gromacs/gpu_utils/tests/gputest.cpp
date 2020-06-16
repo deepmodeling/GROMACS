@@ -55,19 +55,15 @@ namespace test
 
 GpuTest::GpuTest()
 {
-    snew(gpuInfo_, 1);
     if (DevicesManager::isGpuDetectionFunctional(nullptr))
     {
-        gpuInfo_->findGpus();
-        compatibleGpuIds_ = gpuInfo_->getCompatibleGpus();
+        deviceManager_.findGpus();
+        compatibleGpuIds_ = deviceManager_.getCompatibleGpus();
     }
     // Failing to find valid GPUs does not require further action
 }
 
-GpuTest::~GpuTest()
-{
-    sfree(gpuInfo_);
-}
+GpuTest::~GpuTest() = default;
 
 bool GpuTest::haveCompatibleGpus() const
 {
@@ -80,7 +76,7 @@ std::vector<const DeviceInformation*> GpuTest::getDeviceInfos() const
     deviceInfos.reserve(compatibleGpuIds_.size());
     for (const auto& id : compatibleGpuIds_)
     {
-        deviceInfos.emplace_back(gpuInfo_->getDeviceInformation(id));
+        deviceInfos.emplace_back(deviceManager_.getDeviceInformation(id));
     }
     return deviceInfos;
 }

@@ -39,6 +39,8 @@
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
 
+DevicesManager::~DevicesManager() = default;
+
 void DevicesManager::findGpus() {}
 
 std::string DevicesManager::getDeviceInformationString(int index) const

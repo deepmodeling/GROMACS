@@ -109,33 +109,6 @@ void init_gpu(const DeviceInformation* deviceInfo)
     }
 }
 
-void free_gpu(const DeviceInformation* deviceInfo)
-{
-    // One should only attempt to clear the device context when
-    // it has been used, but currently the only way to know that a GPU
-    // device was used is that deviceInfo will be non-null.
-    if (deviceInfo == nullptr)
-    {
-        return;
-    }
-
-    cudaError_t stat;
-
-    if (debug)
-    {
-        int gpuid;
-        stat = cudaGetDevice(&gpuid);
-        CU_RET_ERR(stat, "cudaGetDevice failed");
-        fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
-    }
-
-    stat = cudaDeviceReset();
-    if (stat != cudaSuccess)
-    {
-        gmx_warning("Failed to free GPU #%d: %s", deviceInfo->id, cudaGetErrorString(stat));
-    }
-}
-
 void startGpuProfiler(void)
 {
     /* The NVPROF_ID environment variable is set by nvprof and indicates that

@@ -52,6 +52,8 @@ struct DeviceInformation;
 class DevicesManager
 {
 public:
+    DevicesManager() = default;
+    ~DevicesManager();
     //! Did we attempt GPU detection?
     gmx_bool bDetectGPUs;
     //! Total number of GPU devices detected on this physical node
