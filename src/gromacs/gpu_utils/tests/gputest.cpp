@@ -56,7 +56,7 @@ namespace test
 GpuTest::GpuTest()
 {
     snew(gpuInfo_, 1);
-    if (isGpuDetectionFunctional(nullptr))
+    if (DevicesManager::isGpuDetectionFunctional(nullptr))
     {
         gpuInfo_->findGpus();
         compatibleGpuIds_ = gpuInfo_->getCompatibleGpus();

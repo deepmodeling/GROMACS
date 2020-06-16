@@ -70,35 +70,6 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-bool isGpuDetectionFunctional(std::string* errorMessage)
-{
-    cl_uint numPlatforms;
-    cl_int  status = clGetPlatformIDs(0, nullptr, &numPlatforms);
-    GMX_ASSERT(status != CL_INVALID_VALUE, "Incorrect call of clGetPlatformIDs detected");
-#ifdef cl_khr_icd
-    if (status == CL_PLATFORM_NOT_FOUND_KHR)
-    {
-        // No valid ICDs found
-        if (errorMessage != nullptr)
-        {
-            errorMessage->assign("No valid OpenCL driver found");
-        }
-        return false;
-    }
-#endif
-    GMX_RELEASE_ASSERT(
-            status == CL_SUCCESS,
-            gmx::formatString("An unexpected value was returned from clGetPlatformIDs %d: %s",
-                              status, ocl_get_error_string(status).c_str())
-                    .c_str());
-    bool foundPlatform = (numPlatforms > 0);
-    if (!foundPlatform && errorMessage != nullptr)
-    {
-        errorMessage->assign("No OpenCL platforms found even though the driver was valid");
-    }
-    return foundPlatform;
-}
-
 void init_gpu(const DeviceInformation* deviceInfo)
 {
     assert(deviceInfo);

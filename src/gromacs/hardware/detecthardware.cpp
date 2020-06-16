@@ -134,7 +134,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
     if (isMasterRankOfPhysicalNode || allRanksMustDetectGpus)
     {
         std::string errorMessage;
-        gpusCanBeDetected = isGpuDetectionFunctional(&errorMessage);
+        gpusCanBeDetected = DevicesManager::isGpuDetectionFunctional(&errorMessage);
         if (!gpusCanBeDetected)
         {
             GMX_LOG(mdlog.info)

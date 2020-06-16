@@ -254,6 +254,61 @@ static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& device
     }
 }
 
+bool DevicesManager::isGpuDetectionFunctional(std::string* errorMessage)
+{
+    cudaError_t stat;
+    int         driverVersion = -1;
+    stat                      = cudaDriverGetVersion(&driverVersion);
+    GMX_ASSERT(stat != cudaErrorInvalidValue,
+               "An impossible null pointer was passed to cudaDriverGetVersion");
+    GMX_RELEASE_ASSERT(
+            stat == cudaSuccess,
+            gmx::formatString("An unexpected value was returned from cudaDriverGetVersion %s: %s",
+                              cudaGetErrorName(stat), cudaGetErrorString(stat))
+                    .c_str());
+    bool foundDriver = (driverVersion > 0);
+    if (!foundDriver)
+    {
+        // Can't detect GPUs if there is no driver
+        if (errorMessage != nullptr)
+        {
+            errorMessage->assign("No valid CUDA driver found");
+        }
+        return false;
+    }
+
+    int numDevices;
+    stat = cudaGetDeviceCount(&numDevices);
+    if (stat != cudaSuccess)
+    {
+        if (errorMessage != nullptr)
+        {
+            /* cudaGetDeviceCount failed which means that there is
+             * something wrong with the machine: driver-runtime
+             * mismatch, all GPUs being busy in exclusive mode,
+             * invalid CUDA_VISIBLE_DEVICES, or some other condition
+             * which should result in GROMACS issuing at least a
+             * warning. */
+            errorMessage->assign(cudaGetErrorString(stat));
+        }
+
+        // Consume the error now that we have prepared to handle
+        // it. This stops it reappearing next time we check for
+        // errors. Note that if CUDA_VISIBLE_DEVICES does not contain
+        // valid devices, then cudaGetLastError returns the
+        // (undocumented) cudaErrorNoDevice, but this should not be a
+        // problem as there should be no future CUDA API calls.
+        // NVIDIA bug report #2038718 has been filed.
+        cudaGetLastError();
+        // Can't detect GPUs
+        return false;
+    }
+
+    // We don't actually use numDevices here, that's not the job of
+    // this function.
+    return true;
+}
+
 void DevicesManager::findGpus()
 {
     n_dev_compatible = 0;

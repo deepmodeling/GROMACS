@@ -48,3 +48,8 @@ std::string DevicesManager::getDeviceInformationString(int index) const
     }
     return "ERROR!";
 }
+
+bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)
+{
+    return false;
+}

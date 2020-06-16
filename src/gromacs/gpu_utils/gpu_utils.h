@@ -84,25 +84,6 @@ enum class GpuTaskCompletion
  * Does not throw. */
 bool canPerformGpuDetection();
 
-/*! \brief Return whether GPU detection is functioning correctly
- *
- * Returns true when this is a build of \Gromacs configured to support
- * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
- *
- * This function is not intended to be called from build
- * configurations that do not support GPUs, and there will be no
- * descriptive message in that case.
- *
- * \param[out] errorMessage  When returning false on a build configured with
- *                           GPU support and non-nullptr was passed,
- *                           the string contains a descriptive message about
- *                           why GPUs cannot be detected.
- *
- * Does not throw. */
-GPU_FUNC_QUALIFIER
-bool isGpuDetectionFunctional(std::string* GPU_FUNC_ARGUMENT(errorMessage))
-        GPU_FUNC_TERM_WITH_RETURN(false);
-
 /*! \brief Initializes the GPU described by \c deviceInfo.
  *
  * TODO Doxygen complains about these - probably a Doxygen bug, since

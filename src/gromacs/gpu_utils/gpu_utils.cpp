@@ -61,7 +61,7 @@ bool canPerformGpuDetection()
 {
     if (c_binarySupportsGpus && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
     {
-        return isGpuDetectionFunctional(nullptr);
+        return DevicesManager::isGpuDetectionFunctional(nullptr);
     }
     else
     {

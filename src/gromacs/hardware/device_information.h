@@ -48,11 +48,11 @@
 #include "config.h"
 
 #if GMX_GPU == GMX_GPU_CUDA
-#include <cuda_runtime.h>
+#    include <cuda_runtime.h>
 #endif
 
 #if GMX_GPU == GMX_GPU_OPENCL
-#include "gromacs/gpu_utils/gmxopencl.h"
+#    include "gromacs/gpu_utils/gmxopencl.h"
 #endif
 #include "gromacs/utility/enumerationhelpers.h"
 
