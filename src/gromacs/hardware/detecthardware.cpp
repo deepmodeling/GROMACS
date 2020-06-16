@@ -155,21 +155,20 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
     if (!allRanksMustDetectGpus)
     {
         /* Broadcast the GPU info to the other ranks within this node */
-        MPI_Bcast(&hardwareInfo->gpu_info.numDevices(), 1, MPI_INT, 0, physicalNodeComm.comm_);
+        MPI_Bcast(&hardwareInfo->gpu_info.numDevices_, 1, MPI_INT, 0, physicalNodeComm.comm_);
 
-        if (hardwareInfo->gpu_info.numDevices() > 0)
+        if (hardwareInfo->gpu_info.numDevices_ > 0)
         {
             int dev_size;
 
-            dev_size = hardwareInfo->gpu_info.numDevices() * DevicesManager::getDeviceInformationSize();
+            dev_size = hardwareInfo->gpu_info.numDevices_ * DevicesManager::getDeviceInformationSize();
 
             if (!isMasterRankOfPhysicalNode)
             {
-                hardwareInfo->gpu_info.deviceInfo = (struct DeviceInformation*)malloc(dev_size);
+                hardwareInfo->gpu_info.deviceInfos_ = (struct DeviceInformation*)malloc(dev_size);
             }
-            MPI_Bcast(hardwareInfo->gpu_info.deviceInfo, dev_size, MPI_BYTE, 0, physicalNodeComm.comm_);
-            MPI_Bcast(&hardwareInfo->gpu_info.numCompatibleDevices(), 1, MPI_INT, 0,
-                      physicalNodeComm.comm_);
+            MPI_Bcast(hardwareInfo->gpu_info.deviceInfos_, dev_size, MPI_BYTE, 0, physicalNodeComm.comm_);
+            MPI_Bcast(&hardwareInfo->gpu_info.numCompatibleDevices_, 1, MPI_INT, 0, physicalNodeComm.comm_);
         }
     }
 #endif

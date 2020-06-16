@@ -145,7 +145,7 @@ public:
     //! Number of GPU devices detected on this physical node that are compatible.
     int numCompatibleDevices() const { return numCompatibleDevices_; }
 
-private:
+
     //! Total number of GPU devices detected on this physical node
     int numDevices_ = 0;
     //! Number of GPU devices detected on this physical node that are compatible.
@@ -153,6 +153,7 @@ private:
     //! Information about each GPU device detected on this physical node
     DeviceInformation* deviceInfos_ = nullptr;
 
+private:
     /*! \brief Return whether GPU detection is functioning correctly
      *
      * Returns true when this is a build of \Gromacs configured to support
