@@ -370,7 +370,7 @@ void DevicesManager::findGpus()
             break;
         }
 
-        snew(deviceInfo_, numDevices_);
+        snew(deviceInfos_, numDevices_);
 
         {
             int           device_index;
@@ -398,47 +398,47 @@ void DevicesManager::findGpus()
 
                 for (unsigned int j = 0; j < ocl_device_count; j++)
                 {
-                    deviceInfo_[device_index].oclPlatformId = ocl_platform_ids[i];
-                    deviceInfo_[device_index].oclDeviceId   = ocl_device_ids[j];
+                    deviceInfos_[device_index].oclPlatformId = ocl_platform_ids[i];
+                    deviceInfos_[device_index].oclDeviceId   = ocl_device_ids[j];
 
-                    deviceInfo_[device_index].device_name[0] = 0;
+                    deviceInfos_[device_index].device_name[0] = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_NAME,
-                                    sizeof(deviceInfo_[device_index].device_name),
-                                    deviceInfo_[device_index].device_name, nullptr);
+                                    sizeof(deviceInfos_[device_index].device_name),
+                                    deviceInfos_[device_index].device_name, nullptr);
 
-                    deviceInfo_[device_index].device_version[0] = 0;
+                    deviceInfos_[device_index].device_version[0] = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_VERSION,
-                                    sizeof(deviceInfo_[device_index].device_version),
-                                    deviceInfo_[device_index].device_version, nullptr);
+                                    sizeof(deviceInfos_[device_index].device_version),
+                                    deviceInfos_[device_index].device_version, nullptr);
 
-                    deviceInfo_[device_index].vendorName[0] = 0;
+                    deviceInfos_[device_index].vendorName[0] = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_VENDOR,
-                                    sizeof(deviceInfo_[device_index].vendorName),
-                                    deviceInfo_[device_index].vendorName, nullptr);
+                                    sizeof(deviceInfos_[device_index].vendorName),
+                                    deviceInfos_[device_index].vendorName, nullptr);
 
-                    deviceInfo_[device_index].compute_units = 0;
+                    deviceInfos_[device_index].compute_units = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_COMPUTE_UNITS,
-                                    sizeof(deviceInfo_[device_index].compute_units),
-                                    &(deviceInfo_[device_index].compute_units), nullptr);
+                                    sizeof(deviceInfos_[device_index].compute_units),
+                                    &(deviceInfos_[device_index].compute_units), nullptr);
 
-                    deviceInfo_[device_index].adress_bits = 0;
+                    deviceInfos_[device_index].adress_bits = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_ADDRESS_BITS,
-                                    sizeof(deviceInfo_[device_index].adress_bits),
-                                    &(deviceInfo_[device_index].adress_bits), nullptr);
+                                    sizeof(deviceInfos_[device_index].adress_bits),
+                                    &(deviceInfos_[device_index].adress_bits), nullptr);
 
-                    deviceInfo_[device_index].deviceVendor =
-                            gmx::getDeviceVendor(deviceInfo_[device_index].vendorName);
+                    deviceInfos_[device_index].deviceVendor =
+                            gmx::getDeviceVendor(deviceInfos_[device_index].vendorName);
 
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_WORK_ITEM_SIZES, 3 * sizeof(size_t),
-                                    &deviceInfo_[device_index].maxWorkItemSizes, nullptr);
+                                    &deviceInfos_[device_index].maxWorkItemSizes, nullptr);
 
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
-                                    &deviceInfo_[device_index].maxWorkGroupSize, nullptr);
+                                    &deviceInfos_[device_index].maxWorkGroupSize, nullptr);
 
-                    deviceInfo_[device_index].stat =
-                            gmx::checkGpu(device_index, deviceInfo_ + device_index);
+                    deviceInfos_[device_index].stat =
+                            gmx::checkGpu(device_index, deviceInfos_ + device_index);
 
-                    if (DeviceStatus::Compatible == deviceInfo_[device_index].stat)
+                    if (DeviceStatus::Compatible == deviceInfos_[device_index].stat)
                     {
                         numCompatibleDevices_++;
                     }
@@ -456,13 +456,13 @@ void DevicesManager::findGpus()
                 int last = -1;
                 for (int i = 0; i < numDevices_; i++)
                 {
-                    if (deviceInfo_[i].deviceVendor == DeviceVendor::Amd)
+                    if (deviceInfos_[i].deviceVendor == DeviceVendor::Amd)
                     {
                         last++;
 
                         if (last < i)
                         {
-                            std::swap(deviceInfo_[i], deviceInfo_[last]);
+                            std::swap(deviceInfos_[i], deviceInfos_[last]);
                         }
                     }
                 }
@@ -472,13 +472,13 @@ void DevicesManager::findGpus()
                 {
                     for (int i = 0; i < numDevices_; i++)
                     {
-                        if (deviceInfo_[i].deviceVendor == DeviceVendor::Nvidia)
+                        if (deviceInfos_[i].deviceVendor == DeviceVendor::Nvidia)
                         {
                             last++;
 
                             if (last < i)
                             {
-                                std::swap(deviceInfo_[i], deviceInfo_[last]);
+                                std::swap(deviceInfos_[i], deviceInfos_[last]);
                             }
                         }
                     }
@@ -496,7 +496,7 @@ void DevicesManager::findGpus()
 
 void DevicesManager::setDevice(int deviceId) const
 {
-    GMX_ASSERT(index >= 0 && index < numDevices_ && deviceInfo_ != nullptr,
+    GMX_ASSERT(index >= 0 && index < numDevices_ && deviceInfos_ != nullptr,
                "Trying to set invalid device");
 
     // If the device is NVIDIA, for safety reasons we disable the JIT
@@ -504,7 +504,7 @@ void DevicesManager::setDevice(int deviceId) const
     // the cache does not always get regenerated when the source code changes,
     // e.g. if the path to the kernel sources remains the same
 
-    if (deviceInfo_[deviceId].deviceVendor == DeviceVendor::Nvidia)
+    if (deviceInfos_[deviceId].deviceVendor == DeviceVendor::Nvidia)
     {
         // Ignore return values, failing to set the variable does not mean
         // that something will go wrong later.
@@ -525,7 +525,7 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
         return "";
     }
 
-    const DeviceInformation& deviceInfo = deviceInfo_[deviceId];
+    const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 
     bool gpuExists =
             (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);

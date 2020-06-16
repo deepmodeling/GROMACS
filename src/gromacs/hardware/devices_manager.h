@@ -151,7 +151,7 @@ private:
     //! Number of GPU devices detected on this physical node that are compatible.
     int numCompatibleDevices_ = 0;
     //! Information about each GPU device detected on this physical node
-    DeviceInformation* deviceInfo_ = nullptr;
+    DeviceInformation* deviceInfos_ = nullptr;
 
     /*! \brief Return whether GPU detection is functioning correctly
      *

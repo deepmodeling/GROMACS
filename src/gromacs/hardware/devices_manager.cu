@@ -65,7 +65,7 @@ DevicesManager::~DevicesManager()
     // One should only attempt to clear the device context when
     // it has been used, but currently the only way to know that a GPU
     // device was used is that deviceInfo will be non-null.
-    if (deviceInfo_ != nullptr)
+    if (deviceInfos_ != nullptr)
     {
         cudaError_t stat;
 
@@ -419,12 +419,12 @@ void DevicesManager::findGpus()
                                          cudaGetErrorName(stat), cudaGetErrorString(stat))
                                .c_str());
 
-    deviceInfo_ = devs;
+    deviceInfos_ = devs;
 }
 
 void DevicesManager::setDevice(int deviceId) const
 {
-    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfo_ != nullptr,
+    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfos_ != nullptr,
                "Trying to set invalid device");
 
     cudaError_t stat;
@@ -438,7 +438,7 @@ void DevicesManager::setDevice(int deviceId) const
 
     if (debug)
     {
-        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfo_[deviceId].prop.name);
+        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfos_[deviceId].prop.name);
     }
 }
 
@@ -449,7 +449,7 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
         return "";
     }
 
-    const DeviceInformation& deviceInfo = deviceInfo_[deviceId];
+    const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 
     bool gpuExists =
             (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
