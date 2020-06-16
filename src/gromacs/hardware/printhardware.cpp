@@ -68,8 +68,8 @@ static const bool bGPUBinary = GMX_GPU != GMX_GPU_NONE;
  */
 static std::string sprint_gpus(const DevicesManager& gpu_info)
 {
-    std::vector<std::string> gpuStrings(gpu_info.n_dev);
-    for (int i = 0; i < gpu_info.n_dev; i++)
+    std::vector<std::string> gpuStrings(gpu_info.numDevices_);
+    for (int i = 0; i < gpu_info.numDevices_; i++)
     {
         gpuStrings[i] = "    " + gpu_info.getDeviceInformationString(i);
     }
@@ -342,10 +342,10 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         }
     }
 
-    if (bGPUBinary && hwinfo->gpu_info.n_dev > 0)
+    if (bGPUBinary && hwinfo->gpu_info.numDevices_ > 0)
     {
         s += gmx::formatString("  GPU info:\n");
-        s += gmx::formatString("    Number of GPUs detected: %d\n", hwinfo->gpu_info.n_dev);
+        s += gmx::formatString("    Number of GPUs detected: %d\n", hwinfo->gpu_info.numDevices_);
         s += sprint_gpus(hwinfo->gpu_info) + "\n";
     }
     return s;

@@ -45,7 +45,7 @@ void DevicesManager::findGpus() {}
 
 std::string DevicesManager::getDeviceInformationString(int index) const
 {
-    if (index < 0 && index >= n_dev)
+    if (index < 0 && index >= numDevices_)
     {
         return "";
     }

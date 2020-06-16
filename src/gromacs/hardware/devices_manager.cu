@@ -46,20 +46,61 @@
 
 #include "devices_manager.h"
 
+/*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
+ *
+ * If \c deviceInfo is nullptr, then it is understood that no device
+ * was selected so no context is active to be freed. Otherwise, the
+ * context is explicitly destroyed and therefore all data uploaded to
+ * the GPU is lost. This must only be called when none of this data is
+ * required anymore, because subsequent attempts to free memory
+ * associated with the context will otherwise fail.
+ *
+ * Calls gmx_warning upon errors.
+ *
+ * TODO: This should go through all the devices, not only the one currently active.
+ *       Reseting only one device will not work, e.g. in CUDA.
+ */
+DevicesManager::~DevicesManager()
+{
+    // One should only attempt to clear the device context when
+    // it has been used, but currently the only way to know that a GPU
+    // device was used is that deviceInfo will be non-null.
+    if (deviceInfo_ != nullptr)
+    {
+        cudaError_t stat;
+
+        int gpuid;
+        stat = cudaGetDevice(&gpuid);
+        if (stat == cudaSuccess)
+        {
+            if (debug)
+            {
+                fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
+            }
+
+            stat = cudaDeviceReset();
+            if (stat != cudaSuccess)
+            {
+                gmx_warning("Failed to free GPU #%d: %s", gpuid, cudaGetErrorString(stat));
+            }
+        }
+    }
+}
+
 /*! \internal \brief
  * Max number of devices supported by CUDA (for consistency checking).
  *
  * In reality it is 16 with CUDA <=v5.0, but let's stay on the safe side.
  */
-static int cuda_max_device_count = 32;
+static int c_cudaMaxDeviceCount = 32;
 
 /** Dummy kernel used for sanity checking. */
-static __global__ void k_dummy_test(void) {}
+static __global__ void dummy_kernel(void) {}
 
 static cudaError_t checkCompiledTargetCompatibility(int deviceId, const cudaDeviceProp& deviceProp)
 {
     cudaFuncAttributes attributes;
-    cudaError_t        stat = cudaFuncGetAttributes(&attributes, k_dummy_test);
+    cudaError_t        stat = cudaFuncGetAttributes(&attributes, dummy_kernel);
 
     if (cudaErrorInvalidDeviceFunction == stat)
     {
@@ -89,7 +130,7 @@ static cudaError_t checkCompiledTargetCompatibility(int deviceId, const cudaDevi
  *
  * TODO: introduce errors codes and handle errors more smoothly.
  */
-static int do_sanity_checks(int dev_id, const cudaDeviceProp& dev_prop)
+static int doSanityChecks(int dev_id, const cudaDeviceProp& dev_prop)
 {
     cudaError_t cu_err;
     int         dev_count, id;
@@ -108,7 +149,7 @@ static int do_sanity_checks(int dev_id, const cudaDeviceProp& dev_prop)
     }
 
     /* things might go horribly wrong if cudart is not compatible with the driver */
-    if (dev_count < 0 || dev_count > cuda_max_device_count)
+    if (dev_count < 0 || dev_count > c_cudaMaxDeviceCount)
     {
         return -1;
     }
@@ -174,11 +215,11 @@ static int do_sanity_checks(int dev_id, const cudaDeviceProp& dev_prop)
     {
         KernelLaunchConfig config;
         config.blockSize[0]                = 512;
-        const auto          dummyArguments = prepareGpuKernelArguments(k_dummy_test, config);
+        const auto          dummyArguments = prepareGpuKernelArguments(dummy_kernel, config);
         DeviceInformation   deviceInfo;
         const DeviceContext deviceContext(deviceInfo);
         const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
-        launchGpuKernel(k_dummy_test, config, deviceStream, nullptr, "Dummy kernel", dummyArguments);
+        launchGpuKernel(dummy_kernel, config, deviceStream, nullptr, "Dummy kernel", dummyArguments);
     }
     catch (gmx::GromacsException& ex)
     {
@@ -211,51 +252,9 @@ static int do_sanity_checks(int dev_id, const cudaDeviceProp& dev_prop)
  * \returns             true if the GPU properties passed indicate a compatible
  *                      GPU, otherwise false.
  */
-static bool is_gmx_supported_gpu(const cudaDeviceProp& dev_prop)
+static bool isDeviceGenerationSupported(const cudaDeviceProp& dev_prop)
 {
     return (dev_prop.major >= 3);
-}
-
-
-/*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
- *
- * If \c deviceInfo is nullptr, then it is understood that no device
- * was selected so no context is active to be freed. Otherwise, the
- * context is explicitly destroyed and therefore all data uploaded to
- * the GPU is lost. This must only be called when none of this data is
- * required anymore, because subsequent attempts to free memory
- * associated with the context will otherwise fail.
- *
- * Calls gmx_warning upon errors.
- *
- * TODO: This should go through all the devices, not only the one currently active.
- *       Reseting only one device will not work, e.g. in CUDA.
- */
-DevicesManager::~DevicesManager()
-{
-    // One should only attempt to clear the device context when
-    // it has been used, but currently the only way to know that a GPU
-    // device was used is that deviceInfo will be non-null.
-    if (deviceInfo_ != nullptr)
-    {
-        cudaError_t stat;
-
-        int gpuid;
-        stat = cudaGetDevice(&gpuid);
-        if (stat == cudaSuccess)
-        {
-            if (debug)
-            {
-                fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
-            }
-
-            stat = cudaDeviceReset();
-            if (stat != cudaSuccess)
-            {
-                gmx_warning("Failed to free GPU #%d: %s", gpuid, cudaGetErrorString(stat));
-            }
-        }
-    }
 }
 
 /*! \brief Checks if a GPU with a given ID is supported by the native GROMACS acceleration.
@@ -274,7 +273,7 @@ DevicesManager::~DevicesManager()
  */
 static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& deviceProp)
 {
-    if (!is_gmx_supported_gpu(deviceProp))
+    if (!isDeviceGenerationSupported(deviceProp))
     {
         return DeviceStatus::Incompatible;
     }
@@ -284,14 +283,14 @@ static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& device
      * the dummy test kernel fails to execute with a "device busy message" we
      * should appropriately report that the device is busy instead of insane.
      */
-    const int checkResult = do_sanity_checks(deviceId, deviceProp);
+    const int checkResult = doSanityChecks(deviceId, deviceProp);
     switch (checkResult)
     {
         case 0: return DeviceStatus::Compatible;
         case -1: return DeviceStatus::Insane;
         case -2: return DeviceStatus::Unavailable;
         default:
-            GMX_RELEASE_ASSERT(false, "Invalid do_sanity_checks() return value");
+            GMX_RELEASE_ASSERT(false, "Invalid sanity checks return value");
             return DeviceStatus::Compatible;
     }
 }
@@ -353,10 +352,9 @@ bool DevicesManager::isGpuDetectionFunctional(std::string* errorMessage)
 
 void DevicesManager::findGpus()
 {
-    n_dev_compatible = 0;
+    numCompatibleDevices_ = 0;
 
-    int         ndev;
-    cudaError_t stat = cudaGetDeviceCount(&ndev);
+    cudaError_t stat = cudaGetDeviceCount(&numDevices_);
     if (stat != cudaSuccess)
     {
         GMX_THROW(gmx::InternalError(
@@ -368,8 +366,8 @@ void DevicesManager::findGpus()
     gmx::ensureNoPendingCudaError("");
 
     DeviceInformation* devs;
-    snew(devs, ndev);
-    for (int i = 0; i < ndev; i++)
+    snew(devs, numDevices_);
+    for (int i = 0; i < numDevices_; i++)
     {
         cudaDeviceProp prop;
         memset(&prop, 0, sizeof(cudaDeviceProp));
@@ -391,7 +389,7 @@ void DevicesManager::findGpus()
 
         if (checkResult == DeviceStatus::Compatible)
         {
-            n_dev_compatible++;
+            numCompatibleDevices_++;
         }
         else
         {
@@ -421,13 +419,12 @@ void DevicesManager::findGpus()
                                          cudaGetErrorName(stat), cudaGetErrorString(stat))
                                .c_str());
 
-    n_dev       = ndev;
     deviceInfo_ = devs;
 }
 
 std::string DevicesManager::getDeviceInformationString(int index) const
 {
-    if (index < 0 && index >= n_dev)
+    if (index < 0 && index >= numDevices_)
     {
         return "";
     }

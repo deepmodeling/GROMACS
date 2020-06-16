@@ -278,9 +278,9 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
     hardwareInfo->nhwthread_tot       = hardwareInfo->nthreads_hw_avail;
     hardwareInfo->nhwthread_min       = hardwareInfo->nthreads_hw_avail;
     hardwareInfo->nhwthread_max       = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->ngpu_compatible_tot = hardwareInfo->gpu_info.n_dev_compatible;
-    hardwareInfo->ngpu_compatible_min = hardwareInfo->gpu_info.n_dev_compatible;
-    hardwareInfo->ngpu_compatible_max = hardwareInfo->gpu_info.n_dev_compatible;
+    hardwareInfo->ngpu_compatible_tot = hardwareInfo->gpu_info.numCompatibleDevices_;
+    hardwareInfo->ngpu_compatible_min = hardwareInfo->gpu_info.numCompatibleDevices_;
+    hardwareInfo->ngpu_compatible_max = hardwareInfo->gpu_info.numCompatibleDevices_;
     hardwareInfo->simd_suggest_min    = static_cast<int>(simdSuggested(cpuInfo));
     hardwareInfo->simd_suggest_max    = static_cast<int>(simdSuggested(cpuInfo));
     hardwareInfo->bIdenticalGPUs      = TRUE;
@@ -447,10 +447,6 @@ gmx_hw_info_t* gmx_detect_hardware(const gmx::MDLogger& mdlog, const PhysicalNod
     hardwareInfo->nthreads_hw_avail = hardwareInfo->hardwareTopology->machine().logicalProcessorCount;
 
     // Detect GPUs
-    hardwareInfo->gpu_info.n_dev            = 0;
-    hardwareInfo->gpu_info.n_dev_compatible = 0;
-    hardwareInfo->gpu_info.deviceInfo_      = nullptr;
-
     gmx_detect_gpus(mdlog, physicalNodeComm, compat::make_not_null(hardwareInfo));
     gmx_collect_hardware_mpi(*hardwareInfo->cpuInfo, physicalNodeComm, compat::make_not_null(hardwareInfo));
 

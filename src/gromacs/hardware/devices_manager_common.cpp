@@ -42,8 +42,8 @@ std::vector<int> DevicesManager::getCompatibleGpus() const
 {
     // Possible minor over-allocation here, but not important for anything
     std::vector<int> compatibleGpus;
-    compatibleGpus.reserve(n_dev);
-    for (int i = 0; i < n_dev; i++)
+    compatibleGpus.reserve(numDevices_);
+    for (int i = 0; i < numDevices_; i++)
     {
         if (deviceInfo_[i].deviceStatus() == DeviceStatus::Compatible)
         {
@@ -55,7 +55,7 @@ std::vector<int> DevicesManager::getCompatibleGpus() const
 
 DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
 {
-    if (deviceId < 0 || deviceId >= n_dev)
+    if (deviceId < 0 || deviceId >= numDevices_)
     {
         gmx_incons("Invalid GPU deviceId requested");
     }
@@ -64,6 +64,6 @@ DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
 
 std::string DevicesManager::getGpuCompatibilityDescription(int index) const
 {
-    return (index >= n_dev ? c_deviceStateString[DeviceStatus::Nonexistent]
-                           : c_deviceStateString[deviceInfo_[index].deviceStatus()]);
+    return (index >= numDevices_ ? c_deviceStateString[DeviceStatus::Nonexistent]
+                                 : c_deviceStateString[deviceInfo_[index].deviceStatus()]);
 }

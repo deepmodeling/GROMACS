@@ -321,6 +321,8 @@ void DevicesManager::findGpus()
         req_dev_type = CL_DEVICE_TYPE_CPU;
     }
 
+    numDevices_ = 0;
+
     while (true)
     {
         cl_int status = clGetPlatformIDs(0, nullptr, &ocl_platform_count);
@@ -359,22 +361,22 @@ void DevicesManager::findGpus()
 
             if (1 <= ocl_device_count)
             {
-                n_dev += ocl_device_count;
+                numDevices_ += ocl_device_count;
             }
         }
 
-        if (1 > n_dev)
+        if (1 > numDevices_)
         {
             break;
         }
 
-        snew(deviceInfo_, n_dev);
+        snew(deviceInfo_, numDevices_);
 
         {
             int           device_index;
             cl_device_id* ocl_device_ids;
 
-            snew(ocl_device_ids, n_dev);
+            snew(ocl_device_ids, numDevices_);
             device_index = 0;
 
             for (unsigned int i = 0; i < ocl_platform_count; i++)
@@ -383,8 +385,8 @@ void DevicesManager::findGpus()
 
                 /* If requesting req_dev_type devices fails, just go to the next platform */
                 if (CL_SUCCESS
-                    != clGetDeviceIDs(ocl_platform_ids[i], req_dev_type, n_dev, ocl_device_ids,
-                                      &ocl_device_count))
+                    != clGetDeviceIDs(ocl_platform_ids[i], req_dev_type, numDevices_,
+                                      ocl_device_ids, &ocl_device_count))
                 {
                     continue;
                 }
@@ -438,21 +440,21 @@ void DevicesManager::findGpus()
 
                     if (DeviceStatus::Compatible == deviceInfo_[device_index].stat)
                     {
-                        n_dev_compatible++;
+                        numCompatibleDevices_++;
                     }
 
                     device_index++;
                 }
             }
 
-            n_dev = device_index;
+            numDevices_ = device_index;
 
             /* Dummy sort of devices -  AMD first, then NVIDIA, then Intel */
             // TODO: Sort devices based on performance.
-            if (0 < n_dev)
+            if (0 < numDevices_)
             {
                 int last = -1;
-                for (int i = 0; i < n_dev; i++)
+                for (int i = 0; i < numDevices_; i++)
                 {
                     if (deviceInfo_[i].deviceVendor == DeviceVendor::Amd)
                     {
@@ -466,9 +468,9 @@ void DevicesManager::findGpus()
                 }
 
                 /* if more than 1 device left to be sorted */
-                if ((n_dev - 1 - last) > 1)
+                if ((numDevices_ - 1 - last) > 1)
                 {
-                    for (int i = 0; i < n_dev; i++)
+                    for (int i = 0; i < numDevices_; i++)
                     {
                         if (deviceInfo_[i].deviceVendor == DeviceVendor::Nvidia)
                         {
@@ -495,7 +497,7 @@ void DevicesManager::findGpus()
 std::string DevicesManager::getDeviceInformationString(int index) const
 {
 
-    if (index < 0 && index >= n_dev)
+    if (index < 0 && index >= numDevices_)
     {
         return "";
     }

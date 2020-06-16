@@ -55,13 +55,13 @@ public:
     DevicesManager() = default;
     ~DevicesManager();
     //! Did we attempt GPU detection?
-    gmx_bool bDetectGPUs;
+    bool bDetectGPUs = false;
     //! Total number of GPU devices detected on this physical node
-    int n_dev;
+    int numDevices_ = 0;
     //! Information about each GPU device detected on this physical node
-    DeviceInformation* deviceInfo_;
+    DeviceInformation* deviceInfo_ = nullptr;
     //! Number of GPU devices detected on this physical node that are compatible.
-    int n_dev_compatible;
+    int numCompatibleDevices_ = 0;
 
     /*! \brief Return whether GPU detection is functioning correctly
      *
