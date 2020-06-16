@@ -121,15 +121,6 @@ void init_gpu(const DeviceInformation* deviceInfo)
     }
 }
 
-DeviceInformation* getDeviceInfo(const DevicesManager& gpu_info, int deviceId)
-{
-    if (deviceId < 0 || deviceId >= gpu_info.n_dev)
-    {
-        gmx_incons("Invalid GPU deviceId requested");
-    }
-    return &gpu_info.deviceInfo_[deviceId];
-}
-
 size_t sizeof_gpu_dev_info()
 {
     return sizeof(DeviceInformation);

@@ -81,7 +81,7 @@ std::vector<const DeviceInformation*> GpuTest::getDeviceInfos() const
     deviceInfos.reserve(compatibleGpuIds_.size());
     for (const auto& id : compatibleGpuIds_)
     {
-        deviceInfos.emplace_back(getDeviceInfo(*gpuInfo_, id));
+        deviceInfos.emplace_back(gpuInfo_->getDeviceInformation(id));
     }
     return deviceInfos;
 }

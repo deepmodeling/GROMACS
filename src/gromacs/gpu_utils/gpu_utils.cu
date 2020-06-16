@@ -135,15 +135,6 @@ void free_gpu(const DeviceInformation* deviceInfo)
     }
 }
 
-DeviceInformation* getDeviceInfo(const DevicesManager& gpu_info, int deviceId)
-{
-    if (deviceId < 0 || deviceId >= gpu_info.n_dev)
-    {
-        gmx_incons("Invalid GPU deviceId requested");
-    }
-    return &gpu_info.deviceInfo_[deviceId];
-}
-
 bool isGpuDetectionFunctional(std::string* errorMessage)
 {
     cudaError_t stat;

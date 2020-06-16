@@ -158,17 +158,6 @@ void init_gpu(const DeviceInformation* GPU_FUNC_ARGUMENT(deviceInfo)) GPU_FUNC_T
 CUDA_FUNC_QUALIFIER
 void free_gpu(const DeviceInformation* CUDA_FUNC_ARGUMENT(deviceInfo)) CUDA_FUNC_TERM;
 
-/*! \brief Return a pointer to the device info for \c deviceId
- *
- * \param[in] gpu_info      GPU info of all detected devices in the system.
- * \param[in] deviceId      ID for the GPU device requested.
- *
- * \returns                 Pointer to the device info for \c deviceId.
- */
-GPU_FUNC_QUALIFIER
-DeviceInformation* getDeviceInfo(const DevicesManager& GPU_FUNC_ARGUMENT(gpu_info),
-                                 int GPU_FUNC_ARGUMENT(deviceId)) GPU_FUNC_TERM_WITH_RETURN(nullptr);
-
 /*! \brief Returns the size of the gpu_dev_info struct.
  *
  * The size of gpu_dev_info can be used for allocation and communication.

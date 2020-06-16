@@ -35,7 +35,19 @@
  */
 #include "devices_manager.h"
 
+#include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/utility/fatalerror.h"
+
 void DevicesManager::findGpus() {}
+
+DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
+{
+    if (deviceId < 0 || deviceId >= n_dev)
+    {
+        gmx_incons("Invalid GPU deviceId requested");
+    }
+    return &deviceInfo_[deviceId];
+}
 
 std::string DevicesManager::getDeviceInformationString(int index) const
 {

@@ -433,7 +433,7 @@ DeviceInformation* GpuTaskAssignments::initDevice(int* deviceId) const
     if (gpuTaskMapping != gpuTaskAssignment.end())
     {
         *deviceId  = gpuTaskMapping->deviceId_;
-        deviceInfo = getDeviceInfo(hardwareInfo_.gpu_info, *deviceId);
+        deviceInfo = hardwareInfo_.gpu_info.getDeviceInformation(*deviceId);
         init_gpu(deviceInfo);
     }
     return deviceInfo;

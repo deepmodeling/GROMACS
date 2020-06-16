@@ -87,7 +87,7 @@ void doDeviceTransfers(const DevicesManager& gpuInfo, ArrayRef<const char> input
     }
     cudaError_t status;
 
-    const auto* device = getDeviceInfo(gpuInfo, compatibleGpus[0]);
+    const auto* device = gpuInfo.getDeviceInformation(compatibleGpus[0]);
     int         oldDeviceId;
 
     status = cudaGetDevice(&oldDeviceId);

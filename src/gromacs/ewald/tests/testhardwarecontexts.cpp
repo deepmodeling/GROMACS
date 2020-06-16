@@ -107,7 +107,7 @@ void PmeTestEnvironment::SetUp()
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
     for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
     {
-        const DeviceInformation* deviceInfo = getDeviceInfo(hardwareInfo_->gpu_info, gpuIndex);
+        const DeviceInformation* deviceInfo = hardwareInfo_->gpu_info.getDeviceInformation(gpuIndex);
         init_gpu(deviceInfo);
 
         char stmp[200] = {};

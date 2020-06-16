@@ -352,8 +352,8 @@ void DevicesManager::findGpus()
 
                 /* If requesting req_dev_type devices fails, just go to the next platform */
                 if (CL_SUCCESS
-                    != clGetDeviceIDs(ocl_platform_ids[i], req_dev_type, n_dev,
-                                      ocl_device_ids, &ocl_device_count))
+                    != clGetDeviceIDs(ocl_platform_ids[i], req_dev_type, n_dev, ocl_device_ids,
+                                      &ocl_device_count))
                 {
                     continue;
                 }
@@ -461,6 +461,15 @@ void DevicesManager::findGpus()
     sfree(ocl_platform_ids);
 }
 
+DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
+{
+    if (deviceId < 0 || deviceId >= n_dev)
+    {
+        gmx_incons("Invalid GPU deviceId requested");
+    }
+    return &deviceInfo_[deviceId];
+}
+
 std::string DevicesManager::getDeviceInformationString(int index) const
 {
 
@@ -471,7 +480,8 @@ std::string DevicesManager::getDeviceInformationString(int index) const
 
     const DeviceInformation& deviceInfo = deviceInfo_[index];
 
-    bool gpuExists = (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
+    bool gpuExists =
+            (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
 
     if (!gpuExists)
     {
@@ -479,7 +489,8 @@ std::string DevicesManager::getDeviceInformationString(int index) const
     }
     else
     {
-        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, stat: %s", index, deviceInfo.device_name,
-                deviceInfo.vendorName, deviceInfo.device_version, c_deviceStateString[deviceInfo.stat]);
+        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, stat: %s", index,
+                                 deviceInfo.device_name, deviceInfo.vendorName,
+                                 deviceInfo.device_version, c_deviceStateString[deviceInfo.stat]);
     }
 }

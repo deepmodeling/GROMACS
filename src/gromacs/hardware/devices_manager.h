@@ -109,6 +109,14 @@ public:
      */
     void findGpus();
 
+    /*! \brief Return a pointer to the device info for \c deviceId
+     *
+     * \param[in] deviceId      ID for the GPU device requested.
+     *
+     * \returns                 Pointer to the device info for \c deviceId.
+     */
+    DeviceInformation* getDeviceInformation(int deviceId) const;
+
     /*! \brief Formats and returns a device information string for a given GPU.
      *
      * Given an index *directly* into the array of available GPUs (gpu_dev)
