@@ -48,7 +48,6 @@ struct t_fcdata;
 struct t_forcerec;
 struct t_filenm;
 struct t_inputrec;
-class DevicesManager;
 struct gmx_localtop_t;
 struct gmx_mtop_t;
 struct gmx_wallcycle;

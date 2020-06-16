@@ -56,7 +56,6 @@
 #include "gromacs/utility/basedefinitions.h"
 
 struct DeviceInformation;
-class DevicesManager;
 
 namespace gmx
 {

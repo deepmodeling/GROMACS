@@ -36,7 +36,6 @@
 #ifndef GMX_HARDWARE_DETECTHARDWARE_H
 #define GMX_HARDWARE_DETECTHARDWARE_H
 
-class DevicesManager;
 struct gmx_hw_info_t;
 
 namespace gmx
@@ -61,9 +60,6 @@ class PhysicalNodeCommunicator;
  * cases, any thread within a process may use the returned handle. */
 gmx_hw_info_t* gmx_detect_hardware(const gmx::MDLogger&            mdlog,
                                    const PhysicalNodeCommunicator& physicalNodeComm);
-
-//! Return whether compatible GPUs were found.
-bool compatibleGpusFound(const DevicesManager& gpu_info);
 
 } // namespace gmx
 
