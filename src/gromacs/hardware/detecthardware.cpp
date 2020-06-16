@@ -152,7 +152,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
 
     if (gpusCanBeDetected)
     {
-        findGpus(&hardwareInfo->gpu_info);
+        hardwareInfo->gpu_info.findGpus();
         // No need to tell the user anything at this point, they get a
         // hardware report later.
     }
@@ -208,14 +208,12 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
      */
     for (i = 0; i < hardwareInfo->gpu_info.n_dev; i++)
     {
-        char stmp[STRLEN];
-
         /* Since the device ID is incorporated in the hash, the order of
          * the GPUs affects the hash. Also two identical GPUs won't give
          * a gpu_hash of zero after XORing.
          */
-        get_gpu_device_info_string(stmp, hardwareInfo->gpu_info, i);
-        gpu_hash ^= gmx_string_fullhash_func(stmp, gmx_string_hash_init);
+        std::string deviceInfoString = hardwareInfo->gpu_info.getDeviceInformationString(i);
+        gpu_hash ^= gmx_string_fullhash_func(deviceInfoString.c_str(), gmx_string_hash_init);
     }
 
     constexpr int                      numElementsCounts = 4;
@@ -454,7 +452,7 @@ gmx_hw_info_t* gmx_detect_hardware(const gmx::MDLogger& mdlog, const PhysicalNod
     // Detect GPUs
     hardwareInfo->gpu_info.n_dev            = 0;
     hardwareInfo->gpu_info.n_dev_compatible = 0;
-    hardwareInfo->gpu_info.deviceInfo       = nullptr;
+    hardwareInfo->gpu_info.deviceInfo_      = nullptr;
 
     gmx_detect_gpus(mdlog, physicalNodeComm, compat::make_not_null(hardwareInfo));
     gmx_collect_hardware_mpi(*hardwareInfo->cpuInfo, physicalNodeComm, compat::make_not_null(hardwareInfo));

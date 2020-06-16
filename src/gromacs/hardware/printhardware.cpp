@@ -68,12 +68,10 @@ static const bool bGPUBinary = GMX_GPU != GMX_GPU_NONE;
  */
 static std::string sprint_gpus(const DevicesManager& gpu_info)
 {
-    char                     stmp[STRLEN];
-    std::vector<std::string> gpuStrings;
+    std::vector<std::string> gpuStrings(gpu_info.n_dev);
     for (int i = 0; i < gpu_info.n_dev; i++)
     {
-        get_gpu_device_info_string(stmp, gpu_info, i);
-        gpuStrings.push_back(gmx::formatString("    %s", stmp));
+        gpuStrings[i] = "    " + gpu_info.getDeviceInformationString(i);
     }
     return gmx::joinStrings(gpuStrings, "\n");
 }

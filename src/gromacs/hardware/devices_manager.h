@@ -33,8 +33,8 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_HARDWARE_GPU_HW_INFO_H
-#define GMX_HARDWARE_GPU_HW_INFO_H
+#ifndef GMX_HARDWARE_DEVICES_MANAGER_H
+#define GMX_HARDWARE_DEVICES_MANAGER_H
 
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/enumerationhelpers.h"
@@ -87,9 +87,39 @@ public:
     //! Total number of GPU devices detected on this physical node
     int n_dev;
     //! Information about each GPU device detected on this physical node
-    DeviceInformation* deviceInfo;
+    DeviceInformation* deviceInfo_;
     //! Number of GPU devices detected on this physical node that are compatible.
     int n_dev_compatible;
+
+    /*! \brief Find all GPUs in the system.
+     *
+     *  Will detect every GPU supported by the device driver in use.
+     *  Must only be called if canPerformGpuDetection() has returned true.
+     *  This routine also checks for the compatibility of each and fill the
+     *  deviceInfo array with the required information on each the
+     *  device: ID, device properties, status.
+     *
+     *  Note that this function leaves the GPU runtime API error state clean;
+     *  this is implemented ATM in the CUDA flavor.
+     *  TODO: check if errors do propagate in OpenCL as they do in CUDA and
+     *  whether there is a mechanism to "clear" them.
+     *
+     *  \throws                InternalError if a GPU API returns an unexpected failure (because
+     *                         the call to canDetectGpus() should always prevent this occuring)
+     */
+    void findGpus();
+
+    /*! \brief Formats and returns a device information string for a given GPU.
+     *
+     * Given an index *directly* into the array of available GPUs (gpu_dev)
+     * returns a formatted info string for the respective GPU which includes
+     * ID, name, compute capability, and detection status.
+     *
+     * \param[in]   index       an index *directly* into the array of available GPUs
+     *
+     * \returns A string describing the device.
+     */
+    std::string getDeviceInformationString(int index) const;
 };
 
-#endif
+#endif // GMX_HARDWARE_DEVICES_MANAGER_H

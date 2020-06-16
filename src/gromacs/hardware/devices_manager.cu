@@ -1,0 +1,351 @@
+/*
+ * This file is part of the GROMACS molecular simulation package.
+ *
+ * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
+ * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
+ * and including many others, as listed in the AUTHORS file in the
+ * top-level source directory and at http://www.gromacs.org.
+ *
+ * GROMACS is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the License, or (at your option) any later version.
+ *
+ * GROMACS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with GROMACS; if not, see
+ * http://www.gnu.org/licenses, or write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
+ *
+ * If you want to redistribute modifications to GROMACS, please
+ * consider that scientific software is very special. Version
+ * control is crucial - bugs must be traceable. We will be happy to
+ * consider code for inclusion in the official distribution, but
+ * derived work must not be called official GROMACS. Details are found
+ * in the README & COPYING files - if they are missing, get the
+ * official version at http://www.gromacs.org.
+ *
+ * To help us fund GROMACS development, we humbly ask that you cite
+ * the research papers on the package. Check out http://www.gromacs.org.
+ */
+#include <cuda_runtime.h>
+
+#include "gromacs/gpu_utils/cudautils.cuh"
+#include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/utility/exceptions.h"
+#include "gromacs/utility/programcontext.h"
+#include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/stringutil.h"
+
+#include "devices_manager.h"
+
+/*! \internal \brief
+ * Max number of devices supported by CUDA (for consistency checking).
+ *
+ * In reality it is 16 with CUDA <=v5.0, but let's stay on the safe side.
+ */
+static int cuda_max_device_count = 32;
+
+/** Dummy kernel used for sanity checking. */
+static __global__ void k_dummy_test(void) {}
+
+static cudaError_t checkCompiledTargetCompatibility(int deviceId, const cudaDeviceProp& deviceProp)
+{
+    cudaFuncAttributes attributes;
+    cudaError_t        stat = cudaFuncGetAttributes(&attributes, k_dummy_test);
+
+    if (cudaErrorInvalidDeviceFunction == stat)
+    {
+        fprintf(stderr,
+                "\nWARNING: The %s binary does not include support for the CUDA architecture of "
+                "the GPU ID #%d (compute capability %d.%d) detected during detection. "
+                "By default, GROMACS supports all architectures of compute "
+                "capability >= 3.0, so your GPU "
+                "might be rare, or some architectures were disabled in the build. \n"
+                "Consult the install guide for how to use the GMX_CUDA_TARGET_SM and "
+                "GMX_CUDA_TARGET_COMPUTE CMake variables to add this architecture. \n",
+                gmx::getProgramContext().displayName(), deviceId, deviceProp.major, deviceProp.minor);
+    }
+
+    return stat;
+}
+
+/*!
+ * \brief Runs GPU sanity checks.
+ *
+ * Runs a series of checks to determine that the given GPU and underlying CUDA
+ * driver/runtime functions properly.
+ *
+ * \param[in]  dev_id      the device ID of the GPU or -1 if the device has already been initialized
+ * \param[in]  dev_prop    The device properties structure
+ * \returns                0 if the device looks OK, -1 if it sanity checks failed, and -2 if the device is busy
+ *
+ * TODO: introduce errors codes and handle errors more smoothly.
+ */
+static int do_sanity_checks(int dev_id, const cudaDeviceProp& dev_prop)
+{
+    cudaError_t cu_err;
+    int         dev_count, id;
+
+    cu_err = cudaGetDeviceCount(&dev_count);
+    if (cu_err != cudaSuccess)
+    {
+        fprintf(stderr, "Error %d while querying device count: %s\n", cu_err, cudaGetErrorString(cu_err));
+        return -1;
+    }
+
+    /* no CUDA compatible device at all */
+    if (dev_count == 0)
+    {
+        return -1;
+    }
+
+    /* things might go horribly wrong if cudart is not compatible with the driver */
+    if (dev_count < 0 || dev_count > cuda_max_device_count)
+    {
+        return -1;
+    }
+
+    if (dev_id == -1) /* device already selected let's not destroy the context */
+    {
+        cu_err = cudaGetDevice(&id);
+        if (cu_err != cudaSuccess)
+        {
+            fprintf(stderr, "Error %d while querying device id: %s\n", cu_err, cudaGetErrorString(cu_err));
+            return -1;
+        }
+    }
+    else
+    {
+        id = dev_id;
+        if (id > dev_count - 1) /* pfff there's no such device */
+        {
+            fprintf(stderr,
+                    "The requested device with id %d does not seem to exist (device count=%d)\n",
+                    dev_id, dev_count);
+            return -1;
+        }
+    }
+
+    /* both major & minor is 9999 if no CUDA capable devices are present */
+    if (dev_prop.major == 9999 && dev_prop.minor == 9999)
+    {
+        return -1;
+    }
+    /* we don't care about emulation mode */
+    if (dev_prop.major == 0)
+    {
+        return -1;
+    }
+
+    if (id != -1)
+    {
+        cu_err = cudaSetDevice(id);
+        if (cu_err != cudaSuccess)
+        {
+            fprintf(stderr, "Error %d while switching to device #%d: %s\n", cu_err, id,
+                    cudaGetErrorString(cu_err));
+            return -1;
+        }
+    }
+
+    cu_err = checkCompiledTargetCompatibility(dev_id, dev_prop);
+    // Avoid triggering an error if GPU devices are in exclusive or prohibited mode;
+    // it is enough to check for cudaErrorDevicesUnavailable only here because
+    // if we encounter it that will happen in cudaFuncGetAttributes in the above function.
+    if (cu_err == cudaErrorDevicesUnavailable)
+    {
+        return -2;
+    }
+    else if (cu_err != cudaSuccess)
+    {
+        return -1;
+    }
+
+    /* try to execute a dummy kernel */
+    try
+    {
+        KernelLaunchConfig config;
+        config.blockSize[0]                = 512;
+        const auto          dummyArguments = prepareGpuKernelArguments(k_dummy_test, config);
+        DeviceInformation   deviceInfo;
+        const DeviceContext deviceContext(deviceInfo);
+        const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+        launchGpuKernel(k_dummy_test, config, deviceStream, nullptr, "Dummy kernel", dummyArguments);
+    }
+    catch (gmx::GromacsException& ex)
+    {
+        // launchGpuKernel error is not fatal and should continue with marking the device bad
+        fprintf(stderr,
+                "Error occurred while running dummy kernel sanity check on device #%d:\n %s\n", id,
+                formatExceptionMessageToString(ex).c_str());
+        return -1;
+    }
+
+    if (cudaDeviceSynchronize() != cudaSuccess)
+    {
+        return -1;
+    }
+
+    /* destroy context if we created one */
+    if (id != -1)
+    {
+        cu_err = cudaDeviceReset();
+        CU_RET_ERR(cu_err, "cudaDeviceReset failed");
+    }
+
+    return 0;
+}
+
+/*! \brief Returns true if the gpu characterized by the device properties is
+ *  supported by the native gpu acceleration.
+ *
+ * \param[in] dev_prop  the CUDA device properties of the gpus to test.
+ * \returns             true if the GPU properties passed indicate a compatible
+ *                      GPU, otherwise false.
+ */
+static bool is_gmx_supported_gpu(const cudaDeviceProp& dev_prop)
+{
+    return (dev_prop.major >= 3);
+}
+
+/*! \brief Checks if a GPU with a given ID is supported by the native GROMACS acceleration.
+ *
+ *  Returns a status value which indicates compatibility or one of the following
+ *  errors: incompatibility or insanity (=unexpected behavior).
+ *
+ *  As the error handling only permits returning the state of the GPU, this function
+ *  does not clear the CUDA runtime API status allowing the caller to inspect the error
+ *  upon return. Note that this also means it is the caller's responsibility to
+ *  reset the CUDA runtime state.
+ *
+ *  \param[in]  deviceId   the ID of the GPU to check.
+ *  \param[in]  deviceProp the CUDA device properties of the device checked.
+ *  \returns               the status of the requested device
+ */
+static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& deviceProp)
+{
+    if (!is_gmx_supported_gpu(deviceProp))
+    {
+        return DeviceStatus::Incompatible;
+    }
+
+    /* TODO: currently we do not make a distinction between the type of errors
+     * that can appear during sanity checks. This needs to be improved, e.g if
+     * the dummy test kernel fails to execute with a "device busy message" we
+     * should appropriately report that the device is busy instead of insane.
+     */
+    const int checkResult = do_sanity_checks(deviceId, deviceProp);
+    switch (checkResult)
+    {
+        case 0: return DeviceStatus::Compatible;
+        case -1: return DeviceStatus::Insane;
+        case -2: return DeviceStatus::Unavailable;
+        default:
+            GMX_RELEASE_ASSERT(false, "Invalid do_sanity_checks() return value");
+            return DeviceStatus::Compatible;
+    }
+}
+
+void DevicesManager::findGpus()
+{
+    n_dev_compatible = 0;
+
+    int         ndev;
+    cudaError_t stat = cudaGetDeviceCount(&ndev);
+    if (stat != cudaSuccess)
+    {
+        GMX_THROW(gmx::InternalError(
+                "Invalid call of findGpus() when CUDA API returned an error, perhaps "
+                "canDetectGpus() was not called appropriately beforehand."));
+    }
+
+    // We expect to start device support/sanity checks with a clean runtime error state
+    gmx::ensureNoPendingCudaError("");
+
+    DeviceInformation* devs;
+    snew(devs, ndev);
+    for (int i = 0; i < ndev; i++)
+    {
+        cudaDeviceProp prop;
+        memset(&prop, 0, sizeof(cudaDeviceProp));
+        stat = cudaGetDeviceProperties(&prop, i);
+        DeviceStatus checkResult;
+        if (stat != cudaSuccess)
+        {
+            // Will handle the error reporting below
+            checkResult = DeviceStatus::Insane;
+        }
+        else
+        {
+            checkResult = isDeviceSupported(i, prop);
+        }
+
+        devs[i].id   = i;
+        devs[i].prop = prop;
+        devs[i].stat = checkResult;
+
+        if (checkResult == DeviceStatus::Compatible)
+        {
+            n_dev_compatible++;
+        }
+        else
+        {
+            // TODO:
+            //  - we inspect the CUDA API state to retrieve and record any
+            //    errors that occurred during isDeviceSupported() here,
+            //    but this would be more elegant done within isDeviceSupported()
+            //    and only return a string with the error if one was encountered.
+            //  - we'll be reporting without rank information which is not ideal.
+            //  - we'll end up warning also in cases where users would already
+            //    get an error before mdrun aborts.
+            //
+            // Here we also clear the CUDA API error state so potential
+            // errors during sanity checks don't propagate.
+            if ((stat = cudaGetLastError()) != cudaSuccess)
+            {
+                gmx_warning("An error occurred while sanity checking device #%d; %s: %s",
+                            devs[i].id, cudaGetErrorName(stat), cudaGetErrorString(stat));
+            }
+        }
+    }
+
+    stat = cudaPeekAtLastError();
+    GMX_RELEASE_ASSERT(stat == cudaSuccess,
+                       gmx::formatString("We promise to return with clean CUDA state, but "
+                                         "non-success state encountered: %s: %s",
+                                         cudaGetErrorName(stat), cudaGetErrorString(stat))
+                               .c_str());
+
+    n_dev      = ndev;
+    deviceInfo_ = devs;
+}
+
+std::string DevicesManager::getDeviceInformationString(int index) const
+{
+    if (index < 0 && index >= n_dev)
+    {
+        return "";
+    }
+
+    const DeviceInformation& deviceInfo = deviceInfo_[index];
+
+    bool gpuExists = (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
+
+    if (!gpuExists)
+    {
+        return gmx::formatString("#%d: %s, stat: %s", deviceInfo.id, "N/A", c_deviceStateString[deviceInfo.stat]);
+    }
+    else
+    {
+        return gmx::formatString("#%d: NVIDIA %s, compute cap.: %d.%d, ECC: %3s, stat: %s", deviceInfo.id,
+                deviceInfo.prop.name, deviceInfo.prop.major, deviceInfo.prop.minor,
+                deviceInfo.prop.ECCEnabled ? "yes" : " no", c_deviceStateString[deviceInfo.stat]);
+    }
+}

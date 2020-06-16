@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
+ * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,59 +33,15 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \internal \file
- * \brief
- * Tests utilities for GPU device allocation and free.
- *
- * \author Mark Abraham <mark.j.abraham@gmail.com>
- */
-#include "gmxpre.h"
+#include "devices_manager.h"
 
-#include "gputest.h"
+void DevicesManager::findGpus() {}
 
-#include <gtest/gtest.h>
-
-#include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/hardware/devices_manager.h"
-#include "gromacs/utility/smalloc.h"
-
-namespace gmx
+std::string DevicesManager::getDeviceInformationString(int index) const
 {
-namespace test
-{
-
-GpuTest::GpuTest()
-{
-    snew(gpuInfo_, 1);
-    if (isGpuDetectionFunctional(nullptr))
+    if (index < 0 && index >= n_dev)
     {
-        gpuInfo_->findGpus();
-        compatibleGpuIds_ = getCompatibleGpus(*gpuInfo_);
+        return "";
     }
-    // Failing to find valid GPUs does not require further action
+    return "ERROR!";
 }
-
-GpuTest::~GpuTest()
-{
-    free_gpu_info(gpuInfo_);
-    sfree(gpuInfo_);
-}
-
-bool GpuTest::haveCompatibleGpus() const
-{
-    return !compatibleGpuIds_.empty();
-}
-
-std::vector<const DeviceInformation*> GpuTest::getDeviceInfos() const
-{
-    std::vector<const DeviceInformation*> deviceInfos;
-    deviceInfos.reserve(compatibleGpuIds_.size());
-    for (const auto& id : compatibleGpuIds_)
-    {
-        deviceInfos.emplace_back(getDeviceInfo(*gpuInfo_, id));
-    }
-    return deviceInfos;
-}
-
-} // namespace test
-} // namespace gmx

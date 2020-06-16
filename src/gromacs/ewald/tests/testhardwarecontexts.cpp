@@ -111,7 +111,7 @@ void PmeTestEnvironment::SetUp()
         init_gpu(deviceInfo);
 
         char stmp[200] = {};
-        get_gpu_device_info_string(stmp, hardwareInfo_->gpu_info, gpuIndex);
+        hardwareInfo_->gpu_info.getDeviceInformationString(gpuIndex);
         std::string description = "(GPU " + std::string(stmp) + ") ";
         hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(
                 CodePath::GPU, description.c_str(), *deviceInfo));

@@ -40,6 +40,21 @@ gmx_add_libgromacs_sources(
     identifyavx512fmaunits.cpp
     )
 
+if(GMX_USE_OPENCL)
+    gmx_add_libgromacs_sources(
+        devices_manager_ocl.cpp
+        )
+elseif(GMX_USE_CUDA)
+    gmx_add_libgromacs_sources(
+        devices_manager.cu
+        )
+else()
+    gmx_add_libgromacs_sources(
+        devices_manager.cpp
+    )
+endif()
+
+
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()

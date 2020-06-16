@@ -104,27 +104,6 @@ GPU_FUNC_QUALIFIER
 bool isGpuDetectionFunctional(std::string* GPU_FUNC_ARGUMENT(errorMessage))
         GPU_FUNC_TERM_WITH_RETURN(false);
 
-/*! \brief Find all GPUs in the system.
- *
- *  Will detect every GPU supported by the device driver in use.
- *  Must only be called if canPerformGpuDetection() has returned true.
- *  This routine also checks for the compatibility of each and fill the
- *  gpu_info->deviceInfo array with the required information on each the
- *  device: ID, device properties, status.
- *
- *  Note that this function leaves the GPU runtime API error state clean;
- *  this is implemented ATM in the CUDA flavor.
- *  TODO: check if errors do propagate in OpenCL as they do in CUDA and
- *  whether there is a mechanism to "clear" them.
- *
- *  \param[in] gpu_info    pointer to structure holding GPU information.
- *
- *  \throws                InternalError if a GPU API returns an unexpected failure (because
- *                         the call to canDetectGpus() should always prevent this occuring)
- */
-GPU_FUNC_QUALIFIER
-void findGpus(DevicesManager* GPU_FUNC_ARGUMENT(gpu_info)) GPU_FUNC_TERM;
-
 /*! \brief Return a container of the detected GPUs that are compatible.
  *
  * This function filters the result of the detection for compatible
@@ -189,22 +168,6 @@ void free_gpu(const DeviceInformation* CUDA_FUNC_ARGUMENT(deviceInfo)) CUDA_FUNC
 GPU_FUNC_QUALIFIER
 DeviceInformation* getDeviceInfo(const DevicesManager& GPU_FUNC_ARGUMENT(gpu_info),
                                  int GPU_FUNC_ARGUMENT(deviceId)) GPU_FUNC_TERM_WITH_RETURN(nullptr);
-
-/*! \brief Formats and returns a device information string for a given GPU.
- *
- * Given an index *directly* into the array of available GPUs (gpu_dev)
- * returns a formatted info string for the respective GPU which includes
- * ID, name, compute capability, and detection status.
- *
- * \param[out]  s           pointer to output string (has to be allocated externally)
- * \param[in]   gpu_info    Information about detected GPUs
- * \param[in]   index       an index *directly* into the array of available GPUs
- */
-GPU_FUNC_QUALIFIER
-void get_gpu_device_info_string(char*                 GPU_FUNC_ARGUMENT(s),
-                                const DevicesManager& GPU_FUNC_ARGUMENT(gpu_info),
-                                int                   GPU_FUNC_ARGUMENT(index)) GPU_FUNC_TERM;
-
 
 /*! \brief Returns the size of the gpu_dev_info struct.
  *
