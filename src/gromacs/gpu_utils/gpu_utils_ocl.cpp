@@ -334,7 +334,7 @@ bool isGpuDetectionFunctional(std::string* errorMessage)
     return foundPlatform;
 }
 
-void findGpus(gmx_gpu_info_t* gpu_info)
+void findGpus(DevicesManager* gpu_info)
 {
     cl_uint         ocl_platform_count;
     cl_platform_id* ocl_platform_ids;
@@ -518,7 +518,7 @@ void findGpus(gmx_gpu_info_t* gpu_info)
     sfree(ocl_platform_ids);
 }
 
-void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int index)
+void get_gpu_device_info_string(char* s, const DevicesManager& gpu_info, int index)
 {
     assert(s);
 
@@ -565,7 +565,7 @@ void init_gpu(const DeviceInformation* deviceInfo)
     }
 }
 
-DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& gpu_info, int deviceId)
+DeviceInformation* getDeviceInfo(const DevicesManager& gpu_info, int deviceId)
 {
     if (deviceId < 0 || deviceId >= gpu_info.n_dev)
     {

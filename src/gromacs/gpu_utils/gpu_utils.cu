@@ -53,7 +53,7 @@
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/pmalloc_cuda.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/exceptions.h"
@@ -293,7 +293,7 @@ void free_gpu(const DeviceInformation* deviceInfo)
     }
 }
 
-DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& gpu_info, int deviceId)
+DeviceInformation* getDeviceInfo(const DevicesManager& gpu_info, int deviceId)
 {
     if (deviceId < 0 || deviceId >= gpu_info.n_dev)
     {
@@ -407,7 +407,7 @@ bool isGpuDetectionFunctional(std::string* errorMessage)
     return true;
 }
 
-void findGpus(gmx_gpu_info_t* gpu_info)
+void findGpus(DevicesManager* gpu_info)
 {
     assert(gpu_info);
 
@@ -483,7 +483,7 @@ void findGpus(gmx_gpu_info_t* gpu_info)
     gpu_info->deviceInfo = devs;
 }
 
-void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int index)
+void get_gpu_device_info_string(char* s, const DevicesManager& gpu_info, int index)
 {
     assert(s);
 

@@ -43,7 +43,7 @@
 #include "gromacs/gpu_utils/gmxopencl.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/gpu_utils/oclutils.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
@@ -71,7 +71,7 @@ void throwUponFailure(cl_int status, const char* message)
 
 } // namespace
 
-void doDeviceTransfers(const gmx_gpu_info_t& gpuInfo, ArrayRef<const char> input, ArrayRef<char> output)
+void doDeviceTransfers(const DevicesManager& gpuInfo, ArrayRef<const char> input, ArrayRef<char> output)
 {
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
     const auto compatibleGpus = getCompatibleGpus(gpuInfo);

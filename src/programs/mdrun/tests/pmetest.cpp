@@ -57,7 +57,7 @@
 #include "gromacs/ewald/pme.h"
 #include "gromacs/gpu_utils/gpu_testutils.h"
 #include "gromacs/hardware/detecthardware.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/trajectory/energyframe.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/gmxmpi.h"

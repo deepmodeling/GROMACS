@@ -45,7 +45,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/smalloc.h"
 
 namespace gmx

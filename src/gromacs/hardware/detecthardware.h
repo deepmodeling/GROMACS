@@ -36,7 +36,7 @@
 #ifndef GMX_HARDWARE_DETECTHARDWARE_H
 #define GMX_HARDWARE_DETECTHARDWARE_H
 
-struct gmx_gpu_info_t;
+class DevicesManager;
 struct gmx_hw_info_t;
 
 namespace gmx
@@ -63,7 +63,7 @@ gmx_hw_info_t* gmx_detect_hardware(const gmx::MDLogger&            mdlog,
                                    const PhysicalNodeCommunicator& physicalNodeComm);
 
 //! Return whether compatible GPUs were found.
-bool compatibleGpusFound(const gmx_gpu_info_t& gpu_info);
+bool compatibleGpusFound(const DevicesManager& gpu_info);
 
 } // namespace gmx
 

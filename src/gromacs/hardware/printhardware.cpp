@@ -66,7 +66,7 @@ static const bool bGPUBinary = GMX_GPU != GMX_GPU_NONE;
 /*! \internal \brief
  * Returns the GPU information text, one GPU per line.
  */
-static std::string sprint_gpus(const gmx_gpu_info_t& gpu_info)
+static std::string sprint_gpus(const DevicesManager& gpu_info)
 {
     char                     stmp[STRLEN];
     std::vector<std::string> gpuStrings;

@@ -79,8 +79,9 @@ static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateStrin
  * module initializes it.
  *
  * \todo Use a std::vector */
-struct gmx_gpu_info_t
+class DevicesManager
 {
+public:
     //! Did we attempt GPU detection?
     gmx_bool bDetectGPUs;
     //! Total number of GPU devices detected on this physical node

@@ -52,11 +52,11 @@
 #include <vector>
 
 #include "gromacs/gpu_utils/gpu_macros.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/basedefinitions.h"
 
 struct DeviceInformation;
-struct gmx_gpu_info_t;
+class DevicesManager;
 
 namespace gmx
 {
@@ -123,7 +123,7 @@ bool isGpuDetectionFunctional(std::string* GPU_FUNC_ARGUMENT(errorMessage))
  *                         the call to canDetectGpus() should always prevent this occuring)
  */
 GPU_FUNC_QUALIFIER
-void findGpus(gmx_gpu_info_t* GPU_FUNC_ARGUMENT(gpu_info)) GPU_FUNC_TERM;
+void findGpus(DevicesManager* GPU_FUNC_ARGUMENT(gpu_info)) GPU_FUNC_TERM;
 
 /*! \brief Return a container of the detected GPUs that are compatible.
  *
@@ -132,7 +132,7 @@ void findGpus(gmx_gpu_info_t* GPU_FUNC_ARGUMENT(gpu_info)) GPU_FUNC_TERM;
  *
  * \param[in]     gpu_info    Information detected about GPUs, including compatibility.
  * \return                    vector of IDs of GPUs already recorded as compatible */
-std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info);
+std::vector<int> getCompatibleGpus(const DevicesManager& gpu_info);
 
 /*! \brief Return a string describing how compatible the GPU with given \c index is.
  *
@@ -140,13 +140,13 @@ std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info);
  * \param[in]   index       index of GPU to ask about
  * \returns                 A null-terminated C string describing the compatibility status, useful for error messages.
  */
-const char* getGpuCompatibilityDescription(const gmx_gpu_info_t& gpu_info, int index);
+const char* getGpuCompatibilityDescription(const DevicesManager& gpu_info, int index);
 
 /*! \brief Frees the gpu_dev and dev_use array fields of \p gpu_info.
  *
  * \param[in]    gpu_info    pointer to structure holding GPU information
  */
-void free_gpu_info(const gmx_gpu_info_t* gpu_info);
+void free_gpu_info(const DevicesManager* gpu_info);
 
 /*! \brief Initializes the GPU described by \c deviceInfo.
  *
@@ -187,7 +187,7 @@ void free_gpu(const DeviceInformation* CUDA_FUNC_ARGUMENT(deviceInfo)) CUDA_FUNC
  * \returns                 Pointer to the device info for \c deviceId.
  */
 GPU_FUNC_QUALIFIER
-DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& GPU_FUNC_ARGUMENT(gpu_info),
+DeviceInformation* getDeviceInfo(const DevicesManager& GPU_FUNC_ARGUMENT(gpu_info),
                                  int GPU_FUNC_ARGUMENT(deviceId)) GPU_FUNC_TERM_WITH_RETURN(nullptr);
 
 /*! \brief Formats and returns a device information string for a given GPU.
@@ -202,7 +202,7 @@ DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& GPU_FUNC_ARGUMENT(gpu_inf
  */
 GPU_FUNC_QUALIFIER
 void get_gpu_device_info_string(char*                 GPU_FUNC_ARGUMENT(s),
-                                const gmx_gpu_info_t& GPU_FUNC_ARGUMENT(gpu_info),
+                                const DevicesManager& GPU_FUNC_ARGUMENT(gpu_info),
                                 int                   GPU_FUNC_ARGUMENT(index)) GPU_FUNC_TERM;
 
 

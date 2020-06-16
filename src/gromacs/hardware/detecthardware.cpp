@@ -466,7 +466,7 @@ gmx_hw_info_t* gmx_detect_hardware(const gmx::MDLogger& mdlog, const PhysicalNod
     return g_hardwareInfo.get();
 }
 
-bool compatibleGpusFound(const gmx_gpu_info_t& gpu_info)
+bool compatibleGpusFound(const DevicesManager& gpu_info)
 {
     return gpu_info.n_dev_compatible > 0;
 }

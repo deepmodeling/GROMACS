@@ -46,7 +46,7 @@
 #include <cassert>
 
 #include "gromacs/gpu_utils/gputraits.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
@@ -70,12 +70,12 @@ bool canPerformGpuDetection()
     }
 }
 
-void free_gpu_info(const gmx_gpu_info_t* gpu_info)
+void free_gpu_info(const DevicesManager* gpu_info)
 {
     sfree(static_cast<void*>(gpu_info->deviceInfo)); // circumvent is_pod check in sfree
 }
 
-std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info)
+std::vector<int> getCompatibleGpus(const DevicesManager& gpu_info)
 {
     // Possible minor over-allocation here, but not important for anything
     std::vector<int> compatibleGpus;
@@ -91,7 +91,7 @@ std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info)
     return compatibleGpus;
 }
 
-const char* getGpuCompatibilityDescription(const gmx_gpu_info_t& gpu_info, int index)
+const char* getGpuCompatibilityDescription(const DevicesManager& gpu_info, int index)
 {
     return (index >= gpu_info.n_dev ? c_deviceStateString[DeviceStatus::Nonexistent]
                                     : c_deviceStateString[gpu_info.deviceInfo[index].deviceStatus()]);

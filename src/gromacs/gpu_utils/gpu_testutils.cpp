@@ -42,17 +42,16 @@
 #include "gpu_testutils.h"
 
 #include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 
 bool canComputeOnGpu()
 {
     bool           canComputeOnGpu = false;
-    gmx_gpu_info_t gpuInfo{};
+    DevicesManager devicesManager{};
     if (canPerformGpuDetection())
     {
-        findGpus(&gpuInfo);
-        canComputeOnGpu = !getCompatibleGpus(gpuInfo).empty();
+        findGpus(&devicesManager);
+        canComputeOnGpu = !getCompatibleGpus(devicesManager).empty();
     }
-    free_gpu_info(&gpuInfo);
     return canComputeOnGpu;
 }

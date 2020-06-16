@@ -52,7 +52,7 @@
 #elif GMX_GPU == GMX_GPU_OPENCL
 #    include "gromacs/gpu_utils/gputraits_ocl.h"
 #else
-#    include "gromacs/hardware/gpu_hw_info.h"
+#    include "gromacs/hardware/devices_manager.h"
 
 //! Stub for device information.
 struct DeviceInformation

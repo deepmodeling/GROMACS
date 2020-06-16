@@ -97,7 +97,7 @@ ArrayRef<char> charArrayRefFromArray(T* data, size_t size)
 
 //! Does a device transfer of \c input to the device in \c gpuInfo, and back to \c output.
 template<typename T>
-void runTest(const gmx_gpu_info_t& gpuInfo, ArrayRef<T> input, ArrayRef<T> output)
+void runTest(const DevicesManager& gpuInfo, ArrayRef<T> input, ArrayRef<T> output)
 {
     // Convert the views of input and output to flat non-const chars,
     // so that there's no templating when we call doDeviceTransfers.

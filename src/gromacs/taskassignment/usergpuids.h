@@ -54,7 +54,7 @@
 
 #include "gromacs/utility/arrayref.h"
 
-struct gmx_gpu_info_t;
+class DevicesManager;
 
 namespace gmx
 {
@@ -99,7 +99,7 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString);
  *           InvalidInputError  If gpuIdsAvailableString specifies GPU IDs that are
  *                              not compatible.
  */
-std::vector<int> makeGpuIdsToUse(const gmx_gpu_info_t& gpuInfo, const std::string& gpuIdsAvailableString);
+std::vector<int> makeGpuIdsToUse(const DevicesManager& gpuInfo, const std::string& gpuIdsAvailableString);
 
 /*! \brief Parse a GPU ID specifier string into a container describing device ID to task mapping.
  *
@@ -170,7 +170,7 @@ std::string makeGpuIdString(const std::vector<int>& gpuIds, int totalNumberOfTas
  * \throws  std::bad_alloc          If out of memory
  *          InconsistentInputError  If the assigned GPUs are not valid
  */
-void checkUserGpuIds(const gmx_gpu_info_t&   gpu_info,
+void checkUserGpuIds(const DevicesManager&   gpu_info,
                      const std::vector<int>& compatibleGpus,
                      const std::vector<int>& gpuIds);
 

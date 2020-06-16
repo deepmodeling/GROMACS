@@ -136,7 +136,7 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString)
     return digits;
 }
 
-std::vector<int> makeGpuIdsToUse(const gmx_gpu_info_t& gpuInfo, const std::string& gpuIdsAvailableString)
+std::vector<int> makeGpuIdsToUse(const DevicesManager& gpuInfo, const std::string& gpuIdsAvailableString)
 {
     auto             compatibleGpus  = getCompatibleGpus(gpuInfo);
     std::vector<int> gpuIdsAvailable = parseUserGpuIdString(gpuIdsAvailableString);
@@ -217,7 +217,7 @@ std::string makeGpuIdString(const std::vector<int>& gpuIds, int totalNumberOfTas
     return formatAndJoin(resultGpuIds, ",", StringFormatter("%d"));
 }
 
-void checkUserGpuIds(const gmx_gpu_info_t&   gpu_info,
+void checkUserGpuIds(const DevicesManager&   gpu_info,
                      const std::vector<int>& compatibleGpus,
                      const std::vector<int>& gpuIds)
 {

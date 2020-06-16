@@ -46,7 +46,7 @@
 #include <gtest/gtest.h>
 
 struct DeviceInformation;
-struct gmx_gpu_info_t;
+class DevicesManager;
 
 namespace gmx
 {
@@ -57,7 +57,7 @@ class GpuTest : public ::testing::Test
 {
 public:
     //! Information about GPUs that are present.
-    gmx_gpu_info_t* gpuInfo_;
+    DevicesManager* gpuInfo_;
     //! Contains the IDs of all compatible GPUs
     std::vector<int> compatibleGpuIds_;
 

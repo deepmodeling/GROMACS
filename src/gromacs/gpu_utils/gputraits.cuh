@@ -46,7 +46,7 @@
  */
 
 #include "gromacs/gpu_utils/device_stream.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 
 /*! \brief CUDA device information.
  *

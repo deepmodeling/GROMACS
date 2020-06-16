@@ -40,7 +40,7 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/basedefinitions.h"
 
 namespace gmx
@@ -62,7 +62,7 @@ struct gmx_hw_info_t
 
     /* Data for our local physical node */
     //! Information about GPUs detected on this physical node
-    gmx_gpu_info_t gpu_info;
+    DevicesManager gpu_info;
 
     /*! \brief Number of hardware threads available.
      *
