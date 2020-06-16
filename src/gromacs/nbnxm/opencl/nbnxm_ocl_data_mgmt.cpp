@@ -55,6 +55,7 @@
 #include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/gpu_utils/oclutils.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/devices_manager.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/force_flags.h"

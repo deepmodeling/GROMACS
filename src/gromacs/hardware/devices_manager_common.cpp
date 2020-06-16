@@ -35,7 +35,7 @@
  */
 #include "devices_manager.h"
 
-#include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
 
 std::vector<int> DevicesManager::getCompatibleGpus() const

@@ -45,7 +45,6 @@
 
 #include <cassert>
 
-#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/smalloc.h"

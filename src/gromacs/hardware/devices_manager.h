@@ -36,44 +36,12 @@
 #ifndef GMX_HARDWARE_DEVICES_MANAGER_H
 #define GMX_HARDWARE_DEVICES_MANAGER_H
 
+#include <string>
 #include <vector>
 
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/enumerationhelpers.h"
 
 struct DeviceInformation;
-
-/*! \brief Possible results of the GPU detection/check.
- *
- * The \p DeviceStatus::Insane value means that during the sanity checks an error
- * occurred that indicates malfunctioning of the device, driver, or
- * incompatible driver/runtime.
- * \p DeviceStatus::Unavailable indicates that CUDA devices are busy or unavailable
- * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
- */
-enum class DeviceStatus : int
-{
-    Compatible              = 0,
-    Nonexistent             = 1,
-    Incompatible            = 2,
-    IncompatibleClusterSize = 3,
-    Insane                  = 4,
-    Unavailable             = 5,
-    Count                   = 6
-};
-
-/*! \brief Names of the GPU detection/check results
- *
- * Note that some of the following arrays must match the "GPU support
- * enumeration" in src/config.h.cmakein, so that GMX_GPU looks up an
- * array entry.
- *
- */
-static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
-    "compatible",   "nonexistent",
-    "incompatible", "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
-    "insane",       "unavailable"
-};
 
 /*! \brief Information about GPU devices on this physical node.
  *

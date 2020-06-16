@@ -54,6 +54,7 @@
 
 #include "gromacs/gpu_utils/devicebuffer.cuh"
 #include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdlib/leapfrog_gpu.cuh"
 #include "gromacs/mdlib/stat.h"
