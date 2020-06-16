@@ -36,6 +36,8 @@
 #ifndef GMX_HARDWARE_DEVICES_MANAGER_H
 #define GMX_HARDWARE_DEVICES_MANAGER_H
 
+#include <vector>
+
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/enumerationhelpers.h"
 
@@ -108,6 +110,15 @@ public:
      *                         the call to canDetectGpus() should always prevent this occuring)
      */
     void findGpus();
+
+    /*! \brief Return a container of the detected GPUs that are compatible.
+     *
+     * This function filters the result of the detection for compatible
+     * GPUs, based on the previously run compatibility tests.
+     *
+     * \return                    vector of IDs of GPUs already recorded as compatible
+     */
+    std::vector<int> getCompatibleGpus() const;
 
     /*! \brief Return a pointer to the device info for \c deviceId
      *

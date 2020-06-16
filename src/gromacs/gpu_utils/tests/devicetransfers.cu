@@ -79,7 +79,7 @@ static void throwUponFailure(cudaError_t status, const char* message)
 void doDeviceTransfers(const DevicesManager& gpuInfo, ArrayRef<const char> input, ArrayRef<char> output)
 {
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
-    const auto compatibleGpus = getCompatibleGpus(gpuInfo);
+    const auto compatibleGpus = gpuInfo.getCompatibleGpus();
     if (compatibleGpus.empty())
     {
         std::copy(input.begin(), input.end(), output.begin());

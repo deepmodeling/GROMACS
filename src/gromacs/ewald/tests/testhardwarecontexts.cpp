@@ -105,14 +105,13 @@ void PmeTestEnvironment::SetUp()
         return;
     }
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
-    for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
+    for (int gpuIndex : hardwareInfo_->gpu_info.getCompatibleGpus())
     {
         const DeviceInformation* deviceInfo = hardwareInfo_->gpu_info.getDeviceInformation(gpuIndex);
         init_gpu(deviceInfo);
 
-        char stmp[200] = {};
-        hardwareInfo_->gpu_info.getDeviceInformationString(gpuIndex);
-        std::string description = "(GPU " + std::string(stmp) + ") ";
+        std::string deviceDescription = hardwareInfo_->gpu_info.getDeviceInformationString(gpuIndex);
+        std::string description       = "(GPU " + deviceDescription + ") ";
         hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(
                 CodePath::GPU, description.c_str(), *deviceInfo));
     }

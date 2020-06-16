@@ -35,6 +35,7 @@
 gmx_add_libgromacs_sources(
     cpuinfo.cpp
     detecthardware.cpp
+    devices_manager_common.cpp
     hardwaretopology.cpp
     printhardware.cpp
     identifyavx512fmaunits.cpp

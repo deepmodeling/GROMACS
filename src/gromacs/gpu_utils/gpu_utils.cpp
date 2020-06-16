@@ -75,22 +75,6 @@ void free_gpu_info(const DevicesManager* gpu_info)
     sfree(static_cast<void*>(gpu_info->deviceInfo_)); // circumvent is_pod check in sfree
 }
 
-std::vector<int> getCompatibleGpus(const DevicesManager& gpu_info)
-{
-    // Possible minor over-allocation here, but not important for anything
-    std::vector<int> compatibleGpus;
-    compatibleGpus.reserve(gpu_info.n_dev);
-    for (int i = 0; i < gpu_info.n_dev; i++)
-    {
-        assert(gpu_info.deviceInfo_);
-        if (gpu_info.deviceInfo_[i].deviceStatus() == DeviceStatus::Compatible)
-        {
-            compatibleGpus.push_back(i);
-        }
-    }
-    return compatibleGpus;
-}
-
 const char* getGpuCompatibilityDescription(const DevicesManager& gpu_info, int index)
 {
     return (index >= gpu_info.n_dev ? c_deviceStateString[DeviceStatus::Nonexistent]

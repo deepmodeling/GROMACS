@@ -104,15 +104,6 @@ GPU_FUNC_QUALIFIER
 bool isGpuDetectionFunctional(std::string* GPU_FUNC_ARGUMENT(errorMessage))
         GPU_FUNC_TERM_WITH_RETURN(false);
 
-/*! \brief Return a container of the detected GPUs that are compatible.
- *
- * This function filters the result of the detection for compatible
- * GPUs, based on the previously run compatibility tests.
- *
- * \param[in]     gpu_info    Information detected about GPUs, including compatibility.
- * \return                    vector of IDs of GPUs already recorded as compatible */
-std::vector<int> getCompatibleGpus(const DevicesManager& gpu_info);
-
 /*! \brief Return a string describing how compatible the GPU with given \c index is.
  *
  * \param[in]   gpu_info    Information about detected GPUs
