@@ -115,15 +115,6 @@ void init_gpu(const DeviceInformation* GPU_FUNC_ARGUMENT(deviceInfo)) GPU_FUNC_T
 CUDA_FUNC_QUALIFIER
 void free_gpu(const DeviceInformation* CUDA_FUNC_ARGUMENT(deviceInfo)) CUDA_FUNC_TERM;
 
-/*! \brief Returns the size of the gpu_dev_info struct.
- *
- * The size of gpu_dev_info can be used for allocation and communication.
- *
- * \returns                 size in bytes of gpu_dev_info
- */
-GPU_FUNC_QUALIFIER
-size_t sizeof_gpu_dev_info() GPU_FUNC_TERM_WITH_RETURN(0);
-
 /*! \brief Check if GROMACS has been built with GPU support.
  *
  * \param[in] error Pointer to error string or nullptr.

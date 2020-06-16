@@ -132,6 +132,14 @@ public:
      * \returns                 A null-terminated C string describing the compatibility status, useful for error messages.
      */
     std::string getGpuCompatibilityDescription(int index) const;
+
+    /*! \brief Returns the size of the gpu_dev_info struct.
+     *
+     * The size of gpu_dev_info can be used for allocation and communication.
+     *
+     * \returns                 size in bytes of gpu_dev_info
+     */
+    static size_t getDeviceInformationSize();
 };
 
 #endif // GMX_HARDWARE_DEVICES_MANAGER_H

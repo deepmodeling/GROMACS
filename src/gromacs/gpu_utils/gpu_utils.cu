@@ -136,11 +136,6 @@ void free_gpu(const DeviceInformation* deviceInfo)
     }
 }
 
-size_t sizeof_gpu_dev_info(void)
-{
-    return sizeof(DeviceInformation);
-}
-
 void startGpuProfiler(void)
 {
     /* The NVPROF_ID environment variable is set by nvprof and indicates that

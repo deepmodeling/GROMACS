@@ -514,3 +514,8 @@ std::string DevicesManager::getDeviceInformationString(int index) const
                                  deviceInfo.device_version, c_deviceStateString[deviceInfo.stat]);
     }
 }
+
+size_t DevicesManager::getDeviceInformationSize()
+{
+    return sizeof(DeviceInformation);
+}

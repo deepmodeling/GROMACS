@@ -36,6 +36,7 @@
 #include "devices_manager.h"
 
 #include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
 
 void DevicesManager::findGpus() {}
@@ -52,4 +53,9 @@ std::string DevicesManager::getDeviceInformationString(int index) const
 bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)
 {
     return false;
+}
+
+size_t DevicesManager::getDeviceInformationSize()
+{
+    return sizeof(DeviceInformation);
 }

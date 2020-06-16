@@ -91,8 +91,3 @@ void init_gpu(const DeviceInformation* deviceInfo)
 #endif
     }
 }
-
-size_t sizeof_gpu_dev_info()
-{
-    return sizeof(DeviceInformation);
-}

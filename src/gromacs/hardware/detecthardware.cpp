@@ -164,7 +164,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
         {
             int dev_size;
 
-            dev_size = hardwareInfo->gpu_info.n_dev * sizeof_gpu_dev_info();
+            dev_size = hardwareInfo->gpu_info.n_dev * DevicesManager::getDeviceInformationSize();
 
             if (!isMasterRankOfPhysicalNode)
             {
