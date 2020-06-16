@@ -33,9 +33,12 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#include "devices_manager.h"
+#include "gmxpre.h"
+
+#include "config.h"
 
 #include "gromacs/hardware/device_information.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/fatalerror.h"
 
 bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)

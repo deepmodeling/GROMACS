@@ -33,6 +33,10 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+#include "gmxpre.h"
+
+#include "devices_manager.h"
+
 #include <cuda_runtime.h>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
@@ -43,8 +47,6 @@
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
-
-#include "devices_manager.h"
 
 /*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
  *

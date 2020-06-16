@@ -41,8 +41,8 @@
 #ifndef GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_CUH
 #define GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_CUH
 
-#include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/utility/gmxassert.h"
 
 /*! \libinternal \brief

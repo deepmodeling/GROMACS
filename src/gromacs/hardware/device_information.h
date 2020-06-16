@@ -42,7 +42,7 @@
  *  \author Artem Zhmurov <zhmurov@gmail.com>
  *
  * \inlibraryapi
- * \ingroup module_gpu_utils
+ * \ingroup module_hardware
  */
 
 #include "config.h"

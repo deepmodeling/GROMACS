@@ -33,15 +33,17 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+#include "gmxpre.h"
 
-#include "gromacs/gpu_utils/oclutils.h"
+#include "config.h"
+
 #include "gromacs/gpu_utils/oclraii.h"
+#include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/hardware/device_information.h"
+#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
-
-#include "devices_manager.h"
 
 namespace gmx
 {
