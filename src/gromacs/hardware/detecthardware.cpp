@@ -155,20 +155,21 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
     if (!allRanksMustDetectGpus)
     {
         /* Broadcast the GPU info to the other ranks within this node */
-        MPI_Bcast(&hardwareInfo->gpu_info.n_dev, 1, MPI_INT, 0, physicalNodeComm.comm_);
+        MPI_Bcast(&hardwareInfo->gpu_info.numDevices(), 1, MPI_INT, 0, physicalNodeComm.comm_);
 
-        if (hardwareInfo->gpu_info.n_dev > 0)
+        if (hardwareInfo->gpu_info.numDevices() > 0)
         {
             int dev_size;
 
-            dev_size = hardwareInfo->gpu_info.n_dev * DevicesManager::getDeviceInformationSize();
+            dev_size = hardwareInfo->gpu_info.numDevices() * DevicesManager::getDeviceInformationSize();
 
             if (!isMasterRankOfPhysicalNode)
             {
                 hardwareInfo->gpu_info.deviceInfo = (struct DeviceInformation*)malloc(dev_size);
             }
             MPI_Bcast(hardwareInfo->gpu_info.deviceInfo, dev_size, MPI_BYTE, 0, physicalNodeComm.comm_);
-            MPI_Bcast(&hardwareInfo->gpu_info.n_dev_compatible, 1, MPI_INT, 0, physicalNodeComm.comm_);
+            MPI_Bcast(&hardwareInfo->gpu_info.numCompatibleDevices(), 1, MPI_INT, 0,
+                      physicalNodeComm.comm_);
         }
     }
 #endif
@@ -193,14 +194,14 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
     int gpu_hash;
 
     nhwthread = hardwareInfo->nthreads_hw_avail;
-    ngpu      = hardwareInfo->gpu_info.n_dev_compatible;
+    ngpu      = hardwareInfo->gpu_info.numCompatibleDevices();
     /* Create a unique hash of the GPU type(s) in this node */
     gpu_hash = 0;
     /* Here it might be better to only loop over the compatible GPU, but we
      * don't have that information available and it would also require
      * removing the device ID from the device info string.
      */
-    for (i = 0; i < hardwareInfo->gpu_info.n_dev; i++)
+    for (i = 0; i < hardwareInfo->gpu_info.numDevices(); i++)
     {
         /* Since the device ID is incorporated in the hash, the order of
          * the GPUs affects the hash. Also two identical GPUs won't give
