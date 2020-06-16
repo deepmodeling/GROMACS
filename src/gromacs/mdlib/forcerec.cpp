@@ -1261,7 +1261,7 @@ void init_forcerec(FILE*                            fp,
 
     /* Initialize the thread working data for bonded interactions */
     fr->listedForces = std::make_unique<ListedForces>(
-            mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
+            mtop->ffparams, 1, false, mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
             gmx_omp_nthreads_get(emntBonded), fp);
 
     if (!tabbfnm.empty())

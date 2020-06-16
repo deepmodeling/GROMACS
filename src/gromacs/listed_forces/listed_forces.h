@@ -119,6 +119,65 @@ using BondedFunction = real (*)(int              nbonds,
 BondedFunction bondedFunction(int ftype);
 
 /*! \libinternal
+ * \brief Class for storing and calculating part of the listed interactions
+ */
+class ListedForcesGroup
+{
+public:
+    ListedForcesGroup(const gmx_ffparams_t& ffparams,
+                      bool                  createIdefInstance,
+                      int                   numEnergyGroups,
+                      int                   numThreads,
+                      FILE*                 fplog);
+
+    ~ListedForcesGroup();
+
+    /*! \brief Assign listed interactions to the group
+     *
+     * \param[in] idefAll     All listed interaction assigned to the domain
+     * \param[in] groupIndex  The listed forces group index, used for selecting interactions
+     * \param[in] putPairsAndDihedralsInGroup1  Put pairs and dihedrals in group 1 instead of group 0
+     * \param[in] numAtoms    The size of the atom range used in the force calculation.
+     * \param[in] useGPu      Whether a GPU is used for computing listed interactions
+     * \param[in] fcdata      Listed forces helper data
+     */
+    void setup(const InteractionDefinitions& idefAll,
+               int                           groupIndex,
+               bool                          putPairsAndDihedralsInGroup1,
+               int                           numAtomsForce,
+               bool                          useGpu,
+               const t_fcdata&               fcdata);
+
+    //! Returns whether any bonded interactions have been assigned to the CPU
+    bool haveCpuBondeds() const;
+
+    //! Returns whether any listed interactions have been assigned to the CPU
+    bool haveCpuListedForces(const t_fcdata& fcdata) const;
+
+    //! Returns the lists of interactions in this group
+    const InteractionDefinitions& idef() const { return *idef_; }
+
+    //! Returns whether there are position and/or NMR restraints
+    bool havePositionOrNmrRestraints() const { return havePositionOrNmrRestraints_; }
+
+    //! Returns a const reference to the bonded threading object
+    const bonded_threading_t& threading() const { return *threading_; }
+
+    //! Returns a reference to the bonded threading object
+    bonded_threading_t& threading() { return *threading_; }
+
+private:
+    //! A pointer to the list of lists of interactions
+    InteractionDefinitions const* idef_ = nullptr;
+    //! A unique pointer used for storing the actual interactions, used only when using both groups
+    std::unique_ptr<InteractionDefinitions> idefInstance_;
+    //! Thread parallelization setup, unique_ptr to avoid declaring bonded_threading_t
+    std::unique_ptr<bonded_threading_t> threading_;
+    //! Tells whether we have position or NMR restraints
+    bool havePositionOrNmrRestraints_;
+};
+
+/*! \libinternal
  * \brief Class for calculating listed interactions, uses OpenMP parallelization
  */
 class ListedForces
@@ -126,11 +185,19 @@ class ListedForces
 public:
     /*! \brief Constructor
      *
+     * \param[in] ffparams         The force field parameters
+     * \param[in] numGroups        The number of groups, use 1 without MTS, 2 with MTS
+     * \param[in] useGroup1        Whether group 1 will actually be used, pass true when multiple time stepping is used for listed forces
      * \param[in] numEnergyGroups  The number of energy groups, used for storage of pair energies
      * \param[in] numThreads       The number of threads used for computed listed interactions
      * \param[in] fplog            Log file for printing env.var. override, can be nullptr
      */
-    ListedForces(int numEnergyGroups, int numThreads, FILE* fplog);
+    ListedForces(const gmx_ffparams_t& ffparams,
+                 int                   numGroups,
+                 bool                  useGroup1,
+                 int                   numEnergyGroups,
+                 int                   numThreads,
+                 FILE*                 fplog);
 
     //! Destructor which is actually default but in the source file to hide implementation classes
     ~ListedForces();
@@ -154,6 +221,7 @@ public:
                    const t_lambda*                fepvals,
                    const t_commrec*               cr,
                    const gmx_multisim_t*          ms,
+                   int                            listedForcesGroupIndex,
                    const rvec                     x[],
                    gmx::ArrayRef<const gmx::RVec> xWholeMolecules,
                    history_t*                     hist,
@@ -175,10 +243,7 @@ public:
      * NOTE: the current implementation returns true if there are position restraints
      * or any bonded interactions computed on the CPU.
      */
-    bool haveCpuListedForces() const;
-
-    //! Returns true if there are position, distance or orientation restraints
-    bool haveRestraints() const;
+    bool haveCpuListedForces(int listedForcesGroupIndex) const;
 
     //! Returns a reference to the force calculation data
     const t_fcdata& fcdata() const { return *fcdata_; }
@@ -187,10 +252,39 @@ public:
     t_fcdata& fcdata() { return *fcdata_; }
 
 private:
-    //! The interaction definitions
-    InteractionDefinitions const* idef_ = nullptr;
-    //! Thread parallelization setup, unique_ptr to avoid declaring bonded_threading_t
-    std::unique_ptr<bonded_threading_t> threading_;
+    const ListedForcesGroup& group(int index) const
+    {
+        if (index == 0)
+        {
+            return group0_;
+        }
+        else
+        {
+            return *group1_;
+        }
+    }
+
+    ListedForcesGroup& group(int index)
+    {
+        if (index == 0)
+        {
+            return group0_;
+        }
+        else
+        {
+            return *group1_;
+        }
+    }
+
+    /* We would like to use std::vector<std::unique_ptr<ListedForcesGroup>>,
+     * but the copy constructor is deleted
+     */
+    //! Group 0
+    ListedForcesGroup group0_;
+    //! Group 1, can be nullptr
+    std::unique_ptr<ListedForcesGroup> group1_;
+    //! Tells whether group 1 is actually used
+    bool useGroup1_;
     //! Data for bonded tables and NMR restraining, needs to be refactored
     std::unique_ptr<t_fcdata> fcdata_;
     //! Force buffer for free-energy forces

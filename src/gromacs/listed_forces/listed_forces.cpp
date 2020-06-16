@@ -81,21 +81,99 @@
 #include "manage_threading.h"
 #include "utilities.h"
 
-ListedForces::ListedForces(const int numEnergyGroups, const int numThreads, FILE* fplog) :
-    threading_(std::make_unique<bonded_threading_t>(numThreads, numEnergyGroups, fplog)),
+ListedForcesGroup::ListedForcesGroup(const gmx_ffparams_t& ffparams,
+                                     const bool            createIdefInstance,
+                                     const int             numEnergyGroups,
+                                     const int             numThreads,
+                                     FILE*                 fplog) :
+    threading_(std::make_unique<bonded_threading_t>(numThreads, numEnergyGroups, fplog))
+{
+    if (createIdefInstance)
+    {
+        idefInstance_ = std::make_unique<InteractionDefinitions>(ffparams);
+        idef_         = idefInstance_.get();
+    }
+}
+
+ListedForcesGroup::~ListedForcesGroup() = default;
+
+void ListedForcesGroup::setup(const InteractionDefinitions& idefAll,
+                              const int                     groupIndex,
+                              const bool                    putPairsAndDihedralsinGroup1,
+                              const int                     numAtomsForce,
+                              const bool                    useGpu,
+                              const t_fcdata&               fcdata)
+{
+    GMX_RELEASE_ASSERT(groupIndex >= 0 && groupIndex < 2, "Only 2 groups are supported");
+
+    if (putPairsAndDihedralsinGroup1)
+    {
+        InteractionDefinitions& idef = *idefInstance_;
+
+        for (int ftype = 0; ftype < F_NRE; ftype++)
+        {
+            const t_interaction_function& ifunc = interaction_function[ftype];
+            if (ifunc.flags & IF_BOND)
+            {
+                const bool isSlow = (ifunc.flags & (IF_PAIR | IF_DIHEDRAL)) != 0;
+                if ((groupIndex == 0 && !isSlow) || (groupIndex == 1 && isSlow))
+                {
+                    idef.il[ftype] = idefAll.il[ftype];
+                }
+                else
+                {
+                    idef.il[ftype].clear();
+                }
+            }
+        }
+
+        idef.ilsort = idefAll.ilsort;
+    }
+    else if (groupIndex == 0)
+    {
+        idef_ = &idefAll;
+    }
+
+    if (groupIndex == 0 || putPairsAndDihedralsinGroup1)
+    {
+        setup_bonded_threading(threading_.get(), numAtomsForce, useGpu, *idef_);
+    }
+
+    havePositionOrNmrRestraints_ =
+            !idef_->il[F_POSRES].empty() || !idef_->il[F_FBPOSRES].empty()
+            || (groupIndex == 0 && (fcdata.disres->nres > 0 || fcdata.orires->nr > 0));
+}
+
+ListedForces::ListedForces(const gmx_ffparams_t& ffparams,
+                           const int             numGroups,
+                           const bool            useGroup1,
+                           const int             numEnergyGroups,
+                           const int             numThreads,
+                           FILE*                 fplog) :
+    group0_(ffparams, useGroup1, numEnergyGroups, numThreads, fplog),
+    useGroup1_(useGroup1),
     fcdata_(std::make_unique<t_fcdata>())
 {
+    GMX_RELEASE_ASSERT(!useGroup1 || numGroups == 2, "Need two groups when using group 1");
+
+    if (numGroups > 1)
+    {
+        group1_ = std::make_unique<ListedForcesGroup>(ffparams, useGroup1, numEnergyGroups,
+                                                      numThreads, fplog);
+    }
 }
 
 ListedForces::~ListedForces() = default;
 
 void ListedForces::setup(const InteractionDefinitions& idef, const int numAtomsForce, const bool useGpu)
 {
-    idef_ = &idef;
+    group0_.setup(idef, 0, useGroup1_, numAtomsForce, useGpu, *fcdata_);
+    if (useGroup1_)
+    {
+        group1_->setup(idef, 1, useGroup1_, numAtomsForce, useGpu, *fcdata_);
+    }
 
-    setup_bonded_threading(threading_.get(), numAtomsForce, useGpu, *idef_);
-
-    if (idef_->ilsort == ilsortFE_SORTED)
+    if (idef.ilsort == ilsortFE_SORTED)
     {
         forceBufferLambda_.resize(numAtomsForce * sizeof(rvec4) / sizeof(real));
         shiftForceBufferLambda_.resize(SHIFTS);
@@ -404,6 +482,11 @@ real calc_one_bond(int                           thread,
         inc_nrnb(nrnb, nrnbIndex(ftype), nbonds);
     }
 
+    if (gmx_debug_at)
+    {
+        fprintf(debug, "Bonded potential %s th %d %f\n", interaction_function[ftype].name, thread, v);
+    }
+
     return v;
 }
 
@@ -411,21 +494,23 @@ real calc_one_bond(int                           thread,
 
 /*! \brief Compute the bonded part of the listed forces, parallelized over threads
  */
-static void calcBondedForces(const InteractionDefinitions& idef,
-                             bonded_threading_t*           bt,
-                             const rvec                    x[],
-                             const t_forcerec*             fr,
-                             const t_pbc*                  pbc_null,
-                             rvec*                         fshiftMasterBuffer,
-                             gmx_enerdata_t*               enerd,
-                             t_nrnb*                       nrnb,
-                             const real*                   lambda,
-                             real*                         dvdl,
-                             const t_mdatoms*              md,
-                             t_fcdata*                     fcd,
-                             const gmx::StepWorkload&      stepWork,
-                             int*                          global_atom_index)
+static void calcBondedForces(ListedForcesGroup*       listedForcesGroup,
+                             const rvec               x[],
+                             const t_forcerec*        fr,
+                             const t_pbc*             pbc_null,
+                             rvec*                    fshiftMasterBuffer,
+                             gmx_enerdata_t*          enerd,
+                             t_nrnb*                  nrnb,
+                             const real*              lambda,
+                             real*                    dvdl,
+                             const t_mdatoms*         md,
+                             t_fcdata*                fcd,
+                             const gmx::StepWorkload& stepWork,
+                             int*                     global_atom_index)
 {
+    const InteractionDefinitions& idef = listedForcesGroup->idef();
+    bonded_threading_t*           bt   = &listedForcesGroup->threading();
+
 #pragma omp parallel for num_threads(bt->nthreads) schedule(static)
     for (int thread = 0; thread < bt->nthreads; thread++)
     {
@@ -478,45 +563,43 @@ static void calcBondedForces(const InteractionDefinitions& idef,
     }
 }
 
-bool ListedForces::haveRestraints() const
-{
-    GMX_ASSERT(fcdata_, "Need valid fcdata");
-    GMX_ASSERT(fcdata_->orires && fcdata_->disres, "NMR restraints objects should be set up");
-
-    return (!idef_->il[F_POSRES].empty() || !idef_->il[F_FBPOSRES].empty()
-            || fcdata_->orires->nr > 0 || fcdata_->disres->nres > 0);
-}
-
-bool ListedForces::haveCpuBondeds() const
+bool ListedForcesGroup::haveCpuBondeds() const
 {
     return threading_->haveBondeds;
 }
 
-bool ListedForces::haveCpuListedForces() const
+bool ListedForces::haveCpuBondeds() const
 {
-    return haveCpuBondeds() || haveRestraints();
+    return group0_.haveCpuBondeds() || (group1_ && group1_->haveCpuBondeds());
+}
+
+bool ListedForces::haveCpuListedForces(const int listedForcesGroupIndex) const
+{
+    return group(listedForcesGroupIndex).haveCpuBondeds()
+           || group(listedForcesGroupIndex).havePositionOrNmrRestraints();
 }
 
 namespace
 {
 
 /*! \brief Calculates all listed force interactions. */
-void calc_listed(struct gmx_wallcycle*         wcycle,
-                 const InteractionDefinitions& idef,
-                 bonded_threading_t*           bt,
-                 const rvec                    x[],
-                 gmx::ForceOutputs*            forceOutputs,
-                 const t_forcerec*             fr,
-                 const t_pbc*                  pbc,
-                 gmx_enerdata_t*               enerd,
-                 t_nrnb*                       nrnb,
-                 const real*                   lambda,
-                 const t_mdatoms*              md,
-                 t_fcdata*                     fcd,
-                 int*                          global_atom_index,
-                 const gmx::StepWorkload&      stepWork)
+void calc_listed(struct gmx_wallcycle*    wcycle,
+                 ListedForcesGroup*       listedForcesGroup,
+                 const rvec               x[],
+                 gmx::ForceOutputs*       forceOutputs,
+                 const t_forcerec*        fr,
+                 const t_pbc*             pbc,
+                 gmx_enerdata_t*          enerd,
+                 t_nrnb*                  nrnb,
+                 const real*              lambda,
+                 const t_mdatoms*         md,
+                 t_fcdata*                fcd,
+                 int*                     global_atom_index,
+                 const gmx::StepWorkload& stepWork)
 {
-    if (bt->haveBondeds)
+    bonded_threading_t* bt = &listedForcesGroup->threading();
+
+    if (listedForcesGroup->haveCpuBondeds())
     {
         gmx::ForceWithShiftForces& forceWithShiftForces = forceOutputs->forceWithShiftForces();
 
@@ -524,7 +607,7 @@ void calc_listed(struct gmx_wallcycle*         wcycle,
         /* The dummy array is to have a place to store the dhdl at other values
            of lambda, which will be thrown away in the end */
         real dvdl[efptNR] = { 0 };
-        calcBondedForces(idef, bt, x, fr, fr->bMolPBC ? pbc : nullptr,
+        calcBondedForces(listedForcesGroup, x, fr, fr->bMolPBC ? pbc : nullptr,
                          as_rvec_array(forceWithShiftForces.shiftForces().data()), enerd, nrnb,
                          lambda, dvdl, md, fcd, stepWork, global_atom_index);
         wallcycle_sub_stop(wcycle, ewcsLISTED);
@@ -554,23 +637,23 @@ void calc_listed(struct gmx_wallcycle*         wcycle,
  *
  * The shift forces in fr are not affected.
  */
-void calc_listed_lambda(const InteractionDefinitions& idef,
-                        bonded_threading_t*           bt,
-                        const rvec                    x[],
-                        const t_forcerec*             fr,
-                        const struct t_pbc*           pbc,
-                        gmx::ArrayRef<real>           forceBufferLambda,
-                        gmx::ArrayRef<gmx::RVec>      shiftForceBufferLambda,
-                        gmx_grppairener_t*            grpp,
-                        real*                         epot,
-                        gmx::ArrayRef<real>           dvdl,
-                        t_nrnb*                       nrnb,
-                        const real*                   lambda,
-                        const t_mdatoms*              md,
-                        t_fcdata*                     fcd,
-                        int*                          global_atom_index)
+void calc_listed_lambda(ListedForcesGroup*       listedForcesGroup,
+                        const rvec               x[],
+                        const t_forcerec*        fr,
+                        const struct t_pbc*      pbc,
+                        gmx::ArrayRef<real>      forceBufferLambda,
+                        gmx::ArrayRef<gmx::RVec> shiftForceBufferLambda,
+                        gmx_grppairener_t*       grpp,
+                        real*                    epot,
+                        gmx::ArrayRef<real>      dvdl,
+                        t_nrnb*                  nrnb,
+                        const real*              lambda,
+                        const t_mdatoms*         md,
+                        t_fcdata*                fcd,
+                        int*                     global_atom_index)
 {
-    WorkDivision& workDivision = bt->foreignLambdaWorkDivision;
+    const InteractionDefinitions& idef = listedForcesGroup->idef();
+    WorkDivision& workDivision         = listedForcesGroup->threading().foreignLambdaWorkDivision;
 
     const t_pbc* pbc_null;
     if (fr->bMolPBC)
@@ -623,6 +706,7 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
                              const t_lambda*                fepvals,
                              const t_commrec*               cr,
                              const gmx_multisim_t*          ms,
+                             const int                      listedForcesGroupIndex,
                              const rvec                     x[],
                              gmx::ArrayRef<const gmx::RVec> xWholeMolecules,
                              history_t*                     hist,
@@ -641,11 +725,12 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
         return;
     }
 
-    const InteractionDefinitions& idef   = *idef_;
-    t_fcdata&                     fcdata = *fcdata_;
+    ListedForcesGroup&            listedForcesGroup = group(listedForcesGroupIndex);
+    const InteractionDefinitions& idef              = listedForcesGroup.idef();
+    t_fcdata&                     fcdata            = *fcdata_;
 
     t_pbc pbc_full; /* Full PBC is needed for position restraints */
-    if (haveRestraints())
+    if (listedForcesGroupIndex == 0 && listedForcesGroup.havePositionOrNmrRestraints())
     {
         if (!idef.il[F_POSRES].empty() || !idef.il[F_FBPOSRES].empty())
         {
@@ -687,7 +772,7 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
         wallcycle_sub_stop(wcycle, ewcsRESTRAINTS);
     }
 
-    calc_listed(wcycle, idef, threading_.get(), x, forceOutputs, fr, pbc, enerd, nrnb, lambda, md,
+    calc_listed(wcycle, &listedForcesGroup, x, forceOutputs, fr, pbc, enerd, nrnb, lambda, md,
                 &fcdata, global_atom_index, stepWork);
 
     /* Check if we have to determine energy differences
@@ -716,7 +801,7 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
                 {
                     lam_i[j] = (i == 0 ? lambda[j] : fepvals->all_lambda[j][i - 1]);
                 }
-                calc_listed_lambda(idef, threading_.get(), x, fr, pbc, forceBufferLambda_,
+                calc_listed_lambda(&listedForcesGroup, x, fr, pbc, forceBufferLambda_,
                                    shiftForceBufferLambda_, &(enerd->foreign_grpp), enerd->foreign_term,
                                    dvdl, nrnb, lam_i, md, &fcdata, global_atom_index);
                 sum_epot(enerd->foreign_grpp, enerd->foreign_term);

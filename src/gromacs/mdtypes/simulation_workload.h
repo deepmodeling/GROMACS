@@ -113,9 +113,7 @@ public:
     bool haveGpuBondedWork = false;
     //! Whether the current nstlist step-range has bonded work to run on he CPU.
     bool haveCpuBondedWork = false;
-    //! Whether the current nstlist step-range has restraints work to run on he CPU.
-    bool haveRestraintsWork = false;
-    //! Whether the current nstlist step-range has listed forces work to run on he CPU.
+
     //  Note: currently this is haveCpuBondedWork | haveRestraintsWork
     bool haveCpuListedForceWork = false;
     //! Whether the current nstlist step-range has special forces on the CPU.
