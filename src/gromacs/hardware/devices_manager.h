@@ -68,8 +68,13 @@ public:
      * Returns true when this is a build of \Gromacs configured to support
      * GPU usage, GPU detection is not disabled by an environment variable
      * and a valid device driver, ICD, and/or runtime was detected.
-     * Does not throw. */
-    static bool canPerformGpuDetection();
+     * Does not throw.
+     * \param[out] errorMessage  When returning false on a build configured with
+     *                           GPU support and non-nullptr was passed,
+     *                           the string contains a descriptive message about
+     *                           why GPUs cannot be detected.
+     */
+    static bool canPerformGpuDetection(std::string* errorMessage);
 
     /*! \brief Return whether GPU detection is functioning correctly
      *

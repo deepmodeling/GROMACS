@@ -55,7 +55,7 @@ namespace test
 
 GpuTest::GpuTest()
 {
-    if (DevicesManager::isGpuDetectionFunctional(nullptr))
+    if (DevicesManager::canPerformGpuDetection(nullptr))
     {
         deviceManager_.findGpus();
         compatibleGpuIds_ = deviceManager_.getCompatibleGpus();

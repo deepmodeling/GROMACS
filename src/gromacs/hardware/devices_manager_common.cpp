@@ -38,11 +38,11 @@
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
 
-bool DevicesManager::canPerformGpuDetection()
+bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)
 {
     if ((GMX_GPU != GMX_GPU_NONE) && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
     {
-        return DevicesManager::isGpuDetectionFunctional(nullptr);
+        return DevicesManager::isGpuDetectionFunctional(errorMessage);
     }
     else
     {
