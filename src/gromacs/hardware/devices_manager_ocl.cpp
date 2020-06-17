@@ -437,10 +437,10 @@ void DevicesManager::findGpus()
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
                                     &deviceInfos_[device_index].maxWorkGroupSize, nullptr);
 
-                    deviceInfos_[device_index].stat =
+                    deviceInfos_[device_index].status =
                             gmx::checkGpu(device_index, deviceInfos_ + device_index);
 
-                    if (DeviceStatus::Compatible == deviceInfos_[device_index].stat)
+                    if (DeviceStatus::Compatible == deviceInfos_[device_index].status)
                     {
                         numCompatibleDevices_++;
                     }
@@ -529,19 +529,19 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
 
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 
-    bool gpuExists =
-            (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
+    bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
+                      && deviceInfo.status != DeviceStatus::Insane);
 
     if (!gpuExists)
     {
-        return gmx::formatString("#%d: %s, stat: %s", deviceId, "N/A",
-                                 c_deviceStateString[deviceInfo.stat]);
+        return gmx::formatString("#%d: %s, status: %s", deviceId, "N/A",
+                                 c_deviceStateString[deviceInfo.status]);
     }
     else
     {
-        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, stat: %s",
+        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, status: %s",
                                  deviceId, deviceInfo.device_name, deviceInfo.vendorName,
-                                 deviceInfo.device_version, c_deviceStateString[deviceInfo.stat]);
+                                 deviceInfo.device_version, c_deviceStateString[deviceInfo.status]);
     }
 }
 

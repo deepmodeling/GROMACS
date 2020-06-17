@@ -88,28 +88,7 @@ static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateStrin
     "insane",       "unavailable"
 };
 
-#if GMX_GPU == GMX_GPU_CUDA
-
-/*! \brief CUDA device information.
- *
- * The CUDA device information is queried and set at detection and contains
- * both information about the device/hardware returned by the runtime as well
- * as additional data like support status.
- */
-struct DeviceInformation
-{
-    //! ID of the CUDA device.
-    int id;
-    //! Device status.
-    DeviceStatus status;
-
-    //! CUDA device properties.
-    cudaDeviceProp prop;
-};
-
-#elif GMX_GPU == GMX_GPU_OPENCL
-
-//! OpenCL device vendors
+//! Device vendors
 enum class DeviceVendor : int
 {
     Unknown = 0, //!< No data
@@ -119,18 +98,24 @@ enum class DeviceVendor : int
     Count   = 4
 };
 
-/*! \internal
- * \brief OpenCL device information.
+
+/*! \brief Platform-dependent device information.
  *
- * The OpenCL device information is queried and set at detection and contains
+ * The device information is queried and set at detection and contains
  * both information about the device/hardware returned by the runtime as well
  * as additional data like support status.
  */
 struct DeviceInformation
 {
     //! Device status.
-    DeviceStatus status; //!< Device status.
+    DeviceStatus status;
 
+#if GMX_GPU == GMX_GPU_CUDA
+    //! ID of the CUDA device.
+    int id;
+    //! CUDA device properties.
+    cudaDeviceProp prop;
+#elif GMX_GPU == GMX_GPU_OPENCL
     cl_platform_id oclPlatformId;       //!< OpenCL Platform ID.
     cl_device_id   oclDeviceId;         //!< OpenCL Device ID.
     char           device_name[256];    //!< Device name.
@@ -140,17 +125,8 @@ struct DeviceInformation
     int            adress_bits;         //!< Number of address bits the device is capable of.
     DeviceVendor   deviceVendor;        //!< Device vendor.
     size_t         maxWorkItemSizes[3]; //!< Workgroup size limits (CL_DEVICE_MAX_WORK_ITEM_SIZES).
-    size_t maxWorkGroupSize; //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
-};
-
-#else
-
-//! Stub for device information.
-struct DeviceInformation
-{
-    DeviceStatus status = DeviceStatus::Nonexistent;
-};
-
+    size_t         maxWorkGroupSize;    //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
 #endif // GMX_GPU
+};
 
 #endif // GMX_HARDWARE_DEVICE_INFORMATION_H
