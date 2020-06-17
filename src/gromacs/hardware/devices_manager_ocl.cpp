@@ -498,7 +498,7 @@ void DevicesManager::findGpus()
 
 void DevicesManager::setDevice(int deviceId) const
 {
-    GMX_ASSERT(index >= 0 && index < numDevices_ && deviceInfos_ != nullptr,
+    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfos_ != nullptr,
                "Trying to set invalid device");
 
     // If the device is NVIDIA, for safety reasons we disable the JIT
