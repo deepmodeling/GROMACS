@@ -96,6 +96,11 @@ GaussianSpreadKernelParameters::Shape makeSpreadKernel(real sigma, real nSigma, 
              nSigma };
 }
 
+GaussianSpreadKernelParameters::Shape defaultSpreadKernel(real nSigma)
+{
+    return { DVec{ 1, 1, 1 }, nSigma };
+}
+
 class FSCAvg : public TrajectoryAnalysisModule
 {
 public:
@@ -147,6 +152,8 @@ private:
     DensityFittingAmplitudeLookup amplitudeLookup_;
     //! The spreading width used for the gauss transform of atoms onto the density grid
     real gaussianTransformSpreadingWidth_ = 0.2;
+    //! store if width for gauss transform is set
+    bool gaussWidthIsSet_ = false;
     //! The spreading range for spreading atoms onto the grid in multiples of the spreading width
     real              gaussianTransformSpreadingRangeInMultiplesOfWidth_ = 4.0;
     std::vector<RVec> transformedCoordinates_;
@@ -226,8 +233,10 @@ void FSCAvg::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings*
                                .store(&amplitudeLookupMethod_));
 
     options->addOption(RealOption("gausswidth")
+                               .required(false)
                                .store(&gaussianTransformSpreadingWidth_)
-                               .description("Spreading Gaussian width to generate density in nm."));
+                               .storeIsSet(&gaussWidthIsSet_)
+                               .description("Spreading Gaussian width to generate density in nm. 2 * voxelsize if not set."));
 
     options->addOption(
             IntegerOption("shells").store(&numFscShells_).defaultValue(61).description("Number of FSC shells."));
@@ -294,9 +303,13 @@ void FSCAvg::optionsFinished(TrajectoryAnalysisSettings* /* settings */)
             { &referenceDensityOriginShift, &referenceDensityOriginShift + 1 });
     referenceDensityCenter_ -= referenceDensityOriginShift;
 
-    GaussianSpreadKernelParameters::Shape spreadKernel = makeSpreadKernel(
-            gaussianTransformSpreadingWidth_, gaussianTransformSpreadingRangeInMultiplesOfWidth_,
-            transformationToDensityLattice_->scaleOperationOnly());
+    GaussianSpreadKernelParameters::Shape spreadKernel =
+            defaultSpreadKernel(gaussianTransformSpreadingRangeInMultiplesOfWidth_);
+    if ( )
+    {
+        gaussianTransformSpreadingWidth_, gaussianTransformSpreadingRangeInMultiplesOfWidth_,
+        transformationToDensityLattice_->scaleOperationOnly());
+    }
 
     gaussTransform_.emplace(GaussTransform3D(referenceDensity_.extents(), spreadKernel));
 
