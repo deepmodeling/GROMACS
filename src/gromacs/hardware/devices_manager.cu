@@ -385,9 +385,9 @@ void DevicesManager::findGpus()
             checkResult = isDeviceSupported(i, prop);
         }
 
-        devs[i].id   = i;
-        devs[i].prop = prop;
-        devs[i].stat = checkResult;
+        devs[i].id     = i;
+        devs[i].prop   = prop;
+        devs[i].status = checkResult;
 
         if (checkResult == DeviceStatus::Compatible)
         {
@@ -453,20 +453,20 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
 
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 
-    bool gpuExists =
-            (deviceInfo.stat != DeviceStatus::Nonexistent && deviceInfo.stat != DeviceStatus::Insane);
+    bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
+                      && deviceInfo.status != DeviceStatus::Insane);
 
     if (!gpuExists)
     {
         return gmx::formatString("#%d: %s, stat: %s", deviceInfo.id, "N/A",
-                                 c_deviceStateString[deviceInfo.stat]);
+                                 c_deviceStateString[deviceInfo.status]);
     }
     else
     {
         return gmx::formatString("#%d: NVIDIA %s, compute cap.: %d.%d, ECC: %3s, stat: %s",
                                  deviceInfo.id, deviceInfo.prop.name, deviceInfo.prop.major,
                                  deviceInfo.prop.minor, deviceInfo.prop.ECCEnabled ? "yes" : " no",
-                                 c_deviceStateString[deviceInfo.stat]);
+                                 c_deviceStateString[deviceInfo.status]);
     }
 }
 

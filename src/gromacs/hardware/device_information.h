@@ -100,12 +100,11 @@ struct DeviceInformation
 {
     //! ID of the CUDA device.
     int id;
+    //! Device status.
+    DeviceStatus status;
+
     //! CUDA device properties.
     cudaDeviceProp prop;
-    //! Device status.
-    DeviceStatus stat;
-    // Get the status of this device
-    DeviceStatus deviceStatus() { return stat; }
 };
 
 #elif GMX_GPU == GMX_GPU_OPENCL
@@ -129,6 +128,9 @@ enum class DeviceVendor : int
  */
 struct DeviceInformation
 {
+    //! Device status.
+    DeviceStatus status; //!< Device status.
+
     cl_platform_id oclPlatformId;       //!< OpenCL Platform ID.
     cl_device_id   oclDeviceId;         //!< OpenCL Device ID.
     char           device_name[256];    //!< Device name.
@@ -136,13 +138,9 @@ struct DeviceInformation
     char           vendorName[256];     //!< Device vendor name.
     int            compute_units;       //!< Number of compute units.
     int            adress_bits;         //!< Number of address bits the device is capable of.
-    DeviceStatus   stat;                //!< Device status.
     DeviceVendor   deviceVendor;        //!< Device vendor.
     size_t         maxWorkItemSizes[3]; //!< Workgroup size limits (CL_DEVICE_MAX_WORK_ITEM_SIZES).
     size_t maxWorkGroupSize; //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
-
-    // Get the status of this device
-    DeviceStatus deviceStatus() { return stat; }
 };
 
 #else
@@ -150,10 +148,7 @@ struct DeviceInformation
 //! Stub for device information.
 struct DeviceInformation
 {
-    DeviceStatus stat = DeviceStatus::Nonexistent;
-
-    // Get the status of this device
-    DeviceStatus deviceStatus() { return stat; }
+    DeviceStatus status = DeviceStatus::Nonexistent;
 };
 
 #endif // GMX_GPU

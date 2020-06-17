@@ -60,7 +60,7 @@ std::vector<int> DevicesManager::getCompatibleGpus() const
     compatibleGpus.reserve(numDevices_);
     for (int i = 0; i < numDevices_; i++)
     {
-        if (deviceInfos_[i].deviceStatus() == DeviceStatus::Compatible)
+        if (deviceInfos_[i].status == DeviceStatus::Compatible)
         {
             compatibleGpus.push_back(i);
         }
@@ -80,5 +80,5 @@ DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
 std::string DevicesManager::getGpuCompatibilityDescription(int index) const
 {
     return (index >= numDevices_ ? c_deviceStateString[DeviceStatus::Nonexistent]
-                                 : c_deviceStateString[deviceInfos_[index].deviceStatus()]);
+                                 : c_deviceStateString[deviceInfos_[index].status]);
 }
