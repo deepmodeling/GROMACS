@@ -293,7 +293,8 @@ void readDimParams(std::vector<t_inpfile>* inp,
 
     if (bComment)
     {
-        printStringNoNewline(inp, "Estimated diffusion constant (nm^2/ps or rad^2/ps)");
+        printStringNoNewline(
+                inp, "Estimated diffusion constant (nm^2/ps, rad^2/ps or lambda states^2/ps)");
     }
     opt                  = prefix + "-diffusion";
     dimParams->diffusion = get_ereal(inp, opt, 0, wi);

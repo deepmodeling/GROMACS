@@ -2079,7 +2079,7 @@ AWH adaptive biasing
 
 .. mdp:: awh1-dim1-diffusion
 
-   (10\ :sup:`-5`) [nm\ :sup:`2`/ps] or [rad\ :sup:`2`/ps]
+   (10\ :sup:`-5`) [nm\ :sup:`2`/ps], [rad\ :sup:`2`/ps] or [lambda states\ :sup:`2`/ps]
    Estimated diffusion constant for this coordinate dimension determining the initial
    biasing rate. This needs only be a rough estimate and should not critically
    affect the results unless it is set to something very low, leading to slow convergence,

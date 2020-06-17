@@ -28,18 +28,12 @@ potential
           :label: eqnawhbasic
 
 so that for large force constants :math:`k`,
-:math:`\xi \approx \lambda`.
-Note the use of dimensionless energies for
+:math:`\xi \approx \lambda`. Note the use of dimensionless energies for
 compatibility with previously published work. Units of energy are
-obtained by multiplication with :math:`k_BT=1/\beta`.
-It is also possible to directly control :math:`\lambda`
-of, e.g., alchemical free energy perturbations. In that case there is no harmonic
-potential and :math:`\lambda` changes in discrete steps along the reaction coordinate
-depending on the free energy difference between the :math:`\lambda` states.
-In the simulation, :math:`\lambda` samples the user-defined sampling interval :math:`I`.
-For a multidimensional reaction coordinate :math:`\xi`, the sampling
-interval is the Cartesian product :math:`I=\Pi_{\mu} I_{\mu}` (a rectangular
-domain). The connection between atom coordinates and :math:`\lambda` is
+obtained by multiplication with :math:`k_BT=1/\beta`. In the simulation,
+:math:`\lambda` samples the user-defined sampling interval :math:`I`.
+
+The connection between atom coordinates and :math:`\lambda` is
 established through the extended ensemble \ :ref:`68 <refLyubartsev1992>`,
 
 .. math:: P(x,\lambda) = \frac{1}{\mathcal{Z}}e^{g(\lambda) - Q(\xi(x),\lambda) - V(x)},
@@ -68,6 +62,15 @@ PMF. :eq:`Eq. %s <eqawhplambda>` shows that in order to obtain
 determined accurately. Thus, AWH adaptively calculates
 :math:`F(\lambda)` and simultaneously converges :math:`P(\lambda)`
 toward :math:`\rho(\lambda)`.
+
+It is also possible to directly control the :math:`\lambda` state
+of, e.g., alchemical free energy perturbations. In that case there is no harmonic
+potential and :math:`\lambda` changes in discrete steps along the reaction coordinate
+depending on the biased free energy difference between the :math:`\lambda` states.
+
+For a multidimensional reaction coordinate :math:`\xi`, the sampling
+interval is the Cartesian product :math:`I=\Pi_{\mu} I_{\mu}` (a rectangular
+domain).
 
 The free energy update
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -174,14 +177,16 @@ sampling. Alternatively, and by default in the code, the following
 These two approaches are equivalent in the sense that they give rise to
 the same biased probabilities :math:`P_n(x)`
 (cf. :eq:`%s <eqawhpxlambda>`) while the dynamics are clearly
-different in the two cases. Along a bias dimension directly controlling the
+different in the two cases. This choice does not affect the internals of
+the AWH algorithm, only what force and potential AWH returns to the MD
+engine.
+
+Along a bias dimension directly controlling the
 :math:`\lambda` state of the system, such as when controlling free energy
 perturbations, the Monte-Carlo sampling alternative is always used, even if
 a convolved bias potential is chosen to be used along the other dimensions
 (if there are more than one).
-This choice does not affect the internals of
-the AWH algorithm, only what force and potential AWH returns to the MD
-engine.
+
 
 .. _fig-awhbiasevolution1:
 
