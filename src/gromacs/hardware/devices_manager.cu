@@ -446,10 +446,7 @@ void DevicesManager::setDevice(int deviceId) const
 
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
-    if (deviceId < 0 && deviceId >= numDevices_)
-    {
-        return "";
-    }
+    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
 
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 

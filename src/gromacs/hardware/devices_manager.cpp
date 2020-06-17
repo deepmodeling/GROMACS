@@ -47,13 +47,10 @@ void DevicesManager::findGpus() {}
 
 void DevicesManager::setDevice(int /* deviceId */) const {}
 
-std::string DevicesManager::getDeviceInformationString(int index) const
+std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
-    if (index < 0 && index >= numDevices_)
-    {
-        return "";
-    }
-    return "ERROR!";
+    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
+    gmx_fatal(FARGS, "Device information requested in CPU build.");
 }
 
 bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)
