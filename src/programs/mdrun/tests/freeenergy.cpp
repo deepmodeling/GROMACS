@@ -145,6 +145,10 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     // Compare simulation results
     compareEnergies(simulationEdrFileName, referenceEdrFileName, energyTermsToCompare);
     compareTrajectories(simulationTrajectoryFileName, referenceTrajectoryFileName, trajectoryComparison);
+    // Check the energies agree with the refdata within tolerance.
+    TestReferenceData    refData;
+    TestReferenceChecker rootChecker(refData.rootChecker());
+    checkEnergiesAgainstReferenceData(simulationEdrFileName, energyTermsToCompare, &rootChecker);
 }
 
 // TODO: The time for OpenCL kernel compilation means these tests time

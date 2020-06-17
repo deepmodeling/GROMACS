@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
+<ReferenceData>
+  <Energy Name="Potential">
+    <Real Name="Time 0.000000 Step 0 in frame 0">-35244.912192136966</Real>
+    <Real Name="Time 0.000500 Step 1 in frame 1">-35033.486477148814</Real>
+    <Real Name="Time 0.001000 Step 2 in frame 2">-34568.730959401662</Real>
+    <Real Name="Time 0.001500 Step 3 in frame 3">-34056.403871993563</Real>
+    <Real Name="Time 0.002000 Step 4 in frame 4">-33717.902265730278</Real>
+    <Real Name="Time 0.002500 Step 5 in frame 5">-33676.129269460973</Real>
+    <Real Name="Time 0.003000 Step 6 in frame 6">-33902.451643555469</Real>
+    <Real Name="Time 0.003500 Step 7 in frame 7">-34241.689257573249</Real>
+    <Real Name="Time 0.004000 Step 8 in frame 8">-34496.517027520327</Real>
+    <Real Name="Time 0.004500 Step 9 in frame 9">-34525.001986243486</Real>
+    <Real Name="Time 0.005000 Step 10 in frame 10">-34333.66941711797</Real>
+    <Real Name="Time 0.005500 Step 11 in frame 11">-34052.864932299446</Real>
+    <Real Name="Time 0.006000 Step 12 in frame 12">-33868.299651446498</Real>
+  </Energy>
+</ReferenceData>
