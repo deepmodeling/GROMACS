@@ -33,6 +33,14 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+/*! \libinternal \file
+ *  \brief Defines the CPU stubs for the DevicesManager class.
+ *
+ *  \author Artem Zhmurov <zhmurov@gmail.com>
+ *
+ * \inlibraryapi
+ * \ingroup module_hardware
+ */
 #include "gmxpre.h"
 
 #include "devices_manager.h"

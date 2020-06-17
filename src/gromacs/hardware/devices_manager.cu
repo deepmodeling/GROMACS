@@ -33,6 +33,14 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+/*! \libinternal \file
+ *  \brief Defines the CUDA implementations of the DevicesManager class.
+ *
+ *  \author Artem Zhmurov <zhmurov@gmail.com>
+ *
+ * \inlibraryapi
+ * \ingroup module_hardware
+ */
 #include "gmxpre.h"
 
 #include "devices_manager.h"
@@ -50,7 +58,7 @@
 
 /*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
  *
- * If \c deviceInfo is nullptr, then it is understood that no device
+ * If \c deviceInfos_ is nullptr, then it is understood that no device
  * was selected so no context is active to be freed. Otherwise, the
  * context is explicitly destroyed and therefore all data uploaded to
  * the GPU is lost. This must only be called when none of this data is
@@ -59,8 +67,8 @@
  *
  * Calls gmx_warning upon errors.
  *
- * TODO: This should go through all the devices, not only the one currently active.
- *       Reseting only one device will not work, e.g. in CUDA.
+ * \todo This should go through all the devices, not only the one currently active.
+ *       Reseting only one device will not work, e.g. in CUDA tests.
  */
 DevicesManager::~DevicesManager()
 {
@@ -123,16 +131,15 @@ static cudaError_t checkCompiledTargetCompatibility(int deviceId, const cudaDevi
 /*!
  * \brief Runs GPU sanity checks.
  *
- * Runs a series of checks to determine that the given GPU and underlying CUDA
- * driver/runtime functions properly.
+ * Runs a series of checks to determine that the given GPU and underlying CUDA driver/runtime functions properly.
  *
- * \param[in]  dev_id      the device ID of the GPU or -1 if the device has already been initialized
- * \param[in]  dev_prop    The device properties structure
- * \returns                0 if the device looks OK, -1 if it sanity checks failed, and -2 if the device is busy
+ * \param[in]  deviceId          The device ID of the GPU or -1 if the device has already been initialized
+ * \param[in]  deviceProperties  The device properties structure
+ * \returns                      0 if the device looks OK, -1 if it sanity checks failed, and -2 if the device is busy
  *
- * TODO: introduce errors codes and handle errors more smoothly.
+ * \todo Introduce errors codes and handle errors more smoothly.
  */
-static int doSanityChecks(int dev_id, const cudaDeviceProp& dev_prop)
+static int doSanityChecks(int deviceId, const cudaDeviceProp& deviceProperties)
 {
     cudaError_t cu_err;
     int         dev_count, id;
@@ -156,7 +163,7 @@ static int doSanityChecks(int dev_id, const cudaDeviceProp& dev_prop)
         return -1;
     }
 
-    if (dev_id == -1) /* device already selected let's not destroy the context */
+    if (deviceId == -1) /* device already selected let's not destroy the context */
     {
         cu_err = cudaGetDevice(&id);
         if (cu_err != cudaSuccess)
@@ -167,23 +174,23 @@ static int doSanityChecks(int dev_id, const cudaDeviceProp& dev_prop)
     }
     else
     {
-        id = dev_id;
+        id = deviceId;
         if (id > dev_count - 1) /* pfff there's no such device */
         {
             fprintf(stderr,
                     "The requested device with id %d does not seem to exist (device count=%d)\n",
-                    dev_id, dev_count);
+                    deviceId, dev_count);
             return -1;
         }
     }
 
     /* both major & minor is 9999 if no CUDA capable devices are present */
-    if (dev_prop.major == 9999 && dev_prop.minor == 9999)
+    if (deviceProperties.major == 9999 && deviceProperties.minor == 9999)
     {
         return -1;
     }
     /* we don't care about emulation mode */
-    if (dev_prop.major == 0)
+    if (deviceProperties.major == 0)
     {
         return -1;
     }
@@ -199,7 +206,7 @@ static int doSanityChecks(int dev_id, const cudaDeviceProp& dev_prop)
         }
     }
 
-    cu_err = checkCompiledTargetCompatibility(dev_id, dev_prop);
+    cu_err = checkCompiledTargetCompatibility(deviceId, deviceProperties);
     // Avoid triggering an error if GPU devices are in exclusive or prohibited mode;
     // it is enough to check for cudaErrorDevicesUnavailable only here because
     // if we encounter it that will happen in cudaFuncGetAttributes in the above function.
@@ -247,16 +254,16 @@ static int doSanityChecks(int dev_id, const cudaDeviceProp& dev_prop)
     return 0;
 }
 
-/*! \brief Returns true if the gpu characterized by the device properties is
- *  supported by the native gpu acceleration.
+/*! \brief Returns true if the gpu characterized by the device properties is supported
+ *         by the native gpu acceleration.
  *
- * \param[in] dev_prop  the CUDA device properties of the gpus to test.
- * \returns             true if the GPU properties passed indicate a compatible
- *                      GPU, otherwise false.
+ * \param[in] deviceProperties  The CUDA device properties of the gpus to test.
+ * \returns                     True if the GPU properties passed indicate a compatible
+ *                              GPU, otherwise false.
  */
-static bool isDeviceGenerationSupported(const cudaDeviceProp& dev_prop)
+static bool isDeviceGenerationSupported(const cudaDeviceProp& deviceProperties)
 {
-    return (dev_prop.major >= 3);
+    return (deviceProperties.major >= 3);
 }
 
 /*! \brief Checks if a GPU with a given ID is supported by the native GROMACS acceleration.
@@ -269,13 +276,13 @@ static bool isDeviceGenerationSupported(const cudaDeviceProp& dev_prop)
  *  upon return. Note that this also means it is the caller's responsibility to
  *  reset the CUDA runtime state.
  *
- *  \param[in]  deviceId   the ID of the GPU to check.
- *  \param[in]  deviceProp the CUDA device properties of the device checked.
- *  \returns               the status of the requested device
+ *  \param[in]  deviceId         The ID of the GPU to check.
+ *  \param[in]  deviceProperties The CUDA device properties of the device checked.
+ *  \returns                     The status of the requested device
  */
-static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& deviceProp)
+static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& deviceProperties)
 {
-    if (!isDeviceGenerationSupported(deviceProp))
+    if (!isDeviceGenerationSupported(deviceProperties))
     {
         return DeviceStatus::Incompatible;
     }
@@ -285,7 +292,7 @@ static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& device
      * the dummy test kernel fails to execute with a "device busy message" we
      * should appropriately report that the device is busy instead of insane.
      */
-    const int checkResult = doSanityChecks(deviceId, deviceProp);
+    const int checkResult = doSanityChecks(deviceId, deviceProperties);
     switch (checkResult)
     {
         case 0: return DeviceStatus::Compatible;

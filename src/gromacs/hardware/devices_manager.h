@@ -33,6 +33,17 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+/*! \libinternal \file
+ *  \brief Declares the class to manage GPU resources.
+ *
+ *  This class has several implementations: one for each supported GPU platform,
+ *  and a stub implementation if the build does not support GPUs.
+ *
+ *  \author Artem Zhmurov <zhmurov@gmail.com>
+ *
+ * \inlibraryapi
+ * \ingroup module_hardware
+ */
 #ifndef GMX_HARDWARE_DEVICES_MANAGER_H
 #define GMX_HARDWARE_DEVICES_MANAGER_H
 
@@ -43,19 +54,23 @@
 
 struct DeviceInformation;
 
-/*! \brief Information about GPU devices on this physical node.
+/*! \brief The GPU devices management class
  *
- * Includes either CUDA or OpenCL devices.  The gmx_hardware_detect
- * module initializes it.
+ * The class includes the information on either CUDA or OpenCL devices as well as all the
+ * logic needed to initialize them, identify compatible devices and set the default device
+ * for current rank.
  *
- * \todo Use a std::vector */
+ * \todo Use a std::vector (requires PImpling of including the device information header).
+ */
 class DevicesManager
 {
 public:
+    //! Constructor.
     DevicesManager() = default;
+    //! Destructor.
     ~DevicesManager();
 
-    /*! \brief Return whether GPUs can be detected
+    /*! \brief Return whether GPUs can be detected.
      *
      * Returns true when this is a build of \Gromacs configured to support
      * GPU usage, GPU detection is not disabled by an environment variable
@@ -78,11 +93,12 @@ public:
      *
      *  Note that this function leaves the GPU runtime API error state clean;
      *  this is implemented ATM in the CUDA flavor.
-     *  TODO: check if errors do propagate in OpenCL as they do in CUDA and
-     *  whether there is a mechanism to "clear" them.
      *
-     *  \throws                InternalError if a GPU API returns an unexpected failure (because
-     *                         the call to canDetectGpus() should always prevent this occuring)
+     *  \todo:  Check if errors do propagate in OpenCL as they do in CUDA and
+     *          whether there is a mechanism to "clear" them.
+     *
+     *  \throws InternalError if a GPU API returns an unexpected failure (because
+     *          the call to canDetectGpus() should always prevent this occuring)
      */
     void findGpus();
 
@@ -91,7 +107,7 @@ public:
      * This function filters the result of the detection for compatible
      * GPUs, based on the previously run compatibility tests.
      *
-     * \return                    vector of IDs of GPUs already recorded as compatible
+     * \return  Vector of IDs of GPUs already recorded as compatible
      */
     std::vector<int> getCompatibleGpus() const;
 
@@ -105,38 +121,39 @@ public:
      */
     void setDevice(int deviceId) const;
 
-    /*! \brief Return a pointer to the device info for \c deviceId
+    /*! \brief Return a pointer to the device information for \c deviceId
      *
-     * \param[in] deviceId      ID for the GPU device requested.
+     * \param[in] deviceId  ID for the GPU device requested.
      *
-     * \returns                 Pointer to the device info for \c deviceId.
+     * \returns  Pointer to the device info for \c deviceId.
      */
     DeviceInformation* getDeviceInformation(int deviceId) const;
 
     /*! \brief Formats and returns a device information string for a given GPU.
      *
-     * Given an index *directly* into the array of available GPUs (gpu_dev)
-     * returns a formatted info string for the respective GPU which includes
-     * ID, name, compute capability, and detection status.
+     * Given an index *directly* into the array of available GPUs, returns
+     * a formatted info string for the respective GPU which includes ID, name,
+     * compute capability, and detection status.
      *
-     * \param[in]   deviceId       an index *directly* into the array of available GPUs
+     * \param[in] deviceId  An index *directly* into the array of available GPUs
      *
      * \returns A string describing the device.
      */
     std::string getDeviceInformationString(int deviceId) const;
 
-    /*! \brief Return a string describing how compatible the GPU with given \c index is.
+    /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
      *
-     * \param[in]   deviceId    index of GPU to ask about
-     * \returns                 A null-terminated C string describing the compatibility status, useful for error messages.
+     * \param[in] deviceId  Index of GPU to ask about
+     * \returns             A null-terminated C string describing the compatibility status, useful for error messages.
      */
     std::string getGpuCompatibilityDescription(int deviceId) const;
 
-    /*! \brief Returns the size of the gpu_dev_info struct.
+    /*! \brief Returns the size of the DeviceInformation struct.
      *
-     * The size of gpu_dev_info can be used for allocation and communication.
+     * The size of DeviceInformation depends on the the implementation used.
+     * Needed for communication.
      *
-     * \returns                 size in bytes of gpu_dev_info
+     * \returns  Size in bytes of DeviceInformation
      */
     static size_t getDeviceInformationSize();
 

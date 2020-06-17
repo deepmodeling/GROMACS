@@ -32,9 +32,6 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_HARDWARE_DEVICE_INFORMATION_H
-#define GMX_HARDWARE_DEVICE_INFORMATION_H
-
 /*! \libinternal \file
  *  \brief Declares the GPU type traits for non-GPU builds.
  *
@@ -44,6 +41,8 @@
  * \inlibraryapi
  * \ingroup module_hardware
  */
+#ifndef GMX_HARDWARE_DEVICE_INFORMATION_H
+#define GMX_HARDWARE_DEVICE_INFORMATION_H
 
 #include "config.h"
 
