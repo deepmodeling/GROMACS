@@ -43,9 +43,9 @@ struct DeviceInformation;
 
 /*! \brief Possible results of the GPU detection/check.
  *
- * The \p DeviceStatus::Insane value means that during the sanity checks an error
- * occurred that indicates malfunctioning of the device, driver, or
- * incompatible driver/runtime.
+ * The \p DeviceStatus::NonFunctional value means that during the functionality checks
+ * an error occurred that indicates malfunctioning of the device, driver, or incompatible
+ * driver/runtime.
  * \p DeviceStatus::Unavailable indicates that CUDA devices are busy or unavailable
  * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
  */
@@ -55,7 +55,7 @@ enum class DeviceStatus : int
     Nonexistent             = 1,
     Incompatible            = 2,
     IncompatibleClusterSize = 3,
-    Insane                  = 4,
+    NonFunctional           = 4,
     Unavailable             = 5,
     Count                   = 6
 };
@@ -63,9 +63,9 @@ enum class DeviceStatus : int
 /*! \brief Names of the GPU detection/check results
  */
 static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
-    "compatible",   "nonexistent",
-    "incompatible", "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
-    "insane",       "unavailable"
+    "compatible",     "nonexistent",
+    "incompatible",   "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
+    "non-functional", "unavailable"
 };
 
 /*! \brief Information about GPU devices on this physical node.
