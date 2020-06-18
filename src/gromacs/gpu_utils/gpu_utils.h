@@ -52,10 +52,7 @@
 #include <vector>
 
 #include "gromacs/gpu_utils/gpu_macros.h"
-#include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/basedefinitions.h"
-
-struct DeviceInformation;
 
 namespace gmx
 {
