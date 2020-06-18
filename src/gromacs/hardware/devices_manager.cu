@@ -131,15 +131,22 @@ static cudaError_t checkCompiledTargetCompatibility(int deviceId, const cudaDevi
 /*!
  * \brief Runs GPU sanity checks.
  *
- * Runs a series of checks to determine that the given GPU and underlying CUDA driver/runtime functions properly.
+ * Runs a series of checks to determine that the given GPU and underlying CUDA
+ * driver/runtime functions properly.
  *
- * \param[in]  deviceId          The device ID of the GPU or -1 if the device has already been initialized
- * \param[in]  deviceProperties  The device properties structure
- * \returns                      0 if the device looks OK, -1 if it sanity checks failed, and -2 if the device is busy
+ * \todo Currently we do not make a distinction between the type of errors
+ *       that can appear during functionality checks. This needs to be improved,
+ *       e.g if the dummy test kernel fails to execute with a "device busy message"
+ *       we should appropriately report that the device is busy instead of NonFunctional.
  *
  * \todo Introduce errors codes and handle errors more smoothly.
+ *
+ *
+ * \param[in]  dev_id      the device ID of the GPU or -1 if the device has already been initialized
+ * \param[in]  dev_prop    The device properties structure
+ * \returns                0 if the device looks OK, -1 if it sanity checks failed, and -2 if the device is busy
  */
-static int doSanityChecks(int deviceId, const cudaDeviceProp& deviceProperties)
+static DeviceStatus isDeviceFunctional(int dev_id, const cudaDeviceProp& dev_prop)
 {
     cudaError_t cu_err;
     int         dev_count, id;
@@ -148,51 +155,51 @@ static int doSanityChecks(int deviceId, const cudaDeviceProp& deviceProperties)
     if (cu_err != cudaSuccess)
     {
         fprintf(stderr, "Error %d while querying device count: %s\n", cu_err, cudaGetErrorString(cu_err));
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
     /* no CUDA compatible device at all */
     if (dev_count == 0)
     {
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
     /* things might go horribly wrong if cudart is not compatible with the driver */
     if (dev_count < 0 || dev_count > c_cudaMaxDeviceCount)
     {
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
-    if (deviceId == -1) /* device already selected let's not destroy the context */
+    if (dev_id == -1) /* device already selected let's not destroy the context */
     {
         cu_err = cudaGetDevice(&id);
         if (cu_err != cudaSuccess)
         {
             fprintf(stderr, "Error %d while querying device id: %s\n", cu_err, cudaGetErrorString(cu_err));
-            return -1;
+            return DeviceStatus::NonFunctional;
         }
     }
     else
     {
-        id = deviceId;
+        id = dev_id;
         if (id > dev_count - 1) /* pfff there's no such device */
         {
             fprintf(stderr,
                     "The requested device with id %d does not seem to exist (device count=%d)\n",
-                    deviceId, dev_count);
-            return -1;
+                    dev_id, dev_count);
+            return DeviceStatus::NonFunctional;
         }
     }
 
     /* both major & minor is 9999 if no CUDA capable devices are present */
-    if (deviceProperties.major == 9999 && deviceProperties.minor == 9999)
+    if (dev_prop.major == 9999 && dev_prop.minor == 9999)
     {
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
     /* we don't care about emulation mode */
-    if (deviceProperties.major == 0)
+    if (dev_prop.major == 0)
     {
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
     if (id != -1)
@@ -202,21 +209,21 @@ static int doSanityChecks(int deviceId, const cudaDeviceProp& deviceProperties)
         {
             fprintf(stderr, "Error %d while switching to device #%d: %s\n", cu_err, id,
                     cudaGetErrorString(cu_err));
-            return -1;
+            return DeviceStatus::NonFunctional;
         }
     }
 
-    cu_err = checkCompiledTargetCompatibility(deviceId, deviceProperties);
+    cu_err = checkCompiledTargetCompatibility(dev_id, dev_prop);
     // Avoid triggering an error if GPU devices are in exclusive or prohibited mode;
     // it is enough to check for cudaErrorDevicesUnavailable only here because
     // if we encounter it that will happen in cudaFuncGetAttributes in the above function.
     if (cu_err == cudaErrorDevicesUnavailable)
     {
-        return -2;
+        return DeviceStatus::Unavailable;
     }
     else if (cu_err != cudaSuccess)
     {
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
     /* try to execute a dummy kernel */
@@ -236,12 +243,12 @@ static int doSanityChecks(int deviceId, const cudaDeviceProp& deviceProperties)
         fprintf(stderr,
                 "Error occurred while running dummy kernel sanity check on device #%d:\n %s\n", id,
                 formatExceptionMessageToString(ex).c_str());
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
     if (cudaDeviceSynchronize() != cudaSuccess)
     {
-        return -1;
+        return DeviceStatus::NonFunctional;
     }
 
     /* destroy context if we created one */
@@ -251,7 +258,7 @@ static int doSanityChecks(int deviceId, const cudaDeviceProp& deviceProperties)
         CU_RET_ERR(cu_err, "cudaDeviceReset failed");
     }
 
-    return 0;
+    return DeviceStatus::Compatible;
 }
 
 /*! \brief Returns true if the gpu characterized by the device properties is supported
@@ -276,32 +283,17 @@ static bool isDeviceGenerationSupported(const cudaDeviceProp& deviceProperties)
  *  upon return. Note that this also means it is the caller's responsibility to
  *  reset the CUDA runtime state.
  *
- *  \param[in]  deviceId         The ID of the GPU to check.
- *  \param[in]  deviceProperties The CUDA device properties of the device checked.
- *  \returns                     The status of the requested device
+ *  \param[in]  deviceId   the ID of the GPU to check.
+ *  \param[in]  deviceProp the CUDA device properties of the device checked.
+ *  \returns               the status of the requested device
  */
-static DeviceStatus isDeviceSupported(int deviceId, const cudaDeviceProp& deviceProperties)
+static DeviceStatus checkDeviceStatus(int deviceId, const cudaDeviceProp& deviceProp)
 {
-    if (!isDeviceGenerationSupported(deviceProperties))
+    if (!isDeviceGenerationSupported(deviceProp))
     {
         return DeviceStatus::Incompatible;
     }
-
-    /* TODO: currently we do not make a distinction between the type of errors
-     * that can appear during sanity checks. This needs to be improved, e.g if
-     * the dummy test kernel fails to execute with a "device busy message" we
-     * should appropriately report that the device is busy instead of insane.
-     */
-    const int checkResult = doSanityChecks(deviceId, deviceProperties);
-    switch (checkResult)
-    {
-        case 0: return DeviceStatus::Compatible;
-        case -1: return DeviceStatus::Insane;
-        case -2: return DeviceStatus::Unavailable;
-        default:
-            GMX_RELEASE_ASSERT(false, "Invalid sanity checks return value");
-            return DeviceStatus::Compatible;
-    }
+    return isDeviceFunctional(deviceId, deviceProp);
 }
 
 bool DevicesManager::isGpuDetectionFunctional(std::string* errorMessage)
@@ -385,11 +377,11 @@ void DevicesManager::findGpus()
         if (stat != cudaSuccess)
         {
             // Will handle the error reporting below
-            checkResult = DeviceStatus::Insane;
+            checkResult = DeviceStatus::NonFunctional;
         }
         else
         {
-            checkResult = isDeviceSupported(i, prop);
+            checkResult = checkDeviceStatus(i, prop);
         }
 
         devs[i].id     = i;
@@ -458,7 +450,7 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 
     bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
-                      && deviceInfo.status != DeviceStatus::Insane);
+                      && deviceInfo.status != DeviceStatus::NonFunctional);
 
     if (!gpuExists)
     {

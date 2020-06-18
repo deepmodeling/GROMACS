@@ -174,7 +174,7 @@ static DeviceStatus isDeviceSupported(const DeviceInformation* deviceInfo)
  * \throws     std::bad_alloc  When out of memory.
  * \returns                    Whether the device passed sanity checks
  */
-static bool isDeviceSane(const DeviceInformation* deviceInfo, std::string* errorMessage)
+static bool isDeviceFunctional(const DeviceInformation* deviceInfo, std::string* errorMessage)
 {
     cl_context_properties properties[] = {
         CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(deviceInfo->oclPlatformId), 0
@@ -240,8 +240,8 @@ static bool isDeviceSane(const DeviceInformation* deviceInfo, std::string* error
  *
  * \param[in]  deviceId      The runtime-reported numeric ID of the device.
  * \param[in]  deviceInfo    The device info pointer.
- * \returns  A DeviceStatus to indicate how the GPU coped with
- *           the sanity and compatibility check.
+ * \returns  A DeviceStatus to indicate if the GPU device is supported and if it was able to run
+ *           basic functionality checks.
  */
 static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation* deviceInfo)
 {
@@ -253,10 +253,10 @@ static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation* deviceInf
     }
 
     std::string errorMessage;
-    if (!isDeviceSane(deviceInfo, &errorMessage))
+    if (!isDeviceFunctional(deviceInfo, &errorMessage))
     {
         gmx_warning("While sanity checking device #%zu, %s", deviceId, errorMessage.c_str());
-        return DeviceStatus::Insane;
+        return DeviceStatus::NonFunctional;
     }
 
     return DeviceStatus::Compatible;
@@ -512,7 +512,7 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 
     bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
-                      && deviceInfo.status != DeviceStatus::Insane);
+                      && deviceInfo.status != DeviceStatus::NonFunctional);
 
     if (!gpuExists)
     {
