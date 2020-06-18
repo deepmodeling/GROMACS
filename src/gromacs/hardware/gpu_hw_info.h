@@ -61,11 +61,6 @@ enum class DeviceStatus : int
 };
 
 /*! \brief Names of the GPU detection/check results
- *
- * Note that some of the following arrays must match the "GPU support
- * enumeration" in src/config.h.cmakein, so that GMX_GPU looks up an
- * array entry.
- *
  */
 static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
     "compatible",   "nonexistent",

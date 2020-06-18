@@ -52,10 +52,10 @@
 #include <vector>
 
 #include "gromacs/gpu_utils/gpu_macros.h"
-#include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/basedefinitions.h"
 
 struct DeviceInformation;
+enum class DeviceStatus : int;
 struct gmx_gpu_info_t;
 
 namespace gmx
