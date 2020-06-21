@@ -121,85 +121,90 @@ void PmeTest::runTest(const RunModesList& runModes)
         EXPECT_NONFATAL_FAILURE(rootChecker.checkUnusedEntries(), ""); // skip checks on other ranks
     }
 
-    auto hardwareInfo_ = gmx_detect_hardware(
-            MDLogger{}, PhysicalNodeCommunicator(MPI_COMM_WORLD, gmx_physicalnode_id_hash()));
-
-    for (const auto& mode : runModes)
+    try
     {
-        SCOPED_TRACE("mdrun " + joinStrings(mode.second, " "));
-        auto modeTargetsGpus = (mode.first.find("Gpu") != std::string::npos);
-        if (modeTargetsGpus && !s_hasCompatibleGpus)
-        {
-            // This run mode will cause a fatal error from mdrun when
-            // it can't find GPUs, which is not something we're trying
-            // to test here.
-            continue;
-        }
-        auto modeTargetsPmeOnGpus = (mode.first.find("PmeOnGpu") != std::string::npos);
-        if (modeTargetsPmeOnGpus
-            && !(pme_gpu_supports_build(nullptr) && pme_gpu_supports_hardware(*hardwareInfo_, nullptr)))
-        {
-            // This run mode will cause a fatal error from mdrun when
-            // it finds an unsuitable device, which is not something
-            // we're trying to test here.
-            continue;
-        }
+        auto hardwareInfo = gmx_detect_hardware(
+                MDLogger{}, PhysicalNodeCommunicator(MPI_COMM_WORLD, gmx_physicalnode_id_hash()));
 
-        runner_.edrFileName_ =
-                fileManager_.getTemporaryFilePath(inputFile + "_" + mode.first + ".edr");
 
-        CommandLine commandLine(mode.second);
-
-        const bool usePmeTuning = (mode.first.find("Tune") != std::string::npos);
-        if (usePmeTuning)
+        for (const auto& mode : runModes)
         {
-            commandLine.append("-tunepme");
-            commandLine.addOption("-nstlist", 1); // a new grid every step
-        }
-        else
-        {
-            commandLine.append("-notunepme"); // for reciprocal energy reproducibility
-        }
-        if (useSeparatePme)
-        {
-            commandLine.addOption("-npme", 1);
-        }
-
-        ASSERT_EQ(0, runner_.callMdrun(commandLine));
-
-        if (thisRankChecks)
-        {
-            auto energyReader = openEnergyFileToReadTerms(
-                    runner_.edrFileName_, { "Coul. recip.", "Total Energy", "Kinetic En." });
-            auto conservedChecker  = rootChecker.checkCompound("Energy", "Conserved");
-            auto reciprocalChecker = rootChecker.checkCompound("Energy", "Reciprocal");
-            bool firstIteration    = true;
-            while (energyReader->readNextFrame())
+            SCOPED_TRACE("mdrun " + joinStrings(mode.second, " "));
+            auto modeTargetsGpus = (mode.first.find("Gpu") != std::string::npos);
+            if (modeTargetsGpus && !s_hasCompatibleGpus)
             {
-                const EnergyFrame& frame            = energyReader->frame();
-                const std::string  stepName         = frame.frameName();
-                const real         conservedEnergy  = frame.at("Total Energy");
-                const real         reciprocalEnergy = frame.at("Coul. recip.");
-                if (firstIteration)
+                // This run mode will cause a fatal error from mdrun when
+                // it can't find GPUs, which is not something we're trying
+                // to test here.
+                continue;
+            }
+            auto modeTargetsPmeOnGpus = (mode.first.find("PmeOnGpu") != std::string::npos);
+            if (modeTargetsPmeOnGpus
+                && !(pme_gpu_supports_build(nullptr) && pme_gpu_supports_hardware(*hardwareInfo, nullptr)))
+            {
+                // This run mode will cause a fatal error from mdrun when
+                // it finds an unsuitable device, which is not something
+                // we're trying to test here.
+                continue;
+            }
+
+            runner_.edrFileName_ =
+                    fileManager_.getTemporaryFilePath(inputFile + "_" + mode.first + ".edr");
+
+            CommandLine commandLine(mode.second);
+
+            const bool usePmeTuning = (mode.first.find("Tune") != std::string::npos);
+            if (usePmeTuning)
+            {
+                commandLine.append("-tunepme");
+                commandLine.addOption("-nstlist", 1); // a new grid every step
+            }
+            else
+            {
+                commandLine.append("-notunepme"); // for reciprocal energy reproducibility
+            }
+            if (useSeparatePme)
+            {
+                commandLine.addOption("-npme", 1);
+            }
+
+            ASSERT_EQ(0, runner_.callMdrun(commandLine));
+
+            if (thisRankChecks)
+            {
+                auto energyReader = openEnergyFileToReadTerms(
+                        runner_.edrFileName_, { "Coul. recip.", "Total Energy", "Kinetic En." });
+                auto conservedChecker  = rootChecker.checkCompound("Energy", "Conserved");
+                auto reciprocalChecker = rootChecker.checkCompound("Energy", "Reciprocal");
+                bool firstIteration    = true;
+                while (energyReader->readNextFrame())
                 {
-                    // use first step values as references for tolerance
-                    const real startingKineticEnergy = frame.at("Kinetic En.");
-                    const auto conservedTolerance =
-                            relativeToleranceAsFloatingPoint(startingKineticEnergy, 2e-5);
-                    const auto reciprocalTolerance =
-                            relativeToleranceAsFloatingPoint(reciprocalEnergy, 3e-5);
-                    reciprocalChecker.setDefaultTolerance(reciprocalTolerance);
-                    conservedChecker.setDefaultTolerance(conservedTolerance);
-                    firstIteration = false;
-                }
-                conservedChecker.checkReal(conservedEnergy, stepName.c_str());
-                if (!usePmeTuning) // with PME tuning come differing grids and differing reciprocal energy
-                {
-                    reciprocalChecker.checkReal(reciprocalEnergy, stepName.c_str());
+                    const EnergyFrame& frame            = energyReader->frame();
+                    const std::string  stepName         = frame.frameName();
+                    const real         conservedEnergy  = frame.at("Total Energy");
+                    const real         reciprocalEnergy = frame.at("Coul. recip.");
+                    if (firstIteration)
+                    {
+                        // use first step values as references for tolerance
+                        const real startingKineticEnergy = frame.at("Kinetic En.");
+                        const auto conservedTolerance =
+                                relativeToleranceAsFloatingPoint(startingKineticEnergy, 2e-5);
+                        const auto reciprocalTolerance =
+                                relativeToleranceAsFloatingPoint(reciprocalEnergy, 3e-5);
+                        reciprocalChecker.setDefaultTolerance(reciprocalTolerance);
+                        conservedChecker.setDefaultTolerance(conservedTolerance);
+                        firstIteration = false;
+                    }
+                    conservedChecker.checkReal(conservedEnergy, stepName.c_str());
+                    if (!usePmeTuning) // with PME tuning come differing grids and differing reciprocal energy
+                    {
+                        reciprocalChecker.checkReal(reciprocalEnergy, stepName.c_str());
+                    }
                 }
             }
         }
     }
+    GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
 }
 
 TEST_F(PmeTest, ReproducesEnergies)

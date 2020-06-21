@@ -47,7 +47,7 @@
 
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/devices_manager.h"
-#include "gromacs/utility/fatalerror.h"
+#include "gromacs/utility/exceptions.h"
 
 bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)
 {
@@ -80,7 +80,7 @@ DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
 {
     if (deviceId < 0 || deviceId >= numDevices_)
     {
-        gmx_incons("Invalid GPU deviceId requested");
+        GMX_THROW(gmx::RangeError("Invalid GPU deviceId requested"));
     }
     return &deviceInfos_[deviceId];
 }

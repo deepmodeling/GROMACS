@@ -46,6 +46,7 @@
 
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/devices_manager.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/smalloc.h"
 
 namespace gmx
@@ -76,7 +77,11 @@ std::vector<const DeviceInformation*> GpuTest::getDeviceInfos() const
     deviceInfos.reserve(compatibleGpuIds_.size());
     for (const auto& id : compatibleGpuIds_)
     {
-        deviceInfos.emplace_back(deviceManager_.getDeviceInformation(id));
+        try
+        {
+            deviceInfos.emplace_back(deviceManager_.getDeviceInformation(id));
+        }
+        GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
     return deviceInfos;
 }

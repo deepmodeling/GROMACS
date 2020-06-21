@@ -760,7 +760,11 @@ int Mdrunner::mdrunner()
     // master rank for thread-MPI, rather than relying on the mutex
     // and reference count.
     PhysicalNodeCommunicator physicalNodeComm(communicator, gmx_physicalnode_id_hash());
-    hwinfo = gmx_detect_hardware(mdlog, physicalNodeComm);
+    try
+    {
+        hwinfo = gmx_detect_hardware(mdlog, physicalNodeComm);
+    }
+    GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
 
     gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hwinfo);
 

@@ -432,9 +432,13 @@ DeviceInformation* GpuTaskAssignments::initDevice(int* deviceId) const
 
     if (gpuTaskMapping != gpuTaskAssignment.end())
     {
-        *deviceId  = gpuTaskMapping->deviceId_;
-        deviceInfo = hardwareInfo_.gpu_info.getDeviceInformation(*deviceId);
-        hardwareInfo_.gpu_info.setDevice(*deviceId);
+        *deviceId = gpuTaskMapping->deviceId_;
+        try
+        {
+            deviceInfo = hardwareInfo_.gpu_info.getDeviceInformation(*deviceId);
+            hardwareInfo_.gpu_info.setDevice(*deviceId);
+        }
+        GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
     return deviceInfo;
 }

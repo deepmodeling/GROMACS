@@ -98,7 +98,11 @@ void PmeTestEnvironment::SetUp()
 {
     hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(CodePath::CPU, "(CPU) "));
 
-    hardwareInfo_ = hardwareInit();
+    try
+    {
+        hardwareInfo_ = hardwareInit();
+    }
+    GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     if (!pme_gpu_supports_build(nullptr) || !pme_gpu_supports_hardware(*hardwareInfo_, nullptr))
     {
         // PME can only run on the CPU, so don't make any more test contexts.
@@ -107,13 +111,17 @@ void PmeTestEnvironment::SetUp()
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
     for (int gpuIndex : hardwareInfo_->gpu_info.getCompatibleGpus())
     {
-        const DeviceInformation* deviceInfo = hardwareInfo_->gpu_info.getDeviceInformation(gpuIndex);
-        hardwareInfo_->gpu_info.setDevice(gpuIndex);
+        try
+        {
+            const DeviceInformation* deviceInfo = hardwareInfo_->gpu_info.getDeviceInformation(gpuIndex);
+            hardwareInfo_->gpu_info.setDevice(gpuIndex);
 
-        std::string deviceDescription = hardwareInfo_->gpu_info.getDeviceInformationString(gpuIndex);
-        std::string description       = "(GPU " + deviceDescription + ") ";
-        hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(
-                CodePath::GPU, description.c_str(), *deviceInfo));
+            std::string deviceDescription = hardwareInfo_->gpu_info.getDeviceInformationString(gpuIndex);
+            std::string description       = "(GPU " + deviceDescription + ") ";
+            hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(
+                    CodePath::GPU, description.c_str(), *deviceInfo));
+        }
+        GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
 }
 

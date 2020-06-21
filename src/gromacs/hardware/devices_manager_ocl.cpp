@@ -483,8 +483,16 @@ void DevicesManager::findGpus()
 
 void DevicesManager::setDevice(int deviceId) const
 {
-    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfos_ != nullptr,
-               "Trying to set invalid device");
+    if (deviceId < 0 || deviceId >= numDevices_)
+    {
+        GMX_THROW(gmx::RangeError("Invalid GPU deviceId."));
+    }
+    if (deviceInfos_ == nullptr)
+    {
+        GMX_THROW(gmx::InternalError(
+                "Trying to set device before the devices are initialized or when "
+                "there are no supported devices."));
+    }
 
     // If the device is NVIDIA, for safety reasons we disable the JIT
     // caching as this is known to be broken at least until driver 364.19;
@@ -507,7 +515,10 @@ void DevicesManager::setDevice(int deviceId) const
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
 
-    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
+    if (deviceId < 0 || deviceId >= numDevices_)
+    {
+        GMX_THROW(gmx::RangeError("Invalid GPU deviceId requested."));
+    }
 
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 

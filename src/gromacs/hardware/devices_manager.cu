@@ -417,8 +417,16 @@ void DevicesManager::findGpus()
 
 void DevicesManager::setDevice(int deviceId) const
 {
-    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfos_ != nullptr,
-               "Trying to set invalid device");
+    if (deviceId < 0 || deviceId >= numDevices_)
+    {
+        GMX_THROW(gmx::RangeError("Invalid GPU deviceId."));
+    }
+    if (deviceInfos_ == nullptr)
+    {
+        GMX_THROW(gmx::InternalError(
+                "Trying to set device before the devices are initialized or when "
+                "there are no supported devices."));
+    }
 
     cudaError_t stat;
 
@@ -426,7 +434,7 @@ void DevicesManager::setDevice(int deviceId) const
     if (stat != cudaSuccess)
     {
         auto message = gmx::formatString("Failed to initialize GPU #%d", deviceId);
-        CU_RET_ERR(stat, message.c_str());
+        GMX_THROW(gmx::APIError(message.c_str()));
     }
 
     if (debug)
@@ -437,7 +445,10 @@ void DevicesManager::setDevice(int deviceId) const
 
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
-    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
+    if (deviceId < 0 || deviceId >= numDevices_)
+    {
+        GMX_THROW(gmx::RangeError("Invalid GPU deviceId requested"));
+    }
 
     const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
 

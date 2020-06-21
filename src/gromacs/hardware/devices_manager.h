@@ -118,6 +118,10 @@ public:
      *
      * Issues a fatal error for any critical errors that occur during
      * initialization.
+     *
+     *  \throws RangeError if deviceId is not in range of initialized devices.
+     *  \throws InternalError if devices are not initialized or the list of compatible devices is
+     * empty. \throws APIError if CUDA API returned an error.
      */
     void setDevice(int deviceId) const;
 
@@ -126,6 +130,8 @@ public:
      * \param[in] deviceId  ID for the GPU device requested.
      *
      * \returns  Pointer to the device info for \c deviceId.
+     *
+     *  \throws RangeError if deviceId is not in range of initialized devices.
      */
     DeviceInformation* getDeviceInformation(int deviceId) const;
 
@@ -138,6 +144,9 @@ public:
      * \param[in] deviceId  An index *directly* into the array of available GPUs
      *
      * \returns A string describing the device.
+     *
+     *  \throws RangeError if deviceId is not in range of initialized devices.
+     *  \throws InternalError if called in CPU builds.
      */
     std::string getDeviceInformationString(int deviceId) const;
 

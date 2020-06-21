@@ -105,7 +105,12 @@ void runTest(const DevicesManager& gpuInfo, ArrayRef<T> input, ArrayRef<T> outpu
     auto outputRef = charArrayRefFromArray(output.data(), output.size());
 
     ASSERT_EQ(inputRef.size(), outputRef.size());
-    doDeviceTransfers(gpuInfo, inputRef, outputRef);
+    try
+    {
+        doDeviceTransfers(gpuInfo, inputRef, outputRef);
+    }
+    GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
+
     compareViews(input, output);
 }
 

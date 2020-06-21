@@ -47,7 +47,7 @@
 
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/hardware/device_information.h"
-#include "gromacs/utility/fatalerror.h"
+#include "gromacs/utility/exceptions.h"
 
 DevicesManager::~DevicesManager() = default;
 
@@ -57,8 +57,11 @@ void DevicesManager::setDevice(int /* deviceId */) const {}
 
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
-    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
-    gmx_fatal(FARGS, "Device information requested in CPU build.");
+    if (deviceId < 0 || deviceId >= numDevices_)
+    {
+        GMX_THROW(gmx::RangeError("Invalid GPU deviceId requested."));
+    }
+    GMX_THROW(gmx::InternalError("Device information requested in CPU build."));
 }
 
 bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)

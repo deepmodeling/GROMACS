@@ -53,6 +53,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/basenetwork.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxmpi.h"
 #include "gromacs/utility/logger.h"
@@ -71,7 +72,11 @@ static std::string sprint_gpus(const DevicesManager& gpu_info)
     std::vector<std::string> gpuStrings(gpu_info.numDevices());
     for (int i = 0; i < gpu_info.numDevices(); i++)
     {
-        gpuStrings[i] = "    " + gpu_info.getDeviceInformationString(i);
+        try
+        {
+            gpuStrings[i] = "    " + gpu_info.getDeviceInformationString(i);
+        }
+        GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
     return gmx::joinStrings(gpuStrings, "\n");
 }
