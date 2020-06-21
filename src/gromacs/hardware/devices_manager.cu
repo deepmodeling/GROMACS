@@ -373,16 +373,8 @@ void DevicesManager::findGpus()
         cudaDeviceProp prop;
         memset(&prop, 0, sizeof(cudaDeviceProp));
         stat = cudaGetDeviceProperties(&prop, i);
-        DeviceStatus checkResult;
-        if (stat != cudaSuccess)
-        {
-            // Will handle the error reporting below
-            checkResult = DeviceStatus::NonFunctional;
-        }
-        else
-        {
-            checkResult = checkDeviceStatus(i, prop);
-        }
+        const DeviceStatus checkResult =
+                (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
 
         devs[i].id     = i;
         devs[i].prop   = prop;
