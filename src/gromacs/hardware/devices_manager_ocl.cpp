@@ -487,7 +487,7 @@ void DevicesManager::setDevice(int deviceId) const
     {
         GMX_THROW(gmx::RangeError("Invalid GPU deviceId."));
     }
-    if (deviceInfos_ == nullptr)
+    if (!deviceInfos_)
     {
         GMX_THROW(gmx::InternalError(
                 "Trying to set device before the devices are initialized or when "
