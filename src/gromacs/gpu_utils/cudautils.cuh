@@ -42,7 +42,7 @@
 #include <string>
 
 #include "gromacs/gpu_utils/device_stream.h"
-#include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/exceptions.h"

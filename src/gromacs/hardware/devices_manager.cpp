@@ -50,6 +50,28 @@
 #include "gromacs/utility/fatalerror.h"
 
 DevicesManager::~DevicesManager() = default;
+//! Possible results of the GPU detection/check.
+enum class DeviceStatus : int
+{
+    //! The device is compatible
+    Compatible = 0,
+    //! Device does not exist
+    Nonexistent = 1,
+    //! Device is not compatible
+    Incompatible = 2,
+    //! OpenCL device has incompatible cluster size for non-bonded kernels.
+    IncompatibleClusterSize = 3,
+    /*! \brief An error occurred he functionality checks.
+     * That indicates malfunctioning of the device, driver, or incompatible driver/runtime.
+     */
+    NonFunctional = 4,
+    /*! \brief CUDA devices are busy or unavailable.
+     * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
+     */
+    Unavailable = 5,
+    //! Enumeration size
+    Count = 6
+};
 
 void DevicesManager::findGpus() {}
 
