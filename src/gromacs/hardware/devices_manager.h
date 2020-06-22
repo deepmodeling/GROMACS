@@ -162,7 +162,7 @@ public:
     /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
      *
      * \param[in] deviceId  Index of GPU to ask about
-     * \returns             A null-terminated C string describing the compatibility status, useful for error messages.
+     * \returns             A string describing the compatibility status, useful for error messages.
      */
     std::string getGpuCompatibilityDescription(int deviceId) const;
 
