@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,58 +32,22 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_GPU_UTILS_GPUTRAITS_CUH
-#define GMX_GPU_UTILS_GPUTRAITS_CUH
+#include "gmxpre.h"
 
-/*! \libinternal \file
- *  \brief Declares the CUDA type traits.
- *
- *  \author Aleksei Iupinov <a.yupinov@gmail.com>
- *  \author Artem Zhmurov <zhmurov@gmail.com>
- *
- * \inlibraryapi
- * \ingroup module_gpu_utils
- */
-#include <cuda_runtime.h>
+#include "interaction_const.h"
 
-#include "gromacs/hardware/gpu_hw_info.h"
+#include <cstdio>
 
-/*! \brief CUDA device information.
- *
- * The CUDA device information is queried and set at detection and contains
- * both information about the device/hardware returned by the runtime as well
- * as additional data like support status.
- */
-struct DeviceInformation
+#include "gromacs/math/functions.h"
+#include "gromacs/mdtypes/inputrec.h"
+
+interaction_const_t::SoftCoreParameters::SoftCoreParameters(const t_lambda& fepvals) :
+    alphaVdw(fepvals.sc_alpha),
+    alphaCoulomb(fepvals.bScCoul ? fepvals.sc_alpha : 0),
+    lambdaPower(fepvals.sc_power),
+    sigma6WithInvalidSigma(gmx::power6(fepvals.sc_sigma)),
+    sigma6Minimum(fepvals.bScCoul ? gmx::power6(fepvals.sc_sigma_min) : 0)
 {
-    //! ID of the CUDA device.
-    int id;
-    //! CUDA device properties.
-    cudaDeviceProp prop;
-    //! Device status.
-    DeviceStatus stat;
-};
-
-//! \brief Single GPU call timing event - meaningless in CUDA
-using CommandEvent = void;
-
-/*! \internal \brief
- * GPU kernels scheduling description. This is same in OpenCL/CUDA.
- * Provides reasonable defaults, one typically only needs to set the GPU stream
- * and non-1 work sizes.
- */
-struct KernelLaunchConfig
-{
-    //! Block counts
-    size_t gridSize[3] = { 1, 1, 1 };
-    //! Per-block thread counts
-    size_t blockSize[3] = { 1, 1, 1 };
-    //! Shared memory size in bytes
-    size_t sharedMemorySize = 0;
-};
-
-//! Sets whether device code can use arrays that are embedded in structs.
-#define c_canEmbedBuffers true
-// TODO this should be constexpr bool
-
-#endif
+    // This is checked during tpr reading, so we can assert here
+    GMX_RELEASE_ASSERT(fepvals.sc_r_power == 6.0, "We only support soft-core r-power 6");
+}
