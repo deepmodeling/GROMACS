@@ -83,6 +83,24 @@ public:
      */
     static bool canPerformGpuDetection(std::string* errorMessage);
 
+    /*! \brief Return whether GPU detection is functioning correctly
+     *
+     * Returns true when this is a build of \Gromacs configured to support
+     * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
+     *
+     * This function is not intended to be called from build
+     * configurations that do not support GPUs, and there will be no
+     * descriptive message in that case.
+     *
+     * \param[out] errorMessage  When returning false on a build configured with
+     *                           GPU support and non-nullptr was passed,
+     *                           the string contains a descriptive message about
+     *                           why GPUs cannot be detected.
+     *
+     * Does not throw.
+     */
+    static bool isGpuDetectionFunctional(std::string* errorMessage);
+
     /*! \brief Find all GPUs in the system.
      *
      *  Will detect every GPU supported by the device driver in use.
@@ -163,31 +181,14 @@ public:
     int numCompatibleDevices() const { return numCompatibleDevices_; }
 
 
+    //! Did we attempt GPU detection?
+    bool performedDevicesDetection_ = false;
     //! Total number of GPU devices detected on this physical node
     int numDevices_ = 0;
     //! Number of GPU devices detected on this physical node that are compatible.
     int numCompatibleDevices_ = 0;
     //! Information about each GPU device detected on this physical node
     DeviceInformation* deviceInfos_ = nullptr;
-
-private:
-    /*! \brief Return whether GPU detection is functioning correctly
-     *
-     * Returns true when this is a build of \Gromacs configured to support
-     * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
-     *
-     * This function is not intended to be called from build
-     * configurations that do not support GPUs, and there will be no
-     * descriptive message in that case.
-     *
-     * \param[out] errorMessage  When returning false on a build configured with
-     *                           GPU support and non-nullptr was passed,
-     *                           the string contains a descriptive message about
-     *                           why GPUs cannot be detected.
-     *
-     * Does not throw.
-     */
-    static bool isGpuDetectionFunctional(std::string* errorMessage);
 };
 
 #endif // GMX_HARDWARE_DEVICES_MANAGER_H

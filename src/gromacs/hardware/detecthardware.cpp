@@ -110,9 +110,10 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
                             compat::not_null<gmx_hw_info_t*> hardwareInfo)
 {
     std::string errorMessage;
-    bool        canPerformGpuDetection = DevicesManager::canPerformGpuDetection(&errorMessage);
+    hardwareInfo->gpu_info.performedDevicesDetection_ =
+            DevicesManager::canPerformGpuDetection(&errorMessage);
 
-    if (!canPerformGpuDetection)
+    if (!hardwareInfo->gpu_info.performedDevicesDetection_)
     {
         return;
     }
@@ -131,17 +132,22 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
      * With CUDA we don't need to, and prefer to detect on one rank
      * and send the information to the other ranks over MPI. */
     bool allRanksMustDetectGpus = (GMX_GPU == GMX_GPU_OPENCL);
-    bool gpusCanBeDetected =
-            canPerformGpuDetection && (isMasterRankOfPhysicalNode || allRanksMustDetectGpus);
-    if (!gpusCanBeDetected)
+
+    bool gpusCanBeDetected = false;
+    if (isMasterRankOfPhysicalNode || allRanksMustDetectGpus)
     {
-        GMX_LOG(mdlog.info)
-                .asParagraph()
-                .appendTextFormatted(
-                        "NOTE: Detection of GPUs failed. The API reported:\n"
-                        "      %s\n"
-                        "      GROMACS cannot run tasks on a GPU.",
-                        errorMessage.c_str());
+        std::string errorMessage;
+        gpusCanBeDetected = DevicesManager::isGpuDetectionFunctional(&errorMessage);
+        if (!gpusCanBeDetected)
+        {
+            GMX_LOG(mdlog.info)
+                    .asParagraph()
+                    .appendTextFormatted(
+                            "NOTE: Detection of GPUs failed. The API reported:\n"
+                            "      %s\n"
+                            "      GROMACS cannot run tasks on a GPU.",
+                            errorMessage.c_str());
+        }
     }
 
     if (gpusCanBeDetected)
