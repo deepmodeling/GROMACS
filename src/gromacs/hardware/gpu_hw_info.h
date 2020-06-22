@@ -41,23 +41,27 @@
 
 struct DeviceInformation;
 
-/*! \brief Possible results of the GPU detection/check.
- *
- * The \p DeviceStatus::NonFunctional value means that during the functionality checks
- * an error occurred that indicates malfunctioning of the device, driver, or incompatible
- * driver/runtime.
- * \p DeviceStatus::Unavailable indicates that CUDA devices are busy or unavailable
- * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
- */
+//! Possible results of the GPU detection/check.
 enum class DeviceStatus : int
 {
-    Compatible              = 0,
-    Nonexistent             = 1,
-    Incompatible            = 2,
+    //! The device is compatible
+    Compatible = 0,
+    //! Device does not exist
+    Nonexistent = 1,
+    //! Device is not compatible
+    Incompatible = 2,
+    //! OpenCL device has incompatible cluster size for non-bonded kernels.
     IncompatibleClusterSize = 3,
-    NonFunctional           = 4,
-    Unavailable             = 5,
-    Count                   = 6
+    /*! \brief An error occurred he functionality checks.
+     * That indicates malfunctioning of the device, driver, or incompatible driver/runtime.
+     */
+    NonFunctional = 4,
+    /*! \brief CUDA devices are busy or unavailable.
+     * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
+     */
+    Unavailable = 5,
+    //! Enumeration size
+    Count = 6
 };
 
 /*! \brief Names of the GPU detection/check results
