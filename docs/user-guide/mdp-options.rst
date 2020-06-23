@@ -2516,6 +2516,12 @@ Free energy calculations
       are zero at lambda=0; soft-core interactions will be required to
       avoid singularities.
 
+.. mdp:: new-soft-core
+   
+   .. mdp-value:: no
+
+         Use the new soft-core potential as described in the `reference manual`_
+
 .. mdp:: couple-lambda1
 
    analogous to :mdp:`couple-lambda1`, but for lambda=1

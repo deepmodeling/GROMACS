@@ -327,3 +327,8 @@ This “1-1-48” path is also implemented in |Gromacs|. Note that for this
 path the soft core :math:`\alpha` should satisfy
 :math:`0.001 < \alpha < 0.003`, rather than :math:`\alpha \approx
 0.5`.
+
+New soft-core potential
+-----------------------
+
+where the switching point between the soft and hard-core Lennard-Jones...
