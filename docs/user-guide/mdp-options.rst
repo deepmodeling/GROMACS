@@ -2520,7 +2520,7 @@ Free energy calculations
    
    .. mdp-value:: no
 
-         Use the new soft-core potential as described in the `reference manual`_
+         Use the new soft-core potential function as described in the `reference manual`_
 
 .. mdp:: couple-lambda1
 
