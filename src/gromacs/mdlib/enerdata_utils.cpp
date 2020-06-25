@@ -66,20 +66,20 @@ static real sum_v(int n, gmx::ArrayRef<const real> v)
     return t;
 }
 
-void sum_epot(gmx_grppairener_t* grpp, real* epot)
+void sum_epot(const gmx_grppairener_t& grpp, real* epot)
 {
     int i;
 
     /* Accumulate energies */
-    epot[F_COUL_SR] = sum_v(grpp->nener, grpp->ener[egCOULSR]);
-    epot[F_LJ]      = sum_v(grpp->nener, grpp->ener[egLJSR]);
-    epot[F_LJ14]    = sum_v(grpp->nener, grpp->ener[egLJ14]);
-    epot[F_COUL14]  = sum_v(grpp->nener, grpp->ener[egCOUL14]);
+    epot[F_COUL_SR] = sum_v(grpp.nener, grpp.ener[egCOULSR]);
+    epot[F_LJ]      = sum_v(grpp.nener, grpp.ener[egLJSR]);
+    epot[F_LJ14]    = sum_v(grpp.nener, grpp.ener[egLJ14]);
+    epot[F_COUL14]  = sum_v(grpp.nener, grpp.ener[egCOUL14]);
 
     /* lattice part of LR doesnt belong to any group
      * and has been added earlier
      */
-    epot[F_BHAM] = sum_v(grpp->nener, grpp->ener[egBHAMSR]);
+    epot[F_BHAM] = sum_v(grpp.nener, grpp.ener[egBHAMSR]);
 
     epot[F_EPOT] = 0;
     for (i = 0; (i < F_EPOT); i++)
@@ -87,6 +87,41 @@ void sum_epot(gmx_grppairener_t* grpp, real* epot)
         if (i != F_DISRESVIOL && i != F_ORIRESDEV)
         {
             epot[F_EPOT] += epot[i];
+        }
+    }
+}
+
+void accumulatePotentialEnergies(gmx_enerdata_t* enerd, gmx::ArrayRef<const real> lambda, const t_lambda* fepvals)
+{
+    sum_epot(enerd->grpp, enerd->term);
+
+    if (fepvals)
+    {
+        /* Sum the foreign lambda energy difference contributions.
+         * Note that here we only add the potential energy components.
+         * The constraint and kinetic energy components are add after integration
+         * by sum_dhdl().
+         */
+        for (int i = 0; i < fepvals->n_lambda; i++)
+        {
+            /* note we are iterating over fepvals here!
+               For the current lam, dlam = 0 automatically,
+               so we don't need to add anything to the
+               enerd->enerpart_lambda[0] */
+
+            /* we don't need to worry about dvdl_lin contributions to dE at
+               current lambda, because the contributions to the current
+               lambda are automatically zeroed */
+
+            double& enerpart_lambda = enerd->enerpart_lambda[i + 1];
+
+            for (gmx::index j = 0; j < lambda.ssize(); j++)
+            {
+                /* Note that this loop is over all dhdl components, not just the separated ones */
+                const double dlam = fepvals->all_lambda[j][i] - lambda[j];
+
+                enerpart_lambda += dlam * enerd->dvdl_lin[j];
+            }
         }
     }
 }
@@ -162,7 +197,7 @@ void sum_dhdl(gmx_enerdata_t* enerd, gmx::ArrayRef<const real> lambda, const t_l
             /* Note that this loop is over all dhdl components, not just the separated ones */
             const double dlam = fepvals.all_lambda[j][i] - lambda[j];
 
-            enerpart_lambda += dlam * enerd->dvdl_lin[j];
+            /* Note that potential energy terms have been added by sum_epot() */
 
             /* Constraints can not be evaluated at foreign lambdas, so we add
              * a linear extrapolation. This is an approximation, but usually
