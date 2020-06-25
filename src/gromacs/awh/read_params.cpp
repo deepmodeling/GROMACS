@@ -226,6 +226,17 @@ void checkLambdaDimParams(const std::string&  prefix,
                 prefix.c_str(), dimParams->origin, prefix.c_str(), dimParams->end);
         warning(wi, message);
     }
+    for (int i = 0; i < lambdaParams->n_lambda; i++)
+    {
+        if ((lambdaParams->all_lambda[efptMASS][i] != 0 && lambdaParams->all_lambda[efptMASS][i] != 1)
+            || lambdaParams->all_lambda[efptMASS][i] != lambdaParams->all_lambda[efptMASS][0])
+        {
+            warning(wi,
+                    "Masses may not be perturbed when using the free energy lambda state as AWH "
+                    "coordinate provider. If you are using fep-lambdas to specify lambda states "
+                    "make sure that you also specify mass-lambdas without perturbation.");
+        }
+    }
 
     if (dimParams->forceConstant != 0)
     {
