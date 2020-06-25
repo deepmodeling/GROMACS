@@ -74,11 +74,9 @@ void accumulatePotentialEnergies(gmx_enerdata_t*           enerd,
                                  gmx::ArrayRef<const real> lambda,
                                  const t_lambda*           fepvals);
 
-/*! \brief Accumulates and sums dV/dl and constrant and kinetic deltaE
- *
- * Accumulates and sums contributions to dV/dlambda
- * and constraint and kinetic contributions to foreign energy differences
- */
-void sum_dhdl(gmx_enerdata_t* enerd, gmx::ArrayRef<const real> lambda, const t_lambda& fepvals);
+/*! \brief Accumulates kinetic and constraint contributions to dH/dlambda and foreign energies */
+void accumulateKineticLambdaComponents(gmx_enerdata_t*           enerd,
+                                       gmx::ArrayRef<const real> lambda,
+                                       const t_lambda&           fepvals);
 
 #endif
