@@ -353,7 +353,7 @@ public:
 
     /*! \brief Returns true if the bias has a free energy lambda state dimension at all.
      */
-    int hasLambdaDim() const
+    bool hasLambdaDim() const
     {
         return std::any_of(std::begin(dimParams_), std::end(dimParams_),
                            [](const auto& dimParam) { return dimParam.isLambdaDimension(); });
