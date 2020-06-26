@@ -53,6 +53,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <optional>
 
 #include "gromacs/fileio/gmxfio.h"
 #include "gromacs/fileio/xvgr.h"
@@ -277,14 +278,17 @@ std::vector<double> calculateFELambdaMarginalDistribution(const BiasGrid&       
                                                           gmx::ArrayRef<const int> neighbors,
                                                           gmx::ArrayRef<const double> probWeightNeighbor)
 {
-    const int           lambdaAxisIndex = grid.lambdaAxisIndex();
+    const std::optional<int> lambdaAxisIndex = grid.lambdaAxisIndex();
+    GMX_RELEASE_ASSERT(lambdaAxisIndex,
+                       "There must be a free energy lambda axis in order to calculate the free "
+                       "energy lambda marginal distribution.");
     const int           numLambdaStates = grid.numLambdaStates();
     std::vector<double> lambdaMarginalDistribution(numLambdaStates, 0);
 
     for (size_t i = 0; i < neighbors.size(); i++)
     {
         const int neighbor    = neighbors[i];
-        const int lambdaState = grid.point(neighbor).coordValue[lambdaAxisIndex];
+        const int lambdaState = grid.point(neighbor).coordValue[lambdaAxisIndex.value()];
         lambdaMarginalDistribution[lambdaState] += probWeightNeighbor[i];
     }
     return lambdaMarginalDistribution;
@@ -1410,11 +1414,11 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
      * it works (mainly because how the PMF histogram is rescaled).
      */
 
-    const int gridPointIndex  = coordState_.gridpointIndex();
-    const int lambdaAxisIndex = grid.lambdaAxisIndex();
+    const int                gridPointIndex  = coordState_.gridpointIndex();
+    const std::optional<int> lambdaAxisIndex = grid.lambdaAxisIndex();
 
     /* Update the PMF of points along a lambda axis with their bias. */
-    if (lambdaAxisIndex >= 0)
+    if (lambdaAxisIndex)
     {
         const std::vector<int>& neighbors = grid.point(gridPointIndex).neighbor;
 
@@ -1429,14 +1433,14 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
             double    bias;
             if (pointsAlongLambdaAxis(grid, gridPointIndex, neighbor))
             {
-                const double neighborLambda = grid.point(neighbor).coordValue[lambdaAxisIndex];
+                const double neighborLambda = grid.point(neighbor).coordValue[lambdaAxisIndex.value()];
                 if (neighbor == gridPointIndex)
                 {
                     bias = convolvedBias;
                 }
                 else
                 {
-                    coordValueAlongLambda[lambdaAxisIndex] = neighborLambda;
+                    coordValueAlongLambda[lambdaAxisIndex.value()] = neighborLambda;
                     bias = calcConvolvedBias(dimParams, grid, coordValueAlongLambda);
                 }
 

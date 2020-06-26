@@ -447,19 +447,6 @@ int Bias::writeToEnergySubblocks(t_enxsubblock* subblock) const
     return writer_->writeToEnergySubblocks(*this, subblock);
 }
 
-int Bias::numLambdaDims() const
-{
-    int count = 0;
-    for (const auto& dimParam : dimParams_)
-    {
-        if (dimParam.isLambdaDimension())
-        {
-            count++;
-        }
-    }
-    return count;
-}
-
 bool Bias::isLambdaDim(int dim) const
 {
     GMX_ASSERT(dim < ndim(), "Requested dimension out of range.");

@@ -55,6 +55,7 @@
 #define GMX_AWH_BIASGRID_H
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "dimparams.h" /* This is needed for awh_dvec */
@@ -254,9 +255,9 @@ public:
 
     /*! \brief
      * Returns the index of a free energy lambda state axis (there can be
-     * no more than one) or -1 if there are no free energy lambda state axes.
+     * no more than one) if there is one.
      */
-    int lambdaAxisIndex() const;
+    std::optional<int> lambdaAxisIndex() const;
 
     /*! \brief
      * Returns the number of free energy lambda states in the grid (the number

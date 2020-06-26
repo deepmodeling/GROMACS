@@ -51,6 +51,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <optional>
 
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"
@@ -578,7 +579,7 @@ bool BiasGrid::covers(const awh_dvec value) const
     return valueIsInGrid(value, axis());
 }
 
-int BiasGrid::lambdaAxisIndex() const
+std::optional<int> BiasGrid::lambdaAxisIndex() const
 {
     for (size_t i = 0; i < axis_.size(); i++)
     {
@@ -587,7 +588,7 @@ int BiasGrid::lambdaAxisIndex() const
             return i;
         }
     }
-    return -1;
+    return {};
 }
 
 int BiasGrid::numLambdaStates() const

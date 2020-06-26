@@ -351,10 +351,13 @@ public:
      */
     int writeToEnergySubblocks(t_enxsubblock* subblock) const;
 
-    /*! \brief Returns the number of dimensions using the free energy lambda state
-     * as coordinate provider.
+    /*! \brief Returns true if the bias has a free energy lambda state dimension at all.
      */
-    int numLambdaDims() const;
+    int hasLambdaDim() const
+    {
+        return std::any_of(std::begin(dimParams_), std::end(dimParams_),
+                           [](const auto& dimParam) { return dimParam.isLambdaDimension(); });
+    }
 
     /*! \brief Returns whether the specified dimension is a free energy lambda
      * state dimension.

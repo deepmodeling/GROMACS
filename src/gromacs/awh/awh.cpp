@@ -166,7 +166,7 @@ BiasCoupledToSystem::BiasCoupledToSystem(Bias bias, const std::vector<int>& pull
 {
     /* We already checked for this in grompp, but check again here. */
     GMX_RELEASE_ASSERT(
-            static_cast<size_t>(bias_.ndim()) == pullCoordIndex_.size() + bias_.numLambdaDims(),
+            static_cast<size_t>(bias_.ndim()) == pullCoordIndex_.size() + bias_.hasLambdaDim() ? 1 : 0,
             "The bias dimensionality should match the number of pull and lambda coordinates.");
 }
 
