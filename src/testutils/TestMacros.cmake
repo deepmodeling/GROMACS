@@ -71,8 +71,6 @@ endfunction ()
 #     compiled in the way that suits GMX_GPU.
 #   CUDA_CU_SOURCE_FILES      file1.cu  file2.cu  ...
 #     All the normal CUDA .cu source files
-#   CUDA_CPP_SOURCE_FILES     file1.cpp file2.cpp ...
-#     All the other .cpp source files to be compiled as CUDA
 #   OPENCL_CPP_SOURCE_FILES   file1.cpp file2.cpp ...
 #     All the other C++ .cpp source files needed only with OpenCL
 #   NON_GPU_CPP_SOURCE_FILES  file1.cpp file2.cpp ...
@@ -84,7 +82,6 @@ function (gmx_add_gtest_executable EXENAME)
             CPP_SOURCE_FILES
             CUDA_CU_SOURCE_FILES
             GPU_CPP_SOURCE_FILES
-            CUDA_CPP_SOURCE_FILES
             OPENCL_CPP_SOURCE_FILES
             NON_GPU_CPP_SOURCE_FILES
             )
@@ -119,7 +116,6 @@ function (gmx_add_gtest_executable EXENAME)
             cuda_add_executable(${EXENAME} ${UNITTEST_TARGET_OPTIONS}
                 ${ARG_CPP_SOURCE_FILES}
                 ${ARG_CUDA_CU_SOURCE_FILES}
-                ${ARG_CUDA_CPP_SOURCE_FILES}
                 ${ARG_GPU_CPP_SOURCE_FILES}
                 ${TESTUTILS_DIR}/unittest_main.cpp)
         else()
@@ -132,11 +128,10 @@ function (gmx_add_gtest_executable EXENAME)
             if (GMX_CLANG_CUDA)
                 target_sources(${EXENAME} PRIVATE
                     ${ARG_CUDA_CU_SOURCE_FILES}
-                    ${ARG_CUDA_CPP_SOURCE_FILES}
                     ${ARG_GPU_CPP_SOURCE_FILES})
-                set_source_files_properties(${ARG_CUDA_CPP_SOURCE_FILES} ${ARG_GPU_CPP_SOURCE_FILES} PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
+                set_source_files_properties(${ARG_GPU_CPP_SOURCE_FILES} PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
                 gmx_compile_cuda_file_with_clang(${ARG_CUDA_CU_SOURCE_FILES})
-                if(ARG_CUDA_CPP_SOURCE_FILES OR ARG_CUDA_CU_SOURCE_FILES OR ARG_GPU_CPP_SOURCE_FILES)
+                if(ARG_CUDA_CU_SOURCE_FILES OR ARG_GPU_CPP_SOURCE_FILES)
                     target_link_libraries(${EXENAME} PRIVATE ${GMX_EXTRA_LIBRARIES})
                 endif()
             endif()
@@ -157,6 +152,10 @@ function (gmx_add_gtest_executable EXENAME)
         # use for gmx::compat::optional. These are included as system
         # headers so that no warnings are issued from them.
         target_include_directories(${EXENAME} SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
+        if(CYGWIN)
+            # Ensure GoogleTest headers can find POSIX things needed
+            target_compile_definitions(${EXENAME} PRIVATE _POSIX_C_SOURCE=200809L)
+        endif()
 
         target_link_libraries(${EXENAME} PRIVATE
             testutils libgromacs gmock

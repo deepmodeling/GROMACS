@@ -277,15 +277,15 @@ public:
                       gmx_wallcycle*       wcycle);
 
 private:
-    // The number of vsites that cross update groups, when =0 no PBC treatment is needed
+    //! The number of vsites that cross update groups, when =0 no PBC treatment is needed
     const int numInterUpdategroupVirtualSites_;
-    // PBC and DD information
+    //! PBC and DD information
     const DomainInfo domainInfo_;
-    // The interaction parameters
+    //! The interaction parameters
     const ArrayRef<const t_iparams> iparams_;
-    // The interaction lists
+    //! The interaction lists
     const InteractionLists* ilists_ = nullptr;
-    // Information for handling vsite threading
+    //! Information for handling vsite threading
     ThreadingInfo threadingInfo_;
 };
 
@@ -333,6 +333,13 @@ static inline real inverseNorm(const rvec x)
 
 #ifndef DOXYGEN
 /* Vsite construction routines */
+
+static void constr_vsite1(const rvec xi, rvec x)
+{
+    copy_rvec(xi, x);
+
+    /* TOTAL: 0 flops */
+}
 
 static void constr_vsite2(const rvec xi, const rvec xj, rvec x, real a, const t_pbc* pbc)
 {
@@ -675,6 +682,7 @@ static void construct_vsites_thread(ArrayRef<RVec>            x,
                 real b1, c1;
                 switch (ftype)
                 {
+                    case F_VSITE1: constr_vsite1(x[ai], x[avsite]); break;
                     case F_VSITE2:
                         aj = ia[3];
                         constr_vsite2(x[ai], x[aj], x[avsite], a1, pbc_null2);
@@ -856,6 +864,14 @@ void constructVirtualSites(ArrayRef<RVec> x, ArrayRef<const t_iparams> ip, const
 
 #ifndef DOXYGEN
 /* Force spreading routines */
+
+static void spread_vsite1(const t_iatom ia[], ArrayRef<RVec> f)
+{
+    const int av = ia[1];
+    const int ai = ia[2];
+
+    f[av] += f[ai];
+}
 
 template<VirialHandling virialHandling>
 static void spread_vsite2(const t_iatom        ia[],
@@ -1748,6 +1764,7 @@ static void spreadForceForThread(ArrayRef<const RVec>      x,
                 /* Construct the vsite depending on type */
                 switch (ftype)
                 {
+                    case F_VSITE1: spread_vsite1(ia, f); break;
                     case F_VSITE2:
                         spread_vsite2<virialHandling>(ia, a1, x, f, fshift, pbc_null2);
                         break;
@@ -2021,6 +2038,7 @@ void VirtualSitesHandler::Impl::spreadForces(ArrayRef<const RVec> x,
         dd_move_f_vsites(*domainInfo_.domdec_, f, fshift);
     }
 
+    inc_nrnb(nrnb, eNR_VSITE1, (*ilists_)[F_VSITE1].numInteractions());
     inc_nrnb(nrnb, eNR_VSITE2, (*ilists_)[F_VSITE2].numInteractions());
     inc_nrnb(nrnb, eNR_VSITE2FD, (*ilists_)[F_VSITE2FD].numInteractions());
     inc_nrnb(nrnb, eNR_VSITE3, (*ilists_)[F_VSITE3].numInteractions());

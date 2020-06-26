@@ -64,7 +64,6 @@
 #include "gromacs/listed_forces/disre.h"
 #include "gromacs/listed_forces/gpubonded.h"
 #include "gromacs/listed_forces/listed_forces.h"
-#include "gromacs/listed_forces/manage_threading.h"
 #include "gromacs/listed_forces/orires.h"
 #include "gromacs/math/arrayrefwithpadding.h"
 #include "gromacs/math/functions.h"
@@ -74,6 +73,7 @@
 #include "gromacs/mdlib/calcmu.h"
 #include "gromacs/mdlib/calcvir.h"
 #include "gromacs/mdlib/constr.h"
+#include "gromacs/mdlib/dispersioncorrection.h"
 #include "gromacs/mdlib/enerdata_utils.h"
 #include "gromacs/mdlib/force.h"
 #include "gromacs/mdlib/force_flags.h"
@@ -830,13 +830,11 @@ static ForceOutputs setupForceOutputs(ForceHelperBuffers*                 forceH
 
 /*! \brief Set up flags that have the lifetime of the domain indicating what type of work is there to compute.
  */
-static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&             inputrec,
-                                                          const t_forcerec&             fr,
-                                                          const pull_t*                 pull_work,
-                                                          const gmx_edsam*              ed,
-                                                          const InteractionDefinitions& idef,
-                                                          const t_fcdata&               fcd,
-                                                          const t_mdatoms&              mdatoms,
+static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&         inputrec,
+                                                          const t_forcerec&         fr,
+                                                          const pull_t*             pull_work,
+                                                          const gmx_edsam*          ed,
+                                                          const t_mdatoms&          mdatoms,
                                                           const SimulationWorkload& simulationWork,
                                                           const StepWorkload&       stepWork)
 {
@@ -844,10 +842,10 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
     // Note that haveSpecialForces is constant over the whole run
     domainWork.haveSpecialForces =
             haveSpecialForces(inputrec, *fr.forceProviders, pull_work, stepWork.computeForces, ed);
-    domainWork.haveCpuBondedWork  = haveCpuBondeds(fr);
+    domainWork.haveCpuBondedWork  = fr.listedForces->haveCpuBondeds();
     domainWork.haveGpuBondedWork  = ((fr.gpuBonded != nullptr) && fr.gpuBonded->haveInteractions());
-    domainWork.haveRestraintsWork = haveRestraints(idef, fcd);
-    domainWork.haveCpuListedForceWork = haveCpuListedForces(fr, idef, fcd);
+    domainWork.haveRestraintsWork = fr.listedForces->haveRestraints();
+    domainWork.haveCpuListedForceWork = fr.listedForces->haveCpuListedForces();
     // Note that haveFreeEnergyWork is constant over the whole run
     domainWork.haveFreeEnergyWork = (fr.efep != efepNO && mdatoms.nPerturbed != 0);
     // We assume we have local force work if there are CPU
@@ -1013,7 +1011,6 @@ void do_force(FILE*                               fplog,
               tensor                              vir_force,
               const t_mdatoms*                    mdatoms,
               gmx_enerdata_t*                     enerd,
-              t_fcdata*                           fcd,
               gmx::ArrayRef<real>                 lambda,
               t_forcerec*                         fr,
               gmx::MdrunScheduleWorkload*         runScheduleWork,
@@ -1248,7 +1245,7 @@ void do_force(FILE*                               fplog,
         // Need to run after the GPU-offload bonded interaction lists
         // are set up to be able to determine whether there is bonded work.
         runScheduleWork->domainWork = setupDomainLifetimeWorkload(
-                *inputrec, *fr, pull_work, ed, top->idef, *fcd, *mdatoms, simulationWork, stepWork);
+                *inputrec, *fr, pull_work, ed, *mdatoms, simulationWork, stepWork);
 
         wallcycle_start_nocount(wcycle, ewcNS);
         wallcycle_sub_start(wcycle, ewcsNBS_SEARCH_LOCAL);
@@ -1575,9 +1572,9 @@ void do_force(FILE*                               fplog,
         stateGpu->waitCoordinatesReadyOnHost(AtomLocality::NonLocal);
     }
     /* Compute the bonded and non-bonded energies and optionally forces */
-    do_force_lowlevel(fr, inputrec, top->idef, cr, ms, nrnb, wcycle, mdatoms, x, xWholeMolecules,
-                      hist, &forceOut, enerd, fcd, box, lambda.data(),
-                      as_rvec_array(dipoleData.muStateAB), stepWork, ddBalanceRegionHandler);
+    do_force_lowlevel(fr, inputrec, cr, ms, nrnb, wcycle, mdatoms, x, xWholeMolecules, hist,
+                      &forceOut, enerd, box, lambda.data(), as_rvec_array(dipoleData.muStateAB),
+                      stepWork, ddBalanceRegionHandler);
 
     wallcycle_stop(wcycle, ewcFORCE);
 
@@ -1845,6 +1842,25 @@ void do_force(FILE*                               fplog,
     {
         postProcessForceWithShiftForces(nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOut,
                                         vir_force, *mdatoms, *fr, vsite, stepWork);
+    }
+
+    // VdW dispersion correction, only computed on master rank to avoid double counting
+    if ((stepWork.computeEnergy || stepWork.computeVirial) && fr->dispersionCorrection && MASTER(cr))
+    {
+        // Calculate long range corrections to pressure and energy
+        const DispersionCorrection::Correction correction =
+                fr->dispersionCorrection->calculate(box, lambda[efptVDW]);
+
+        if (stepWork.computeEnergy)
+        {
+            enerd->term[F_DISPCORR] = correction.energy;
+            enerd->term[F_DVDL_VDW] += correction.dvdl;
+        }
+        if (stepWork.computeVirial)
+        {
+            correction.correctVirial(vir_force);
+            enerd->term[F_PDISPCORR] = correction.pressure;
+        }
     }
 
     // TODO refactor this and unify with above GPU PME-PP / GPU update path call to the same function

@@ -1036,6 +1036,32 @@ gmx::RangePartitioning gmx_mtop_molecules(const gmx_mtop_t& mtop)
     return mols;
 }
 
+std::vector<gmx::Range<int>> atomRangeOfEachResidue(const gmx_moltype_t& moltype)
+{
+    std::vector<gmx::Range<int>> atomRanges;
+    int                          currentResidueNumber = moltype.atoms.atom[0].resind;
+    int                          startAtom            = 0;
+    // Go through all atoms in a molecule to store first and last atoms in each residue.
+    for (int i = 0; i < moltype.atoms.nr; i++)
+    {
+        int residueOfThisAtom = moltype.atoms.atom[i].resind;
+        if (residueOfThisAtom != currentResidueNumber)
+        {
+            // This atom belongs to the next residue, so record the range for the previous residue,
+            // remembering that end points to one place past the last atom.
+            int endAtom = i;
+            atomRanges.emplace_back(startAtom, endAtom);
+            // Prepare for the current residue
+            startAtom            = endAtom;
+            currentResidueNumber = residueOfThisAtom;
+        }
+    }
+    // special treatment for last residue in this molecule.
+    atomRanges.emplace_back(startAtom, moltype.atoms.nr);
+
+    return atomRanges;
+}
+
 /*! \brief Creates and returns a deprecated t_block struct with molecule indices
  *
  * \param[in] mtop  The global topology

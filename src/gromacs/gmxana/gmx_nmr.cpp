@@ -198,17 +198,17 @@ static void get_orires_parms(const char* topnm, t_inputrec* ir, int* nor, int* n
     done_top_mtop(&top, &mtop);
 }
 
-static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gmx_localtop_t* top)
+static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, const InteractionDefinitions& idef)
 {
     real* b;
     int * ind, *pair;
     int   nb, label1;
 
-    gmx::ArrayRef<const t_functype> functype = top->idef.functype;
-    gmx::ArrayRef<const t_iparams>  iparams  = top->idef.iparams;
+    gmx::ArrayRef<const t_functype> functype = idef.functype;
+    gmx::ArrayRef<const t_iparams>  iparams  = idef.iparams;
 
     /* Count how many distance restraint there are... */
-    nb = top->idef.il[F_DISRES].numInteractions();
+    nb = idef.il[F_DISRES].numInteractions();
     if (nb == 0)
     {
         gmx_fatal(FARGS, "No distance restraints in topology!\n");
@@ -236,7 +236,7 @@ static int get_bounds(real** bounds, int** index, int** dr_pair, int* npairs, gm
 
     /* Fill the index array */
     label1                        = -1;
-    const InteractionList& disres = top->idef.il[F_DISRES];
+    const InteractionList& disres = idef.il[F_DISRES];
     int                    j      = 0;
     int                    k      = 0;
     for (const auto entry : disres)
@@ -613,7 +613,7 @@ int gmx_nmr(int argc, char* argv[])
             top = std::make_unique<gmx_localtop_t>(topInfo.mtop()->ffparams);
             gmx_mtop_generate_local_top(*topInfo.mtop(), top.get(), ir->efep != efepNO);
         }
-        nbounds = get_bounds(&bounds, &index, &pair, &npairs, top.get());
+        nbounds = get_bounds(&bounds, &index, &pair, &npairs, top->idef);
         snew(violaver, npairs);
         out_disre = xvgropen(opt2fn("-o", NFILE, fnm), "Sum of Violations", "Time (ps)", "nm", oenv);
         xvgr_legend(out_disre, 2, drleg, oenv);

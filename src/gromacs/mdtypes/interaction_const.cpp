@@ -1,8 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,30 +32,22 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \internal \file
- *  \brief Internal API of the OpenCL non-bonded module.
- *
- *  \author Szilárd Páll <pall.szilard@gmail.com>
- *  \ingroup module_nbnxm
- */
-
 #include "gmxpre.h"
 
-#include "nbnxm_ocl_types.h"
+#include "interaction_const.h"
 
-#ifndef NBNXN_OCL_INTERNAL_H
-#    define NBNXN_OCL_INTERNAL_H
+#include <cstdio>
 
-namespace Nbnxm
+#include "gromacs/math/functions.h"
+#include "gromacs/mdtypes/inputrec.h"
+
+interaction_const_t::SoftCoreParameters::SoftCoreParameters(const t_lambda& fepvals) :
+    alphaVdw(fepvals.sc_alpha),
+    alphaCoulomb(fepvals.bScCoul ? fepvals.sc_alpha : 0),
+    lambdaPower(fepvals.sc_power),
+    sigma6WithInvalidSigma(gmx::power6(fepvals.sc_sigma)),
+    sigma6Minimum(fepvals.bScCoul ? gmx::power6(fepvals.sc_sigma_min) : 0)
 {
-
-/*! \brief Returns true if LJ combination rules are used in the non-bonded kernels.
- *
- *  \param[in] vdwType The VdW interaction/implementation type as defined by evdwOcl in
- * nbnxn_ocl_types.h. \returns           True if combination rules are used by the run
- */
-bool useLjCombRule(int vdwType);
-
-} // namespace Nbnxm
-
-#endif /* NBNXN_OCL_INTERNAL_H */
+    // This is checked during tpr reading, so we can assert here
+    GMX_RELEASE_ASSERT(fepvals.sc_r_power == 6.0, "We only support soft-core r-power 6");
+}

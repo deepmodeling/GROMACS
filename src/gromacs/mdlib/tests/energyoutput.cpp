@@ -145,8 +145,6 @@ public:
     t_inputrec inputrec_;
     //! Topology
     gmx_mtop_t mtop_;
-    //! MD atoms
-    t_mdatoms mdatoms_;
     //! Simulation time
     double time_;
     //! Total mass
@@ -175,8 +173,6 @@ public:
     std::vector<char*> groupNameHandles_;
     //! Total dipole momentum
     rvec muTotal_;
-    //! Distance and orientation restraints data
-    t_fcdata fcd_;
     //! Communication record
     t_commrec cr_;
     //! Constraints object (for constraints RMSD output in case of LINCS)
@@ -364,12 +360,8 @@ public:
         // TODO EnergyOutput should not take Constraints object
         // TODO This object will always return zero as RMSD value.
         //      It is more relevant to have non-zero value for testing.
-        constraints_ = makeConstraints(mtop_, inputrec_, nullptr, false, nullptr, mdatoms_, &cr_,
-                                       nullptr, nullptr, nullptr, false);
-
-        // No position/orientation restraints
-        fcd_.disres.npair = 0;
-        fcd_.orires.nr    = 0;
+        constraints_ = makeConstraints(mtop_, inputrec_, nullptr, false, nullptr, &cr_, nullptr,
+                                       nullptr, nullptr, false);
     }
 
     /*! \brief Helper function to generate synthetic data to output

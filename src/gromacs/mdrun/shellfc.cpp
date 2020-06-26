@@ -864,11 +864,16 @@ static void init_adir(gmx_shellfc_t*            shfc,
             }
         }
     }
-    constr->apply(FALSE, FALSE, step, 0, 1.0, xCurrent, shfc->adir_xnold.arrayRefWithPadding(), {},
-                  box, lambda[efptBONDED], &(dvdlambda[efptBONDED]), {}, nullptr,
+    bool needsLogging  = false;
+    bool computeEnergy = false;
+    bool computeVirial = false;
+    constr->apply(needsLogging, computeEnergy, step, 0, 1.0, xCurrent,
+                  shfc->adir_xnold.arrayRefWithPadding(), {}, box, lambda[efptBONDED],
+                  &(dvdlambda[efptBONDED]), {}, computeVirial, nullptr,
                   gmx::ConstraintVariable::Positions);
-    constr->apply(FALSE, FALSE, step, 0, 1.0, xCurrent, shfc->adir_xnew.arrayRefWithPadding(), {},
-                  box, lambda[efptBONDED], &(dvdlambda[efptBONDED]), {}, nullptr,
+    constr->apply(needsLogging, computeEnergy, step, 0, 1.0, xCurrent,
+                  shfc->adir_xnew.arrayRefWithPadding(), {}, box, lambda[efptBONDED],
+                  &(dvdlambda[efptBONDED]), {}, computeVirial, nullptr,
                   gmx::ConstraintVariable::Positions);
 
     for (n = 0; n < end; n++)
@@ -882,9 +887,9 @@ static void init_adir(gmx_shellfc_t*            shfc,
     }
 
     /* Project the acceleration on the old bond directions */
-    constr->apply(FALSE, FALSE, step, 0, 1.0, xOld, shfc->adir_xnew.arrayRefWithPadding(), acc_dir,
-                  box, lambda[efptBONDED], &(dvdlambda[efptBONDED]), {}, nullptr,
-                  gmx::ConstraintVariable::Deriv_FlexCon);
+    constr->apply(needsLogging, computeEnergy, step, 0, 1.0, xOld, shfc->adir_xnew.arrayRefWithPadding(),
+                  acc_dir, box, lambda[efptBONDED], &(dvdlambda[efptBONDED]), {}, computeVirial,
+                  nullptr, gmx::ConstraintVariable::Deriv_FlexCon);
 }
 
 void relax_shell_flexcon(FILE*                         fplog,
@@ -901,7 +906,6 @@ void relax_shell_flexcon(FILE*                         fplog,
                          const gmx_localtop_t*         top,
                          gmx::Constraints*             constr,
                          gmx_enerdata_t*               enerd,
-                         t_fcdata*                     fcd,
                          int                           natoms,
                          ArrayRefWithPadding<RVec>     xPadded,
                          ArrayRefWithPadding<RVec>     vPadded,
@@ -1013,7 +1017,7 @@ void relax_shell_flexcon(FILE*                         fplog,
     int shellfc_flags = force_flags | (bVerbose ? GMX_FORCE_ENERGY : 0);
     do_force(fplog, cr, ms, inputrec, nullptr, enforcedRotation, imdSession, pull_work, mdstep,
              nrnb, wcycle, top, box, xPadded, hist, forceWithPadding[Min], force_vir, md, enerd,
-             fcd, lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr,
+             lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr,
              (bDoNS ? GMX_FORCE_NS : 0) | shellfc_flags, ddBalanceRegionHandler);
 
     sf_dir = 0;
@@ -1099,7 +1103,7 @@ void relax_shell_flexcon(FILE*                         fplog,
         /* Try the new positions */
         do_force(fplog, cr, ms, inputrec, nullptr, enforcedRotation, imdSession, pull_work, 1, nrnb,
                  wcycle, top, box, posWithPadding[Try], hist, forceWithPadding[Try], force_vir, md,
-                 enerd, fcd, lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr, shellfc_flags,
+                 enerd, lambda, fr, runScheduleWork, vsite, mu_tot, t, nullptr, shellfc_flags,
                  ddBalanceRegionHandler);
         sum_epot(&(enerd->grpp), enerd->term);
         if (gmx_debug_at)

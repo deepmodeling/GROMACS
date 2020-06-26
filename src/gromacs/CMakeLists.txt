@@ -60,12 +60,6 @@ function (gmx_add_libgromacs_sources)
     _gmx_add_files_to_property(GMX_LIBGROMACS_SOURCES ${ARGN})
 endfunction ()
 
-# TODO Reconsider this, as the CUDA driver API is probably a simpler
-# approach, at least for the build system. See Issue #2530
-function (gmx_compile_cpp_as_cuda)
-    _gmx_add_files_to_property(GMX_LIBGROMACS_GPU_IMPL_SOURCES ${ARGN})
-endfunction ()
-
 # Permit the configuration to disable compiling the many nbnxm kernels
 # and others involved in force calculations. Currently only
 # short-ranged and bonded kernels are disabled this way, but in future
@@ -139,6 +133,10 @@ list(APPEND LIBGROMACS_SOURCES ${GMXLIB_SOURCES} ${MDLIB_SOURCES} ${PROPERTY_SOU
 tmpi_get_source_list(THREAD_MPI_SOURCES ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/src)
 add_library(thread_mpi OBJECT ${THREAD_MPI_SOURCES})
 target_compile_definitions(thread_mpi PRIVATE HAVE_CONFIG_H)
+if(CYGWIN)
+    # Needs POSIX-isms for strdup, not just std-isms
+    target_compile_definitions(thread_mpi PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
 gmx_target_compile_options(thread_mpi)
 if (WIN32)
     gmx_target_warning_suppression(thread_mpi /wd4996 HAS_NO_MSVC_UNSAFE_FUNCTION)

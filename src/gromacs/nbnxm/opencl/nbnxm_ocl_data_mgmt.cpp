@@ -74,7 +74,6 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "nbnxm_ocl_internal.h"
 #include "nbnxm_ocl_types.h"
 
 namespace Nbnxm
@@ -99,15 +98,6 @@ namespace Nbnxm
  */
 static unsigned int gpu_min_ci_balanced_factor = 50;
 
-
-/*! \brief Returns true if LJ combination rules are used in the non-bonded kernels.
- *
- * Full doc in nbnxn_ocl_internal.h */
-bool useLjCombRule(int vdwType)
-{
-    return (vdwType == evdwOclCUTCOMBGEOM || vdwType == evdwOclCUTCOMBLB);
-}
-
 /*! \brief Tabulates the Ewald Coulomb force and initializes the size/scale
  * and the table GPU array.
  *
@@ -115,20 +105,20 @@ bool useLjCombRule(int vdwType)
  * table.
  */
 static void init_ewald_coulomb_force_table(const EwaldCorrectionTables& tables,
-                                           cl_nbparam_t*                nbp,
+                                           NBParamGpu*                  nbp,
                                            const DeviceContext&         deviceContext)
 {
-    if (nbp->coulomb_tab_climg2d != nullptr)
+    if (nbp->coulomb_tab != nullptr)
     {
-        freeDeviceBuffer(&(nbp->coulomb_tab_climg2d));
+        freeDeviceBuffer(&(nbp->coulomb_tab));
     }
 
     DeviceBuffer<real> coulomb_tab;
 
     initParamLookupTable(&coulomb_tab, nullptr, tables.tableF.data(), tables.tableF.size(), deviceContext);
 
-    nbp->coulomb_tab_climg2d = coulomb_tab;
-    nbp->coulomb_tab_scale   = tables.scale;
+    nbp->coulomb_tab       = coulomb_tab;
+    nbp->coulomb_tab_scale = tables.scale;
 }
 
 
@@ -158,7 +148,7 @@ static void init_atomdata_first(cl_atomdata_t* ad, int ntypes, const DeviceConte
 
 /*! \brief Copies all parameters related to the cut-off from ic to nbp
  */
-static void set_cutoff_parameters(cl_nbparam_t* nbp, const interaction_const_t* ic, const PairlistParams& listParams)
+static void set_cutoff_parameters(NBParamGpu* nbp, const interaction_const_t* ic, const PairlistParams& listParams)
 {
     nbp->ewald_beta        = ic->ewaldcoeff_q;
     nbp->sh_ewald          = ic->sh_ewald;
@@ -198,17 +188,17 @@ static void map_interaction_types_to_gpu_kernel_flavors(const interaction_const_
             case eintmodPOTSHIFT:
                 switch (combRule)
                 {
-                    case ljcrNONE: *gpu_vdwtype = evdwOclCUT; break;
-                    case ljcrGEOM: *gpu_vdwtype = evdwOclCUTCOMBGEOM; break;
-                    case ljcrLB: *gpu_vdwtype = evdwOclCUTCOMBLB; break;
+                    case ljcrNONE: *gpu_vdwtype = evdwTypeCUT; break;
+                    case ljcrGEOM: *gpu_vdwtype = evdwTypeCUTCOMBGEOM; break;
+                    case ljcrLB: *gpu_vdwtype = evdwTypeCUTCOMBLB; break;
                     default:
                         gmx_incons(
                                 "The requested LJ combination rule is not implemented in the "
                                 "OpenCL GPU accelerated kernels!");
                 }
                 break;
-            case eintmodFORCESWITCH: *gpu_vdwtype = evdwOclFSWITCH; break;
-            case eintmodPOTSWITCH: *gpu_vdwtype = evdwOclPSWITCH; break;
+            case eintmodFORCESWITCH: *gpu_vdwtype = evdwTypeFSWITCH; break;
+            case eintmodPOTSWITCH: *gpu_vdwtype = evdwTypePSWITCH; break;
             default:
                 gmx_incons(
                         "The requested VdW interaction modifier is not implemented in the GPU "
@@ -219,11 +209,11 @@ static void map_interaction_types_to_gpu_kernel_flavors(const interaction_const_
     {
         if (ic->ljpme_comb_rule == ljcrGEOM)
         {
-            *gpu_vdwtype = evdwOclEWALDGEOM;
+            *gpu_vdwtype = evdwTypeEWALDGEOM;
         }
         else
         {
-            *gpu_vdwtype = evdwOclEWALDLB;
+            *gpu_vdwtype = evdwTypeEWALDLB;
         }
     }
     else
@@ -233,11 +223,11 @@ static void map_interaction_types_to_gpu_kernel_flavors(const interaction_const_
 
     if (ic->eeltype == eelCUT)
     {
-        *gpu_eeltype = eelOclCUT;
+        *gpu_eeltype = eelTypeCUT;
     }
     else if (EEL_RF(ic->eeltype))
     {
-        *gpu_eeltype = eelOclRF;
+        *gpu_eeltype = eelTypeRF;
     }
     else if ((EEL_PME(ic->eeltype) || ic->eeltype == eelEWALD))
     {
@@ -254,7 +244,7 @@ static void map_interaction_types_to_gpu_kernel_flavors(const interaction_const_
 
 /*! \brief Initializes the nonbonded parameter data structure.
  */
-static void init_nbparam(cl_nbparam_t*                   nbp,
+static void init_nbparam(NBParamGpu*                     nbp,
                          const interaction_const_t*      ic,
                          const PairlistParams&           listParams,
                          const nbnxn_atomdata_t::Params& nbatParams,
@@ -276,15 +266,15 @@ static void init_nbparam(cl_nbparam_t*                   nbp,
         }
     }
     /* generate table for PME */
-    nbp->coulomb_tab_climg2d = nullptr;
-    if (nbp->eeltype == eelOclEWALD_TAB || nbp->eeltype == eelOclEWALD_TAB_TWIN)
+    nbp->coulomb_tab = nullptr;
+    if (nbp->eeltype == eelTypeEWALD_TAB || nbp->eeltype == eelTypeEWALD_TAB_TWIN)
     {
         GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
         init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp, deviceContext);
     }
     else
     {
-        allocateDeviceBuffer(&nbp->coulomb_tab_climg2d, 1, deviceContext);
+        allocateDeviceBuffer(&nbp->coulomb_tab, 1, deviceContext);
     }
 
     const int nnbfp      = 2 * nbatParams.numTypes * nbatParams.numTypes;
@@ -294,13 +284,13 @@ static void init_nbparam(cl_nbparam_t*                   nbp,
         /* set up LJ parameter lookup table */
         DeviceBuffer<real> nbfp;
         initParamLookupTable(&nbfp, nullptr, nbatParams.nbfp.data(), nnbfp, deviceContext);
-        nbp->nbfp_climg2d = nbfp;
+        nbp->nbfp = nbfp;
 
         if (ic->vdwtype == evdwPME)
         {
             DeviceBuffer<float> nbfp_comb;
             initParamLookupTable(&nbfp_comb, nullptr, nbatParams.nbfp_comb.data(), nnbfp_comb, deviceContext);
-            nbp->nbfp_comb_climg2d = nbfp_comb;
+            nbp->nbfp_comb = nbfp_comb;
         }
     }
 }
@@ -312,8 +302,8 @@ void gpu_pme_loadbal_update_param(const nonbonded_verlet_t* nbv, const interacti
     {
         return;
     }
-    NbnxmGpu*     nb  = nbv->gpu_nbv;
-    cl_nbparam_t* nbp = nb->nbparam;
+    NbnxmGpu*   nb  = nbv->gpu_nbv;
+    NBParamGpu* nbp = nb->nbparam;
 
     set_cutoff_parameters(nbp, ic, nbv->pairlistSets().params());
 
@@ -454,7 +444,7 @@ static void nbnxn_gpu_init_kernels(NbnxmGpu* nb)
  *  clears e/fshift output buffers.
  */
 static void nbnxn_ocl_init_const(cl_atomdata_t*                  atomData,
-                                 cl_nbparam_t*                   nbParams,
+                                 NBParamGpu*                     nbParams,
                                  const interaction_const_t*      ic,
                                  const PairlistParams&           listParams,
                                  const nbnxn_atomdata_t::Params& nbatParams,
@@ -835,9 +825,9 @@ void gpu_free(NbnxmGpu* nb)
     sfree(nb->atdat);
 
     /* Free nbparam */
-    freeDeviceBuffer(&(nb->nbparam->nbfp_climg2d));
-    freeDeviceBuffer(&(nb->nbparam->nbfp_comb_climg2d));
-    freeDeviceBuffer(&(nb->nbparam->coulomb_tab_climg2d));
+    freeDeviceBuffer(&(nb->nbparam->nbfp));
+    freeDeviceBuffer(&(nb->nbparam->nbfp_comb));
+    freeDeviceBuffer(&(nb->nbparam->coulomb_tab));
     sfree(nb->nbparam);
 
     /* Free plist */
@@ -917,7 +907,7 @@ int gpu_min_ci_balanced(NbnxmGpu* nb)
 //! This function is documented in the header file
 gmx_bool gpu_is_kernel_ewald_analytical(const NbnxmGpu* nb)
 {
-    return ((nb->nbparam->eeltype == eelOclEWALD_ANA) || (nb->nbparam->eeltype == eelOclEWALD_ANA_TWIN));
+    return ((nb->nbparam->eeltype == eelTypeEWALD_ANA) || (nb->nbparam->eeltype == eelTypeEWALD_ANA_TWIN));
 }
 
 } // namespace Nbnxm

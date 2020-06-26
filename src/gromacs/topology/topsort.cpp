@@ -188,7 +188,9 @@ void gmx_sort_ilist_fe(InteractionDefinitions* idef, const real* qA, const real*
         qB = qA;
     }
 
-    const t_iparams* iparams = idef->iparams.data();
+    const t_iparams* iparams                   = idef->iparams.data();
+    bool             havePerturbedInteractions = false;
+
 
     for (int ftype = 0; ftype < F_NRE; ftype++)
     {
@@ -210,6 +212,8 @@ void gmx_sort_ilist_fe(InteractionDefinitions* idef, const real* qA, const real*
                     /* Copy to the perturbed buffer */
                     perturbed.push_back(entry.parameterType, entry.atoms);
                     numPerturbed++;
+
+                    havePerturbedInteractions = true;
                 }
                 else
                 {
@@ -251,5 +255,5 @@ void gmx_sort_ilist_fe(InteractionDefinitions* idef, const real* qA, const real*
         }
     }
 
-    idef->ilsort = ilsortFE_SORTED;
+    idef->ilsort = (havePerturbedInteractions ? ilsortFE_SORTED : ilsortNO_FE);
 }

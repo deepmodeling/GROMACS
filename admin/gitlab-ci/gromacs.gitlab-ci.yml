@@ -17,7 +17,7 @@ simple-build:
     CMAKE_MPI_OPTIONS: "-DGMX_THREAD_MPI=ON"
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=OFF"
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug"
-    CMAKE_GPU_OPTIONS: "-DGMX_GPU=OFF"
+    CMAKE_GPU_OPTIONS: "-DGMX_GPU=None"
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=OFF"
     COMPILER_MAJOR_VERSION: 9
     BUILD_DIR: simple-build
@@ -89,11 +89,11 @@ simple-build:
     KUBERNETES_MEMORY_REQUEST: 2Gi
     CMAKE_COMPILER_SCRIPT: ""
     CMAKE_EXTRA_OPTIONS: ""
-    CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AUTO"
+    CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AVX2_256"
     CMAKE_MPI_OPTIONS: "-DGMX_THREAD_MPI=ON"
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=OFF"
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug"
-    CMAKE_GPU_OPTIONS: "-DGMX_GPU=OFF"
+    CMAKE_GPU_OPTIONS: "-DGMX_GPU=None"
   script:
     - echo $CMAKE_COMPILER_SCRIPT
     - echo $CMAKE_EXTRA_OPTIONS
@@ -141,11 +141,11 @@ simple-build:
     KUBERNETES_MEMORY_REQUEST: 2Gi
     CMAKE_COMPILER_SCRIPT: ""
     CMAKE_EXTRA_OPTIONS: ""
-    CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AUTO"
+    CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AVX2_256"
     CMAKE_MPI_OPTIONS: "-DGMX_THREAD_MPI=ON"
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=OFF"
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=RelWithAssert"
-    CMAKE_GPU_OPTIONS: "-DGMX_GPU=OFF"
+    CMAKE_GPU_OPTIONS: "-DGMX_GPU=None"
     CMAKE_REGRESSIONTEST_OPTIONS: "-DREGRESSIONTEST_PATH=../\\$RELEASE_REGRESSIONTESTS"
     RELEASE_BUILD_DIR: release-builds
     RELEASE_SOURCE: release-source-from-tarball
@@ -578,8 +578,7 @@ gromacs:clang-8-cuda-10.1:release:build:
   retry:
     max: 1
   script:
-    # This should go away once we are able to run ASAN on mdrun
-    - export ASAN_OPTIONS="detect_leaks=0"
+    - export LSAN_OPTIONS="suppressions=$CI_PROJECT_DIR/admin/lsan-suppressions.txt:print_suppressions=0"
     # Needed to run MPI enabled code in the docker images, until we set up different users
     - export OMPI_ALLOW_RUN_AS_ROOT=1
     - export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
