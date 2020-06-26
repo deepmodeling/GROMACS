@@ -432,6 +432,7 @@ if(GMX_USE_OPENCL)
         ewald/pme_gpu_utils.clh
         ewald/pme_program.cl
         ewald/pme_gpu_types.h
+        ewald/pme_gpu_calculate_splines.clh
         )
     install(FILES ${OPENCL_INSTALLED_FILES}
         DESTINATION ${GMX_INSTALL_OCLDIR}/gromacs/ewald
