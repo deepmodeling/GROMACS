@@ -108,8 +108,8 @@ private:
         table_.resize(tableSize);
 
         /* Table size is a power of 2, so a binary mask gives the hash */
-        bitMask_                        = tableSize - 1;
-        startIndexForSpaceForListEntry_ = tableSize;
+        bitMask_                             = tableSize - 1;
+        startIndexForSpaceForListConstEntry_ = tableSize;
     }
 
 public:
@@ -183,7 +183,7 @@ private:
                 }
             }
             /* Search for space in table_ */
-            ind = startIndexForSpaceForListEntry_;
+            ind = startIndexForSpaceForListConstEntry_;
             while (ind < table_.size() && table_[ind].key >= 0)
             {
                 ind++;
@@ -195,7 +195,7 @@ private:
             }
             table_[ind_prev].next = ind;
 
-            startIndexForSpaceForListEntry_ = ind + 1;
+            startIndexForSpaceForListConstEntry_ = ind + 1;
         }
 
         table_[ind].key   = key;
@@ -238,9 +238,9 @@ public:
                     /* This index is a linked entry, so we free an entry.
                      * Check if we are creating the first empty space.
                      */
-                    if (ind < startIndexForSpaceForListEntry_)
+                    if (ind < startIndexForSpaceForListConstEntry_)
                     {
-                        startIndexForSpaceForListEntry_ = ind;
+                        startIndexForSpaceForListConstEntry_ = ind;
                     }
                 }
                 table_[ind].key  = -1;
@@ -296,8 +296,8 @@ public:
             entry.key  = -1;
             entry.next = -1;
         }
-        startIndexForSpaceForListEntry_ = bucket_count();
-        numElements_                    = 0;
+        startIndexForSpaceForListConstEntry_ = bucket_count();
+        numElements_                         = 0;
 
         /* Resize the hash table when the occupation is far from optimal.
          * Do not resize with 0 elements to avoid minimal size when clear()
@@ -317,7 +317,7 @@ private:
     /*! \brief The bit mask for computing the hash of a key */
     int bitMask_ = 0;
     /*! \brief Index in table_ at which to start looking for empty space for a new linked list entry */
-    int startIndexForSpaceForListEntry_ = 0;
+    int startIndexForSpaceForListConstEntry_ = 0;
     /*! \brief The number of elements currently stored in the table */
     int numElements_ = 0;
 };

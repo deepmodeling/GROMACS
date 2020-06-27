@@ -216,10 +216,10 @@ typedef union t_iparams {
 typedef int t_functype;
 
 //! Reference to an interaction list entry, used by the iterator
-struct InteractionListEntry
+struct InteractionListConstEntry
 {
     //! Constructor using pointer to raw indices and the stride of the interaction list
-    InteractionListEntry(int const* indicesPtr, const std::size_t stride) :
+    InteractionListConstEntry(int const* indicesPtr, const std::size_t stride) :
         parameterType(indicesPtr[0]),
         atoms(indicesPtr + 1, indicesPtr + stride)
     {
@@ -232,6 +232,81 @@ struct InteractionListEntry
 };
 
 //! Helper class for looping over entries in an InteractionList
+class InteractionListConstIterator
+{
+public:
+    //! Difference type for iterator arithmetic
+    using difference_type = std::ptrdiff_t;
+
+    //! Constructor
+    InteractionListConstIterator(const int* indicesPtr, std::size_t stride) :
+        indicesPtr_(indicesPtr),
+        stride_(stride)
+    {
+    }
+    //! Value
+    operator InteractionListConstEntry() const
+    {
+        return InteractionListConstEntry(indicesPtr_, stride_);
+    }
+    //! Pointer
+    InteractionListConstEntry operator*() const
+    {
+        return InteractionListConstEntry(indicesPtr_, stride_);
+    }
+    //! Equality comparison
+    bool operator==(const InteractionListConstIterator other)
+    {
+        return indicesPtr_ == other.indicesPtr_;
+    }
+    //! Inequality comparison
+    bool operator!=(const InteractionListConstIterator other)
+    {
+        return indicesPtr_ != other.indicesPtr_;
+    }
+    //! Increment operator
+    InteractionListConstIterator& operator++()
+    {
+        indicesPtr_ += stride_;
+        return *this;
+    }
+    //! Increment operator
+    InteractionListConstIterator operator++(int gmx_unused dummy)
+    {
+        InteractionListConstIterator tmp(*this);
+        indicesPtr_ += stride_;
+        return tmp;
+    }
+    //! Addition operator
+    InteractionListConstIterator operator+(difference_type d)
+    {
+        return { indicesPtr_ + d * stride_, stride_ };
+    }
+
+private:
+    //! Pointer to the first index of the current entry
+    int const* indicesPtr_;
+    //! The stride of entries in the flat list
+    std::size_t stride_;
+};
+
+//! Reference to an interaction list entry, used by the iterator
+struct InteractionListEntry
+{
+    //! Constructor using pointer to raw indices and the stride of entries in the interaction list
+    InteractionListEntry(int* indicesPtr, const std::size_t stride) :
+        parameterType(indicesPtr[0]),
+        atoms(indicesPtr + 1, indicesPtr + stride)
+    {
+    }
+
+    //! Reference to the parameter type
+    int& parameterType;
+    //! Reference to the atoms
+    gmx::ArrayRef<int> atoms;
+};
+
+//! Helper class for looping over entries in an InteractionList with write access to entries
 class InteractionListIterator
 {
 public:
@@ -239,7 +314,7 @@ public:
     using difference_type = std::ptrdiff_t;
 
     //! Constructor
-    InteractionListIterator(const int* indicesPtr, std::size_t stride) :
+    InteractionListIterator(int* indicesPtr, const std::size_t stride) :
         indicesPtr_(indicesPtr),
         stride_(stride)
     {
@@ -271,89 +346,14 @@ public:
         indicesPtr_ += stride_;
         return tmp;
     }
-    //! Addition operator
-    InteractionListIterator operator+(difference_type d)
-    {
-        return { indicesPtr_ + d * stride_, stride_ };
-    }
-
-private:
-    //! Pointer to the first index of the current entry
-    int const* indicesPtr_;
-    //! The stride of entries in the flat list
-    std::size_t stride_;
-};
-
-//! Reference to an interaction list entry, used by the iterator
-struct InteractionListWriteEntry
-{
-    //! Constructor using pointer to raw indices and the stride of entries in the interaction list
-    InteractionListWriteEntry(int* indicesPtr, const std::size_t stride) :
-        parameterType(indicesPtr[0]),
-        atoms(indicesPtr + 1, indicesPtr + stride)
-    {
-    }
-
-    //! Reference to the parameter type
-    int& parameterType;
-    //! Reference to the atoms
-    gmx::ArrayRef<int> atoms;
-};
-
-//! Helper class for looping over entries in an InteractionList with write access to entries
-class InteractionListWriteIterator
-{
-public:
-    //! Difference type for iterator arithmetic
-    using difference_type = std::ptrdiff_t;
-
-    //! Constructor
-    InteractionListWriteIterator(int* indicesPtr, const std::size_t stride) :
-        indicesPtr_(indicesPtr),
-        stride_(stride)
-    {
-    }
-    //! Value
-    operator InteractionListWriteEntry() const
-    {
-        return InteractionListWriteEntry(indicesPtr_, stride_);
-    }
-    //! Pointer
-    InteractionListWriteEntry operator*() const
-    {
-        return InteractionListWriteEntry(indicesPtr_, stride_);
-    }
-    //! Equality comparison
-    bool operator==(const InteractionListWriteIterator other)
-    {
-        return indicesPtr_ == other.indicesPtr_;
-    }
-    //! Inequality comparison
-    bool operator!=(const InteractionListWriteIterator other)
-    {
-        return indicesPtr_ != other.indicesPtr_;
-    }
-    //! Increment operator
-    InteractionListWriteIterator& operator++()
-    {
-        indicesPtr_ += stride_;
-        return *this;
-    }
-    //! Increment operator
-    InteractionListWriteIterator operator++(int gmx_unused dummy)
-    {
-        InteractionListWriteIterator tmp(*this);
-        indicesPtr_ += stride_;
-        return tmp;
-    }
     //! Compound += operator
-    InteractionListWriteIterator operator+=(difference_type d)
+    InteractionListIterator operator+=(difference_type d)
     {
         indicesPtr_ += d * stride_;
         return *this;
     }
     //! Addition operator
-    InteractionListWriteIterator operator+(difference_type d)
+    InteractionListIterator operator+(difference_type d)
     {
         return { indicesPtr_ + d * stride_, stride_ };
     }
@@ -404,9 +404,9 @@ public:
     std::size_t numAtoms() const { return stride_ - 1; }
 
     //! Return an entry from the list
-    InteractionListEntry operator[](std::size_t interactionIndex) const
+    InteractionListConstEntry operator[](std::size_t interactionIndex) const
     {
-        return InteractionListEntry(indices_.data() + interactionIndex * stride_, stride_);
+        return InteractionListConstEntry(indices_.data() + interactionIndex * stride_, stride_);
     }
 
     //! Return the raw indices in layout: t0,a00,a01,...,t1,a10,a11,...
@@ -456,25 +456,25 @@ public:
     void clear() { indices_.clear(); }
 
     //! Returns the begin iterator
-    inline InteractionListIterator begin() const
+    inline InteractionListConstIterator begin() const
+    {
+        return InteractionListConstIterator(indices_.data(), stride_);
+    }
+    //! Returns the end iterator
+    inline InteractionListConstIterator end() const
+    {
+        return InteractionListConstIterator(indices_.data() + indices_.size(), stride_);
+    }
+
+    //! Returns the begin iterator
+    inline InteractionListIterator begin()
     {
         return InteractionListIterator(indices_.data(), stride_);
     }
     //! Returns the end iterator
-    inline InteractionListIterator end() const
+    inline InteractionListIterator end()
     {
         return InteractionListIterator(indices_.data() + indices_.size(), stride_);
-    }
-
-    //! Returns the begin iterator
-    inline InteractionListWriteIterator begin()
-    {
-        return InteractionListWriteIterator(indices_.data(), stride_);
-    }
-    //! Returns the end iterator
-    inline InteractionListWriteIterator end()
-    {
-        return InteractionListWriteIterator(indices_.data() + indices_.size(), stride_);
     }
 
 private:
@@ -649,27 +649,27 @@ struct t_ilist
 /* The following four iterator generators should be removed when t_ilist is removed */
 
 //! Returns the begin iterator
-inline InteractionListWriteIterator begin(InteractionList* iList, std::size_t numAtoms)
+inline InteractionListIterator begin(InteractionList* iList, std::size_t numAtoms)
 {
     GMX_ASSERT(numAtoms == iList->numAtoms(), "numAtoms should match");
     return iList->begin();
 }
 //! Returns the end iterator
-inline InteractionListWriteIterator end(InteractionList* iList, std::size_t numAtoms)
+inline InteractionListIterator end(InteractionList* iList, std::size_t numAtoms)
 {
     GMX_ASSERT(numAtoms == iList->numAtoms(), "numAtoms should match");
     return iList->end();
 }
 
 //! Returns the begin iterator
-inline InteractionListWriteIterator begin(t_ilist* iList, std::size_t numAtoms)
+inline InteractionListIterator begin(t_ilist* iList, std::size_t numAtoms)
 {
-    return InteractionListWriteIterator(iList->iatoms, numAtoms);
+    return InteractionListIterator(iList->iatoms, numAtoms);
 }
 //! Returns the end iterator
-inline InteractionListWriteIterator end(t_ilist* iList, std::size_t numAtoms)
+inline InteractionListIterator end(t_ilist* iList, std::size_t numAtoms)
 {
-    return InteractionListWriteIterator(iList->iatoms, numAtoms);
+    return InteractionListIterator(iList->iatoms, numAtoms);
 }
 
 struct gmx_cmapdata_t

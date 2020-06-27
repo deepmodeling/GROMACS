@@ -90,10 +90,10 @@ class TestFileOutputRedirector::Impl
 {
 public:
     typedef std::shared_ptr<StringOutputStream>         StringStreamPointer;
-    typedef std::pair<std::string, StringStreamPointer> FileListEntry;
+    typedef std::pair<std::string, StringStreamPointer> FileListConstEntry;
 
-    StringStreamPointer        stdoutStream_;
-    std::vector<FileListEntry> fileList_;
+    StringStreamPointer             stdoutStream_;
+    std::vector<FileListConstEntry> fileList_;
 };
 
 /********************************************************************
@@ -123,7 +123,7 @@ TextOutputStreamPointer TestFileOutputRedirector::openTextOutputFile(const char*
 
 void TestFileOutputRedirector::checkRedirectedFiles(TestReferenceChecker* checker)
 {
-    std::vector<Impl::FileListEntry>::const_iterator i;
+    std::vector<Impl::FileListConstEntry>::const_iterator i;
     for (i = impl_->fileList_.begin(); i != impl_->fileList_.end(); ++i)
     {
         StringTestBase::checkText(checker, i->second->toString(), i->first.c_str());

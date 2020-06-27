@@ -131,11 +131,11 @@ static gmx_bool ip_pert(int ftype, const t_iparams* ip)
     return bPert;
 }
 
-static gmx_bool ip_q_pert(int                              ftype,
-                          const InteractionListWriteEntry& ilistEntry,
-                          const t_iparams*                 ip,
-                          const real*                      qA,
-                          const real*                      qB)
+static gmx_bool ip_q_pert(int                         ftype,
+                          const InteractionListEntry& ilistEntry,
+                          const t_iparams*            ip,
+                          const real*                 qA,
+                          const real*                 qB)
 {
     /* 1-4 interactions do not have the charges stored in the iparams list,
      * so we need a separate check for those.
