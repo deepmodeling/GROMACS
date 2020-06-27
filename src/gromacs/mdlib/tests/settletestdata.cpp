@@ -104,7 +104,7 @@ SettleTestData::SettleTestData(int numSettles) :
     mtop_.molblock[0].type = 0;
     for (int i = 0; i < numSettles; ++i)
     {
-        mtop_.moltype[0].ilist[F_SETTLE].push_back<3>(
+        mtop_.moltype[0].ilist[F_SETTLE].push_back(
                 settleType, { i * atomsPerSettle_ + 0, i * atomsPerSettle_ + 1, i * atomsPerSettle_ + 2 });
     }
 

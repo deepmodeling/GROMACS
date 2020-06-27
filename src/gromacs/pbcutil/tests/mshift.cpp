@@ -71,8 +71,8 @@ gmx_moltype_t moleculeType()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 5;
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 1, 2 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 2, 1, 3 });
+    moltype.ilist[F_CONSTR].push_back(0, { 1, 2 });
+    moltype.ilist[F_ANGLES].push_back(1, { 2, 1, 3 });
 
     return moltype;
 }

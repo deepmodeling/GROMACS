@@ -246,13 +246,13 @@ public:
 
         // F_CONSTR
         // This must be initialized so that Constraints object can be created below.
-        molType.ilist.at(F_CONSTR).push_back<2>(0, { 0, 1 });
+        molType.ilist.at(F_CONSTR).push_back(0, { 0, 1 });
 
         // F_LJ14 and F_COUL14
-        molType.ilist.at(F_LJ14).push_back<2>(0, { 0, 0 });
+        molType.ilist.at(F_LJ14).push_back(0, { 0, 0 });
 
         // F_LJC14_Q
-        molType.ilist.at(F_LJC14_Q).push_back<2>(0, { 0, 0 });
+        molType.ilist.at(F_LJC14_Q).push_back(0, { 0, 0 });
 
         // TODO Do proper initialization for distance and orientation
         //      restraints and remove comments to enable their output

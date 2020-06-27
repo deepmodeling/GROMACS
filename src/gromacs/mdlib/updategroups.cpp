@@ -136,9 +136,9 @@ static InteractionList jointConstraintList(const gmx_moltype_t& moltype)
         {
             for (const auto entry : ilist)
             {
-                ilistCombined.push_back<2>(-1, { entry.atoms[0], entry.atoms[1] });
-                ilistCombined.push_back<2>(-1, { entry.atoms[0], entry.atoms[2] });
-                ilistCombined.push_back<2>(-1, { entry.atoms[1], entry.atoms[2] });
+                ilistCombined.push_back(-1, { entry.atoms[0], entry.atoms[1] });
+                ilistCombined.push_back(-1, { entry.atoms[0], entry.atoms[2] });
+                ilistCombined.push_back(-1, { entry.atoms[1], entry.atoms[2] });
             }
         }
         else

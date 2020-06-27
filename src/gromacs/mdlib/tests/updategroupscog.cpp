@@ -87,7 +87,7 @@ TEST(UpdateGroupsCog, ComputesCogs)
 
     gmx_moltype_t moltype;
     moltype.atoms.nr = atomsPerSettle;
-    moltype.ilist[F_SETTLE].push_back<3>(settleType, { 0, 1, 2 });
+    moltype.ilist[F_SETTLE].push_back(settleType, { 0, 1, 2 });
     mtop.moltype.push_back(moltype);
 
     mtop.molblock.resize(1);

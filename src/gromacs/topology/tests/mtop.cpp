@@ -57,7 +57,7 @@ void createBasicTop(gmx_mtop_t* mtop)
     gmx_moltype_t moltype;
     moltype.atoms.nr     = NRAL(F_SETTLE);
     const int settleType = 0;
-    moltype.ilist[F_SETTLE].push_back<3>(settleType, { 0, 1, 2 });
+    moltype.ilist[F_SETTLE].push_back(settleType, { 0, 1, 2 });
     mtop->moltype.push_back(moltype);
 
     mtop->molblock.resize(1);

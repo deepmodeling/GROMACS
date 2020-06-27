@@ -79,8 +79,8 @@ void populateMoleculeType(gmx_moltype_t* moltype)
     constexpr int atomNumber    = 5;
     constexpr int residueNumber = 3;
     moltype->atoms.nr           = atomNumber;
-    moltype->ilist[F_CONSTR].push_back<2>(0, { 1, 2 });
-    moltype->ilist[F_ANGLES].push_back<3>(1, { 2, 1, 3 });
+    moltype->ilist[F_CONSTR].push_back(0, { 1, 2 });
+    moltype->ilist[F_ANGLES].push_back(1, { 2, 1, 3 });
 
     snew(moltype->atoms.atom, atomNumber);
     snew(moltype->atoms.resinfo, residueNumber);

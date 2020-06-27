@@ -63,7 +63,7 @@ gmx_moltype_t ethaneUA()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 2;
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 1 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 1 });
 
     return moltype;
 }
@@ -74,10 +74,10 @@ gmx_moltype_t methane()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 5;
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 1 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 2 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 3 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 4 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 1 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 2 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 3 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 4 });
 
     return moltype;
 }
@@ -88,18 +88,18 @@ gmx_moltype_t ethane()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 8;
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 1 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 2 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 3 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 4, 5 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 4, 6 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 4, 7 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 1, 0, 2 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 1, 0, 3 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 2, 0, 3 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 5, 4, 6 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 5, 4, 7 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 6, 4, 7 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 1 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 2 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 3 });
+    moltype.ilist[F_CONSTR].push_back(0, { 4, 5 });
+    moltype.ilist[F_CONSTR].push_back(0, { 4, 6 });
+    moltype.ilist[F_CONSTR].push_back(0, { 4, 7 });
+    moltype.ilist[F_ANGLES].push_back(1, { 1, 0, 2 });
+    moltype.ilist[F_ANGLES].push_back(1, { 1, 0, 3 });
+    moltype.ilist[F_ANGLES].push_back(1, { 2, 0, 3 });
+    moltype.ilist[F_ANGLES].push_back(1, { 5, 4, 6 });
+    moltype.ilist[F_ANGLES].push_back(1, { 5, 4, 7 });
+    moltype.ilist[F_ANGLES].push_back(1, { 6, 4, 7 });
 
     return moltype;
 }
@@ -110,9 +110,9 @@ gmx_moltype_t butaneUA()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 4;
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 1 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 1, 2 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 2, 3 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 1 });
+    moltype.ilist[F_CONSTR].push_back(0, { 1, 2 });
+    moltype.ilist[F_CONSTR].push_back(0, { 2, 3 });
 
     return moltype;
 }
@@ -123,7 +123,7 @@ gmx_moltype_t waterThreeSite()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 3;
-    moltype.ilist[F_SETTLE].push_back<3>(0, { 0, 1, 2 });
+    moltype.ilist[F_SETTLE].push_back(0, { 0, 1, 2 });
 
     return moltype;
 }
@@ -134,8 +134,8 @@ gmx_moltype_t waterFourSite()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 4;
-    moltype.ilist[F_SETTLE].push_back<3>(0, { 1, 2, 3 });
-    moltype.ilist[F_VSITE3].push_back<4>(1, { 0, 1, 2, 3 });
+    moltype.ilist[F_SETTLE].push_back(0, { 1, 2, 3 });
+    moltype.ilist[F_VSITE3].push_back(1, { 0, 1, 2, 3 });
 
     return moltype;
 }
@@ -146,9 +146,9 @@ gmx_moltype_t waterFlexAngle()
     gmx_moltype_t moltype = {};
 
     moltype.atoms.nr = 3;
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 1 });
-    moltype.ilist[F_CONSTR].push_back<2>(0, { 0, 2 });
-    moltype.ilist[F_ANGLES].push_back<3>(1, { 1, 0, 2 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 1 });
+    moltype.ilist[F_CONSTR].push_back(0, { 0, 2 });
+    moltype.ilist[F_ANGLES].push_back(1, { 1, 0, 2 });
 
     return moltype;
 }

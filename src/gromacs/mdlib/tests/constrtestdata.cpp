@@ -149,7 +149,7 @@ ConstraintsTestData::ConstraintsTestData(const std::string&       title,
     idef_ = std::make_unique<InteractionDefinitions>(mtop_.ffparams);
     for (index i = 0; i < ssize(constraints); i += 3)
     {
-        idef_->il[F_CONSTR].push_back<2>(constraints[i], { constraints[i + 1], constraints[i + 2] });
+        idef_->il[F_CONSTR].push_back(constraints[i], { constraints[i + 1], constraints[i + 2] });
     }
 
     // Constraints and their parameters (global topology)

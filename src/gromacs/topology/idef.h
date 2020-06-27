@@ -346,10 +346,9 @@ public:
     }
 
     //! Adds an interaction at the end of the list
-    template<std::size_t numAtoms>
-    void push_back(const int parameterType, const std::array<int, numAtoms>& atoms)
+    void push_back(const int parameterType, std::initializer_list<int> atoms)
     {
-        push_back(parameterType, numAtoms, atoms.data());
+        push_back(parameterType, atoms.size(), atoms.begin());
     }
 
     //! Adds an interaction at the end of the list
