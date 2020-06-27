@@ -405,12 +405,12 @@ class InteractionListsSelection
 {
 public:
     //! Iterator for loop over selected InteractionList entries in an InteractionLists
-    class iterator
+    class iterator :
+        public boost::stl_interfaces::iterator_interface<iterator, std::forward_iterator_tag, InteractionList>
     {
-    public:
-        //! Difference type for iterator arithmetic
-        using difference_type = std::ptrdiff_t;
+        using Base = boost::stl_interfaces::iterator_interface<iterator, std::forward_iterator_tag, InteractionList>;
 
+    public:
         //! Constructor
         iterator(const InteractionList* listPtr, const InteractionList* listEnd, int flags) :
             listPtr_(listPtr),
@@ -419,12 +419,10 @@ public:
         {
             findValidList();
         }
-        //! Pointer
+        //! Dereference
         const InteractionList& operator*() const { return *listPtr_; }
         //! Equality comparison
-        bool operator==(const iterator other) { return listPtr_ == &(*other); }
-        //! Inequality comparison
-        bool operator!=(const iterator other) { return listPtr_ != &(*other); }
+        bool operator==(const iterator other) const { return listPtr_ == other.listPtr_; }
         //! Increment operator
         iterator& operator++()
         {
@@ -432,14 +430,7 @@ public:
             findValidList();
             return *this;
         }
-        //! Increment operator
-        iterator operator++(int gmx_unused dummy)
-        {
-            iterator tmp(listPtr_, listEnd_, flags_);
-            listPtr_++;
-            findValidList();
-            return tmp;
-        }
+        using Base::operator++;
 
     private:
         //! Increases listPtr_ until a non-empty list is found with one of the flags set
