@@ -215,98 +215,27 @@ typedef union t_iparams {
 
 typedef int t_functype;
 
-//! Reference to an interaction list entry, used by the iterator
-struct InteractionListConstEntry
+namespace detail
 {
-    //! Constructor using pointer to raw indices and the stride of the interaction list
-    InteractionListConstEntry(int const* indicesPtr, const std::size_t stride) :
-        parameterType(indicesPtr[0]),
-        atoms(indicesPtr + 1, indicesPtr + stride)
-    {
-    }
-
-    //! Reference to the parameter type
-    const int& parameterType;
-    //! Reference to the atoms
-    gmx::ArrayRef<const int> atoms;
-};
-
-//! Helper class for looping over entries in an InteractionList
-class InteractionListConstIterator
-{
-public:
-    //! Difference type for iterator arithmetic
-    using difference_type = std::ptrdiff_t;
-
-    //! Constructor
-    InteractionListConstIterator(const int* indicesPtr, std::size_t stride) :
-        indicesPtr_(indicesPtr),
-        stride_(stride)
-    {
-    }
-    //! Value
-    operator InteractionListConstEntry() const
-    {
-        return InteractionListConstEntry(indicesPtr_, stride_);
-    }
-    //! Pointer
-    InteractionListConstEntry operator*() const
-    {
-        return InteractionListConstEntry(indicesPtr_, stride_);
-    }
-    //! Equality comparison
-    bool operator==(const InteractionListConstIterator other)
-    {
-        return indicesPtr_ == other.indicesPtr_;
-    }
-    //! Inequality comparison
-    bool operator!=(const InteractionListConstIterator other)
-    {
-        return indicesPtr_ != other.indicesPtr_;
-    }
-    //! Increment operator
-    InteractionListConstIterator& operator++()
-    {
-        indicesPtr_ += stride_;
-        return *this;
-    }
-    //! Increment operator
-    InteractionListConstIterator operator++(int gmx_unused dummy)
-    {
-        InteractionListConstIterator tmp(*this);
-        indicesPtr_ += stride_;
-        return tmp;
-    }
-    //! Addition operator
-    InteractionListConstIterator operator+(difference_type d)
-    {
-        return { indicesPtr_ + d * stride_, stride_ };
-    }
-
-private:
-    //! Pointer to the first index of the current entry
-    int const* indicesPtr_;
-    //! The stride of entries in the flat list
-    std::size_t stride_;
-};
-
 //! Reference to an interaction list entry, used by the iterator
+template<class T>
 struct InteractionListEntry
 {
     //! Constructor using pointer to raw indices and the stride of entries in the interaction list
-    InteractionListEntry(int* indicesPtr, const std::size_t stride) :
+    InteractionListEntry(T* indicesPtr, const std::size_t stride) :
         parameterType(indicesPtr[0]),
         atoms(indicesPtr + 1, indicesPtr + stride)
     {
     }
 
     //! Reference to the parameter type
-    int& parameterType;
+    T& parameterType;
     //! Reference to the atoms
-    gmx::ArrayRef<int> atoms;
+    gmx::ArrayRef<T> atoms;
 };
 
 //! Helper class for looping over entries in an InteractionList with write access to entries
+template<class T>
 class InteractionListIterator
 {
 public:
@@ -314,15 +243,21 @@ public:
     using difference_type = std::ptrdiff_t;
 
     //! Constructor
-    InteractionListIterator(int* indicesPtr, const std::size_t stride) :
+    InteractionListIterator(T* indicesPtr, const std::size_t stride) :
         indicesPtr_(indicesPtr),
         stride_(stride)
     {
     }
     //! Value
-    operator InteractionListEntry() const { return InteractionListEntry(indicesPtr_, stride_); }
+    operator InteractionListEntry<T>() const
+    {
+        return InteractionListEntry<T>(indicesPtr_, stride_);
+    }
     //! Pointer
-    InteractionListEntry operator*() const { return InteractionListEntry(indicesPtr_, stride_); }
+    InteractionListEntry<T> operator*() const
+    {
+        return InteractionListEntry<T>(indicesPtr_, stride_);
+    }
     //! Equality comparison
     bool operator==(const InteractionListIterator other)
     {
@@ -360,10 +295,17 @@ public:
 
 private:
     //! Pointer to the first index of the current entry
-    int* indicesPtr_;
+    T* indicesPtr_;
     //! The stride of entries in the interaction list
     std::size_t stride_;
 };
+} // namespace detail
+
+using InteractionListConstIterator = detail::InteractionListIterator<const int>;
+using InteractionListIterator      = detail::InteractionListIterator<int>;
+using InteractionListConstEntry    = detail::InteractionListEntry<const int>;
+using InteractionListEntry         = detail::InteractionListEntry<int>;
+
 
 /*! \brief List of listed interactions
  *
