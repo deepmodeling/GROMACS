@@ -236,11 +236,12 @@ struct InteractionListEntry
 
 //! Helper class for looping over entries in an InteractionList with write access to entries
 template<class T>
-class InteractionListIterator
+class InteractionListIterator :
+    public boost::stl_interfaces::proxy_iterator_interface<InteractionListIterator<T>, std::random_access_iterator_tag, InteractionListEntry<T>>
 {
 public:
-    //! Difference type for iterator arithmetic
-    using difference_type = std::ptrdiff_t;
+    //! Difference type
+    using difference_type = size_t;
 
     //! Constructor
     InteractionListIterator(T* indicesPtr, const std::size_t stride) :
@@ -248,49 +249,21 @@ public:
         stride_(stride)
     {
     }
-    //! Value
-    operator InteractionListEntry<T>() const
-    {
-        return InteractionListEntry<T>(indicesPtr_, stride_);
-    }
-    //! Pointer
+    //! Dereference
     InteractionListEntry<T> operator*() const
     {
         return InteractionListEntry<T>(indicesPtr_, stride_);
     }
-    //! Equality comparison
-    bool operator==(const InteractionListIterator other)
-    {
-        return indicesPtr_ == other.indicesPtr_;
-    }
-    //! Inequality comparison
-    bool operator!=(const InteractionListIterator other)
-    {
-        return indicesPtr_ != other.indicesPtr_;
-    }
-    //! Increment operator
-    InteractionListIterator& operator++()
-    {
-        indicesPtr_ += stride_;
-        return *this;
-    }
-    //! Increment operator
-    InteractionListIterator operator++(int gmx_unused dummy)
-    {
-        InteractionListIterator tmp(*this);
-        indicesPtr_ += stride_;
-        return tmp;
-    }
     //! Compound += operator
-    InteractionListIterator operator+=(difference_type d)
+    InteractionListIterator& operator+=(difference_type d)
     {
         indicesPtr_ += d * stride_;
         return *this;
     }
-    //! Addition operator
-    InteractionListIterator operator+(difference_type d)
+    //! Difference
+    difference_type operator-(InteractionListIterator o)
     {
-        return { indicesPtr_ + d * stride_, stride_ };
+        return (o.indicesPtr_ - indicesPtr_) / stride_;
     }
 
 private:
