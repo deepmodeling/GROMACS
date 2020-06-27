@@ -445,12 +445,9 @@ public:
         //! Increases listPtr_ until a non-empty list is found with one of the flags set
         void findValidList()
         {
-            while (listPtr_ < listEnd_
-                   && ((interaction_function[listPtr_->functionType()].flags & flags_) == 0
-                       || listPtr_->empty()))
-            {
-                listPtr_++;
-            }
+            listPtr_ = std::find_if(listPtr_, listEnd_, [&](auto l) {
+                return (interaction_function[l.functionType()].flags & flags_) && !l.empty();
+            });
         }
 
         //! Pointer to the current list
