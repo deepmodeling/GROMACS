@@ -201,10 +201,6 @@ static void pull_potential_wrapper(const t_commrec*               cr,
             pull_potential(pull_work, mdatoms->massT, &pbc, cr, t, lambda[efptRESTRAINT],
                            as_rvec_array(x.data()), force, &dvdl);
     enerd->dvdl_lin[efptRESTRAINT] += dvdl;
-    for (auto& dhdl : enerd->dhdlLambda)
-    {
-        dhdl += dvdl;
-    }
     wallcycle_stop(wcycle, ewcPULLPOT);
 }
 
@@ -234,11 +230,6 @@ static void pme_receive_force_ener(t_forcerec*           fr,
     enerd->term[F_LJ_RECIP] += e_lj;
     enerd->dvdl_lin[efptCOUL] += dvdl_q;
     enerd->dvdl_lin[efptVDW] += dvdl_lj;
-
-    for (auto& dhdl : enerd->dhdlLambda)
-    {
-        dhdl += dvdl_q + dvdl_lj;
-    }
 
     if (wcycle)
     {

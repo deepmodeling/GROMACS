@@ -706,7 +706,7 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
             {
                 gmx_incons("The bonded interactions are not sorted for free energy");
             }
-            for (size_t i = 0; i < enerd->enerpart_lambda.size(); i++)
+            for (gmx::index i = 0; i < enerd->foreignLambdaTerms.energies().ssize(); i++)
             {
                 real lam_i[efptNR];
 
@@ -719,12 +719,13 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
                                    shiftForceBufferLambda_, &(enerd->foreign_grpp), enerd->foreign_term,
                                    dvdl, nrnb, lam_i, md, &fcdata, global_atom_index);
                 sum_epot(enerd->foreign_grpp, enerd->foreign_term);
-                enerd->enerpart_lambda[i] += enerd->foreign_term[F_EPOT];
+                double dvdlSum = 0;
                 for (int j = 0; j < efptNR; j++)
                 {
-                    enerd->dhdlLambda[i] += dvdl[j];
+                    dvdlSum += dvdl[j];
                     dvdl[j] = 0;
                 }
+                enerd->foreignLambdaTerms.accumulate(i, enerd->foreign_term[F_EPOT], dvdlSum);
             }
             wallcycle_sub_stop(wcycle, ewcsLISTED_FEP);
         }
