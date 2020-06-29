@@ -44,10 +44,22 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 
+ForeignLambdaTerms::ForeignLambdaTerms(int numLambdas) :
+    numLambdas_(numLambdas),
+    energies_(1 + numLambdas),
+    dhdl_(1 + numLambdas)
+{
+}
+
+void ForeignLambdaTerms::clear()
+{
+    std::fill(energies_.begin(), energies_.end(), 0.0);
+    std::fill(dhdl_.begin(), dhdl_.end(), 0.0);
+}
+
 gmx_enerdata_t::gmx_enerdata_t(int numEnergyGroups, int numFepLambdas) :
     grpp(numEnergyGroups),
-    enerpart_lambda(numFepLambdas == 0 ? 0 : numFepLambdas + 1),
-    dhdlLambda(numFepLambdas == 0 ? 0 : numFepLambdas + 1),
+    foreignLambdaTerms(numFepLambdas),
     foreign_grpp(numEnergyGroups)
 {
 }
@@ -91,21 +103,9 @@ void sum_epot(const gmx_grppairener_t& grpp, real* epot)
     }
 }
 
-/* Adds computed dV/dlambda contributions to the requested outputs
- *
- * Also adds the dispersion correction dV/dlambda to the VdW term.
- * Note that kinetic energy and constraint contributions are handled in sum_dkdl()
- */
-static void sum_dvdl(gmx_enerdata_t* enerd, const t_lambda& fepvals)
+// Adds computed dV/dlambda contributions to the requested outputs
+static void set_dvdl_output(gmx_enerdata_t* enerd, const t_lambda& fepvals)
 {
-    // Add dispersion correction to the VdW component
-    enerd->dvdl_lin[efptVDW] += enerd->term[F_DVDL_VDW];
-
-    for (size_t i = 0; i < enerd->enerpart_lambda.size(); i++)
-    {
-        enerd->dhdlLambda[i] += enerd->term[F_DVDL_VDW];
-    }
-
     enerd->term[F_DVDL] = 0.0;
     for (int i = 0; i < efptNR; i++)
     {
@@ -147,10 +147,17 @@ void accumulatePotentialEnergies(gmx_enerdata_t* enerd, gmx::ArrayRef<const real
 
     if (fepvals)
     {
-        /* Note that sum_dvdl() adds the dispersion correction enerd->dvdl_lin[efptVDW],
-         * so sum_dvdl() should be called before computing the foreign lambda energy differences.
-         */
-        sum_dvdl(enerd, *fepvals);
+        // Add dispersion correction to the VdW component
+        enerd->dvdl_lin[efptVDW] += enerd->term[F_DVDL_VDW];
+
+        double dvdl_lin = 0;
+        for (int i = 0; i < efptNR; i++)
+        {
+            dvdl_lin += enerd->dvdl_lin[i];
+        }
+        enerd->foreignLambdaTerms.addConstantDhdl(dvdl_lin);
+
+        set_dvdl_output(enerd, *fepvals);
 
         /* Sum the foreign lambda energy difference contributions.
          * Note that here we only add the potential energy components.
@@ -168,8 +175,7 @@ void accumulatePotentialEnergies(gmx_enerdata_t* enerd, gmx::ArrayRef<const real
                current lambda, because the contributions to the current
                lambda are automatically zeroed */
 
-            double& enerpart_lambda = enerd->enerpart_lambda[i + 1];
-
+            double enerpart_lambda = 0;
             for (gmx::index j = 0; j < lambda.ssize(); j++)
             {
                 /* Note that this loop is over all dhdl components, not just the separated ones */
@@ -177,6 +183,7 @@ void accumulatePotentialEnergies(gmx_enerdata_t* enerd, gmx::ArrayRef<const real
 
                 enerpart_lambda += dlam * enerd->dvdl_lin[j];
             }
+            enerd->foreignLambdaTerms.accumulate(1 + i, enerpart_lambda, 0);
         }
     }
 }
@@ -194,29 +201,23 @@ void accumulateKineticLambdaComponents(gmx_enerdata_t*           enerd,
         enerd->term[F_DVDL] += enerd->term[F_DVDL_CONSTR];
     }
 
-    for (int i = 0; i < fepvals.n_lambda; i++)
+    for (int i = 0; i < 1 + fepvals.n_lambda; i++)
     {
-        /* note we are iterating over fepvals here!
-           For the current lam, dlam = 0 automatically,
-           so we don't need to add anything to the
-           enerd->enerpart_lambda[0] */
-
-        double& enerpart_lambda = enerd->enerpart_lambda[i + 1];
-
         /* Note that potential energy terms have been added by sum_epot() -> sum_dvdl() */
 
         /* Constraints can not be evaluated at foreign lambdas, so we add
          * a linear extrapolation. This is an approximation, but usually
          * quite accurate since constraints change little between lambdas.
          */
-        const int    lambdaIndex = (fepvals.separate_dvdl[efptBONDED] ? efptBONDED : efptFEP);
-        const double dlam        = fepvals.all_lambda[lambdaIndex][i] - lambda[lambdaIndex];
-        enerpart_lambda += dlam * enerd->term[F_DVDL_CONSTR];
+        const int lambdaIndex = (fepvals.separate_dvdl[efptBONDED] ? efptBONDED : efptFEP);
+        const double dlam = (i == 0 ? 0 : fepvals.all_lambda[lambdaIndex][i - 1] - lambda[lambdaIndex]);
+        enerd->foreignLambdaTerms.accumulate(i, dlam * enerd->term[F_DVDL_CONSTR],
+                                             enerd->term[F_DVDL_CONSTR]);
 
         if (!fepvals.separate_dvdl[efptMASS])
         {
-            const double dlam = fepvals.all_lambda[efptMASS][i] - lambda[efptMASS];
-            enerpart_lambda += dlam * enerd->term[F_DKDL];
+            const double dlam = (i == 0 ? 0 : fepvals.all_lambda[efptMASS][i - 1] - lambda[efptMASS]);
+            enerd->foreignLambdaTerms.accumulate(i, dlam * enerd->term[F_DKDL], enerd->term[F_DKDL]);
         }
     }
 
@@ -280,8 +281,7 @@ void reset_enerdata(gmx_enerdata_t* enerd)
     enerd->term[F_DVDL_BONDED]    = 0.0_real;
     enerd->term[F_DVDL_RESTRAINT] = 0.0_real;
     enerd->term[F_DKDL]           = 0.0_real;
-    std::fill(enerd->enerpart_lambda.begin(), enerd->enerpart_lambda.end(), 0);
-    std::fill(enerd->dhdlLambda.begin(), enerd->dhdlLambda.end(), 0);
+    enerd->foreignLambdaTerms.clear();
     /* reset foreign energy data and dvdl - separate functions since they are also called elsewhere */
     reset_foreign_enerdata(enerd);
     reset_dvdl_enerdata(enerd);
