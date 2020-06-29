@@ -39,7 +39,6 @@ stages:
 
 default:
   tags:
-    - k8s-scilifelab
 
 include:
   # Mix-in helper job definitions of general utility.
