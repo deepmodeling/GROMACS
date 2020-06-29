@@ -283,15 +283,15 @@ gromacs:clang-static-analyzer:configure:
      CMAKE_EXTRA_OPTIONS: "-DGMX_CLANG_ANALYZER=ON -DGMX_OPENMP=OFF -DGMX_USE_RDTSCP=OFF -DGMX_FFT_LIBRARY=fftpack -DGMX_DEVELOPER_BUILD=ON"
      CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=None"
 
-gromacs:clang-ASAN:configure:
-  extends:
-    - .gromacs:base:configure
-    - .use-clang:base
-    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
-  variables:
-    COMPILER_MAJOR_VERSION: 8
-    CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=ASAN"
+     #gromacs:clang-ASAN:configure:
+     #  extends:
+     #    - .gromacs:base:configure
+     #    - .use-clang:base
+     #    - .rules:merge-requests
+     #  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+     #  variables:
+     #    COMPILER_MAJOR_VERSION: 8
+     #    CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=ASAN"
 
 gromacs:gcc-6:release:configure:
   extends:
@@ -426,16 +426,16 @@ gromacs:clang-TSAN:build:
   needs:
     - job: gromacs:clang-TSAN:configure
 
-gromacs:clang-ASAN:build:
-  extends:
-    - .variables:default
-    - .gromacs:base:build
-    - .use-clang:base
-    - .use-ccache
-    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
-  needs:
-    - job: gromacs:clang-ASAN:configure
+      #gromacs:clang-ASAN:build:
+      #  extends:
+      #    - .variables:default
+      #    - .gromacs:base:build
+      #    - .use-clang:base
+      #    - .use-ccache
+      #    - .rules:merge-requests
+      #  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+      #  needs:
+      #    - job: gromacs:clang-ASAN:configure
 
 gromacs:clang-static-analyzer:build:
   extends:
@@ -628,16 +628,16 @@ gromacs:clang-TSAN:test:
   needs:
     - job: gromacs:clang-TSAN:build
 
-gromacs:clang-ASAN:test:
-  extends:
-    - .gromacs:base:test
-    - .use-clang:base
-    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
-  variables:
-    CTEST_RUN_MODE: "ExperimentalMemCheck"
-  needs:
-    - job: gromacs:clang-ASAN:build
+      #gromacs:clang-ASAN:test:
+      #  extends:
+      #    - .gromacs:base:test
+      #    - .use-clang:base
+      #    - .rules:merge-requests
+      #  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+      #  variables:
+      #    CTEST_RUN_MODE: "ExperimentalMemCheck"
+      #  needs:
+      #    - job: gromacs:clang-ASAN:build
 
 gromacs:clang-3.6:test:
   extends:
@@ -695,15 +695,15 @@ gromacs:clang-TSAN:regressiontest:
     - job: gromacs:clang-TSAN:build
     - job: regressiontests:prepare
 
-gromacs:clang-ASAN:regressiontest:
-  extends:
-    - .gromacs:base:regressiontest
-    - .use-clang:base
-    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
-  needs:
-    - job: gromacs:clang-ASAN:build
-    - job: regressiontests:prepare
+      #gromacs:clang-ASAN:regressiontest:
+      #  extends:
+      #    - .gromacs:base:regressiontest
+      #    - .use-clang:base
+      #    - .rules:merge-requests
+      #  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+      #  needs:
+      #    - job: gromacs:clang-ASAN:build
+      #    - job: regressiontests:prepare
 
 gromacs:clang-3.6:regressiontest:
   extends:
