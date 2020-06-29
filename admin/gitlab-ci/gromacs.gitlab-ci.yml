@@ -272,16 +272,16 @@ gromacs:clang-3.6:configure:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=SSE4.1"
     CMAKE_EXTRA_OPTIONS: "-DGMX_OPENMP=OFF"
 
-gromacs:clang-static-analyzer:configure:
-  extends:
-    - .gromacs:base:configure
-    - .use-clang:base
-    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
-  variables:
-     CMAKE_COMPILER_SCRIPT: "-DCMAKE_CXX_COMPILER=/usr/local/libexec/c++-analyzer -DCMAKE_C_COMPILER=gcc"
-     CMAKE_EXTRA_OPTIONS: "-DGMX_CLANG_ANALYZER=ON -DGMX_OPENMP=OFF -DGMX_USE_RDTSCP=OFF -DGMX_FFT_LIBRARY=fftpack -DGMX_DEVELOPER_BUILD=ON"
-     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=None"
+    #gromacs:clang-static-analyzer:configure:
+    #  extends:
+    #    - .gromacs:base:configure
+    #    - .use-clang:base
+    #    - .rules:merge-requests
+    #  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+    #  variables:
+    #     CMAKE_COMPILER_SCRIPT: "-DCMAKE_CXX_COMPILER=/usr/local/libexec/c++-analyzer -DCMAKE_C_COMPILER=gcc"
+    #     CMAKE_EXTRA_OPTIONS: "-DGMX_CLANG_ANALYZER=ON -DGMX_OPENMP=OFF -DGMX_USE_RDTSCP=OFF -DGMX_FFT_LIBRARY=fftpack -DGMX_DEVELOPER_BUILD=ON"
+    #     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=None"
 
      #gromacs:clang-ASAN:configure:
      #  extends:
@@ -437,16 +437,16 @@ gromacs:clang-TSAN:build:
       #  needs:
       #    - job: gromacs:clang-ASAN:configure
 
-gromacs:clang-static-analyzer:build:
-  extends:
-    - .variables:default
-    - .gromacs:static-analyzer-build
-    - .use-clang:base
-    - .use-ccache
-    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
-  needs:
-    - job: gromacs:clang-static-analyzer:configure
+      #gromacs:clang-static-analyzer:build:
+      #  extends:
+      #    - .variables:default
+      #    - .gromacs:static-analyzer-build
+      #    - .use-clang:base
+      #    - .use-ccache
+      #    - .rules:merge-requests
+      #  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+      #  needs:
+      #    - job: gromacs:clang-static-analyzer:configure
 
 gromacs:clang-8:build:
   extends:
