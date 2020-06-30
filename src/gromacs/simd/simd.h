@@ -193,6 +193,9 @@ struct SimdDInt32Tag
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_LOADU12DUAL_DOUBLE
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_LOADU14DUAL_DOUBLE
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_REAL GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_DOUBLE
+#    define GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_REAL \
+        GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_DOUBLE
+
 #    define GMX_SIMD4_HAVE_REAL GMX_SIMD4_HAVE_DOUBLE
 #    define GMX_SIMD4_HAVE_REAL_ARRAY GMX_SIMD4_HAVE_DOUBLE_ARRAY
 #    define GMX_SIMD4_HAVE_REAL_GLOBAL GMX_SIMD4_HAVE_DOUBLE_GLOBAL
@@ -308,6 +311,14 @@ struct SimdDInt32Tag
  *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_FLOAT.
  */
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_REAL GMX_SIMD_HAVE_HSIMD_UTIL_REDUCEINCR4_FLOAT
+
+/*! \brief 1 if a native gatherLoadTranspose2Hsimd() implementation is available, otherwise 0
+ *
+ *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_DOUBLE if GMX_DOUBLE is 1, otherwise
+ *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_FLOAT.
+ */
+#    define GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_REAL \
+        GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_FLOAT
 
 /*! \brief 1 if Simd4Real is available, otherwise 0.
  *
@@ -872,6 +883,24 @@ static inline void gmx_simdcall reduceIncr4Hsimd(real* m, SimdReal v0, SimdReal 
 {
     (void)reduceIncr4ReturnSumHsimd(m, v0, v1);
 }
+#endif
+
+#if GMX_SIMD_HAVE_HSIMD_UTIL_REAL && !GMX_SIMD_HAVE_HSIMD_UTIL_GATHER_LOAD_TRANSPOSE2_REAL
+template<int align>
+static inline void gatherLoadTranspose2Hsimd(const real*        base0,
+                                             const real*        base1,
+                                             const real*        base2,
+                                             const real*        base3,
+                                             const std::int32_t offsets[],
+                                             SimdReal*          v0,
+                                             SimdReal*          v1,
+                                             SimdReal*          v2,
+                                             SimdReal*          v3)
+{
+    gatherLoadTransposeHsimd<align>(base0, base1, offsets, v0, v1);
+    gatherLoadTransposeHsimd<align>(base2, base3, offsets, v2, v3);
+}
+
 #endif
 
 #if GMX_DOUBLE

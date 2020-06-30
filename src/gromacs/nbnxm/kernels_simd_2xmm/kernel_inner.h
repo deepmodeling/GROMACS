@@ -324,10 +324,12 @@
 #ifdef CALC_LJ
 #    if !defined LJ_COMB_GEOM && !defined LJ_COMB_LB && !defined FIX_LJ_C
     SimdReal                                                     c6_S0, c12_S0;
+#        ifdef HALF_LJ
     gatherLoadTransposeHsimd<c_simdBestPairAlignment>(nbfp0, nbfp1, type + aj, &c6_S0, &c12_S0);
-#        ifndef HALF_LJ
+#        else
     SimdReal c6_S2, c12_S2;
-    gatherLoadTransposeHsimd<c_simdBestPairAlignment>(nbfp2, nbfp3, type + aj, &c6_S2, &c12_S2);
+    gatherLoadTranspose2Hsimd<c_simdBestPairAlignment>(nbfp0, nbfp1, nbfp2, nbfp3, type + aj,
+                                                       &c6_S0, &c12_S0, &c6_S2, &c12_S2);
 #        endif
 #    endif /* not defined any LJ rule */
 
