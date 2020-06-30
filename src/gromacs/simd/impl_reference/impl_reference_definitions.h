@@ -226,8 +226,14 @@ namespace gmx
 //! \brief 1 if implementation provides \ref gmx::Simd4Float, otherwise 0.
 #define GMX_SIMD4_HAVE_FLOAT 1
 
+//! \brief 1 when SIMD4 float array is supported, otherwise 0
+#define GMX_SIMD4_HAVE_FLOAT_ARRAY 1
+
 //! \brief 1 if the implementation provides \ref gmx::Simd4Double, otherwise 0.
 #define GMX_SIMD4_HAVE_DOUBLE 1
+
+//! \brief 1 when SIMD4 double array is supported, otherwise 0
+#define GMX_SIMD4_HAVE_DOUBLE_ARRAY 1
 
 //! \brief Width of the \ref gmx::SimdFInt32 datatype.
 #define GMX_SIMD_FINT32_WIDTH GMX_SIMD_FLOAT_WIDTH

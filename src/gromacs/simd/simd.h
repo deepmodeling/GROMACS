@@ -184,6 +184,7 @@ struct SimdDInt32Tag
         GMX_SIMD_HAVE_GATHER_LOADU_BYSIMDINT_TRANSPOSE_DOUBLE
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_DOUBLE
 #    define GMX_SIMD4_HAVE_REAL GMX_SIMD4_HAVE_DOUBLE
+#    define GMX_SIMD4_HAVE_REAL_ARRAY GMX_SIMD4_HAVE_DOUBLE_ARRAY
 #else // GMX_DOUBLE
 
 /*! \brief 1 if SimdReal is available, otherwise 0.
@@ -245,6 +246,12 @@ struct SimdDInt32Tag
  *  \ref GMX_SIMD4_HAVE_DOUBLE if GMX_DOUBLE is 1, otherwise \ref GMX_SIMD4_HAVE_FLOAT.
  */
 #    define GMX_SIMD4_HAVE_REAL GMX_SIMD4_HAVE_FLOAT
+
+/*! \brief 1 if Simd4Real[] is available, otherwise 0.
+ *
+ *  \ref GMX_SIMD4_HAVE_DOUBLE_ARRAY if GMX_DOUBLE is 1, otherwise \ref GMX_SIMD4_HAVE_FLOAT_ARRAY.
+ */
+#    define GMX_SIMD4_HAVE_REAL_ARRAY GMX_SIMD4_HAVE_FLOAT_ARRAY
 
 #endif // GMX_DOUBLE
 

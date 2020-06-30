@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2017,2019, by the GROMACS development team, led by
+ * Copyright (c) 2014,2015,2017,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -39,18 +39,18 @@
 #include "gromacs/simd/simd.h"
 
 /* Check if we have 4-wide SIMD macro support */
-#if GMX_SIMD4_HAVE_REAL
+#if GMX_SIMD4_HAVE_REAL_ARRAY
 /* Do PME spread and gather with 4-wide SIMD.
  * NOTE: SIMD is only used with PME order 4 and 5 (which are the most common).
  */
 #    define PME_SIMD4_SPREAD_GATHER
+#endif
 
-#    if GMX_SIMD_HAVE_LOADU && GMX_SIMD_HAVE_STOREU
+#if GMX_SIMD4_HAVE_REAL && GMX_SIMD_HAVE_LOADU && GMX_SIMD_HAVE_STOREU
 /* With PME-order=4 on x86, unaligned load+store is slightly faster
  * than doubling all SIMD operations when using aligned load+store.
  */
-#        define PME_SIMD4_UNALIGNED
-#    endif
+#    define PME_SIMD4_UNALIGNED
 #endif
 
 #ifdef PME_SIMD4_SPREAD_GATHER
