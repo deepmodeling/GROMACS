@@ -158,6 +158,55 @@ static inline SimdFloat gmx_simdcall invsqrt(SimdFloat x)
     return lu;
 }
 
+/*! \brief Perform one masked Newton-Raphson iteration to improve 1/sqrt(x) for SIMD float.
+ *
+ * This is a low-level routine that should only be used by SIMD math routine
+ * that evaluates the inverse square root.
+ *
+ *  \param lu Approximation of 1/sqrt(x), typically obtained from lookup.
+ *  \param x  The reference (starting) value x for which we want 1/sqrt(x).
+ *  \param m Mask
+ *  \return   An improved approximation with roughly twice as many bits of accuracy.
+ */
+static inline SimdFloat gmx_simdcall rsqrtIterMask(SimdFloat lu, SimdFloat x, SimdFBool m)
+{
+    SimdFloat tmp1 = x * lu;
+    SimdFloat tmp2 = SimdFloat(-0.5f) * lu;
+    tmp1           = fma(tmp1, lu, SimdFloat(-3.0f));
+    return maskzMul(tmp1, tmp2, m);
+}
+
+/*! \brief Calculate masked 1/sqrt(x) for SIMD float.
+ *
+ *  \param x Argument that must be larger than GMX_FLOAT_MIN and smaller than
+ *           GMX_FLOAT_MAX, i.e. within the range of single precision.
+ *           For the single precision implementation this is obviously always
+ *           true for positive values, but for double precision it adds an
+ *           extra restriction since the first lookup step might have to be
+ *           performed in single precision on some architectures. Note that the
+ *           responsibility for checking falls on you - this routine does not
+ *           check arguments.
+ *  \param m mask
+ *
+ *  \return 1/sqrt(x). Result is undefined if your argument was invalid.
+ */
+static inline SimdFloat gmx_simdcall invsqrtMask(SimdFloat x, SimdFBool m)
+{
+    SimdFloat lu = rsqrt(x);
+#        if (GMX_SIMD_RSQRT_BITS * 4 < GMX_SIMD_ACCURACY_BITS_SINGLE)
+    lu = rsqrtIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RSQRT_BITS * 2 < GMX_SIMD_ACCURACY_BITS_SINGLE)
+    lu = rsqrtIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RSQRT_BITS < GMX_SIMD_ACCURACY_BITS_SINGLE)
+    lu = rsqrtIterMask(lu, x, m);
+#        else
+    lu = selectByMask(lu, m);
+#        endif
+    return lu;
+}
+
 /*! \brief Calculate 1/sqrt(x) for two SIMD floats.
  *
  * \param x0  First set of arguments, x0 must be in single range (see below).
@@ -1842,6 +1891,58 @@ static inline SimdDouble gmx_simdcall invsqrt(SimdDouble x)
 #        endif
 #        if (GMX_SIMD_RSQRT_BITS * 8 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
     lu = rsqrtIter(lu, x);
+#        endif
+    return lu;
+}
+
+/*! \brief Perform one masked Newton-Raphson iteration to improve 1/sqrt(x) for SIMD double.
+ *
+ * This is a low-level routine that should only be used by SIMD math routine
+ * that evaluates the inverse square root.
+ *
+ *  \param lu Approximation of 1/sqrt(x), typically obtained from lookup.
+ *  \param x  The reference (starting) value x for which we want 1/sqrt(x).
+ *  \param m  mask
+ *  \return   An improved approximation with roughly twice as many bits of accuracy.
+ */
+static inline SimdDouble gmx_simdcall rsqrtIterMask(SimdDouble lu, SimdDouble x, SimdDBool m)
+{
+    SimdDouble tmp1 = x * lu;
+    SimdDouble tmp2 = SimdDouble(-0.5) * lu;
+    tmp1            = fma(tmp1, lu, SimdDouble(-3.0));
+    return maskzMul(tmp1, tmp2, m);
+}
+
+/*! \brief Calculate masked 1/sqrt(x) for SIMD double.
+ *
+ *  \param x Argument that must be larger than GMX_FLOAT_MIN and smaller than
+ *           GMX_FLOAT_MAX, i.e. within the range of single precision.
+ *           For the single precision implementation this is obviously always
+ *           true for positive values, but for double precision it adds an
+ *           extra restriction since the first lookup step might have to be
+ *           performed in single precision on some architectures. Note that the
+ *           responsibility for checking falls on you - this routine does not
+ *           check arguments.
+ *  \param m mask
+ *
+ *  \return 1/sqrt(x). Result is undefined if your argument was invalid.
+ */
+static inline SimdDouble gmx_simdcall invsqrtMask(SimdDouble x, SimdDBool m)
+{
+    SimdDouble lu = rsqrt(x);
+#        if (GMX_SIMD_RSQRT_BITS * 8 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rsqrtIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RSQRT_BITS * 4 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rsqrtIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RSQRT_BITS * 2 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rsqrtIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RSQRT_BITS < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rsqrtIterMask(lu, x, m);
+#        else
+    lu    = selectByMask(lu, m);
 #        endif
     return lu;
 }
