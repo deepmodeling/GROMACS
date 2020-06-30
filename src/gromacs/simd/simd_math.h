@@ -227,6 +227,51 @@ static inline SimdFloat gmx_simdcall inv(SimdFloat x)
     return lu;
 }
 
+/*! \brief Perform one masked Newton-Raphson iteration to improve 1/x for SIMD float.
+ *
+ * This is a low-level routine that should only be used by SIMD math routine
+ * that evaluates the reciprocal.
+ *
+ *  \param lu Approximation of 1/x, typically obtained from lookup.
+ *  \param x  The reference (starting) value x for which we want 1/x.
+ *  \param m  mask
+ *  \return   An improved approximation with roughly twice as many bits of accuracy.
+ */
+static inline SimdFloat gmx_simdcall rcpIterMask(SimdFloat lu, SimdFloat x, SimdFBool m)
+{
+    return maskzMul(lu, fnma(lu, x, SimdFloat(2.0F)), m);
+}
+
+/*! \brief Calculate masked 1/x for SIMD float.
+ *
+ *  \param x Argument with magnitude larger than GMX_FLOAT_MIN and smaller than
+ *           GMX_FLOAT_MAX, i.e. within the range of single precision.
+ *           For the single precision implementation this is obviously always
+ *           true for positive values, but for double precision it adds an
+ *           extra restriction since the first lookup step might have to be
+ *           performed in single precision on some architectures. Note that the
+ *           responsibility for checking falls on you - this routine does not
+ *           check arguments.
+ *  \param m mask
+ *
+ *  \return 1/x when mask is true, 0 otherwise. Result is undefined if your argument was invalid.
+ */
+static inline SimdFloat gmx_simdcall invMask(SimdFloat x, SimdFBool m)
+{
+    SimdFloat lu = rcp(x);
+#        if (GMX_SIMD_RCP_BITS * 4 < GMX_SIMD_ACCURACY_BITS_SINGLE)
+    lu = rcpIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RCP_BITS * 2 < GMX_SIMD_ACCURACY_BITS_SINGLE)
+    lu = rcpIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RCP_BITS < GMX_SIMD_ACCURACY_BITS_SINGLE)
+    lu = rcpIterMask(lu, x, m);
+#        else
+    lu = selectByMask(lu, m);
+#        endif
+    return lu;
+}
 /*! \brief Division for SIMD floats
  *
  * \param nom    Nominator
@@ -1898,6 +1943,55 @@ static inline SimdDouble gmx_simdcall inv(SimdDouble x)
 #        endif
 #        if (GMX_SIMD_RCP_BITS * 8 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
     lu = rcpIter(lu, x);
+#        endif
+    return lu;
+}
+
+/*! \brief Perform one masked Newton-Raphson iteration to improve 1/x for SIMD double.
+ *
+ * This is a low-level routine that should only be used by SIMD math routine
+ * that evaluates the reciprocal.
+ *
+ *  \param lu Approximation of 1/x, typically obtained from lookup.
+ *  \param x  The reference (starting) value x for which we want 1/x.
+ *  \param m  mask
+ *  \return   An improved approximation with roughly twice as many bits of accuracy.
+ */
+static inline SimdDouble gmx_simdcall rcpIterMask(SimdDouble lu, SimdDouble x, SimdDBool m)
+{
+    return maskzMul(lu, fnma(lu, x, SimdDouble(2.0)), m);
+}
+
+/*! \brief Calculate masked 1/x for SIMD double.
+ *
+ *  \param x Argument with magnitude larger than GMX_FLOAT_MIN and smaller than
+ *           GMX_FLOAT_MAX, i.e. within the range of single precision.
+ *           For the single precision implementation this is obviously always
+ *           true for positive values, but for double precision it adds an
+ *           extra restriction since the first lookup step might have to be
+ *           performed in single precision on some architectures. Note that the
+ *           responsibility for checking falls on you - this routine does not
+ *           check arguments.
+ *  \param m mask
+ *
+ *  \return 1/x when mask is true, 0 otherwise. Result is undefined if your argument was invalid.
+ */
+static inline SimdDouble gmx_simdcall invMask(SimdDouble x, SimdDBool m)
+{
+    SimdDouble lu = rcp(x);
+#        if (GMX_SIMD_RCP_BITS * 8 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rcpIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RCP_BITS * 4 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rcpIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RCP_BITS * 2 < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rcpIter(lu, x);
+#        endif
+#        if (GMX_SIMD_RCP_BITS < GMX_SIMD_ACCURACY_BITS_DOUBLE)
+    lu = rcpIterMask(lu, x, m);
+#        else
+    lu    = selectByMask(lu, m);
 #        endif
     return lu;
 }
