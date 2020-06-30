@@ -119,6 +119,8 @@
 #include "gromacs/utility/strconvert.h"
 #include "gromacs/utility/sysinfo.h"
 
+#include "gpuforcereduction.h"
+
 using gmx::ArrayRef;
 using gmx::AtomLocality;
 using gmx::DomainLifetimeWorkload;
@@ -1175,6 +1177,8 @@ void do_force(FILE*                               fplog,
         launchPmeGpuSpread(fr->pmedata, box, stepWork, localXReadyOnDevice, lambda[efptCOUL], wcycle);
     }
 
+    const gmx::DomainLifetimeWorkload& domainWork = runScheduleWork->domainWork;
+
     /* do gridding for pair search */
     if (stepWork.doNeighborSearch)
     {
@@ -1260,13 +1264,65 @@ void do_force(FILE*                               fplog,
         {
             nbv->atomdata_init_copy_x_to_nbat_x_gpu();
         }
-        // For force buffer ops, we use the below conditon rather than
-        // useGpuFBufferOps to ensure that init is performed even if this
-        // NS step is also a virial step (on which f buf ops are deactivated).
-        if (GMX_GPU_CUDA && simulationWork.useGpuBufferOps && simulationWork.useGpuNonbonded)
+
+        if (simulationWork.useGpuBufferOps)
         {
-            GMX_ASSERT(stateGpu, "stateGpu should be valid when buffer ops are offloaded");
-            nbv->atomdata_init_add_nbat_f_to_f_gpu(stateGpu->fReducedOnDevice());
+
+            // (re-)initialize local GPU force reduction
+            const bool accumulate = domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr);
+            const int atomStart   = 0;
+            fr->gpuForceReductionLocal->reinit(stateGpu->getForces(),
+                                               nbv->getNumAtoms(AtomLocality::Local), nbv->getCell(),
+                                               atomStart, accumulate, stateGpu->fReducedOnDevice());
+
+            // register forces and add dependencies
+            fr->gpuForceReductionLocal->registerNbnxmForce(nbv->getGpuForces());
+
+            if (simulationWork.useGpuPme
+                && (thisRankHasDuty(cr, DUTY_PME) || simulationWork.useGpuPmePpCommunication))
+            {
+                void* forcePtr =
+                        thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_device_f(fr->pmedata)
+                                                      : // PME force buffer on same GPU
+                                fr->pmePpCommGpu->getGpuForceStagingPtr(); // buffer received from other GPU
+                fr->gpuForceReductionLocal->registerRvecForce(forcePtr);
+
+                GpuEventSynchronizer* const pmeSynchronizer =
+                        (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
+                                                       : // PME force buffer on same GPU
+                                 static_cast<GpuEventSynchronizer*>(
+                                         fr->pmePpCommGpu->getForcesReadySynchronizer())); // buffer received from other GPU
+                fr->gpuForceReductionLocal->addDependency(pmeSynchronizer);
+            }
+
+            if ((domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr)) && !useGpuForcesHaloExchange)
+            {
+                fr->gpuForceReductionLocal->addDependency(
+                        stateGpu->getForcesReadyOnDeviceEvent(AtomLocality::Local, true));
+            }
+            if (useGpuForcesHaloExchange)
+            {
+                fr->gpuForceReductionLocal->addDependency(
+                        cr->dd->gpuHaloExchange[0]->getForcesReadyOnDeviceEvent());
+            }
+
+            if (havePPDomainDecomposition(cr))
+            {
+                // (re-)initialize non-local GPU force reduction
+                const bool accumulate = domainWork.haveCpuBondedWork || domainWork.haveFreeEnergyWork;
+                const int atomStart   = dd_numHomeAtoms(*cr->dd);
+                fr->gpuForceReductionNonLocal->reinit(stateGpu->getForces(),
+                                                      nbv->getNumAtoms(AtomLocality::NonLocal),
+                                                      nbv->getCell(), atomStart, accumulate);
+
+                // register forces and add dependencies
+                fr->gpuForceReductionNonLocal->registerNbnxmForce(nbv->getGpuForces());
+                if (domainWork.haveCpuBondedWork || domainWork.haveFreeEnergyWork)
+                {
+                    fr->gpuForceReductionNonLocal->addDependency(
+                            stateGpu->getForcesReadyOnDeviceEvent(AtomLocality::NonLocal, true));
+                }
+            }
         }
     }
     else if (!EI_TPI(inputrec->eI))
@@ -1289,8 +1345,6 @@ void do_force(FILE*                               fplog,
             nbv->convertCoordinates(AtomLocality::Local, false, x.unpaddedArrayRef());
         }
     }
-
-    const gmx::DomainLifetimeWorkload& domainWork = runScheduleWork->domainWork;
 
     if (simulationWork.useGpuNonbonded)
     {
@@ -1608,8 +1662,6 @@ void do_force(FILE*                               fplog,
 
             if (stepWork.useGpuFBufferOps)
             {
-                gmx::FixedCapacityVector<GpuEventSynchronizer*, 1> dependencyList;
-
                 // TODO: move this into DomainLifetimeWorkload, including the second part of the
                 // condition The bonded and free energy CPU tasks can have non-local force
                 // contributions which are a dependency for the GPU force reduction.
@@ -1620,13 +1672,10 @@ void do_force(FILE*                               fplog,
                 {
                     stateGpu->copyForcesToGpu(forceOut.forceWithShiftForces().force(),
                                               AtomLocality::NonLocal);
-                    dependencyList.push_back(stateGpu->getForcesReadyOnDeviceEvent(
-                            AtomLocality::NonLocal, stepWork.useGpuFBufferOps));
                 }
 
-                nbv->atomdata_add_nbat_f_to_f_gpu(AtomLocality::NonLocal, stateGpu->getForces(),
-                                                  pme_gpu_get_device_f(fr->pmedata), dependencyList,
-                                                  false, haveNonLocalForceContribInCpuBuffer);
+                fr->gpuForceReductionNonLocal->execute();
+
                 if (!useGpuForcesHaloExchange)
                 {
                     // copy from GPU input for dd_move_f()
@@ -1752,29 +1801,6 @@ void do_force(FILE*                               fplog,
      * on the non-alternating path. */
     if (useOrEmulateGpuNb && !alternateGpuWait)
     {
-        // TODO simplify the below conditionals. Pass buffer and sync pointers at init stage rather than here. Unify getter fns for sameGPU/otherGPU cases.
-        void* pmeForcePtr =
-                stepWork.useGpuPmeFReduction
-                        ? (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_device_f(fr->pmedata)
-                                                         : // PME force buffer on same GPU
-                                   fr->pmePpCommGpu->getGpuForceStagingPtr()) // buffer received from other GPU
-                        : nullptr; // PME reduction not active on GPU
-
-        GpuEventSynchronizer* const pmeSynchronizer =
-                stepWork.useGpuPmeFReduction
-                        ? (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
-                                                         : // PME force buffer on same GPU
-                                   static_cast<GpuEventSynchronizer*>(
-                                           fr->pmePpCommGpu->getForcesReadySynchronizer())) // buffer received from other GPU
-                        : nullptr; // PME reduction not active on GPU
-
-        gmx::FixedCapacityVector<GpuEventSynchronizer*, 3> dependencyList;
-
-        if (stepWork.useGpuPmeFReduction)
-        {
-            dependencyList.push_back(pmeSynchronizer);
-        }
-
         gmx::ArrayRef<gmx::RVec> forceWithShift = forceOut.forceWithShiftForces().force();
 
         if (stepWork.useGpuFBufferOps)
@@ -1803,16 +1829,10 @@ void do_force(FILE*                               fplog,
                 auto locality = havePPDomainDecomposition(cr) ? AtomLocality::Local : AtomLocality::All;
 
                 stateGpu->copyForcesToGpu(forceWithShift, locality);
-                dependencyList.push_back(
-                        stateGpu->getForcesReadyOnDeviceEvent(locality, stepWork.useGpuFBufferOps));
             }
-            if (useGpuForcesHaloExchange)
-            {
-                dependencyList.push_back(cr->dd->gpuHaloExchange[0]->getForcesReadyOnDeviceEvent());
-            }
-            nbv->atomdata_add_nbat_f_to_f_gpu(AtomLocality::Local, stateGpu->getForces(), pmeForcePtr,
-                                              dependencyList, stepWork.useGpuPmeFReduction,
-                                              haveLocalForceContribInCpuBuffer);
+
+            fr->gpuForceReductionLocal->execute();
+
             // Copy forces to host if they are needed for update or if virtual sites are enabled.
             // If there are vsites, we need to copy forces every step to spread vsite forces on host.
             // TODO: When the output flags will be included in step workload, this copy can be combined with the

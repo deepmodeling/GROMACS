@@ -63,6 +63,7 @@ namespace gmx
 {
 class DeviceStreamManager;
 class GpuBonded;
+class GpuForceReduction;
 class ForceProviders;
 class StatePropagatorDataGpu;
 class PmePpCommGpu;
@@ -322,6 +323,10 @@ struct t_forcerec
 
     /* For PME-PP GPU communication */
     std::unique_ptr<gmx::PmePpCommGpu> pmePpCommGpu;
+
+    /* For GPU force reduction (on both local and non-local atoms) */
+    std::unique_ptr<gmx::GpuForceReduction> gpuForceReductionLocal;
+    std::unique_ptr<gmx::GpuForceReduction> gpuForceReductionNonLocal;
 };
 
 /* Important: Starting with Gromacs-4.6, the values of c6 and c12 in the nbfp array have

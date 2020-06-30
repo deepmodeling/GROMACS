@@ -753,27 +753,4 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
     return;
 }
 
-/* Initialization for F buffer operations on GPU. */
-void nbnxn_gpu_init_add_nbat_f_to_f(const int*                  cell,
-                                    NbnxmGpu*                   gpu_nbv,
-                                    int                         natoms_total,
-                                    GpuEventSynchronizer* const localReductionDone)
-{
-
-    const DeviceStream& deviceStream = *gpu_nbv->deviceStreams[InteractionLocality::Local];
-
-    GMX_ASSERT(localReductionDone, "localReductionDone should be a valid pointer");
-    gpu_nbv->localFReductionDone = localReductionDone;
-
-    if (natoms_total > 0)
-    {
-        reallocateDeviceBuffer(&gpu_nbv->cell, natoms_total, &gpu_nbv->ncell, &gpu_nbv->ncell_alloc,
-                               *gpu_nbv->deviceContext_);
-        copyToDeviceBuffer(&gpu_nbv->cell, cell, 0, natoms_total, deviceStream,
-                           GpuApiCallBehavior::Async, nullptr);
-    }
-
-    return;
-}
-
 } // namespace Nbnxm
