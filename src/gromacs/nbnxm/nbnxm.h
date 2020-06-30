@@ -358,6 +358,25 @@ public:
                                       bool useGpuFPmeReduction,
                                       bool accumulateForce);
 
+    /*! \brief Get the number of atoms for a given locality
+     *
+     * \param [in] locality   Local or non-local
+     * \returns               The number of atoms for given locality
+     */
+    int getNumAtoms(const gmx::AtomLocality locality);
+
+    /*! \brief Get the pointer to the GPU nonbonded force buffer
+     *
+     * \returns A pointer to the force buffer in GPU memory
+     */
+    void* getGpuForces();
+
+    /*! \brief Get a pointer to the cell atom index mapping array
+     *
+     * \returns A pointer to the cell array
+     */
+    const int* getCell();
+
     /*! \brief Outer body of function to perform initialization for F buffer operations on GPU.
      *
      * \param localReductionDone     Pointer to an event synchronizer that marks the completion of the local f buffer ops kernel.

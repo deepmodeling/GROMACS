@@ -219,14 +219,6 @@ struct NbnxmGpu
      * will be true. */
     gmx::EnumerationArray<Nbnxm::InteractionLocality, bool> haveWork = { { false } };
 
-    /*! \brief Pointer to event synchronizer triggered when the local
-     * GPU buffer ops / reduction is complete
-     *
-     * \note That the synchronizer is managed outside of this module
-     * in StatePropagatorDataGpu.
-     */
-    GpuEventSynchronizer* localFReductionDone = nullptr;
-
     /*! \brief Event triggered when non-local coordinate buffer
      * has been copied from device to host. */
     GpuEventSynchronizer* xNonLocalCopyD2HDone = nullptr;

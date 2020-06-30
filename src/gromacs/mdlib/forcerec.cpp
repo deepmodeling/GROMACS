@@ -70,6 +70,7 @@
 #include "gromacs/mdlib/force.h"
 #include "gromacs/mdlib/forcerec_threading.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/rf_util.h"
 #include "gromacs/mdlib/wall.h"

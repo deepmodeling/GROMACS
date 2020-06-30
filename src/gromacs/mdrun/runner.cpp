@@ -95,6 +95,7 @@
 #include "gromacs/mdlib/force.h"
 #include "gromacs/mdlib/forcerec.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/mdlib/makeconstraints.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/mdatoms.h"
@@ -1384,6 +1385,16 @@ int Mdrunner::mdrunner()
             fr->pmePpCommGpu = std::make_unique<gmx::PmePpCommGpu>(
                     cr->mpi_comm_mysim, cr->dd->pme_nodeid, deviceStreamManager->context(),
                     deviceStreamManager->stream(DeviceStreamType::PmePpTransfer));
+        }
+
+        if (devFlags.enableGpuBufferOps)
+        {
+            fr->gpuForceReductionLocal = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedLocal));
+            fr->gpuForceReductionNonLocal = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedNonLocal));
         }
 
         fr->nbv = Nbnxm::init_nb_verlet(mdlog, inputrec, fr, cr, *hwinfo, useGpuForNonbonded,
