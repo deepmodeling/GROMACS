@@ -7,19 +7,19 @@ reason for deviating from them.
 Portability considerations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Most |Gromacs| files compile as C++14, but some files remain that compile as C99.
+Most |Gromacs| files compile as C++17, but some files remain that compile as C99.
 C++ has a lot of features, but to keep the source code maintainable and easy to read, 
 we will avoid using some of them in |Gromacs| code. The basic principle is to keep things 
 as simple as possible.
 
 * MSVC supports only a subset of C99 and work-arounds are required in those cases.
-* We should be able to use virtually all C++14 features outside of OpenCL kernels
+* We should be able to use virtually all C++17 features outside of OpenCL kernels
   (which compile as C), and for consistency also in CUDA kernels.
 
 C++ Standard Library
 --------------------
 
-|Gromacs| code must support the lowest common denominator of C++14 standard library
+|Gromacs| code must support the lowest common denominator of C++17 standard library
 features available on supported platforms.
 Some modern features are useful enough to warrant back-porting.
 Consistent and forward-compatible headers are provided in ``src/gromacs/compat/``
@@ -34,7 +34,7 @@ C++ compilers, and because we want to increase readability. However, |Gromacs| i
 advanced projects in constant development, and as our needs evolve we will both
 relax and tighten many of these points. Some of these changes happen naturally as
 part of agreements in code review, while major parts where we don't agree should be
-pushed to a redmine thread. Large changes should be suggested early in the development
+pushed to a `issue tracker`_ thread. Large changes should be suggested early in the development
 cycle for each release so we avoid being hit by last-minute compiler bugs just before
 a release.
 

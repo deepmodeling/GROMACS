@@ -1131,7 +1131,7 @@ static int nrdf_internal(const t_atoms* atoms)
     }
     switch (nmass)
     {
-        case 0: nrdf = 0; break;
+        case 0: // Fall through intended
         case 1: nrdf = 0; break;
         case 2: nrdf = 1; break;
         default: nrdf = nmass * 3 - 6; break;
@@ -1623,7 +1623,7 @@ static void set_verlet_buffer(const gmx_mtop_t*    mtop,
     ir->rlist = calcVerletBufferSize(*mtop, det(box), *ir, ir->nstlist, ir->nstlist - 1,
                                      buffer_temp, listSetup4x4);
 
-    const int n_nonlin_vsite = countNonlinearVsites(*mtop);
+    const int n_nonlin_vsite = gmx::countNonlinearVsites(*mtop);
     if (n_nonlin_vsite > 0)
     {
         std::string warningMessage = gmx::formatString(
@@ -2384,6 +2384,8 @@ int gmx_grompp(int argc, char* argv[])
     gmx::write_IMDgroup_to_file(ir->bIMD, ir, &state, &sys, NFILE, fnm);
 
     sfree(opts->define);
+    sfree(opts->wall_atomtype[0]);
+    sfree(opts->wall_atomtype[1]);
     sfree(opts->include);
     sfree(opts);
     for (auto& mol : mi)

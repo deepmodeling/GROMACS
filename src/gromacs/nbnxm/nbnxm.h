@@ -120,7 +120,6 @@
 #include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/real.h"
 
-class DeviceContext;
 struct DeviceInformation;
 struct gmx_domdec_zones_t;
 struct gmx_enerdata_t;
@@ -144,6 +143,7 @@ class GpuEventSynchronizer;
 
 namespace gmx
 {
+class DeviceStreamManager;
 class ForceWithShiftForces;
 class GpuBonded;
 template<typename>
@@ -266,7 +266,9 @@ public:
                            t_nrnb*                      nrnb);
 
     //! Updates all the atom properties in Nbnxm
-    void setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo);
+    void setAtomProperties(gmx::ArrayRef<const int>  atomTypes,
+                           gmx::ArrayRef<const real> atomCharges,
+                           gmx::ArrayRef<const int>  atomInfo);
 
     /*!\brief Convert the coordinates to NBNXM format for the given locality.
      *
@@ -404,16 +406,16 @@ namespace Nbnxm
 {
 
 /*! \brief Creates an Nbnxm object */
-std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlog,
-                                                   const t_inputrec*        ir,
-                                                   const t_forcerec*        fr,
-                                                   const t_commrec*         cr,
-                                                   const gmx_hw_info_t&     hardwareInfo,
-                                                   const DeviceInformation* deviceInfo,
-                                                   const DeviceContext*     deviceContext,
-                                                   const gmx_mtop_t*        mtop,
-                                                   matrix                   box,
-                                                   gmx_wallcycle*           wcycle);
+std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
+                                                   const t_inputrec*    ir,
+                                                   const t_forcerec*    fr,
+                                                   const t_commrec*     cr,
+                                                   const gmx_hw_info_t& hardwareInfo,
+                                                   bool                 useGpuForNonbonded,
+                                                   const gmx::DeviceStreamManager* deviceStreamManager,
+                                                   const gmx_mtop_t*               mtop,
+                                                   matrix                          box,
+                                                   gmx_wallcycle*                  wcycle);
 
 } // namespace Nbnxm
 

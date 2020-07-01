@@ -208,7 +208,7 @@ bool Awh::isOutputStep(int64_t step) const
 }
 
 real Awh::applyBiasForcesAndUpdateBias(PbcType               pbcType,
-                                       const t_mdatoms&      mdatoms,
+                                       const real*           masses,
                                        const matrix          box,
                                        gmx::ForceWithVirial* forceWithVirial,
                                        double                t,
@@ -263,8 +263,8 @@ real Awh::applyBiasForcesAndUpdateBias(PbcType               pbcType,
          */
         for (int d = 0; d < biasCts.bias_.ndim(); d++)
         {
-            apply_external_pull_coord_force(pull_, biasCts.pullCoordIndex_[d], biasForce[d],
-                                            &mdatoms, forceWithVirial);
+            apply_external_pull_coord_force(pull_, biasCts.pullCoordIndex_[d], biasForce[d], masses,
+                                            forceWithVirial);
         }
 
         if (isOutputStep(step))
@@ -323,7 +323,7 @@ void Awh::restoreStateFromHistory(const AwhHistory* awhHistory)
     }
     if (PAR(commRecord_))
     {
-        gmx_bcast(sizeof(potentialOffset_), &potentialOffset_, commRecord_);
+        gmx_bcast(sizeof(potentialOffset_), &potentialOffset_, commRecord_->mpi_comm_mygroup);
     }
 
     for (size_t k = 0; k < biasCoupledToSystem_.size(); k++)

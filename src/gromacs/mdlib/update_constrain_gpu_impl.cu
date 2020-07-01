@@ -58,6 +58,7 @@
 
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
@@ -65,6 +66,7 @@
 #include "gromacs/mdlib/lincs_gpu.cuh"
 #include "gromacs/mdlib/settle_gpu.cuh"
 #include "gromacs/mdlib/update_constrain_gpu.h"
+#include "gromacs/mdtypes/mdatom.h"
 
 namespace gmx
 {
@@ -121,8 +123,8 @@ void UpdateConstrainGpu::Impl::integrate(GpuEventSynchronizer*             fRead
     // Make sure that the forces are ready on device before proceeding with the update.
     fReadyOnDevice->enqueueWaitEvent(deviceStream_);
 
-    // The integrate should save a copy of the current coordinates in d_xp_ and write updated once
-    // into d_x_. The d_xp_ is only needed by constraints.
+    // The integrate should save a copy of the current coordinates in d_xp_ and write updated
+    // once into d_x_. The d_xp_ is only needed by constraints.
     integrator_->integrate(d_x_, d_xp_, d_v_, d_f_, dt, doTemperatureScaling, tcstat,
                            doParrinelloRahman, dtPressureCouple, prVelocityScalingMatrix);
     // Constraints need both coordinates before (d_x_) and after (d_xp_) update. However, after constraints
@@ -212,9 +214,9 @@ void UpdateConstrainGpu::Impl::set(DeviceBuffer<RVec>            d_x,
                            &numInverseMassesAlloc_, deviceContext_);
 
     // Integrator should also update something, but it does not even have a method yet
-    integrator_->set(md, numTempScaleValues, md.cTC);
-    lincsGpu_->set(idef, md);
-    settleGpu_->set(idef, md);
+    integrator_->set(numAtoms_, md.invmass, numTempScaleValues, md.cTC);
+    lincsGpu_->set(idef, numAtoms_, md.invmass);
+    settleGpu_->set(idef);
 
     coordinateScalingKernelLaunchConfig_.gridSize[0] =
             (numAtoms_ + c_threadsPerBlock - 1) / c_threadsPerBlock;

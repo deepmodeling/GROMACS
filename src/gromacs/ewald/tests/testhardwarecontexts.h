@@ -49,9 +49,10 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/ewald/pme_gpu_program.h"
-#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/gmxassert.h"
+
+#include "testhardwarecontext.h"
 
 struct gmx_hw_info_t;
 
@@ -59,73 +60,6 @@ namespace gmx
 {
 namespace test
 {
-//! Hardware code path being tested
-enum class CodePath
-{
-    CPU,
-    GPU
-};
-
-//! Return a string useful for human-readable messages describing a \c codePath.
-const char* codePathToString(CodePath codePath);
-
-/*! \internal \brief
- * A structure to describe a hardware context  that persists over the lifetime
- * of the test binary - an abstraction over PmeGpuProgram with a human-readable string.
- */
-struct TestHardwareContext
-{
-    //! Hardware path for the code being tested.
-    CodePath codePath_;
-    //! Readable description
-    std::string description_;
-    //! Device information pointer
-    const DeviceInformation* deviceInfo_;
-    //! Local copy of the device context pointer
-    std::unique_ptr<DeviceContext> deviceContext_;
-    //! Persistent compiled GPU kernels for PME.
-    PmeGpuProgramStorage program_;
-
-public:
-    //! Retuns the code path for this context.
-    CodePath getCodePath() const { return codePath_; }
-    //! Returns a human-readable context description line
-    std::string getDescription() const { return description_; }
-    //! Getter for the DeviceContext
-    const DeviceContext& deviceContext() const
-    {
-        GMX_RELEASE_ASSERT(deviceContext_ != nullptr,
-                           "Trying to get device context before it was initialized or in builds "
-                           "without GPU support.");
-        return *deviceContext_;
-    }
-    //! Returns the device info pointer
-    const DeviceInformation* getDeviceInfo() const { return deviceInfo_; }
-    //! Returns the persistent PME GPU kernels
-    const PmeGpuProgram* getPmeGpuProgram() const { return program_.get(); }
-    //! Constructs the context for CPU builds
-    TestHardwareContext(CodePath codePath, const char* description) :
-        codePath_(codePath),
-        description_(description)
-    {
-        GMX_RELEASE_ASSERT(codePath == CodePath::CPU,
-                           "A GPU code path should provide DeviceInformation to the "
-                           "TestHardwareContext constructor.");
-    }
-    //! Constructs the context for GPU builds
-    TestHardwareContext(CodePath codePath, const char* description, const DeviceInformation& deviceInfo) :
-        codePath_(codePath),
-        description_(description),
-        deviceInfo_(&deviceInfo)
-    {
-        GMX_RELEASE_ASSERT(codePath == CodePath::GPU,
-                           "TestHardwareContext tries to construct DeviceContext and PmeGpuProgram "
-                           "in CPU build.");
-        deviceContext_ = std::make_unique<DeviceContext>(deviceInfo);
-        program_       = buildPmeGpuProgram(*deviceContext_);
-    }
-    ~TestHardwareContext();
-};
 
 //! A container of handles to hardware contexts
 typedef std::vector<std::unique_ptr<TestHardwareContext>> TestHardwareContexts;
@@ -144,6 +78,8 @@ private:
 public:
     //! This is called by GTest framework once to query the hardware
     void SetUp() override;
+    //! This is called by GTest framework once release the hardware
+    void TearDown() override;
     //! Get available hardware contexts.
     const TestHardwareContexts& getHardwareContexts() const { return hardwareContexts_; }
     //! Get available hardware information.

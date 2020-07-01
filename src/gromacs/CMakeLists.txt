@@ -60,11 +60,13 @@ function (gmx_add_libgromacs_sources)
     _gmx_add_files_to_property(GMX_LIBGROMACS_SOURCES ${ARGN})
 endfunction ()
 
-# TODO Reconsider this, as the CUDA driver API is probably a simpler
-# approach, at least for the build system. See Redmine #2530
-function (gmx_compile_cpp_as_cuda)
-    _gmx_add_files_to_property(GMX_LIBGROMACS_GPU_IMPL_SOURCES ${ARGN})
-endfunction ()
+# Permit the configuration to disable compiling the many nbnxm kernels
+# and others involved in force calculations. Currently only
+# short-ranged and bonded kernels are disabled this way, but in future
+# others may be appropriate. Thus the cmake option is not specific to
+# nbnxm module.
+option(GMX_USE_SIMD_KERNELS "Whether to compile NBNXM and other SIMD kernels" ON)
+mark_as_advanced(GMX_USE_SIMD_KERNELS)
 
 # Add these contents first because linking their tests can take a lot
 # of time, so we want lots of parallel work still available after
@@ -131,6 +133,10 @@ list(APPEND LIBGROMACS_SOURCES ${GMXLIB_SOURCES} ${MDLIB_SOURCES} ${PROPERTY_SOU
 tmpi_get_source_list(THREAD_MPI_SOURCES ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/src)
 add_library(thread_mpi OBJECT ${THREAD_MPI_SOURCES})
 target_compile_definitions(thread_mpi PRIVATE HAVE_CONFIG_H)
+if(CYGWIN)
+    # Needs POSIX-isms for strdup, not just std-isms
+    target_compile_definitions(thread_mpi PRIVATE _POSIX_C_SOURCE=200809L)
+endif()
 gmx_target_compile_options(thread_mpi)
 if (WIN32)
     gmx_target_warning_suppression(thread_mpi /wd4996 HAS_NO_MSVC_UNSAFE_FUNCTION)
@@ -266,11 +272,6 @@ endif()
 # TODO Perhaps generalize this for all headers from src/external
 target_include_directories(libgromacs SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
 
-# Temporary fix to allow external access to restraintpotentail
-target_include_directories(libgromacs PUBLIC
-                           $<INSTALL_INTERFACE:include>
-                           )
-
 if(SIMD_AVX_512_CXX_SUPPORTED AND NOT ("${GMX_SIMD_ACTIVE}" STREQUAL "AVX_512_KNL"))
     # Since we might be overriding -march=core-avx2, add a flag so we don't warn for this specific file.
     # On KNL this can cause illegal instruction because the compiler might use non KNL AVX instructions
@@ -304,10 +305,8 @@ set_target_properties(libgromacs PROPERTIES
 gmx_manage_lmfit()
 target_link_libraries(libgromacs PRIVATE lmfit)
 
-# Fix everything found by the latest version of clang that we use in
-# Jenkins testing. This should be updated when we update the latest
-# tested version of clang.
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^7\.0")
+# Make sure we fix "everything" found by more recent versions of clang.
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7")
    target_compile_options(libgromacs PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Weverything ${IGNORED_CLANG_ALL_WARNINGS}>)
 endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -344,16 +343,25 @@ if (GMX_CLANG_TIDY)
        "${CLANG_TIDY_EXE};-warnings-as-errors=*")
 endif()
 
+# clang-3.6 warns about a number of issues that are not reported by more modern compilers
+# and we know they are not real issues. So we only check that it can compile without error
+# but ignore all warnings.
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION MATCHES "^3\.6")
+    target_compile_options(libgromacs PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-w>)
+endif()
+
 # Only install the library in mdrun-only mode if it is actually necessary
 # for the binary
 if (NOT GMX_BUILD_MDRUN_ONLY OR BUILD_SHARED_LIBS)
     install(TARGETS libgromacs
+            COMPONENT libraries
             EXPORT libgromacs
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            INCLUDES DESTINATION include
-            COMPONENT libraries)
+            INCLUDES DESTINATION include)
+    target_compile_definitions(libgromacs PUBLIC $<INSTALL_INTERFACE:GMX_DOUBLE=${GMX_DOUBLE_VALUE}>)
+    add_library(Gromacs::libgromacs ALIAS libgromacs)
 endif()
 
 if (NOT GMX_BUILD_MDRUN_ONLY)

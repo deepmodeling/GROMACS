@@ -39,7 +39,7 @@
 #include "gromacs/domdec/domdec.h"
 #include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/ewald/pme.h"
-#include "gromacs/listed_forces/manage_threading.h"
+#include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/mdlib/constr.h"
 #include "gromacs/mdlib/mdatoms.h"
 #include "gromacs/mdlib/vsite.h"
@@ -54,38 +54,55 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/smalloc.h"
 
+namespace gmx
+{
+
 /* TODO: Add a routine that collects the initial setup of the algorithms.
  *
  * The final solution should be an MD algorithm base class with methods
  * for initialization and atom-data setup.
  */
-void mdAlgorithmsSetupAtomData(const t_commrec*  cr,
-                               const t_inputrec* ir,
-                               const gmx_mtop_t& top_global,
-                               gmx_localtop_t*   top,
-                               t_forcerec*       fr,
-                               gmx::MDAtoms*     mdAtoms,
-                               gmx::Constraints* constr,
-                               gmx_vsite_t*      vsite,
-                               gmx_shellfc_t*    shellfc)
+void mdAlgorithmsSetupAtomData(const t_commrec*        cr,
+                               const t_inputrec*       ir,
+                               const gmx_mtop_t&       top_global,
+                               gmx_localtop_t*         top,
+                               t_forcerec*             fr,
+                               PaddedHostVector<RVec>* force,
+                               MDAtoms*                mdAtoms,
+                               Constraints*            constr,
+                               VirtualSitesHandler*    vsite,
+                               gmx_shellfc_t*          shellfc)
 {
     bool usingDomDec = DOMAINDECOMP(cr);
 
-    int  numAtomIndex, numHomeAtoms;
+    int  numAtomIndex;
     int* atomIndex;
+    int  numHomeAtoms;
+    int  numTotalAtoms;
 
     if (usingDomDec)
     {
-        numAtomIndex = dd_natoms_mdatoms(cr->dd);
-        atomIndex    = cr->dd->globalAtomIndices.data();
-        numHomeAtoms = dd_numHomeAtoms(*cr->dd);
+        numAtomIndex  = dd_natoms_mdatoms(cr->dd);
+        atomIndex     = cr->dd->globalAtomIndices.data();
+        numHomeAtoms  = dd_numHomeAtoms(*cr->dd);
+        numTotalAtoms = dd_natoms_mdatoms(cr->dd);
     }
     else
     {
-        numAtomIndex = -1;
-        atomIndex    = nullptr;
-        numHomeAtoms = top_global.natoms;
+        numAtomIndex  = -1;
+        atomIndex     = nullptr;
+        numHomeAtoms  = top_global.natoms;
+        numTotalAtoms = top_global.natoms;
     }
+
+    if (force != nullptr)
+    {
+        /* We need to allocate one element extra, since we might use
+         * (unaligned) 4-wide SIMD loads to access rvec entries.
+         */
+        force->resizeWithPadding(numTotalAtoms);
+    }
+
     atoms2md(&top_global, ir, numAtomIndex, atomIndex, numHomeAtoms, mdAtoms);
 
     auto mdatoms = mdAtoms->mdatoms();
@@ -100,17 +117,7 @@ void mdAlgorithmsSetupAtomData(const t_commrec*  cr,
 
     if (vsite)
     {
-        if (usingDomDec)
-        {
-            /* The vsites were already assigned by the domdec topology code.
-             * We only need to do the thread division here.
-             */
-            split_vsites_over_threads(top->idef.il, top->idef.iparams, mdatoms, vsite);
-        }
-        else
-        {
-            set_vsite_top(vsite, top, mdatoms);
-        }
+        vsite->setVirtualSites(top->idef.il, *mdatoms);
     }
 
     /* Note that with DD only flexible constraints, not shells, are supported
@@ -124,7 +131,7 @@ void mdAlgorithmsSetupAtomData(const t_commrec*  cr,
         make_local_shells(cr, mdatoms, shellfc);
     }
 
-    setup_bonded_threading(fr->bondedThreading, fr->natoms_force, fr->gpuBonded != nullptr, top->idef);
+    fr->listedForces->setup(top->idef, fr->natoms_force, fr->gpuBonded != nullptr);
 
     if (EEL_PME(fr->ic->eeltype) && (cr->duty & DUTY_PME))
     {
@@ -137,6 +144,9 @@ void mdAlgorithmsSetupAtomData(const t_commrec*  cr,
 
     if (constr)
     {
-        constr->setConstraints(top, *mdatoms);
+        constr->setConstraints(top, mdatoms->nr, mdatoms->homenr, mdatoms->massT, mdatoms->invmass,
+                               mdatoms->nMassPerturbed != 0, mdatoms->lambda, mdatoms->cFREEZE);
     }
 }
+
+} // namespace gmx

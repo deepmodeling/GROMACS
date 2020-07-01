@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -55,6 +55,7 @@
 #include "gromacs/mdrun/mdmodules.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 #include "gromacs/mdtypes/mdrunoptions.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/gmxmpi.h"
 #include "gromacs/utility/real.h"
@@ -75,9 +76,6 @@ class IRestraintPotential; // defined in restraint/restraintpotential.h
 class RestraintManager;
 class SimulationContext;
 class StopHandlerBuilder;
-
-//! Work-around for GCC bug 58265
-constexpr bool BUGFREE_NOEXCEPT_STRING = std::is_nothrow_move_assignable<std::string>::value;
 
 /*! \libinternal \brief Runner object for supporting setup and execution of mdrun.
  *
@@ -144,8 +142,7 @@ public:
      * \{
      */
     Mdrunner(Mdrunner&& handle) noexcept;
-    //NOLINTNEXTLINE(performance-noexcept-move-constructor) working around GCC bug 58265
-    Mdrunner& operator=(Mdrunner&& handle) noexcept(BUGFREE_NOEXCEPT_STRING);
+    Mdrunner& operator=(Mdrunner&& handle) noexcept;
     /* \} */
 
     /*! \brief Driver routine, that calls the different simulation methods. */

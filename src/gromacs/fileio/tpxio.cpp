@@ -131,6 +131,7 @@ enum tpxv
     tpxv_VSite2FD,                  /**< Added 2FD type virtual site */
     tpxv_AddSizeField, /**< Added field with information about the size of the serialized tpr file in bytes, excluding the header */
     tpxv_StoreNonBondedInteractionExclusionGroup, /**< Store the non bonded interaction exclusion group in the topology */
+    tpxv_VSite1,                                  /**< Added 1 type virtual site */
     tpxv_Count                                    /**< the total number of tpxv versions */
 };
 
@@ -205,10 +206,13 @@ static const t_ftupd ftupd[] = {
     { 72, F_GBPOL_NOLONGERUSED },
     { 72, F_NPSOLVATION_NOLONGERUSED },
     { 93, F_LJ_RECIP },
+    { 76, F_ANHARM_POL },
     { 90, F_FBPOSRES },
+    { tpxv_VSite1, F_VSITE1 },
+    { tpxv_VSite2FD, F_VSITE2FD },
+    { tpxv_GenericInternalParameters, F_DENSITYFITTING },
     { 69, F_VTEMP_NOLONGERUSED },
     { 66, F_PDISPCORR },
-    { 76, F_ANHARM_POL },
     { 79, F_DVDL_COUL },
     {
             79,
@@ -220,8 +224,6 @@ static const t_ftupd ftupd[] = {
     },
     { 79, F_DVDL_RESTRAINT },
     { 79, F_DVDL_TEMPERATURE },
-    { tpxv_GenericInternalParameters, F_DENSITYFITTING },
-    { tpxv_VSite2FD, F_VSITE2FD },
 };
 #define NFTUPD asize(ftupd)
 
@@ -1156,20 +1158,14 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
             real dummy_rlistlong = -1;
             serializer->doReal(&dummy_rlistlong);
 
-            if (ir->rlist > 0 && (dummy_rlistlong == 0 || dummy_rlistlong > ir->rlist))
-            {
-                // Get mdrun to issue an error (regardless of
-                // ir->cutoff_scheme).
-                ir->useTwinRange = true;
-            }
-            else
-            {
-                // grompp used to set rlistlong actively. Users were
-                // probably also confused and set rlistlong == rlist.
-                // However, in all remaining cases, it is safe to let
-                // mdrun proceed normally.
-                ir->useTwinRange = false;
-            }
+            ir->useTwinRange = (ir->rlist > 0 && (dummy_rlistlong == 0 || dummy_rlistlong > ir->rlist));
+            // When true, this forces mdrun to issue an error (regardless of
+            // ir->cutoff_scheme).
+            //
+            // Otherwise, grompp used to set rlistlong actively. Users
+            // were probably also confused and set rlistlong == rlist.
+            // However, in all remaining cases, it is safe to let
+            // mdrun proceed normally.
         }
     }
     else
@@ -1352,14 +1348,6 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
     if (file_version >= 79)
     {
         serializer->doBool(&ir->bExpanded);
-        if (ir->bExpanded)
-        {
-            ir->bExpanded = TRUE;
-        }
-        else
-        {
-            ir->bExpanded = FALSE;
-        }
     }
     if (ir->bExpanded)
     {
@@ -1937,9 +1925,7 @@ static void do_iparams(gmx::ISerializer* serializer, t_functype ftype, t_iparams
             break;
         case F_CBTDIHS: serializer->doRealArray(iparams->cbtdihs.cbtcA, NR_CBTDIHS); break;
         case F_RBDIHS:
-            serializer->doRealArray(iparams->rbdihs.rbcA, NR_RBDIHS);
-            serializer->doRealArray(iparams->rbdihs.rbcB, NR_RBDIHS);
-            break;
+            // Fall-through intended
         case F_FOURDIHS:
             /* Fourier dihedrals are internally represented
              * as Ryckaert-Bellemans since those are faster to compute.
@@ -1956,6 +1942,7 @@ static void do_iparams(gmx::ISerializer* serializer, t_functype ftype, t_iparams
             serializer->doReal(&iparams->settle.doh);
             serializer->doReal(&iparams->settle.dhh);
             break;
+        case F_VSITE1: break; // VSite1 has 0 parameters
         case F_VSITE2:
         case F_VSITE2FD: serializer->doReal(&iparams->vsite.a); break;
         case F_VSITE3:

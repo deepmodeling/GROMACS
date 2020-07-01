@@ -40,21 +40,23 @@
 
 #include <cstdio>
 
-#include "gromacs/mdlib/vsite.h"
+#include "gromacs/math/vectypes.h"
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/topology/atoms.h"
 
 class DDBalanceRegionHandler;
 struct gmx_enerdata_t;
 struct gmx_enfrot;
+struct gmx_localtop_t;
 struct gmx_multisim_t;
 struct gmx_shellfc_t;
 struct gmx_mtop_t;
 class history_t;
 struct pull_t;
 struct t_forcerec;
-struct t_fcdata;
 struct t_inputrec;
+struct t_mdatoms;
+struct t_nrnb;
 class t_state;
 
 namespace gmx
@@ -66,6 +68,7 @@ class ArrayRefWithPadding;
 class Constraints;
 class ImdSession;
 class MdrunScheduleWorkload;
+class VirtualSitesHandler;
 } // namespace gmx
 
 /* Initialization function, also predicts the initial shell postions.
@@ -92,7 +95,6 @@ void relax_shell_flexcon(FILE*                               log,
                          const gmx_localtop_t*               top,
                          gmx::Constraints*                   constr,
                          gmx_enerdata_t*                     enerd,
-                         t_fcdata*                           fcd,
                          int                                 natoms,
                          gmx::ArrayRefWithPadding<gmx::RVec> x,
                          gmx::ArrayRefWithPadding<gmx::RVec> v,
@@ -109,7 +111,7 @@ void relax_shell_flexcon(FILE*                               log,
                          gmx::MdrunScheduleWorkload*         runScheduleWork,
                          double                              t,
                          rvec                                mu_tot,
-                         const gmx_vsite_t*                  vsite,
+                         gmx::VirtualSitesHandler*           vsite,
                          const DDBalanceRegionHandler&       ddBalanceRegionHandler);
 
 /* Print some final output and delete shellfc */

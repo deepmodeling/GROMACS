@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -35,6 +35,9 @@
 /*! \libinternal \file
  * \brief Declares the force element for the modular simulator
  *
+ * This element calculates the forces, with or without shells or
+ * flexible constraints.
+ *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
  */
@@ -52,9 +55,9 @@
 #include "topologyholder.h"
 
 struct gmx_enfrot;
+struct gmx_shellfc_t;
 struct gmx_wallcycle;
 struct pull_t;
-struct t_fcdata;
 struct t_nrnb;
 
 namespace gmx
@@ -66,12 +69,14 @@ class ImdSession;
 class MDAtoms;
 class MdrunScheduleWorkload;
 class StatePropagatorData;
+class VirtualSitesHandler;
 
 /*! \libinternal
  * \ingroup module_modularsimulator
  * \brief Force element
  *
- * The force element manages the call to do_force(...)
+ * The force element manages the call to either
+ * do_force(...) or relax_shell_flexcon(...)
  */
 class ForceElement final :
     public ISimulatorElement,
@@ -84,6 +89,7 @@ public:
     ForceElement(StatePropagatorData*           statePropagatorData,
                  EnergyElement*                 energyElement,
                  FreeEnergyPerturbationElement* freeEnergyPerturbationElement,
+                 bool                           isVerbose,
                  bool                           isDynamicBox,
                  FILE*                          fplog,
                  const t_commrec*               cr,
@@ -91,12 +97,13 @@ public:
                  const MDAtoms*                 mdAtoms,
                  t_nrnb*                        nrnb,
                  t_forcerec*                    fr,
-                 t_fcdata*                      fcd,
                  gmx_wallcycle*                 wcycle,
                  MdrunScheduleWorkload*         runScheduleWork,
-                 gmx_vsite_t*                   vsite,
+                 VirtualSitesHandler*           vsite,
                  ImdSession*                    imdSession,
                  pull_t*                        pull_work,
+                 Constraints*                   constr,
+                 const gmx_mtop_t*              globalTopology,
                  gmx_enfrot*                    enforcedRotation);
 
     /*! \brief Register force calculation for step / time
@@ -109,8 +116,8 @@ public:
 
     //! Check that we got the local topology
     void elementSetup() override;
-    //! No element teardown needed
-    void elementTeardown() override {}
+    //! Print some final output
+    void elementTeardown() override;
 
 private:
     //! ITopologyHolderClient implementation
@@ -120,7 +127,13 @@ private:
     //! IEnergySignallerClient implementation
     SignallerCallbackPtr registerEnergyCallback(EnergySignallerEvent event) override;
     //! The actual do_force call
+    template<bool doShellFC>
     void run(Step step, Time time, unsigned int flags);
+
+    //! The shell / FC helper struct
+    gmx_shellfc_t* shellfc_;
+    //! Whether shells or flexible constraints are present
+    const bool doShellFC_;
 
     //! The next NS step
     Step nextNSStep_;
@@ -143,6 +156,10 @@ private:
 
     //! Whether we're having a dynamic box
     const bool isDynamicBox_;
+    //! Whether we're being verbose
+    const bool isVerbose_;
+    //! The number of shell relaxation steps we did
+    Step nShellRelaxationSteps_;
 
     //! DD / DLB helper object
     const DDBalanceRegionHandler ddBalanceRegionHandler_;
@@ -170,15 +187,15 @@ private:
     //! Parameters for force calculations.
     t_forcerec* fr_;
     //! Handles virtual sites.
-    gmx_vsite_t* vsite_;
+    VirtualSitesHandler* vsite_;
     //! The Interactive Molecular Dynamics session.
     ImdSession* imdSession_;
     //! The pull work object.
     pull_t* pull_work_;
-    //! Helper struct for force calculations.
-    t_fcdata* fcd_;
     //! Schedule of work for each MD step for this task.
     MdrunScheduleWorkload* runScheduleWork_;
+    //! Handles constraints.
+    Constraints* constr_;
     //! Handles enforced rotation.
     gmx_enfrot* enforcedRotation_;
 };

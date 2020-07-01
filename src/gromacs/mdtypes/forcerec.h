@@ -45,6 +45,7 @@
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/pbcutil/pbc.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
@@ -54,11 +55,13 @@ struct nonbonded_verlet_t;
 struct bonded_threading_t;
 class DeviceContext;
 class DispersionCorrection;
+class ListedForces;
 struct t_forcetable;
 struct t_QMMMrec;
 
 namespace gmx
 {
+class DeviceStreamManager;
 class GpuBonded;
 class ForceProviders;
 class StatePropagatorDataGpu;
@@ -124,6 +127,49 @@ struct gmx_ewald_tab_t;
 
 struct ewald_corr_thread_t;
 
+/*! \brief Helper force buffers for ForceOutputs
+ *
+ * This class stores intermediate force buffers that are used
+ * internally in the force calculation and which are reduced into
+ * the output force buffer passed to the force calculation.
+ */
+class ForceHelperBuffers
+{
+public:
+    /*! \brief Constructs helper buffers
+     *
+     * When the forces that will be accumulated with help of these buffers
+     * have direct virial contributions, set the parameter to true, so
+     * an extra force buffer is available for these forces to enable
+     * correct virial computation.
+     */
+    ForceHelperBuffers(bool haveDirectVirialContributions);
+
+    //! Returns whether we have a direct virial contribution force buffer
+    bool haveDirectVirialContributions() const { return haveDirectVirialContributions_; }
+
+    //! Returns the buffer for direct virial contributions
+    gmx::ArrayRef<gmx::RVec> forceBufferForDirectVirialContributions()
+    {
+        GMX_ASSERT(haveDirectVirialContributions_, "Buffer can only be requested when present");
+        return forceBufferForDirectVirialContributions_;
+    }
+
+    //! Returns the buffer for shift forces, size SHIFTS
+    gmx::ArrayRef<gmx::RVec> shiftForces() { return shiftForces_; }
+
+    //! Resizes the direct virial contribution buffer, when present
+    void resize(int numAtoms);
+
+private:
+    //! True when we have contributions that are directly added to the virial
+    bool haveDirectVirialContributions_ = false;
+    //! Force buffer for force computation with direct virial contributions
+    std::vector<gmx::RVec> forceBufferForDirectVirialContributions_;
+    //! Shift force array for computing the virial, size SHIFTS
+    std::vector<gmx::RVec> shiftForces_;
+};
+
 struct t_forcerec
 { // NOLINT (clang-analyzer-optin.performance.Padding)
     // Declare an explicit constructor and destructor, so they can be
@@ -184,13 +230,7 @@ struct t_forcerec
     t_forcetable* pairsTable = nullptr; /* for 1-4 interactions, [pairs] and [pairs_nb] */
 
     /* Free energy */
-    int  efep          = 0;
-    real sc_alphavdw   = 0;
-    real sc_alphacoul  = 0;
-    int  sc_power      = 0;
-    real sc_r_power    = 0;
-    real sc_sigma6_def = 0;
-    real sc_sigma6_min = 0;
+    int efep = 0;
 
     /* Information about atom properties for the molecule blocks in the system */
     std::vector<cginfo_mb_t> cginfo_mb;
@@ -213,18 +253,11 @@ struct t_forcerec
 
     /* The number of atoms participating in do_force_lowlevel */
     int natoms_force = 0;
-    /* The number of atoms participating in force and constraints */
+    /* The number of atoms participating in force calculation and constraints */
     int natoms_force_constr = 0;
-    /* The allocation size of vectors of size natoms_force */
-    int nalloc_force = 0;
 
-    /* Forces that should not enter into the coord x force virial summation:
-     * PPPM/PME/Ewald/posres/ForceProviders
-     */
-    /* True when we have contributions that are directly added to the virial */
-    bool haveDirectVirialContributions = false;
-    /* Force buffer for force computation with direct virial contributions */
-    std::vector<gmx::RVec> forceBufferForDirectVirialContributions;
+    /* Helper buffer for ForceOutputs */
+    std::unique_ptr<ForceHelperBuffers> forceHelperBuffers;
 
     /* Data for PPPM/PME/Ewald */
     struct gmx_pme_t* pmedata                = nullptr;
@@ -232,9 +265,6 @@ struct t_forcerec
 
     /* PME/Ewald stuff */
     struct gmx_ewald_tab_t* ewald_table = nullptr;
-
-    /* Shift force array for computing the virial, size SHIFTS */
-    std::vector<gmx::RVec> shiftForces;
 
     /* Non bonded Parameter lists */
     int               ntype = 0; /* Number of atom types */
@@ -268,8 +298,8 @@ struct t_forcerec
     real userreal3 = 0;
     real userreal4 = 0;
 
-    /* Pointer to struct for managing threading of bonded force calculation */
-    struct bonded_threading_t* bondedThreading = nullptr;
+    /* The listed forces calculation data */
+    std::unique_ptr<ListedForces> listedForces;
 
     /* TODO: Replace the pointer by an object once we got rid of C */
     gmx::GpuBonded* gpuBonded = nullptr;
@@ -284,6 +314,8 @@ struct t_forcerec
     // TODO: This is not supposed to be here. StatePropagatorDataGpu should be a part of
     //       general StatePropagatorData object that is passed around
     gmx::StatePropagatorDataGpu* stateGpu = nullptr;
+    // TODO: Should not be here. This is here only to pass the pointer around.
+    gmx::DeviceStreamManager* deviceStreamManager = nullptr;
 
     //! GPU device context
     DeviceContext* deviceContext = nullptr;

@@ -90,9 +90,10 @@ void ConstraintsElement<variable>::elementSetup()
                                           ? freeEnergyPerturbationElement_->constLambdaView()[efptBONDED]
                                           : 0;
         // Constrain the initial coordinates and velocities
-        do_constrain_first(fplog_, constr_, inputrec_, mdAtoms_, statePropagatorData_->localNumAtoms(),
-                           statePropagatorData_->positionsView(), statePropagatorData_->velocitiesView(),
-                           statePropagatorData_->box(), lambdaBonded);
+        do_constrain_first(
+                fplog_, constr_, inputrec_, statePropagatorData_->totalNumAtoms(),
+                statePropagatorData_->localNumAtoms(), statePropagatorData_->positionsView(),
+                statePropagatorData_->velocitiesView(), statePropagatorData_->box(), lambdaBonded);
 
         if (isMasterRank_)
         {
@@ -152,7 +153,7 @@ void ConstraintsElement<variable>::apply(Step step, bool calculateVirial, bool w
     }
 
     constr_->apply(writeLog, writeEnergy, step, 1, 1.0, x, xprime, min_proj, statePropagatorData_->box(),
-                   lambdaBonded, &dvdlambda, v, calculateVirial ? &vir_con : nullptr, variable);
+                   lambdaBonded, &dvdlambda, v, calculateVirial, vir_con, variable);
 
     if (calculateVirial)
     {
@@ -171,7 +172,7 @@ void ConstraintsElement<variable>::apply(Step step, bool calculateVirial, bool w
      * good approximation, statistically insignificant in any real free energy
      * calculation. Any possible error is not a simulation propagation error,
      * but a potential reporting error in the data that goes to dh/dlambda.
-     * Cf. redmine issue #1255
+     * Cf. Issue #1255
      */
     const real c_dvdlConstraintCorrectionFactor = EI_VV(inputrec_->eI) ? 2.0 : 1.0;
     energyElement_->enerdata()->term[F_DVDL_CONSTR] += c_dvdlConstraintCorrectionFactor * dvdlambda;

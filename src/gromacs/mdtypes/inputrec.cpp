@@ -215,7 +215,7 @@ int ir_optimal_nstpcouple(const t_inputrec* ir)
 
 gmx_bool ir_coulomb_switched(const t_inputrec* ir)
 {
-    return (ir->coulombtype == eelSWITCH || ir->coulombtype == eelSHIFT || ir->coulombtype == eelENCADSHIFT
+    return (ir->coulombtype == eelSWITCH || ir->coulombtype == eelSHIFT
             || ir->coulombtype == eelPMESWITCH || ir->coulombtype == eelPMEUSERSWITCH
             || ir->coulomb_modifier == eintmodPOTSWITCH || ir->coulomb_modifier == eintmodFORCESWITCH);
 }
@@ -233,7 +233,7 @@ gmx_bool ir_coulomb_might_be_zero_at_cutoff(const t_inputrec* ir)
 
 gmx_bool ir_vdw_switched(const t_inputrec* ir)
 {
-    return (ir->vdwtype == evdwSWITCH || ir->vdwtype == evdwSHIFT || ir->vdwtype == evdwENCADSHIFT
+    return (ir->vdwtype == evdwSWITCH || ir->vdwtype == evdwSHIFT
             || ir->vdw_modifier == eintmodPOTSWITCH || ir->vdw_modifier == eintmodFORCESWITCH);
 }
 
@@ -281,6 +281,24 @@ static void done_lambdas(t_lambda* fep)
     sfree(fep->all_lambda);
 }
 
+static void done_t_rot(t_rot* rot)
+{
+    if (rot == nullptr)
+    {
+        return;
+    }
+    if (rot->grp != nullptr)
+    {
+        for (int i = 0; i < rot->ngrp; i++)
+        {
+            sfree(rot->grp[i].ind);
+            sfree(rot->grp[i].x_ref);
+        }
+        sfree(rot->grp);
+    }
+    sfree(rot);
+}
+
 void done_inputrec(t_inputrec* ir)
 {
     sfree(ir->opts.nrdf);
@@ -308,6 +326,7 @@ void done_inputrec(t_inputrec* ir)
         done_pull_params(ir->pull);
         sfree(ir->pull);
     }
+    done_t_rot(ir->rot);
     delete ir->params;
 }
 
@@ -1458,7 +1477,7 @@ bool inputrecPbcXY2Walls(const t_inputrec* ir)
 bool integratorHasConservedEnergyQuantity(const t_inputrec* ir)
 {
     if (!EI_MD(ir->eI))
-    {
+    { // NOLINT bugprone-branch-clone
         // Energy minimization or stochastic integrator: no conservation
         return false;
     }

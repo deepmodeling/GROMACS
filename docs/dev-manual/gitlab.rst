@@ -1,9 +1,6 @@
 GitLab
 ======
 
-|Gromacs| is transitioning to GitLab for source code management, issue tracking,
-and integrated automation for testing and documentation.
-
 The repository contains DockerFiles and GitLab Runner configuration
 files to support automated testing and documentation builds.
 General information on configuring GitLab CI pipelines can be found
@@ -15,7 +12,7 @@ Configuration templates are found in the files in the
 :file:`admin/ci-templates/` directory.
 
 Docker images used by GitLab Runner are available on `Docker Hub <https://hub.docker.com/u/gromacs>`__.
-Images are (re)built manually from DockerFiles in :file:`admin/dockerfiles`.
+Images are (re)built manually using details in :file:`admin/containers`.
 
 This documentation is incomplete, pending resolution of :issue:`3275`.
 
@@ -27,6 +24,15 @@ Pipeline execution
 .. todo:: Discuss the distinct characteristics of |Gromacs| CI pipelines to relevant to job configuration.
 
 .. todo:: Comment on the number of pipelines that can be or which are likely to be running at the same time.
+
+.. note::
+
+    Full automated testing is only available for merge requests originating from
+    branches of the main https://gitlab.com/gromacs/gromacs repository.
+    GitLab CI pipelines created for forked repositories will include fewer jobs
+    in the testing pipeline. Non-trivial merge requests may need to be issued
+    from a branch in the ``gromacs`` project namespace in order to receive
+    sufficient testing before acceptance.
 
 Configuration files
 ~~~~~~~~~~~~~~~~~~~
@@ -54,21 +60,120 @@ GitLab CI job parameters, but note the following GROMACS-specific conventions.
         Avoid using *before-script* directly, and be cautious
         about nested *extends* overriding multiple *before_script* definitions.
 
+    cache
+        There is no global default, but jobs that build software will likely
+        set *cache*. To explicitly unset *cache* directives, specify a job
+        parameter of ``cache: {}``.
+        Refer to `GitLab docs <https://docs.gitlab.com/ee/ci/yaml/#cache>`__
+        for details. In particular, note the details of cache identity according
+        to `cache:key <https://docs.gitlab.com/ee/ci/yaml/#cachekey>`__
+
     image
         Part of the tool chain configuration. Instead of setting *image*
         directly, *extend* a *.use_<toolchain>* template from
         :file:`admin/gitlab-ci/global.gitlab-ci.yml`
+
+    rules
+    only
+    except
+    when
+        *Job* parameters for controlling the circumstances under which jobs run.
+        (Some key words may have different meanings when occurring as elements
+        of other parameters, such as *archive:when*, to which this note is not
+        intended to apply.)
+        Instead of setting any of these directly in a job definition, try to use
+        one of the pre-defined behaviors (defined as ``.rules:<something>`` in
+        :file:`admin/gitlab-ci/rules.gitlab-ci.yml`).
+        Errors or unexpected behavior will occur if you specify more than one
+        *.rules:...* template, or if you use these parameters in combination
+        with a *.rules...* template.
+        To reduce errors and unexpected behavior, restrict usage of these controls
+        to regular job definitions (don't use in "hidden" or parent jobs).
+        Note that *rules* is not compatible with the older *only* and *except*
+        parameters. We have standardized on the (newer) *rules* mechanism.
+
+    tags
+        Jobs that can only run in the |Gromacs| GitLab CI Runner infrastructure
+        should require the ``k8s-scilifelab`` tag.
+        These include jobs that specify Kubernetes configuration variables or
+        require special facilities, such as GPUs or MPI.
+        Note that the *tag* controls which Runners are eligible to take a job.
+        It does not affect whether the job is eligible for addition to a particular pipeline.
+        Additional *rules* logic should be used to make sure that jobs with the
+        ``k8s-scilifelab`` do not become eligible for pipelines launched outside
+        of the |Gromacs| project environment.
+        See, for instance, :term:`CI_PROJECT_NAMESPACE`
 
     variables
         Many job definitions will add or override keys in *variables*.
         Refer to `GitLab <https://docs.gitlab.com/ee/ci/yaml/#variables>`__
         for details of the merging behavior. Refer to :ref:`variables` for local usage.
 
+Schedules and triggers
+~~~~~~~~~~~~~~~~~~~~~~
+
+Pipeline `schedules <https://gitlab.com/help/ci/pipelines/schedules>`__ are
+configured through the GitLab web interface.
+Scheduled pipelines may provide different variable definitions through the
+environment to jobs that run under the ``schedules``
+`condition <https://gitlab.com/help/ci/pipelines/schedules#using-only-and-except>`__.
+
+Nightly scheduled pipelines run against ``master`` and *release* branches in
+the GROMACS repository.
+
+Global templates
+~~~~~~~~~~~~~~~~
+
 In addition to the templates in the main job definition files,
 common "mix-in" functionality and behavioral templates are defined in
 :file:`admin/gitlab-ci/global.gitlab-ci.yml`.
+For readability, some parameters may be separated into their own files, named
+according to the parameter (e.g. :file:`rules.gitlab-ci.yml`).
+
+Jobs beginning with ``.use-`` provide mix-in behavior, such as boilerplate for
+jobs using a particular tool chain.
+
+Jobs beginning with a `parameter <https://docs.gitlab.com/ee/ci/yaml>`__
+name allow parameters to be set in a single place for common job characteristics.
+If providing more than a default parameter value, the job name should be suffixed
+by a meaningful descriptor and documented within
+:file:`admin/gitlab-ci/global.gitlab-ci.yml`
+
+Job names
+~~~~~~~~~
+
+Job names should
+
+1. Indicate the purpose of the job.
+2. Indicate relationships between multi-stage tasks.
+3. Distinguish jobs in the same stage.
+4. Distinguish job definitions throughout the configuration.
+
+Jobs may be reassigned to different stages over time, so including the stage
+name in the job name is not helpful, generally. If tags like "pre" and "post,"
+or "build" and "test" are necessary to distinguish phases of, say, "webpage,"
+then such tags can be buried at the end of the job name.
+
+Stylistically, it is helpful to use delimiters like ``:`` to distinguish the
+basic job name from qualifiers or details. Also consider
+`grouping jobs <https://docs.gitlab.com/ee/ci/pipelines/index.html#grouping-jobs>`__
 
 .. _variables:
+
+Updating regression tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Changes in |Gromacs| that require changes in regression-tests are notoriously hard,
+because a merge request that tests against the non-updated version of the
+regression tests will necessarily fail, while updating regression tests while
+the current change is not integrated into master, might cause other
+merge request pipelines to fail.
+
+The solution is a new regression-test branch or commit, uploaded to gitlab.
+Then set that regression test branch with REGRESSIONTESTBRANCH or
+the specific commit with REGRESSIONTESTCOMMIT when
+running the specific pipeline that requires the regressiontest-update. 
+See below on how to set variables for specific pipelines.
 
 Variables
 ~~~~~~~~~
@@ -91,8 +196,55 @@ or passed along to the environment of executed commands.
 Other important variable keys are as follows.
 
 .. glossary::
+    CI_PROJECT_NAMESPACE
+        Distinguishes pipelines created for repositories in the ``gromacs``
+        GitLab project space. May be used to pre-screen jobs to determine
+        whether |Gromacs| GitLab infrastructure is available to the pipeline
+        before the job is created.
+
+    COMPILER_MAJOR_VERSION
+        Integer version number provided by toolchain mix-in for convenience and
+        internal use.
+
+    CMAKE_COMPILER_SCRIPT
+        CMake command line options for a tool chain. A definition is provided by
+        the mix-in toolchain definitions (e.g. ``.use-gcc8``) to be appended to
+        :command:`cmake` calls in a job's *script*.
+
     CMAKE_MPI_OPTIONS
         Provide CMake command line arguments to define GROMACS MPI build options.
 
+    GROMACS_RELEASE
+        Read-only environment variable that can be checked to see if a job is
+        executing in a pipeline for preparing a tagged release.
+        Can be set when launching pipelines via the GitLab web interface.
+        For example, see *rules* mix-ins in :file:`admin/gitlab-ci/global.gitlab-ci.yml`.
+
+    EXTRA_INSTALLS
+        List additional OS package requirements. Used in *before_script* for some
+        mix-in job definitions to install additional software dependencies. If
+        using such a job with *extends*, override this variable key with a
+        space-delimited list of packages (default: ``""``). Consider proposing a
+        patch to the base Docker images to include the dependency to reduce
+        pipeline execution time.
+
+    REGRESSIONTESTBRANCH
+        Use this branch of the regressiontests rather than master to allow for 
+        merge requests that require updated regression tests with valid CI tests.
+
+    REGRESSIONTESTCOMMIT
+        Use this commit to the regressiontests rather than the head on master to 
+        allow for merge requests that require updated regression tests with 
+        valid CI tests.
+
+
 .. todo:: Define common variables.
     ``BUILD_DIR``, ``INSTALL_DIR``, ``CACHE_FALLBACK_KEY``, ...
+
+Setting variables
+~~~~~~~~~~~~~~~~~
+
+Variables for individual piplelines are set in the gitlab interface under 
+``CI/CD``; ``Pipelines``. Then chose in the top right corner ``Run Piplelines``.
+Under ``Run for``, the desired branch may be selected, and variables may be set
+in the fields below.

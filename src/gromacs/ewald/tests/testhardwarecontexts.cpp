@@ -60,18 +60,6 @@ namespace gmx
 namespace test
 {
 
-TestHardwareContext::~TestHardwareContext() = default;
-
-const char* codePathToString(CodePath codePath)
-{
-    switch (codePath)
-    {
-        case CodePath::CPU: return "CPU";
-        case CodePath::GPU: return "GPU";
-        default: GMX_THROW(NotImplementedError("This CodePath should support codePathToString"));
-    }
-}
-
 /* Implements the "construct on first use" idiom to avoid any static
  * initialization order fiasco.
  *
@@ -120,8 +108,6 @@ void PmeTestEnvironment::SetUp()
     for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
     {
         const DeviceInformation* deviceInfo = getDeviceInfo(hardwareInfo_->gpu_info, gpuIndex);
-        GMX_RELEASE_ASSERT(deviceInfo != nullptr,
-                           "Device information should be provided for the GPU builds.");
         init_gpu(deviceInfo);
 
         char stmp[200] = {};
@@ -130,6 +116,11 @@ void PmeTestEnvironment::SetUp()
         hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(
                 CodePath::GPU, description.c_str(), *deviceInfo));
     }
+}
+
+void PmeTestEnvironment::TearDown()
+{
+    hardwareContexts_.clear();
 }
 
 } // namespace test

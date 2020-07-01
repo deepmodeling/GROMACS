@@ -38,6 +38,7 @@
 
 gmx_add_libgromacs_sources(
         clfftinitializer.cpp
+        device_stream_manager.cpp
         hostallocator.cpp
         gpu_utils.cpp
         gpu_testutils.cpp
@@ -53,13 +54,12 @@ if(GMX_USE_OPENCL)
         )
 elseif(GMX_USE_CUDA)
     gmx_add_libgromacs_sources(
-        cudautils.cu
         device_stream.cu
         gpu_utils.cu
         pinning.cu
         pmalloc_cuda.cu
         )
-elseif()
+else()
     gmx_add_libgromacs_sources(
         device_stream.cpp
     )

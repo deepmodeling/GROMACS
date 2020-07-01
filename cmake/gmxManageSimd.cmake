@@ -264,6 +264,13 @@ elseif(GMX_SIMD_ACTIVE STREQUAL "IBM_VMX")
 
 elseif(GMX_SIMD_ACTIVE STREQUAL "IBM_VSX")
 
+    # IBM_VSX and gcc > 9 do not work together, so we need to prevent people from
+    # choosing a combination that might fail. Issue #3380.
+    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "9")
+        message(FATAL_ERROR "IBM_VSX does not work together with gcc > 9. Disable SIMD support (slower), or use an older version of the GNU compiler")
+    endif()
+
+
     gmx_find_simd_ibm_vsx_flags(SIMD_IBM_VSX_C_SUPPORTED SIMD_IBM_VSX_CXX_SUPPORTED
                                 SIMD_IBM_VSX_C_FLAGS SIMD_IBM_VSX_CXX_FLAGS)
 
@@ -271,7 +278,7 @@ elseif(GMX_SIMD_ACTIVE STREQUAL "IBM_VSX")
     # is not required for SIMD support on this platform. cmake through
     # at least version 3.7 cannot pass this check with the C compiler
     # in the latest xlc 13.1.5, but the C++ compiler has different
-    # behaviour and is OK. See Redmine #2102.
+    # behaviour and is OK. See Issue #2102.
     if(NOT SIMD_IBM_VSX_CXX_SUPPORTED)
         gmx_give_fatal_error_when_simd_support_not_found("IBM VSX" "disable SIMD support (slower)" "${SUGGEST_BINUTILS_UPDATE}")
     endif()
@@ -390,7 +397,7 @@ if(NOT DEFINED GMX_SIMD_CALLING_CONVENTION)
         # ignored (e.g. clang on ARM), and in such cases we want this
         # check to lead to using no attribute in subsequent GROMACS
         # compilation, to avoid issuing the warning for lots of files.
-        check_c_source_compiles("
+        check_cxx_source_compiles("
 #pragma GCC diagnostic error \"-Wignored-attributes\"
 int ${callconv} f(int i) {return i;} int main(void) {return f(0);}
 " ${callconv_compile_var})

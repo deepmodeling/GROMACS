@@ -44,8 +44,12 @@
  * \inlibraryapi
  * \ingroup module_gpu_utils
  */
+#include <cuda_runtime.h>
 
-#include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/hardware/gpu_hw_info.h"
+
+//! Device texture for fast read-only data fetching
+using DeviceTexture = cudaTextureObject_t;
 
 /*! \brief CUDA device information.
  *
@@ -59,8 +63,8 @@ struct DeviceInformation
     int id;
     //! CUDA device properties.
     cudaDeviceProp prop;
-    //! Result of the device check.
-    int stat;
+    //! Device status.
+    DeviceStatus stat;
 };
 
 //! \brief Single GPU call timing event - meaningless in CUDA

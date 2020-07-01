@@ -86,7 +86,7 @@ Background
 *gmxapi* comes in three parts:
 
 * GROMACS gmxapi library for C++.
-* This Python package, supporting Python 3.5 and higher
+* This Python package, supporting Python 3.6 and higher
 * MD restraint plugins and sample gmxapi client code
 
 GROMACS requirements
@@ -111,7 +111,7 @@ to the build configuration.
 Build system requirements
 -------------------------
 
-gmxapi can be built for Python 3.5 and higher.
+gmxapi can be built for Python 3.6 and higher.
 
 You will need a C++ 14 compatible compiler and a reasonably up-to-date version
 of CMake.
@@ -143,7 +143,7 @@ that works.
 Python environment requirements
 -------------------------------
 
-gmxapi requires Python 3.5 or higher. Check your version with
+gmxapi requires Python 3.6 or higher. Check your version with
 :command:`python3 --version` or :command:`python --version`.
 
 ..  note::
@@ -483,9 +483,14 @@ extract Python docstrings.
 
 Sometimes the build environment can choose a different Python interpreter than
 the one you intended.
-You can set the ``PYTHON_EXECUTABLE`` CMake variable to explicitly choose the
-Python interpreter for your chosen installation.
-For example: ``-DPYTHON_EXECUTABLE=\`which python\```
+You can set the ``Python3_ROOT`` or ``CMAKE_PREFIX_PATH`` CMake variable to
+explicitly choose the Python installation or *venv* directory.
+
+If you use pyenv or pyenv-virtualenv to dynamically manage your Python version,
+you can help identify a particular version with ``pyenv version-name`` and the
+directory with ``pyenv prefix {version}``. For example::
+
+    -DPython3_ROOT=$(pyenv prefix $(pyenv version-name))
 
 Docker web server
 -----------------
@@ -497,7 +502,7 @@ https://hub.docker.com/r/gmxapi/docs for more information.
 .. todo::
 
     Document sample_restraint package. Reference issue
-    `3027 <https://redmine.gromacs.org/issues/3027>`_
+    `3027 <https://gitlab.com/gromacs/gromacs/-/issues/3027>`_
 
 .. _gmxapi install troubleshooting:
 

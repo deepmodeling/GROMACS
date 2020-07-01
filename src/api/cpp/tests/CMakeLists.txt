@@ -61,7 +61,7 @@ if(NOT GMX_USE_OPENCL)
     # GPU resources may not be properly reinitialized between simulations in
     # the same process.
     # TODO: include this with the other test sources once the issue is resolved
-    # Ref https://redmine.gromacs.org/issues/2689
+    # Ref https://gitlab.com/gromacs/gromacs/-/issues/2689
     target_sources(gmxapi-test PRIVATE runner.cpp stopsignaler.cpp)
 endif()
 
@@ -71,7 +71,7 @@ target_include_directories(gmxapi-test PRIVATE
 # Link against the gmxapi libraries and get access to its public (installed) headers.
 target_link_libraries(gmxapi-test PRIVATE Gromacs::gmxapi mdrun_test_infrastructure)
 
-gmx_register_gtest_test(GmxapiExternalInterfaceTests gmxapi-test OPENMP_THREADS 2 INTEGRATION_TEST)
+gmx_register_gtest_test(GmxapiExternalInterfaceTests gmxapi-test OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
 
 set_tests_properties(GmxapiExternalInterfaceTests PROPERTIES
                      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -93,7 +93,7 @@ if(NOT GMX_USE_OPENCL)
     # GPU resources may not be properly reinitialized between simulations in
     # the same process.
     # TODO: include this with the other test sources once the issue is resolved
-    # Ref https://redmine.gromacs.org/issues/2689
+    # Ref https://gitlab.com/gromacs/gromacs/-/issues/2689
     target_sources(gmxapi-mpi-test PRIVATE runner.cpp stopsignaler.cpp)
 endif()
 
@@ -101,4 +101,4 @@ target_include_directories(gmxapi-mpi-test PRIVATE
                            ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gmxapi-mpi-test PRIVATE Gromacs::gmxapi mdrun_test_infrastructure)
 
-gmx_register_gtest_test(GmxapiMpiTests gmxapi-mpi-test MPI_RANKS 2 OPENMP_THREADS 2 INTEGRATION_TEST)
+gmx_register_gtest_test(GmxapiMpiTests gmxapi-mpi-test MPI_RANKS 2 OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)

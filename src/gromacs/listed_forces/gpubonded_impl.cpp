@@ -141,7 +141,9 @@ bool inputSupportsGpuBondeds(const t_inputrec& ir, const gmx_mtop_t& mtop, std::
     }
     if (!EI_DYNAMICS(ir.eI))
     {
-        errorReasons.emplace_back("not a dynamical integrator");
+        errorReasons.emplace_back(
+                "Cannot compute bonded interactions on a GPU, because GPU implementation requires "
+                "a dynamical integrator (md, sd, etc).");
     }
     if (EI_MIMIC(ir.eI))
     {
@@ -161,6 +163,7 @@ class GpuBonded::Impl
 };
 
 GpuBonded::GpuBonded(const gmx_ffparams_t& /* ffparams */,
+                     const float /* electrostaticsScaleFactor */,
                      const DeviceContext& /* deviceContext */,
                      const DeviceStream& /* deviceStream */,
                      gmx_wallcycle* /* wcycle */) :
@@ -178,14 +181,21 @@ void GpuBonded::updateInteractionListsAndDeviceBuffers(ArrayRef<const int> /* nb
 {
 }
 
-bool GpuBonded::haveInteractions() const
+void GpuBonded::setPbc(PbcType /* pbcType */, const matrix /* box */, bool /* canMoleculeSpanPbc */)
 {
-    return false;
 }
 
-void GpuBonded::launchKernel(const t_forcerec* /* fr */,
-                             const gmx::StepWorkload& /* stepWork */,
-                             const matrix /* box */)
+bool GpuBonded::haveInteractions() const
+{
+    return !impl_;
+}
+
+void GpuBonded::launchKernel(const gmx::StepWorkload& /* stepWork */) {}
+
+void GpuBonded::setPbcAndlaunchKernel(PbcType /* pbcType */,
+                                      const matrix /* box */,
+                                      bool /* canMoleculeSpanPbc */,
+                                      const gmx::StepWorkload& /* stepWork */)
 {
 }
 

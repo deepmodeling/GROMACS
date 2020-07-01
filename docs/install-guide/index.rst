@@ -72,8 +72,8 @@ appropriate value instead of ``xxx`` :
 * ``-DCMAKE_C_COMPILER=xxx`` equal to the name of the C99 `Compiler`_ you wish to use (or the environment variable ``CC``)
 * ``-DCMAKE_CXX_COMPILER=xxx`` equal to the name of the C++98 `compiler`_ you wish to use (or the environment variable ``CXX``)
 * ``-DGMX_MPI=on`` to build using `MPI support`_ (generally good to combine with `building only mdrun`_)
-* ``-DGMX_GPU=on`` to build using nvcc to run using NVIDIA `CUDA GPU acceleration`_ or an OpenCL_ GPU
-* ``-DGMX_USE_OPENCL=on`` to build with OpenCL_ support enabled. ``GMX_GPU`` must also be set.
+* ``-DGMX_GPU=CUDA`` to build with NVIDIA CUDA support enabled.
+* ``-DGMX_GPU=OpenCL`` to build with OpenCL_ support enabled.
 * ``-DGMX_SIMD=xxx`` to specify the level of `SIMD support`_ of the node on which |Gromacs| will run
 * ``-DGMX_BUILD_MDRUN_ONLY=on`` for `building only mdrun`_, e.g. for compute cluster back-end nodes
 * ``-DGMX_DOUBLE=on`` to build |Gromacs| in double precision (slower, and not normally useful)
@@ -104,20 +104,20 @@ PowerPC including POWER8, ARM v8, and SPARC VIII.
 Compiler
 ^^^^^^^^
 
-|Gromacs| can be compiled on any platform with ANSI C99 and C++14
+|Gromacs| can be compiled on any platform with ANSI C99 and C++17
 compilers, and their respective standard C/C++ libraries. Good
 performance on an OS and architecture requires choosing a good
 compiler. We recommend gcc, because it is free, widely available and
 frequently provides the best performance.
 
 You should strive to use the most recent version of your
-compiler. Since we require full C++14 support the minimum supported
+compiler. Since we require full C++17 support the minimum supported
 compiler versions are
 
-* GNU (gcc) 5.1
-* Intel (icc) 17.0.1
-* LLVM (clang) 3.6
-* Microsoft (MSVC) 2017
+* GNU (gcc/libstdc++) 7
+* Intel (icc) 19.1
+* LLVM (clang/libc++) 5
+* Microsoft (MSVC) 2017 15.7
 
 Other compilers may work (Cray, Pathscale, older clang) but do
 not offer competitive performance. We recommend against PGI because
@@ -131,7 +131,7 @@ You may also need the most recent version of other compiler toolchain
 components beside the compiler itself (e.g. assembler or linker);
 these are often shipped by your OS distribution's binutils package.
 
-C++14 support requires adequate support in both the compiler and the
+C++17 support requires adequate support in both the compiler and the
 C++ library. The gcc and MSVC compilers include their own standard
 libraries and require no further configuration. If your vendor's
 compiler also manages the standard library library via compiler flags,
@@ -139,12 +139,12 @@ these will be honored. For configuration of other compilers, read on.
 
 On Linux, both the Intel and clang compiler use the libstdc++ which
 comes with gcc as the default C++ library. For |Gromacs|, we require
-the compiler to support libstc++ version 5.1 or higher. To select a
+the compiler to support libstc++ version 7.1 or higher. To select a
 particular libstdc++ library, provide the path to g++ with
 ``-DGMX_GPLUSPLUS_PATH=/path/to/g++``.
 
 On Windows with the Intel compiler, the MSVC standard library is used,
-and at least MSVC 2017 is required. Load the enviroment variables with
+and at least MSVC 2017 15.7 is required. Load the enviroment variables with
 vcvarsall.bat.
 
 To build with clang and llvm's libcxx standard library, use
@@ -348,7 +348,9 @@ Other optional build components
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Run-time detection of hardware capabilities can be improved by
-  linking with hwloc, which is automatically enabled if detected.
+  linking with hwloc. By default this is turned off since it might
+  not be supported everywhere, but if you have hwloc installed it
+  should work by just setting ``-DGMX_HWLOC=ON``
 * Hardware-optimized BLAS and LAPACK libraries are useful
   for a few of the |Gromacs| utilities focused on normal modes and
   matrix manipulation, but they do not provide any benefits for normal
@@ -371,7 +373,7 @@ Other optional build components
   ``-DGMX_USE_LMFIT=none``.
 * zlib is used by TNG for compressing some kinds of trajectory data
 * Building the |Gromacs| documentation is optional, and requires
-  ImageMagick, pdflatex, bibtex, doxygen, python 3.5, sphinx
+  ImageMagick, pdflatex, bibtex, doxygen, python 3.6, sphinx
   |EXPECTED_SPHINX_VERSION|, and pygments.
 * The |Gromacs| utility programs often write data files in formats
   suitable for the Grace plotting tool, but it is straightforward to
@@ -500,7 +502,7 @@ For example, the following command line
 
 ::
 
-    cmake .. -DGMX_GPU=ON -DGMX_MPI=ON -DCMAKE_INSTALL_PREFIX=/home/marydoe/programs
+    cmake .. -DGMX_GPU=CUDA -DGMX_MPI=ON -DCMAKE_INSTALL_PREFIX=/home/marydoe/programs
 
 can be used to build with CUDA GPUs, MPI and install in a custom
 location. You can even save that in a shell script to make it even
@@ -648,7 +650,7 @@ If you have the CUDA_ Toolkit installed, you can use ``cmake`` with:
 
 ::
 
-    cmake .. -DGMX_GPU=ON -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
+    cmake .. -DGMX_GPU=CUDA -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
 
 (or whichever path has your installation). In some cases, you might
 need to specify manually which of your C++ compilers should be used,
@@ -723,7 +725,7 @@ To trigger an OpenCL_ build the following CMake flags must be set
 
 ::
 
-    cmake .. -DGMX_GPU=ON -DGMX_USE_OPENCL=ON
+    cmake .. -DGMX_GPU=OpenCL
 
 To build with support for Intel integrated GPUs, it is required
 to add ``-DGMX_OPENCL_NB_CLUSTER_SIZE=4`` to the cmake command line,
@@ -741,7 +743,7 @@ external library, use
 
 ::
 
-    cmake .. -DGMX_GPU=ON -DGMX_USE_OPENCL=ON -DclFFT_ROOT_DIR=/path/to/your/clFFT -DGMX_EXTERNAL_CLFFT=TRUE
+    cmake .. -DGMX_GPU=OpenCL -DclFFT_ROOT_DIR=/path/to/your/clFFT -DGMX_EXTERNAL_CLFFT=TRUE
 
 Static linking
 ~~~~~~~~~~~~~~
@@ -1071,7 +1073,7 @@ directory:
     cd ..
     mkdir build-mdrun-only
     cd build-mdrun-only
-    cmake .. -DGMX_MPI=ON -DGMX_GPU=ON -DGMX_BUILD_MDRUN_ONLY=ON -DCMAKE_INSTALL_PREFIX=/your/installation/prefix/here
+    cmake .. -DGMX_MPI=ON -DGMX_GPU=CUDA -DGMX_BUILD_MDRUN_ONLY=ON -DCMAKE_INSTALL_PREFIX=/your/installation/prefix/here
     make -j 4
     make install
     cd /to/your/unpacked/regressiontests

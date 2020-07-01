@@ -115,7 +115,7 @@ SimulationRunner::SimulationRunner(TestFileManager* fileManager) :
 // things that way, this function should be renamed. For now,
 // we use the Verlet scheme and hard-code a tolerance.
 // TODO There is possible outstanding unexplained behaviour of mdp
-// input parsing e.g. Redmine 2074, so this particular set of mdp
+// input parsing e.g. Issue #2074, so this particular set of mdp
 // contents is also tested with GetIrTest in gmxpreprocess-test.
 void SimulationRunner::useEmptyMdpFile()
 {
@@ -220,7 +220,7 @@ int SimulationRunner::changeTprNsteps(int nsteps)
     caller.addOption("-s", tprFileName_);
     caller.addOption("-o", tprFileName_);
 
-    return gmx_convert_tpr(caller.argc(), caller.argv());
+    return gmx::test::CommandLineTestHelper::runModuleFactory(&gmx::ConvertTprInfo::create, &caller);
 }
 
 int SimulationRunner::callNmeig()

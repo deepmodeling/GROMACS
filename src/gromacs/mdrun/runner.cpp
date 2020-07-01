@@ -74,6 +74,7 @@
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/detecthardware.h"
@@ -81,6 +82,7 @@
 #include "gromacs/imd/imd.h"
 #include "gromacs/listed_forces/disre.h"
 #include "gromacs/listed_forces/gpubonded.h"
+#include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/listed_forces/orires.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"
@@ -96,7 +98,6 @@
 #include "gromacs/mdlib/makeconstraints.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/mdatoms.h"
-#include "gromacs/mdlib/membed.h"
 #include "gromacs/mdlib/sighandler.h"
 #include "gromacs/mdlib/stophandler.h"
 #include "gromacs/mdlib/tgroup.h"
@@ -123,6 +124,7 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/nbnxm/pairlist_tuning.h"
@@ -162,6 +164,7 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "isimulator.h"
+#include "membedholder.h"
 #include "replicaexchange.h"
 #include "simulatorbuilder.h"
 
@@ -319,7 +322,7 @@ Mdrunner Mdrunner::cloneOnSpawnedThread() const
 
     // Copy members of master runner.
     // \todo Replace with builder when Simulation context and/or runner phases are better defined.
-    // Ref https://redmine.gromacs.org/issues/2587 and https://redmine.gromacs.org/issues/2375
+    // Ref https://gitlab.com/gromacs/gromacs/-/issues/2587 and https://gitlab.com/gromacs/gromacs/-/issues/2375
     newRunner.hw_opt    = hw_opt;
     newRunner.filenames = filenames;
 
@@ -703,14 +706,13 @@ int Mdrunner::mdrunner()
 {
     matrix                    box;
     t_forcerec*               fr               = nullptr;
-    t_fcdata*                 fcd              = nullptr;
     real                      ewaldcoeff_q     = 0;
     real                      ewaldcoeff_lj    = 0;
     int                       nChargePerturbed = -1, nTypePerturbed = 0;
     gmx_wallcycle_t           wcycle;
     gmx_walltime_accounting_t walltime_accounting = nullptr;
-    gmx_membed_t*             membed              = nullptr;
-    gmx_hw_info_t*            hwinfo              = nullptr;
+    MembedHolder              membedHolder(filenames.size(), filenames.data());
+    gmx_hw_info_t*            hwinfo = nullptr;
 
     /* CAUTION: threads may be started later on in this function, so
        cr doesn't reflect the final parallel state right now */
@@ -718,7 +720,6 @@ int Mdrunner::mdrunner()
 
     /* TODO: inputrec should tell us whether we use an algorithm, not a file option */
     const bool doEssentialDynamics = opt2bSet("-ei", filenames.size(), filenames.data());
-    const bool doMembed            = opt2bSet("-membed", filenames.size(), filenames.data());
     const bool doRerun             = mdrunOptions.rerun;
 
     // Handle task-assignment related user options.
@@ -820,8 +821,9 @@ int Mdrunner::mdrunner()
          * TODO Over-writing the user-supplied value here does
          * prevent any possible subsequent checks from working
          * correctly. */
-        hw_opt.nthreads_tmpi = get_nthreads_mpi(hwinfo, &hw_opt, gpuIdsToUse, useGpuForNonbonded,
-                                                useGpuForPme, inputrec, &mtop, mdlog, doMembed);
+        hw_opt.nthreads_tmpi =
+                get_nthreads_mpi(hwinfo, &hw_opt, gpuIdsToUse, useGpuForNonbonded, useGpuForPme,
+                                 inputrec, &mtop, mdlog, membedHolder.doMembed());
 
         // Now start the threads for thread MPI.
         spawnThreads(hw_opt.nthreads_tmpi);
@@ -842,7 +844,7 @@ int Mdrunner::mdrunner()
         {
             inputrec = &inputrecInstance;
         }
-        init_parallel(cr, inputrec, &mtop, partialDeserializedTpr.get());
+        init_parallel(cr->mpi_comm_mygroup, MASTER(cr), inputrec, &mtop, partialDeserializedTpr.get());
     }
     GMX_RELEASE_ASSERT(inputrec != nullptr, "All ranks should have a valid inputrec now");
     partialDeserializedTpr.reset(nullptr);
@@ -892,8 +894,9 @@ int Mdrunner::mdrunner()
     const DevelopmentFeatureFlags devFlags =
             manageDevelopmentFeatures(mdlog, useGpuForNonbonded, pmeRunMode);
 
-    const bool useModularSimulator = checkUseModularSimulator(
-            false, inputrec, doRerun, mtop, ms, replExParams, nullptr, doEssentialDynamics, doMembed);
+    const bool useModularSimulator =
+            checkUseModularSimulator(false, inputrec, doRerun, mtop, ms, replExParams, nullptr,
+                                     doEssentialDynamics, membedHolder.doMembed());
 
     // Build restraints.
     // TODO: hide restraint implementation details from Mdrunner.
@@ -955,7 +958,7 @@ int Mdrunner::mdrunner()
         {
             globalState = std::make_unique<t_state>();
         }
-        broadcastStateWithoutDynamics(cr, globalState.get());
+        broadcastStateWithoutDynamics(cr->mpi_comm_mygroup, DOMAINDECOMP(cr), PAR(cr), globalState.get());
     }
 
     /* A parallel command line option consistency check that we can
@@ -1033,14 +1036,21 @@ int Mdrunner::mdrunner()
      * So the PME-only nodes (if present) will also initialize
      * the distance restraints.
      */
-    snew(fcd, 1);
 
     /* This needs to be called before read_checkpoint to extend the state */
-    init_disres(fplog, &mtop, inputrec, cr, ms, fcd, globalState.get(), replExParams.exchangeInterval > 0);
+    t_disresdata* disresdata;
+    snew(disresdata, 1);
+    init_disres(fplog, &mtop, inputrec, DisResRunMode::MDRun, MASTER(cr) ? DDRole::Master : DDRole::Agent,
+                PAR(cr) ? NumRanks::Multiple : NumRanks::Single, cr->mpi_comm_mysim, ms, disresdata,
+                globalState.get(), replExParams.exchangeInterval > 0);
 
-    init_orires(fplog, &mtop, inputrec, cr, ms, globalState.get(), &(fcd->orires));
+    t_oriresdata* oriresdata;
+    snew(oriresdata, 1);
+    init_orires(fplog, &mtop, inputrec, cr, ms, globalState.get(), oriresdata);
 
-    auto deform = prepareBoxDeformation(globalState->box, cr, *inputrec);
+    auto deform = prepareBoxDeformation(globalState->box, MASTER(cr) ? DDRole::Master : DDRole::Agent,
+                                        PAR(cr) ? NumRanks::Multiple : NumRanks::Single,
+                                        cr->mpi_comm_mygroup, *inputrec);
 
     ObservablesHistory observablesHistory = {};
 
@@ -1092,7 +1102,7 @@ int Mdrunner::mdrunner()
 
     if (PAR(cr))
     {
-        gmx_bcast(sizeof(box), box, cr);
+        gmx_bcast(sizeof(box), box, cr->mpi_comm_mygroup);
     }
 
     if (inputrec->cutoff_scheme != ecutsVERLET)
@@ -1130,9 +1140,8 @@ int Mdrunner::mdrunner()
         }
     }
 
-    // Produce the task assignment for this rank.
-    GpuTaskAssignmentsBuilder gpuTaskAssignmentsBuilder;
-    GpuTaskAssignments        gpuTaskAssignments = gpuTaskAssignmentsBuilder.build(
+    // Produce the task assignment for this rank - done after DD is constructed
+    GpuTaskAssignments gpuTaskAssignments = GpuTaskAssignmentsBuilder::build(
             gpuIdsToUse, userGpuTaskAssignment, *hwinfo, communicator, physicalNodeComm,
             nonbondedTarget, pmeTarget, bondedTarget, updateTarget, useGpuForNonbonded,
             useGpuForPme, thisRankHasDuty(cr, DUTY_PP),
@@ -1141,19 +1150,23 @@ int Mdrunner::mdrunner()
             EEL_PME(inputrec->coulombtype) && thisRankHasDuty(cr, DUTY_PME));
 
     // Get the device handles for the modules, nullptr when no task is assigned.
-    int                            deviceId      = -1;
-    DeviceInformation*             deviceInfo    = gpuTaskAssignments.initDevice(&deviceId);
-    std::unique_ptr<DeviceContext> deviceContext = nullptr;
-    if (deviceInfo != nullptr)
-    {
-        if (DOMAINDECOMP(cr) && thisRankHasDuty(cr, DUTY_PP))
-        {
-            dd_setup_dlb_resource_sharing(cr, deviceId);
-        }
-        deviceContext = std::make_unique<DeviceContext>(*deviceInfo);
-    }
+    int                deviceId   = -1;
+    DeviceInformation* deviceInfo = gpuTaskAssignments.initDevice(&deviceId);
 
-    // TODO Initialize GPU streams here.
+    // timing enabling - TODO put this in gpu_utils (even though generally this is just option handling?)
+    bool useTiming = true;
+    if (GMX_GPU == GMX_GPU_CUDA)
+    {
+        /* WARNING: CUDA timings are incorrect with multiple streams.
+         *          This is the main reason why they are disabled by default.
+         */
+        // TODO: Consider turning on by default when we can detect nr of streams.
+        useTiming = (getenv("GMX_ENABLE_GPU_TIMING") != nullptr);
+    }
+    else if (GMX_GPU == GMX_GPU_OPENCL)
+    {
+        useTiming = (getenv("GMX_DISABLE_GPU_TIMING") == nullptr);
+    }
 
     // TODO Currently this is always built, yet DD partition code
     // checks if it is built before using it. Probably it should
@@ -1189,6 +1202,19 @@ int Mdrunner::mdrunner()
 
     const bool printHostName = (cr->nnodes > 1);
     gpuTaskAssignments.reportGpuUsage(mdlog, printHostName, useGpuForBonded, pmeRunMode, useGpuForUpdate);
+
+    std::unique_ptr<DeviceStreamManager> deviceStreamManager = nullptr;
+
+    if (deviceInfo != nullptr)
+    {
+        if (DOMAINDECOMP(cr) && thisRankHasDuty(cr, DUTY_PP))
+        {
+            dd_setup_dlb_resource_sharing(cr, deviceId);
+        }
+        deviceStreamManager = std::make_unique<DeviceStreamManager>(
+                *deviceInfo, useGpuForPme, useGpuForNonbonded, havePPDomainDecomposition(cr),
+                useGpuForUpdate, useTiming);
+    }
 
     // If the user chose a task assignment, give them some hints
     // where appropriate.
@@ -1310,28 +1336,18 @@ int Mdrunner::mdrunner()
         /* Master synchronizes its value of reset_counters with all nodes
          * including PME only nodes */
         int64_t reset_counters = wcycle_get_reset_counters(wcycle);
-        gmx_bcast_sim(sizeof(reset_counters), &reset_counters, cr);
+        gmx_bcast(sizeof(reset_counters), &reset_counters, cr->mpi_comm_mysim);
         wcycle_set_reset_counters(wcycle, reset_counters);
     }
 
     // Membrane embedding must be initialized before we call init_forcerec()
-    if (doMembed)
-    {
-        if (MASTER(cr))
-        {
-            fprintf(stderr, "Initializing membed");
-        }
-        /* Note that membed cannot work in parallel because mtop is
-         * changed here. Fix this if we ever want to make it run with
-         * multiple ranks. */
-        membed = init_membed(fplog, filenames.size(), filenames.data(), &mtop, inputrec,
-                             globalState.get(), cr, &mdrunOptions.checkpointOptions.period);
-    }
+    membedHolder.initializeMembed(fplog, filenames.size(), filenames.data(), &mtop, inputrec,
+                                  globalState.get(), cr, &mdrunOptions.checkpointOptions.period);
 
-    const bool                   thisRankHasPmeGpuTask = gpuTaskAssignments.thisRankHasPmeGpuTask();
-    std::unique_ptr<MDAtoms>     mdAtoms;
-    std::unique_ptr<gmx_vsite_t> vsite;
-    std::unique_ptr<GpuBonded>   gpuBonded;
+    const bool               thisRankHasPmeGpuTask = gpuTaskAssignments.thisRankHasPmeGpuTask();
+    std::unique_ptr<MDAtoms> mdAtoms;
+    std::unique_ptr<VirtualSitesHandler> vsite;
+    std::unique_ptr<GpuBonded>           gpuBonded;
 
     t_nrnb nrnb;
     if (thisRankHasDuty(cr, DUTY_PP))
@@ -1343,37 +1359,44 @@ int Mdrunner::mdrunner()
         /* Initiate forcerecord */
         fr                 = new t_forcerec;
         fr->forceProviders = mdModules_->initForceProviders();
-        init_forcerec(fplog, mdlog, fr, fcd, inputrec, &mtop, cr, box,
+        init_forcerec(fplog, mdlog, fr, inputrec, &mtop, cr, box,
                       opt2fn("-table", filenames.size(), filenames.data()),
                       opt2fn("-tablep", filenames.size(), filenames.data()),
                       opt2fns("-tableb", filenames.size(), filenames.data()), pforce);
+        // Dirty hack, for fixing disres and orires should be made mdmodules
+        fr->listedForces->fcdata().disres = disresdata;
+        fr->listedForces->fcdata().orires = oriresdata;
 
-        fr->deviceContext = deviceContext.get();
+        // Save a handle to device stream manager to use elsewhere in the code
+        // TODO: Forcerec is not a correct place to store it.
+        fr->deviceStreamManager = deviceStreamManager.get();
 
         if (devFlags.enableGpuPmePPComm && !thisRankHasDuty(cr, DUTY_PME))
         {
             GMX_RELEASE_ASSERT(
-                    deviceContext != nullptr,
-                    "Device context can not be nullptr when PME-PP direct communications object.");
+                    deviceStreamManager != nullptr,
+                    "GPU device stream manager should be valid in order to use PME-PP direct "
+                    "communications.");
+            GMX_RELEASE_ASSERT(
+                    deviceStreamManager->streamIsValid(DeviceStreamType::PmePpTransfer),
+                    "GPU PP-PME stream should be valid in order to use GPU PME-PP direct "
+                    "communications.");
             fr->pmePpCommGpu = std::make_unique<gmx::PmePpCommGpu>(
-                    cr->mpi_comm_mysim, cr->dd->pme_nodeid, *deviceContext);
+                    cr->mpi_comm_mysim, cr->dd->pme_nodeid, deviceStreamManager->context(),
+                    deviceStreamManager->stream(DeviceStreamType::PmePpTransfer));
         }
 
-        fr->nbv = Nbnxm::init_nb_verlet(mdlog, inputrec, fr, cr, *hwinfo, deviceInfo,
-                                        fr->deviceContext, &mtop, box, wcycle);
+        fr->nbv = Nbnxm::init_nb_verlet(mdlog, inputrec, fr, cr, *hwinfo, useGpuForNonbonded,
+                                        deviceStreamManager.get(), &mtop, box, wcycle);
+        // TODO: Move the logic below to a GPU bonded builder
         if (useGpuForBonded)
         {
-            auto stream = havePPDomainDecomposition(cr)
-                                  ? Nbnxm::gpu_get_command_stream(
-                                            fr->nbv->gpu_nbv, gmx::InteractionLocality::NonLocal)
-                                  : Nbnxm::gpu_get_command_stream(fr->nbv->gpu_nbv,
-                                                                  gmx::InteractionLocality::Local);
-            GMX_RELEASE_ASSERT(
-                    fr->deviceContext != nullptr,
-                    "Device context can not be nullptr when computing bonded interactions on GPU.");
-            GMX_RELEASE_ASSERT(stream != nullptr,
-                               "Can'r run GPU version of bonded forces in nullptr stream.");
-            gpuBonded = std::make_unique<GpuBonded>(mtop.ffparams, *fr->deviceContext, *stream, wcycle);
+            GMX_RELEASE_ASSERT(deviceStreamManager != nullptr,
+                               "GPU device stream manager should be valid in order to use GPU "
+                               "version of bonded forces.");
+            gpuBonded = std::make_unique<GpuBonded>(
+                    mtop.ffparams, fr->ic->epsfac * fr->fudgeQQ, deviceStreamManager->context(),
+                    deviceStreamManager->bondedStream(havePPDomainDecomposition(cr)), wcycle);
             fr->gpuBonded = gpuBonded.get();
         }
 
@@ -1393,7 +1416,7 @@ int Mdrunner::mdrunner()
         }
 
         /* Initialize the virtual site communication */
-        vsite = initVsite(mtop, cr);
+        vsite = makeVirtualSitesHandler(mtop, cr, fr->pbcType);
 
         calc_shifts(box, fr->shift_vec);
 
@@ -1414,7 +1437,7 @@ int Mdrunner::mdrunner()
                  * for the initial distribution in the domain decomposition
                  * and for the initial shell prediction.
                  */
-                constructVsitesGlobal(mtop, globalState->x);
+                constructVirtualSitesGlobal(mtop, globalState->x);
             }
         }
 
@@ -1450,9 +1473,11 @@ int Mdrunner::mdrunner()
     if (thisRankHasPmeGpuTask)
     {
         GMX_RELEASE_ASSERT(
-                deviceContext != nullptr,
-                "Device context can not be nullptr when building PME GPU program object.");
-        pmeGpuProgram = buildPmeGpuProgram(*deviceContext);
+                (deviceStreamManager != nullptr),
+                "GPU device stream manager should be initialized in order to use GPU for PME.");
+        GMX_RELEASE_ASSERT((deviceInfo != nullptr),
+                           "GPU device should be initialized in order to use GPU for PME.");
+        pmeGpuProgram = buildPmeGpuProgram(deviceStreamManager->context());
     }
 
     /* Initiate PME if necessary,
@@ -1470,18 +1495,31 @@ int Mdrunner::mdrunner()
         if (cr->npmenodes > 0)
         {
             /* The PME only nodes need to know nChargePerturbed(FEP on Q) and nTypePerturbed(FEP on LJ)*/
-            gmx_bcast_sim(sizeof(nChargePerturbed), &nChargePerturbed, cr);
-            gmx_bcast_sim(sizeof(nTypePerturbed), &nTypePerturbed, cr);
+            gmx_bcast(sizeof(nChargePerturbed), &nChargePerturbed, cr->mpi_comm_mysim);
+            gmx_bcast(sizeof(nTypePerturbed), &nTypePerturbed, cr->mpi_comm_mysim);
         }
 
         if (thisRankHasDuty(cr, DUTY_PME))
         {
             try
             {
+                // TODO: This should be in the builder.
+                GMX_RELEASE_ASSERT(!useGpuForPme || (deviceStreamManager != nullptr),
+                                   "Device stream manager should be valid in order to use GPU "
+                                   "version of PME.");
+                GMX_RELEASE_ASSERT(
+                        !useGpuForPme || deviceStreamManager->streamIsValid(DeviceStreamType::Pme),
+                        "GPU PME stream should be valid in order to use GPU version of PME.");
+
+                const DeviceContext* deviceContext =
+                        useGpuForPme ? &deviceStreamManager->context() : nullptr;
+                const DeviceStream* pmeStream =
+                        useGpuForPme ? &deviceStreamManager->stream(DeviceStreamType::Pme) : nullptr;
+
                 pmedata = gmx_pme_init(cr, getNumPmeDomains(cr->dd), inputrec, nChargePerturbed != 0,
                                        nTypePerturbed != 0, mdrunOptions.reproducible, ewaldcoeff_q,
                                        ewaldcoeff_lj, gmx_omp_nthreads_get(emntPME), pmeRunMode,
-                                       nullptr, deviceInfo, pmeGpuProgram.get(), mdlog);
+                                       nullptr, deviceContext, pmeStream, pmeGpuProgram.get(), mdlog);
             }
             GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
         }
@@ -1539,8 +1577,8 @@ int Mdrunner::mdrunner()
         }
 
         /* Let makeConstraints know whether we have essential dynamics constraints. */
-        auto constr = makeConstraints(mtop, *inputrec, pull_work, doEssentialDynamics, fplog,
-                                      *mdAtoms->mdatoms(), cr, ms, &nrnb, wcycle, fr->bMolPBC);
+        auto constr = makeConstraints(mtop, *inputrec, pull_work, doEssentialDynamics, fplog, cr,
+                                      ms, &nrnb, wcycle, fr->bMolPBC);
 
         /* Energy terms and groups */
         gmx_enerdata_t enerd(mtop.groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
@@ -1581,39 +1619,44 @@ int Mdrunner::mdrunner()
             && ((useGpuForPme && thisRankHasDuty(cr, DUTY_PME))
                 || runScheduleWork.simulationWork.useGpuBufferOps))
         {
-            const DeviceStream* pmeStream = pme_gpu_get_device_stream(fr->pmedata);
-            const DeviceStream* localStream =
-                    fr->nbv->gpu_nbv != nullptr
-                            ? Nbnxm::gpu_get_command_stream(fr->nbv->gpu_nbv, InteractionLocality::Local)
-                            : nullptr;
-            const DeviceStream* nonLocalStream =
-                    fr->nbv->gpu_nbv != nullptr
-                            ? Nbnxm::gpu_get_command_stream(fr->nbv->gpu_nbv, InteractionLocality::NonLocal)
-                            : nullptr;
             GpuApiCallBehavior transferKind = (inputrec->eI == eiMD && !doRerun && !useModularSimulator)
                                                       ? GpuApiCallBehavior::Async
                                                       : GpuApiCallBehavior::Sync;
-            GMX_RELEASE_ASSERT(
-                    deviceContext != nullptr,
-                    "Device context can not be nullptr when building GPU propagator data object.");
+            GMX_RELEASE_ASSERT(deviceStreamManager != nullptr,
+                               "GPU device stream manager should be initialized to use GPU.");
             stateGpu = std::make_unique<gmx::StatePropagatorDataGpu>(
-                    pmeStream, localStream, nonLocalStream, *deviceContext, transferKind,
-                    pme_gpu_get_block_size(fr->pmedata), wcycle);
+                    *deviceStreamManager, transferKind, pme_gpu_get_block_size(fr->pmedata), wcycle);
             fr->stateGpu = stateGpu.get();
         }
 
         GMX_ASSERT(stopHandlerBuilder_, "Runner must provide StopHandlerBuilder to simulator.");
         SimulatorBuilder simulatorBuilder;
 
+        simulatorBuilder.add(SimulatorStateData(globalState.get(), &observablesHistory, &enerd, &ekind));
+        simulatorBuilder.add(std::move(membedHolder));
+        simulatorBuilder.add(std::move(stopHandlerBuilder_));
+        simulatorBuilder.add(SimulatorConfig(mdrunOptions, startingBehavior, &runScheduleWork));
+
+
+        simulatorBuilder.add(SimulatorEnv(fplog, cr, ms, mdlog, oenv));
+        simulatorBuilder.add(Profiling(&nrnb, walltime_accounting, wcycle));
+        simulatorBuilder.add(ConstraintsParam(
+                constr.get(), enforcedRotation ? enforcedRotation->getLegacyEnfrot() : nullptr,
+                vsite.get()));
+        // TODO: Separate `fr` to a separate add, and make the `build` handle the coupling sensibly.
+        simulatorBuilder.add(
+                LegacyInput(static_cast<int>(filenames.size()), filenames.data(), inputrec, fr));
+        simulatorBuilder.add(ReplicaExchangeParameters(replExParams));
+        simulatorBuilder.add(InteractiveMD(imdSession.get()));
+        simulatorBuilder.add(SimulatorModules(mdModules_->outputProvider(), mdModules_->notifier()));
+        simulatorBuilder.add(CenterOfMassPulling(pull_work));
+        // Todo move to an MDModule
+        simulatorBuilder.add(IonSwapping(swap));
+        simulatorBuilder.add(TopologyData(&mtop, mdAtoms.get()));
+        simulatorBuilder.add(BoxDeformationHandle(deform.get()));
+
         // build and run simulator object based on user-input
-        auto simulator = simulatorBuilder.build(
-                useModularSimulator, fplog, cr, ms, mdlog, static_cast<int>(filenames.size()),
-                filenames.data(), oenv, mdrunOptions, startingBehavior, vsite.get(), constr.get(),
-                enforcedRotation ? enforcedRotation->getLegacyEnfrot() : nullptr, deform.get(),
-                mdModules_->outputProvider(), mdModules_->notifier(), inputrec, imdSession.get(),
-                pull_work, swap, &mtop, fcd, globalState.get(), &observablesHistory, mdAtoms.get(),
-                &nrnb, wcycle, fr, &enerd, &ekind, &runScheduleWork, replExParams, membed,
-                walltime_accounting, std::move(stopHandlerBuilder_), doRerun);
+        auto simulator = simulatorBuilder.build(useModularSimulator);
         simulator->run();
 
         if (fr->pmePpCommGpu)
@@ -1634,7 +1677,7 @@ int Mdrunner::mdrunner()
         /* do PME only */
         walltime_accounting = walltime_accounting_init(gmx_omp_nthreads_get(emntPME));
         gmx_pmeonly(pmedata, cr, &nrnb, wcycle, walltime_accounting, inputrec, pmeRunMode,
-                    deviceContext.get());
+                    deviceStreamManager.get());
     }
 
     wallcycle_stop(wcycle, ewcRUN);
@@ -1648,6 +1691,7 @@ int Mdrunner::mdrunner()
     // clean up cycle counter
     wallcycle_destroy(wcycle);
 
+    deviceStreamManager.reset(nullptr);
     // Free PME data
     if (pmedata)
     {
@@ -1666,6 +1710,9 @@ int Mdrunner::mdrunner()
     /* Free pinned buffers in *fr */
     delete fr;
     fr = nullptr;
+    // TODO convert to C++ so we can get rid of these frees
+    sfree(disresdata);
+    sfree(oriresdata);
 
     if (hwinfo->gpu_info.n_dev > 0)
     {
@@ -1695,13 +1742,6 @@ int Mdrunner::mdrunner()
     }
 
     free_gpu(deviceInfo);
-    deviceContext.reset(nullptr);
-    sfree(fcd);
-
-    if (doMembed)
-    {
-        free_membed(membed);
-    }
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());
@@ -1732,7 +1772,7 @@ int Mdrunner::mdrunner()
     }
 #endif
     return rc;
-}
+} // namespace gmx
 
 Mdrunner::~Mdrunner()
 {
@@ -1765,8 +1805,7 @@ Mdrunner::Mdrunner(std::unique_ptr<MDModules> mdModules) : mdModules_(std::move(
 
 Mdrunner::Mdrunner(Mdrunner&&) noexcept = default;
 
-//NOLINTNEXTLINE(performance-noexcept-move-constructor) working around GCC bug 58265
-Mdrunner& Mdrunner::operator=(Mdrunner&& /*handle*/) noexcept(BUGFREE_NOEXCEPT_STRING) = default;
+Mdrunner& Mdrunner::operator=(Mdrunner&& /*handle*/) noexcept = default;
 
 class Mdrunner::BuilderImplementation
 {

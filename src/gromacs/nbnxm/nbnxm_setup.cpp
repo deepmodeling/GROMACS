@@ -186,6 +186,7 @@ static KernelSetup pick_nbnxn_kernel_cpu(const t_inputrec gmx_unused* ir,
          * On AMD Zen, tabulated Ewald kernels are faster on all 4 combinations
          * of single or double precision and 128 or 256-bit AVX2.
          */
+        MSVC_DIAGNOSTIC_IGNORE(6285) // Always zero because compile time constant
         if (
 #if GMX_SIMD
                 (GMX_SIMD_REAL_WIDTH >= 8 || (GMX_SIMD_REAL_WIDTH >= 4 && GMX_SIMD_HAVE_FMA && !GMX_DOUBLE)) &&
@@ -194,10 +195,8 @@ static KernelSetup pick_nbnxn_kernel_cpu(const t_inputrec gmx_unused* ir,
         {
             kernelSetup.ewaldExclusionType = EwaldExclusionType::Analytical;
         }
-        else
-        {
-            kernelSetup.ewaldExclusionType = EwaldExclusionType::Table;
-        }
+        MSVC_DIAGNOSTIC_RESET
+        else { kernelSetup.ewaldExclusionType = EwaldExclusionType::Table; }
         if (getenv("GMX_NBNXN_EWALD_TABLE") != nullptr)
         {
             kernelSetup.ewaldExclusionType = EwaldExclusionType::Table;
@@ -358,25 +357,24 @@ static int getMinimumIlistCountForGpuBalancing(NbnxmGpu* nbnxmGpu)
     return minimumIlistCount;
 }
 
-std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlog,
-                                                   const t_inputrec*        ir,
-                                                   const t_forcerec*        fr,
-                                                   const t_commrec*         cr,
-                                                   const gmx_hw_info_t&     hardwareInfo,
-                                                   const DeviceInformation* deviceInfo,
-                                                   const DeviceContext*     deviceContext,
-                                                   const gmx_mtop_t*        mtop,
-                                                   matrix                   box,
-                                                   gmx_wallcycle*           wcycle)
+std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
+                                                   const t_inputrec*    ir,
+                                                   const t_forcerec*    fr,
+                                                   const t_commrec*     cr,
+                                                   const gmx_hw_info_t& hardwareInfo,
+                                                   const bool           useGpuForNonbonded,
+                                                   const gmx::DeviceStreamManager* deviceStreamManager,
+                                                   const gmx_mtop_t*               mtop,
+                                                   matrix                          box,
+                                                   gmx_wallcycle*                  wcycle)
 {
     const bool emulateGpu = (getenv("GMX_EMULATE_GPU") != nullptr);
-    const bool useGpu     = deviceInfo != nullptr;
 
-    GMX_RELEASE_ASSERT(!(emulateGpu && useGpu),
+    GMX_RELEASE_ASSERT(!(emulateGpu && useGpuForNonbonded),
                        "When GPU emulation is active, there cannot be a GPU assignment");
 
     NonbondedResource nonbondedResource;
-    if (useGpu)
+    if (useGpuForNonbonded)
     {
         nonbondedResource = NonbondedResource::Gpu;
     }
@@ -425,7 +423,8 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlo
         enbnxninitcombrule = enbnxninitcombruleNONE;
     }
 
-    auto pinPolicy = (useGpu ? gmx::PinningPolicy::PinnedIfSupported : gmx::PinningPolicy::CannotBePinned);
+    auto pinPolicy = (useGpuForNonbonded ? gmx::PinningPolicy::PinnedIfSupported
+                                         : gmx::PinningPolicy::CannotBePinned);
 
     auto nbat = std::make_unique<nbnxn_atomdata_t>(pinPolicy);
 
@@ -440,18 +439,18 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlo
     }
     nbnxn_atomdata_init(mdlog, nbat.get(), kernelSetup.kernelType, enbnxninitcombrule, fr->ntype,
                         fr->nbfp, mimimumNumEnergyGroupNonbonded,
-                        (useGpu || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
+                        (useGpuForNonbonded || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
 
     NbnxmGpu* gpu_nbv                          = nullptr;
     int       minimumIlistCountForGpuBalancing = 0;
-    if (useGpu)
+    if (useGpuForNonbonded)
     {
-        GMX_RELEASE_ASSERT(
-                deviceContext != nullptr,
-                "Device context can not be nullptr when to use GPU for non-bonded forces.");
         /* init the NxN GPU data; the last argument tells whether we'll have
          * both local and non-local NB calculation on GPU */
-        gpu_nbv = gpu_init(*deviceContext, fr->ic, pairlistParams, nbat.get(), haveMultipleDomains);
+        GMX_RELEASE_ASSERT(
+                (deviceStreamManager != nullptr),
+                "Device stream manager should be initialized in order to use GPU for non-bonded.");
+        gpu_nbv = gpu_init(*deviceStreamManager, fr->ic, pairlistParams, nbat.get(), haveMultipleDomains);
 
         minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv);
     }
