@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <array>
+#include <numeric>
 
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
@@ -706,7 +707,7 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
             {
                 gmx_incons("The bonded interactions are not sorted for free energy");
             }
-            for (gmx::index i = 0; i < enerd->foreignLambdaTerms.energies().ssize(); i++)
+            for (int i = 0; i < 1 + enerd->foreignLambdaTerms.numLambdas(); i++)
             {
                 real lam_i[efptNR];
 
@@ -719,12 +720,8 @@ void ListedForces::calculate(struct gmx_wallcycle*          wcycle,
                                    shiftForceBufferLambda_, &(enerd->foreign_grpp), enerd->foreign_term,
                                    dvdl, nrnb, lam_i, md, &fcdata, global_atom_index);
                 sum_epot(enerd->foreign_grpp, enerd->foreign_term);
-                double dvdlSum = 0;
-                for (int j = 0; j < efptNR; j++)
-                {
-                    dvdlSum += dvdl[j];
-                    dvdl[j] = 0;
-                }
+                const double dvdlSum = std::accumulate(std::begin(dvdl), std::end(dvdl), 0.);
+                std::fill(std::begin(dvdl), std::end(dvdl), 0.0);
                 enerd->foreignLambdaTerms.accumulate(i, enerd->foreign_term[F_EPOT], dvdlSum);
             }
             wallcycle_sub_stop(wcycle, ewcsLISTED_FEP);
