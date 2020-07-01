@@ -1875,7 +1875,6 @@ void do_force(FILE*                               fplog,
     {
         /* Compute the final potential energy terms */
         accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
-        ;
 
         if (!EI_TPI(inputrec->eI))
         {
