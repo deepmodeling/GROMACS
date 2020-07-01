@@ -478,6 +478,8 @@ double BiasState::calcUmbrellaForceAndPotential(const std::vector<DimParams>& di
     {
         if (dimParams[d].isLambdaDimension())
         {
+            GMX_ASSERT(neighborLambdaDhdl.size() > 0,
+                       "There must be more than one lambda state to use AWH with FEP.");
             const int coordpointLambdaIndex = grid.point(point).coordValue[d];
             /* Index 0 in neighborLambdaEnergies corresponds to the current lambda state.
              * Index 1..[numLambdaPoints] corresponds to the neighbor lambda states. Therefore
