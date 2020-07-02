@@ -282,7 +282,7 @@ TEST_P(BiasFepLambdaStateTest, ForcesBiasPmf)
     constexpr int ulpTol = 10;
 
     checker.checkSequence(props.begin(), props.end(), "Properties");
-    checker.setDefaultTolerance(absoluteTolerance(energyNoiseMagnitude * GMX_DOUBLE_EPS * ulpTol));
+    checker.setDefaultTolerance(absoluteTolerance(magnitude * GMX_DOUBLE_EPS * ulpTol));
     checker.checkSequence(force.begin(), force.end(), "Force");
     checker.checkSequence(pot.begin(), pot.end(), "Potential");
     checker.setDefaultTolerance(relativeToleranceAsUlp(1.0, ulpTol));
