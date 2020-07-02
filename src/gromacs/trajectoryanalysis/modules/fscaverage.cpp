@@ -45,8 +45,7 @@
 #include "fscaverage.h"
 
 #include <numeric>
-// #include <memory>
-// #include <string>
+#include <optional>
 #include <vector>
 
 #include "gromacs/analysisdata/analysisdata.h"
@@ -70,12 +69,11 @@
 #include "gromacs/fileio/mrcdensitymap.h"
 
 #include "gromacs/pbcutil/pbc.h"
-#include "gromacs/compat/optional.h"
 
 #include "gromacs/topology/atoms.h"
 
 #include "gromacs/mdtypes/mdatom.h"
-#include "gromacs/applied_forces/densityfittingamplitudelookup.h"
+#include "gromacs/applied_forces/densityfittingoptions.h"
 
 
 namespace gmx
@@ -162,10 +160,10 @@ private:
     Selection                                           refSel_;
     basic_mdspan<const float, dynamicExtents3D>         referenceDensity_;
     MultiDimArray<std::vector<float>, dynamicExtents3D> referenceDensityData_;
-    compat::optional<TranslateAndScale>                 transformationToDensityLattice_;
+    std::optional<TranslateAndScale>                    transformationToDensityLattice_;
     RVec                                                referenceDensityCenter_;
-    compat::optional<GaussTransform3D>                  gaussTransform_;
-    compat::optional<FourierShellCorrelation>           fsc_;
+    std::optional<GaussTransform3D>                     gaussTransform_;
+    std::optional<FourierShellCorrelation>              fsc_;
     std::vector<DensitySimilarityMeasure>               measure_;
     // Copy and assign disallowed by base.
 };
@@ -229,14 +227,15 @@ void FSCAvg::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings*
                                .description("FSC x-axis"));
 
     options->addOption(EnumOption<DensityFittingAmplitudeMethod>("amplitude")
-                               .enumValue(c_densityFittingAmplitudeMethodNames.m_elements)
+                               .enumValue({ "unity", "mass", "charge" })
                                .store(&amplitudeLookupMethod_));
 
     options->addOption(RealOption("gausswidth")
                                .required(false)
                                .store(&gaussianTransformSpreadingWidth_)
                                .storeIsSet(&gaussWidthIsSet_)
-                               .description("Spreading Gaussian width to generate density in nm. 2 * voxelsize if not set."));
+                               .description("Spreading Gaussian width to generate density in nm. 2 "
+                                            "* voxelsize if not set."));
 
     options->addOption(
             IntegerOption("shells").store(&numFscShells_).defaultValue(61).description("Number of FSC shells."));
@@ -305,10 +304,12 @@ void FSCAvg::optionsFinished(TrajectoryAnalysisSettings* /* settings */)
 
     GaussianSpreadKernelParameters::Shape spreadKernel =
             defaultSpreadKernel(gaussianTransformSpreadingRangeInMultiplesOfWidth_);
-    if ( )
+
+    if (gaussWidthIsSet_)
     {
-        gaussianTransformSpreadingWidth_, gaussianTransformSpreadingRangeInMultiplesOfWidth_,
-        transformationToDensityLattice_->scaleOperationOnly());
+        spreadKernel = makeSpreadKernel(gaussianTransformSpreadingWidth_,
+                                        gaussianTransformSpreadingRangeInMultiplesOfWidth_,
+                                        transformationToDensityLattice_->scaleOperationOnly());
     }
 
     gaussTransform_.emplace(GaussTransform3D(referenceDensity_.extents(), spreadKernel));
@@ -362,8 +363,7 @@ void FSCAvg::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topo
     addPlotModule(&fscMoveAverage_, settings.plotSettings(), fnFSCmoveavg_,
                   "Fourier Shell Correlation Average Moving Map Average", "FSC avg", numFscShells_);
     addPlotModule(&similarityScore_, settings.plotSettings(), fnSimilarity_,
-                  "Similarity to reference density", "similarity",
-                  c_densitySimilarityMeasureMethodNames.size());
+                  "Similarity to reference density", "similarity", 3);
     mdAtoms_ = mdatomsFromtAtoms(*(top.atoms()));
 }
 
