@@ -36,12 +36,15 @@
 #define GMX_MDTYPES_TYPES_ENERDATA_H
 
 #include <array>
+#include <tuple>
 #include <vector>
 
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/topology/idef.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/real.h"
+
+struct t_commrec;
 
 // The non-bonded energy terms accumulated for energy group pairs
 enum
@@ -120,6 +123,15 @@ public:
         }
     }
 
+    /*! \brief Returns a tuple of lists of deltaH and dH/dlambda
+     *
+     * Both lists are of size numLambdas() and are indexed with the lambda index.
+     * The returned lists are valid until the next call to this method.
+     *
+     * \param[in] cr  Communication record, used to reduce the terms when !=nullptr
+     */
+    std::tuple<gmx::ArrayRef<const double>, gmx::ArrayRef<const double>> getTerms(t_commrec* cr);
+
     //! Sets all terms to 0
     void zeroAllTerms();
 
@@ -130,6 +142,8 @@ private:
     std::vector<double> energies_;
     //! Storage for foreign lambda dH/dlambda
     std::vector<double> dhdl_;
+    //! Storage for return buffers for getTerms()
+    std::vector<double> combinedReturnBuffer_;
 };
 
 //! Struct for accumulating all potential energy terms and some kinetic energy terms

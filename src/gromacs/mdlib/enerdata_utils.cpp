@@ -39,6 +39,8 @@
 
 #include "enerdata_utils.h"
 
+#include "gromacs/gmxlib/network.h"
+#include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/enerdata.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/utility/fatalerror.h"
@@ -47,8 +49,28 @@
 ForeignLambdaTerms::ForeignLambdaTerms(int numLambdas) :
     numLambdas_(numLambdas),
     energies_(1 + numLambdas),
-    dhdl_(1 + numLambdas)
+    dhdl_(1 + numLambdas),
+    combinedReturnBuffer_(2 * numLambdas)
 {
+}
+
+std::tuple<gmx::ArrayRef<const double>, gmx::ArrayRef<const double>> ForeignLambdaTerms::getTerms(t_commrec* cr)
+{
+    gmx::ArrayRef<double> deltaH = gmx::arrayRefFromArray(combinedReturnBuffer_.data(), numLambdas_);
+    gmx::ArrayRef<double> dhdl =
+            gmx::arrayRefFromArray<double>(combinedReturnBuffer_.data() + numLambdas_, numLambdas_);
+
+    for (int i = 0; i < numLambdas_; i++)
+    {
+        deltaH[i] = energies_[1 + i] - energies_[0];
+        dhdl[i]   = dhdl_[1 + i];
+    }
+    if (cr && cr->nnodes > 1)
+    {
+        gmx_sumd(combinedReturnBuffer_.size(), combinedReturnBuffer_.data(), cr);
+    }
+
+    return std::make_tuple(deltaH, dhdl);
 }
 
 void ForeignLambdaTerms::zeroAllTerms()
