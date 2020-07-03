@@ -64,6 +64,7 @@
 #include "gromacs/tools/make_ndx.h"
 #include "gromacs/tools/mk_angndx.h"
 #include "gromacs/tools/pme_error.h"
+#include "gromacs/tools/mapcompare.h"
 #include "gromacs/tools/report_methods.h"
 #include "gromacs/tools/trjcat.h"
 #include "gromacs/tools/trjconv.h"
@@ -197,6 +198,10 @@ void registerLegacyModules(gmx::CommandLineModuleManager* manager)
     gmx::ICommandLineOptionsModule::registerModuleFactory(manager, gmx::ReportMethodsInfo::name,
                                                           gmx::ReportMethodsInfo::shortDescription,
                                                           &gmx::ReportMethodsInfo::create);
+
+    gmx::ICommandLineOptionsModule::registerModuleFactory(manager, gmx::MapCompareInfo::name,
+                                                          gmx::MapCompareInfo::shortDescription,
+                                                          &gmx::MapCompareInfo::create);
 
     gmx::ICommandLineOptionsModule::registerModuleFactory(manager, gmx::pdb2gmxInfo::name,
                                                           gmx::pdb2gmxInfo::shortDescription,
