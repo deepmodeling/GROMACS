@@ -39,17 +39,22 @@
  * \ingroup module_mdrun
  */
 
+#include "gmxpre.h"
+
 #include "simulatorbuilder.h"
 
 #include <memory>
 
+#include "gromacs/mdlib/vsite.h"
 #include "gromacs/mdtypes/mdrunoptions.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/modularsimulator/modularsimulator.h"
 #include "gromacs/topology/topology.h"
+#include "gromacs/utility/mdmodulenotification.h"
 
 #include "legacysimulator.h"
 #include "membedholder.h"
+#include "replicaexchange.h"
 
 
 namespace gmx
@@ -156,6 +161,11 @@ std::unique_ptr<ISimulator> SimulatorBuilder::build(bool useModularSimulator)
 void SimulatorBuilder::add(MembedHolder&& membedHolder)
 {
     membedHolder_ = std::make_unique<MembedHolder>(std::move(membedHolder));
+}
+
+void SimulatorBuilder::add(ReplicaExchangeParameters&& replicaExchangeParameters)
+{
+    replicaExchangeParameters_ = std::make_unique<ReplicaExchangeParameters>(replicaExchangeParameters);
 }
 
 
