@@ -61,76 +61,69 @@ TEST(InteractionListTest, EmptyWorks)
 
 TEST(InteractionListTest, CanAddInteractionArray)
 {
-    InteractionList    ilist(F_CONSTR);
+    InteractionList    ilist(F_FBPOSRES);
     int                parameterType = 0;
-    std::array<int, 2> atomList      = { 1, 2 };
+    std::array<int, 1> atomList      = { 1 };
     ilist.push_back(parameterType, atomList);
     EXPECT_FALSE(ilist.empty());
-    EXPECT_EQ(ilist.rawIndices().size(), 3);
+    EXPECT_EQ(ilist.rawIndices().size(), 2);
     EXPECT_EQ(ilist.rawIndices()[0], parameterType);
     EXPECT_EQ(ilist.rawIndices()[1], 1);
-    EXPECT_EQ(ilist.rawIndices()[2], 2);
 }
 
-#if 0
 TEST(InteractionListTest, CanAddInteractionArrayMultipleAtoms)
 {
-    InteractionList    ilist;
+    InteractionList    ilist(F_ANGLES);
     int                parameterType = 0;
     std::array<int, 3> atomList      = { 1, 2, 3 };
     ilist.push_back(parameterType, atomList);
     EXPECT_FALSE(ilist.empty());
-    EXPECT_EQ(ilist.size(), 4);
-    EXPECT_EQ(ilist.iatoms[0], parameterType);
-    EXPECT_EQ(ilist.iatoms[1], 1);
-    EXPECT_EQ(ilist.iatoms[2], 2);
-    EXPECT_EQ(ilist.iatoms[3], 3);
+    EXPECT_EQ(ilist.rawIndices().size(), 4);
+    EXPECT_EQ(ilist.rawIndices()[0], parameterType);
+    EXPECT_EQ(ilist.rawIndices()[1], 1);
+    EXPECT_EQ(ilist.rawIndices()[2], 2);
+    EXPECT_EQ(ilist.rawIndices()[3], 3);
 }
 
 TEST(InteractionListTest, CanAddInteractionPointer)
 {
-    InteractionList    ilist;
+    InteractionList    ilist(F_FBPOSRES);
     int                parameterType  = 0;
     std::array<int, 1> singleAtomList = { 1 };
     ilist.push_back(parameterType, singleAtomList.size(), singleAtomList.data());
     EXPECT_FALSE(ilist.empty());
-    EXPECT_EQ(ilist.size(), 2);
-    EXPECT_EQ(ilist.iatoms[0], parameterType);
-    EXPECT_EQ(ilist.iatoms[1], 1);
+    EXPECT_EQ(ilist.rawIndices().size(), 2);
+    EXPECT_EQ(ilist.rawIndices()[0], parameterType);
+    EXPECT_EQ(ilist.rawIndices()[1], 1);
 }
 
 TEST(InteractionListTest, CanAddListToOtherList)
 {
-    InteractionList firstList;
+    InteractionList firstList(F_FBPOSRES);
     int             firstParameterType = 0;
     {
         std::array<int, 1> singleAtomList = { 1 };
         firstList.push_back(firstParameterType, singleAtomList);
         EXPECT_FALSE(firstList.empty());
-        EXPECT_EQ(firstList.size(), 2);
-        EXPECT_EQ(firstList.iatoms[0], firstParameterType);
-        EXPECT_EQ(firstList.iatoms[1], 1);
+        EXPECT_EQ(firstList.rawIndices().size(), 2);
+        EXPECT_EQ(firstList.rawIndices()[0], firstParameterType);
+        EXPECT_EQ(firstList.rawIndices()[1], 1);
     }
-    InteractionList secondList;
-    int             secondParameterType = 1;
+    InteractionList secondList(F_FBPOSRES);
+    int             secondParameterType = 2;
     {
-        std::array<int, 3> atomList = { 1, 2, 3 };
+        std::array<int, 1> atomList = { 3 };
         secondList.push_back(secondParameterType, atomList);
         EXPECT_FALSE(secondList.empty());
-        EXPECT_EQ(secondList.size(), 4);
-        EXPECT_EQ(secondList.iatoms[0], secondParameterType);
-        EXPECT_EQ(secondList.iatoms[1], 1);
-        EXPECT_EQ(secondList.iatoms[2], 2);
-        EXPECT_EQ(secondList.iatoms[3], 3);
+        EXPECT_EQ(secondList.rawIndices().size(), 2);
+        EXPECT_EQ(secondList.rawIndices()[0], secondParameterType);
+        EXPECT_EQ(secondList.rawIndices()[1], 3);
     }
     firstList.append(secondList);
-    EXPECT_EQ(firstList.size(), 6);
-    EXPECT_EQ(firstList.iatoms[2], secondParameterType);
-    EXPECT_EQ(firstList.iatoms[3], 1);
-    EXPECT_EQ(firstList.iatoms[4], 2);
-    EXPECT_EQ(firstList.iatoms[5], 3);
+    EXPECT_EQ(firstList.rawIndices().size(), 4);
+    EXPECT_EQ(firstList.rawIndices()[2], secondParameterType);
+    EXPECT_EQ(firstList.rawIndices()[3], 3);
 }
-#endif
 
 TEST(InteractionListTest, ClearingWorks)
 {
