@@ -82,6 +82,7 @@
 #include "gromacs/imd/imd.h"
 #include "gromacs/listed_forces/disre.h"
 #include "gromacs/listed_forces/gpubonded.h"
+#include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/listed_forces/orires.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"
@@ -97,7 +98,6 @@
 #include "gromacs/mdlib/makeconstraints.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/mdatoms.h"
-#include "gromacs/mdlib/membed.h"
 #include "gromacs/mdlib/sighandler.h"
 #include "gromacs/mdlib/stophandler.h"
 #include "gromacs/mdlib/tgroup.h"
@@ -124,6 +124,7 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/nbnxm/pairlist_tuning.h"
@@ -163,6 +164,7 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "isimulator.h"
+#include "membedholder.h"
 #include "replicaexchange.h"
 #include "simulatorbuilder.h"
 
@@ -704,14 +706,13 @@ int Mdrunner::mdrunner()
 {
     matrix                    box;
     t_forcerec*               fr               = nullptr;
-    t_fcdata*                 fcd              = nullptr;
     real                      ewaldcoeff_q     = 0;
     real                      ewaldcoeff_lj    = 0;
     int                       nChargePerturbed = -1, nTypePerturbed = 0;
     gmx_wallcycle_t           wcycle;
     gmx_walltime_accounting_t walltime_accounting = nullptr;
-    gmx_membed_t*             membed              = nullptr;
-    gmx_hw_info_t*            hwinfo              = nullptr;
+    MembedHolder              membedHolder(filenames.size(), filenames.data());
+    gmx_hw_info_t*            hwinfo = nullptr;
 
     /* CAUTION: threads may be started later on in this function, so
        cr doesn't reflect the final parallel state right now */
@@ -719,7 +720,6 @@ int Mdrunner::mdrunner()
 
     /* TODO: inputrec should tell us whether we use an algorithm, not a file option */
     const bool doEssentialDynamics = opt2bSet("-ei", filenames.size(), filenames.data());
-    const bool doMembed            = opt2bSet("-membed", filenames.size(), filenames.data());
     const bool doRerun             = mdrunOptions.rerun;
 
     // Handle task-assignment related user options.
@@ -821,8 +821,9 @@ int Mdrunner::mdrunner()
          * TODO Over-writing the user-supplied value here does
          * prevent any possible subsequent checks from working
          * correctly. */
-        hw_opt.nthreads_tmpi = get_nthreads_mpi(hwinfo, &hw_opt, gpuIdsToUse, useGpuForNonbonded,
-                                                useGpuForPme, inputrec, &mtop, mdlog, doMembed);
+        hw_opt.nthreads_tmpi =
+                get_nthreads_mpi(hwinfo, &hw_opt, gpuIdsToUse, useGpuForNonbonded, useGpuForPme,
+                                 inputrec, &mtop, mdlog, membedHolder.doMembed());
 
         // Now start the threads for thread MPI.
         spawnThreads(hw_opt.nthreads_tmpi);
@@ -893,8 +894,9 @@ int Mdrunner::mdrunner()
     const DevelopmentFeatureFlags devFlags =
             manageDevelopmentFeatures(mdlog, useGpuForNonbonded, pmeRunMode);
 
-    const bool useModularSimulator = checkUseModularSimulator(
-            false, inputrec, doRerun, mtop, ms, replExParams, nullptr, doEssentialDynamics, doMembed);
+    const bool useModularSimulator =
+            checkUseModularSimulator(false, inputrec, doRerun, mtop, ms, replExParams, nullptr,
+                                     doEssentialDynamics, membedHolder.doMembed());
 
     // Build restraints.
     // TODO: hide restraint implementation details from Mdrunner.
@@ -1034,14 +1036,17 @@ int Mdrunner::mdrunner()
      * So the PME-only nodes (if present) will also initialize
      * the distance restraints.
      */
-    snew(fcd, 1);
 
     /* This needs to be called before read_checkpoint to extend the state */
+    t_disresdata* disresdata;
+    snew(disresdata, 1);
     init_disres(fplog, &mtop, inputrec, DisResRunMode::MDRun, MASTER(cr) ? DDRole::Master : DDRole::Agent,
-                PAR(cr) ? NumRanks::Multiple : NumRanks::Single, cr->mpi_comm_mysim, ms, fcd,
+                PAR(cr) ? NumRanks::Multiple : NumRanks::Single, cr->mpi_comm_mysim, ms, disresdata,
                 globalState.get(), replExParams.exchangeInterval > 0);
 
-    init_orires(fplog, &mtop, inputrec, cr, ms, globalState.get(), &(fcd->orires));
+    t_oriresdata* oriresdata;
+    snew(oriresdata, 1);
+    init_orires(fplog, &mtop, inputrec, cr, ms, globalState.get(), oriresdata);
 
     auto deform = prepareBoxDeformation(globalState->box, MASTER(cr) ? DDRole::Master : DDRole::Agent,
                                         PAR(cr) ? NumRanks::Multiple : NumRanks::Single,
@@ -1336,18 +1341,8 @@ int Mdrunner::mdrunner()
     }
 
     // Membrane embedding must be initialized before we call init_forcerec()
-    if (doMembed)
-    {
-        if (MASTER(cr))
-        {
-            fprintf(stderr, "Initializing membed");
-        }
-        /* Note that membed cannot work in parallel because mtop is
-         * changed here. Fix this if we ever want to make it run with
-         * multiple ranks. */
-        membed = init_membed(fplog, filenames.size(), filenames.data(), &mtop, inputrec,
-                             globalState.get(), cr, &mdrunOptions.checkpointOptions.period);
-    }
+    membedHolder.initializeMembed(fplog, filenames.size(), filenames.data(), &mtop, inputrec,
+                                  globalState.get(), cr, &mdrunOptions.checkpointOptions.period);
 
     const bool               thisRankHasPmeGpuTask = gpuTaskAssignments.thisRankHasPmeGpuTask();
     std::unique_ptr<MDAtoms> mdAtoms;
@@ -1364,10 +1359,13 @@ int Mdrunner::mdrunner()
         /* Initiate forcerecord */
         fr                 = new t_forcerec;
         fr->forceProviders = mdModules_->initForceProviders();
-        init_forcerec(fplog, mdlog, fr, fcd, inputrec, &mtop, cr, box,
+        init_forcerec(fplog, mdlog, fr, inputrec, &mtop, cr, box,
                       opt2fn("-table", filenames.size(), filenames.data()),
                       opt2fn("-tablep", filenames.size(), filenames.data()),
                       opt2fns("-tableb", filenames.size(), filenames.data()), pforce);
+        // Dirty hack, for fixing disres and orires should be made mdmodules
+        fr->listedForces->fcdata().disres = disresdata;
+        fr->listedForces->fcdata().orires = oriresdata;
 
         // Save a handle to device stream manager to use elsewhere in the code
         // TODO: Forcerec is not a correct place to store it.
@@ -1634,15 +1632,31 @@ int Mdrunner::mdrunner()
         GMX_ASSERT(stopHandlerBuilder_, "Runner must provide StopHandlerBuilder to simulator.");
         SimulatorBuilder simulatorBuilder;
 
+        simulatorBuilder.add(SimulatorStateData(globalState.get(), &observablesHistory, &enerd, &ekind));
+        simulatorBuilder.add(std::move(membedHolder));
+        simulatorBuilder.add(std::move(stopHandlerBuilder_));
+        simulatorBuilder.add(SimulatorConfig(mdrunOptions, startingBehavior, &runScheduleWork));
+
+
+        simulatorBuilder.add(SimulatorEnv(fplog, cr, ms, mdlog, oenv));
+        simulatorBuilder.add(Profiling(&nrnb, walltime_accounting, wcycle));
+        simulatorBuilder.add(ConstraintsParam(
+                constr.get(), enforcedRotation ? enforcedRotation->getLegacyEnfrot() : nullptr,
+                vsite.get()));
+        // TODO: Separate `fr` to a separate add, and make the `build` handle the coupling sensibly.
+        simulatorBuilder.add(
+                LegacyInput(static_cast<int>(filenames.size()), filenames.data(), inputrec, fr));
+        simulatorBuilder.add(ReplicaExchangeParameters(replExParams));
+        simulatorBuilder.add(InteractiveMD(imdSession.get()));
+        simulatorBuilder.add(SimulatorModules(mdModules_->outputProvider(), mdModules_->notifier()));
+        simulatorBuilder.add(CenterOfMassPulling(pull_work));
+        // Todo move to an MDModule
+        simulatorBuilder.add(IonSwapping(swap));
+        simulatorBuilder.add(TopologyData(&mtop, mdAtoms.get()));
+        simulatorBuilder.add(BoxDeformationHandle(deform.get()));
+
         // build and run simulator object based on user-input
-        auto simulator = simulatorBuilder.build(
-                useModularSimulator, fplog, cr, ms, mdlog, static_cast<int>(filenames.size()),
-                filenames.data(), oenv, mdrunOptions, startingBehavior, vsite.get(), constr.get(),
-                enforcedRotation ? enforcedRotation->getLegacyEnfrot() : nullptr, deform.get(),
-                mdModules_->outputProvider(), mdModules_->notifier(), inputrec, imdSession.get(),
-                pull_work, swap, &mtop, fcd, globalState.get(), &observablesHistory, mdAtoms.get(),
-                &nrnb, wcycle, fr, &enerd, &ekind, &runScheduleWork, replExParams, membed,
-                walltime_accounting, std::move(stopHandlerBuilder_), doRerun);
+        auto simulator = simulatorBuilder.build(useModularSimulator);
         simulator->run();
 
         if (fr->pmePpCommGpu)
@@ -1696,6 +1710,9 @@ int Mdrunner::mdrunner()
     /* Free pinned buffers in *fr */
     delete fr;
     fr = nullptr;
+    // TODO convert to C++ so we can get rid of these frees
+    sfree(disresdata);
+    sfree(oriresdata);
 
     if (hwinfo->gpu_info.n_dev > 0)
     {
@@ -1725,12 +1742,6 @@ int Mdrunner::mdrunner()
     }
 
     free_gpu(deviceInfo);
-    sfree(fcd);
-
-    if (doMembed)
-    {
-        free_membed(membed);
-    }
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());
@@ -1794,8 +1805,7 @@ Mdrunner::Mdrunner(std::unique_ptr<MDModules> mdModules) : mdModules_(std::move(
 
 Mdrunner::Mdrunner(Mdrunner&&) noexcept = default;
 
-//NOLINTNEXTLINE(performance-noexcept-move-constructor) working around GCC bug 58265
-Mdrunner& Mdrunner::operator=(Mdrunner&& /*handle*/) noexcept(BUGFREE_NOEXCEPT_STRING) = default;
+Mdrunner& Mdrunner::operator=(Mdrunner&& /*handle*/) noexcept = default;
 
 class Mdrunner::BuilderImplementation
 {

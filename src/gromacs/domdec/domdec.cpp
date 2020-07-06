@@ -67,7 +67,6 @@
 #include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/hw_info.h"
-#include "gromacs/listed_forces/manage_threading.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/calc_verletbuf.h"
@@ -3203,7 +3202,8 @@ gmx_bool change_dd_cutoff(t_commrec* cr, const matrix box, gmx::ArrayRef<const g
 
 void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
                               const t_commrec&                cr,
-                              const gmx::DeviceStreamManager& deviceStreamManager)
+                              const gmx::DeviceStreamManager& deviceStreamManager,
+                              gmx_wallcycle*                  wcycle)
 {
     GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedLocal),
                        "Local non-bonded stream should be valid when using"
@@ -3234,7 +3234,7 @@ void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
             cr.dd->gpuHaloExchange.push_back(std::make_unique<gmx::GpuHaloExchange>(
                     cr.dd, cr.mpi_comm_mysim, deviceStreamManager.context(),
                     deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal),
-                    deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal), pulse));
+                    deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal), pulse, wcycle));
         }
     }
 }

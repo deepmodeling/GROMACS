@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,19 +34,20 @@
  */
 #include "gmxpre.h"
 
-#include "gpu_hw_info.h"
+#include "interaction_const.h"
 
-#include "config.h"
+#include <cstdio>
 
-/* Note that some of the following arrays must match the "GPU support
- * enumeration" in src/config.h.cmakein, so that GMX_GPU looks up an
- * array entry. */
+#include "gromacs/math/functions.h"
+#include "gromacs/mdtypes/inputrec.h"
 
-// TODO If/when we unify CUDA and OpenCL support code, this should
-// move to a single place in gpu_utils.
-/* Names of the GPU detection/check results (see e_gpu_detect_res_t in hw_info.h). */
-const char* const gpu_detect_res_str[egpuNR] = {
-    "compatible",   "nonexistent",
-    "incompatible", "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
-    "insane",       "unavailable"
-};
+interaction_const_t::SoftCoreParameters::SoftCoreParameters(const t_lambda& fepvals) :
+    alphaVdw(fepvals.sc_alpha),
+    alphaCoulomb(fepvals.bScCoul ? fepvals.sc_alpha : 0),
+    lambdaPower(fepvals.sc_power),
+    sigma6WithInvalidSigma(gmx::power6(fepvals.sc_sigma)),
+    sigma6Minimum(fepvals.bScCoul ? gmx::power6(fepvals.sc_sigma_min) : 0)
+{
+    // This is checked during tpr reading, so we can assert here
+    GMX_RELEASE_ASSERT(fepvals.sc_r_power == 6.0, "We only support soft-core r-power 6");
+}

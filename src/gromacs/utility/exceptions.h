@@ -59,10 +59,7 @@
 #include <vector>
 
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxassert.h"
-
-#include "current_function.h"
 
 namespace gmx
 {
@@ -88,7 +85,11 @@ class IExceptionInfo
 {
 public:
     virtual ~IExceptionInfo();
-    GMX_DEFAULT_CONSTRUCTORS(IExceptionInfo);
+    IExceptionInfo()                          = default;
+    IExceptionInfo(const IExceptionInfo&)     = default;
+    IExceptionInfo(IExceptionInfo&&) noexcept = default;
+    IExceptionInfo& operator=(const IExceptionInfo&) = default;
+    IExceptionInfo& operator=(IExceptionInfo&&) noexcept = default;
 };
 
 //! Smart pointer to manage IExceptionInfo ownership.
@@ -252,7 +253,11 @@ public:
     // about missing noexcept otherwise.
     ~GromacsException() noexcept override {}
 
-    GMX_DEFAULT_CONSTRUCTORS(GromacsException);
+    GromacsException()                            = default;
+    GromacsException(const GromacsException&)     = default;
+    GromacsException(GromacsException&&) noexcept = default;
+    GromacsException& operator=(const GromacsException&) = default;
+    GromacsException& operator=(GromacsException&&) noexcept = default;
 
     /*! \brief
      * Returns the reason string for the exception.
@@ -374,7 +379,7 @@ private:
  * if the enable_if causes problems with some compilers, it can be removed.
  */
 template<class Exception, class Tag, class T>
-inline std::enable_if_t<std::is_base_of<GromacsException, Exception>::value, Exception>
+inline std::enable_if_t<std::is_base_of_v<GromacsException, Exception>, Exception>
 operator<<(Exception ex, const ExceptionInfo<Tag, T>& item)
 {
     ex.setInfo(item);

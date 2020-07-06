@@ -37,32 +37,48 @@
 #define GMX_HARDWARE_GPU_HW_INFO_H
 
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/enumerationhelpers.h"
 
 struct DeviceInformation;
 
-/*! \brief Possible results of the GPU detection/check.
- *
- * The egpuInsane value means that during the sanity checks an error
- * occurred that indicates malfunctioning of the device, driver, or
- * incompatible driver/runtime.
- * eGpuUnavailable indicates that CUDA devices are busy or unavailable
- * typically due to use of cudaComputeModeExclusive, cudaComputeModeProhibited modes.
- */
-typedef enum
+//! Possible results of the GPU detection/check.
+enum class DeviceStatus : int
 {
-    egpuCompatible = 0,
-    egpuNonexistent,
-    egpuIncompatible,
-    egpuIncompatibleClusterSize,
-    egpuInsane,
-    egpuUnavailable,
-    egpuNR
-} e_gpu_detect_res_t;
+    //! The device is compatible
+    Compatible = 0,
+    //! Device does not exist
+    Nonexistent = 1,
+    //! Device is not compatible
+    Incompatible = 2,
+    //! OpenCL device has incompatible cluster size for non-bonded kernels.
+    IncompatibleClusterSize = 3,
+    /*! \brief An error occurred he functionality checks.
+     * That indicates malfunctioning of the device, driver, or incompatible driver/runtime.
+     */
+    NonFunctional = 4,
+    /*! \brief CUDA devices are busy or unavailable.
+     * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
+     */
+    Unavailable = 5,
+    //! Enumeration size
+    Count = 6
+};
 
 /*! \brief Names of the GPU detection/check results
  *
- * \todo Make a proper class enumeration with helper string */
-extern const char* const gpu_detect_res_str[egpuNR];
+ * Check-source wants to warn about the use of a symbol name that would
+ * require an inclusion of config.h. However the use is in a comment, so that
+ * is a false warning. So C-style string concatenation is used to fool the
+ * naive parser in check-source. In turn, that needs a clang-format suppression
+ * in order to look reasonable.
+ */
+static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
+    "compatible", "nonexistent", "incompatible",
+    // clang-format off
+    "incompatible (please recompile with correct GMX" "_OPENCL_NB_CLUSTER_SIZE of 4)",
+    // clang-format on
+    "non-functional", "unavailable"
+};
 
 /*! \brief Information about GPU devices on this physical node.
  *
