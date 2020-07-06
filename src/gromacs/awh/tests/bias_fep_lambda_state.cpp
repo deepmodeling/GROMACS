@@ -312,7 +312,7 @@ TEST(BiasFepLambdaStateTest, DetectsCovering)
     Bias bias(-1, params.awhParams, params.awhBiasParams, params.dimParams, params.beta, mdTimeStep,
               1, "", Bias::ThisRankWillDoIO::No);
 
-    const int64_t exitStepRef = 220;
+    const int64_t exitStepRef = 350;
 
     bool inInitialStage = bias.state().inInitialStage();
 
