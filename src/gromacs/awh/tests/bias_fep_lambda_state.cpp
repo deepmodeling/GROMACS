@@ -34,8 +34,6 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/awh/bias.h"
-
 #include <cmath>
 
 #include <memory>
@@ -46,6 +44,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "gromacs/awh/bias.h"
 #include "gromacs/awh/correlationgrid.h"
 #include "gromacs/awh/pointstate.h"
 #include "gromacs/mdtypes/awh_params.h"
@@ -60,6 +59,7 @@ namespace gmx
 namespace test
 {
 
+//! The number of lambda states to use in the tests.
 const int numLambdaStates = 16;
 
 /*! \internal \brief
@@ -88,8 +88,8 @@ struct AwhFepLambdaStateTestParameters
     std::vector<DimParams> dimParams; //!< Dimension parameters for setting up Bias
 };
 
-/*! \brief Helper function to fill an array with random values (between lowerBound and upperBound)
- * from randomEngine.
+/*! \internal \brief Helper function to fill an array with random values (between lowerBound and
+ * upperBound) from randomEngine.
  */
 static void randomArrayFill(ArrayRef<double>           array,
                             std::default_random_engine randomEngine,
