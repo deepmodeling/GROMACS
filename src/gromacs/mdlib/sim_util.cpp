@@ -1592,6 +1592,17 @@ void do_force(FILE*                               fplog,
         }
     }
 
+    if (stepWork.computeEnergy)
+    {
+        /* Compute the final potential energy terms */
+        accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
+
+        if (!EI_TPI(inputrec->eI))
+        {
+            checkPotentialEnergyValidity(step, *enerd, *inputrec);
+        }
+    }
+
     computeSpecialForces(fplog, cr, inputrec, awh, enforcedRotation, imdSession, pull_work, step, t,
                          wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda,
                          stepWork, &forceOut.forceWithVirial(), enerd, ed, stepWork.doNeighborSearch);
@@ -1873,17 +1884,6 @@ void do_force(FILE*                               fplog,
     {
         postProcessForces(cr, step, nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOut, vir_force,
                           mdatoms, fr, vsite, stepWork);
-    }
-
-    if (stepWork.computeEnergy)
-    {
-        /* Compute the final potential energy terms */
-        accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
-
-        if (!EI_TPI(inputrec->eI))
-        {
-            checkPotentialEnergyValidity(step, *enerd, *inputrec);
-        }
     }
 
     /* In case we don't have constraints and are using GPUs, the next balancing
