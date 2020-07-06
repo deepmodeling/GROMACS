@@ -65,11 +65,11 @@ const int numLambdaStates = 16;
 /*! \internal \brief
  * Struct that gathers all input for setting up and using a Bias
  */
-struct AwhTestParameters
+struct AwhFepLambdaStateTestParameters
 {
-    AwhTestParameters() = default;
+    AwhFepLambdaStateTestParameters() = default;
     //! Move constructor
-    AwhTestParameters(AwhTestParameters&& o) noexcept :
+    AwhFepLambdaStateTestParameters(AwhFepLambdaStateTestParameters&& o) noexcept :
         beta(o.beta),
         awhDimParams(o.awhDimParams),
         awhBiasParams(o.awhBiasParams),
@@ -88,6 +88,9 @@ struct AwhTestParameters
     std::vector<DimParams> dimParams; //!< Dimension parameters for setting up Bias
 };
 
+/*! Helper function to fill an array with random values (between lowerBound and upperBound)
+ * from randomEngine.
+ */
 static void randomArrayFill(ArrayRef<double>           array,
                             std::default_random_engine randomEngine,
                             double                     lowerBound,
@@ -101,9 +104,9 @@ static void randomArrayFill(ArrayRef<double>           array,
 }
 
 //! Helper function to set up the C-style AWH parameters for the test
-static AwhTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential)
+static AwhFepLambdaStateTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential)
 {
-    AwhTestParameters params;
+    AwhFepLambdaStateTestParameters params;
 
     params.beta = 0.4;
 
@@ -189,7 +192,7 @@ public:
         /* Set up a basic AWH setup with a single, 1D bias with parameters
          * such that we can measure the effects of different parameters.
          */
-        const AwhTestParameters params = getAwhTestParameters(eawhgrowth, eawhpotential);
+        const AwhFepLambdaStateTestParameters params = getAwhTestParameters(eawhgrowth, eawhpotential);
 
         seed_ = params.awhParams.seed;
 
@@ -305,7 +308,8 @@ INSTANTIATE_TEST_CASE_P(WithParameters,
 // Test that we detect coverings and exit the initial stage at the correct step
 TEST(BiasFepLambdaStateTest, DetectsCovering)
 {
-    const AwhTestParameters params = getAwhTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED);
+    const AwhFepLambdaStateTestParameters params =
+            getAwhTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED);
 
     const double mdTimeStep = 0.1;
 

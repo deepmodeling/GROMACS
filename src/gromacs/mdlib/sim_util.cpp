@@ -1592,7 +1592,7 @@ void do_force(FILE*                               fplog,
         }
     }
 
-    if (stepWork.computeEnergy)
+    if (stepWork.computeEnergy && awh)
     {
         /* Compute the final potential energy terms */
         accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
