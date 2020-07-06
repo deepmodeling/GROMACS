@@ -1572,6 +1572,26 @@ void do_force(FILE*                               fplog,
 
     wallcycle_stop(wcycle, ewcFORCE);
 
+    // VdW dispersion correction, only computed on master rank to avoid double counting
+    if ((stepWork.computeEnergy || stepWork.computeVirial) && fr->dispersionCorrection && MASTER(cr))
+    {
+        // Calculate long range corrections to pressure and energy
+        const DispersionCorrection::Correction correction =
+                fr->dispersionCorrection->calculate(box, lambda[efptVDW]);
+
+        if (stepWork.computeEnergy)
+        {
+            enerd->term[F_DISPCORR] = correction.energy;
+            enerd->term[F_DVDL_VDW] += correction.dvdl;
+            enerd->dvdl_lin[efptVDW] += correction.dvdl;
+        }
+        if (stepWork.computeVirial)
+        {
+            correction.correctVirial(vir_force);
+            enerd->term[F_PDISPCORR] = correction.pressure;
+        }
+    }
+
     computeSpecialForces(fplog, cr, inputrec, awh, enforcedRotation, imdSession, pull_work, step, t,
                          wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda,
                          stepWork, &forceOut.forceWithVirial(), enerd, ed, stepWork.doNeighborSearch);
@@ -1836,26 +1856,6 @@ void do_force(FILE*                               fplog,
     {
         postProcessForceWithShiftForces(nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOut,
                                         vir_force, *mdatoms, *fr, vsite, stepWork);
-    }
-
-    // VdW dispersion correction, only computed on master rank to avoid double counting
-    if ((stepWork.computeEnergy || stepWork.computeVirial) && fr->dispersionCorrection && MASTER(cr))
-    {
-        // Calculate long range corrections to pressure and energy
-        const DispersionCorrection::Correction correction =
-                fr->dispersionCorrection->calculate(box, lambda[efptVDW]);
-
-        if (stepWork.computeEnergy)
-        {
-            enerd->term[F_DISPCORR] = correction.energy;
-            enerd->term[F_DVDL_VDW] += correction.dvdl;
-            enerd->dvdl_lin[efptVDW] += correction.dvdl;
-        }
-        if (stepWork.computeVirial)
-        {
-            correction.correctVirial(vir_force);
-            enerd->term[F_PDISPCORR] = correction.pressure;
-        }
     }
 
     // TODO refactor this and unify with above GPU PME-PP / GPU update path call to the same function
