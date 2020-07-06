@@ -130,7 +130,7 @@ public:
      *
      * \param[in] cr  Communication record, used to reduce the terms when !=nullptr
      */
-    std::tuple<gmx::ArrayRef<const double>, gmx::ArrayRef<const double>> getTerms(t_commrec* cr);
+    std::tuple<gmx::ArrayRef<const double>, gmx::ArrayRef<const double>> getTerms(const t_commrec* cr);
 
     //! Sets all terms to 0
     void zeroAllTerms();

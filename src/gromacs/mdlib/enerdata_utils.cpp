@@ -54,7 +54,7 @@ ForeignLambdaTerms::ForeignLambdaTerms(int numLambdas) :
 {
 }
 
-std::tuple<gmx::ArrayRef<const double>, gmx::ArrayRef<const double>> ForeignLambdaTerms::getTerms(t_commrec* cr)
+std::tuple<gmx::ArrayRef<const double>, gmx::ArrayRef<const double>> ForeignLambdaTerms::getTerms(const t_commrec* cr)
 {
     gmx::ArrayRef<double> deltaH = gmx::arrayRefFromArray(combinedReturnBuffer_.data(), numLambdas_);
     gmx::ArrayRef<double> dhdl =
@@ -175,9 +175,6 @@ void accumulatePotentialEnergies(gmx_enerdata_t* enerd, gmx::ArrayRef<const real
     }
 
     // Accumulate the foreign lambda terms
-
-    // Add dispersion correction to the VdW component
-    enerd->dvdl_lin[efptVDW] += enerd->term[F_DVDL_VDW];
 
     double dvdl_lin = 0;
     for (int i = 0; i < efptNR; i++)

@@ -627,8 +627,11 @@ static void computeSpecialForces(FILE*                          fplog,
     }
     if (awh)
     {
+        gmx::ArrayRef<const double> foreignLambdaDeltaH, foreignLambdaDhDl;
+        std::tie(foreignLambdaDeltaH, foreignLambdaDhDl) = enerd->foreignLambdaTerms.getTerms(cr);
+
         enerd->term[F_COM_PULL] += awh->applyBiasForcesAndUpdateBias(
-                inputrec->pbcType, mdatoms->massT, enerd->foreignLambdaTerms, box,
+                inputrec->pbcType, mdatoms->massT, foreignLambdaDeltaH, foreignLambdaDhDl, box,
                 forceWithVirial, t, step, wcycle, fplog);
     }
 
@@ -1846,6 +1849,7 @@ void do_force(FILE*                               fplog,
         {
             enerd->term[F_DISPCORR] = correction.energy;
             enerd->term[F_DVDL_VDW] += correction.dvdl;
+            enerd->dvdl_lin[efptVDW] += correction.dvdl;
         }
         if (stepWork.computeVirial)
         {
