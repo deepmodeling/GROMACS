@@ -1886,6 +1886,17 @@ void do_force(FILE*                               fplog,
                           mdatoms, fr, vsite, stepWork);
     }
 
+    if (stepWork.computeEnergy)
+    {
+        /* Compute the final potential energy terms */
+        accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
+
+        if (!EI_TPI(inputrec->eI))
+        {
+            checkPotentialEnergyValidity(step, *enerd, *inputrec);
+        }
+    }
+
     /* In case we don't have constraints and are using GPUs, the next balancing
      * region starts here.
      * Some "special" work at the end of do_force_cuts?, such as vsite spread,
