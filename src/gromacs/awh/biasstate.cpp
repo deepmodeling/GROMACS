@@ -245,12 +245,9 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
             {
                 const int pointLambdaIndex     = grid.point(pointIndex).coordValue[d];
                 const int gridpointLambdaIndex = grid.point(gridpointIndex).coordValue[d];
-                /* Index 0 in neighborLambdaEnergies corresponds to the current lambda state.
-                 * Index 1..[numLambdaPoints] corresponds to the neighbor lambda states. Therefore
-                 * the index in neighborLambdaEnergies is increased by 1. */
                 logWeight -= dimParams[d].beta
-                             * (neighborLambdaEnergies[pointLambdaIndex + 1]
-                                - neighborLambdaEnergies[gridpointLambdaIndex + 1]);
+                             * (neighborLambdaEnergies[pointLambdaIndex]
+                                - neighborLambdaEnergies[gridpointLambdaIndex]);
             }
             else
             {
@@ -481,10 +478,7 @@ double BiasState::calcUmbrellaForceAndPotential(const std::vector<DimParams>& di
             GMX_ASSERT(neighborLambdaDhdl.size() > 0,
                        "There must be more than one lambda state to use AWH with FEP.");
             const int coordpointLambdaIndex = grid.point(point).coordValue[d];
-            /* Index 0 in neighborLambdaEnergies corresponds to the current lambda state.
-             * Index 1..[numLambdaPoints] corresponds to the neighbor lambda states. Therefore
-             * the index in neighborLambdaEnergies is increased by 1. */
-            force[d] = neighborLambdaDhdl[coordpointLambdaIndex + 1];
+            force[d]                        = neighborLambdaDhdl[coordpointLambdaIndex];
             /* The potential should not be affected by the lambda dimension. */
         }
         else

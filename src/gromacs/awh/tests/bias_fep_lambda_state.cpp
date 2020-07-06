@@ -229,10 +229,10 @@ TEST_P(BiasFepLambdaStateTest, ForcesBiasPmf)
     randomEngine.seed(1234);
 
     /* Some energies to use as base values (to which some noise is added later on). */
-    std::vector<double> lambdaEnergyBase(numLambdaStates + 1);
-    std::vector<double> lambdaDhdlBase(numLambdaStates + 1);
+    std::vector<double> lambdaEnergyBase(numLambdaStates);
+    std::vector<double> lambdaDhdlBase(numLambdaStates);
     const double        magnitude = 12.0;
-    for (int i = 0; i < numLambdaStates + 1; i++)
+    for (int i = 0; i < numLambdaStates; i++)
     {
         lambdaEnergyBase[i] = magnitude * std::sin(i * 0.1);
         lambdaDhdlBase[i]   = magnitude * std::cos(i * 0.1);
@@ -241,13 +241,13 @@ TEST_P(BiasFepLambdaStateTest, ForcesBiasPmf)
     for (int step = 0; step < nSteps; step++)
     {
         /* Create some noise and add it to the base values */
-        std::vector<double> neighborLambdaEnergyNoise(numLambdaStates + 1);
-        std::vector<double> neighborLambdaDhdlNoise(numLambdaStates + 1);
+        std::vector<double> neighborLambdaEnergyNoise(numLambdaStates);
+        std::vector<double> neighborLambdaDhdlNoise(numLambdaStates);
         randomArrayFill(neighborLambdaEnergyNoise, randomEngine, -energyNoiseMagnitude, energyNoiseMagnitude);
         randomArrayFill(neighborLambdaDhdlNoise, randomEngine, -dhdlNoiseMagnitude, dhdlNoiseMagnitude);
-        std::vector<double> neighborLambdaEnergies(numLambdaStates + 1);
-        std::vector<double> neighborLambdaDhdl(numLambdaStates + 1);
-        for (int i = 0; i < numLambdaStates + 1; i++)
+        std::vector<double> neighborLambdaEnergies(numLambdaStates);
+        std::vector<double> neighborLambdaDhdl(numLambdaStates);
+        for (int i = 0; i < numLambdaStates; i++)
         {
             neighborLambdaEnergies[i] = lambdaEnergyBase[i] + neighborLambdaEnergyNoise[i];
             neighborLambdaDhdl[i]     = lambdaDhdlBase[i] + neighborLambdaDhdlNoise[i];
@@ -322,10 +322,10 @@ TEST(BiasFepLambdaStateTest, DetectsCovering)
     randomEngine.seed(1234);
 
     /* Some energies to use as base values (to which some noise is added later on). */
-    std::vector<double> lambdaEnergyBase(numLambdaStates + 1);
-    std::vector<double> lambdaDhdlBase(numLambdaStates + 1);
+    std::vector<double> lambdaEnergyBase(numLambdaStates);
+    std::vector<double> lambdaDhdlBase(numLambdaStates);
     const double        magnitude = 12.0;
-    for (int i = 0; i < numLambdaStates + 1; i++)
+    for (int i = 0; i < numLambdaStates; i++)
     {
         lambdaEnergyBase[i] = magnitude * std::sin(i * 0.1);
         lambdaDhdlBase[i]   = magnitude * std::cos(i * 0.1);
@@ -336,13 +336,13 @@ TEST(BiasFepLambdaStateTest, DetectsCovering)
     for (step = 0; step <= 2 * exitStepRef; step++)
     {
         /* Create some noise and add it to the base values */
-        std::vector<double> neighborLambdaEnergyNoise(numLambdaStates + 1);
-        std::vector<double> neighborLambdaDhdlNoise(numLambdaStates + 1);
+        std::vector<double> neighborLambdaEnergyNoise(numLambdaStates);
+        std::vector<double> neighborLambdaDhdlNoise(numLambdaStates);
         randomArrayFill(neighborLambdaEnergyNoise, randomEngine, -energyNoiseMagnitude, energyNoiseMagnitude);
         randomArrayFill(neighborLambdaDhdlNoise, randomEngine, -dhdlNoiseMagnitude, dhdlNoiseMagnitude);
-        std::vector<double> neighborLambdaEnergies(numLambdaStates + 1);
-        std::vector<double> neighborLambdaDhdl(numLambdaStates + 1);
-        for (int i = 0; i < numLambdaStates + 1; i++)
+        std::vector<double> neighborLambdaEnergies(numLambdaStates);
+        std::vector<double> neighborLambdaDhdl(numLambdaStates);
+        for (int i = 0; i < numLambdaStates; i++)
         {
             neighborLambdaEnergies[i] = lambdaEnergyBase[i] + neighborLambdaEnergyNoise[i];
             neighborLambdaDhdl[i]     = lambdaDhdlBase[i] + neighborLambdaDhdlNoise[i];
