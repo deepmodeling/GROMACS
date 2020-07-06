@@ -88,7 +88,7 @@ struct AwhFepLambdaStateTestParameters
     std::vector<DimParams> dimParams; //!< Dimension parameters for setting up Bias
 };
 
-/*! Helper function to fill an array with random values (between lowerBound and upperBound)
+/*! \brief Helper function to fill an array with random values (between lowerBound and upperBound)
  * from randomEngine.
  */
 static void randomArrayFill(ArrayRef<double>           array,
