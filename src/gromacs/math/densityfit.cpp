@@ -251,7 +251,7 @@ public:
     //! Clone this
     std::unique_ptr<DensitySimilarityMeasureImpl> clone() override;
     //! The similarity between reference density and compared density
-    real similarity(density comparedDensity) override;
+    real similarity(density comparedDensity) const override;
 
 private:
     //! A view on the reference density
@@ -266,7 +266,7 @@ DensitySimilarityJensenShannon::DensitySimilarityJensenShannon(density reference
 {
 }
 
-real DensitySimilarityJensenShannon::similarity(density comparedDensity)
+real DensitySimilarityJensenShannon::similarity(density comparedDensity) const
 {
     if (comparedDensity.extents() != referenceDensity_.extents())
     {
