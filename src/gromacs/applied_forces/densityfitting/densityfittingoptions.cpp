@@ -165,7 +165,7 @@ void DensityFittingOptions::initMdpTransform(IKeyValueTreeTransformRules* rules)
 
 //! Name the methods that may be used to evaluate similarity between densities
 static const EnumerationArray<DensitySimilarityMeasureMethod, const char*> c_densitySimilarityMeasureMethodNames = {
-    { "inner-product", "relative-entropy", "cross-correlation" }
+    { "inner-product", "relative-entropy", "cross-correlation", "jensen-shannon" }
 };
 //! The names of the methods to determine the amplitude of the atoms to be spread on a grid
 static const EnumerationArray<DensityFittingAmplitudeMethod, const char*> c_densityFittingAmplitudeMethodNames = {

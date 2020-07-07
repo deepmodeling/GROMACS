@@ -183,8 +183,7 @@ private:
 };
 
 DensitySimilarityRelativeEntropy::DensitySimilarityRelativeEntropy(density referenceDensity) :
-    referenceDensity_{ referenceDensity },
-    gradient_(referenceDensity.extents())
+    referenceDensity_{ referenceDensity }, gradient_(referenceDensity.extents())
 {
 }
 
@@ -212,6 +211,85 @@ DensitySimilarityMeasure::density DensitySimilarityRelativeEntropy::gradient(den
 std::unique_ptr<DensitySimilarityMeasureImpl> DensitySimilarityRelativeEntropy::clone()
 {
     return std::make_unique<DensitySimilarityRelativeEntropy>(referenceDensity_);
+}
+
+/****************** Jensen-Shannon *****************************************/
+
+//! Calculate a single summand for Jensen-Shannon divergence sum.
+real jensenShannonAtVoxel(real reference, real comparison)
+{
+    if ((reference > 0) && (comparison > 0))
+    {
+        return log(2) - 0.5 * (reference * std::log(2.0 * reference / (comparison + reference)) +
+            comparison * std::log(2.0 * comparison / (comparison + reference)));
+    }
+    return 0.;
+}
+
+//! Calculate a single Jensen-Shannon divergence gradient entry at a voxel.
+real jensenShannonGradientAtVoxel(real reference, real comparison)
+{
+    if ((reference > 0) && (comparison > 0))
+    {
+        return - 0.5 * log(comparison / (reference+comparison));
+    }
+    return 0.;
+}
+
+/*! \internal
+ * \brief Implementation for DensitySimilarityJensenShannon.
+ *
+ * The similarity measure itself is documented in DensitySimilarityMeasureMethod::JensenShannon.
+ */
+class DensitySimilarityJensenShannon final : public DensitySimilarityMeasureImpl
+{
+public:
+    //! Construct similarity measure by setting the reference density
+    DensitySimilarityJensenShannon(density referenceDensity);
+    //! The gradient for the relative entropy similarity measure
+    density gradient(density comparedDensity) override;
+    //! Clone this
+    std::unique_ptr<DensitySimilarityMeasureImpl> clone() override;
+    //! The similarity between reference density and compared density
+    real similarity(density comparedDensity) override;
+
+private:
+    //! A view on the reference density
+    const density referenceDensity_;
+    //! Stores the gradient of the similarity measure in memory
+    MultiDimArray<std::vector<float>, dynamicExtents3D> gradient_;
+};
+
+DensitySimilarityJensenShannon::DensitySimilarityJensenShannon(density referenceDensity) :
+    referenceDensity_{ referenceDensity },
+    gradient_(referenceDensity.extents())
+{
+}
+
+real DensitySimilarityJensenShannon::similarity(density comparedDensity)
+{
+    if (comparedDensity.extents() != referenceDensity_.extents())
+    {
+        GMX_THROW(RangeError("Reference density and compared density need to have same extents."));
+    }
+    return std::inner_product(begin(referenceDensity_), end(referenceDensity_),
+                              begin(comparedDensity), 0., std::plus<>(), jensenShannonAtVoxel);
+}
+
+DensitySimilarityMeasure::density DensitySimilarityJensenShannon::gradient(density comparedDensity)
+{
+    if (comparedDensity.extents() != referenceDensity_.extents())
+    {
+        GMX_THROW(RangeError("Reference density and compared density need to have same extents."));
+    }
+    std::transform(begin(referenceDensity_), end(referenceDensity_), begin(comparedDensity),
+                   begin(gradient_), jensenShannonGradientAtVoxel);
+    return gradient_.asConstView();
+}
+
+std::unique_ptr<DensitySimilarityMeasureImpl> DensitySimilarityJensenShannon::clone()
+{
+    return std::make_unique<DensitySimilarityJensenShannon>(referenceDensity_);
 }
 
 /****************** Cross Correlation *****************************************/

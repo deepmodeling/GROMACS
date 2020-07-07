@@ -85,6 +85,17 @@ enum class DensitySimilarityMeasureMethod : int
      * \f]
      */
     crossCorrelation,
+    /*! \brief Measure similarity between densities by Jensen-Shannon divergence.
+     *
+     * \f[
+     *      \mathrm{Similarity}(\rho_{\mathrm{r}},\rho_{\mathrm{c}}) =
+     *           \frac12\sum_{v=1}^{N_\mathrm{voxel}}\left(
+     * \rho_{\mathrm{r}}\log\left(\cfrac{2\rho_{\mathrm{r}}}{\rho_{\mathrm{r}}+\rho_{\mathrm{c}}}\right) + 
+     * \rho_{\mathrm{c}}\log\left(\cfrac{2\rho_{\mathrm{c}}}{\rho_{\mathrm{r}}+\rho_{\mathrm{c}}}\right)
+     * \right) 
+     * \f]
+     */
+    jensenShannonDivergence,
     Count,
 };
 
