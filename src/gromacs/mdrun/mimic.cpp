@@ -223,7 +223,12 @@ void gmx::LegacySimulator::do_mimic()
         nonConstGlobalTopology->intermolecularExclusionGroup = genQmmmIndices(*top_global);
     }
 
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda);
+    if (MASTER(cr) && ir->efep != efepNO)
+    {
+        state_global->fep_state = ir->fepvals->init_fep_state;
+        state_global->lambda = currentLambdas(ir->init_step, *(ir->fepvals), state_global->fep_state);
+        writeLambdasToFile(fplog, state_global->lambda);
+    }
 
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,

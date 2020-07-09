@@ -341,12 +341,20 @@ static inline gmx::ArrayRef<const gmx::RVec> positionsFromStatePointer(const t_s
     }
 };
 
-/*! \brief Fills fep_state and lambda if needed.
+/*! \brief Fills reference temperatures with input if reference temperature is >0.
+ * \param[in] referenceTemperatures the reference Temperatures to be filled
+ * \param[in] inputTemperature the input temperature to fill the refence with
  *
- * If FEP or simulated tempering is in use,  fills fep_state
- * and lambda on master rank.
+ * asserts that inputTemperature is larger than 0.
+ */
+void setReferenceTemperatures(gmx::ArrayRef<real> referenceTemperatures, real inputTemperature);
+
+/*! \brief Writes array of lambda values to output file.
+ * \param[in] fplog log file to write to.
+ * \param[in] lambda array of lambda values to report.
  *
- * Reports the initial lambda state to the log file. */
-void initialize_lambdas(FILE* fplog, const t_inputrec& ir, bool isMaster, int* fep_state, gmx::ArrayRef<real> lambda);
+ * Does nothing if fplog is nullptr.
+ */
+void writeLambdasToFile(FILE* fplog, gmx::ArrayRef<const real> lambda);
 
 #endif

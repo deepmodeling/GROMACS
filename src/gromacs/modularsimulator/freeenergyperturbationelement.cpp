@@ -64,7 +64,17 @@ FreeEnergyPerturbationElement::FreeEnergyPerturbationElement(FILE*             f
     mdAtoms_(mdAtoms)
 {
     lambda_.fill(0);
-    initialize_lambdas(fplog_, *inputrec_, true, &currentFEPState_, lambda_);
+    if (inputrec->efep != efepNO)
+    {
+        currentFEPState_ = inputrec->fepvals->init_fep_state;
+        lambda_ = currentLambdas(inputrec->init_step, *(inputrec->fepvals), currentFEPState_);
+        writeLambdasToFile(fplog, lambda_);
+    }
+    if (inputrec->bSimTemp)
+    {
+        setReferenceTemperatures(arrayRefFromArray(inputrec->opts.ref_t, inputrec->opts.ngtc),
+                                 inputrec->simtempvals->temperatures[inputrec->fepvals->init_fep_state]);
+    }
     update_mdatoms(mdAtoms_->mdatoms(), lambda_[efptMASS]);
 }
 

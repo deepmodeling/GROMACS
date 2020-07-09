@@ -254,7 +254,17 @@ void gmx::LegacySimulator::do_md()
                   "Either specify the -ei option to mdrun, or do not use this checkpoint file.");
     }
 
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda);
+    if (MASTER(cr) && ir->efep != efepNO)
+    {
+        state_global->fep_state = ir->fepvals->init_fep_state;
+        state_global->lambda = currentLambdas(ir->init_step, *(ir->fepvals), state_global->fep_state);
+        writeLambdasToFile(fplog, state_global->lambda);
+    }
+    if (ir->bSimTemp)
+    {
+        setReferenceTemperatures(arrayRefFromArray(ir->opts.ref_t, ir->opts.ngtc),
+                                 ir->simtempvals->temperatures[ir->fepvals->init_fep_state]);
+    }
     Update     upd(*ir, deform);
     const bool doSimulatedAnnealing = initSimulatedAnnealing(ir, &upd);
     const bool useReplicaExchange   = (replExParams.exchangeInterval > 0);

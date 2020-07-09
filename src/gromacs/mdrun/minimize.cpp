@@ -77,6 +77,7 @@
 #include "gromacs/mdlib/ebin.h"
 #include "gromacs/mdlib/enerdata_utils.h"
 #include "gromacs/mdlib/energyoutput.h"
+#include "gromacs/mdlib/freeenergyparameters.h"
 #include "gromacs/mdlib/force.h"
 #include "gromacs/mdlib/force_flags.h"
 #include "gromacs/mdlib/forcerec.h"
@@ -389,8 +390,18 @@ static void init_em(FILE*                fplog,
     {
         state_global->ngtc = 0;
     }
-    initialize_lambdas(fplog, *ir, MASTER(cr), &(state_global->fep_state), state_global->lambda);
 
+    if (MASTER(cr) && ir->efep != efepNO)
+    {
+        state_global->fep_state = ir->fepvals->init_fep_state;
+        state_global->lambda = gmx::currentLambdas(ir->init_step, *(ir->fepvals), state_global->fep_state);
+        writeLambdasToFile(fplog, state_global->lambda);
+    }
+    if (ir->bSimTemp)
+    {
+        setReferenceTemperatures(gmx::arrayRefFromArray(ir->opts.ref_t, ir->opts.ngtc),
+                                 ir->simtempvals->temperatures[ir->fepvals->init_fep_state]);
+    }
     if (ir->eI == eiNM)
     {
         GMX_ASSERT(shellfc != nullptr, "With NM we always support shells");
