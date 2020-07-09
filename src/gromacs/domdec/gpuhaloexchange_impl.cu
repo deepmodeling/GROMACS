@@ -183,7 +183,9 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
 
     if (newSize > 0)
     {
-        GMX_ASSERT(ind.index.size() == h_indexMap_.size(), "Size mismatch");
+        GMX_ASSERT(ind.index.size() == h_indexMap_.size(),
+                   "Size mismatch between domain decomposition communication index array and GPU "
+                   "halo exchange index mapping array");
         std::copy(ind.index.begin(), ind.index.end(), h_indexMap_.begin());
 
         copyToDeviceBuffer(&d_indexMap_, h_indexMap_.data(), 0, newSize, nonLocalStream_,
