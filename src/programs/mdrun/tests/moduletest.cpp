@@ -168,21 +168,6 @@ void SimulationRunner::useTopGroAndMdpFromFepTestDatabase(const std::string& nam
             gmx::test::TestFileManager::getInputFilePath("freeenergy/" + name + "/grompp.mdp");
 }
 
-void SimulationRunner::getEdrAndTrrFromFepTestDatabase(const std::string& name,
-                                                       std::string*       edrFile,
-                                                       std::string*       trrFile)
-{
-    std::string suffix = "_s";
-    if (GMX_DOUBLE)
-    {
-        suffix = "_d";
-    }
-    *edrFile = gmx::test::TestFileManager::getInputFilePath("freeenergy/" + name + "/reference"
-                                                            + suffix + ".edr");
-    *trrFile = gmx::test::TestFileManager::getInputFilePath("freeenergy/" + name + "/reference"
-                                                            + suffix + ".trr");
-}
-
 int SimulationRunner::callGromppOnThisRank(const CommandLine& callerRef)
 {
     std::string mdpInputFileName;

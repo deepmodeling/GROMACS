@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -43,6 +43,9 @@
 #ifndef GMX_PROGRAMS_MDRUN_TESTS_TRAJECTORYCOMPARISON_H
 #define GMX_PROGRAMS_MDRUN_TESTS_TRAJECTORYCOMPARISON_H
 
+#include "gromacs/math/vectypes.h"
+#include "gromacs/utility/arrayref.h"
+
 #include "testutils/testasserts.h"
 
 namespace gmx
@@ -52,6 +55,8 @@ class TrajectoryFrame;
 
 namespace test
 {
+
+class TestReferenceChecker;
 
 /*! \internal
  * \brief Helper struct for testing different trajectory components with different tolerances. */
@@ -100,10 +105,10 @@ struct TrajectoryFrameMatchSettings
 };
 
 /*! \internal
- * \brief Function object to compare the fields of the two frames for
- * equality given the \c matchSettings_ and \c tolerances_.
+ * \brief Function object to compare the fields of two frames vs each others or one
+ * frame vs reference data for equality given the \c matchSettings_ and \c tolerances_.
  *
- * The two frames are required to have valid and matching values for
+ * If using two frames, they are required to have valid and matching values for
  * time and step. According to \c matchSettings_, box, position coordinates,
  * velocities and/or forces will be compared between frames, using the
  * \c tolerances_. Comparisons will only occur when both frames have
@@ -112,7 +117,16 @@ struct TrajectoryFrameMatchSettings
  * GoogleTest expectation failure will be given. If a comparison is
  * required by \c matchSettings_ but cannot be done because either (or
  * both) frames lack the requisite data, descriptive expectation
- * failures will be given. */
+ * failures will be given.
+ *
+ * When comparing a frame to reference data, according to \c matchSettings_,
+ * box, position coordinates, velocities and/or forces will be compared to
+ * reference data, using the \c tolerances_. If a comparison fails, a
+ * GoogleTest expectation failure will be given. If a comparison is
+ * required by \c matchSettings_ but cannot be done because the
+ * frame lacks the requisite data, descriptive expectation
+ * failures will be given.
+ */
 class TrajectoryComparison
 {
 public:
@@ -124,11 +138,25 @@ public:
     /*! \brief Compare reference with test given the \c
      * matchSettings_ within \c tolerances_ */
     void operator()(const TrajectoryFrame& reference, const TrajectoryFrame& test) const;
+    /*! \brief Compare frame to reference given the \c
+     * matchSettings_ within \c tolerances_ */
+    void operator()(const TrajectoryFrame& frame, TestReferenceChecker* checker) const;
     //! Specifies expected behavior in comparisons
     TrajectoryFrameMatchSettings matchSettings_;
     //! Trajectory fields to match with given tolerances.
     TrajectoryTolerances tolerances_;
 };
+
+/*! \internal
+ * \brief Helper function comparing a trajectory to reference.
+ *
+ * This opens a trajectory file, loops over its frames, and uses the
+ * \c trajectoryComparison and \c checker arguments to check each frame
+ * to reference data.
+ */
+void checkTrajectoryAgainstReferenceData(const std::string&          trajectoryFilename,
+                                         const TrajectoryComparison& trajectoryComparison,
+                                         TestReferenceChecker*       checker);
 
 } // namespace test
 } // namespace gmx

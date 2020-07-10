@@ -93,11 +93,6 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
             FloatingPointTolerance(0.05, 0.05, 0.001, 0.001, UINT64_MAX, UINT64_MAX, false);
     const auto gmx_unused defaultRegressionVirialTolerance =
             FloatingPointTolerance(0.1, 0.1, 0.01, 0.01, UINT64_MAX, UINT64_MAX, false);
-    // Force equivalence in regression tests is measured by calculating scalar products.
-    // Force equivalence here is measured pointwise. Tolerances here were just chosen to make all tests pass.
-    // TODO: As above, think about and justify tolerances! Also, think about how to calculate equivalence.
-    const auto defaultRegressionForceTolerance =
-            FloatingPointTolerance(0.5, 0.1, 0.01, 0.003, UINT64_MAX, UINT64_MAX, false);
 
     // TODO: Regression tests only test Epot. Add other energy terms to be tested here.
     EnergyTermsToCompare energyTermsToCompare{ {
@@ -113,7 +108,6 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
                                                           ComparisonConditions::NoComparison,
                                                           ComparisonConditions::MustCompare };
     TrajectoryTolerances trajectoryTolerances = TrajectoryComparison::s_defaultTrajectoryTolerances;
-    trajectoryTolerances.forces               = defaultRegressionForceTolerance;
 
     // Build the functor that will compare reference and test
     // trajectory frames in the chosen way.
@@ -136,19 +130,13 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     runner_.edrFileName_                     = simulationEdrFileName;
     runMdrun(&runner_);
 
-    // Get reference result file names
-    std::string referenceEdrFileName;
-    std::string referenceTrajectoryFileName;
-    SimulationRunner::getEdrAndTrrFromFepTestDatabase(simulationName, &referenceEdrFileName,
-                                                      &referenceTrajectoryFileName);
-
     // Compare simulation results
-    compareEnergies(simulationEdrFileName, referenceEdrFileName, energyTermsToCompare);
-    compareTrajectories(simulationTrajectoryFileName, referenceTrajectoryFileName, trajectoryComparison);
-    // Check the energies agree with the refdata within tolerance.
     TestReferenceData    refData;
     TestReferenceChecker rootChecker(refData.rootChecker());
+    // Check the energies agree with the refdata within tolerance.
     checkEnergiesAgainstReferenceData(simulationEdrFileName, energyTermsToCompare, &rootChecker);
+    // Check the trajectories agree with the refdata within tolerance.
+    checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison, &rootChecker);
 }
 
 // TODO: The time for OpenCL kernel compilation means these tests time
