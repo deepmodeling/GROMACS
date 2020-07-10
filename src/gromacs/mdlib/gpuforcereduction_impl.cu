@@ -45,6 +45,8 @@
 
 #include "gpuforcereduction_impl.cuh"
 
+#include "config.h"
+
 #include <stdio.h>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
@@ -57,8 +59,8 @@
 #include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/utility/gmxassert.h"
 
-// Maximum number of forces to be added
-#define MAXFORCES 3
+// Maximum number of rvec-format forces to be added
+#define MAXRVECFORCES 3
 
 namespace gmx
 {
@@ -66,21 +68,21 @@ namespace gmx
 constexpr static int c_threadsPerBlock = 128;
 
 /* \brief force data required on device, to be passed to kernel as a parameter */
-struct deviceForceData
+struct rvecDeviceForceData
 {
-    float3*     gm_f[MAXFORCES];
-    ForceFormat format[MAXFORCES];
-    int*        gm_cell[MAXFORCES];
+    float3* gm_f[MAXRVECFORCES];
 };
 
-typedef struct deviceForceData deviceForceData_t;
+typedef struct rvecDeviceForceData rvecDeviceForceData_t;
 
 
 template<bool accumulateForce>
-static __global__ void reduceKernel(const deviceForceData_t __restrict__ forceToAddData,
-                                    float3*   gm_fTotal,
-                                    const int numAtoms,
-                                    const int numForces)
+static __global__ void reduceKernel(const float3* __restrict__ gm_nbnxmForce,
+                                    const rvecDeviceForceData_t __restrict__ rvecForceToAddData,
+                                    float3*    gm_fTotal,
+                                    const int* gm_cell,
+                                    const int  numAtoms,
+                                    const int  numRvecForces)
 {
 
     // map particle-level parallelism to 1D CUDA thread and block index
@@ -93,26 +95,21 @@ static __global__ void reduceKernel(const deviceForceData_t __restrict__ forceTo
         float3* gm_fDest = &gm_fTotal[threadIndex];
         float3  temp;
 
-        // Accumulate or set first force
-        int i = (forceToAddData.format[0] == ForceFormat::Nbat) ? forceToAddData.gm_cell[0][threadIndex]
-                                                                : threadIndex;
+        // Accumulate or set nbnxm force
         if (accumulateForce)
         {
             temp = *gm_fDest;
-            temp += forceToAddData.gm_f[0][i];
+            temp += gm_nbnxmForce[gm_cell[threadIndex]];
         }
         else
         {
-            temp = forceToAddData.gm_f[0][i];
+            temp = gm_nbnxmForce[gm_cell[threadIndex]];
         }
 
-        // Accumulate any additional forces
-        for (int iForce = 1; iForce < numForces; iForce++)
+        // Accumulate any additional rvec forces
+        for (int iForce = 0; iForce < numRvecForces; iForce++)
         {
-            i = (forceToAddData.format[iForce] == ForceFormat::Nbat)
-                        ? forceToAddData.gm_cell[iForce][threadIndex]
-                        : threadIndex;
-            temp += forceToAddData.gm_f[iForce][i];
+            temp += rvecForceToAddData.gm_f[iForce][threadIndex];
         }
 
         *gm_fDest = temp;
@@ -124,34 +121,38 @@ GpuForceReduction::Impl::Impl(const DeviceContext& deviceContext, const DeviceSt
     deviceContext_(deviceContext),
     deviceStream_(deviceStream){};
 
-void GpuForceReduction::Impl::setBase(GpuForceForReduction_t forceReductionBase)
+void GpuForceReduction::Impl::reinit(void*                 baseForcePtr,
+                                     const int             numAtoms,
+                                     const int*            cell,
+                                     const int             atomStart,
+                                     const bool            accumulate,
+                                     GpuEventSynchronizer* completionMarker)
 {
-    GMX_ASSERT((forceReductionBase.forcePtr != nullptr),
-               "Input force reduction object has no data");
-    baseForce_ = forceReductionBase;
+    GMX_ASSERT((baseForcePtr != nullptr), "Input base force for reduction has no data");
+    baseForce_        = baseForcePtr;
+    numAtoms_         = numAtoms;
+    atomStart_        = atomStart;
+    accumulate_       = accumulate;
+    completionMarker_ = completionMarker;
+    cell_             = cell;
+    reallocateDeviceBuffer(&d_cell_, atomStart_ + numAtoms_, &cellSize_, &cellSizeAlloc_, deviceContext_);
+    copyToDeviceBuffer(&d_cell_, cell_, 0, atomStart_ + numAtoms_, deviceStream_,
+                       GpuApiCallBehavior::Async, nullptr);
 };
 
-void GpuForceReduction::Impl::setNumAtoms(const int numAtoms)
+void GpuForceReduction::Impl::registerNbnxmForce(void* forcePtr)
 {
-    numAtoms_ = numAtoms;
+    GMX_ASSERT((forcePtr != nullptr), "Input force for reduction has no data");
+    nbnxmForceToAdd_ = forcePtr;
 };
 
-void GpuForceReduction::Impl::setAtomStart(const int atomStart)
+void GpuForceReduction::Impl::registerRvecForce(void* forcePtr)
 {
-    atomStart_ = atomStart;
-};
-
-void GpuForceReduction::Impl::registerForce(const GpuForceForReduction_t forceToAdd)
-{
-
-    GMX_ASSERT((forceToAdd.forcePtr != nullptr), "Input force reduction object has no data");
-    GMX_ASSERT((baseForce_.forceFormat == ForceFormat::Rvec),
-               "Only Rvec format is supported for base of force reduction");
-
-    forceToAddList_.push_back(forceToAdd);
-
-    GMX_RELEASE_ASSERT((forceToAddList_.size() <= 3),
-                       "A maximum of 3 forces are supported in the GPU force reduction");
+    GMX_ASSERT((forcePtr != nullptr), "Input force for reduction has no data");
+    rvecForceToAddList_.push_back(forcePtr);
+    GMX_RELEASE_ASSERT(
+            (rvecForceToAddList_.size() <= MAXRVECFORCES),
+            "A maximum of MAXRVECFORCES forces are supported in the GPU force reduction");
 };
 
 void GpuForceReduction::Impl::addDependency(GpuEventSynchronizer* const dependency)
@@ -159,39 +160,13 @@ void GpuForceReduction::Impl::addDependency(GpuEventSynchronizer* const dependen
     dependencyList_.push_back(dependency);
 }
 
-void GpuForceReduction::Impl::setAccumulate(const bool accumulate)
-{
-    accumulate_ = accumulate;
-}
-
-void GpuForceReduction::Impl::setCell(const int* cell)
-{
-    cell_ = cell;
-    reallocateDeviceBuffer(&d_cell_, atomStart_ + numAtoms_, &cellSize_, &cellSizeAlloc_, deviceContext_);
-    copyToDeviceBuffer(&d_cell_, cell_, 0, atomStart_ + numAtoms_, deviceStream_,
-                       GpuApiCallBehavior::Async, nullptr);
-}
-
-void GpuForceReduction::Impl::setCompletionMarker(GpuEventSynchronizer* completionMarker)
-{
-    completionMarker_ = completionMarker;
-}
-
-void GpuForceReduction::Impl::clearDependencies()
-{
-    dependencyList_.clear();
-}
-
-void GpuForceReduction::Impl::popForce()
-{
-    forceToAddList_.pop_back();
-}
-
-void GpuForceReduction::Impl::apply()
+void GpuForceReduction::Impl::execute()
 {
 
     if (numAtoms_ == 0)
         return;
+
+    GMX_ASSERT((nbnxmForceToAdd_ != nullptr), "Nbnxm force for reduction has no data");
 
     // Enqueue wait on all dependencies passed
     for (auto const synchronizer : dependencyList_)
@@ -200,17 +175,14 @@ void GpuForceReduction::Impl::apply()
     }
 
     // Populate data force data struct to be passed as an argument to kernel
-    deviceForceData_t d_forceToAddData;
-    int               iForce = 0;
-    for (auto const forceToAdd : forceToAddList_)
+    float3* d_nbnxmForce = static_cast<float3*>(nbnxmForceToAdd_);
+    int*    d_cell       = &d_cell_[atomStart_];
+
+    rvecDeviceForceData_t d_rvecForceToAddData;
+    int                   iForce = 0;
+    for (auto const forceToAdd : rvecForceToAddList_)
     {
-        int forceOffset = (forceToAdd.forceFormat == ForceFormat::Rvec) ? atomStart_ : 0;
-        d_forceToAddData.gm_f[iForce]   = &(static_cast<float3*>(forceToAdd.forcePtr))[forceOffset];
-        d_forceToAddData.format[iForce] = forceToAdd.forceFormat;
-        if (forceToAdd.forceFormat == ForceFormat::Nbat)
-        {
-            d_forceToAddData.gm_cell[iForce] = &d_cell_[atomStart_];
-        }
+        d_rvecForceToAddData.gm_f[iForce] = &(static_cast<float3*>(forceToAdd))[atomStart_];
         iForce++;
     }
 
@@ -224,12 +196,13 @@ void GpuForceReduction::Impl::apply()
     config.gridSize[2]      = 1;
     config.sharedMemorySize = 0;
 
-    auto      kernelFn       = accumulate_ ? reduceKernel<true> : reduceKernel<false>;
-    float3*   d_fTotal       = &(static_cast<float3*>(baseForce_.forcePtr))[atomStart_];
-    const int numForcesToAdd = forceToAddList_.size();
+    auto      kernelFn           = accumulate_ ? reduceKernel<true> : reduceKernel<false>;
+    float3*   d_fTotal           = &(static_cast<float3*>(baseForce_))[atomStart_];
+    const int numRvecForcesToAdd = rvecForceToAddList_.size();
 
-    const auto kernelArgs = prepareGpuKernelArguments(kernelFn, config, &d_forceToAddData,
-                                                      &d_fTotal, &numAtoms_, &numForcesToAdd);
+    const auto kernelArgs =
+            prepareGpuKernelArguments(kernelFn, config, &d_nbnxmForce, &d_rvecForceToAddData,
+                                      &d_fTotal, &d_cell, &numAtoms_, &numRvecForcesToAdd);
 
     launchGpuKernel(kernelFn, config, deviceStream_, nullptr, "Force Reduction", kernelArgs);
 
@@ -247,24 +220,14 @@ GpuForceReduction::GpuForceReduction(const DeviceContext& deviceContext, const D
 {
 }
 
-void GpuForceReduction::setBase(GpuForceForReduction_t forceReductionBase)
+void GpuForceReduction::registerNbnxmForce(void* forcePtr)
 {
-    impl_->setBase(forceReductionBase);
+    impl_->registerNbnxmForce(forcePtr);
 }
 
-void GpuForceReduction::setNumAtoms(const int numAtoms)
+void GpuForceReduction::registerRvecForce(void* forcePtr)
 {
-    impl_->setNumAtoms(numAtoms);
-}
-
-void GpuForceReduction::setAtomStart(const int atomStart)
-{
-    impl_->setAtomStart(atomStart);
-}
-
-void GpuForceReduction::registerForce(const GpuForceForReduction_t forceToAdd)
-{
-    impl_->registerForce(forceToAdd);
+    impl_->registerRvecForce(forcePtr);
 }
 
 void GpuForceReduction::addDependency(GpuEventSynchronizer* const dependency)
@@ -272,34 +235,18 @@ void GpuForceReduction::addDependency(GpuEventSynchronizer* const dependency)
     impl_->addDependency(dependency);
 }
 
-void GpuForceReduction::setAccumulate(const bool accumulate)
+void GpuForceReduction::reinit(void*                 baseForcePtr,
+                               const int             numAtoms,
+                               const int*            cell,
+                               const int             atomStart,
+                               const bool            accumulate,
+                               GpuEventSynchronizer* completionMarker)
 {
-    impl_->setAccumulate(accumulate);
+    impl_->reinit(baseForcePtr, numAtoms, cell, atomStart, accumulate, completionMarker);
 }
-
-void GpuForceReduction::setCell(const int* cell)
+void GpuForceReduction::execute()
 {
-    impl_->setCell(cell);
-}
-
-void GpuForceReduction::setCompletionMarker(GpuEventSynchronizer* completionMarker)
-{
-    impl_->setCompletionMarker(completionMarker);
-}
-
-void GpuForceReduction::clearDependencies()
-{
-    impl_->clearDependencies();
-}
-
-void GpuForceReduction::popForce()
-{
-    impl_->popForce();
-}
-
-void GpuForceReduction::apply()
-{
-    impl_->apply();
+    impl_->execute();
 }
 
 GpuForceReduction::~GpuForceReduction() = default;

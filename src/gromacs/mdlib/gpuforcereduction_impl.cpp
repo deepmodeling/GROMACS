@@ -63,22 +63,22 @@ GpuForceReduction::GpuForceReduction(const DeviceContext& /* deviceContext */,
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }
 
-void GpuForceReduction::setBase(GpuForceForReduction_t /* forceReductionBase */)
+void GpuForceReduction::reinit(void* /*baseForcePtr*/,
+                               const int /*numAtoms*/,
+                               const int* /*cell*/,
+                               const int /*atomStart*/,
+                               const bool /*accumulate*/,
+                               GpuEventSynchronizer* /*completionMarker*/)
 {
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }
 
-void GpuForceReduction::setNumAtoms(const int /* numAtoms */)
+void GpuForceReduction::registerNbnxmForce(void* /* forcePtr */)
 {
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }
 
-void GpuForceReduction::setAtomStart(const int /* atomStart */)
-{
-    GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
-}
-
-void GpuForceReduction::registerForce(const GpuForceForReduction_t /* forceToAdd */)
+void GpuForceReduction::registerRvecForce(void* /* forcePtr */)
 {
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }
@@ -88,32 +88,7 @@ void GpuForceReduction::addDependency(GpuEventSynchronizer* const /* dependency 
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }
 
-void GpuForceReduction::setAccumulate(const bool /* accumulate */)
-{
-    GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
-}
-
-void GpuForceReduction::setCell(const int* /* cell */)
-{
-    GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
-}
-
-void GpuForceReduction::setCompletionMarker(GpuEventSynchronizer* /* completionMarker */)
-{
-    GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
-}
-
-void GpuForceReduction::clearDependencies()
-{
-    GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
-}
-
-void GpuForceReduction::popForce()
-{
-    GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
-}
-
-void GpuForceReduction::apply()
+void GpuForceReduction::execute()
 {
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }

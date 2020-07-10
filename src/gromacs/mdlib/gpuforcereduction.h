@@ -40,11 +40,11 @@
  *
  * \ingroup module_mdlib
  */
-#ifndef GMX_MDLIB_GPUFORCEREDUCTION
-#define GMX_MDLIB_GPUFORCEREDUCTION
+#ifndef GMX_MDLIB_GPUFORCEREDUCTION_H
+#define GMX_MDLIB_GPUFORCEREDUCTION_H
 
-#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/fixedcapacityvector.h"
 
@@ -52,22 +52,6 @@ class GpuEventSynchronizer;
 
 namespace gmx
 {
-
-/*! \brief Whether force data is in Rvec or Nbat format */
-enum class ForceFormat
-{
-    Rvec, //!< Force data is in Rvec format
-    Nbat, //!< Force data is in Nbat format
-};
-
-/*! \brief structure containing pointer to force data, and which format it is in */
-struct GpuForceForReduction
-{
-    void*       forcePtr = nullptr;
-    ForceFormat forceFormat;
-};
-
-typedef struct GpuForceForReduction GpuForceForReduction_t;
 
 class GpuForceReduction
 {
@@ -81,29 +65,17 @@ public:
     GpuForceReduction(const DeviceContext& deviceContext, const DeviceStream& deviceStream);
     ~GpuForceReduction();
 
-    /*! \brief Set force to be used as a "base", i.e. to be reduced into
+    /*! \brief Register a nbnxm-format force to be reduced
      *
-     * \param [in] forceReductionBase   Force to be used as a base
+     * \param [in] forcePtr  Pointer to force to be reduced
      */
-    void setBase(GpuForceForReduction_t forceReductionBase);
+    void registerNbnxmForce(void* forcePtr);
 
-    /*! \brief Set the number of atoms for this reduction
+    /*! \brief Register a rvec-format force to be reduced
      *
-     * \param [in] numAtoms  The number of atoms
+     * \param [in] forcePtr  Pointer to force to be reduced
      */
-    void setNumAtoms(const int numAtoms);
-
-    /*! \brief Set the atom at which this reduction should start (i.e. the atom offset)
-     *
-     * \param [in] atomStart  The start atom for the reduction
-     */
-    void setAtomStart(const int atomStart);
-
-    /*! \brief Register a force to be reduced
-     *
-     * \param [in] forceForReduction  Force to be reduced
-     */
-    void registerForce(const GpuForceForReduction_t forceForReduction);
+    void registerRvecForce(void* forcePtr);
 
     /*! \brief Add a dependency for this force reduction
      *
@@ -111,33 +83,24 @@ public:
      */
     void addDependency(GpuEventSynchronizer* const dependency);
 
-
-    /*! \brief Whether this reduction should be accumulated (or set) into the base force buffer
+    /*! \brief Reinitialize the GPU force reduction
      *
-     * \param [in] accumulate   Whether reduction should be accumulated
+     * \param [in] baseForcePtr     Pointer to force to be used as a base
+     * \param [in] numAtoms         The number of atoms
+     * \param [in] cell             Pointer to the cell array
+     * \param [in] atomStart        The start atom for the reduction
+     * \param [in] accumulate       Whether reduction should be accumulated
+     * \param [in] completionMarker Event to be marked when launch of reduction is complete
      */
-    void setAccumulate(const bool accumulate);
+    void reinit(void*                 baseForcePtr,
+                const int             numAtoms,
+                const int*            cell,
+                const int             atomStart,
+                const bool            accumulate,
+                GpuEventSynchronizer* completionMarker = nullptr);
 
-    /*! \brief Set the cell index mapping array for any nbat-format forces
-     *
-     * \param [in] cell   Pointer to the cell array
-     */
-    void setCell(const int* cell);
-
-    /*! \brief Set an event to be marked when the launch of the reduction is completed
-     *
-     * \param [in] completionMarker   Event to be marked when launch of reduction is complete
-     */
-    void setCompletionMarker(GpuEventSynchronizer* completionMarker);
-
-    /*! \brief Apply the force reduction */
-    void apply();
-
-    /*! \brief Clear all dependencies for the reduction */
-    void clearDependencies();
-
-    /*! \brief Remove the last force added to this reduction */
-    void popForce();
+    /*! \brief Execute the force reduction */
+    void execute();
 
 private:
     class Impl;
