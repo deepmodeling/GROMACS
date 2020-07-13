@@ -103,6 +103,7 @@ SimulationRunner::SimulationRunner(TestFileManager* fileManager) :
     mtxFileName_(fileManager->getTemporaryFilePath(".mtx")),
 
     nsteps_(-2),
+    mdpSource_(SimulationRunnerMdpSource::Undefined),
     fileManager_(*fileManager)
 {
 #if GMX_LIB_MPI
@@ -129,8 +130,9 @@ void SimulationRunner::useStringAsMdpFile(const char* mdpString)
 
 void SimulationRunner::useStringAsMdpFile(const std::string& mdpString)
 {
-    GMX_ASSERT(mdpFileName_.empty(),
-               "Cannot mix .mdp file from database with options set via string.");
+    GMX_RELEASE_ASSERT(mdpSource_ != SimulationRunnerMdpSource::File,
+                       "Cannot mix .mdp file from database with options set via string.");
+    mdpSource_        = SimulationRunnerMdpSource::String;
     mdpInputContents_ = mdpString;
 }
 
@@ -160,8 +162,9 @@ void SimulationRunner::useGroFromDatabase(const char* name)
 
 void SimulationRunner::useTopGroAndMdpFromFepTestDatabase(const std::string& name)
 {
-    GMX_ASSERT(mdpInputContents_.empty(),
-               "Cannot mix .mdp file from database with options set via string.");
+    GMX_RELEASE_ASSERT(mdpSource_ != SimulationRunnerMdpSource::String,
+                       "Cannot mix .mdp file from database with options set via string.");
+    mdpSource_   = SimulationRunnerMdpSource::File;
     topFileName_ = gmx::test::TestFileManager::getInputFilePath("freeenergy/" + name + "/topol.top");
     groFileName_ = gmx::test::TestFileManager::getInputFilePath("freeenergy/" + name + "/conf.gro");
     mdpFileName_ =
@@ -171,14 +174,14 @@ void SimulationRunner::useTopGroAndMdpFromFepTestDatabase(const std::string& nam
 int SimulationRunner::callGromppOnThisRank(const CommandLine& callerRef)
 {
     std::string mdpInputFileName;
-    if (mdpFileName_.empty())
+    if (mdpSource_ == SimulationRunnerMdpSource::File)
     {
-        mdpInputFileName = fileManager_.getTemporaryFilePath("input.mdp");
-        gmx::TextWriter::writeFileFromString(mdpInputFileName, mdpInputContents_);
+        mdpInputFileName = mdpFileName_;
     }
     else
     {
-        mdpInputFileName = mdpFileName_;
+        mdpInputFileName = fileManager_.getTemporaryFilePath("input.mdp");
+        gmx::TextWriter::writeFileFromString(mdpInputFileName, mdpInputContents_);
     }
 
     CommandLine caller;

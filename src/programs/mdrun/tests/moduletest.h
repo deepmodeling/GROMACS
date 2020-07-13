@@ -61,6 +61,20 @@ namespace test
 {
 
 /*! \internal
+ * \brief How the mdp file of the SimulationRunner is defined
+ *
+ * Undefined: The default behavior. Will result in an empty mdp file.
+ * String: Mdp options are set via string using SimulationRunner::useStringAsMdpFile
+ * File: Mdp options are read from a file set in SimulationRunner::useTopGroAndMdpFromFepTestDatabase
+ */
+enum class SimulationRunnerMdpSource
+{
+    Undefined,
+    String,
+    File
+};
+
+/*! \internal
  * \brief Helper object for running grompp and mdrun in
  * integration tests of mdrun functionality
  *
@@ -152,6 +166,8 @@ public:
     std::string swapFileName_;
     int         nsteps_;
     //@}
+    //! How the mdp options are defined
+    SimulationRunnerMdpSource mdpSource_;
     //! What will be written into a temporary mdp file before the grompp call
     std::string mdpInputContents_;
 
