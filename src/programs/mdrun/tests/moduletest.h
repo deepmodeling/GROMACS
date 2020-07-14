@@ -62,15 +62,14 @@ namespace test
 
 /*! \internal
  * \brief How the mdp file of the SimulationRunner is defined
- *
- * Undefined: The default behavior. Will result in an empty mdp file.
- * String: Mdp options are set via string using SimulationRunner::useStringAsMdpFile
- * File: Mdp options are read from a file set in SimulationRunner::useTopGroAndMdpFromFepTestDatabase
  */
 enum class SimulationRunnerMdpSource
 {
+    //! The default behavior. Will result in an empty mdp file.
     Undefined,
+    //! Mdp options are set via string using SimulationRunner::useStringAsMdpFile
     String,
+    //! Mdp options are read from a file set in SimulationRunner::useTopGroAndMdpFromFepTestDatabase
     File
 };
 
