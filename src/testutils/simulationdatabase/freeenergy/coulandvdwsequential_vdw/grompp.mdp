@@ -42,14 +42,12 @@ nstenergy                = 1
 cutoff-scheme            = Verlet
 ; nblist update frequency
 nstlist                  = 10
-; ns algorithm (simple or grid)
-ns_type                  = grid
 ; Periodic boundary conditions: xyz, no, xy
 pbc                      = xyz
 periodic-molecules       = no
 ; Allowed energy drift due to the Verlet buffer in kJ/mol/ps per atom,
 ; a value of -1 means: use rlist
-verlet-buffer-drift      = 0.005
+verlet-buffer-tolerance      = 0.005
 ; nblist cut-off        
 rlist                    = 1.0
 
@@ -57,14 +55,14 @@ rlist                    = 1.0
 ; Method for doing electrostatics
 coulomb_type             = pme
 coulomb-modifier         = Potential-shift-Verlet
-rcoulomb_switch          = 0
+rcoulomb_switch          = 0.99
 rcoulomb                 = 1.0
 ; Relative dielectric constant for the medium and the reaction field
 epsilon_r                = 1.0
 epsilon-rf               = 0
 ; Method for doing Van der Waals
-vdw_type                 = shift
-vdw-modifier             = Potential-shift-Verlet
+vdw_type                 = Cut-off
+vdw-modifier             = Force-switch
 ; cut-off lengths       
 rvdw_switch              = 0.8
 rvdw                     = 1
@@ -82,7 +80,6 @@ pme-order                = 4
 ewald_rtol               = 1e-6
 ewald-geometry           = 3d
 epsilon-surface          = 0
-optimize-fft             = no
 
 ; OPTIONS FOR WEAK COUPLING ALGORITHMS
 ; Temperature coupling  
@@ -100,7 +97,7 @@ Pcoupl                   = no
 gen-vel                  = no
 
 ; OPTIONS FOR BONDS    
-constraints              = h-bond
+constraints              = h-bonds
 ; Type of constraint algorithm
 constraint-algorithm     = Lincs
 ; Do not constrain the start configuration
@@ -127,7 +124,7 @@ couple_moltype           = ASN
 couple_lambda0           = none
 couple_lambda1           = vdw-q
 couple-intramol          = no
-init-lambda-state        = 3
+init-lambda-state        = 7
 delta-lambda             = 0
 nstdhdl                  = 5
 fep-lambdas              = 
@@ -154,5 +151,3 @@ simulated-tempering      = no
 simulated-tempering-scaling = geometric
 sim-temp-low             = 300
 sim-temp-high            = 300
-
-1;95;0c
