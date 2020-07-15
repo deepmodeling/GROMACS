@@ -42,14 +42,12 @@ nstenergy                = 1
 cutoff-scheme            = Verlet
 ; nblist update frequency
 nstlist                  = 10
-; ns algorithm (simple or grid)
-ns_type                  = grid
 ; Periodic boundary conditions: xyz, no, xy
 pbc                      = xyz
 periodic-molecules       = no
 ; Allowed energy drift due to the Verlet buffer in kJ/mol/ps per atom,
 ; a value of -1 means: use rlist
-verlet-buffer-drift      = 0.005
+verlet-buffer-tolerance  = 0.005
 ; nblist cut-off        
 rlist                    = 1.0
 
@@ -82,7 +80,6 @@ pme-order                = 4
 ewald_rtol               = 1e-6
 ewald-geometry           = 3d
 epsilon-surface          = 0
-optimize-fft             = no
 
 ; OPTIONS FOR WEAK COUPLING ALGORITHMS
 ; Temperature coupling  
@@ -100,7 +97,7 @@ Pcoupl                   = no
 gen-vel                  = no
 
 ; OPTIONS FOR BONDS    
-constraints              = h-bond
+constraints              = h-bonds
 ; Type of constraint algorithm
 constraint-algorithm     = Lincs
 ; Do not constrain the start configuration
@@ -128,7 +125,7 @@ couple_lambda0           = none
 couple_lambda1           = vdw-q
 couple-intramol          = no
 nstdhdl                  = 10
-init-lambda              = 0.5
+init-lambda-state        = 4
 fep-lambdas              = 
 mass-lambdas             = 
 coul-lambdas             = 0.0 0.0 0.0 0.0 0.0 0.0 0.4 0.8 1.0
