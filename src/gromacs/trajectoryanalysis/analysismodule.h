@@ -383,6 +383,9 @@ public:
      */
     virtual void writeOutput() = 0;
 
+    virtual int  passCount() { return 1; }
+    virtual void passDone(int) { return; }
+
     /*! \brief
      * Returns the number of datasets provided by the module.
      *

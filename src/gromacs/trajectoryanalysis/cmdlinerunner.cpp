@@ -132,21 +132,26 @@ int RunnerModule::run()
     int                                 nframes = 0;
     AnalysisDataParallelOptions         dataOptions;
     TrajectoryAnalysisModuleDataPointer pdata(module_->startFrames(dataOptions, selections_));
-    do
+    for (auto pass = 0; pass < module_->passCount(); pass++)
     {
-        common_.initFrame();
-        t_trxframe& frame = common_.frame();
-        if (ppbc != nullptr)
+        do
         {
-            set_pbc(ppbc, topology.pbcType(), frame.box);
-        }
+            common_.initFrame();
+            t_trxframe& frame = common_.frame();
+            if (ppbc != nullptr)
+            {
+                set_pbc(ppbc, topology.pbcType(), frame.box);
+            }
 
-        selections_.evaluate(&frame, ppbc);
-        module_->analyzeFrame(nframes, frame, ppbc, pdata.get());
-        module_->finishFrameSerial(nframes);
+            selections_.evaluate(&frame, ppbc);
+            module_->analyzeFrame(nframes, frame, ppbc, pdata.get());
+            module_->finishFrameSerial(nframes);
 
-        ++nframes;
-    } while (common_.readNextFrame());
+            ++nframes;
+        } while (common_.readNextFrame());
+        common_.rewindTrajectory();
+        module_->passDone(pass);
+    }
     module_->finishFrames(pdata.get());
     if (pdata.get() != nullptr)
     {

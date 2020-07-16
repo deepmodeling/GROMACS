@@ -119,6 +119,12 @@ public:
      */
     void initFrame();
 
+    /*! \brief
+     *  Rewind trajectory to first frame
+     */
+    void rewindTrajectory();
+
+
     //! Returns true if input data comes from a trajectory.
     bool hasTrajectory() const;
     //! Returns the topology information object.

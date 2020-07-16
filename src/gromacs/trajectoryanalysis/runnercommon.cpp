@@ -459,6 +459,22 @@ void TrajectoryAnalysisRunnerCommon::initFrame()
     }
 }
 
+void TrajectoryAnalysisRunnerCommon::rewindTrajectory()
+{
+    if (impl_->bTrajOpen_)
+    {
+        close_trx(impl_->status_);
+    }
+    int frflags_ = impl_->settings_.frflags();
+    frflags_ |= TRX_NEED_X;
+
+    if (hasTrajectory())
+    {
+        read_first_frame(impl_->oenv_, &impl_->status_, impl_->trjfile_.c_str(), impl_->fr, frflags_);
+        impl_->bTrajOpen_ = true;
+    }
+}
+
 
 bool TrajectoryAnalysisRunnerCommon::hasTrajectory() const
 {
