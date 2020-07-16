@@ -1,17 +1,3 @@
-;
-;	File 'mdout.mdp' was generated
-;	By user: mark (1302)
-;	On host: amd2
-;	At date: Wed Dec 19 13:44:25 2012
-;
-
-; VARIOUS PREPROCESSING OPTIONS
-; Preprocessor information: use cpp syntax.
-; e.g.: -I/home/joe/doe -I/home/mary/roe
-include                  = 
-; e.g.: -DPOSRES -DFLEXIBLE (note these variable names are case sensitive)
-define                   = 
-
 ; RUN CONTROL PARAMETERS
 integrator               = md-vv
 ; Start time and timestep in ps
@@ -26,6 +12,8 @@ simulation-part          = 1
 comm-mode                = Linear
 ; number of steps for center of mass motion removal
 nstcomm                  = 1
+; group(s) for center of mass motion removal
+comm-grps                = 
 
 ; OUTPUT CONTROL OPTIONS
 ; Output frequency for coords (x), velocities (v) and forces (f)
@@ -33,23 +21,33 @@ nstxout                  = 20
 nstvout                  = 20
 nstfout                  = 20
 ; Output frequency for energies to log file and energy file
-nstlog                   = 20
+nstlog                   = 5
 nstcalcenergy            = 1
 nstenergy                = 1
+; Output frequency and precision for .xtc file
+nstxout-compressed       = 0
+compressed-x-precision   = 1000
+; This selects the subset of atoms for the compressed
+; trajectory file. You can select multiple groups. By
+; default, all atoms will be written.
+compressed-x-grps        = 
+; Selection of energy groups
+energygrps               = 
 
 ; NEIGHBORSEARCHING PARAMETERS
-; cut-off scheme (group: using charge groups, Verlet: particle based cut-offs)
+; cut-off scheme (Verlet: particle based cut-offs)
 cutoff-scheme            = Verlet
 ; nblist update frequency
 nstlist                  = 10
 ; Periodic boundary conditions: xyz, no, xy
 pbc                      = xyz
 periodic-molecules       = no
-; Allowed energy drift due to the Verlet buffer in kJ/mol/ps per atom,
+; Allowed energy error due to the Verlet buffer in kJ/mol/ps per atom,
 ; a value of -1 means: use rlist
 verlet-buffer-tolerance  = 0.005
 ; nblist cut-off        
 rlist                    = 1.0
+; long-range cut-off for switched potentials
 
 ; OPTIONS FOR ELECTROSTATICS AND VDW
 ; Method for doing electrostatics
@@ -61,8 +59,8 @@ rcoulomb                 = 1.0
 epsilon_r                = 1.0
 epsilon-rf               = 0
 ; Method for doing Van der Waals
-vdw_type                 = shift
-vdw-modifier             = Potential-shift-Verlet
+vdw_type                 = Cut-off
+vdw-modifier             = Force-switch
 ; cut-off lengths       
 rvdw_switch              = 0.8
 rvdw                     = 1
@@ -70,11 +68,10 @@ rvdw                     = 1
 dispcorr                 = enerpres
 ; Extension of the potential lookup tables beyond the cut-off
 table-extension          = 1
-; Seperate tables between energy group pairs
+; Separate tables between energy group pairs
 energygrp-table          = 
 ; Spacing for the PME/PPPM FFT grid
 fourierspacing           = 0.12
-
 ; EWALD/PME/PPPM parameters
 pme-order                = 4
 ewald_rtol               = 1e-6
@@ -85,6 +82,8 @@ epsilon-surface          = 0
 ; Temperature coupling  
 tcoupl                   = berendsen
 nsttcouple               = 1
+nh-chain-length          = 10
+print-nose-hoover-chain-variables = no
 ; Groups to couple separately
 tc-grps                  = system
 ; Time constant (ps) and reference temperature (K)
@@ -114,14 +113,15 @@ lincs-warnangle          = 30
 ; Convert harmonic bonds to morse potentials
 morse                    = no
 
-; ENERGY GROUP EXCLUSIONS
-; Pairs of energy groups for which all non-bonded interactions are excluded
-energygrp-excl           = 
-
 ; Free energy variables
 free-energy              = yes
-nstdhdl                  = 5
+couple-moltype           = 
+couple-lambda0           = vdw-q
+couple-lambda1           = vdw-q
+couple-intramol          = no
 init-lambda-state        = 4
+delta-lambda             = 0
+nstdhdl                  = 5
 fep-lambdas              = 0.0 0.25 0.5 0.75 1.0
 mass-lambdas             = 
 coul-lambdas             = 
