@@ -11,14 +11,14 @@
  opls_236   O   8   15.99940    -0.500       A    2.96000e-01  8.78640e-01
  opls_237   N   7   14.00670    -0.760       A    3.25000e-01  7.11280e-01
  opls_240   H   1    1.00800     0.380       A    0.00000e+00  0.00000e+00
- opls_116d  OW	8   15.99940    -0.820       A    3.16557e-01  0.40000e+00
- opls_117d  HW	1    1.00800     0.410       A    0.00000e+00  1.00000e+00
- opls_136d  CT	6   12.01100    -0.120       A    3.00000e-01  0.5  
- opls_140d  HC	1    1.00800     0.060       A    2.00000e-01  0.5
- opls_235d  C   6   12.01100     0.500       A    3.0000e-01   0.5
- opls_236d  O   8   15.99940    -0.500       A    4.0000e-01   0.5
- opls_237d  N   7   14.00670    -0.760       A    3.0000e-01   0.5
- opls_240d  H   1    1.00800     0.380       A    0.00000e+00  4.00000e+00
+ opls_116d  OW	8   15.99940    -0.820       A    3.16557e-01  0
+ opls_117d  HW	1    1.00800     0.410       A    0.00000e+00  0
+ opls_136d  CT	6   12.01100    -0.120       A    3.00000e-01  0  
+ opls_140d  HC	1    1.00800     0.060       A    2.00000e-01  0
+ opls_235d  C   6   12.01100     0.500       A    3.0000e-01   0
+ opls_236d  O   8   15.99940    -0.500       A    4.0000e-01   0
+ opls_237d  N   7   14.00670    -0.760       A    3.0000e-01   0
+ opls_240d  H   1    1.00800     0.380       A    0.00000e+00  0
 
 
 [ bondtypes]
@@ -50,16 +50,16 @@
 ASN             3
 
 [ atoms ]
-;   nr       type  resnr residue  atom   cgnr     charge       mass  typeB    chargeB      massB
-     1   opls_136      1   ASN      CB      1      -0.18     12.011  opls_136d   -0.3   10.0000
-     2   opls_140      1   ASN     HB1      1       0.06      1.008  opls_140d    0.1   10.0000
-     3   opls_140      1   ASN     HB2      1       0.06      1.008  opls_140d    0.1   10.0000
-     4   opls_140      1   ASN     HB3      1       0.06      1.008  opls_140d    0.1   10.0000 
-     5   opls_235      1   ASN      CG      2        0.5     12.011  opls_235d    0.2   10.0000
-     6   opls_236      1   ASN     OD1      2       -0.5    15.9994  opls_236d   -0.2   10.0000
-     7   opls_237      1   ASN     ND2      3      -0.76    14.0067  opls_237d   -0.80   10.0000
-     8   opls_240      1   ASN    HD21      3       0.38      1.008  opls_240d    0.4   10.0000
-     9   opls_240      1   ASN    HD22      3       0.38      1.008  opls_240d    0.4   10.0000
+;   nr       type  resnr residue  atom   cgnr     charge       mass     typeB  chargeB    massB
+     1   opls_136      1   ASN      CB      1       0.00     12.011  opls_136d    0.0   12.011
+     2   opls_140      1   ASN     HB1      1       0.00      1.008  opls_140d    0.0    1.008
+     3   opls_140      1   ASN     HB2      1       0.00      1.008  opls_140d    0.0    1.008
+     4   opls_140      1   ASN     HB3      1       0.00      1.008  opls_140d    0.0    1.008 
+     5   opls_235      1   ASN      CG      2       0.00     12.011  opls_235d    0.0   12.011
+     6   opls_236      1   ASN     OD1      2       0.00    15.9994  opls_236d    0.0   15.9994
+     7   opls_237      1   ASN     ND2      3       0.00    14.0067  opls_237d    0.0   14.0067
+     8   opls_240      1   ASN    HD21      3       0.00      1.008  opls_240d    0.0    1.008
+     9   opls_240      1   ASN    HD22      3       0.00      1.008  opls_240d    0.0    1.008
 
 [ bonds ]
 ;  ai    aj funct            c0            c1            c2            c3
