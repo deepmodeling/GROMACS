@@ -225,12 +225,27 @@ BasicVector<ValueType> operator*(const BasicVector<ValueType>& basicVector, cons
     return { basicVector[0] * scalar, basicVector[1] * scalar, basicVector[2] * scalar };
 }
 
+//! Allow vector scalar multiplication with different types
+template<typename ValueType, typename NumericType>
+BasicVector<ValueType> operator*(const BasicVector<ValueType>& basicVector, const NumericType& scalar)
+{
+    return { basicVector[0] * static_cast<ValueType>(scalar), basicVector[1] * static_cast<ValueType>(scalar), basicVector[2] * static_cast<ValueType>(scalar) };
+}
+
 //! Allow scalar vector multiplication
 template<typename ValueType>
 BasicVector<ValueType> operator*(const ValueType& scalar, const BasicVector<ValueType>& basicVector)
 {
     return { scalar * basicVector[0], scalar * basicVector[1], scalar * basicVector[2] };
 }
+
+//! Allow scalar vector multiplication with different types
+template<typename ValueType, typename NumericType>
+BasicVector<ValueType> operator*(const NumericType& scalar, const BasicVector<ValueType>& basicVector)
+{
+    return { static_cast<ValueType>(scalar) * basicVector[0], static_cast<ValueType>(scalar) * basicVector[1], static_cast<ValueType>(scalar) * basicVector[2] };
+}
+
 
 /*! \brief
  * unitv for gmx::BasicVector

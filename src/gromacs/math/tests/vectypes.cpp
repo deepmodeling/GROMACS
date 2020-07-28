@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2016,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2014,2015,2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -292,6 +292,29 @@ TEST(RVecTest, CanRightScalarMultiply)
     EXPECT_EQ(4, c[YY]);
     EXPECT_EQ(6, c[ZZ]);
 }
+
+TEST(RVecTest, CanRightScalarMultiplyByDouble)
+{
+    RVec a(1, 2, 3);
+    double b = 2.0;
+    RVec c;
+    c = a * b;
+    EXPECT_EQ(2, c[XX]);
+    EXPECT_EQ(4, c[YY]);
+    EXPECT_EQ(6, c[ZZ]);
+}
+
+TEST(RVecTest, CanRightScalarMultiplyByInt)
+{
+    RVec a(1, 2, 3);
+    int b = 2;
+    RVec c;
+    c = a * b;
+    EXPECT_EQ(2, c[XX]);
+    EXPECT_EQ(4, c[YY]);
+    EXPECT_EQ(6, c[ZZ]);
+}
+
 
 TEST(RVecTest, CanGetUnitvFromRVec)
 {
