@@ -43,11 +43,12 @@
 #ifndef GMX_MDLIB_GPUFORCEREDUCTION_IMPL_H
 #define GMX_MDLIB_GPUFORCEREDUCTION_IMPL_H
 
-#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/vectypes.h"
-#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/utility/fixedcapacityvector.h"
+
+#include "gpuforcereduction.h"
 
 namespace gmx
 {

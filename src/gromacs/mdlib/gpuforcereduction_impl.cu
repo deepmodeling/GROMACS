@@ -45,8 +45,6 @@
 
 #include "gpuforcereduction_impl.cuh"
 
-#include "config.h"
-
 #include <stdio.h>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
@@ -56,8 +54,9 @@
 #include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
-#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/utility/gmxassert.h"
+
+#include "gpuforcereduction.h"
 
 // Maximum number of rvec-format forces to be added
 #define MAXRVECFORCES 3

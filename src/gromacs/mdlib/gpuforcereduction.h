@@ -81,7 +81,7 @@ public:
      *
      * \param [in] dependency   Dependency for this reduction
      */
-    void addDependency(GpuEventSynchronizer* const dependency);
+    void addDependency(GpuEventSynchronizer* dependency);
 
     /*! \brief Reinitialize the GPU force reduction
      *
@@ -93,10 +93,10 @@ public:
      * \param [in] completionMarker Event to be marked when launch of reduction is complete
      */
     void reinit(void*                 baseForcePtr,
-                const int             numAtoms,
+                int                   numAtoms,
                 const int*            cell,
-                const int             atomStart,
-                const bool            accumulate,
+                int                   atomStart,
+                bool                  accumulate,
                 GpuEventSynchronizer* completionMarker = nullptr);
 
     /*! \brief Execute the force reduction */

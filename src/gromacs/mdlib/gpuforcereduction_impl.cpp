@@ -45,7 +45,7 @@
 
 #include "config.h"
 
-#include "gromacs/mdlib/gpuforcereduction.h"
+#include "gpuforcereduction.h"
 
 #if GMX_GPU != GMX_GPU_CUDA
 

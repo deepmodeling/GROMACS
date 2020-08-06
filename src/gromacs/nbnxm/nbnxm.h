@@ -363,7 +363,7 @@ public:
      * \param [in] locality   Local or non-local
      * \returns               The number of atoms for given locality
      */
-    int getNumAtoms(const gmx::AtomLocality locality);
+    int getNumAtoms(gmx::AtomLocality locality);
 
     /*! \brief Get the pointer to the GPU nonbonded force buffer
      *

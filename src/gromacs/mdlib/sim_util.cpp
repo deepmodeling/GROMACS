@@ -79,7 +79,6 @@
 #include "gromacs/mdlib/force_flags.h"
 #include "gromacs/mdlib/forcerec.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
-#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/mdlib/update.h"
 #include "gromacs/mdlib/vsite.h"
 #include "gromacs/mdlib/wholemoleculetransform.h"
@@ -120,6 +119,7 @@
 #include "gromacs/utility/strconvert.h"
 #include "gromacs/utility/sysinfo.h"
 
+#include "gpuforcereduction.h"
 
 using gmx::ArrayRef;
 using gmx::AtomLocality;
