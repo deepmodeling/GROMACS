@@ -232,6 +232,35 @@ static void process_interaction_modifier(int* eintmod)
     }
 }
 
+static void assertMtsRequirements(const t_inputrec& ir)
+{
+    if (!ir.useMts)
+    {
+        return;
+    }
+
+    GMX_RELEASE_ASSERT(ir.nstcalcenergy % ir.mtsFactor == 0,
+                       "nstcalcenergy should be a multiple of mtsFactor");
+    GMX_RELEASE_ASSERT(ir.nstenergy % ir.mtsFactor == 0,
+                       "nstenergy should be a multiple of mtsFactor");
+    GMX_RELEASE_ASSERT(ir.nstlog % ir.mtsFactor == 0, "nstlog should be a multiple of mtsFactor");
+    GMX_RELEASE_ASSERT(ir.epc == epcNO || ir.nstpcouple % ir.mtsFactor == 0,
+                       "nstpcouple should be a multiple of mtsFactor");
+    GMX_RELEASE_ASSERT(ir.efep == efepNO || ir.fepvals->nstdhdl % ir.mtsFactor == 0,
+                       "nstdhdl should be a multiple of mtsFactor");
+}
+
+static void checkMtsRequirement(const t_inputrec& ir, const char* param, const int nstValue, warninp_t wi)
+{
+    if (nstValue % ir.mtsFactor != 0)
+    {
+        auto message =
+                gmx::formatString("With MTS, %s = %d should be a multiple of mts-factor = %d",
+                                  param, nstValue, ir.mtsFactor);
+        warning_error(wi, message.c_str());
+    }
+}
+
 void check_ir(const char*                   mdparin,
               const gmx::MdModulesNotifier& mdModulesNotifier,
               t_inputrec*                   ir,
@@ -478,6 +507,8 @@ void check_ir(const char*                   mdparin,
     }
     if (!EI_DYNAMICS(ir->eI))
     {
+        ir->useMts = false;
+
         if (ir->epc != epcNO)
         {
             sprintf(warn_buf,
@@ -489,6 +520,27 @@ void check_ir(const char*                   mdparin,
     }
     if (EI_DYNAMICS(ir->eI))
     {
+        if (ir->useMts)
+        {
+            if (!(ir->eI == eiMD || ir->eI == eiSD1))
+            {
+                auto message = gmx::formatString(
+                        "Multiple time stepping is only supported with integrators %s and %s",
+                        ei_names[eiMD], ei_names[eiSD1]);
+                warning_error(wi, message.c_str());
+            }
+            if (ir->mtsFactor <= 1)
+            {
+                gmx_fatal(FARGS, "mst-factor should be larger than 1");
+            }
+            checkMtsRequirement(*ir, "nstenergy", ir->nstenergy, wi);
+            checkMtsRequirement(*ir, "nstlog", ir->nstlog, wi);
+            if (ir->efep != efepNO)
+            {
+                checkMtsRequirement(*ir, "nstdhdl", ir->fepvals->nstdhdl, wi);
+            }
+        }
+
         if (ir->nstcalcenergy < 0)
         {
             ir->nstcalcenergy = ir_optimal_nstcalcenergy(ir);
@@ -536,6 +588,12 @@ void check_ir(const char*                   mdparin,
             if (ir->nstpcouple < 0)
             {
                 ir->nstpcouple = ir_optimal_nstpcouple(ir);
+            }
+            if (ir->useMts && ir->nstpcouple % ir->mtsFactor != 0)
+            {
+                warning_error(wi,
+                              "With multiple time stepping, nstpcouple should be a mutiple of "
+                              "mts-factor");
             }
         }
 
@@ -1883,6 +1941,9 @@ void get_ir(const char*     mdparin,
     printStringNoNewline(
             &inp, "Part index is updated automatically on checkpointing (keeps files separate)");
     ir->simulation_part = get_eint(&inp, "simulation-part", 1, wi);
+    ir->useMts          = (get_eeenum(&inp, "mts", yesno_names, wi) != 0);
+    ir->eMtsScheme      = get_eeenum(&inp, "mts-scheme", emtsscheme_names, wi);
+    ir->mtsFactor       = get_eint(&inp, "mts-factor", 2, wi);
     printStringNoNewline(&inp, "mode for center of mass motion removal");
     ir->comm_mode = get_eeenum(&inp, "comm-mode", ecm_names, wi);
     printStringNoNewline(&inp, "number of steps for center of mass motion removal");
@@ -4061,6 +4122,9 @@ static void check_combination_rules(const t_inputrec* ir, const gmx_mtop_t* mtop
 
 void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_t wi)
 {
+    // Not meeting MTS requires should have resulted in a fatal error, so we can assert here
+    assertMtsRequirements(*ir);
+
     char                      err_buf[STRLEN];
     int                       i, m, c, nmol;
     bool                      bCharge, bAcc;

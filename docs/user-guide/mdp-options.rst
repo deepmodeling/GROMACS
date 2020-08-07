@@ -231,6 +231,32 @@ Run control
          same simulation. This option is generally useful to set only
          when coping with a crashed simulation where files were lost.
 
+.. mdp:: mts
+
+   .. mdp-value:: no
+
+      Evaluate all forces at every integration step
+
+   .. mdp-value:: yes
+
+      Use multiple timing stepping to evaluate some forces, as specified by
+      by :mdp:`mts-scheme` every :mdp:`mts-factor` integration steps
+
+.. mdp:: mts-scheme
+
+   .. mdp-value:: pme-nonbonded-pair-dihedral
+      compute the PME-mesh, non-bonded, bonded pair and dihedral forces
+      every :mdp:`mts-factor` integration steps
+
+   .. mdp-value:: pme
+      compute the PME-mesh forces every :mdp:`mts-factor` integration steps
+
+.. mdp:: mts-factor
+
+      (2) [steps]
+      frequency for computing the slow forces in the multiple time stepping
+      scheme
+
 .. mdp:: comm-mode
 
    .. mdp-value:: Linear
@@ -976,8 +1002,8 @@ Temperature coupling
 
    (-1)
    The frequency for coupling the temperature. The default value of -1
-   sets :mdp:`nsttcouple` equal to :mdp:`nstlist`, unless
-   :mdp:`nstlist` <=0, then a value of 10 is used. For velocity
+   sets :mdp:`nsttcouple` equal to 10, or fewer steps if required
+   for accurate integration. For velocity
    Verlet integrators :mdp:`nsttcouple` is set to 1.
 
 .. mdp:: nh-chain-length
@@ -1110,8 +1136,8 @@ Pressure coupling
 
    (-1)
    The frequency for coupling the pressure. The default value of -1
-   sets :mdp:`nstpcouple` equal to :mdp:`nstlist`, unless
-   :mdp:`nstlist` <=0, then a value of 10 is used. For velocity
+   sets :mdp:`nstpcouple` equal to 10, or fewer steps if required
+   for accurate integration. For velocity
    Verlet integrators :mdp:`nstpcouple` is set to 1.
 
 .. mdp:: tau-p
@@ -1638,7 +1664,8 @@ pull-coord2-vec, pull-coord2-k, and so on.
       Center of mass pulling using a constraint between the reference
       group and one or more groups. The setup is identical to the
       option umbrella, except for the fact that a rigid constraint is
-      applied instead of a harmonic potential.
+      applied instead of a harmonic potential. Note that this type is
+      not supported in combination with multiple time stepping.
 
    .. mdp-value:: constant-force
 

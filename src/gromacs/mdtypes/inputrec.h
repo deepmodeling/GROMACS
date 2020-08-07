@@ -348,6 +348,12 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     double init_t;
     //! Time step (ps)
     double delta_t;
+    //! Whether we use multiple time stepping
+    bool useMts;
+    //! The multiple time stepping scheme
+    int eMtsScheme;
+    //! The factor between the fast and slow time steps
+    int mtsFactor;
     //! Precision of x in compressed trajectory file
     real x_compression_precision;
     //! Requested fourier_spacing, when nk? not set

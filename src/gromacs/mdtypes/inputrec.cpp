@@ -44,6 +44,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <numeric>
 
 #include "gromacs/math/veccompare.h"
 #include "gromacs/math/vecdump.h"
@@ -72,6 +73,12 @@ const int nstmin_berendsen_tcouple = 5;
 const int nstmin_berendsen_pcouple = 10;
 const int nstmin_harmonic          = 20;
 
+/* Default values for T- and P- coupling intervals, used when the are no other
+ * restrictions.
+ */
+constexpr int c_defaultNstTCouple = 10;
+constexpr int c_defaultNstPCouple = 10;
+
 t_inputrec::t_inputrec()
 {
     // TODO When this memset is removed, remove the suppression of
@@ -87,21 +94,25 @@ t_inputrec::~t_inputrec()
     done_inputrec(this);
 }
 
-static int nst_wanted(const t_inputrec* ir)
+int ir_optimal_nstcalcenergy(const t_inputrec* ir)
 {
+    int nst;
+
     if (ir->nstlist > 0)
     {
-        return ir->nstlist;
+        nst = ir->nstlist;
     }
     else
     {
-        return 10;
+        nst = 10;
     }
-}
 
-int ir_optimal_nstcalcenergy(const t_inputrec* ir)
-{
-    return nst_wanted(ir);
+    if (ir->useMts)
+    {
+        nst = std::lcm(nst, ir->mtsFactor);
+    }
+
+    return nst;
 }
 
 int tcouple_min_integration_steps(int etc)
@@ -134,7 +145,7 @@ int ir_optimal_nsttcouple(const t_inputrec* ir)
 
     nmin = tcouple_min_integration_steps(ir->etc);
 
-    nwanted = nst_wanted(ir);
+    nwanted = c_defaultNstTCouple;
 
     tau_min = 1e20;
     if (ir->etc != etcNO)
@@ -191,7 +202,7 @@ int ir_optimal_nstpcouple(const t_inputrec* ir)
 
     nmin = pcouple_min_integration_steps(ir->epc);
 
-    nwanted = nst_wanted(ir);
+    nwanted = c_defaultNstPCouple;
 
     if (nmin == 0 || ir->delta_t * nwanted <= ir->tau_p)
     {
@@ -810,6 +821,9 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
         PSTEP("nsteps", ir->nsteps);
         PSTEP("init-step", ir->init_step);
         PI("simulation-part", ir->simulation_part);
+        PS("mts", EBOOL(ir->useMts));
+        PS("mts-scheme", EMTSSCHEME(ir->eMtsScheme));
+        PI("mts-factor", ir->mtsFactor);
         PS("comm-mode", ECOM(ir->comm_mode));
         PI("nstcomm", ir->nstcomm);
 
