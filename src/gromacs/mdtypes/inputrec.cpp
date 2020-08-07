@@ -44,6 +44,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <numeric>
 
 #include "gromacs/math/veccompare.h"
 #include "gromacs/math/vecdump.h"
@@ -72,6 +73,12 @@ const int nstmin_berendsen_tcouple = 5;
 const int nstmin_berendsen_pcouple = 10;
 const int nstmin_harmonic          = 20;
 
+/* Default values for T- and P- coupling intervals, used when the are no other
+ * restrictions.
+ */
+constexpr int c_defaultNstTCouple = 10;
+constexpr int c_defaultNstPCouple = 10;
+
 t_inputrec::t_inputrec()
 {
     // TODO When this memset is removed, remove the suppression of
@@ -87,21 +94,26 @@ t_inputrec::~t_inputrec()
     done_inputrec(this);
 }
 
-static int nst_wanted(const t_inputrec* ir)
+int ir_optimal_nstcalcenergy(const t_inputrec* ir)
 {
+    int nst;
+
     if (ir->nstlist > 0)
     {
-        return ir->nstlist;
+        nst = ir->nstlist;
     }
     else
     {
-        return 10;
+        nst = 10;
     }
-}
 
-int ir_optimal_nstcalcenergy(const t_inputrec* ir)
-{
-    return nst_wanted(ir);
+    if (ir->useMts)
+    {
+        GMX_RELEASE_ASSERT(ir->mtsLevels.size() == 2, "Currently only 2 levels are supported");
+        nst = std::lcm(nst, ir->mtsLevels[1].stepFactor);
+    }
+
+    return nst;
 }
 
 int tcouple_min_integration_steps(int etc)
@@ -134,7 +146,7 @@ int ir_optimal_nsttcouple(const t_inputrec* ir)
 
     nmin = tcouple_min_integration_steps(ir->etc);
 
-    nwanted = nst_wanted(ir);
+    nwanted = c_defaultNstTCouple;
 
     tau_min = 1e20;
     if (ir->etc != etcNO)
@@ -191,7 +203,7 @@ int ir_optimal_nstpcouple(const t_inputrec* ir)
 
     nmin = pcouple_min_integration_steps(ir->epc);
 
-    nwanted = nst_wanted(ir);
+    nwanted = c_defaultNstPCouple;
 
     if (nmin == 0 || ir->delta_t * nwanted <= ir->tau_p)
     {
@@ -810,6 +822,30 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
         PSTEP("nsteps", ir->nsteps);
         PSTEP("init-step", ir->init_step);
         PI("simulation-part", ir->simulation_part);
+        PS("mts", EBOOL(ir->useMts));
+        if (ir->useMts)
+        {
+            for (int mtsIndex = 1; mtsIndex < static_cast<int>(ir->mtsLevels.size()); mtsIndex++)
+            {
+                const auto&       mtsLevel = ir->mtsLevels[mtsIndex];
+                const std::string forceKey = gmx::formatString("mts-level%d-forces", mtsIndex + 1);
+                std::string       forceGroups;
+                for (int i = 0; i < static_cast<int>(MtsForceGroups::Count); i++)
+                {
+                    if (mtsLevel.forceGroups[i])
+                    {
+                        if (!forceGroups.empty())
+                        {
+                            forceGroups += " ";
+                        }
+                        forceGroups += mtsForceGroupNames[i];
+                    }
+                }
+                PS(forceKey.c_str(), forceGroups.c_str());
+                const std::string factorKey = gmx::formatString("mts-level%d-factor", mtsIndex + 1);
+                PI(factorKey.c_str(), mtsLevel.stepFactor);
+            }
+        }
         PS("comm-mode", ECOM(ir->comm_mode));
         PI("nstcomm", ir->nstcomm);
 
@@ -1278,6 +1314,12 @@ void cmp_inputrec(FILE* fp, const t_inputrec* ir1, const t_inputrec* ir2, real f
     cmp_int64(fp, "inputrec->nsteps", ir1->nsteps, ir2->nsteps);
     cmp_int64(fp, "inputrec->init_step", ir1->init_step, ir2->init_step);
     cmp_int(fp, "inputrec->simulation_part", -1, ir1->simulation_part, ir2->simulation_part);
+    cmp_int(fp, "inputrec->mts", -1, static_cast<int>(ir1->useMts), static_cast<int>(ir2->useMts));
+    cmp_int(fp, "inputrec->mts-levels", -1, ir1->mtsLevels.size(), ir2->mtsLevels.size());
+    cmp_int(fp, "inputrec->mts-level2-forces", -1, ir1->mtsLevels[1].forceGroups.to_ulong(),
+            ir2->mtsLevels[1].forceGroups.to_ulong());
+    cmp_int(fp, "inputrec->mts-level2-factor", -1, ir1->mtsLevels[1].stepFactor,
+            ir2->mtsLevels[1].stepFactor);
     cmp_int(fp, "inputrec->pbcType", -1, static_cast<int>(ir1->pbcType), static_cast<int>(ir2->pbcType));
     cmp_bool(fp, "inputrec->bPeriodicMols", -1, ir1->bPeriodicMols, ir2->bPeriodicMols);
     cmp_int(fp, "inputrec->cutoff_scheme", -1, ir1->cutoff_scheme, ir2->cutoff_scheme);

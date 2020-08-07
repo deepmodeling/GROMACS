@@ -132,6 +132,7 @@ enum tpxv
     tpxv_AddSizeField, /**< Added field with information about the size of the serialized tpr file in bytes, excluding the header */
     tpxv_StoreNonBondedInteractionExclusionGroup, /**< Store the non bonded interaction exclusion group in the topology */
     tpxv_VSite1,                                  /**< Added 1 type virtual site */
+    tpxv_MTS,                                     /**< Added multiple time stepping */
     tpxv_Count                                    /**< the total number of tpxv versions */
 };
 
@@ -1081,6 +1082,29 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
     }
 
     serializer->doInt(&ir->simulation_part);
+
+    if (file_version >= tpxv_MTS)
+    {
+        serializer->doBool(&ir->useMts);
+        int numLevels = ir->mtsLevels.size();
+        if (ir->useMts)
+        {
+            serializer->doInt(&numLevels);
+        }
+        ir->mtsLevels.resize(numLevels);
+        for (auto& mtsLevel : ir->mtsLevels)
+        {
+            int forceGroups = mtsLevel.forceGroups.to_ulong();
+            serializer->doInt(&forceGroups);
+            mtsLevel.forceGroups = std::bitset<static_cast<int>(MtsForceGroups::Count)>(forceGroups);
+            serializer->doInt(&mtsLevel.stepFactor);
+        }
+    }
+    else
+    {
+        ir->useMts = false;
+        ir->mtsLevels.clear();
+    }
 
     if (file_version >= 67)
     {

@@ -1835,6 +1835,7 @@ int gmx_grompp(int argc, char* argv[])
     snew(opts, 1);
     snew(opts->include, STRLEN);
     snew(opts->define, STRLEN);
+    snew(opts->mtsLevel2Forces, STRLEN);
 
     gmx::LoggerBuilder builder;
     builder.addTargetStream(gmx::MDLogger::LogLevel::Info, &gmx::TextOutputFile::standardOutput());
