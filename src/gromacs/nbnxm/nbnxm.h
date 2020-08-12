@@ -371,21 +371,6 @@ public:
      */
     void* getGpuForces();
 
-    /*! \brief Get a pointer to the cell atom index mapping array
-     *
-     * \returns A pointer to the cell array
-     */
-    const int* getCell();
-
-    /*! \brief Outer body of function to perform initialization for F buffer operations on GPU.
-     *
-     * \param localReductionDone     Pointer to an event synchronizer that marks the completion of the local f buffer ops kernel.
-     */
-    void atomdata_init_add_nbat_f_to_f_gpu(GpuEventSynchronizer* localReductionDone);
-
-    /*! \brief return GPU pointer to f in rvec format */
-    void* get_gpu_frvec();
-
     //! Return the kernel setup
     const Nbnxm::KernelSetup& kernelSetup() const { return kernelSetup_; }
 

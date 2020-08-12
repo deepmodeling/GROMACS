@@ -46,7 +46,6 @@
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/vectypes.h"
-#include "gromacs/utility/fixedcapacityvector.h"
 
 #include "gpuforcereduction.h"
 
@@ -94,7 +93,7 @@ public:
      */
     void reinit(void*                 baseForcePtr,
                 const int             numAtoms,
-                const int*            cell,
+                ArrayRef<const int>   cell,
                 const int             atomStart,
                 const bool            accumulate,
                 GpuEventSynchronizer* completionMarker = nullptr);
@@ -104,7 +103,7 @@ public:
 
 private:
     //! force to be used as a base for this reduction
-    void* baseForce_;
+    void* baseForce_ = nullptr;
     //! starting atom
     int atomStart_ = 0;
     //! number of atoms
@@ -126,9 +125,9 @@ private:
     //! stream to be used for this reduction
     const DeviceStream& deviceStream_;
     //! Nbnxm force to be added in this reduction
-    void* nbnxmForceToAdd_;
-    //! list of Rvec-format forces to be added in this reduction
-    gmx::FixedCapacityVector<void*, 3> rvecForceToAddList_;
+    void* nbnxmForceToAdd_ = nullptr;
+    //! Rvec-format force to be added in this reduction
+    void* rvecForceToAdd_ = nullptr;
     //! event to be marked when redcution launch has been completed
     GpuEventSynchronizer* completionMarker_ = nullptr;
 };

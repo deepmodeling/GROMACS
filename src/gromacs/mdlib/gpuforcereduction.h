@@ -46,6 +46,7 @@
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/fixedcapacityvector.h"
 
 class GpuEventSynchronizer;
@@ -94,7 +95,7 @@ public:
      */
     void reinit(void*                 baseForcePtr,
                 int                   numAtoms,
-                const int*            cell,
+                ArrayRef<const int>   cell,
                 int                   atomStart,
                 bool                  accumulate,
                 GpuEventSynchronizer* completionMarker = nullptr);

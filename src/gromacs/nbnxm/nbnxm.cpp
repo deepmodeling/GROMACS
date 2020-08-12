@@ -192,12 +192,6 @@ void* nonbonded_verlet_t::getGpuForces()
     return Nbnxm::getGpuForces(gpu_nbv);
 }
 
-const int* nonbonded_verlet_t::getCell()
-{
-    const Nbnxm::GridSet& gridSet = pairSearch_->gridSet();
-    return gridSet.cells().data();
-}
-
 real nonbonded_verlet_t::pairlistInnerRadius() const
 {
     return pairlistSets_->params().rlistInner;

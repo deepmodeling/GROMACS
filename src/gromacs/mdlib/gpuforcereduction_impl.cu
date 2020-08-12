@@ -58,30 +58,20 @@
 
 #include "gpuforcereduction.h"
 
-// Maximum number of rvec-format forces to be added
-#define MAXRVECFORCES 3
-
 namespace gmx
 {
 
 constexpr static int c_threadsPerBlock = 128;
 
-/* \brief force data required on device, to be passed to kernel as a parameter */
-struct rvecDeviceForceData
-{
-    float3* gm_f[MAXRVECFORCES];
-};
-
 typedef struct rvecDeviceForceData rvecDeviceForceData_t;
 
 
-template<bool accumulateForce>
+template<bool addRvecForce, bool accumulateForce>
 static __global__ void reduceKernel(const float3* __restrict__ gm_nbnxmForce,
-                                    const rvecDeviceForceData_t __restrict__ rvecForceToAddData,
+                                    const float3* __restrict__ rvecForceToAdd,
                                     float3*    gm_fTotal,
                                     const int* gm_cell,
-                                    const int  numAtoms,
-                                    const int  numRvecForces)
+                                    const int  numAtoms)
 {
 
     // map particle-level parallelism to 1D CUDA thread and block index
@@ -105,10 +95,9 @@ static __global__ void reduceKernel(const float3* __restrict__ gm_nbnxmForce,
             temp = gm_nbnxmForce[gm_cell[threadIndex]];
         }
 
-        // Accumulate any additional rvec forces
-        for (int iForce = 0; iForce < numRvecForces; iForce++)
+        if (addRvecForce)
         {
-            temp += rvecForceToAddData.gm_f[iForce][threadIndex];
+            temp += rvecForceToAdd[threadIndex];
         }
 
         *gm_fDest = temp;
@@ -122,7 +111,7 @@ GpuForceReduction::Impl::Impl(const DeviceContext& deviceContext, const DeviceSt
 
 void GpuForceReduction::Impl::reinit(void*                 baseForcePtr,
                                      const int             numAtoms,
-                                     const int*            cell,
+                                     ArrayRef<const int>   cell,
                                      const int             atomStart,
                                      const bool            accumulate,
                                      GpuEventSynchronizer* completionMarker)
@@ -133,13 +122,12 @@ void GpuForceReduction::Impl::reinit(void*                 baseForcePtr,
     atomStart_        = atomStart;
     accumulate_       = accumulate;
     completionMarker_ = completionMarker;
-    cell_             = cell;
+    cell_             = cell.data();
     reallocateDeviceBuffer(&d_cell_, atomStart_ + numAtoms_, &cellSize_, &cellSizeAlloc_, deviceContext_);
     copyToDeviceBuffer(&d_cell_, cell_, 0, atomStart_ + numAtoms_, deviceStream_,
                        GpuApiCallBehavior::Async, nullptr);
 
     dependencyList_.clear();
-    rvecForceToAddList_.clear();
 };
 
 void GpuForceReduction::Impl::registerNbnxmForce(void* forcePtr)
@@ -151,9 +139,7 @@ void GpuForceReduction::Impl::registerNbnxmForce(void* forcePtr)
 void GpuForceReduction::Impl::registerRvecForce(void* forcePtr)
 {
     GMX_ASSERT((forcePtr != nullptr), "Input force for reduction has no data");
-    rvecForceToAddList_.push_back(forcePtr);
-    GMX_ASSERT((rvecForceToAddList_.size() <= MAXRVECFORCES),
-               "A maximum of MAXRVECFORCES forces are supported in the GPU force reduction");
+    rvecForceToAdd_ = forcePtr;
 };
 
 void GpuForceReduction::Impl::addDependency(GpuEventSynchronizer* const dependency)
@@ -165,7 +151,9 @@ void GpuForceReduction::Impl::execute()
 {
 
     if (numAtoms_ == 0)
+    {
         return;
+    }
 
     GMX_ASSERT((nbnxmForceToAdd_ != nullptr), "Nbnxm force for reduction has no data");
 
@@ -175,17 +163,9 @@ void GpuForceReduction::Impl::execute()
         synchronizer->enqueueWaitEvent(deviceStream_);
     }
 
-    // Populate data force data struct to be passed as an argument to kernel
-    float3* d_nbnxmForce = static_cast<float3*>(nbnxmForceToAdd_);
-    int*    d_cell       = &d_cell_[atomStart_];
-
-    rvecDeviceForceData_t d_rvecForceToAddData;
-    int                   iForce = 0;
-    for (auto const forceToAdd : rvecForceToAddList_)
-    {
-        d_rvecForceToAddData.gm_f[iForce] = &(static_cast<float3*>(forceToAdd))[atomStart_];
-        iForce++;
-    }
+    float3* d_nbnxmForce     = static_cast<float3*>(nbnxmForceToAdd_);
+    int*    d_cell           = &d_cell_[atomStart_];
+    float3* d_rvecForceToAdd = &(static_cast<float3*>(rvecForceToAdd_))[atomStart_];
 
     // Configure and launch kernel
     KernelLaunchConfig config;
@@ -197,13 +177,13 @@ void GpuForceReduction::Impl::execute()
     config.gridSize[2]      = 1;
     config.sharedMemorySize = 0;
 
-    auto      kernelFn           = accumulate_ ? reduceKernel<true> : reduceKernel<false>;
-    float3*   d_fTotal           = &(static_cast<float3*>(baseForce_))[atomStart_];
-    const int numRvecForcesToAdd = rvecForceToAddList_.size();
+    auto kernelFn = (rvecForceToAdd_ != nullptr)
+                            ? (accumulate_ ? reduceKernel<true, true> : reduceKernel<true, false>)
+                            : (accumulate_ ? reduceKernel<false, true> : reduceKernel<false, false>);
+    float3* d_fTotal = &(static_cast<float3*>(baseForce_))[atomStart_];
 
-    const auto kernelArgs =
-            prepareGpuKernelArguments(kernelFn, config, &d_nbnxmForce, &d_rvecForceToAddData,
-                                      &d_fTotal, &d_cell, &numAtoms_, &numRvecForcesToAdd);
+    const auto kernelArgs = prepareGpuKernelArguments(
+            kernelFn, config, &d_nbnxmForce, &d_rvecForceToAdd, &d_fTotal, &d_cell, &numAtoms_);
 
     launchGpuKernel(kernelFn, config, deviceStream_, nullptr, "Force Reduction", kernelArgs);
 
@@ -238,7 +218,7 @@ void GpuForceReduction::addDependency(GpuEventSynchronizer* const dependency)
 
 void GpuForceReduction::reinit(void*                 baseForcePtr,
                                const int             numAtoms,
-                               const int*            cell,
+                               ArrayRef<const int>   cell,
                                const int             atomStart,
                                const bool            accumulate,
                                GpuEventSynchronizer* completionMarker)

@@ -1271,9 +1271,9 @@ void do_force(FILE*                               fplog,
             // (re-)initialize local GPU force reduction
             const bool accumulate = domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr);
             const int atomStart   = 0;
-            fr->gpuForceReductionLocal->reinit(stateGpu->getForces(),
-                                               nbv->getNumAtoms(AtomLocality::Local), nbv->getCell(),
-                                               atomStart, accumulate, stateGpu->fReducedOnDevice());
+            fr->gpuForceReductionLocal->reinit(
+                    stateGpu->getForces(), nbv->getNumAtoms(AtomLocality::Local),
+                    nbv->getGridIndices(), atomStart, accumulate, stateGpu->fReducedOnDevice());
 
             // register forces and add dependencies
             fr->gpuForceReductionLocal->registerNbnxmForce(nbv->getGpuForces());
@@ -1313,7 +1313,7 @@ void do_force(FILE*                               fplog,
                 const int atomStart   = dd_numHomeAtoms(*cr->dd);
                 fr->gpuForceReductionNonLocal->reinit(stateGpu->getForces(),
                                                       nbv->getNumAtoms(AtomLocality::NonLocal),
-                                                      nbv->getCell(), atomStart, accumulate);
+                                                      nbv->getGridIndices(), atomStart, accumulate);
 
                 // register forces and add dependencies
                 fr->gpuForceReductionNonLocal->registerNbnxmForce(nbv->getGpuForces());
