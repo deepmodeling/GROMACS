@@ -1144,7 +1144,7 @@ int Mdrunner::mdrunner()
     if (useDomainDecomposition)
     {
         ddBuilder = std::make_unique<DomainDecompositionBuilder>(
-                mdlog, cr, domdecOptions, mdrunOptions, false, mtop, *inputrec, box,
+                mdlog, cr, domdecOptions, mdrunOptions, mtop, *inputrec, box,
                 positionsFromStatePointer(globalState.get()));
     }
     else

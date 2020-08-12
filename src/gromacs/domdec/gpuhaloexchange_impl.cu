@@ -143,22 +143,22 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
     numHomeAtoms_ = comm.atomRanges.numHomeAtoms(); // offset for data recieved by this rank
 
     // Determine receive offset for the dimension index and pulse of this halo exchange object
-    int nzoneTemp = 1;
-    int nzone     = 0;
-    int nat_tot   = numHomeAtoms_;
+    int numZoneTemp   = 1;
+    int numZone       = 0;
+    int numAtomsTotal = numHomeAtoms_;
     for (int i = 0; i <= dimIndex_; i++)
     {
         for (int p = 0; p <= pulse_; p++)
         {
-            atomOffset_                     = nat_tot;
+            atomOffset_                     = numAtomsTotal;
             const gmx_domdec_ind_t& indTemp = comm.cd[i].ind[p];
-            nat_tot += indTemp.nrecv[nzoneTemp + 1];
+            numAtomsTotal += indTemp.nrecv[numZoneTemp + 1];
         }
-        nzone = nzoneTemp;
-        nzoneTemp += nzoneTemp;
+        numZone = numZoneTemp;
+        numZoneTemp += numZoneTemp;
     }
 
-    int newSize = ind.nsend[nzone + 1];
+    int newSize = ind.nsend[numZone + 1];
 
     GMX_ASSERT(cd.receiveInPlace, "Out-of-place receive is not yet supported in GPU halo exchange");
 
@@ -290,6 +290,10 @@ void GpuHaloExchange::Impl::communicateHaloForces(bool accumulateForces)
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_GPU_MOVEF);
 
     float3* d_f = d_f_;
+    // If this is the last pulse and index (noting the force halo
+    // exchanges across multiple pulses and indices are called in
+    // reverse order) then perform the following preparation
+    // activities
     if ((pulse_ == (dd_->comm->cd[dimIndex_].numPulses() - 1)) && (dimIndex_ == (dd_->ndim - 1)))
     {
         if (!accumulateForces)

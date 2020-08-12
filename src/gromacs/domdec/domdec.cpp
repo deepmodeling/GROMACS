@@ -2904,54 +2904,6 @@ static DDSettings getDDSettings(const gmx::MDLogger&     mdlog,
 
 gmx_domdec_t::gmx_domdec_t(const t_inputrec& ir) : unitCellInfo(ir) {}
 
-/*! \brief Return whether the simulation described can run a 1D DD.
- *
- * The GPU halo exchange code requires 1D DD. Such a DD
- * generally requires a larger box than other possible decompositions
- * with the same rank count, so the calling code might need to decide
- * what is the most appropriate way to run the simulation based on
- * whether such a DD is possible.
- *
- * This function works like init_domain_decomposition(), but will not
- * give a fatal error, and only uses \c cr for communicating between
- * ranks.
- *
- * It is safe to call before thread-MPI spawns ranks, so that
- * thread-MPI can decide whether and how to trigger the GPU halo
- * exchange code path. The number of PME ranks, if any, should be set
- * in \c options.numPmeRanks.
- */
-static bool canMake1DDomainDecomposition(const DDSettings&              ddSettingsOriginal,
-                                         DDRole                         ddRole,
-                                         MPI_Comm                       communicator,
-                                         const int                      numRanksRequested,
-                                         const DomdecOptions&           options,
-                                         const gmx_mtop_t&              mtop,
-                                         const t_inputrec&              ir,
-                                         const matrix                   box,
-                                         gmx::ArrayRef<const gmx::RVec> xGlobal)
-{
-    // Ensure we don't write any output from this checking routine
-    gmx::MDLogger dummyLogger;
-
-    DDSystemInfo systemInfo =
-            getSystemInfo(dummyLogger, ddRole, communicator, options, mtop, ir, box, xGlobal);
-
-    DDSettings ddSettings = ddSettingsOriginal;
-    ddSettings.request1D  = true;
-    const real gridSetupCellsizeLimit =
-            getDDGridSetupCellSizeLimit(dummyLogger, !isDlbDisabled(ddSettings.initialDlbState),
-                                        options.dlbScaling, ir, systemInfo.cellsizeLimit);
-    gmx_ddbox_t ddbox = { 0 };
-    DDGridSetup ddGridSetup =
-            getDDGridSetup(dummyLogger, ddRole, communicator, numRanksRequested, options, ddSettings,
-                           systemInfo, gridSetupCellsizeLimit, mtop, ir, box, xGlobal, &ddbox);
-
-    const bool canMake1DDD = (ddGridSetup.numDomains[XX] != 0);
-
-    return canMake1DDD;
-}
-
 namespace gmx
 {
 
@@ -2966,7 +2918,6 @@ public:
          t_commrec*           cr,
          const DomdecOptions& options,
          const MdrunOptions&  mdrunOptions,
-         bool                 prefer1D,
          const gmx_mtop_t&    mtop,
          const t_inputrec&    ir,
          const matrix         box,
@@ -3014,7 +2965,6 @@ DomainDecompositionBuilder::Impl::Impl(const MDLogger&      mdlog,
                                        t_commrec*           cr,
                                        const DomdecOptions& options,
                                        const MdrunOptions&  mdrunOptions,
-                                       const bool           prefer1D,
                                        const gmx_mtop_t&    mtop,
                                        const t_inputrec&    ir,
                                        const matrix         box,
@@ -3028,14 +2978,6 @@ DomainDecompositionBuilder::Impl::Impl(const MDLogger&      mdlog,
     GMX_LOG(mdlog_.info).appendTextFormatted("\nInitializing Domain Decomposition on %d ranks", cr_->sizeOfDefaultCommunicator);
 
     ddSettings_ = getDDSettings(mdlog_, options_, mdrunOptions, ir_);
-
-    if (prefer1D
-        && canMake1DDomainDecomposition(ddSettings_, MASTER(cr_) ? DDRole::Master : DDRole::Agent,
-                                        cr->mpiDefaultCommunicator, cr_->sizeOfDefaultCommunicator,
-                                        options_, mtop_, ir_, box, xGlobal))
-    {
-        ddSettings_.request1D = true;
-    }
 
     if (ddSettings_.eFlop > 1)
     {
@@ -3109,12 +3051,11 @@ DomainDecompositionBuilder::DomainDecompositionBuilder(const MDLogger&      mdlo
                                                        t_commrec*           cr,
                                                        const DomdecOptions& options,
                                                        const MdrunOptions&  mdrunOptions,
-                                                       const bool           prefer1D,
                                                        const gmx_mtop_t&    mtop,
                                                        const t_inputrec&    ir,
                                                        const matrix         box,
                                                        ArrayRef<const RVec> xGlobal) :
-    impl_(new Impl(mdlog, cr, options, mdrunOptions, prefer1D, mtop, ir, box, xGlobal))
+    impl_(new Impl(mdlog, cr, options, mdrunOptions, mtop, ir, box, xGlobal))
 {
 }
 
