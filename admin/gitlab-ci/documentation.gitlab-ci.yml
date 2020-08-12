@@ -6,7 +6,7 @@
     - .gromacs:base:configure
     - .before_script:default
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm:master
+  image: gromacs/ci-docs-llvm-master
   stage: configure-build
   cache: {}
   variables:
@@ -19,7 +19,7 @@
     CMAKE_MPI_OPTIONS: "-DGMX_THREAD_MPI=OFF"
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=OFF"
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug"
-    CMAKE_GPU_OPTIONS: "-DGMX_GPU=None"
+    CMAKE_GPU_OPTIONS: "-DGMX_GPU=OFF"
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=ON"
   script:
     - if [[ ! -z $GROMACS_RELEASE && $GROMACS_RELEASE == "true" ]] ; then
@@ -73,7 +73,7 @@
     - .before_script:default
     - .rules:nightly-only-for-release
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm:master
+  image: gromacs/ci-docs-llvm-master
   stage: release-configure
   cache: {}
   variables:
@@ -86,7 +86,7 @@
     CMAKE_MPI_OPTIONS: "-DGMX_THREAD_MPI=ON"
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=OFF"
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug"
-    CMAKE_GPU_OPTIONS: "-DGMX_GPU=None"
+    CMAKE_GPU_OPTIONS: "-DGMX_GPU=OFF"
     CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=ON"
     RELEASE_BUILD_DIR: release-doc-builds
     RELEASE_SOURCE: release-source-from-tarball
@@ -184,7 +184,7 @@ docs:configure:
 
 .docs:build:
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm:master
+  image: gromacs/ci-docs-llvm-master
   script:
     - cd $BUILD_DIR
     - cmake --build . --target gmx -- -j8
@@ -224,7 +224,7 @@ docs:build:
     - .gromacs:base:build
     - .before_script:default
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm:master
+  image: gromacs/ci-docs-llvm-master
   cache: {}
   variables:
     KUBERNETES_CPU_LIMIT: 4

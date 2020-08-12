@@ -54,8 +54,8 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/pbcutil/pbc.h"
 
-#include "energyelement.h"
-#include "freeenergyperturbationelement.h"
+#include "energydata.h"
+#include "freeenergyperturbationdata.h"
 #include "statepropagatordata.h"
 
 struct gmx_edsam;
@@ -65,26 +65,26 @@ class history_t;
 
 namespace gmx
 {
-ForceElement::ForceElement(StatePropagatorData*           statePropagatorData,
-                           EnergyElement*                 energyElement,
-                           FreeEnergyPerturbationElement* freeEnergyPerturbationElement,
-                           bool                           isVerbose,
-                           bool                           isDynamicBox,
-                           FILE*                          fplog,
-                           const t_commrec*               cr,
-                           const t_inputrec*              inputrec,
-                           const MDAtoms*                 mdAtoms,
-                           t_nrnb*                        nrnb,
-                           t_forcerec*                    fr,
-                           t_fcdata*                      fcd,
-                           gmx_wallcycle*                 wcycle,
-                           MdrunScheduleWorkload*         runScheduleWork,
-                           VirtualSitesHandler*           vsite,
-                           ImdSession*                    imdSession,
-                           pull_t*                        pull_work,
-                           Constraints*                   constr,
-                           const gmx_mtop_t*              globalTopology,
-                           gmx_enfrot*                    enforcedRotation) :
+ForceElement::ForceElement(StatePropagatorData*        statePropagatorData,
+                           EnergyData*                 energyData,
+                           FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                           bool                        isVerbose,
+                           bool                        isDynamicBox,
+                           FILE*                       fplog,
+                           const t_commrec*            cr,
+                           const t_inputrec*           inputrec,
+                           const MDAtoms*              mdAtoms,
+                           t_nrnb*                     nrnb,
+                           t_forcerec*                 fr,
+
+                           gmx_wallcycle*         wcycle,
+                           MdrunScheduleWorkload* runScheduleWork,
+                           VirtualSitesHandler*   vsite,
+                           ImdSession*            imdSession,
+                           pull_t*                pull_work,
+                           Constraints*           constr,
+                           const gmx_mtop_t*      globalTopology,
+                           gmx_enfrot*            enforcedRotation) :
     shellfc_(init_shell_flexcon(fplog,
                                 globalTopology,
                                 constr ? constr->numFlexibleConstraints() : 0,
@@ -96,8 +96,8 @@ ForceElement::ForceElement(StatePropagatorData*           statePropagatorData,
     nextVirialCalculationStep_(-1),
     nextFreeEnergyCalculationStep_(-1),
     statePropagatorData_(statePropagatorData),
-    energyElement_(energyElement),
-    freeEnergyPerturbationElement_(freeEnergyPerturbationElement),
+    energyData_(energyData),
+    freeEnergyPerturbationData_(freeEnergyPerturbationData),
     localTopology_(nullptr),
     isDynamicBox_(isDynamicBox),
     isVerbose_(isVerbose),
@@ -114,7 +114,6 @@ ForceElement::ForceElement(StatePropagatorData*           statePropagatorData,
     vsite_(vsite),
     imdSession_(imdSession),
     pull_work_(pull_work),
-    fcd_(fcd),
     runScheduleWork_(runScheduleWork),
     constr_(constr),
     enforcedRotation_(enforcedRotation)
@@ -183,7 +182,7 @@ void ForceElement::run(Step step, Time time, unsigned int flags)
     tensor force_vir = { { 0 } };
     // TODO: Make lambda const (needs some adjustments in lower force routines)
     ArrayRef<real> lambda =
-            freeEnergyPerturbationElement_ ? freeEnergyPerturbationElement_->lambdaView() : lambda_;
+            freeEnergyPerturbationData_ ? freeEnergyPerturbationData_->lambdaView() : lambda_;
 
     if (doShellFC)
     {
@@ -192,9 +191,9 @@ void ForceElement::run(Step step, Time time, unsigned int flags)
         relax_shell_flexcon(
                 fplog_, cr_, ms, isVerbose_, enforcedRotation_, step, inputrec_, imdSession_,
                 pull_work_, step == nextNSStep_, static_cast<int>(flags), localTopology_, constr_,
-                energyElement_->enerdata(), fcd_, statePropagatorData_->localNumAtoms(), x, v, box,
-                lambda, hist, forces, force_vir, mdAtoms_->mdatoms(), nrnb_, wcycle_, shellfc_, fr_,
-                runScheduleWork_, time, energyElement_->muTot(), vsite_, ddBalanceRegionHandler_);
+                energyData_->enerdata(), statePropagatorData_->localNumAtoms(), x, v, box, lambda,
+                hist, forces, force_vir, mdAtoms_->mdatoms(), nrnb_, wcycle_, shellfc_, fr_,
+                runScheduleWork_, time, energyData_->muTot(), vsite_, ddBalanceRegionHandler_);
         nShellRelaxationSteps_++;
     }
     else
@@ -204,11 +203,11 @@ void ForceElement::run(Step step, Time time, unsigned int flags)
         gmx_edsam* ed  = nullptr;
 
         do_force(fplog_, cr_, ms, inputrec_, awh, enforcedRotation_, imdSession_, pull_work_, step,
-                 nrnb_, wcycle_, localTopology_, box, x, hist, forces, force_vir, mdAtoms_->mdatoms(),
-                 energyElement_->enerdata(), fcd_, lambda, fr_, runScheduleWork_, vsite_,
-                 energyElement_->muTot(), time, ed, static_cast<int>(flags), ddBalanceRegionHandler_);
+                 nrnb_, wcycle_, localTopology_, box, x, hist, forces, force_vir,
+                 mdAtoms_->mdatoms(), energyData_->enerdata(), lambda, fr_, runScheduleWork_, vsite_,
+                 energyData_->muTot(), time, ed, static_cast<int>(flags), ddBalanceRegionHandler_);
     }
-    energyElement_->addToForceVirial(force_vir, step);
+    energyData_->addToForceVirial(force_vir, step);
 }
 
 void ForceElement::elementTeardown()

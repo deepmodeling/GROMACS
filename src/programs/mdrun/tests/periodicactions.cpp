@@ -314,11 +314,11 @@ std::vector<PropagationParameters> propagationParametersWithCoupling()
     std::string nstcomm    = "5";
 
     std::vector<PropagationParameters> parameterSets;
-    for (std::string simulationName : { "argon12" })
+    for (const std::string& simulationName : { "argon12" })
     {
-        for (std::string integrator : { "md", "sd", "md-vv" })
+        for (const std::string& integrator : { "md", "sd", "md-vv" })
         {
-            for (std::string tcoupl : { "no", "v-rescale", "Nose-Hoover" })
+            for (const std::string& tcoupl : { "no", "v-rescale", "Nose-Hoover" })
             {
                 // SD doesn't support temperature-coupling algorithms,
                 if (integrator == "sd" && tcoupl != "no")
@@ -381,11 +381,11 @@ std::vector<PropagationParameters> propagationParametersWithConstraints()
     std::string nstcomm    = "5";
 
     std::vector<PropagationParameters> parameterSets;
-    for (std::string simulationName : { "tip3p5" })
+    for (const std::string& simulationName : { "tip3p5" })
     {
-        for (std::string integrator : { "md", "sd", "md-vv" })
+        for (const std::string& integrator : { "md", "sd", "md-vv" })
         {
-            for (std::string tcoupl : { "no", "v-rescale" })
+            for (const std::string& tcoupl : { "no", "v-rescale" })
             {
                 // SD doesn't support temperature-coupling algorithms,
                 if (integrator == "sd" && tcoupl != "no")
@@ -439,7 +439,7 @@ using ::testing::ValuesIn;
 // TODO The time for OpenCL kernel compilation means these tests time
 // out. Once that compilation is cached for the whole process, these
 // tests can run in such configurations.
-#if GMX_GPU != GMX_GPU_OPENCL
+#if !GMX_GPU_OPENCL
 INSTANTIATE_TEST_CASE_P(BasicPropagators,
                         PeriodicActionsTest,
                         Combine(ValuesIn(simplePropagationParameters()), Values(outputParameters)));

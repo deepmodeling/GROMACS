@@ -61,7 +61,7 @@
 #include "gromacs/utility/sysinfo.h"
 
 //! Constant used to help minimize preprocessed code
-static const bool bGPUBinary = GMX_GPU != GMX_GPU_NONE;
+static constexpr bool bGPUBinary = (GMX_GPU != 0);
 
 /*! \internal \brief
  * Returns the GPU information text, one GPU per line.
@@ -80,7 +80,7 @@ static std::string sprint_gpus(const DevicesManager& gpu_info)
    and runtime CPU do not match. */
 static void check_use_of_rdtscp_on_this_cpu(const gmx::MDLogger& mdlog, const gmx::CpuInfo& cpuInfo)
 {
-    bool binaryUsesRdtscp = HAVE_RDTSCP;
+    bool binaryUsesRdtscp = GMX_USE_RDTSCP;
 
     const char* programName = gmx::getProgramContext().displayName();
 

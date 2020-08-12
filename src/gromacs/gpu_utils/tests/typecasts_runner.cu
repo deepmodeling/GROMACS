@@ -42,8 +42,6 @@
 
 #include "typecasts_runner.h"
 
-#include "config.h"
-
 #include <vector>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
@@ -52,8 +50,6 @@
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/stringutil.h"
-
-#if GMX_GPU == GMX_GPU_CUDA
 
 namespace gmx
 {
@@ -151,5 +147,3 @@ void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>& h_rVecOutput, const std
 
 } // namespace test
 } // namespace gmx
-
-#endif // GMX_GPU == GMX_GPU_CUDA

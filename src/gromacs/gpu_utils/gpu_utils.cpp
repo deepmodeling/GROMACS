@@ -76,7 +76,7 @@ bool buildSupportsNonbondedOnGpu(std::string* error)
     {
         errorReasons.emplace_back("double precision");
     }
-    if (GMX_GPU == GMX_GPU_NONE)
+    if (!GMX_GPU)
     {
         errorReasons.emplace_back("non-GPU build of GROMACS");
     }

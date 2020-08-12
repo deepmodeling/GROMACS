@@ -32,7 +32,7 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the force element for the modular simulator
  *
  * This element calculates the forces, with or without shells or
@@ -40,6 +40,8 @@
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_FORCEELEMENT_H
@@ -58,21 +60,20 @@ struct gmx_enfrot;
 struct gmx_shellfc_t;
 struct gmx_wallcycle;
 struct pull_t;
-struct t_fcdata;
 struct t_nrnb;
 
 namespace gmx
 {
 class Awh;
-class EnergyElement;
-class FreeEnergyPerturbationElement;
+class EnergyData;
+class FreeEnergyPerturbationData;
 class ImdSession;
 class MDAtoms;
 class MdrunScheduleWorkload;
 class StatePropagatorData;
 class VirtualSitesHandler;
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Force element
  *
@@ -87,26 +88,26 @@ class ForceElement final :
 {
 public:
     //! Constructor
-    ForceElement(StatePropagatorData*           statePropagatorData,
-                 EnergyElement*                 energyElement,
-                 FreeEnergyPerturbationElement* freeEnergyPerturbationElement,
-                 bool                           isVerbose,
-                 bool                           isDynamicBox,
-                 FILE*                          fplog,
-                 const t_commrec*               cr,
-                 const t_inputrec*              inputrec,
-                 const MDAtoms*                 mdAtoms,
-                 t_nrnb*                        nrnb,
-                 t_forcerec*                    fr,
-                 t_fcdata*                      fcd,
-                 gmx_wallcycle*                 wcycle,
-                 MdrunScheduleWorkload*         runScheduleWork,
-                 VirtualSitesHandler*           vsite,
-                 ImdSession*                    imdSession,
-                 pull_t*                        pull_work,
-                 Constraints*                   constr,
-                 const gmx_mtop_t*              globalTopology,
-                 gmx_enfrot*                    enforcedRotation);
+    ForceElement(StatePropagatorData*        statePropagatorData,
+                 EnergyData*                 energyData,
+                 FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                 bool                        isVerbose,
+                 bool                        isDynamicBox,
+                 FILE*                       fplog,
+                 const t_commrec*            cr,
+                 const t_inputrec*           inputrec,
+                 const MDAtoms*              mdAtoms,
+                 t_nrnb*                     nrnb,
+                 t_forcerec*                 fr,
+
+                 gmx_wallcycle*         wcycle,
+                 MdrunScheduleWorkload* runScheduleWork,
+                 VirtualSitesHandler*   vsite,
+                 ImdSession*            imdSession,
+                 pull_t*                pull_work,
+                 Constraints*           constr,
+                 const gmx_mtop_t*      globalTopology,
+                 gmx_enfrot*            enforcedRotation);
 
     /*! \brief Register force calculation for step / time
      *
@@ -146,12 +147,13 @@ private:
     //! The next free energy calculation step
     Step nextFreeEnergyCalculationStep_;
 
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
     //! Pointer to the micro state
     StatePropagatorData* statePropagatorData_;
-    //! Pointer to the energy element
-    EnergyElement* energyElement_;
-    //! Pointer to the free energy perturbation element
-    FreeEnergyPerturbationElement* freeEnergyPerturbationElement_;
+    //! Pointer to the energy data
+    EnergyData* energyData_;
+    //! Pointer to the free energy perturbation data
+    FreeEnergyPerturbationData* freeEnergyPerturbationData_;
 
     //! The local topology - updated by Topology via Client system
     const gmx_localtop_t* localTopology_;
@@ -194,8 +196,6 @@ private:
     ImdSession* imdSession_;
     //! The pull work object.
     pull_t* pull_work_;
-    //! Helper struct for force calculations.
-    t_fcdata* fcd_;
     //! Schedule of work for each MD step for this task.
     MdrunScheduleWorkload* runScheduleWork_;
     //! Handles constraints.

@@ -66,6 +66,7 @@
 #include "gromacs/nbnxm/gpu_jit_support.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/nbnxm/nbnxm_gpu.h"
+#include "gromacs/nbnxm/nbnxm_gpu_data_mgmt.h"
 #include "gromacs/nbnxm/pairlistsets.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/timing/gpu_timing.h"
@@ -99,29 +100,6 @@ namespace Nbnxm
  */
 static unsigned int gpu_min_ci_balanced_factor = 50;
 
-/*! \brief Tabulates the Ewald Coulomb force and initializes the size/scale
- * and the table GPU array.
- *
- * If called with an already allocated table, it just re-uploads the
- * table.
- */
-static void init_ewald_coulomb_force_table(const EwaldCorrectionTables& tables,
-                                           cl_nbparam_t*                nbp,
-                                           const DeviceContext&         deviceContext)
-{
-    if (nbp->coulomb_tab_climg2d != nullptr)
-    {
-        freeDeviceBuffer(&(nbp->coulomb_tab_climg2d));
-    }
-
-    DeviceBuffer<real> coulomb_tab;
-
-    initParamLookupTable(&coulomb_tab, nullptr, tables.tableF.data(), tables.tableF.size(), deviceContext);
-
-    nbp->coulomb_tab_climg2d = coulomb_tab;
-    nbp->coulomb_tab_scale   = tables.scale;
-}
-
 
 /*! \brief Initializes the atomdata structure first time, it only gets filled at
     pair-search.
@@ -145,30 +123,6 @@ static void init_atomdata_first(cl_atomdata_t* ad, int ntypes, const DeviceConte
     /* size -1 indicates that the respective array hasn't been initialized yet */
     ad->natoms = -1;
     ad->nalloc = -1;
-}
-
-/*! \brief Copies all parameters related to the cut-off from ic to nbp
- */
-static void set_cutoff_parameters(cl_nbparam_t* nbp, const interaction_const_t* ic, const PairlistParams& listParams)
-{
-    nbp->ewald_beta        = ic->ewaldcoeff_q;
-    nbp->sh_ewald          = ic->sh_ewald;
-    nbp->epsfac            = ic->epsfac;
-    nbp->two_k_rf          = 2.0 * ic->k_rf;
-    nbp->c_rf              = ic->c_rf;
-    nbp->rvdw_sq           = ic->rvdw * ic->rvdw;
-    nbp->rcoulomb_sq       = ic->rcoulomb * ic->rcoulomb;
-    nbp->rlistOuter_sq     = listParams.rlistOuter * listParams.rlistOuter;
-    nbp->rlistInner_sq     = listParams.rlistInner * listParams.rlistInner;
-    nbp->useDynamicPruning = listParams.useDynamicPruning;
-
-    nbp->sh_lj_ewald   = ic->sh_lj_ewald;
-    nbp->ewaldcoeff_lj = ic->ewaldcoeff_lj;
-
-    nbp->rvdw_switch      = ic->rvdw_switch;
-    nbp->dispersion_shift = ic->dispersion_shift;
-    nbp->repulsion_shift  = ic->repulsion_shift;
-    nbp->vdw_switch       = ic->vdw_switch;
 }
 
 /*! \brief Returns the kinds of electrostatics and Vdw OpenCL
@@ -245,7 +199,7 @@ static void map_interaction_types_to_gpu_kernel_flavors(const interaction_const_
 
 /*! \brief Initializes the nonbonded parameter data structure.
  */
-static void init_nbparam(cl_nbparam_t*                   nbp,
+static void init_nbparam(NBParamGpu*                     nbp,
                          const interaction_const_t*      ic,
                          const PairlistParams&           listParams,
                          const nbnxn_atomdata_t::Params& nbatParams,
@@ -267,7 +221,7 @@ static void init_nbparam(cl_nbparam_t*                   nbp,
         }
     }
     /* generate table for PME */
-    nbp->coulomb_tab_climg2d = nullptr;
+    nbp->coulomb_tab = nullptr;
     if (nbp->eeltype == eelTypeEWALD_TAB || nbp->eeltype == eelTypeEWALD_TAB_TWIN)
     {
         GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
@@ -275,7 +229,7 @@ static void init_nbparam(cl_nbparam_t*                   nbp,
     }
     else
     {
-        allocateDeviceBuffer(&nbp->coulomb_tab_climg2d, 1, deviceContext);
+        allocateDeviceBuffer(&nbp->coulomb_tab, 1, deviceContext);
     }
 
     const int nnbfp      = 2 * nbatParams.numTypes * nbatParams.numTypes;
@@ -285,13 +239,13 @@ static void init_nbparam(cl_nbparam_t*                   nbp,
         /* set up LJ parameter lookup table */
         DeviceBuffer<real> nbfp;
         initParamLookupTable(&nbfp, nullptr, nbatParams.nbfp.data(), nnbfp, deviceContext);
-        nbp->nbfp_climg2d = nbfp;
+        nbp->nbfp = nbfp;
 
         if (ic->vdwtype == evdwPME)
         {
             DeviceBuffer<float> nbfp_comb;
             initParamLookupTable(&nbfp_comb, nullptr, nbatParams.nbfp_comb.data(), nnbfp_comb, deviceContext);
-            nbp->nbfp_comb_climg2d = nbfp_comb;
+            nbp->nbfp_comb = nbfp_comb;
         }
     }
 }
@@ -303,8 +257,8 @@ void gpu_pme_loadbal_update_param(const nonbonded_verlet_t* nbv, const interacti
     {
         return;
     }
-    NbnxmGpu*     nb  = nbv->gpu_nbv;
-    cl_nbparam_t* nbp = nb->nbparam;
+    NbnxmGpu*   nb  = nbv->gpu_nbv;
+    NBParamGpu* nbp = nb->nbparam;
 
     set_cutoff_parameters(nbp, ic, nbv->pairlistSets().params());
 
@@ -312,56 +266,6 @@ void gpu_pme_loadbal_update_param(const nonbonded_verlet_t* nbv, const interacti
 
     GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
     init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp, *nb->deviceContext_);
-}
-
-/*! \brief Initializes the pair list data structure.
- */
-static void init_plist(cl_plist_t* pl)
-{
-    /* initialize to nullptr pointers to data that is not allocated here and will
-       need reallocation in nbnxn_gpu_init_pairlist */
-    pl->sci   = nullptr;
-    pl->cj4   = nullptr;
-    pl->imask = nullptr;
-    pl->excl  = nullptr;
-
-    /* size -1 indicates that the respective array hasn't been initialized yet */
-    pl->na_c          = -1;
-    pl->nsci          = -1;
-    pl->sci_nalloc    = -1;
-    pl->ncj4          = -1;
-    pl->cj4_nalloc    = -1;
-    pl->nimask        = -1;
-    pl->imask_nalloc  = -1;
-    pl->nexcl         = -1;
-    pl->excl_nalloc   = -1;
-    pl->haveFreshList = false;
-}
-
-/*! \brief Initializes the timings data structure.
- */
-static void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
-{
-    int i, j;
-
-    t->nb_h2d_t = 0.0;
-    t->nb_d2h_t = 0.0;
-    t->nb_c     = 0;
-    t->pl_h2d_t = 0.0;
-    t->pl_h2d_c = 0;
-    for (i = 0; i < 2; i++)
-    {
-        for (j = 0; j < 2; j++)
-        {
-            t->ktime[i][j].t = 0.0;
-            t->ktime[i][j].c = 0;
-        }
-    }
-
-    t->pruneTime.c        = 0;
-    t->pruneTime.t        = 0.0;
-    t->dynamicPruneTime.c = 0;
-    t->dynamicPruneTime.t = 0.0;
 }
 
 /*! \brief Initializes the OpenCL kernel pointers of the nbnxn_ocl_ptr_t input data structure. */
@@ -445,7 +349,7 @@ static void nbnxn_gpu_init_kernels(NbnxmGpu* nb)
  *  clears e/fshift output buffers.
  */
 static void nbnxn_ocl_init_const(cl_atomdata_t*                  atomData,
-                                 cl_nbparam_t*                   nbParams,
+                                 NBParamGpu*                     nbParams,
                                  const interaction_const_t*      ic,
                                  const PairlistParams&           listParams,
                                  const nbnxn_atomdata_t::Params& nbatParams,
@@ -584,7 +488,7 @@ void gpu_init_pairlist(NbnxmGpu* nb, const NbnxnPairlistGpu* h_plist, const Inte
     // which leads to the counter not being reset.
     bool                bDoTime      = (nb->bDoTime && !h_plist->sci.empty());
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
-    cl_plist_t*         d_plist      = nb->plist[iloc];
+    gpu_plist*          d_plist      = nb->plist[iloc];
 
     if (d_plist->na_c < 0)
     {
@@ -594,7 +498,7 @@ void gpu_init_pairlist(NbnxmGpu* nb, const NbnxnPairlistGpu* h_plist, const Inte
     {
         if (d_plist->na_c != h_plist->na_ci)
         {
-            sprintf(sbuf, "In cu_init_plist: the #atoms per cell has changed (from %d to %d)",
+            sprintf(sbuf, "In init_plist: the #atoms per cell has changed (from %d to %d)",
                     d_plist->na_c, h_plist->na_ci);
             gmx_incons(sbuf);
         }
@@ -826,9 +730,9 @@ void gpu_free(NbnxmGpu* nb)
     sfree(nb->atdat);
 
     /* Free nbparam */
-    freeDeviceBuffer(&(nb->nbparam->nbfp_climg2d));
-    freeDeviceBuffer(&(nb->nbparam->nbfp_comb_climg2d));
-    freeDeviceBuffer(&(nb->nbparam->coulomb_tab_climg2d));
+    freeDeviceBuffer(&(nb->nbparam->nbfp));
+    freeDeviceBuffer(&(nb->nbparam->nbfp_comb));
+    freeDeviceBuffer(&(nb->nbparam->coulomb_tab));
     sfree(nb->nbparam);
 
     /* Free plist */

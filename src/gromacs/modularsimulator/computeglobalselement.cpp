@@ -55,14 +55,14 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/topology/topology.h"
 
-#include "freeenergyperturbationelement.h"
+#include "freeenergyperturbationdata.h"
 
 namespace gmx
 {
 template<ComputeGlobalsAlgorithm algorithm>
 ComputeGlobalsElement<algorithm>::ComputeGlobalsElement(StatePropagatorData* statePropagatorData,
-                                                        EnergyElement*       energyElement,
-                                                        FreeEnergyPerturbationElement* freeEnergyPerturbationElement,
+                                                        EnergyData*          energyData,
+                                                        FreeEnergyPerturbationData* freeEnergyPerturbationData,
                                                         SimulationSignals* signals,
                                                         int                nstglobalcomm,
                                                         FILE*              fplog,
@@ -89,9 +89,9 @@ ComputeGlobalsElement<algorithm>::ComputeGlobalsElement(StatePropagatorData* sta
     totalNumberOfBondedInteractions_(0),
     shouldCheckNumberOfBondedInteractions_(false),
     statePropagatorData_(statePropagatorData),
-    energyElement_(energyElement),
+    energyData_(energyData),
     localTopology_(nullptr),
-    freeEnergyPerturbationElement_(freeEnergyPerturbationElement),
+    freeEnergyPerturbationData_(freeEnergyPerturbationData),
     vcm_(global_top->groups, *inputrec),
     signals_(signals),
     fplog_(fplog),
@@ -151,8 +151,7 @@ void ComputeGlobalsElement<algorithm>::elementSetup()
     // Calculate the initial half step temperature, and save the ekinh_old
     for (int i = 0; (i < inputrec_->opts.ngtc); i++)
     {
-        copy_mat(energyElement_->ekindata()->tcstat[i].ekinh,
-                 energyElement_->ekindata()->tcstat[i].ekinh_old);
+        copy_mat(energyData_->ekindata()->tcstat[i].ekinh, energyData_->ekindata()->tcstat[i].ekinh_old);
     }
 }
 
@@ -280,16 +279,12 @@ void ComputeGlobalsElement<algorithm>::compute(gmx::Step            step,
     auto lastbox = useLastBox ? statePropagatorData_->constPreviousBox()
                               : statePropagatorData_->constBox();
 
-    const real vdwLambda = freeEnergyPerturbationElement_
-                                   ? freeEnergyPerturbationElement_->constLambdaView()[efptVDW]
-                                   : 0;
-
     compute_globals(
-            gstat_, cr_, inputrec_, fr_, energyElement_->ekindata(), x, v, box, vdwLambda,
-            mdAtoms_->mdatoms(), nrnb_, &vcm_, step != -1 ? wcycle_ : nullptr, energyElement_->enerdata(),
-            energyElement_->forceVirial(step), energyElement_->constraintVirial(step),
-            energyElement_->totalVirial(step), energyElement_->pressure(step), constr_, signaller,
-            lastbox, &totalNumberOfBondedInteractions_, energyElement_->needToSumEkinhOld(),
+            gstat_, cr_, inputrec_, fr_, energyData_->ekindata(), x, v, box, mdAtoms_->mdatoms(),
+            nrnb_, &vcm_, step != -1 ? wcycle_ : nullptr, energyData_->enerdata(),
+            energyData_->forceVirial(step), energyData_->constraintVirial(step),
+            energyData_->totalVirial(step), energyData_->pressure(step), constr_, signaller,
+            lastbox, &totalNumberOfBondedInteractions_, energyData_->needToSumEkinhOld(),
             flags | (shouldCheckNumberOfBondedInteractions_ ? CGLO_CHECK_NUMBER_OF_BONDED_INTERACTIONS : 0));
     checkNumberOfBondedInteractions(mdlog_, cr_, totalNumberOfBondedInteractions_, top_global_,
                                     localTopology_, x, box, &shouldCheckNumberOfBondedInteractions_);

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the v-rescale thermostat for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_VRESCALETHERMOSTAT_H
@@ -44,7 +46,7 @@
 
 #include "gromacs/utility/arrayref.h"
 
-#include "energyelement.h"
+#include "energydata.h"
 #include "modularsimulatorinterfaces.h"
 #include "propagator.h"
 
@@ -53,7 +55,7 @@ struct t_commrec;
 namespace gmx
 {
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Element implementing the v-rescale thermostat
  *
@@ -73,7 +75,7 @@ public:
                        const real*           referenceTemperature,
                        const real*           couplingTime,
                        const real*           numDegreesOfFreedom,
-                       EnergyElement*        energyElement,
+                       EnergyData*           energyData,
                        ArrayRef<real>        lambdaView,
                        PropagatorCallbackPtr propagatorCallback,
                        const t_state*        globalState,
@@ -119,8 +121,9 @@ private:
     //! Work exerted by thermostat
     std::vector<double> thermostatIntegral_;
 
-    //! Pointer to the energy element (for ekindata)
-    EnergyElement* energyElement_;
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
+    //! Pointer to the energy data (for ekindata)
+    EnergyData* energyData_;
 
     //! View on the scaling factor of the propagator
     ArrayRef<real> lambda_;

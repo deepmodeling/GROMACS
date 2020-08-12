@@ -51,7 +51,7 @@
 
 bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)
 {
-    if ((GMX_GPU != GMX_GPU_NONE) && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
+    if (GMX_GPU && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
     {
         return DevicesManager::isGpuDetectionFunctional(errorMessage);
     }

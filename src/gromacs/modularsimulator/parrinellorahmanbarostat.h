@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the Parrinello-Rahman barostat for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_PARRINELLORAHMANBAROSTAT_H
@@ -52,11 +54,11 @@ struct t_commrec;
 
 namespace gmx
 {
-class EnergyElement;
+class EnergyData;
 class MDAtoms;
 class StatePropagatorData;
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Element implementing the Parrinello-Rahman barostat
  *
@@ -77,7 +79,7 @@ public:
                              ArrayRef<rvec>        scalingTensor,
                              PropagatorCallbackPtr propagatorCallback,
                              StatePropagatorData*  statePropagatorData,
-                             EnergyElement*        energyElement,
+                             EnergyData*           energyData,
                              FILE*                 fplog,
                              const t_inputrec*     inputrec,
                              const MDAtoms*        mdAtoms,
@@ -123,10 +125,11 @@ private:
     //! Box velocity
     tensor boxVelocity_;
 
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
     //! Pointer to the micro state
     StatePropagatorData* statePropagatorData_;
-    //! Pointer to the energy element
-    EnergyElement* energyElement_;
+    //! Pointer to the energy data
+    EnergyData* energyData_;
 
     //! Integrate the PR box vector equations of motion - does not alter state
     void integrateBoxVelocityEquations(Step step);

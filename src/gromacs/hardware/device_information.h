@@ -46,11 +46,11 @@
 
 #include "config.h"
 
-#if GMX_GPU == GMX_GPU_CUDA
+#if GMX_GPU_CUDA
 #    include <cuda_runtime.h>
 #endif
 
-#if GMX_GPU == GMX_GPU_OPENCL
+#if GMX_GPU_OPENCL
 #    include "gromacs/gpu_utils/gmxopencl.h"
 #endif
 #include "gromacs/utility/enumerationhelpers.h"
@@ -79,10 +79,20 @@ enum class DeviceStatus : int
 };
 
 /*! \brief Names of the GPU detection/check results
+ *
+ * Check-source wants to warn about the use of a symbol name that would
+ * require an inclusion of config.h. However the use is in a comment, so that
+ * is a false warning. So C-style string concatenation is used to fool the
+ * naive parser in check-source. That needs a clang-format suppression
+ * in order to look reasonable. Also clang-tidy wants to suggest that a comma is
+ * missing, so that is suppressed.
  */
 static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
-    "compatible",     "nonexistent",
-    "incompatible",   "incompatible (please recompile with GMX_OPENCL_NB_CLUSTER_SIZE=4)",
+    "compatible", "nonexistent", "incompatible",
+    // clang-format off
+    // NOLINTNEXTLINE(bugprone-suspicious-missing-comma)
+    "incompatible (please recompile with correct GMX" "_OPENCL_NB_CLUSTER_SIZE of 4)",
+    // clang-format on
     "non-functional", "unavailable"
 };
 
@@ -113,12 +123,12 @@ struct DeviceInformation
     //! Device status.
     DeviceStatus status;
 
-#if GMX_GPU == GMX_GPU_CUDA
+#if GMX_GPU_CUDA
     //! ID of the CUDA device.
     int id;
     //! CUDA device properties.
     cudaDeviceProp prop;
-#elif GMX_GPU == GMX_GPU_OPENCL
+#elif GMX_GPU_OPENCL
     cl_platform_id oclPlatformId;       //!< OpenCL Platform ID.
     cl_device_id   oclDeviceId;         //!< OpenCL Device ID.
     char           device_name[256];    //!< Device name.
@@ -129,7 +139,7 @@ struct DeviceInformation
     DeviceVendor   deviceVendor;        //!< Device vendor.
     size_t         maxWorkItemSizes[3]; //!< Workgroup size limits (CL_DEVICE_MAX_WORK_ITEM_SIZES).
     size_t         maxWorkGroupSize;    //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
-#endif // GMX_GPU
+#endif
 };
 
 #endif // GMX_HARDWARE_DEVICE_INFORMATION_H

@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the constraint element for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_CONSTRAINTELEMENT_H
@@ -49,11 +51,11 @@
 namespace gmx
 {
 class Constraints;
-class EnergyElement;
-class FreeEnergyPerturbationElement;
+class EnergyData;
+class FreeEnergyPerturbationData;
 class StatePropagatorData;
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Constraints element
  *
@@ -73,14 +75,14 @@ class ConstraintsElement final :
 {
 public:
     //! Constructor
-    ConstraintsElement(Constraints*                   constr,
-                       StatePropagatorData*           statePropagatorData,
-                       EnergyElement*                 energyElement,
-                       FreeEnergyPerturbationElement* freeEnergyPerturbationElement,
-                       bool                           isMaster,
-                       FILE*                          fplog,
-                       const t_inputrec*              inputrec,
-                       const t_mdatoms*               mdAtoms);
+    ConstraintsElement(Constraints*                constr,
+                       StatePropagatorData*        statePropagatorData,
+                       EnergyData*                 energyData,
+                       FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                       bool                        isMaster,
+                       FILE*                       fplog,
+                       const t_inputrec*           inputrec,
+                       const t_mdatoms*            mdAtoms);
 
     /*! \brief Register constraining function for step / time
      *
@@ -124,12 +126,13 @@ private:
     //! Whether we're master rank
     const bool isMasterRank_;
 
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
     //! Pointer to the micro state
     StatePropagatorData* statePropagatorData_;
-    //! Pointer to the energy element
-    EnergyElement* energyElement_;
-    //! Pointer to the free energy perturbation element
-    FreeEnergyPerturbationElement* freeEnergyPerturbationElement_;
+    //! Pointer to the energy data
+    EnergyData* energyData_;
+    //! Pointer to the free energy perturbation data
+    FreeEnergyPerturbationData* freeEnergyPerturbationData_;
 
     // Access to ISimulator data
     //! Handles constraints.

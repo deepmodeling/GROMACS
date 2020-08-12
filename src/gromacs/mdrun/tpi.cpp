@@ -297,7 +297,7 @@ void LegacySimulator::do_tpi()
         sscanf(dump_pdb, "%20lf", &dump_ener);
     }
 
-    atoms2md(top_global, inputrec, -1, nullptr, top_global->natoms, mdAtoms);
+    atoms2md(top_global, inputrec, -1, {}, top_global->natoms, mdAtoms);
     update_mdatoms(mdatoms, inputrec->fepvals->init_lambda);
 
     f.resizeWithPadding(top_global->natoms);
@@ -320,7 +320,7 @@ void LegacySimulator::do_tpi()
 
     if (EEL_PME(fr->ic->eeltype))
     {
-        gmx_pme_reinit_atoms(fr->pmedata, a_tp0, nullptr);
+        gmx_pme_reinit_atoms(fr->pmedata, a_tp0, nullptr, nullptr);
     }
 
     /* With reacion-field we have distance dependent potentials
@@ -754,7 +754,7 @@ void LegacySimulator::do_tpi()
             std::feholdexcept(&floatingPointEnvironment);
             do_force(fplog, cr, ms, inputrec, nullptr, nullptr, imdSession, pull_work, step, nrnb,
                      wcycle, &top, state_global->box, state_global->x.arrayRefWithPadding(),
-                     &state_global->hist, f.arrayRefWithPadding(), force_vir, mdatoms, enerd, fcd,
+                     &state_global->hist, f.arrayRefWithPadding(), force_vir, mdatoms, enerd,
                      state_global->lambda, fr, runScheduleWork, nullptr, mu_tot, t, nullptr,
                      GMX_FORCE_NONBONDED | GMX_FORCE_ENERGY | (bStateChanged ? GMX_FORCE_STATECHANGED : 0),
                      DDBalanceRegionHandler(nullptr));

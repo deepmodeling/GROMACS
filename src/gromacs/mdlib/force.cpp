@@ -103,7 +103,6 @@ static void reduceEwaldThreadOuput(int nthreads, ewald_corr_thread_t* ewc_t)
 
 void do_force_lowlevel(t_forcerec*                          fr,
                        const t_inputrec*                    ir,
-                       const InteractionDefinitions&        idef,
                        const t_commrec*                     cr,
                        const gmx_multisim_t*                ms,
                        t_nrnb*                              nrnb,
@@ -114,7 +113,6 @@ void do_force_lowlevel(t_forcerec*                          fr,
                        history_t*                           hist,
                        gmx::ForceOutputs*                   forceOutputs,
                        gmx_enerdata_t*                      enerd,
-                       t_fcdata*                            fcd,
                        const matrix                         box,
                        const real*                          lambda,
                        const rvec*                          mu_tot,
@@ -134,19 +132,15 @@ void do_force_lowlevel(t_forcerec*                          fr,
         real dvdl_walls = do_walls(*ir, *fr, box, *md, x, &forceWithVirial, lambda[efptVDW],
                                    enerd->grpp.ener[egLJSR].data(), nrnb);
         enerd->dvdl_lin[efptVDW] += dvdl_walls;
-
-        for (auto& dhdl : enerd->dhdlLambda)
-        {
-            dhdl += dvdl_walls;
-        }
     }
 
     {
         t_pbc pbc;
 
         /* Check whether we need to take into account PBC in listed interactions. */
-        const auto needPbcForListedForces =
-                fr->bMolPBC && stepWork.computeListedForces && haveCpuListedForces(*fr, idef, *fcd);
+        ListedForces& listedForces = *fr->listedForces;
+        const auto    needPbcForListedForces =
+                fr->bMolPBC && stepWork.computeListedForces && listedForces.haveCpuListedForces();
         if (needPbcForListedForces)
         {
             /* Since all atoms are in the rectangular or triclinic unit-cell,
@@ -155,9 +149,9 @@ void do_force_lowlevel(t_forcerec*                          fr,
             set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
         }
 
-        do_force_listed(wcycle, box, ir->fepvals, cr, ms, idef, x, xWholeMolecules, hist,
-                        forceOutputs, fr, &pbc, enerd, nrnb, lambda, md, fcd,
-                        DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
+        listedForces.calculate(wcycle, box, ir->fepvals, cr, ms, x, xWholeMolecules, hist,
+                               forceOutputs, fr, &pbc, enerd, nrnb, lambda, md,
+                               DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
     }
 
     const bool computePmeOnCpu = (EEL_PME(fr->ic->eeltype) || EVDW_PME(fr->ic->vdwtype))
@@ -294,11 +288,6 @@ void do_force_lowlevel(t_forcerec*                          fr,
         enerd->dvdl_lin[efptVDW] += ewaldOutput.dvdl[efptVDW];
         enerd->term[F_COUL_RECIP] = Vlr_q + ewaldOutput.Vcorr_q;
         enerd->term[F_LJ_RECIP]   = Vlr_lj + ewaldOutput.Vcorr_lj;
-
-        for (auto& dhdl : enerd->dhdlLambda)
-        {
-            dhdl += ewaldOutput.dvdl[efptVDW] + ewaldOutput.dvdl[efptCOUL];
-        }
 
         if (debug)
         {
