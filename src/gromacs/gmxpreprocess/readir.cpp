@@ -2174,6 +2174,20 @@ void get_ir(const char*     mdparin,
     {
         snew(ir->pull, 1);
         inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull, wi);
+
+        if (ir->useMts)
+        {
+            for (int c = 0; c < ir->pull->ncoord; c++)
+            {
+                if (ir->pull->coord[c].eType == epullCONSTRAINT)
+                {
+                    warning_error(wi,
+                                  "Constraint COM pulling is not supported in combination with "
+                                  "multiple time stepping");
+                    break;
+                }
+            }
+        }
     }
 
     /* AWH biasing

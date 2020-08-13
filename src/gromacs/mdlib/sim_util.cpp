@@ -1738,7 +1738,7 @@ void do_force(FILE*                               fplog,
                 {
                     dd_move_f(cr->dd, &forceOutFast.forceWithShiftForces(), wcycle);
                 }
-                if (fr->useMts && !combineMtsForcesBeforeHaloExchange)
+                if (fr->useMts && computeSlowForces && !combineMtsForcesBeforeHaloExchange)
                 {
                     dd_move_f(cr->dd, &forceOutSlow.forceWithShiftForces(), wcycle);
                 }
