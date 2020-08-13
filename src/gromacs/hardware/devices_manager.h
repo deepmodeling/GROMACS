@@ -121,6 +121,8 @@ public:
      */
     void findGpus();
 
+    static std::vector<std::unique_ptr<DeviceInformation>> findDevices();
+
     /*! \brief Return a container of the detected GPUs that are compatible.
      *
      * This function filters the result of the detection for compatible

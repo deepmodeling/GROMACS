@@ -415,6 +415,64 @@ void DevicesManager::findGpus()
     deviceInfos_ = devs;
 }
 
+std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
+{
+    int numDevices;
+    cudaError_t stat = cudaGetDeviceCount(&numDevices);
+    if (stat != cudaSuccess)
+    {
+        GMX_THROW(gmx::InternalError(
+                "Invalid call of findGpus() when CUDA API returned an error, perhaps "
+                "canDetectGpus() was not called appropriately beforehand."));
+    }
+
+    // We expect to start device support/sanity checks with a clean runtime error state
+    gmx::ensureNoPendingCudaError("");
+
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(numDevices);
+    for (int i = 0; i < numDevices; i++)
+    {
+        cudaDeviceProp prop;
+        memset(&prop, 0, sizeof(cudaDeviceProp));
+        stat = cudaGetDeviceProperties(&prop, i);
+        const DeviceStatus checkResult =
+                (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
+
+        deviceInfos[i]->id     = i;
+        deviceInfos[i]->prop   = prop;
+        deviceInfos[i]->status = checkResult;
+
+        if (checkResult != DeviceStatus::Compatible)
+        {
+            // TODO:
+            //  - we inspect the CUDA API state to retrieve and record any
+            //    errors that occurred during isDeviceSupported() here,
+            //    but this would be more elegant done within isDeviceSupported()
+            //    and only return a string with the error if one was encountered.
+            //  - we'll be reporting without rank information which is not ideal.
+            //  - we'll end up warning also in cases where users would already
+            //    get an error before mdrun aborts.
+            //
+            // Here we also clear the CUDA API error state so potential
+            // errors during sanity checks don't propagate.
+            if ((stat = cudaGetLastError()) != cudaSuccess)
+            {
+                gmx_warning("An error occurred while sanity checking device #%d; %s: %s",
+                            deviceInfos[i]->id, cudaGetErrorName(stat), cudaGetErrorString(stat));
+            }
+        }
+    }
+
+    stat = cudaPeekAtLastError();
+    GMX_RELEASE_ASSERT(stat == cudaSuccess,
+                       gmx::formatString("We promise to return with clean CUDA state, but "
+                                         "non-success state encountered: %s: %s",
+                                         cudaGetErrorName(stat), cudaGetErrorString(stat))
+                               .c_str());
+
+    return deviceInfos;
+}
+
 void DevicesManager::setDevice(int deviceId) const
 {
     GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfos_ != nullptr,

@@ -53,6 +53,11 @@ DevicesManager::~DevicesManager() = default;
 
 void DevicesManager::findGpus() {}
 
+std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
+{
+    return {};
+}
+
 void DevicesManager::setDevice(int /* deviceId */) const {}
 
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
