@@ -572,8 +572,6 @@ static void assign_factors(const real         limit,
 
     if (ndiv == 0)
     {
-        const int maxDimensionSize        = std::max(ir_try[XX], std::max(ir_try[YY], ir_try[ZZ]));
-        const int productOfDimensionSizes = ir_try[XX] * ir_try[YY] * ir_try[ZZ];
 
         ce = comm_cost_est(limit, cutoff, box, ddbox, natoms, ir, pbcdxr, npme, ir_try);
         if (ce >= 0
