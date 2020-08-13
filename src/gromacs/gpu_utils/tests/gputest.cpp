@@ -45,6 +45,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/smalloc.h"
 

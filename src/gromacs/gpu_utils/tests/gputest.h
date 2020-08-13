@@ -62,6 +62,8 @@ public:
     DevicesManager deviceManager_;
     //! Contains the IDs of all compatible GPUs
     std::vector<int> compatibleGpuIds_;
+    //! List of all available devices
+    std::vector<std::unique_ptr<DeviceInformation>> devicesInformation_;
 
     GpuTest();
     ~GpuTest() override;

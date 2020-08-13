@@ -47,6 +47,7 @@
 #ifndef GMX_HARDWARE_DEVICES_MANAGER_H
 #define GMX_HARDWARE_DEVICES_MANAGER_H
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -129,6 +130,17 @@ public:
      */
     std::vector<int> getCompatibleGpus() const;
 
+    /*! \brief Return a container of the detected GPUs that are compatible.
+     *
+     * This function filters the result of the detection for compatible
+     * GPUs, based on the previously run compatibility tests.
+     *
+     * \return  Vector of IDs of GPUs already recorded as compatible
+     */
+    static std::vector<int> getCompatibleGpus(std::vector<std::unique_ptr<DeviceInformation>> devicesInformation);
+
+    static bool isGpuCompatible(const std::unique_ptr<DeviceInformation>& deviceInformation);
+
 
     /*! \brief Set the active GPU
      *
@@ -174,6 +186,12 @@ public:
      * \returns  Size in bytes of DeviceInformation
      */
     static size_t getDeviceInformationSize();
+
+    /*! \brief Checks if one can compute on the GPU
+     *
+     * \returns  True if the build supports GPUs and there are at least one available.
+     */
+    static bool canComputeOnGpu();
 
     //! Total number of GPU devices detected on this physical node
     int numDevices() const { return numDevices_; }
