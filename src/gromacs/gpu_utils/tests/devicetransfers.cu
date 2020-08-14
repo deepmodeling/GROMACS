@@ -77,23 +77,16 @@ static void throwUponFailure(cudaError_t status, const char* message)
 
 } // namespace
 
-void doDeviceTransfers(const DevicesManager& gpuInfo, ArrayRef<const char> input, ArrayRef<char> output)
+void doDeviceTransfers(const DeviceInformation& deviceInfo, ArrayRef<const char> input, ArrayRef<char> output)
 {
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
-    const auto compatibleGpus = gpuInfo.getCompatibleGpus();
-    if (compatibleGpus.empty())
-    {
-        std::copy(input.begin(), input.end(), output.begin());
-        return;
-    }
     cudaError_t status;
 
-    const auto* device = gpuInfo.getDeviceInformation(compatibleGpus[0]);
     int         oldDeviceId;
 
     status = cudaGetDevice(&oldDeviceId);
     throwUponFailure(status, "getting old device id");
-    status = cudaSetDevice(device->id);
+    status = cudaSetDevice(deviceInfo.id);
     throwUponFailure(status, "setting device id to the first compatible GPU");
 
     void* devicePointer;

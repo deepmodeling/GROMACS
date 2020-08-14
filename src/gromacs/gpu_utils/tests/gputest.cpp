@@ -58,8 +58,7 @@ GpuTest::GpuTest()
 {
     if (DevicesManager::canPerformGpuDetection(nullptr))
     {
-        deviceManager_.findGpus();
-        compatibleGpuIds_ = deviceManager_.getCompatibleGpus();
+        devicesInfos_ = DevicesManager::findDevices();
     }
     // Failing to find valid GPUs does not require further action
 }
@@ -68,18 +67,17 @@ GpuTest::~GpuTest() = default;
 
 bool GpuTest::haveCompatibleGpus() const
 {
-    return !compatibleGpuIds_.empty();
+    bool foundCompatibleDevice = false;
+    for (auto& deviceInfo : devicesInfos_)
+    {
+        foundCompatibleDevice = foundCompatibleDevice || DevicesManager::isGpuCompatible(*deviceInfo);
+    }
+    return foundCompatibleDevice;
 }
 
-std::vector<const DeviceInformation*> GpuTest::getDeviceInfos() const
+std::vector<std::unique_ptr<DeviceInformation>>& GpuTest::getDeviceInfos()
 {
-    std::vector<const DeviceInformation*> deviceInfos;
-    deviceInfos.reserve(compatibleGpuIds_.size());
-    for (const auto& id : compatibleGpuIds_)
-    {
-        deviceInfos.emplace_back(deviceManager_.getDeviceInformation(id));
-    }
-    return deviceInfos;
+    return devicesInfos_;
 }
 
 } // namespace test

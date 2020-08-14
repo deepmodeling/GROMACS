@@ -91,9 +91,9 @@ std::vector<int> DevicesManager::getCompatibleGpus(std::vector<std::unique_ptr<D
     return compatibleGpus;
 }
 
-bool DevicesManager::isGpuCompatible(const std::unique_ptr<DeviceInformation>& deviceInformation)
+bool DevicesManager::isGpuCompatible(const DeviceInformation& deviceInformation)
 {
-    return (deviceInformation->status == DeviceStatus::Compatible);
+    return (deviceInformation.status == DeviceStatus::Compatible);
 }
 
 DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const

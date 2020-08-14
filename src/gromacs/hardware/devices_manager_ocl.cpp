@@ -572,6 +572,8 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 
                 for (unsigned int j = 0; j < ocl_device_count; j++)
                 {
+                    deviceInfos[device_index] = std::make_unique<DeviceInformation>();
+
                     deviceInfos[device_index]->oclPlatformId = ocl_platform_ids[i];
                     deviceInfos[device_index]->oclDeviceId   = ocl_device_ids[j];
 

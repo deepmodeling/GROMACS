@@ -141,7 +141,7 @@ public:
      */
     static std::vector<int> getCompatibleGpus(std::vector<std::unique_ptr<DeviceInformation>> devicesInformation);
 
-    static bool isGpuCompatible(const std::unique_ptr<DeviceInformation>& deviceInformation);
+    static bool isGpuCompatible(const DeviceInformation& deviceInformation);
 
 
     /*! \brief Set the active GPU

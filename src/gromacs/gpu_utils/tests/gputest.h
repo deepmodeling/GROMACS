@@ -58,19 +58,15 @@ namespace test
 class GpuTest : public ::testing::Test
 {
 public:
-    //! Information about GPUs that are present.
-    DevicesManager deviceManager_;
-    //! Contains the IDs of all compatible GPUs
-    std::vector<int> compatibleGpuIds_;
     //! List of all available devices
-    std::vector<std::unique_ptr<DeviceInformation>> devicesInformation_;
+    std::vector<std::unique_ptr<DeviceInformation>> devicesInfos_;
 
     GpuTest();
     ~GpuTest() override;
     //! Return whether compatible GPUs were found
     bool haveCompatibleGpus() const;
     //! Return a vector of handles, each to a device info for a compatible GPU.
-    std::vector<const DeviceInformation*> getDeviceInfos() const;
+    std::vector<std::unique_ptr<DeviceInformation>>& getDeviceInfos();
 };
 
 } // namespace test
