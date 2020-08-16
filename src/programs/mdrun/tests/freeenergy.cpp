@@ -135,7 +135,7 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
 // TODO: The time for OpenCL kernel compilation means these tests time
 //       out. Once that compilation is cached for the whole process, these
 //       tests can run in such configurations.
-#if GMX_GPU != GMX_GPU_OPENCL
+#if !GMX_GPU_OPENCL
 INSTANTIATE_TEST_CASE_P(
         FreeEnergyCalculationsAreEquivalentToReference,
         FreeEnergyReferenceTest,
@@ -143,20 +143,15 @@ INSTANTIATE_TEST_CASE_P(
                 FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0) },
                 FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0) },
                 FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0) },
-                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
-                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(2) },
-                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
-                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(2) },
-                // Tolerated warnings: Switching range 5.56% (>5%), bonded parameters specified
-                //                     in A but not B, pressure coupling with position restraints
-                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(3) },
-                // Tolerated warning: No COM removal
-                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(1) },
+                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(0) },
+                // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
+                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(10) },
+                // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
+                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(10) },
+                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0) },
                 FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0) },
-                // Tolerated warning: No COM removal
-                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(1) },
-                // Tolerated warning: Bonded parameters specified in A but not B
-                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(1) }));
+                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0) }));
 #else
 INSTANTIATE_TEST_CASE_P(
         DISABLED_FreeEnergyCalculationsAreEquivalentToReference,
@@ -165,20 +160,15 @@ INSTANTIATE_TEST_CASE_P(
                 FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0) },
                 FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0) },
                 FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0) },
-                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
-                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(2) },
-                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
-                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(2) },
-                // Tolerated warnings: Switching range 5.56% (>5%), bonded parameters specified
-                //                     in A but not B, pressure coupling with position restraints
-                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(3) },
-                // Tolerated warning: No COM removal
-                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(1) },
+                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(0) },
+                // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
+                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(10) },
+                // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
+                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(10) },
+                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0) },
                 FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0) },
-                // Tolerated warning: No COM removal
-                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(1) },
-                // Tolerated warning: Bonded parameters specified in A but not B
-                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(1) }));
+                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0) }));
 #endif
 
 } // namespace
