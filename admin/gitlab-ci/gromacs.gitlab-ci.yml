@@ -627,7 +627,7 @@ gromacs:gcc-7:test:
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
-    KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
+    KUBERNETES_EXTENDED_RESOURCE_LIMIT: 2
   tags:
     - k8s-scilifelab
   needs:
