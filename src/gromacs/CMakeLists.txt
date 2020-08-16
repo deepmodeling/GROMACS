@@ -435,12 +435,15 @@ if(GMX_GPU_OPENCL)
 
     # Install the PME source and headers
     file(GLOB OPENCL_INSTALLED_FILES
-        ewald/pme_spread.clh
-        ewald/pme_solve.clh
         ewald/pme_gather.clh
+        # TODO uncomment me after testing in CI shows it is needed,
+        # so we know the testing is working.
+#        ewald/pme_gpu_calculate_splines.clh
         ewald/pme_gpu_utils.clh
-        ewald/pme_program.cl
         ewald/pme_gpu_types.h
+        ewald/pme_solve.clh
+        ewald/pme_spread.clh
+        ewald/pme_program.cl
         )
     install(FILES ${OPENCL_INSTALLED_FILES}
         DESTINATION ${GMX_INSTALL_OCLDIR}/gromacs/ewald
