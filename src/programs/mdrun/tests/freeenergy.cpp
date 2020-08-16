@@ -55,22 +55,16 @@
 #include "moduletest.h"
 #include "simulatorcomparison.h"
 
-namespace gmx
-{
-namespace test
+namespace gmx::test
 {
 namespace
 {
 
-/*! \brief Test fixture base for two equivalent simulators
+/*! \brief Test fixture base for free energy calculations
  *
- * This test ensures that two simulator code paths (called via different mdp
- * options and/or environment variables) yield identical coordinate, velocity,
- * box, force and energy trajectories, up to some (arbitrary) precision.
- *
- * These tests are useful to check that re-implementations of existing simulators
- * are correct, and that different code paths expected to yield identical results
- * are equivalent.
+ * This test ensures that selected free energy perturbation calculations produce
+ * results identical to an earlier version. The results of this earlier version
+ * have been verified manually to ensure physical correctness.
  */
 using MaxNumWarnings                = int;
 using FreeEnergyReferenceTestParams = std::tuple<std::string, MaxNumWarnings>;
@@ -90,7 +84,7 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
 
     SCOPED_TRACE(formatString("Comparing FEP simulation '%s' to reference", simulationName.c_str()));
 
-    // TODO: These are the regression test tolerances. Think about them and justify them!
+    // TODO: These are the legacy regression test tolerances. Think about them and justify them!
     const auto defaultRegressionEnergyTolerance =
             FloatingPointTolerance(0.05, 0.05, 0.001, 0.001, UINT64_MAX, UINT64_MAX, false);
     const auto gmx_unused defaultRegressionVirialTolerance =
@@ -110,7 +104,6 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
                                                           ComparisonConditions::NoComparison,
                                                           ComparisonConditions::MustCompare };
     TrajectoryTolerances trajectoryTolerances = TrajectoryComparison::s_defaultTrajectoryTolerances;
-    trajectoryTolerances.forces = relativeToleranceAsFloatingPoint(100.0, GMX_DOUBLE ? 1.0e-7 : 0.01);
 
     // Build the functor that will compare reference and test
     // trajectory frames in the chosen way.
@@ -189,5 +182,4 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 } // namespace
-} // namespace test
-} // namespace gmx
+} // namespace gmx::test
