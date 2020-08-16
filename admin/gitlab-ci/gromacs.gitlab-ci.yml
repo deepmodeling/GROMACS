@@ -633,7 +633,7 @@ gromacs:gcc-7:test:
   needs:
     - job: gromacs:gcc-7:build
   script:
-    - clinfo
+    - /opt/rocm-3.5.0/opencl/bin/clinfo
     - $BUILD_DIR/bin/gmx -quiet -version
 
 gromacs:gcc-8-cuda-10.1:test:
