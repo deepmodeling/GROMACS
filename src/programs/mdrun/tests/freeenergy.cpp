@@ -72,7 +72,8 @@ namespace
  * are correct, and that different code paths expected to yield identical results
  * are equivalent.
  */
-using FreeEnergyReferenceTestParams = std::string;
+using MaxNumWarnings                = int;
+using FreeEnergyReferenceTestParams = std::tuple<std::string, MaxNumWarnings>;
 class FreeEnergyReferenceTest :
     public MdrunTestFixture,
     public ::testing::WithParamInterface<FreeEnergyReferenceTestParams>
@@ -81,7 +82,8 @@ class FreeEnergyReferenceTest :
 
 TEST_P(FreeEnergyReferenceTest, WithinTolerances)
 {
-    auto simulationName = GetParam();
+    const auto& simulationName = std::get<0>(GetParam());
+    const auto  maxNumWarnings = std::get<1>(GetParam());
 
     // TODO In similar tests, we are checking if the tests
     //      can be run with the number of MPI ranks available
@@ -121,10 +123,7 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     // Run grompp
     runner_.tprFileName_ = fileManager_.getTemporaryFilePath("sim.tpr");
     runner_.useTopGroAndMdpFromFepTestDatabase(simulationName);
-    // TODO: maxwarn because we copied these systems from regressiontests -
-    //       we want systems that run without warnings, or else carefully
-    //       document why these are needed!
-    runGrompp(&runner_, { SimulationOptionTuple("-maxwarn", "3") });
+    runGrompp(&runner_, { SimulationOptionTuple("-maxwarn", std::to_string(maxNumWarnings)) });
 
     // Do mdrun
     runner_.fullPrecisionTrajectoryFileName_ = simulationTrajectoryFileName;
@@ -144,22 +143,49 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
 //       out. Once that compilation is cached for the whole process, these
 //       tests can run in such configurations.
 #if GMX_GPU != GMX_GPU_OPENCL
-INSTANTIATE_TEST_CASE_P(FreeEnergyCalculationsAreEquivalentToReference,
-                        FreeEnergyReferenceTest,
-                        ::testing::Values("coulandvdwsequential_coul",
-                                          "coulandvdwsequential_vdw",
-                                          "coulandvdwtogether",
-                                          "expanded",
-                                          "relative",
-                                          "relative-position-restraints",
-                                          "restraints",
-                                          "simtemp",
-                                          "transformAtoB",
-                                          "vdwalone"));
+INSTANTIATE_TEST_CASE_P(
+        FreeEnergyCalculationsAreEquivalentToReference,
+        FreeEnergyReferenceTest,
+        ::testing::Values(
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0) },
+                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
+                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(2) },
+                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
+                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(2) },
+                // Tolerated warnings: Switching range 5.56% (>5%), bonded parameters specified
+                //                     in A but not B, pressure coupling with position restraints
+                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(3) },
+                // Tolerated warning: No COM removal
+                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(1) },
+                FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0) },
+                // Tolerated warning: No COM removal
+                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(1) },
+                // Tolerated warning: Bonded parameters specified in A but not B
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(1) }));
 #else
-INSTANTIATE_TEST_CASE_P(DISABLED_FreeEnergyCalculationsAreEquivalentToReference,
-                        FreeEnergyReferenceTest,
-                        ::testing::Values("vdwalone"));
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_FreeEnergyCalculationsAreEquivalentToReference,
+        FreeEnergyReferenceTest,
+        ::testing::Values(
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0) },
+                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
+                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(2) },
+                // Tolerated warnings: Switching range 5.56% (>5%), no COM removal
+                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(2) },
+                // Tolerated warnings: Switching range 5.56% (>5%), bonded parameters specified
+                //                     in A but not B, pressure coupling with position restraints
+                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(3) },
+                // Tolerated warning: No COM removal
+                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(1) },
+                FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0) },
+                // Tolerated warning: No COM removal
+                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(1) },
+                // Tolerated warning: Bonded parameters specified in A but not B
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(1) }));
 #endif
 
 } // namespace
