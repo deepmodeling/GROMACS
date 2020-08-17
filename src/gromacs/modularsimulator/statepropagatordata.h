@@ -61,7 +61,11 @@ struct t_mdatoms;
 namespace gmx
 {
 enum class ConstraintVariable;
+class EnergyData;
 class FreeEnergyPerturbationData;
+class GlobalCommunicationHelper;
+class LegacySimulatorData;
+class ModularSimulatorAlgorithmBuilderHelper;
 
 /*! \internal
  * \ingroup module_modularsimulator
@@ -91,18 +95,17 @@ class StatePropagatorData final
 {
 public:
     //! Constructor
-    StatePropagatorData(int                         numAtoms,
-                        FILE*                       fplog,
-                        const t_commrec*            cr,
-                        t_state*                    globalState,
-                        bool                        useGPU,
-                        FreeEnergyPerturbationData* freeEnergyPerturbationData,
-                        bool                        canMoleculesBeDistributedOverPBC,
-                        bool                        writeFinalConfiguration,
-                        const std::string&          finalConfigurationFilename,
-                        const t_inputrec*           inputrec,
-                        const t_mdatoms*            mdatoms,
-                        const gmx_mtop_t*           globalTop);
+    StatePropagatorData(int                numAtoms,
+                        FILE*              fplog,
+                        const t_commrec*   cr,
+                        t_state*           globalState,
+                        bool               useGPU,
+                        bool               canMoleculesBeDistributedOverPBC,
+                        bool               writeFinalConfiguration,
+                        const std::string& finalConfigurationFilename,
+                        const t_inputrec*  inputrec,
+                        const t_mdatoms*   mdatoms,
+                        const gmx_mtop_t*  globalTop);
 
     // Allow access to state
     //! Get write access to position vector
@@ -231,19 +234,18 @@ class StatePropagatorData::Element final :
 {
 public:
     //! Constructor
-    Element(StatePropagatorData*        statePropagatorData,
-            FILE*                       fplog,
-            const t_commrec*            cr,
-            int                         nstxout,
-            int                         nstvout,
-            int                         nstfout,
-            int                         nstxout_compressed,
-            FreeEnergyPerturbationData* freeEnergyPerturbationData,
-            bool                        canMoleculesBeDistributedOverPBC,
-            bool                        writeFinalConfiguration,
-            std::string                 finalConfigurationFilename,
-            const t_inputrec*           inputrec,
-            const gmx_mtop_t*           globalTop);
+    Element(StatePropagatorData* statePropagatorData,
+            FILE*                fplog,
+            const t_commrec*     cr,
+            int                  nstxout,
+            int                  nstvout,
+            int                  nstfout,
+            int                  nstxout_compressed,
+            bool                 canMoleculesBeDistributedOverPBC,
+            bool                 writeFinalConfiguration,
+            std::string          finalConfigurationFilename,
+            const t_inputrec*    inputrec,
+            const gmx_mtop_t*    globalTop);
 
     /*! \brief Register run function for step / time
      *
@@ -260,7 +262,7 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     /*! \brief Backup starting velocities
      *
@@ -273,6 +275,27 @@ public:
 
     //! No element teardown needed
     void elementTeardown() override {}
+
+    //! Set free energy data
+    void setFreeEnergyPerturbationData(FreeEnergyPerturbationData* freeEnergyPerturbationData);
+
+    /*! \brief Factory method implementation
+     *
+     * \param legacySimulatorData  Pointer allowing access to simulator level data
+     * \param builderHelper  ModularSimulatorAlgorithmBuilder helper object
+     * \param statePropagatorData  Pointer to the \c StatePropagatorData object
+     * \param energyData  Pointer to the \c EnergyData object
+     * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
+     * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     *
+     * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
+     */
+    static ISimulatorElement* getElementPointerImpl(LegacySimulatorData* legacySimulatorData,
+                                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                                    StatePropagatorData*        statePropagatorData,
+                                                    EnergyData*                 energyData,
+                                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                                    GlobalCommunicationHelper* globalCommunicationHelper);
 
 private:
     //! Pointer to the associated StatePropagatorData
@@ -295,16 +318,16 @@ private:
     void saveState();
 
     //! ITrajectorySignallerClient implementation
-    SignallerCallbackPtr registerTrajectorySignallerCallback(TrajectoryEvent event) override;
+    std::optional<SignallerCallback> registerTrajectorySignallerCallback(TrajectoryEvent event) override;
 
     //! ITrajectoryWriterClient implementation
-    ITrajectoryWriterCallbackPtr registerTrajectoryWriterCallback(TrajectoryEvent event) override;
+    std::optional<ITrajectoryWriterCallback> registerTrajectoryWriterCallback(TrajectoryEvent event) override;
 
     //! ICheckpointHelperClient implementation
     void writeCheckpoint(t_state* localState, t_state* globalState) override;
 
     //! ILastStepSignallerClient implementation (used for final output only)
-    SignallerCallbackPtr registerLastStepCallback() override;
+    std::optional<SignallerCallback> registerLastStepCallback() override;
 
     //! Callback writing the state to file
     void write(gmx_mdoutf* outf, Step step, Time time);

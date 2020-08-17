@@ -52,10 +52,13 @@
 #include "gromacs/mdrun/shellfc.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/mdatom.h"
+#include "gromacs/mdtypes/mdrunoptions.h"
 #include "gromacs/pbcutil/pbc.h"
 
 #include "energydata.h"
 #include "freeenergyperturbationdata.h"
+#include "modularsimulator.h"
+#include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
 
 struct gmx_edsam;
@@ -128,7 +131,7 @@ ForceElement::ForceElement(StatePropagatorData*        statePropagatorData,
     }
 }
 
-void ForceElement::scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction)
+void ForceElement::scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction)
 {
     unsigned int flags =
             (GMX_FORCE_STATECHANGED | GMX_FORCE_ALLFORCES | (isDynamicBox_ ? GMX_FORCE_DYNAMICBOX : 0)
@@ -137,7 +140,7 @@ void ForceElement::scheduleTask(Step step, Time time, const RegisterRunFunctionP
              | (nextFreeEnergyCalculationStep_ == step ? GMX_FORCE_DHDL : 0)
              | (!doShellFC_ && nextNSStep_ == step ? GMX_FORCE_NS : 0));
 
-    (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this, step, time, flags]() {
+    registerRunFunction([this, step, time, flags]() {
         if (doShellFC_)
         {
             run<true>(step, time, flags);
@@ -146,7 +149,7 @@ void ForceElement::scheduleTask(Step step, Time time, const RegisterRunFunctionP
         {
             run<false>(step, time, flags);
         }
-    }));
+    });
 }
 
 void ForceElement::elementSetup()
@@ -223,29 +226,44 @@ void ForceElement::setTopology(const gmx_localtop_t* top)
     localTopology_ = top;
 }
 
-SignallerCallbackPtr ForceElement::registerNSCallback()
+std::optional<SignallerCallback> ForceElement::registerNSCallback()
 {
-    return std::make_unique<SignallerCallback>(
-            [this](Step step, Time gmx_unused time) { this->nextNSStep_ = step; });
+    return [this](Step step, Time gmx_unused time) { this->nextNSStep_ = step; };
 }
 
-SignallerCallbackPtr ForceElement::registerEnergyCallback(EnergySignallerEvent event)
+std::optional<SignallerCallback> ForceElement::registerEnergyCallback(EnergySignallerEvent event)
 {
     if (event == EnergySignallerEvent::EnergyCalculationStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { nextEnergyCalculationStep_ = step; });
+        return [this](Step step, Time /*unused*/) { nextEnergyCalculationStep_ = step; };
     }
     if (event == EnergySignallerEvent::VirialCalculationStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { nextVirialCalculationStep_ = step; });
+        return [this](Step step, Time /*unused*/) { nextVirialCalculationStep_ = step; };
     }
     if (event == EnergySignallerEvent::FreeEnergyCalculationStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { nextFreeEnergyCalculationStep_ = step; });
+        return [this](Step step, Time /*unused*/) { nextFreeEnergyCalculationStep_ = step; };
     }
-    return nullptr;
+    return std::nullopt;
+}
+
+ISimulatorElement*
+ForceElement::getElementPointerImpl(LegacySimulatorData*                    legacySimulatorData,
+                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                    StatePropagatorData*                    statePropagatorData,
+                                    EnergyData*                             energyData,
+                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                    GlobalCommunicationHelper gmx_unused* globalCommunicationHelper)
+{
+    const bool isVerbose    = legacySimulatorData->mdrunOptions.verbose;
+    const bool isDynamicBox = inputrecDynamicBox(legacySimulatorData->inputrec);
+    return builderHelper->storeElement(std::make_unique<ForceElement>(
+            statePropagatorData, energyData, freeEnergyPerturbationData, isVerbose, isDynamicBox,
+            legacySimulatorData->fplog, legacySimulatorData->cr, legacySimulatorData->inputrec,
+            legacySimulatorData->mdAtoms, legacySimulatorData->nrnb, legacySimulatorData->fr,
+            legacySimulatorData->wcycle, legacySimulatorData->runScheduleWork, legacySimulatorData->vsite,
+            legacySimulatorData->imdSession, legacySimulatorData->pull_work, legacySimulatorData->constr,
+            legacySimulatorData->top_global, legacySimulatorData->enforcedRotation));
 }
 } // namespace gmx

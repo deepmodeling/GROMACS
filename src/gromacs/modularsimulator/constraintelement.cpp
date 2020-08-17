@@ -44,13 +44,18 @@
 #include "constraintelement.h"
 
 #include "gromacs/math/vec.h"
+#include "gromacs/mdlib/mdatoms.h"
+#include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/enerdata.h"
 #include "gromacs/mdtypes/inputrec.h"
+#include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/utility/fatalerror.h"
 
 #include "energydata.h"
 #include "freeenergyperturbationdata.h"
+#include "modularsimulator.h"
+#include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
 
 namespace gmx
@@ -108,18 +113,17 @@ void ConstraintsElement<variable>::elementSetup()
 
 template<ConstraintVariable variable>
 void ConstraintsElement<variable>::scheduleTask(Step step,
-                                                Time gmx_unused               time,
-                                                const RegisterRunFunctionPtr& registerRunFunction)
+                                                Time gmx_unused            time,
+                                                const RegisterRunFunction& registerRunFunction)
 {
     bool calculateVirial = (step == nextVirialCalculationStep_);
     bool writeLog        = (step == nextLogWritingStep_);
     bool writeEnergy     = (step == nextEnergyWritingStep_);
 
     // register constraining
-    (*registerRunFunction)(std::make_unique<SimulatorRunFunction>(
-            [this, step, calculateVirial, writeLog, writeEnergy]() {
-                apply(step, calculateVirial, writeLog, writeEnergy);
-            }));
+    registerRunFunction([this, step, calculateVirial, writeLog, writeEnergy]() {
+        apply(step, calculateVirial, writeLog, writeEnergy);
+    });
 }
 
 template<ConstraintVariable variable>
@@ -178,38 +182,48 @@ void ConstraintsElement<variable>::apply(Step step, bool calculateVirial, bool w
 }
 
 template<ConstraintVariable variable>
-SignallerCallbackPtr ConstraintsElement<variable>::registerEnergyCallback(EnergySignallerEvent event)
+std::optional<SignallerCallback> ConstraintsElement<variable>::registerEnergyCallback(EnergySignallerEvent event)
 {
     if (event == EnergySignallerEvent::VirialCalculationStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { nextVirialCalculationStep_ = step; });
+        return [this](Step step, Time /*unused*/) { nextVirialCalculationStep_ = step; };
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 template<ConstraintVariable variable>
-SignallerCallbackPtr ConstraintsElement<variable>::registerTrajectorySignallerCallback(TrajectoryEvent event)
+std::optional<SignallerCallback> ConstraintsElement<variable>::registerTrajectorySignallerCallback(TrajectoryEvent event)
 {
     if (event == TrajectoryEvent::EnergyWritingStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { nextEnergyWritingStep_ = step; });
+        return [this](Step step, Time /*unused*/) { nextEnergyWritingStep_ = step; };
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 template<ConstraintVariable variable>
-SignallerCallbackPtr ConstraintsElement<variable>::registerLoggingCallback()
+std::optional<SignallerCallback> ConstraintsElement<variable>::registerLoggingCallback()
 {
-    return std::make_unique<SignallerCallback>(
-            [this](Step step, Time /*unused*/) { nextLogWritingStep_ = step; });
+    return [this](Step step, Time /*unused*/) { nextLogWritingStep_ = step; };
 }
 
-//! Explicit template initialization
-//! @{
+template<ConstraintVariable variable>
+ISimulatorElement* ConstraintsElement<variable>::getElementPointerImpl(
+        LegacySimulatorData*                    legacySimulatorData,
+        ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+        StatePropagatorData*                    statePropagatorData,
+        EnergyData*                             energyData,
+        FreeEnergyPerturbationData*             freeEnergyPerturbationData,
+        GlobalCommunicationHelper gmx_unused* globalCommunicationHelper)
+{
+    return builderHelper->storeElement(std::make_unique<ConstraintsElement<variable>>(
+            legacySimulatorData->constr, statePropagatorData, energyData,
+            freeEnergyPerturbationData, MASTER(legacySimulatorData->cr), legacySimulatorData->fplog,
+            legacySimulatorData->inputrec, legacySimulatorData->mdAtoms->mdatoms()));
+}
+
+// Explicit template initializations
 template class ConstraintsElement<ConstraintVariable::Positions>;
 template class ConstraintsElement<ConstraintVariable::Velocities>;
-//! @}
 
 } // namespace gmx

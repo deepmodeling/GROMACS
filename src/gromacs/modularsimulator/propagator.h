@@ -56,11 +56,29 @@ struct gmx_wallcycle;
 
 namespace gmx
 {
+class EnergyData;
+class FreeEnergyPerturbationData;
+class GlobalCommunicationHelper;
+class LegacySimulatorData;
 class MDAtoms;
+class ModularSimulatorAlgorithmBuilderHelper;
 class StatePropagatorData;
 
 //! \addtogroup module_modularsimulator
 //! \{
+
+//! Whether built propagator should be registered with thermostat
+enum class RegisterWithThermostat
+{
+    True,
+    False
+};
+//! Whether built propagator should be registered with barostat
+enum class RegisterWithBarostat
+{
+    True,
+    False
+};
 
 /*! \brief The different integration types we know about
  *
@@ -102,11 +120,6 @@ enum class ParrinelloRahmanVelocityScaling
     Count
 };
 
-//! Generic callback to the propagator
-typedef std::function<void(Step)> PropagatorCallback;
-//! Pointer to generic callback to the propagator
-typedef std::unique_ptr<PropagatorCallback> PropagatorCallbackPtr;
-
 /*! \internal
  * \brief Propagator element
  *
@@ -134,7 +147,7 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     //! No element setup needed
     void elementSetup() override {}
@@ -146,12 +159,36 @@ public:
     //! Get view on the velocity scaling vector
     ArrayRef<real> viewOnVelocityScaling();
     //! Get velocity scaling callback
-    PropagatorCallbackPtr velocityScalingCallback();
+    PropagatorCallback velocityScalingCallback();
 
     //! Get view on the full PR scaling matrix
     ArrayRef<rvec> viewOnPRScalingMatrix();
     //! Get PR scaling callback
-    PropagatorCallbackPtr prScalingCallback();
+    PropagatorCallback prScalingCallback();
+
+    /*! \brief Factory method implementation
+     *
+     * \param legacySimulatorData  Pointer allowing access to simulator level data
+     * \param builderHelper  ModularSimulatorAlgorithmBuilder helper object
+     * \param statePropagatorData  Pointer to the \c StatePropagatorData object
+     * \param energyData  Pointer to the \c EnergyData object
+     * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
+     * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     * \param timestep  The time step the propagator uses
+     * \param registerWithThermostat  Whether this propagator should be registered with the thermostat
+     * \param registerWithBarostat  Whether this propagator should be registered with the barostat
+     *
+     * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
+     */
+    static ISimulatorElement* getElementPointerImpl(LegacySimulatorData* legacySimulatorData,
+                                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                                    StatePropagatorData*        statePropagatorData,
+                                                    EnergyData*                 energyData,
+                                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                                    GlobalCommunicationHelper* globalCommunicationHelper,
+                                                    double                     timestep,
+                                                    RegisterWithThermostat registerWithThermostat,
+                                                    RegisterWithBarostat   registerWithBarostat);
 
 private:
     //! The actual propagation

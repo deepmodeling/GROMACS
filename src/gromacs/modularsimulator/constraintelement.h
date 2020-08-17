@@ -53,6 +53,9 @@ namespace gmx
 class Constraints;
 class EnergyData;
 class FreeEnergyPerturbationData;
+class GlobalCommunicationHelper;
+class LegacySimulatorData;
+class ModularSimulatorAlgorithmBuilderHelper;
 class StatePropagatorData;
 
 /*! \internal
@@ -94,7 +97,7 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     /*! \brief Performs inital constraining
      *  \todo Should this rather happen at grompp time? Right position of this operation is currently
@@ -105,16 +108,34 @@ public:
     //! No element teardown needed
     void elementTeardown() override {}
 
+    /*! \brief Factory method implementation
+     *
+     * \param legacySimulatorData  Pointer allowing access to simulator level data
+     * \param builderHelper  ModularSimulatorAlgorithmBuilder helper object
+     * \param statePropagatorData  Pointer to the \c StatePropagatorData object
+     * \param energyData  Pointer to the \c EnergyData object
+     * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
+     * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     *
+     * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
+     */
+    static ISimulatorElement* getElementPointerImpl(LegacySimulatorData* legacySimulatorData,
+                                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                                    StatePropagatorData*        statePropagatorData,
+                                                    EnergyData*                 energyData,
+                                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                                    GlobalCommunicationHelper* globalCommunicationHelper);
+
 private:
     //! The actual constraining computation
     void apply(Step step, bool calculateVirial, bool writeLog, bool writeEnergy);
 
     //! IEnergySignallerClient implementation
-    SignallerCallbackPtr registerEnergyCallback(EnergySignallerEvent event) override;
+    std::optional<SignallerCallback> registerEnergyCallback(EnergySignallerEvent event) override;
     //! ITrajectorySignallerClient implementation
-    SignallerCallbackPtr registerTrajectorySignallerCallback(TrajectoryEvent event) override;
+    std::optional<SignallerCallback> registerTrajectorySignallerCallback(TrajectoryEvent event) override;
     //! ILoggingSignallerClient implementation
-    SignallerCallbackPtr registerLoggingCallback() override;
+    std::optional<SignallerCallback> registerLoggingCallback() override;
 
     //! The next energy calculation step
     Step nextVirialCalculationStep_;

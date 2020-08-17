@@ -49,6 +49,9 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/mdtypes/state.h"
 
+#include "modularsimulator.h"
+#include "simulatoralgorithm.h"
+
 namespace gmx
 {
 
@@ -68,13 +71,12 @@ FreeEnergyPerturbationData::FreeEnergyPerturbationData(FILE* fplog, const t_inpu
 }
 
 void FreeEnergyPerturbationData::Element::scheduleTask(Step step,
-                                                       Time gmx_unused               time,
-                                                       const RegisterRunFunctionPtr& registerRunFunction)
+                                                       Time gmx_unused            time,
+                                                       const RegisterRunFunction& registerRunFunction)
 {
     if (lambdasChange_)
     {
-        (*registerRunFunction)(std::make_unique<SimulatorRunFunction>(
-                [this, step]() { freeEnergyPerturbationData_->updateLambdas(step); }));
+        registerRunFunction([this, step]() { freeEnergyPerturbationData_->updateLambdas(step); });
     }
 }
 
@@ -117,6 +119,17 @@ FreeEnergyPerturbationData::Element::Element(FreeEnergyPerturbationData* freeEne
 FreeEnergyPerturbationData::Element* FreeEnergyPerturbationData::element()
 {
     return element_.get();
+}
+
+ISimulatorElement* FreeEnergyPerturbationData::Element::getElementPointerImpl(
+        LegacySimulatorData gmx_unused*        legacySimulatorData,
+        ModularSimulatorAlgorithmBuilderHelper gmx_unused* builderHelper,
+        StatePropagatorData gmx_unused* statePropagatorData,
+        EnergyData gmx_unused*      energyData,
+        FreeEnergyPerturbationData* freeEnergyPerturbationData,
+        GlobalCommunicationHelper gmx_unused* globalCommunicationHelper)
+{
+    return freeEnergyPerturbationData->element();
 }
 
 } // namespace gmx

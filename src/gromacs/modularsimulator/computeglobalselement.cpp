@@ -44,11 +44,14 @@
 #include "computeglobalselement.h"
 
 #include "gromacs/domdec/partition.h"
+#include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/mdatoms.h"
 #include "gromacs/mdlib/stat.h"
+#include "gromacs/mdlib/update.h"
+#include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/group.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
@@ -56,6 +59,8 @@
 #include "gromacs/topology/topology.h"
 
 #include "freeenergyperturbationdata.h"
+#include "modularsimulator.h"
+#include "simulatoralgorithm.h"
 
 namespace gmx
 {
@@ -157,8 +162,8 @@ void ComputeGlobalsElement<algorithm>::elementSetup()
 
 template<ComputeGlobalsAlgorithm algorithm>
 void ComputeGlobalsElement<algorithm>::scheduleTask(Step step,
-                                                    Time gmx_unused               time,
-                                                    const RegisterRunFunctionPtr& registerRunFunction)
+                                                    Time gmx_unused            time,
+                                                    const RegisterRunFunction& registerRunFunction)
 {
     const bool needComReduction    = doStopCM_ && do_per_step(step, nstcomm_);
     const bool needGlobalReduction = step == energyReductionStep_ || step == virialReductionStep_
@@ -201,10 +206,9 @@ void ComputeGlobalsElement<algorithm>::scheduleTask(Step step,
         auto signaller = std::make_shared<SimulationSignaller>(signals_, cr_, nullptr,
                                                                doInterSimSignal, doIntraSimSignal);
 
-        (*registerRunFunction)(std::make_unique<SimulatorRunFunction>(
-                [this, step, flags, signaller = std::move(signaller)]() {
-                    compute(step, flags, signaller.get(), true);
-                }));
+        registerRunFunction([this, step, flags, signaller = std::move(signaller)]() {
+            compute(step, flags, signaller.get(), true);
+        });
     }
     else if (algorithm == ComputeGlobalsAlgorithm::VelocityVerlet)
     {
@@ -230,8 +234,8 @@ void ComputeGlobalsElement<algorithm>::scheduleTask(Step step,
                         | (doTemperature ? CGLO_TEMPERATURE : 0) | CGLO_PRESSURE | CGLO_CONSTRAINT
                         | (needComReduction ? CGLO_STOPCM : 0) | CGLO_SCALEEKIN;
 
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>(
-                    [this, step, flags]() { compute(step, flags, nullSignaller_.get(), false); }));
+            registerRunFunction(
+                    [this, step, flags]() { compute(step, flags, nullSignaller_.get(), false); });
         }
         else
         {
@@ -258,10 +262,9 @@ void ComputeGlobalsElement<algorithm>::scheduleTask(Step step,
             auto signaller = std::make_shared<SimulationSignaller>(
                     signals_, cr_, nullptr, doInterSimSignal, doIntraSimSignal);
 
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>(
-                    [this, step, flags, signaller = std::move(signaller)]() {
-                        compute(step, flags, signaller.get(), true);
-                    }));
+            registerRunFunction([this, step, flags, signaller = std::move(signaller)]() {
+                compute(step, flags, signaller.get(), true);
+            });
         }
     }
 }
@@ -296,10 +299,9 @@ void ComputeGlobalsElement<algorithm>::compute(gmx::Step            step,
 }
 
 template<ComputeGlobalsAlgorithm algorithm>
-CheckBondedInteractionsCallbackPtr ComputeGlobalsElement<algorithm>::getCheckNumberOfBondedInteractionsCallback()
+CheckBondedInteractionsCallback ComputeGlobalsElement<algorithm>::getCheckNumberOfBondedInteractionsCallback()
 {
-    return std::make_unique<CheckBondedInteractionsCallback>(
-            [this]() { needToCheckNumberOfBondedInteractions(); });
+    return [this]() { needToCheckNumberOfBondedInteractions(); };
 }
 
 template<ComputeGlobalsAlgorithm algorithm>
@@ -315,30 +317,28 @@ void ComputeGlobalsElement<algorithm>::setTopology(const gmx_localtop_t* top)
 }
 
 template<ComputeGlobalsAlgorithm algorithm>
-SignallerCallbackPtr ComputeGlobalsElement<algorithm>::registerEnergyCallback(EnergySignallerEvent event)
+std::optional<SignallerCallback> ComputeGlobalsElement<algorithm>::registerEnergyCallback(EnergySignallerEvent event)
 {
     if (event == EnergySignallerEvent::EnergyCalculationStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { energyReductionStep_ = step; });
+        return [this](Step step, Time /*unused*/) { energyReductionStep_ = step; };
     }
     if (event == EnergySignallerEvent::VirialCalculationStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { virialReductionStep_ = step; });
+        return [this](Step step, Time /*unused*/) { virialReductionStep_ = step; };
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 template<ComputeGlobalsAlgorithm algorithm>
-SignallerCallbackPtr ComputeGlobalsElement<algorithm>::registerTrajectorySignallerCallback(TrajectoryEvent event)
+std::optional<SignallerCallback>
+ComputeGlobalsElement<algorithm>::registerTrajectorySignallerCallback(TrajectoryEvent event)
 {
     if (event == TrajectoryEvent::EnergyWritingStep)
     {
-        return std::make_unique<SignallerCallback>(
-                [this](Step step, Time /*unused*/) { energyReductionStep_ = step; });
+        return [this](Step step, Time /*unused*/) { energyReductionStep_ = step; };
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 //! Explicit template instantiation
@@ -346,4 +346,113 @@ SignallerCallbackPtr ComputeGlobalsElement<algorithm>::registerTrajectorySignall
 template class ComputeGlobalsElement<ComputeGlobalsAlgorithm::LeapFrog>;
 template class ComputeGlobalsElement<ComputeGlobalsAlgorithm::VelocityVerlet>;
 //! @}
+
+template<>
+ISimulatorElement* ComputeGlobalsElement<ComputeGlobalsAlgorithm::LeapFrog>::getElementPointerImpl(
+        LegacySimulatorData*                    legacySimulatorData,
+        ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+        StatePropagatorData*                    statePropagatorData,
+        EnergyData*                             energyData,
+        FreeEnergyPerturbationData*             freeEnergyPerturbationData,
+        GlobalCommunicationHelper*              globalCommunicationHelper)
+{
+    /* When restarting from a checkpoint, it can be appropriate to
+     * initialize ekind from quantities in the checkpoint. Otherwise,
+     * compute_globals must initialize ekind before the simulation
+     * starts/restarts. However, only the master rank knows what was
+     * found in the checkpoint file, so we have to communicate in
+     * order to coordinate the restart.
+     *
+     * TODO This will become obsolete as soon as checkpoint reading
+     *      happens within the modular simulator framework: The energy
+     *      element will read its data from the checkpoint file pointer,
+     *      and signal to the compute globals element if it needs anything
+     *      reduced.
+     */
+    bool hasReadEkinState = MASTER(legacySimulatorData->cr)
+                                    ? legacySimulatorData->state_global->ekinstate.hasReadEkinState
+                                    : false;
+    if (PAR(legacySimulatorData->cr))
+    {
+        gmx_bcast(sizeof(hasReadEkinState), &hasReadEkinState, legacySimulatorData->cr->mpi_comm_mygroup);
+    }
+    if (hasReadEkinState)
+    {
+        restore_ekinstate_from_state(legacySimulatorData->cr, legacySimulatorData->ekind,
+                                     &legacySimulatorData->state_global->ekinstate);
+    }
+    auto* element = builderHelper->storeElement(
+            std::make_unique<ComputeGlobalsElement<ComputeGlobalsAlgorithm::LeapFrog>>(
+                    statePropagatorData, energyData, freeEnergyPerturbationData,
+                    globalCommunicationHelper->simulationSignals(),
+                    globalCommunicationHelper->nstglobalcomm(), legacySimulatorData->fplog,
+                    legacySimulatorData->mdlog, legacySimulatorData->cr,
+                    legacySimulatorData->inputrec, legacySimulatorData->mdAtoms,
+                    legacySimulatorData->nrnb, legacySimulatorData->wcycle, legacySimulatorData->fr,
+                    legacySimulatorData->top_global, legacySimulatorData->constr, hasReadEkinState));
+
+    // TODO: Remove this when DD can reduce bonded interactions independently (#3421)
+    auto* castedElement = static_cast<ComputeGlobalsElement<ComputeGlobalsAlgorithm::LeapFrog>*>(element);
+    globalCommunicationHelper->setCheckBondedInteractionsCallback(
+            castedElement->getCheckNumberOfBondedInteractionsCallback());
+
+    return element;
+}
+
+template<>
+ISimulatorElement* ComputeGlobalsElement<ComputeGlobalsAlgorithm::VelocityVerlet>::getElementPointerImpl(
+        LegacySimulatorData*                    simulator,
+        ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+        StatePropagatorData*                    statePropagatorData,
+        EnergyData*                             energyData,
+        FreeEnergyPerturbationData*             freeEnergyPerturbationData,
+        GlobalCommunicationHelper*              globalCommunicationHelper)
+{
+    // We allow this element to be added multiple times to the call list, but we only want one
+    // actual element built
+    static thread_local ISimulatorElement* vvComputeGlobalsElement = nullptr;
+    if (!builderHelper->elementIsStored(vvComputeGlobalsElement))
+    {
+        /* When restarting from a checkpoint, it can be appropriate to
+         * initialize ekind from quantities in the checkpoint. Otherwise,
+         * compute_globals must initialize ekind before the simulation
+         * starts/restarts. However, only the master rank knows what was
+         * found in the checkpoint file, so we have to communicate in
+         * order to coordinate the restart.
+         *
+         * TODO This will become obsolete as soon as checkpoint reading
+         *      happens within the modular simulator framework: The energy
+         *      element will read its data from the checkpoint file pointer,
+         *      and signal to the compute globals element if it needs anything
+         *      reduced.
+         */
+        bool hasReadEkinState =
+                MASTER(simulator->cr) ? simulator->state_global->ekinstate.hasReadEkinState : false;
+        if (PAR(simulator->cr))
+        {
+            gmx_bcast(sizeof(hasReadEkinState), &hasReadEkinState, simulator->cr->mpi_comm_mygroup);
+        }
+        if (hasReadEkinState)
+        {
+            restore_ekinstate_from_state(simulator->cr, simulator->ekind,
+                                         &simulator->state_global->ekinstate);
+        }
+        vvComputeGlobalsElement = builderHelper->storeElement(
+                std::make_unique<ComputeGlobalsElement<ComputeGlobalsAlgorithm::VelocityVerlet>>(
+                        statePropagatorData, energyData, freeEnergyPerturbationData,
+                        globalCommunicationHelper->simulationSignals(),
+                        globalCommunicationHelper->nstglobalcomm(), simulator->fplog,
+                        simulator->mdlog, simulator->cr, simulator->inputrec, simulator->mdAtoms,
+                        simulator->nrnb, simulator->wcycle, simulator->fr, simulator->top_global,
+                        simulator->constr, hasReadEkinState));
+
+        // TODO: Remove this when DD can reduce bonded interactions independently (#3421)
+        auto* castedElement =
+                static_cast<ComputeGlobalsElement<ComputeGlobalsAlgorithm::VelocityVerlet>*>(
+                        vvComputeGlobalsElement);
+        globalCommunicationHelper->setCheckBondedInteractionsCallback(
+                castedElement->getCheckNumberOfBondedInteractionsCallback());
+    }
+    return vvComputeGlobalsElement;
+}
 } // namespace gmx

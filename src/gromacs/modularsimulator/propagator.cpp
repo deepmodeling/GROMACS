@@ -49,10 +49,13 @@
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdlib/mdatoms.h"
 #include "gromacs/mdlib/update.h"
+#include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/fatalerror.h"
 
+#include "modularsimulator.h"
+#include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
 
 namespace gmx
@@ -456,8 +459,8 @@ Propagator<algorithm>::Propagator(double               timestep,
 
 template<IntegrationStep algorithm>
 void Propagator<algorithm>::scheduleTask(Step gmx_unused step,
-                                         Time gmx_unused               time,
-                                         const RegisterRunFunctionPtr& registerRunFunction)
+                                         Time gmx_unused            time,
+                                         const RegisterRunFunction& registerRunFunction)
 {
     const bool doSingleVScalingThisStep = (doSingleVelocityScaling_ && (step == scalingStepVelocity_));
     const bool doGroupVScalingThisStep = (doGroupVelocityScaling_ && (step == scalingStepVelocity_));
@@ -468,45 +471,45 @@ void Propagator<algorithm>::scheduleTask(Step gmx_unused step,
     {
         if (doParrinelloRahmanThisStep)
         {
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this]() {
+            registerRunFunction([this]() {
                 run<NumVelocityScalingValues::Single, ParrinelloRahmanVelocityScaling::Full>();
-            }));
+            });
         }
         else
         {
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this]() {
+            registerRunFunction([this]() {
                 run<NumVelocityScalingValues::Single, ParrinelloRahmanVelocityScaling::No>();
-            }));
+            });
         }
     }
     else if (doGroupVScalingThisStep)
     {
         if (doParrinelloRahmanThisStep)
         {
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this]() {
+            registerRunFunction([this]() {
                 run<NumVelocityScalingValues::Multiple, ParrinelloRahmanVelocityScaling::Full>();
-            }));
+            });
         }
         else
         {
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this]() {
+            registerRunFunction([this]() {
                 run<NumVelocityScalingValues::Multiple, ParrinelloRahmanVelocityScaling::No>();
-            }));
+            });
         }
     }
     else
     {
         if (doParrinelloRahmanThisStep)
         {
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this]() {
+            registerRunFunction([this]() {
                 run<NumVelocityScalingValues::None, ParrinelloRahmanVelocityScaling::Full>();
-            }));
+            });
         }
         else
         {
-            (*registerRunFunction)(std::make_unique<SimulatorRunFunction>([this]() {
+            registerRunFunction([this]() {
                 run<NumVelocityScalingValues::None, ParrinelloRahmanVelocityScaling::No>();
-            }));
+            });
         }
     }
 }
@@ -539,14 +542,14 @@ ArrayRef<real> Propagator<algorithm>::viewOnVelocityScaling()
 }
 
 template<IntegrationStep algorithm>
-std::unique_ptr<std::function<void(Step)>> Propagator<algorithm>::velocityScalingCallback()
+PropagatorCallback Propagator<algorithm>::velocityScalingCallback()
 {
     if (algorithm == IntegrationStep::PositionsOnly)
     {
         gmx_fatal(FARGS, "Velocity scaling not implemented for IntegrationStep::PositionsOnly.");
     }
 
-    return std::make_unique<PropagatorCallback>([this](Step step) { scalingStepVelocity_ = step; });
+    return [this](Step step) { scalingStepVelocity_ = step; };
 }
 
 template<IntegrationStep algorithm>
@@ -563,21 +566,51 @@ ArrayRef<rvec> Propagator<algorithm>::viewOnPRScalingMatrix()
 }
 
 template<IntegrationStep algorithm>
-PropagatorCallbackPtr Propagator<algorithm>::prScalingCallback()
+PropagatorCallback Propagator<algorithm>::prScalingCallback()
 {
     GMX_RELEASE_ASSERT(
             algorithm != IntegrationStep::PositionsOnly,
             "Parrinello-Rahman scaling not implemented for IntegrationStep::PositionsOnly.");
 
-    return std::make_unique<PropagatorCallback>([this](Step step) { scalingStepPR_ = step; });
+    return [this](Step step) { scalingStepPR_ = step; };
 }
 
-//! Explicit template initialization
-//! @{
+template<IntegrationStep algorithm>
+ISimulatorElement* Propagator<algorithm>::getElementPointerImpl(
+        LegacySimulatorData*                    legacySimulatorData,
+        ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+        StatePropagatorData*                    statePropagatorData,
+        EnergyData gmx_unused*     energyData,
+        FreeEnergyPerturbationData gmx_unused* freeEnergyPerturbationData,
+        GlobalCommunicationHelper gmx_unused* globalCommunicationHelper,
+        double                                timestep,
+        RegisterWithThermostat                registerWithThermostat,
+        RegisterWithBarostat                  registerWithBarostat)
+{
+    auto* element = builderHelper->storeElement(std::make_unique<Propagator<algorithm>>(
+            timestep, statePropagatorData, legacySimulatorData->mdAtoms, legacySimulatorData->wcycle));
+    if (registerWithThermostat == RegisterWithThermostat::True)
+    {
+        auto* propagator = static_cast<Propagator<algorithm>*>(element);
+        builderHelper->registerWithThermostat(
+                { [propagator](int num) { propagator->setNumVelocityScalingVariables(num); },
+                  [propagator]() { return propagator->viewOnVelocityScaling(); },
+                  [propagator]() { return propagator->velocityScalingCallback(); } });
+    }
+    if (registerWithBarostat == RegisterWithBarostat::True)
+    {
+        auto* propagator = static_cast<Propagator<algorithm>*>(element);
+        builderHelper->registerWithBarostat(
+                { [propagator]() { return propagator->viewOnPRScalingMatrix(); },
+                  [propagator]() { return propagator->prScalingCallback(); } });
+    }
+    return element;
+}
+
+// Explicit template initializations
 template class Propagator<IntegrationStep::PositionsOnly>;
 template class Propagator<IntegrationStep::VelocitiesOnly>;
 template class Propagator<IntegrationStep::LeapFrog>;
 template class Propagator<IntegrationStep::VelocityVerletPositionsAndVelocities>;
-//! @}
 
 } // namespace gmx

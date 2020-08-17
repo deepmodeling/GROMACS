@@ -63,7 +63,10 @@ enum class StartingBehavior;
 class Constraints;
 class EnergyOutput;
 class FreeEnergyPerturbationData;
+class GlobalCommunicationHelper;
+class LegacySimulatorData;
 class MDAtoms;
+class ModularSimulatorAlgorithmBuilderHelper;
 class ParrinelloRahmanBarostat;
 class StatePropagatorData;
 class VRescaleThermostat;
@@ -344,13 +347,31 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     //! No element setup needed
     void elementSetup() override {}
 
     //! No element teardown needed
     void elementTeardown() override {}
+
+    /*! \brief Factory method implementation
+     *
+     * \param legacySimulatorData  Pointer allowing access to simulator level data
+     * \param builderHelper  ModularSimulatorAlgorithmBuilder helper object
+     * \param statePropagatorData  Pointer to the \c StatePropagatorData object
+     * \param energyData  Pointer to the \c EnergyData object
+     * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
+     * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     *
+     * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
+     */
+    static ISimulatorElement* getElementPointerImpl(LegacySimulatorData* legacySimulatorData,
+                                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                                    StatePropagatorData*        statePropagatorData,
+                                                    EnergyData*                 energyData,
+                                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                                    GlobalCommunicationHelper* globalCommunicationHelper);
 
 private:
     EnergyData* energyData_;
@@ -368,11 +389,11 @@ private:
     void trajectoryWriterTeardown(gmx_mdoutf gmx_unused* outf) override {}
 
     //! ITrajectoryWriterClient implementation.
-    SignallerCallbackPtr registerTrajectorySignallerCallback(TrajectoryEvent event) override;
+    std::optional<SignallerCallback> registerTrajectorySignallerCallback(TrajectoryEvent event) override;
     //! ITrajectorySignallerClient implementation
-    ITrajectoryWriterCallbackPtr registerTrajectoryWriterCallback(TrajectoryEvent event) override;
+    std::optional<ITrajectoryWriterCallback> registerTrajectoryWriterCallback(TrajectoryEvent event) override;
     //! IEnergySignallerClient implementation
-    SignallerCallbackPtr registerEnergyCallback(EnergySignallerEvent event) override;
+    std::optional<SignallerCallback> registerEnergyCallback(EnergySignallerEvent event) override;
 
     //! ICheckpointHelperClient implementation
     void writeCheckpoint(t_state* localState, t_state* globalState) override;
