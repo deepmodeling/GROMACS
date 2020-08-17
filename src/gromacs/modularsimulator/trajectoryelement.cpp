@@ -57,12 +57,12 @@ TrajectoryElement::TrajectoryElement(std::vector<ITrajectoryWriterClient*> write
                                      const t_commrec*                      cr,
                                      gmx::IMDOutputProvider*               outputProvider,
                                      const CheckpointingNotification& checkpointingNotification,
-                                     const t_inputrec*                     inputrec,
-                                     const gmx_mtop_t*                     top_global,
-                                     const gmx_output_env_t*               oenv,
-                                     gmx_wallcycle*                        wcycle,
-                                     StartingBehavior                      startingBehavior,
-                                     const bool                            simulationsShareState) :
+                                     const t_inputrec*                inputrec,
+                                     const gmx_mtop_t*                top_global,
+                                     const gmx_output_env_t*          oenv,
+                                     gmx_wallcycle*                   wcycle,
+                                     StartingBehavior                 startingBehavior,
+                                     const bool                       simulationsShareState) :
     writeEnergyStep_(-1),
     writeStateStep_(-1),
     outf_(init_mdoutf(fplog,

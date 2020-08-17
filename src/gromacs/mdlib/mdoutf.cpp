@@ -64,28 +64,28 @@
 
 struct gmx_mdoutf
 {
-    t_fileio*                     fp_trn;
-    t_fileio*                     fp_xtc;
-    gmx_tng_trajectory_t          tng;
-    gmx_tng_trajectory_t          tng_low_prec;
-    int                           x_compression_precision; /* only used by XTC output */
-    ener_file_t                   fp_ene;
-    const char*                   fn_cpt;
-    gmx_bool                      bKeepAndNumCPT;
-    int                           eIntegrator;
-    gmx_bool                      bExpanded;
-    int                           elamstats;
-    int                           simulation_part;
-    FILE*                         fp_dhdl;
-    int                           natoms_global;
-    int                           natoms_x_compressed;
-    const SimulationGroups*       groups; /* for compressed position writing */
-    gmx_wallcycle_t               wcycle;
-    rvec*                         f_global;
-    gmx::IMDOutputProvider*       outputProvider;
+    t_fileio*                             fp_trn;
+    t_fileio*                             fp_xtc;
+    gmx_tng_trajectory_t                  tng;
+    gmx_tng_trajectory_t                  tng_low_prec;
+    int                                   x_compression_precision; /* only used by XTC output */
+    ener_file_t                           fp_ene;
+    const char*                           fn_cpt;
+    gmx_bool                              bKeepAndNumCPT;
+    int                                   eIntegrator;
+    gmx_bool                              bExpanded;
+    int                                   elamstats;
+    int                                   simulation_part;
+    FILE*                                 fp_dhdl;
+    int                                   natoms_global;
+    int                                   natoms_x_compressed;
+    const SimulationGroups*               groups; /* for compressed position writing */
+    gmx_wallcycle_t                       wcycle;
+    rvec*                                 f_global;
+    gmx::IMDOutputProvider*               outputProvider;
     const gmx::CheckpointingNotification* checkpointingNotifier;
-    bool                          simulationsShareState;
-    MPI_Comm                      mpiCommMasters;
+    bool                                  simulationsShareState;
+    MPI_Comm                              mpiCommMasters;
 };
 
 
@@ -96,13 +96,13 @@ gmx_mdoutf_t init_mdoutf(FILE*                                 fplog,
                          const t_commrec*                      cr,
                          gmx::IMDOutputProvider*               outputProvider,
                          const gmx::CheckpointingNotification& checkpointingNotifier,
-                         const t_inputrec*             ir,
-                         const gmx_mtop_t*             top_global,
-                         const gmx_output_env_t*       oenv,
-                         gmx_wallcycle_t               wcycle,
-                         const gmx::StartingBehavior   startingBehavior,
-                         bool                          simulationsShareState,
-                         const gmx_multisim_t*         ms)
+                         const t_inputrec*                     ir,
+                         const gmx_mtop_t*                     top_global,
+                         const gmx_output_env_t*               oenv,
+                         gmx_wallcycle_t                       wcycle,
+                         const gmx::StartingBehavior           startingBehavior,
+                         bool                                  simulationsShareState,
+                         const gmx_multisim_t*                 ms)
 {
     gmx_mdoutf_t of;
     const char * appendMode = "a+", *writeMode = "w+", *filemode;

@@ -68,20 +68,20 @@ typedef struct gmx_mdoutf* gmx_mdoutf_t;
  * Returns a pointer to a data structure with all output file pointers
  * and names required by mdrun.
  */
-gmx_mdoutf_t init_mdoutf(FILE*                         fplog,
-                         int                           nfile,
-                         const t_filenm                fnm[],
-                         const gmx::MdrunOptions&      mdrunOptions,
-                         const t_commrec*              cr,
-                         gmx::IMDOutputProvider*       outputProvider,
+gmx_mdoutf_t init_mdoutf(FILE*                                 fplog,
+                         int                                   nfile,
+                         const t_filenm                        fnm[],
+                         const gmx::MdrunOptions&              mdrunOptions,
+                         const t_commrec*                      cr,
+                         gmx::IMDOutputProvider*               outputProvider,
                          const gmx::CheckpointingNotification& checkpointingNotifier,
-                         const t_inputrec*             ir,
-                         const gmx_mtop_t*             mtop,
-                         const gmx_output_env_t*       oenv,
-                         gmx_wallcycle_t               wcycle,
-                         gmx::StartingBehavior         startingBehavior,
-                         bool                          simulationsShareState,
-                         const gmx_multisim_t*         ms);
+                         const t_inputrec*                     ir,
+                         const gmx_mtop_t*                     mtop,
+                         const gmx_output_env_t*               oenv,
+                         gmx_wallcycle_t                       wcycle,
+                         gmx::StartingBehavior                 startingBehavior,
+                         bool                                  simulationsShareState,
+                         const gmx_multisim_t*                 ms);
 
 /*! \brief Getter for file pointer */
 ener_file_t mdoutf_get_fp_ene(gmx_mdoutf_t of);
