@@ -61,6 +61,7 @@ gmx_add_gtest_executable(${exename}
         helpwriting.cpp
         initialconstraints.cpp
         interactiveMD.cpp
+        multiple_time_stepping.cpp
         orires.cpp
         outputfiles.cpp
         pmetest.cpp
