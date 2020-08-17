@@ -60,6 +60,11 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 
 void DevicesManager::setDevice(int /* deviceId */) const {}
 
+void DevicesManager::setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& /* deviceInfos */,
+                               int /* deviceId */)
+{
+}
+
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {
     GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");

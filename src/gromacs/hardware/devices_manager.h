@@ -152,6 +152,7 @@ public:
      * initialization.
      */
     void setDevice(int deviceId) const;
+    static void setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos, int deviceId);
 
     /*! \brief Return a pointer to the device information for \c deviceId
      *

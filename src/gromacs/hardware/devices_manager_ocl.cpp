@@ -494,7 +494,7 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
         req_dev_type = CL_DEVICE_TYPE_CPU;
     }
 
-    int numDevices = 0;
+    int                                             numDevices = 0;
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(0);
 
     while (true)
@@ -559,8 +559,8 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 
                 /* If requesting req_dev_type devices fails, just go to the next platform */
                 if (CL_SUCCESS
-                    != clGetDeviceIDs(ocl_platform_ids[i], req_dev_type, numDevices,
-                                      ocl_device_ids, &ocl_device_count))
+                    != clGetDeviceIDs(ocl_platform_ids[i], req_dev_type, numDevices, ocl_device_ids,
+                                      &ocl_device_count))
                 {
                     continue;
                 }
@@ -679,6 +679,29 @@ void DevicesManager::setDevice(int deviceId) const
     // e.g. if the path to the kernel sources remains the same
 
     if (deviceInfos_[deviceId].deviceVendor == DeviceVendor::Nvidia)
+    {
+        // Ignore return values, failing to set the variable does not mean
+        // that something will go wrong later.
+#ifdef _MSC_VER
+        _putenv("CUDA_CACHE_DISABLE=1");
+#else
+        // Don't override, maybe a dev is testing.
+        setenv("CUDA_CACHE_DISABLE", "1", 0);
+#endif
+    }
+}
+
+void DevicesManager::setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos, int deviceId)
+{
+    GMX_ASSERT(deviceId >= 0 && deviceId < static_cast<int>(deviceInfos.size()),
+               "Trying to set invalid device");
+
+    // If the device is NVIDIA, for safety reasons we disable the JIT
+    // caching as this is known to be broken at least until driver 364.19;
+    // the cache does not always get regenerated when the source code changes,
+    // e.g. if the path to the kernel sources remains the same
+
+    if (deviceInfos[deviceId]->deviceVendor == DeviceVendor::Nvidia)
     {
         // Ignore return values, failing to set the variable does not mean
         // that something will go wrong later.

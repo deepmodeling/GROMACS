@@ -417,7 +417,7 @@ void DevicesManager::findGpus()
 
 std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 {
-    int numDevices;
+    int         numDevices;
     cudaError_t stat = cudaGetDeviceCount(&numDevices);
     if (stat != cudaSuccess)
     {
@@ -438,7 +438,7 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
         const DeviceStatus checkResult =
                 (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
 
-        deviceInfos[i] = std::make_unique<DeviceInformation>();
+        deviceInfos[i]         = std::make_unique<DeviceInformation>();
         deviceInfos[i]->id     = i;
         deviceInfos[i]->prop   = prop;
         deviceInfos[i]->status = checkResult;
@@ -491,6 +491,26 @@ void DevicesManager::setDevice(int deviceId) const
     if (debug)
     {
         fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfos_[deviceId].prop.name);
+    }
+}
+
+void DevicesManager::setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos, int deviceId)
+{
+    GMX_ASSERT(deviceId >= 0 && deviceId < static_cast<int>(deviceInfos.size()),
+               "Trying to set invalid device");
+
+    cudaError_t stat;
+
+    stat = cudaSetDevice(deviceId);
+    if (stat != cudaSuccess)
+    {
+        auto message = gmx::formatString("Failed to initialize GPU #%d", deviceId);
+        CU_RET_ERR(stat, message.c_str());
+    }
+
+    if (debug)
+    {
+        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfos[deviceId]->prop.name);
     }
 }
 
