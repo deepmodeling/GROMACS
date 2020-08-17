@@ -202,13 +202,13 @@ static DevelopmentFeatureFlags manageDevelopmentFeatures(const gmx::MDLogger& md
     // getenv results are ignored when clearly they are used.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
-    devFlags.enableGpuBufferOps = (getenv("GMX_USE_GPU_BUFFER_OPS") != nullptr)
-                                  && (GMX_GPU == GMX_GPU_CUDA) && useGpuForNonbonded;
-    devFlags.forceGpuUpdateDefault = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr);
-    devFlags.enableGpuHaloExchange =
-            (getenv("GMX_GPU_DD_COMMS") != nullptr && GMX_THREAD_MPI && (GMX_GPU == GMX_GPU_CUDA));
+
+    devFlags.enableGpuBufferOps =
+            GMX_GPU_CUDA && useGpuForNonbonded && (getenv("GMX_USE_GPU_BUFFER_OPS") != nullptr);
+    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_DD_COMMS") != nullptr;
     devFlags.enableGpuPmePPComm =
-            (getenv("GMX_GPU_PME_PP_COMMS") != nullptr && GMX_THREAD_MPI && (GMX_GPU == GMX_GPU_CUDA));
+            GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
+
 #pragma GCC diagnostic pop
 
     if (devFlags.enableGpuBufferOps)
@@ -812,7 +812,7 @@ int Mdrunner::mdrunner()
                     hw_opt.nthreads_tmpi);
             useGpuForPme = decideWhetherToUseGpusForPmeWithThreadMpi(
                     useGpuForNonbonded, pmeTarget, gpuIdsToUse, userGpuTaskAssignment, *hwinfo,
-                    *inputrec, mtop, hw_opt.nthreads_tmpi, domdecOptions.numPmeRanks);
+                    *inputrec, hw_opt.nthreads_tmpi, domdecOptions.numPmeRanks);
         }
         GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
 
@@ -832,8 +832,9 @@ int Mdrunner::mdrunner()
         physicalNodeComm = PhysicalNodeCommunicator(communicator, gmx_physicalnode_id_hash());
     }
 
-    GMX_RELEASE_ASSERT(communicator == MPI_COMM_WORLD, "Must have valid world communicator");
-    CommrecHandle crHandle = init_commrec(communicator, ms);
+    GMX_RELEASE_ASSERT(ms || communicator == MPI_COMM_WORLD,
+                       "Must have valid world communicator unless running a multi-simulation");
+    CommrecHandle crHandle = init_commrec(communicator);
     t_commrec*    cr       = crHandle.get();
     GMX_RELEASE_ASSERT(cr != nullptr, "Must have valid commrec");
 
@@ -844,7 +845,8 @@ int Mdrunner::mdrunner()
         {
             inputrec = &inputrecInstance;
         }
-        init_parallel(cr->mpi_comm_mygroup, MASTER(cr), inputrec, &mtop, partialDeserializedTpr.get());
+        init_parallel(cr->mpiDefaultCommunicator, MASTER(cr), inputrec, &mtop,
+                      partialDeserializedTpr.get());
     }
     GMX_RELEASE_ASSERT(inputrec != nullptr, "All ranks should have a valid inputrec now");
     partialDeserializedTpr.reset(nullptr);
@@ -876,8 +878,8 @@ int Mdrunner::mdrunner()
                 nonbondedTarget, userGpuTaskAssignment, emulateGpuNonbonded, canUseGpuForNonbonded,
                 gpuAccelerationOfNonbondedIsUseful(mdlog, *inputrec, !GMX_THREAD_MPI), gpusWereDetected);
         useGpuForPme = decideWhetherToUseGpusForPme(
-                useGpuForNonbonded, pmeTarget, userGpuTaskAssignment, *hwinfo, *inputrec, mtop,
-                cr->nnodes, domdecOptions.numPmeRanks, gpusWereDetected);
+                useGpuForNonbonded, pmeTarget, userGpuTaskAssignment, *hwinfo, *inputrec,
+                cr->sizeOfDefaultCommunicator, domdecOptions.numPmeRanks, gpusWereDetected);
         auto canUseGpuForBonded = buildSupportsGpuBondeds(nullptr)
                                   && inputSupportsGpuBondeds(*inputrec, mtop, nullptr);
         useGpuForBonded = decideWhetherToUseGpusForBonded(
@@ -959,7 +961,8 @@ int Mdrunner::mdrunner()
         {
             globalState = std::make_unique<t_state>();
         }
-        broadcastStateWithoutDynamics(cr->mpi_comm_mygroup, DOMAINDECOMP(cr), PAR(cr), globalState.get());
+        broadcastStateWithoutDynamics(cr->mpiDefaultCommunicator, DOMAINDECOMP(cr), PAR(cr),
+                                      globalState.get());
     }
 
     /* A parallel command line option consistency check that we can
@@ -993,7 +996,7 @@ int Mdrunner::mdrunner()
     {
         if (domdecOptions.numPmeRanks > 0)
         {
-            gmx_fatal_collective(FARGS, cr->mpi_comm_mysim, MASTER(cr),
+            gmx_fatal_collective(FARGS, cr->mpiDefaultCommunicator, MASTER(cr),
                                  "PME-only ranks are requested, but the system does not use PME "
                                  "for electrostatics or LJ");
         }
@@ -1049,9 +1052,9 @@ int Mdrunner::mdrunner()
     snew(oriresdata, 1);
     init_orires(fplog, &mtop, inputrec, cr, ms, globalState.get(), oriresdata);
 
-    auto deform = prepareBoxDeformation(globalState->box, MASTER(cr) ? DDRole::Master : DDRole::Agent,
-                                        PAR(cr) ? NumRanks::Multiple : NumRanks::Single,
-                                        cr->mpi_comm_mygroup, *inputrec);
+    auto deform = prepareBoxDeformation(
+            globalState != nullptr ? globalState->box : box, MASTER(cr) ? DDRole::Master : DDRole::Agent,
+            PAR(cr) ? NumRanks::Multiple : NumRanks::Single, cr->mpi_comm_mygroup, *inputrec);
 
     ObservablesHistory observablesHistory = {};
 
@@ -1096,14 +1099,14 @@ int Mdrunner::mdrunner()
     /* override nsteps with value set on the commandline */
     override_nsteps_cmdline(mdlog, mdrunOptions.numStepsCommandline, inputrec);
 
-    if (SIMMASTER(cr))
+    if (isSimulationMasterRank)
     {
         copy_mat(globalState->box, box);
     }
 
     if (PAR(cr))
     {
-        gmx_bcast(sizeof(box), box, cr->mpi_comm_mygroup);
+        gmx_bcast(sizeof(box), box, cr->mpiDefaultCommunicator);
     }
 
     if (inputrec->cutoff_scheme != ecutsVERLET)
@@ -1113,6 +1116,10 @@ int Mdrunner::mdrunner()
                   "Verlet scheme, or use an earlier version of GROMACS if necessary.");
     }
     /* Update rlist and nstlist. */
+    /* Note: prepare_verlet_scheme is calling increaseNstlist(...), which (while attempting to
+     * increase rlist) tries to check if the newly chosen value fits with the DD scheme. As this is
+     * run before any DD scheme is set up, this check is never executed. See #3334 for more details.
+     */
     prepare_verlet_scheme(fplog, cr, inputrec, nstlist_cmdline, &mtop, box,
                           useGpuForNonbonded || (emulateGpuNonbonded == EmulateGpuNonbonded::Yes),
                           *hwinfo->cpuInfo);
@@ -1132,8 +1139,11 @@ int Mdrunner::mdrunner()
     else
     {
         /* PME, if used, is done on all nodes with 1D decomposition */
-        cr->npmenodes = 0;
-        cr->duty      = (DUTY_PP | DUTY_PME);
+        cr->nnodes     = cr->sizeOfDefaultCommunicator;
+        cr->sim_nodeid = cr->rankInDefaultCommunicator;
+        cr->nodeid     = cr->rankInDefaultCommunicator;
+        cr->npmenodes  = 0;
+        cr->duty       = (DUTY_PP | DUTY_PME);
 
         if (inputrec->pbcType == PbcType::Screw)
         {
@@ -1156,7 +1166,8 @@ int Mdrunner::mdrunner()
 
     // timing enabling - TODO put this in gpu_utils (even though generally this is just option handling?)
     bool useTiming = true;
-    if (GMX_GPU == GMX_GPU_CUDA)
+
+    if (GMX_GPU_CUDA)
     {
         /* WARNING: CUDA timings are incorrect with multiple streams.
          *          This is the main reason why they are disabled by default.
@@ -1164,7 +1175,7 @@ int Mdrunner::mdrunner()
         // TODO: Consider turning on by default when we can detect nr of streams.
         useTiming = (getenv("GMX_ENABLE_GPU_TIMING") != nullptr);
     }
-    else if (GMX_GPU == GMX_GPU_OPENCL)
+    else if (GMX_GPU_OPENCL)
     {
         useTiming = (getenv("GMX_DISABLE_GPU_TIMING") == nullptr);
     }
@@ -1240,7 +1251,7 @@ int Mdrunner::mdrunner()
                 .appendTextFormatted(
                         "This is simulation %d out of %d running as a composite GROMACS\n"
                         "multi-simulation job. Setup for this simulation:\n",
-                        ms->sim, ms->nsim);
+                        ms->simulationIndex_, ms->numSimulations_);
     }
     GMX_LOG(mdlog.warning)
             .appendTextFormatted("Using %d MPI %s\n", cr->nnodes,
@@ -1767,7 +1778,7 @@ int Mdrunner::mdrunner()
     /* we need to join all threads. The sub-threads join when they
        exit this function, but the master thread needs to be told to
        wait for that. */
-    if (PAR(cr) && MASTER(cr))
+    if (MASTER(cr))
     {
         tMPI_Finalize();
     }

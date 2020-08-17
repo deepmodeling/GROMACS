@@ -118,7 +118,7 @@ void applyLincs(ConstraintsTestData* testData, t_pbc pbc)
     cr.dd     = nullptr;
 
     // Multi-sim record
-    gmx_multisim_t ms;
+    gmx_multisim_t ms{ 1, 0, MPI_COMM_NULL, MPI_COMM_NULL };
 
     // Make blocka structure for faster LINCS setup
     std::vector<ListOfLists<int>> at2con_mt;
@@ -149,7 +149,7 @@ void applyLincs(ConstraintsTestData* testData, t_pbc pbc)
     done_lincs(lincsd);
 }
 
-#if GMX_GPU != GMX_GPU_CUDA
+#if !GMX_GPU_CUDA
 /*! \brief
  * Stub for GPU version of LINCS constraints to satisfy compiler.
  *
@@ -160,7 +160,7 @@ void applyLincsGpu(ConstraintsTestData gmx_unused* testData, t_pbc gmx_unused pb
 {
     FAIL() << "Dummy LINCS CUDA function was called instead of the real one.";
 }
-#endif
+#endif // !GMX_GPU_CUDA
 
 } // namespace test
 } // namespace gmx

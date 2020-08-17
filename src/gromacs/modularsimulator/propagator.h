@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the propagator element for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_PROPAGATOR_H
@@ -54,11 +56,29 @@ struct gmx_wallcycle;
 
 namespace gmx
 {
+class EnergyData;
+class FreeEnergyPerturbationData;
+class GlobalCommunicationHelper;
+class LegacySimulatorData;
 class MDAtoms;
+class ModularSimulatorAlgorithmBuilderHelper;
 class StatePropagatorData;
 
 //! \addtogroup module_modularsimulator
 //! \{
+
+//! Whether built propagator should be registered with thermostat
+enum class RegisterWithThermostat
+{
+    True,
+    False
+};
+//! Whether built propagator should be registered with barostat
+enum class RegisterWithBarostat
+{
+    True,
+    False
+};
 
 /*! \brief The different integration types we know about
  *
@@ -100,12 +120,7 @@ enum class ParrinelloRahmanVelocityScaling
     Count
 };
 
-//! Generic callback to the propagator
-typedef std::function<void(Step)> PropagatorCallback;
-//! Pointer to generic callback to the propagator
-typedef std::unique_ptr<PropagatorCallback> PropagatorCallbackPtr;
-
-/*! \libinternal
+/*! \internal
  * \brief Propagator element
  *
  * The propagator element can, through templating, cover the different
@@ -132,7 +147,7 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     //! No element setup needed
     void elementSetup() override {}
@@ -144,12 +159,36 @@ public:
     //! Get view on the velocity scaling vector
     ArrayRef<real> viewOnVelocityScaling();
     //! Get velocity scaling callback
-    PropagatorCallbackPtr velocityScalingCallback();
+    PropagatorCallback velocityScalingCallback();
 
     //! Get view on the full PR scaling matrix
     ArrayRef<rvec> viewOnPRScalingMatrix();
     //! Get PR scaling callback
-    PropagatorCallbackPtr prScalingCallback();
+    PropagatorCallback prScalingCallback();
+
+    /*! \brief Factory method implementation
+     *
+     * \param legacySimulatorData  Pointer allowing access to simulator level data
+     * \param builderHelper  ModularSimulatorAlgorithmBuilder helper object
+     * \param statePropagatorData  Pointer to the \c StatePropagatorData object
+     * \param energyData  Pointer to the \c EnergyData object
+     * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
+     * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     * \param timestep  The time step the propagator uses
+     * \param registerWithThermostat  Whether this propagator should be registered with the thermostat
+     * \param registerWithBarostat  Whether this propagator should be registered with the barostat
+     *
+     * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
+     */
+    static ISimulatorElement* getElementPointerImpl(LegacySimulatorData* legacySimulatorData,
+                                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                                    StatePropagatorData*        statePropagatorData,
+                                                    EnergyData*                 energyData,
+                                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                                    GlobalCommunicationHelper* globalCommunicationHelper,
+                                                    double                     timestep,
+                                                    RegisterWithThermostat registerWithThermostat,
+                                                    RegisterWithBarostat   registerWithBarostat);
 
 private:
     //! The actual propagation
@@ -159,6 +198,7 @@ private:
     //! The time step
     const real timestep_;
 
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
     //! Pointer to the micro state
     StatePropagatorData* statePropagatorData_;
 

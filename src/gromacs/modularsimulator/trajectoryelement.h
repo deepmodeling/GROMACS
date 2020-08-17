@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the trajectory element for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_TRAJECTORYELEMENT_H
@@ -62,7 +64,7 @@ struct CheckpointingNotification;
 struct MdrunOptions;
 enum class StartingBehavior;
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Trajectory element signals and handles trajectory writing
  *
@@ -90,10 +92,6 @@ public:
     //! Get the compressed lambda writeout frequency for TNG
     [[nodiscard]] int tngLambdaOutCompressed() const;
 
-    /*
-     * Methods for the trajectory writing part of the element
-     */
-
     /*! \brief Prepare trajectory writer
      *
      * During setup, the trajectory writer will query the writer clients for
@@ -112,7 +110,7 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     /*! \brief Teardown trajectory writer
      *
@@ -156,9 +154,9 @@ private:
     gmx_mdoutf* outf_;
 
     //! ILoggingSignallerClient implementation
-    SignallerCallbackPtr registerLoggingCallback() override;
+    std::optional<SignallerCallback> registerLoggingCallback() override;
     //! ITrajectorySignallerClient implementation
-    SignallerCallbackPtr registerTrajectorySignallerCallback(TrajectoryEvent event) override;
+    std::optional<SignallerCallback> registerTrajectorySignallerCallback(TrajectoryEvent event) override;
 
     /*
      * Trajectory writing
@@ -168,15 +166,15 @@ private:
 
     //! Callbacks to write trajectory
     //! {
-    std::vector<ITrajectoryWriterCallbackPtr> runStateCallbacks_;
-    std::vector<ITrajectoryWriterCallbackPtr> runEnergyCallbacks_;
+    std::vector<ITrajectoryWriterCallback> runStateCallbacks_;
+    std::vector<ITrajectoryWriterCallback> runEnergyCallbacks_;
     //! }
 
     //! The writing function - calls the clients to get their contributions
     void write(Step step, Time time, bool writeState, bool writeEnergy, bool writeLog);
 };
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Build the `TrajectoryElement`
  *
@@ -187,7 +185,7 @@ class TrajectoryElementBuilder final
 {
 public:
     //! Allows clients to register as trajectory writers
-    void registerWriterClient(compat::not_null<ITrajectoryWriterClient*> client);
+    void registerWriterClient(ITrajectoryWriterClient* client);
 
     //! Build the TrajectoryElement
     template<typename... Args>
@@ -196,11 +194,14 @@ public:
 private:
     //! List of writer clients
     std::vector<ITrajectoryWriterClient*> writerClients_;
+    //! The state of the builder
+    ModularSimulatorBuilderState state_ = ModularSimulatorBuilderState::AcceptingClientRegistrations;
 };
 
 template<typename... Args>
 std::unique_ptr<TrajectoryElement> TrajectoryElementBuilder::build(Args&&... args)
 {
+    state_ = ModularSimulatorBuilderState::NotAcceptingClientRegistrations;
     // NOLINTNEXTLINE(modernize-make-unique): make_unique does not work with private constructor
     return std::unique_ptr<TrajectoryElement>(
             new TrajectoryElement(std::move(writerClients_), std::forward<Args>(args)...));

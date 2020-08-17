@@ -35,12 +35,11 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Implements the VirtualSitesHandler class and vsite standalone functions
  *
  * \author Berk Hess <hess@kth.se>
  * \ingroup module_mdlib
- * \inlibraryapi
  */
 
 #include "gmxpre.h"
@@ -92,15 +91,13 @@
  *
  * Any remaining vsites are assigned to a separate master thread task.
  */
-
 namespace gmx
 {
 
 //! VirialHandling is often used outside VirtualSitesHandler class members
 using VirialHandling = VirtualSitesHandler::VirialHandling;
 
-/*! \libinternal
- * \brief Information on PBC and domain decomposition for virtual sites
+/*! \brief Information on PBC and domain decomposition for virtual sites
  */
 struct DomainInfo
 {
@@ -127,8 +124,7 @@ public:
     const gmx_domdec_t* domdec_ = nullptr;
 };
 
-/*! \libinternal
- * \brief List of atom indices belonging to a task
+/*! \brief List of atom indices belonging to a task
  */
 struct AtomIndex
 {
@@ -136,8 +132,7 @@ struct AtomIndex
     std::vector<int> atom;
 };
 
-/*! \libinternal
- * \brief Data structure for thread tasks that use constructing atoms outside their own atom range
+/*! \brief Data structure for thread tasks that use constructing atoms outside their own atom range
  */
 struct InterdependentTask
 {
@@ -159,8 +154,7 @@ struct InterdependentTask
     std::vector<int> reduceTask;
 };
 
-/*! \libinternal
- * \brief Vsite thread task data structure
+/*! \brief Vsite thread task data structure
  */
 struct VsiteThread
 {
@@ -194,8 +188,7 @@ struct VsiteThread
 };
 
 
-/*! \libinternal
- * \brief Information on how the virtual site work is divided over thread tasks
+/*! \brief Information on how the virtual site work is divided over thread tasks
  */
 class ThreadingInfo
 {
@@ -233,8 +226,7 @@ private:
     std::vector<int> taskIndex_;
 };
 
-/*! \libinternal
- * \brief Impl class for VirtualSitesHandler
+/*! \brief Impl class for VirtualSitesHandler
  */
 class VirtualSitesHandler::Impl
 {
@@ -2280,21 +2272,19 @@ static void assignVsitesToThread(VsiteThread*                    tData,
         tData->ilist[ftype].clear();
         tData->idTask.ilist[ftype].clear();
 
-        int        nral1 = 1 + NRAL(ftype);
-        int        inc   = nral1;
+        const int  nral1 = 1 + NRAL(ftype);
         const int* iat   = ilist[ftype].iatoms.data();
         for (int i = 0; i < ilist[ftype].size();)
         {
-            if (ftype == F_VSITEN)
-            {
-                /* The 3 below is from 1+NRAL(ftype)=3 */
-                inc = ip[iat[i]].vsiten.n * 3;
-            }
+            /* Get the number of iatom entries in this virtual site.
+             * The 3 below for F_VSITEN is from 1+NRAL(ftype)=3
+             */
+            const int numIAtoms = (ftype == F_VSITEN ? ip[iat[i]].vsiten.n * 3 : nral1);
 
             if (iat[1 + i] < tData->rangeStart || iat[1 + i] >= tData->rangeEnd)
             {
                 /* This vsite belongs to a different thread */
-                i += inc;
+                i += numIAtoms;
                 continue;
             }
 
@@ -2335,7 +2325,7 @@ static void assignVsitesToThread(VsiteThread*                    tData,
             }
             else
             {
-                for (int j = i + 2; j < i + inc; j += 3)
+                for (int j = i + 2; j < i + numIAtoms; j += 3)
                 {
                     /* Do a range check to avoid a harmless race on taskIndex */
                     if (iat[j] < tData->rangeStart || iat[j] >= tData->rangeEnd || taskIndex[iat[j]] != thread)
@@ -2366,10 +2356,10 @@ static void assignVsitesToThread(VsiteThread*                    tData,
                     il_task = &tData->idTask.ilist[ftype];
                 }
                 /* Copy the vsite data to the thread-task local array */
-                il_task->push_back(iat[i], nral1 - 1, iat + i + 1);
+                il_task->push_back(iat[i], numIAtoms - 1, iat + i + 1);
                 if (task == nthread + thread)
                 {
-                    /* This vsite write outside our own task force block.
+                    /* This vsite writes outside our own task force block.
                      * Put it into the interdependent task list and flag
                      * the atoms involved for reduction.
                      */
@@ -2383,7 +2373,7 @@ static void assignVsitesToThread(VsiteThread*                    tData,
                     }
                     else
                     {
-                        for (int j = i + 2; j < i + inc; j += 3)
+                        for (int j = i + 2; j < i + numIAtoms; j += 3)
                         {
                             flagAtom(&tData->idTask, iat[j], nthread, natperthread);
                         }
@@ -2391,7 +2381,7 @@ static void assignVsitesToThread(VsiteThread*                    tData,
                 }
             }
 
-            i += inc;
+            i += numIAtoms;
         }
     }
 }

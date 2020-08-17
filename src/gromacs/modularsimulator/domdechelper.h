@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the domain decomposition helper for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_DOMDECHELPER_H
@@ -67,10 +69,8 @@ class VirtualSitesHandler;
 
 //! The function type allowing to request a check of the number of bonded interactions
 typedef std::function<void()> CheckBondedInteractionsCallback;
-//! Pointer to the function type allowing to request a check of the number of bonded interactions
-typedef std::unique_ptr<CheckBondedInteractionsCallback> CheckBondedInteractionsCallbackPtr;
 
-/*! \libinternal
+/*! \internal
  * \brief Infrastructure element responsible for domain decomposition
  *
  * This encapsulates the function call to domain decomposition, which is
@@ -87,24 +87,24 @@ class DomDecHelper final : public INeighborSearchSignallerClient
 {
 public:
     //! Constructor
-    DomDecHelper(bool                               isVerbose,
-                 int                                verbosePrintInterval,
-                 StatePropagatorData*               statePropagatorData,
-                 TopologyHolder*                    topologyHolder,
-                 CheckBondedInteractionsCallbackPtr checkBondedInteractionsCallback,
-                 int                                nstglobalcomm,
-                 FILE*                              fplog,
-                 t_commrec*                         cr,
-                 const MDLogger&                    mdlog,
-                 Constraints*                       constr,
-                 t_inputrec*                        inputrec,
-                 MDAtoms*                           mdAtoms,
-                 t_nrnb*                            nrnb,
-                 gmx_wallcycle*                     wcycle,
-                 t_forcerec*                        fr,
-                 VirtualSitesHandler*               vsite,
-                 ImdSession*                        imdSession,
-                 pull_t*                            pull_work);
+    DomDecHelper(bool                            isVerbose,
+                 int                             verbosePrintInterval,
+                 StatePropagatorData*            statePropagatorData,
+                 TopologyHolder*                 topologyHolder,
+                 CheckBondedInteractionsCallback checkBondedInteractionsCallback,
+                 int                             nstglobalcomm,
+                 FILE*                           fplog,
+                 t_commrec*                      cr,
+                 const MDLogger&                 mdlog,
+                 Constraints*                    constr,
+                 t_inputrec*                     inputrec,
+                 MDAtoms*                        mdAtoms,
+                 t_nrnb*                         nrnb,
+                 gmx_wallcycle*                  wcycle,
+                 t_forcerec*                     fr,
+                 VirtualSitesHandler*            vsite,
+                 ImdSession*                     imdSession,
+                 pull_t*                         pull_work);
 
     /*! \brief Run domain decomposition
      *
@@ -122,7 +122,7 @@ public:
 
 private:
     //! INeighborSearchSignallerClient implementation
-    SignallerCallbackPtr registerNSCallback() override;
+    std::optional<SignallerCallback> registerNSCallback() override;
 
     //! The next NS step
     Step nextNSStep_;
@@ -133,12 +133,13 @@ private:
     //! The global communication frequency
     const int nstglobalcomm_;
 
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
     //! Pointer to the micro state
     StatePropagatorData* statePropagatorData_;
     //! Pointer to the topology
     TopologyHolder* topologyHolder_;
     //! Pointer to the ComputeGlobalsHelper object - to ask for # of bonded interaction checking
-    CheckBondedInteractionsCallbackPtr checkBondedInteractionsCallback_;
+    CheckBondedInteractionsCallback checkBondedInteractionsCallback_;
 
     // Access to ISimulator data
     //! Handles logging.

@@ -277,8 +277,9 @@ void gmx::LegacySimulator::do_rerun()
         auto nonConstGlobalTopology                          = const_cast<gmx_mtop_t*>(top_global);
         nonConstGlobalTopology->intermolecularExclusionGroup = genQmmmIndices(*top_global);
     }
-
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
+    int*                fep_state = MASTER(cr) ? &state_global->fep_state : nullptr;
+    gmx::ArrayRef<real> lambda    = MASTER(cr) ? state_global->lambda : gmx::ArrayRef<real>();
+    initialize_lambdas(fplog, *ir, MASTER(cr), fep_state, lambda, lam0);
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
                                    checkpointingNotification, ir, top_global, oenv, wcycle,
@@ -440,6 +441,9 @@ void gmx::LegacySimulator::do_rerun()
         calc_shifts(rerun_fr.box, fr->shift_vec);
     }
 
+    step     = ir->init_step;
+    step_rel = 0;
+
     auto stopHandler = stopHandlerBuilder->getStopHandlerMD(
             compat::not_null<SimulationSignal*>(&signals[eglsSTOPCOND]), false, MASTER(cr),
             ir->nstlist, mdrunOptions.reproducible, nstglobalcomm, mdrunOptions.maximumHoursToRun,
@@ -449,9 +453,6 @@ void gmx::LegacySimulator::do_rerun()
     walltime_accounting_set_valid_finish(walltime_accounting);
 
     const DDBalanceRegionHandler ddBalanceRegionHandler(cr);
-
-    step     = ir->init_step;
-    step_rel = 0;
 
     /* and stop now if we should */
     isLastStep = (isLastStep || (ir->nsteps >= 0 && step_rel > ir->nsteps));
@@ -587,13 +588,6 @@ void gmx::LegacySimulator::do_rerun()
            the virial that should probably be addressed eventually. state->veta has better properies,
            but what we actually need entering the new cycle is the new shake_vir value. Ideally, we could
            generate the new shake_vir, but test the veta value for convergence.  This will take some thought. */
-
-        if (ir->efep != efepNO)
-        {
-            /* Sum up the foreign energy and dhdl terms for md and sd.
-               Currently done every step so that dhdl is correct in the .edr */
-            sum_dhdl(enerd, state->lambda, *ir->fepvals);
-        }
 
         /* Output stuff */
         if (MASTER(cr))

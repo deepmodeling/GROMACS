@@ -360,7 +360,7 @@ int get_nthreads_mpi(const gmx_hw_info_t*    hwinfo,
         GMX_RELEASE_ASSERT((EEL_PME(inputrec->coulombtype) || EVDW_PME(inputrec->vdwtype))
                                    && pme_gpu_supports_build(nullptr)
                                    && pme_gpu_supports_hardware(*hwinfo, nullptr)
-                                   && pme_gpu_supports_input(*inputrec, *mtop, nullptr),
+                                   && pme_gpu_supports_input(*inputrec, nullptr),
                            "PME can't be on GPUs unless we are using PME");
 
         // PME on GPUs supports a single PME rank with PP running on the same or few other ranks.
@@ -909,7 +909,7 @@ void checkAndUpdateRequestedNumOpenmpThreads(gmx_hw_opt_t*         hw_opt,
          * all detected ncore_tot physical cores. We are currently not
          * checking for that here.
          */
-        int numRanksTot     = cr->nnodes * (isMultiSim(ms) ? ms->nsim : 1);
+        int numRanksTot     = cr->nnodes * (isMultiSim(ms) ? ms->numSimulations_ : 1);
         int numAtomsPerRank = mtop.natoms / cr->nnodes;
         int numCoresPerRank = hwinfo.ncore_tot / numRanksTot;
         if (numAtomsPerRank < c_numAtomsPerCoreSquaredSmtThreshold * gmx::square(numCoresPerRank))

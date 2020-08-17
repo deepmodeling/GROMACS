@@ -44,20 +44,25 @@
  *
  * \author Pascal Merz <pascal.merz@me.com>
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief
  * Declares the main interfaces used by the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 #ifndef GMX_MODULARSIMULATOR_MODULARSIMULATORINTERFACES_H
 #define GMX_MODULARSIMULATOR_MODULARSIMULATORINTERFACES_H
 
 #include <functional>
 #include <memory>
+#include <optional>
 
+#include "gromacs/math/vectypes.h"
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/exceptions.h"
 
 struct gmx_localtop_t;
 struct gmx_mdoutf;
@@ -65,6 +70,8 @@ class t_state;
 
 namespace gmx
 {
+template<typename T>
+class ArrayRef;
 template<class Signaller>
 class SignallerBuilder;
 class NeighborSearchSignaller;
@@ -84,15 +91,11 @@ using Time = double;
 
 //! The function type that can be scheduled to be run during the simulator run
 typedef std::function<void()> SimulatorRunFunction;
-//! Pointer to the function type that can be scheduled to be run during the simulator run
-typedef std::unique_ptr<SimulatorRunFunction> SimulatorRunFunctionPtr;
 
 //! The function type that allows to register run functions
-typedef std::function<void(SimulatorRunFunctionPtr)> RegisterRunFunction;
-//! Pointer to the function type that allows to register run functions
-typedef std::unique_ptr<RegisterRunFunction> RegisterRunFunctionPtr;
+typedef std::function<void(SimulatorRunFunction)> RegisterRunFunction;
 
-/*! \libinternal
+/*! \internal
  * \brief The general interface for elements of the modular simulator
  *
  * Setup and teardown are run once at the beginning of the simulation
@@ -112,7 +115,7 @@ public:
      * Element can register one or more functions to be run at that step through
      * the registration pointer.
      */
-    virtual void scheduleTask(Step, Time, const RegisterRunFunctionPtr&) = 0;
+    virtual void scheduleTask(Step, Time, const RegisterRunFunction&) = 0;
     //! Method guaranteed to be called after construction, before simulator run
     virtual void elementSetup() = 0;
     //! Method guaranteed to be called after simulator run, before deconstruction
@@ -121,7 +124,7 @@ public:
     virtual ~ISimulatorElement() = default;
 };
 
-/*! \libinternal
+/*! \internal
  * \brief The general Signaller interface
  *
  * Signallers are run at the beginning of Simulator steps, informing
@@ -150,10 +153,8 @@ public:
 
 //! The function type that can be registered to signallers for callback
 typedef std::function<void(Step, Time)> SignallerCallback;
-//! Pointer to the function type that can be registered to signallers for callback
-typedef std::unique_ptr<SignallerCallback> SignallerCallbackPtr;
 
-/*! \libinternal
+/*! \internal
  * \brief Interface for clients of the NeighborSearchSignaller
  *
  * Defining registerNSCallback allows clients to register an arbitrary callback
@@ -172,10 +173,10 @@ public:
 
 protected:
     //! Return callback to NeighborSearchSignaller
-    virtual SignallerCallbackPtr registerNSCallback() = 0;
+    virtual std::optional<SignallerCallback> registerNSCallback() = 0;
 };
 
-/*! \libinternal
+/*! \internal
  * \brief Interface for clients of the LastStepSignaller
  *
  * Defining registerLastStepCallback allows clients to register an arbitrary callback
@@ -194,10 +195,10 @@ public:
 
 protected:
     //! Return callback to LastStepSignaller
-    virtual SignallerCallbackPtr registerLastStepCallback() = 0;
+    virtual std::optional<SignallerCallback> registerLastStepCallback() = 0;
 };
 
-/*! \libinternal
+/*! \internal
  * \brief Interface for clients of the LoggingSignaller
  *
  * Defining registerLoggingCallback allows clients to register an arbitrary callback
@@ -216,7 +217,7 @@ public:
 
 protected:
     //! Return callback to LoggingSignaller
-    virtual SignallerCallbackPtr registerLoggingCallback() = 0;
+    virtual std::optional<SignallerCallback> registerLoggingCallback() = 0;
 };
 
 //! The energy events signalled by the EnergySignaller
@@ -227,7 +228,7 @@ enum class EnergySignallerEvent
     FreeEnergyCalculationStep
 };
 
-/*! \libinternal
+/*! \internal
  * \brief Interface for clients of the EnergySignaller
  *
  * Defining registerEnergyCallback allows clients to register an arbitrary callback
@@ -246,7 +247,7 @@ public:
 
 protected:
     //! Return callback to EnergySignaller
-    virtual SignallerCallbackPtr registerEnergyCallback(EnergySignallerEvent) = 0;
+    virtual std::optional<SignallerCallback> registerEnergyCallback(EnergySignallerEvent) = 0;
 };
 
 //! The trajectory writing events
@@ -256,7 +257,7 @@ enum class TrajectoryEvent
     EnergyWritingStep
 };
 
-/*! \libinternal
+/*! \internal
  * \brief Interface for signaller clients of the TrajectoryElement
  *
  * Defining registerTrajectorySignallerCallback allows clients to register an arbitrary
@@ -275,7 +276,7 @@ public:
 
 protected:
     //! Return callback to TrajectoryElement
-    virtual SignallerCallbackPtr registerTrajectorySignallerCallback(TrajectoryEvent) = 0;
+    virtual std::optional<SignallerCallback> registerTrajectorySignallerCallback(TrajectoryEvent) = 0;
 };
 
 /* Trajectory writing clients are handed a pointer to the output file handler,
@@ -287,10 +288,8 @@ protected:
  */
 //! Function type for trajectory writing clients
 typedef std::function<void(gmx_mdoutf*, Step, Time, bool, bool)> ITrajectoryWriterCallback;
-//! Pointer to the function type for trajectory writing clients
-typedef std::unique_ptr<ITrajectoryWriterCallback> ITrajectoryWriterCallbackPtr;
 
-/*! \libinternal
+/*! \internal
  * \brief Interface for writer clients of the TrajectoryElement
  *
  * Defining registerTrajectoryWriterCallback allows clients to register an arbitrary
@@ -316,10 +315,10 @@ protected:
     virtual void trajectoryWriterTeardown(gmx_mdoutf* outf) = 0;
 
     //! Return callback to TrajectoryElement
-    virtual ITrajectoryWriterCallbackPtr registerTrajectoryWriterCallback(TrajectoryEvent) = 0;
+    virtual std::optional<ITrajectoryWriterCallback> registerTrajectoryWriterCallback(TrajectoryEvent) = 0;
 };
 
-/*! \libinternal
+/*! \internal
  * \brief Client requiring read access to the local topology
  *
  */
@@ -339,7 +338,7 @@ protected:
     virtual void setTopology(const gmx_localtop_t*) = 0;
 };
 
-/*! \libinternal
+/*! \internal
  * \brief Client that needs to store data during checkpointing
  *
  * The current checkpointing helper uses the legacy t_state object to collect
@@ -365,6 +364,82 @@ protected:
     //! Write checkpoint
     virtual void writeCheckpoint(t_state* localState, t_state* globalState) = 0;
 };
+
+/*! \brief
+ * Exception class signalling that a requested element was not found.
+ *
+ * \internal
+ */
+class ElementNotFoundError final : public ModularSimulatorError
+{
+public:
+    //! \copydoc FileIOError::FileIOError()
+    explicit ElementNotFoundError(const ExceptionInitializer& details) :
+        ModularSimulatorError(details)
+    {
+    }
+};
+
+/*! \brief
+ * Exception class signalling that elements were not connected properly.
+ *
+ * \internal
+ */
+class MissingElementConnectionError final : public ModularSimulatorError
+{
+public:
+    //! \copydoc FileIOError::FileIOError()
+    explicit MissingElementConnectionError(const ExceptionInitializer& details) :
+        ModularSimulatorError(details)
+    {
+    }
+};
+
+/*! \brief
+ * Exception class signalling that the ModularSimulatorAlgorithm was set up
+ * in an incompatible way.
+ *
+ * \internal
+ */
+class SimulationAlgorithmSetupError final : public ModularSimulatorError
+{
+public:
+    //! \copydoc FileIOError::FileIOError()
+    explicit SimulationAlgorithmSetupError(const ExceptionInitializer& details) :
+        ModularSimulatorError(details)
+    {
+    }
+};
+
+//! Enum allowing builders to store whether they can accept client registrations
+enum class ModularSimulatorBuilderState
+{
+    AcceptingClientRegistrations,
+    NotAcceptingClientRegistrations
+};
+
+//! Generic callback to the propagator
+typedef std::function<void(Step)> PropagatorCallback;
+
+/*! \internal
+ * \brief Information needed to connect a propagator to a thermostat
+ */
+struct PropagatorThermostatConnection
+{
+    std::function<void(int)>            setNumVelocityScalingVariables;
+    std::function<ArrayRef<real>()>     getViewOnVelocityScaling;
+    std::function<PropagatorCallback()> getVelocityScalingCallback;
+};
+
+/*! \internal
+ * \brief Information needed to connect a propagator to a barostat
+ */
+struct PropagatorBarostatConnection
+{
+    std::function<ArrayRef<rvec>()>     getViewOnPRScalingMatrix;
+    std::function<PropagatorCallback()> getPRScalingCallback;
+};
+
 //! /}
 } // namespace gmx
 

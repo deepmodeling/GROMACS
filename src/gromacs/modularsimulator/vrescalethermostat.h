@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the v-rescale thermostat for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_VRESCALETHERMOSTAT_H
@@ -44,7 +46,7 @@
 
 #include "gromacs/utility/arrayref.h"
 
-#include "energyelement.h"
+#include "energydata.h"
 #include "modularsimulatorinterfaces.h"
 #include "propagator.h"
 
@@ -52,8 +54,16 @@ struct t_commrec;
 
 namespace gmx
 {
+class LegacySimulatorData;
 
-/*! \libinternal
+//! Enum describing whether the thermostat is using full or half step kinetic energy
+enum class VRescaleThermostatUseFullStepKE
+{
+    Yes,
+    No
+};
+
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Element implementing the v-rescale thermostat
  *
@@ -64,21 +74,19 @@ class VRescaleThermostat final : public ISimulatorElement, public ICheckpointHel
 {
 public:
     //! Constructor
-    VRescaleThermostat(int                   nstcouple,
-                       int                   offset,
-                       bool                  useFullStepKE,
-                       int64_t               seed,
-                       int                   numTemperatureGroups,
-                       double                couplingTimeStep,
-                       const real*           referenceTemperature,
-                       const real*           couplingTime,
-                       const real*           numDegreesOfFreedom,
-                       EnergyElement*        energyElement,
-                       ArrayRef<real>        lambdaView,
-                       PropagatorCallbackPtr propagatorCallback,
-                       const t_state*        globalState,
-                       t_commrec*            cr,
-                       bool                  isRestart);
+    VRescaleThermostat(int            nstcouple,
+                       int            offset,
+                       bool           useFullStepKE,
+                       int64_t        seed,
+                       int            numTemperatureGroups,
+                       double         couplingTimeStep,
+                       const real*    referenceTemperature,
+                       const real*    couplingTime,
+                       const real*    numDegreesOfFreedom,
+                       EnergyData*    energyData,
+                       const t_state* globalState,
+                       t_commrec*     cr,
+                       bool           isRestart);
 
     /*! \brief Register run function for step / time
      *
@@ -86,15 +94,40 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
-    //! No element setup needed
-    void elementSetup() override {}
+    //! Sanity check at setup time
+    void elementSetup() override;
     //! No element teardown needed
     void elementTeardown() override {}
 
     //! Getter for the thermostatIntegral
     const std::vector<double>& thermostatIntegral() const;
+
+    //! Connect this to propagator
+    void connectWithPropagator(const PropagatorThermostatConnection& connectionData);
+
+    /*! \brief Factory method implementation
+     *
+     * \param legacySimulatorData  Pointer allowing access to simulator level data
+     * \param builderHelper  ModularSimulatorAlgorithmBuilder helper object
+     * \param statePropagatorData  Pointer to the \c StatePropagatorData object
+     * \param energyData  Pointer to the \c EnergyData object
+     * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
+     * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     * \param offset  The step offset at which the thermostat is applied
+     * \param useFullStepKE  Whether full step or half step KE is used
+     *
+     * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
+     */
+    static ISimulatorElement* getElementPointerImpl(LegacySimulatorData* legacySimulatorData,
+                                                    ModularSimulatorAlgorithmBuilderHelper* builderHelper,
+                                                    StatePropagatorData*        statePropagatorData,
+                                                    EnergyData*                 energyData,
+                                                    FreeEnergyPerturbationData* freeEnergyPerturbationData,
+                                                    GlobalCommunicationHelper* globalCommunicationHelper,
+                                                    int                        offset,
+                                                    VRescaleThermostatUseFullStepKE useFullStepKE);
 
 private:
     //! The frequency at which the thermostat is applied
@@ -119,13 +152,14 @@ private:
     //! Work exerted by thermostat
     std::vector<double> thermostatIntegral_;
 
-    //! Pointer to the energy element (for ekindata)
-    EnergyElement* energyElement_;
+    // TODO: Clarify relationship to data objects and find a more robust alternative to raw pointers (#3583)
+    //! Pointer to the energy data (for ekindata)
+    EnergyData* energyData_;
 
     //! View on the scaling factor of the propagator
     ArrayRef<real> lambda_;
     //! Callback to let propagator know that we updated lambda
-    PropagatorCallbackPtr propagatorCallback_;
+    PropagatorCallback propagatorCallback_;
 
     //! Set new lambda value (at T-coupling steps)
     void setLambda(Step step);

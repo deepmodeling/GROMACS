@@ -389,7 +389,9 @@ static void init_em(FILE*                fplog,
     {
         state_global->ngtc = 0;
     }
-    initialize_lambdas(fplog, *ir, MASTER(cr), &(state_global->fep_state), state_global->lambda, nullptr);
+    int*                fep_state = MASTER(cr) ? &state_global->fep_state : nullptr;
+    gmx::ArrayRef<real> lambda    = MASTER(cr) ? state_global->lambda : gmx::ArrayRef<real>();
+    initialize_lambdas(fplog, *ir, MASTER(cr), fep_state, lambda, nullptr);
 
     if (ir->eI == eiNM)
     {
@@ -901,7 +903,10 @@ void EnergyEvaluator::run(em_state_t* ems, rvec mu_tot, tensor vir, tensor pres,
     clear_mat(ekin);
     enerd->term[F_PRES] = calc_pres(fr->pbcType, inputrec->nwall, ems->s.box, ekin, vir, pres);
 
-    sum_dhdl(enerd, ems->s.lambda, *inputrec->fepvals);
+    if (inputrec->efep != efepNO)
+    {
+        accumulateKineticLambdaComponents(enerd, ems->s.lambda, *inputrec->fepvals);
+    }
 
     if (EI_ENERGY_MINIMIZATION(inputrec->eI))
     {
@@ -2540,7 +2545,7 @@ void LegacySimulator::do_steep()
         }
 
         /* Send IMD energies and positions, if bIMD is TRUE. */
-        if (imdSession->run(count, TRUE, state_global->box,
+        if (imdSession->run(count, TRUE, MASTER(cr) ? state_global->box : nullptr,
                             MASTER(cr) ? state_global->x.rvec_array() : nullptr, 0)
             && MASTER(cr))
         {

@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <numeric>
 
 #include "gromacs/awh/awh.h"
 #include "gromacs/commandline/filenm.h"
@@ -72,7 +73,6 @@
 #include "gromacs/imd/imd.h"
 #include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/math/functions.h"
-#include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/checkpointhandler.h"
@@ -122,7 +122,7 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
-#include "gromacs/modularsimulator/energyelement.h"
+#include "gromacs/modularsimulator/energydata.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/pbcutil/pbc.h"
@@ -165,7 +165,7 @@ void gmx::LegacySimulator::do_md()
     int64_t      step, step_rel;
     double       t, t0 = ir->init_t, lam0[efptNR];
     gmx_bool     bGStatEveryStep, bGStat, bCalcVir, bCalcEnerStep, bCalcEner;
-    gmx_bool     bNS, bNStList, bStopCM, bFirstStep, bInitStep, bLastStep = FALSE;
+    gmx_bool     bNS = FALSE, bNStList, bStopCM, bFirstStep, bInitStep, bLastStep = FALSE;
     gmx_bool     bDoDHDL = FALSE, bDoFEP = FALSE, bDoExpanded = FALSE;
     gmx_bool     do_ene, do_log, do_verbose;
     gmx_bool     bMasterState;
@@ -253,7 +253,9 @@ void gmx::LegacySimulator::do_md()
                   "Either specify the -ei option to mdrun, or do not use this checkpoint file.");
     }
 
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
+    int*                fep_state = MASTER(cr) ? &state_global->fep_state : nullptr;
+    gmx::ArrayRef<real> lambda    = MASTER(cr) ? state_global->lambda : gmx::ArrayRef<real>();
+    initialize_lambdas(fplog, *ir, MASTER(cr), fep_state, lambda, lam0);
     Update     upd(*ir, deform);
     const bool doSimulatedAnnealing = initSimulatedAnnealing(ir, &upd);
     const bool useReplicaExchange   = (replExParams.exchangeInterval > 0);
@@ -448,7 +450,7 @@ void gmx::LegacySimulator::do_md()
 
     if (MASTER(cr))
     {
-        EnergyElement::initializeEnergyHistory(startingBehavior, observablesHistory, &energyOutput);
+        EnergyData::initializeEnergyHistory(startingBehavior, observablesHistory, &energyOutput);
     }
 
     preparePrevStepPullCom(ir, pull_work, mdatoms->massT, state, state_global, cr,
@@ -521,11 +523,11 @@ void gmx::LegacySimulator::do_md()
         nstfep = ir->fepvals->nstdhdl;
         if (ir->bExpanded)
         {
-            nstfep = gmx_greatest_common_divisor(ir->expandedvals->nstexpanded, nstfep);
+            nstfep = std::gcd(ir->expandedvals->nstexpanded, nstfep);
         }
         if (useReplicaExchange)
         {
-            nstfep = gmx_greatest_common_divisor(replExParams.exchangeInterval, nstfep);
+            nstfep = std::gcd(replExParams.exchangeInterval, nstfep);
         }
     }
 
@@ -697,6 +699,9 @@ void gmx::LegacySimulator::do_md()
     bExchanged       = FALSE;
     bNeedRepartition = FALSE;
 
+    step     = ir->init_step;
+    step_rel = 0;
+
     auto stopHandler = stopHandlerBuilder->getStopHandlerMD(
             compat::not_null<SimulationSignal*>(&signals[eglsSTOPCOND]), simulationsShareState,
             MASTER(cr), ir->nstlist, mdrunOptions.reproducible, nstSignalComm,
@@ -715,41 +720,9 @@ void gmx::LegacySimulator::do_md()
 
     const DDBalanceRegionHandler ddBalanceRegionHandler(cr);
 
-    step     = ir->init_step;
-    step_rel = 0;
-
-    // TODO extract this to new multi-simulation module
     if (MASTER(cr) && isMultiSim(ms) && !useReplicaExchange)
     {
-        if (!multisim_int_all_are_equal(ms, ir->nsteps))
-        {
-            GMX_LOG(mdlog.warning)
-                    .appendText(
-                            "Note: The number of steps is not consistent across multi "
-                            "simulations,\n"
-                            "but we are proceeding anyway!");
-        }
-        if (!multisim_int_all_are_equal(ms, ir->init_step))
-        {
-            if (simulationsShareState)
-            {
-                if (MASTER(cr))
-                {
-                    gmx_fatal(FARGS,
-                              "The initial step is not consistent across multi simulations which "
-                              "share the state");
-                }
-                gmx_barrier(cr->mpi_comm_mygroup);
-            }
-            else
-            {
-                GMX_LOG(mdlog.warning)
-                        .appendText(
-                                "Note: The initial step is not consistent across multi "
-                                "simulations,\n"
-                                "but we are proceeding anyway!");
-            }
-        }
+        logInitialMultisimStatus(ms, cr, mdlog, simulationsShareState, ir->nsteps, ir->init_step);
     }
 
     /* and stop now if we should */
@@ -874,7 +847,7 @@ void gmx::LegacySimulator::do_md()
                                        "GPU device manager has to be initialized to use GPU "
                                        "version of halo exchange.");
                     // TODO remove need to pass local stream into GPU halo exchange - Issue #3093
-                    constructGpuHaloExchange(mdlog, *cr, *fr->deviceStreamManager);
+                    constructGpuHaloExchange(mdlog, *cr, *fr->deviceStreamManager, wcycle);
                 }
             }
         }
@@ -1123,10 +1096,10 @@ void gmx::LegacySimulator::do_md()
             {
                 saved_conserved_quantity -= enerd->term[F_DISPCORR];
             }
-            /* sum up the foreign energy and dhdl terms for vv.  currently done every step so that dhdl is correct in the .edr */
+            /* sum up the foreign kinetic energy and dK/dl terms for vv.  currently done every step so that dhdl is correct in the .edr */
             if (ir->efep != efepNO)
             {
-                sum_dhdl(enerd, state->lambda, *ir->fepvals);
+                accumulateKineticLambdaComponents(enerd, state->lambda, *ir->fepvals);
             }
         }
 
@@ -1468,9 +1441,9 @@ void gmx::LegacySimulator::do_md()
 
         if (ir->efep != efepNO && !EI_VV(ir->eI))
         {
-            /* Sum up the foreign energy and dhdl terms for md and sd.
-               Currently done every step so that dhdl is correct in the .edr */
-            sum_dhdl(enerd, state->lambda, *ir->fepvals);
+            /* Sum up the foreign energy and dK/dl terms for md and sd.
+               Currently done every step so that dH/dl is correct in the .edr */
+            accumulateKineticLambdaComponents(enerd, state->lambda, *ir->fepvals);
         }
 
         update_pcouple_after_coordinates(fplog, step, ir, mdatoms, pres, force_vir, shake_vir,

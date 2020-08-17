@@ -48,6 +48,9 @@
 # Test public interface.
 #
 
+add_library(gmxapi-testsupport INTERFACE)
+target_include_directories(gmxapi-testsupport INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
 gmx_add_gtest_executable(gmxapi-test
     CPP_SOURCE_FILES
         restraint.cpp
@@ -57,7 +60,7 @@ gmx_add_gtest_executable(gmxapi-test
         # pseudo-library for code for mdrun
         $<TARGET_OBJECTS:mdrun_objlib>
         )
-if(NOT GMX_USE_OPENCL)
+if(NOT GMX_GPU_OPENCL)
     # GPU resources may not be properly reinitialized between simulations in
     # the same process.
     # TODO: include this with the other test sources once the issue is resolved
@@ -65,11 +68,8 @@ if(NOT GMX_USE_OPENCL)
     target_sources(gmxapi-test PRIVATE runner.cpp stopsignaler.cpp)
 endif()
 
-target_include_directories(gmxapi-test PRIVATE
-                           ${CMAKE_CURRENT_SOURCE_DIR})
-
 # Link against the gmxapi libraries and get access to its public (installed) headers.
-target_link_libraries(gmxapi-test PRIVATE Gromacs::gmxapi mdrun_test_infrastructure)
+target_link_libraries(gmxapi-test PRIVATE Gromacs::gmxapi gmxapi-testsupport mdrun_test_infrastructure)
 
 gmx_register_gtest_test(GmxapiExternalInterfaceTests gmxapi-test OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
 
@@ -89,7 +89,7 @@ gmx_add_gtest_executable(gmxapi-mpi-test MPI
         # pseudo-library for code for mdrun
         $<TARGET_OBJECTS:mdrun_objlib>
         )
-if(NOT GMX_USE_OPENCL)
+if(NOT GMX_GPU_OPENCL)
     # GPU resources may not be properly reinitialized between simulations in
     # the same process.
     # TODO: include this with the other test sources once the issue is resolved
@@ -99,6 +99,6 @@ endif()
 
 target_include_directories(gmxapi-mpi-test PRIVATE
                            ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(gmxapi-mpi-test PRIVATE Gromacs::gmxapi mdrun_test_infrastructure)
+target_link_libraries(gmxapi-mpi-test PRIVATE Gromacs::gmxapi gmxapi-testsupport mdrun_test_infrastructure)
 
 gmx_register_gtest_test(GmxapiMpiTests gmxapi-mpi-test MPI_RANKS 2 OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)

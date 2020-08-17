@@ -201,10 +201,6 @@ static void pull_potential_wrapper(const t_commrec*               cr,
             pull_potential(pull_work, mdatoms->massT, &pbc, cr, t, lambda[efptRESTRAINT],
                            as_rvec_array(x.data()), force, &dvdl);
     enerd->dvdl_lin[efptRESTRAINT] += dvdl;
-    for (auto& dhdl : enerd->dhdlLambda)
-    {
-        dhdl += dvdl;
-    }
     wallcycle_stop(wcycle, ewcPULLPOT);
 }
 
@@ -234,11 +230,6 @@ static void pme_receive_force_ener(t_forcerec*           fr,
     enerd->term[F_LJ_RECIP] += e_lj;
     enerd->dvdl_lin[efptCOUL] += dvdl_q;
     enerd->dvdl_lin[efptVDW] += dvdl_lj;
-
-    for (auto& dhdl : enerd->dhdlLambda)
-    {
-        dhdl += dvdl_q + dvdl_lj;
-    }
 
     if (wcycle)
     {
@@ -610,7 +601,7 @@ static void computeSpecialForces(FILE*                          fplog,
                                  const matrix                   box,
                                  gmx::ArrayRef<const gmx::RVec> x,
                                  const t_mdatoms*               mdatoms,
-                                 real*                          lambda,
+                                 gmx::ArrayRef<const real>      lambda,
                                  const StepWorkload&            stepWork,
                                  gmx::ForceWithVirial*          forceWithVirial,
                                  gmx_enerdata_t*                enerd,
@@ -632,7 +623,7 @@ static void computeSpecialForces(FILE*                          fplog,
     if (inputrec->bPull && pull_have_potential(pull_work))
     {
         pull_potential_wrapper(cr, inputrec, box, x, forceWithVirial, mdatoms, enerd, pull_work,
-                               lambda, t, wcycle);
+                               lambda.data(), t, wcycle);
 
         if (awh)
         {
@@ -673,17 +664,19 @@ static void computeSpecialForces(FILE*                          fplog,
  * \param[in]  pmedata              The PME structure
  * \param[in]  box                  The box matrix
  * \param[in]  stepWork             Step schedule flags
- * \param[in]  xReadyOnDevice       Event synchronizer indicating that the coordinates are ready in
- * the device memory. \param[in]  wcycle               The wallcycle structure
+ * \param[in]  xReadyOnDevice       Event synchronizer indicating that the coordinates are ready in the device memory.
+ * \param[in]  lambdaQ              The Coulomb lambda of the current state.
+ * \param[in]  wcycle               The wallcycle structure
  */
 static inline void launchPmeGpuSpread(gmx_pme_t*            pmedata,
                                       const matrix          box,
                                       const StepWorkload&   stepWork,
                                       GpuEventSynchronizer* xReadyOnDevice,
+                                      const real            lambdaQ,
                                       gmx_wallcycle_t       wcycle)
 {
     pme_gpu_prepare_computation(pmedata, box, wcycle, stepWork);
-    pme_gpu_launch_spread(pmedata, xReadyOnDevice, wcycle);
+    pme_gpu_launch_spread(pmedata, xReadyOnDevice, wcycle, lambdaQ);
 }
 
 /*! \brief Launch the FFT and gather stages of PME GPU
@@ -691,13 +684,17 @@ static inline void launchPmeGpuSpread(gmx_pme_t*            pmedata,
  * This function only implements setting the output forces (no accumulation).
  *
  * \param[in]  pmedata        The PME structure
+ * \param[in]  lambdaQ        The Coulomb lambda of the current system state.
  * \param[in]  wcycle         The wallcycle structure
  * \param[in]  stepWork       Step schedule flags
  */
-static void launchPmeGpuFftAndGather(gmx_pme_t* pmedata, gmx_wallcycle_t wcycle, const gmx::StepWorkload& stepWork)
+static void launchPmeGpuFftAndGather(gmx_pme_t*               pmedata,
+                                     const real               lambdaQ,
+                                     gmx_wallcycle_t          wcycle,
+                                     const gmx::StepWorkload& stepWork)
 {
     pme_gpu_launch_complex_transforms(pmedata, wcycle, stepWork);
-    pme_gpu_launch_gather(pmedata, wcycle);
+    pme_gpu_launch_gather(pmedata, wcycle, lambdaQ);
 }
 
 /*! \brief
@@ -713,6 +710,7 @@ static void launchPmeGpuFftAndGather(gmx_pme_t* pmedata, gmx_wallcycle_t wcycle,
  * \param[in,out] pmedata          PME module data
  * \param[in,out] forceOutputs     Output buffer for the forces and virial
  * \param[in,out] enerd            Energy data structure results are reduced into
+ * \param[in]     lambdaQ          The Coulomb lambda of the current system state.
  * \param[in]     stepWork         Step schedule flags
  * \param[in]     wcycle           The wallcycle structure
  */
@@ -720,6 +718,7 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
                                         gmx_pme_t*          pmedata,
                                         gmx::ForceOutputs*  forceOutputs,
                                         gmx_enerdata_t*     enerd,
+                                        const real          lambdaQ,
                                         const StepWorkload& stepWork,
                                         gmx_wallcycle_t     wcycle)
 {
@@ -739,7 +738,7 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
             GpuTaskCompletion completionType =
                     (isNbGpuDone) ? GpuTaskCompletion::Wait : GpuTaskCompletion::Check;
             isPmeGpuDone = pme_gpu_try_finish_task(pmedata, stepWork, wcycle, &forceWithVirial,
-                                                   enerd, completionType);
+                                                   enerd, lambdaQ, completionType);
         }
 
         if (!isNbGpuDone)
@@ -1011,7 +1010,7 @@ void do_force(FILE*                               fplog,
               tensor                              vir_force,
               const t_mdatoms*                    mdatoms,
               gmx_enerdata_t*                     enerd,
-              gmx::ArrayRef<real>                 lambda,
+              gmx::ArrayRef<const real>           lambda,
               t_forcerec*                         fr,
               gmx::MdrunScheduleWorkload*         runScheduleWork,
               gmx::VirtualSitesHandler*           vsite,
@@ -1173,7 +1172,7 @@ void do_force(FILE*                               fplog,
 
     if (useGpuPmeOnThisRank)
     {
-        launchPmeGpuSpread(fr->pmedata, box, stepWork, localXReadyOnDevice, wcycle);
+        launchPmeGpuSpread(fr->pmedata, box, stepWork, localXReadyOnDevice, lambda[efptCOUL], wcycle);
     }
 
     /* do gridding for pair search */
@@ -1264,7 +1263,7 @@ void do_force(FILE*                               fplog,
         // For force buffer ops, we use the below conditon rather than
         // useGpuFBufferOps to ensure that init is performed even if this
         // NS step is also a virial step (on which f buf ops are deactivated).
-        if (simulationWork.useGpuBufferOps && simulationWork.useGpuNonbonded && (GMX_GPU == GMX_GPU_CUDA))
+        if (GMX_GPU_CUDA && simulationWork.useGpuBufferOps && simulationWork.useGpuNonbonded)
         {
             GMX_ASSERT(stateGpu, "stateGpu should be valid when buffer ops are offloaded");
             nbv->atomdata_init_add_nbat_f_to_f_gpu(stateGpu->fReducedOnDevice());
@@ -1330,7 +1329,7 @@ void do_force(FILE*                               fplog,
         // X copy/transform to allow overlap as well as after the GPU NB
         // launch to avoid FFT launch overhead hijacking the CPU and delaying
         // the nonbonded kernel.
-        launchPmeGpuFftAndGather(fr->pmedata, wcycle, stepWork);
+        launchPmeGpuFftAndGather(fr->pmedata, lambda[efptCOUL], wcycle, stepWork);
     }
 
     /* Communicate coordinates and sum dipole if necessary +
@@ -1525,14 +1524,14 @@ void do_force(FILE*                               fplog,
         nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
                                       as_rvec_array(x.unpaddedArrayRef().data()),
                                       &forceOut.forceWithShiftForces(), *mdatoms, inputrec->fepvals,
-                                      lambda.data(), enerd, stepWork, nrnb);
+                                      lambda, enerd, stepWork, nrnb);
 
         if (havePPDomainDecomposition(cr))
         {
             nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
                                           as_rvec_array(x.unpaddedArrayRef().data()),
                                           &forceOut.forceWithShiftForces(), *mdatoms,
-                                          inputrec->fepvals, lambda.data(), enerd, stepWork, nrnb);
+                                          inputrec->fepvals, lambda, enerd, stepWork, nrnb);
         }
     }
 
@@ -1579,7 +1578,7 @@ void do_force(FILE*                               fplog,
     wallcycle_stop(wcycle, ewcFORCE);
 
     computeSpecialForces(fplog, cr, inputrec, awh, enforcedRotation, imdSession, pull_work, step, t,
-                         wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda.data(),
+                         wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda,
                          stepWork, &forceOut.forceWithVirial(), enerd, ed, stepWork.doNeighborSearch);
 
 
@@ -1685,12 +1684,14 @@ void do_force(FILE*                               fplog,
                              && !DOMAINDECOMP(cr) && !stepWork.useGpuFBufferOps);
     if (alternateGpuWait)
     {
-        alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, &forceOut, enerd, stepWork, wcycle);
+        alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, &forceOut, enerd, lambda[efptCOUL],
+                                    stepWork, wcycle);
     }
 
     if (!alternateGpuWait && useGpuPmeOnThisRank)
     {
-        pme_gpu_wait_and_reduce(fr->pmedata, stepWork, wcycle, &forceOut.forceWithVirial(), enerd);
+        pme_gpu_wait_and_reduce(fr->pmedata, stepWork, wcycle, &forceOut.forceWithVirial(), enerd,
+                                lambda[efptCOUL]);
     }
 
     /* Wait for local GPU NB outputs on the non-alternating wait path */
@@ -1855,6 +1856,7 @@ void do_force(FILE*                               fplog,
         {
             enerd->term[F_DISPCORR] = correction.energy;
             enerd->term[F_DVDL_VDW] += correction.dvdl;
+            enerd->dvdl_lin[efptVDW] += correction.dvdl;
         }
         if (stepWork.computeVirial)
         {
@@ -1882,8 +1884,8 @@ void do_force(FILE*                               fplog,
 
     if (stepWork.computeEnergy)
     {
-        /* Sum the potential energy terms from group contributions */
-        sum_epot(&(enerd->grpp), enerd->term);
+        /* Compute the final potential energy terms */
+        accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
 
         if (!EI_TPI(inputrec->eI))
         {

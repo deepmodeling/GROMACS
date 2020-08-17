@@ -39,7 +39,7 @@
 #ifndef FUNCTION_DECLARATION_ONLY
 /* Instantiate external template functions */
 template __global__ void
-nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const cu_plist_t, int, int);
+nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
 template __global__ void
-nbnxn_kernel_prune_cuda<true>(const cu_atomdata_t, const NBParamGpu, const cu_plist_t, int, int);
+nbnxn_kernel_prune_cuda<true>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
 #endif

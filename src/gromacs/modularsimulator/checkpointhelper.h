@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,11 +32,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
+/*! \internal \file
  * \brief Declares the checkpoint helper for the modular simulator
  *
  * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_modularsimulator
+ *
+ * This header is only used within the modular simulator module
  */
 
 #ifndef GMX_MODULARSIMULATOR_CHECKPOINTHELPER_H
@@ -56,7 +58,7 @@ namespace gmx
 class MDLogger;
 class TrajectoryElement;
 
-/*! \libinternal
+/*! \internal
  * \ingroup module_modularsimulator
  * \brief Checkpoint helper
  *
@@ -125,7 +127,7 @@ public:
      * @param time                 The time
      * @param registerRunFunction  Function allowing to register a run function
      */
-    void scheduleTask(Step step, Time time, const RegisterRunFunctionPtr& registerRunFunction) override;
+    void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
     //! No element setup needed
     void elementSetup() override {}
@@ -149,7 +151,7 @@ private:
     const bool writeFinalCheckpoint_;
 
     //! ILastStepSignallerClient implementation
-    SignallerCallbackPtr registerLastStepCallback() override;
+    std::optional<SignallerCallback> registerLastStepCallback() override;
 
     //! The actual checkpoint writing function
     void writeCheckpoint(Step step, Time time);

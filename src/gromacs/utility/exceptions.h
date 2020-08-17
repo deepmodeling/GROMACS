@@ -377,6 +377,8 @@ private:
  * other overloads of `operator<<` for ExceptionInfo objects, in case someone
  * would like to declare those.  But currently we do not have such overloads, so
  * if the enable_if causes problems with some compilers, it can be removed.
+ *
+ * \todo Use std::is_base_of_v when CUDA 11 is a requirement.
  */
 template<class Exception, class Tag, class T>
 inline std::enable_if_t<std::is_base_of<GromacsException, Exception>::value, Exception>
@@ -567,6 +569,22 @@ public:
     explicit ParallelConsistencyError(const ExceptionInitializer& details) : APIError(details) {}
 
     int errorCode() const override;
+};
+
+/*! \brief
+ * Exception class for modular simulator.
+ *
+ * \inpublicapi
+ */
+class ModularSimulatorError : public GromacsException
+{
+public:
+    //! \copydoc FileIOError::FileIOError()
+    explicit ModularSimulatorError(const ExceptionInitializer& details) : GromacsException(details)
+    {
+    }
+
+    [[nodiscard]] int errorCode() const override;
 };
 
 /*! \brief

@@ -90,13 +90,14 @@ include(gmxBuildTypeProfile)
 include(gmxBuildTypeTSAN)
 include(gmxBuildTypeASAN)
 include(gmxBuildTypeMSAN)
+include(gmxBuildTypeUBSAN)
 include(gmxBuildTypeReleaseWithAssert)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel Reference RelWithAssert Profile TSAN ASAN MSAN." FORCE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel Reference RelWithAssert Profile TSAN ASAN MSAN UBSAN." FORCE)
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-        "MinSizeRel" "RelWithDebInfo" "Reference" "RelWithAssert" "Profile" "TSAN" "ASAN" "MSAN")
+        "MinSizeRel" "RelWithDebInfo" "Reference" "RelWithAssert" "Profile" "TSAN" "ASAN" "MSAN" "UBSAN")
 endif()
 if(CMAKE_CONFIGURATION_TYPES)
     # Add appropriate GROMACS-specific build types for the Visual
@@ -203,8 +204,8 @@ option(GMX_INSTALL_LEGACY_API "Install legacy headers" OFF)
 gmx_option_multichoice(
     GMX_GPU
     "Framework for GPU acceleration"
-    None
-    None CUDA OpenCL)
+    OFF
+    OFF CUDA OpenCL SYCL)
 
 gmx_option_multichoice(
     GMX_SIMD
@@ -567,23 +568,21 @@ include(gmxManageTNG)
 
 include(gmxManageLmfit)
 
-string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
-if(NOT ${_gmx_gpu_uppercase} STREQUAL "NONE")
+if(GMX_GPU)
 
+    string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
     if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
         include(gmxManageCuda)
     elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
         include(gmxManageOpenCL)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
+        include(gmxManageSYCL)	
     endif()
     if(NOT GMX_OPENMP)
         message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
     endif()
 
 endif()
-
-# Not ideal to set this without the GPU acceleration, but the source presently requires GMX_GPU
-# to be set to GMX_GPU_None for a non-GPU build to work.
-set(GMX_GPU_ACCELERATION_FRAMEWORK "GMX_GPU_${_gmx_gpu_uppercase}")
 
 if(CYGWIN)
     set(GMX_CYGWIN 1)
@@ -615,8 +614,9 @@ gmx_test_inline_asm_gcc_x86(GMX_X86_GCC_INLINE_ASM)
 include(gmxSetBuildInformation)
 gmx_set_build_information()
 
-# Anything but truly ancient hardware should support rdtscp, so we enable it by default
-option(GMX_USE_RDTSCP "Use low-latency RDTSCP instruction for CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments)" ON)
+# Anything but truly ancient x86 hardware should support rdtscp, so we enable it by default.
+# The inline assembly calling it is only ever compiled on x86, so defaulting to ON is OK.
+option(GMX_USE_RDTSCP "Use low-latency RDTSCP instruction for x86 CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments" ON)
 mark_as_advanced(GMX_USE_RDTSCP)
 
 include(gmxTestLargeFiles)
@@ -718,7 +718,7 @@ else()
     foreach(build_type ${build_types_with_explicit_flags})
         message("CMAKE_C_FLAGS_${build_type}: ${GMXC_CFLAGS_${build_type}}")
     endforeach()
-    message("CMAKE_CXX_FLAGS: ${SIMD_CXX_FLAGS};${MPI_COMPILE_FLAGS};${EXTRA_CXX_FLAGS};${GMXC_CXXFLAGS}")
+    message("CMAKE_CXX_FLAGS: ${DISABLE_SYCL_CXX_FLAGS};${SIMD_CXX_FLAGS};${MPI_COMPILE_FLAGS};${EXTRA_CXX_FLAGS};${GMXC_CXXFLAGS}")
     foreach(build_type ${build_types_with_explicit_flags})
         message("CMAKE_CXX_FLAGS_${build_type}: ${GMXC_CXXFLAGS_${build_type}}")
     endforeach()
@@ -788,6 +788,7 @@ if (NOT GMX_BUILD_MDRUN_ONLY)
     add_subdirectory(share)
     add_subdirectory(scripts)
 endif()
+add_subdirectory(api)
 add_subdirectory(src)
 
 if (BUILD_TESTING)

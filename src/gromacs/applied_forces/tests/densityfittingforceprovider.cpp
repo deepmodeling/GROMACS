@@ -41,9 +41,9 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/applied_forces/densityfittingforceprovider.h"
-
 #include <gtest/gtest.h>
+
+#include "gromacs/applied_forces/densityfitting/densityfittingforceprovider.h"
 
 namespace gmx
 {
