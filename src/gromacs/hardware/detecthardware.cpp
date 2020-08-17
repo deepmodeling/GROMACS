@@ -50,6 +50,7 @@
 #include "gromacs/compat/pointers.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/cpuinfo.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/simd/support.h"
@@ -152,6 +153,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
     if (gpusCanBeDetected)
     {
         hardwareInfo->gpu_info.findGpus();
+        hardwareInfo->deviceInfos = DevicesManager::findDevices();
         // No need to tell the user anything at this point, they get a
         // hardware report later.
     }

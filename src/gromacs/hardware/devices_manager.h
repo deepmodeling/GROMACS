@@ -172,6 +172,7 @@ public:
      * \returns A string describing the device.
      */
     std::string getDeviceInformationString(int deviceId) const;
+    static std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 
     /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
      *

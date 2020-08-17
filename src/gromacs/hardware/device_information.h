@@ -122,10 +122,10 @@ struct DeviceInformation
 {
     //! Device status.
     DeviceStatus status;
+    //! ID of the device.
+    int id;
 
 #if GMX_GPU_CUDA
-    //! ID of the CUDA device.
-    int id;
     //! CUDA device properties.
     cudaDeviceProp prop;
 #elif GMX_GPU_OPENCL

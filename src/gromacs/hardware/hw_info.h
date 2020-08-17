@@ -48,6 +48,7 @@ namespace gmx
 class CpuInfo;
 class HardwareTopology;
 } // namespace gmx
+struct DeviceInformation;
 
 /* Hardware information structure with CPU and GPU information.
  * It is initialized by gmx_detect_hardware().
@@ -73,6 +74,7 @@ struct gmx_hw_info_t
 
     std::unique_ptr<gmx::CpuInfo>          cpuInfo; /* Information about CPU capabilities */
     std::unique_ptr<gmx::HardwareTopology> hardwareTopology; /* Information about hardware topology */
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos;
 
 
     /* Data reduced through MPI over all physical nodes */

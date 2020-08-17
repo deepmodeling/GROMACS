@@ -517,6 +517,25 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
     }
 }
 
+std::string DevicesManager::getDeviceInformationString(const DeviceInformation& deviceInfo)
+{
+    bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
+                      && deviceInfo.status != DeviceStatus::NonFunctional);
+
+    if (!gpuExists)
+    {
+        return gmx::formatString("#%d: %s, stat: %s", deviceInfo.id, "N/A",
+                                 c_deviceStateString[deviceInfo.status]);
+    }
+    else
+    {
+        return gmx::formatString("#%d: NVIDIA %s, compute cap.: %d.%d, ECC: %3s, stat: %s",
+                                 deviceInfo.id, deviceInfo.prop.name, deviceInfo.prop.major,
+                                 deviceInfo.prop.minor, deviceInfo.prop.ECCEnabled ? "yes" : " no",
+                                 c_deviceStateString[deviceInfo.status]);
+    }
+}
+
 size_t DevicesManager::getDeviceInformationSize()
 {
     return sizeof(DeviceInformation);

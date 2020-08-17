@@ -48,7 +48,6 @@
 #include "gromacs/hardware/devices_manager.h"
 
 struct DeviceInformation;
-class DevicesManager;
 
 namespace gmx
 {

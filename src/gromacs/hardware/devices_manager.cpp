@@ -66,6 +66,11 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
     gmx_fatal(FARGS, "Device information requested in CPU build.");
 }
 
+std::string DevicesManager::getDeviceInformationString(const DeviceInformation& /* deviceInfo */)
+{
+    gmx_fatal(FARGS, "Device information requested in CPU build.");
+}
+
 bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)
 {
     return false;

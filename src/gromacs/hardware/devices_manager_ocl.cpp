@@ -574,6 +574,8 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
                 {
                     deviceInfos[device_index] = std::make_unique<DeviceInformation>();
 
+                    deviceInfos[device_index]->id = device_index;
+
                     deviceInfos[device_index]->oclPlatformId = ocl_platform_ids[i];
                     deviceInfos[device_index]->oclDeviceId   = ocl_device_ids[j];
 
@@ -708,6 +710,24 @@ std::string DevicesManager::getDeviceInformationString(int deviceId) const
     {
         return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, status: %s",
                                  deviceId, deviceInfo.device_name, deviceInfo.vendorName,
+                                 deviceInfo.device_version, c_deviceStateString[deviceInfo.status]);
+    }
+}
+
+std::string DevicesManager::getDeviceInformationString(const DeviceInformation& deviceInfo)
+{
+    bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
+                      && deviceInfo.status != DeviceStatus::NonFunctional);
+
+    if (!gpuExists)
+    {
+        return gmx::formatString("#%d: %s, status: %s", deviceInfo.id, "N/A",
+                                 c_deviceStateString[deviceInfo.status]);
+    }
+    else
+    {
+        return gmx::formatString("#%d: name: %s, vendor: %s, device version: %s, status: %s",
+                                 deviceInfo.id, deviceInfo.device_name, deviceInfo.vendorName,
                                  deviceInfo.device_version, c_deviceStateString[deviceInfo.status]);
     }
 }
