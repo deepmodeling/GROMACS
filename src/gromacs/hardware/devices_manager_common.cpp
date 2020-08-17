@@ -76,7 +76,7 @@ std::vector<int> DevicesManager::getCompatibleGpus() const
     return compatibleGpus;
 }
 
-std::vector<int> DevicesManager::getCompatibleGpus(std::vector<std::unique_ptr<DeviceInformation>> devicesInformation)
+std::vector<int> DevicesManager::getCompatibleGpus(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInformation)
 {
     // Possible minor over-allocation here, but not important for anything
     std::vector<int> compatibleGpus;
@@ -105,10 +105,13 @@ DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
     return &deviceInfos_[deviceId];
 }
 
-std::string DevicesManager::getGpuCompatibilityDescription(int index) const
+std::string DevicesManager::getGpuCompatibilityDescription(
+        const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+        int                                                    deviceId)
 {
-    return (index >= numDevices_ ? c_deviceStateString[DeviceStatus::Nonexistent]
-                                 : c_deviceStateString[deviceInfos_[index].status]);
+    return (deviceId >= static_cast<int>(deviceInfos.size())
+                    ? c_deviceStateString[DeviceStatus::Nonexistent]
+                    : c_deviceStateString[deviceInfos[deviceId]->status]);
 }
 
 bool DevicesManager::canComputeOnGpu()

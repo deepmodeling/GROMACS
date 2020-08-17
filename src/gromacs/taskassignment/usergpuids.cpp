@@ -136,9 +136,10 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString)
     return digits;
 }
 
-std::vector<int> makeGpuIdsToUse(const DevicesManager& gpuInfo, const std::string& gpuIdsAvailableString)
+std::vector<int> makeGpuIdsToUse(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                 const std::string& gpuIdsAvailableString)
 {
-    auto             compatibleGpus  = gpuInfo.getCompatibleGpus();
+    auto             compatibleGpus  = DevicesManager::getCompatibleGpus(deviceInfos);
     std::vector<int> gpuIdsAvailable = parseUserGpuIdString(gpuIdsAvailableString);
 
     if (gpuIdsAvailable.empty())
@@ -217,9 +218,9 @@ std::string makeGpuIdString(const std::vector<int>& gpuIds, int totalNumberOfTas
     return formatAndJoin(resultGpuIds, ",", StringFormatter("%d"));
 }
 
-void checkUserGpuIds(const DevicesManager&   gpu_info,
-                     const std::vector<int>& compatibleGpus,
-                     const std::vector<int>& gpuIds)
+void checkUserGpuIds(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                     const std::vector<int>&                                compatibleGpus,
+                     const std::vector<int>&                                gpuIds)
 {
     bool        foundIncompatibleGpuIds = false;
     std::string message =
@@ -230,8 +231,9 @@ void checkUserGpuIds(const DevicesManager&   gpu_info,
         if (std::find(compatibleGpus.begin(), compatibleGpus.end(), gpuId) == compatibleGpus.end())
         {
             foundIncompatibleGpuIds = true;
-            message += gmx::formatString("    GPU #%d: %s\n", gpuId,
-                                         gpu_info.getGpuCompatibilityDescription(gpuId).c_str());
+            message += gmx::formatString(
+                    "    GPU #%d: %s\n", gpuId,
+                    DevicesManager::getGpuCompatibilityDescription(deviceInfos, gpuId).c_str());
         }
     }
     if (foundIncompatibleGpuIds)

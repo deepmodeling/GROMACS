@@ -139,7 +139,7 @@ public:
      *
      * \return  Vector of IDs of GPUs already recorded as compatible
      */
-    static std::vector<int> getCompatibleGpus(std::vector<std::unique_ptr<DeviceInformation>> devicesInformation);
+    static std::vector<int> getCompatibleGpus(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInformation);
 
     static bool isGpuCompatible(const DeviceInformation& deviceInformation);
 
@@ -171,15 +171,17 @@ public:
      *
      * \returns A string describing the device.
      */
-    std::string getDeviceInformationString(int deviceId) const;
+    std::string        getDeviceInformationString(int deviceId) const;
     static std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 
     /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
      *
-     * \param[in] deviceId  Index of GPU to ask about
-     * \returns             A string describing the compatibility status, useful for error messages.
+     * \param[in] deviceInfos An information on available devices.
+     * \param[in] devdeviceId An index of the device to check
+     * \returns               A string describing the compatibility status, useful for error messages.
      */
-    std::string getGpuCompatibilityDescription(int deviceId) const;
+    static std::string getGpuCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                                      int deviceId);
 
     /*! \brief Returns the size of the DeviceInformation struct.
      *

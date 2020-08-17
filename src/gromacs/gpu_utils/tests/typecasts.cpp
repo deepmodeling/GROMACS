@@ -48,7 +48,7 @@
 
 #    include <gtest/gtest.h>
 
-#    include "gromacs/gpu_utils/gpu_testutils.h"
+#    include "gromacs/hardware/devices_manager.h"
 #    include "gromacs/utility/exceptions.h"
 
 #    include "testutils/testasserts.h"

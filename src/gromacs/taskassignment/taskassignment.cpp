@@ -330,7 +330,7 @@ GpuTaskAssignments GpuTaskAssignmentsBuilder::build(const std::vector<int>& gpuI
                         userGpuTaskAssignment.size(), host, numGpuTasksOnThisNode)));
             }
             // Did the user choose compatible GPUs?
-            checkUserGpuIds(hardwareInfo.gpu_info, gpuIdsToUse, userGpuTaskAssignment);
+            checkUserGpuIds(hardwareInfo.deviceInfos, gpuIdsToUse, userGpuTaskAssignment);
 
             gpuIdsForTaskAssignment = userGpuTaskAssignment;
         }
