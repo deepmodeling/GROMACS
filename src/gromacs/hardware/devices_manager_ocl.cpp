@@ -122,7 +122,7 @@ static bool runningOnCompatibleOSForAmd()
  * \param[in]  deviceInfo  The device info pointer.
  * \returns                The result of the compatibility checks.
  */
-static DeviceStatus isDeviceSupported(const DeviceInformation* deviceInfo)
+static DeviceStatus isDeviceSupported(const DeviceInformation& deviceInfo)
 {
     if (getenv("GMX_OCL_DISABLE_COMPATIBILITY_CHECK") != nullptr)
     {
@@ -138,7 +138,7 @@ static DeviceStatus isDeviceSupported(const DeviceInformation* deviceInfo)
     // the device which has the following format:
     //      OpenCL<space><major_version.minor_version><space><vendor-specific information>
     unsigned int deviceVersionMinor, deviceVersionMajor;
-    const int    valuesScanned = std::sscanf(deviceInfo->device_version, "OpenCL %u.%u",
+    const int    valuesScanned = std::sscanf(deviceInfo.device_version, "OpenCL %u.%u",
                                           &deviceVersionMajor, &deviceVersionMinor);
     const bool   versionLargeEnough =
             ((valuesScanned == 2)
@@ -150,7 +150,7 @@ static DeviceStatus isDeviceSupported(const DeviceInformation* deviceInfo)
     }
 
     /* Only AMD, Intel, and NVIDIA GPUs are supported for now */
-    switch (deviceInfo->deviceVendor)
+    switch (deviceInfo.deviceVendor)
     {
         case DeviceVendor::Nvidia: return DeviceStatus::Compatible;
         case DeviceVendor::Amd:
@@ -174,15 +174,15 @@ static DeviceStatus isDeviceSupported(const DeviceInformation* deviceInfo)
  * \throws     std::bad_alloc  When out of memory.
  * \returns                    Whether the device passed sanity checks
  */
-static bool isDeviceFunctional(const DeviceInformation* deviceInfo, std::string* errorMessage)
+static bool isDeviceFunctional(const DeviceInformation& deviceInfo, std::string* errorMessage)
 {
     cl_context_properties properties[] = {
-        CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(deviceInfo->oclPlatformId), 0
+        CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(deviceInfo.oclPlatformId), 0
     };
     // uncrustify spacing
 
     cl_int    status;
-    auto      deviceId = deviceInfo->oclDeviceId;
+    auto      deviceId = deviceInfo.oclDeviceId;
     ClContext context(clCreateContext(properties, 1, &deviceId, nullptr, nullptr, &status));
     if (status != CL_SUCCESS)
     {
@@ -243,7 +243,7 @@ static bool isDeviceFunctional(const DeviceInformation* deviceInfo, std::string*
  * \returns  A DeviceStatus to indicate if the GPU device is supported and if it was able to run
  *           basic functionality checks.
  */
-static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation* deviceInfo)
+static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation& deviceInfo)
 {
 
     DeviceStatus supportStatus = isDeviceSupported(deviceInfo);
@@ -423,7 +423,7 @@ void DevicesManager::findGpus()
                                     &deviceInfos_[device_index].maxWorkGroupSize, nullptr);
 
                     deviceInfos_[device_index].status =
-                            gmx::checkGpu(device_index, deviceInfos_ + device_index);
+                            gmx::checkGpu(device_index, deviceInfos_[device_index]);
 
                     if (DeviceStatus::Compatible == deviceInfos_[device_index].status)
                     {
@@ -614,7 +614,7 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
                                     &deviceInfos[device_index]->maxWorkGroupSize, nullptr);
 
                     deviceInfos[device_index]->status =
-                            gmx::checkGpu(device_index, deviceInfos[device_index].get());
+                            gmx::checkGpu(device_index, *deviceInfos[device_index]);
 
                     device_index++;
                 }
