@@ -125,3 +125,27 @@ bool DevicesManager::canComputeOnGpu()
     }
     return canComputeOnGpu;
 }
+
+void DevicesManager::serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                                 gmx::ISerializer* serializer)
+{
+    int numDevices = deviceInfos.size();
+    serializer->doInt(&numDevices);
+    for (auto& deviceInfo : deviceInfos)
+    {
+        serializer->doOpaque(reinterpret_cast<char*>(deviceInfo.get()), sizeof(DeviceInformation));
+    }
+}
+
+std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::deserializeDeviceInformations(gmx::ISerializer* serializer)
+{
+    int numDevices = 0;
+    serializer->doInt(&numDevices);
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(numDevices);
+    for (int i = 0; i < numDevices; i++)
+    {
+        deviceInfos[i] = std::make_unique<DeviceInformation>();
+        serializer->doOpaque(reinterpret_cast<char*>(deviceInfos[i].get()), sizeof(DeviceInformation));
+    }
+    return deviceInfos;
+}

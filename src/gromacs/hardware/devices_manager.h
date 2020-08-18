@@ -52,6 +52,7 @@
 #include <vector>
 
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/iserializer.h"
 
 struct DeviceInformation;
 
@@ -198,6 +199,11 @@ public:
      * \returns  True if the build supports GPUs and there are at least one available.
      */
     static bool canComputeOnGpu();
+
+    static void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                            gmx::ISerializer* serializer);
+
+    static std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
 
     //! Total number of GPU devices detected on this physical node
     int numDevices() const { return numDevices_; }

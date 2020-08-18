@@ -35,5 +35,6 @@
 gmx_add_unit_test(HardwareUnitTests hardware-test
     CPP_SOURCE_FILES
         cpuinfo.cpp
+        devices_manager.cpp
         hardwaretopology.cpp
         )
