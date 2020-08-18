@@ -263,16 +263,17 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
         hardwareInfo->haveAmdZen1Cpu      = (maxMinReduced[10] > 0);
 #else
     /* All ranks use the same pointer, protected by a mutex in the caller */
-    hardwareInfo->nphysicalnode       = 1;
-    hardwareInfo->ncore_tot           = ncore;
-    hardwareInfo->ncore_min           = ncore;
-    hardwareInfo->ncore_max           = ncore;
-    hardwareInfo->nhwthread_tot       = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->nhwthread_min       = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->nhwthread_max       = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->ngpu_compatible_tot = hardwareInfo->gpu_info.numCompatibleDevices();
-    hardwareInfo->ngpu_compatible_min = hardwareInfo->gpu_info.numCompatibleDevices();
-    hardwareInfo->ngpu_compatible_max = hardwareInfo->gpu_info.numCompatibleDevices();
+    int numCompatibleDevices    = DevicesManager::numCompatibleDevices(hardwareInfo->deviceInfos);
+    hardwareInfo->nphysicalnode = 1;
+    hardwareInfo->ncore_tot     = ncore;
+    hardwareInfo->ncore_min     = ncore;
+    hardwareInfo->ncore_max     = ncore;
+    hardwareInfo->nhwthread_tot = hardwareInfo->nthreads_hw_avail;
+    hardwareInfo->nhwthread_min = hardwareInfo->nthreads_hw_avail;
+    hardwareInfo->nhwthread_max = hardwareInfo->nthreads_hw_avail;
+    hardwareInfo->ngpu_compatible_tot = numCompatibleDevices;
+    hardwareInfo->ngpu_compatible_min = numCompatibleDevices;
+    hardwareInfo->ngpu_compatible_max = numCompatibleDevices;
     hardwareInfo->simd_suggest_min    = static_cast<int>(simdSuggested(cpuInfo));
     hardwareInfo->simd_suggest_max    = static_cast<int>(simdSuggested(cpuInfo));
     hardwareInfo->bIdenticalGPUs      = TRUE;

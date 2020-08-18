@@ -96,6 +96,19 @@ bool DevicesManager::isGpuCompatible(const DeviceInformation& deviceInformation)
     return (deviceInformation.status == DeviceStatus::Compatible);
 }
 
+int DevicesManager::numCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
+{
+    int numCompatibleDevices = 0;
+    for (const auto& deviceInfo : deviceInfos)
+    {
+        if (DevicesManager::isGpuCompatible(*deviceInfo))
+        {
+            numCompatibleDevices++;
+        }
+    }
+    return numCompatibleDevices;
+}
+
 DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
 {
     if (deviceId < 0 || deviceId >= numDevices_)

@@ -144,6 +144,8 @@ public:
 
     static bool isGpuCompatible(const DeviceInformation& deviceInformation);
 
+    static int numCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
+
 
     /*! \brief Set the active GPU
      *
