@@ -174,9 +174,20 @@ std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
                                               int deviceId);
 
+/*! \brief Serialization of information on devices for MPI broadcasting.
+ *
+ * \param[in] deviceInfos   The vector with device informations to serialize.
+ * \param[in] serializer    Serializing object.
+ */
 void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
                                  gmx::ISerializer*                                      serializer);
 
+/*! \brief Deserialization of information on devices after MPI broadcasting.
+ *
+ * \param[in] serializer Serializing object.
+ *
+ * \return deviceInfos   Deserialized vector with device informations.
+ */
 std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
 
 #endif // GMX_HARDWARE_DEVICE_MANAGEMENT_H
