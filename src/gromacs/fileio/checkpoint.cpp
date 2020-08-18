@@ -2218,14 +2218,14 @@ static int do_cpt_files(XDR* xd, gmx_bool bRead, std::vector<gmx_file_position_t
     return 0;
 }
 
-void write_checkpoint_data(t_fileio*                         fp,
-                           CheckpointHeaderContents          headerContents,
-                           gmx_bool                          bExpanded,
-                           int                               elamstats,
-                           t_state*                          state,
-                           ObservablesHistory*               observablesHistory,
-                           const gmx::MdModulesNotifier&     mdModulesNotifier,
-                           std::vector<gmx_file_position_t>* outputfiles)
+void write_checkpoint_data(t_fileio*                             fp,
+                           CheckpointHeaderContents              headerContents,
+                           gmx_bool                              bExpanded,
+                           int                                   elamstats,
+                           t_state*                              state,
+                           ObservablesHistory*                   observablesHistory,
+                           const gmx::CheckpointingNotification& checkpointNotifier,
+                           std::vector<gmx_file_position_t>*     outputfiles)
 {
     headerContents.flags_eks = 0;
     if (state->ekinstate.bUpToDate)
@@ -2322,7 +2322,7 @@ void write_checkpoint_data(t_fileio*                         fp,
         gmx::KeyValueTreeBuilder          builder;
         gmx::MdModulesWriteCheckpointData mdModulesWriteCheckpoint = { builder.rootObject(),
                                                                        headerContents.file_version };
-        checkpointingNotifier.checkpointingNotifications_.notify(mdModulesWriteCheckpoint);
+        checkpointNotifier.checkpointingNotifications_.notify(mdModulesWriteCheckpoint);
         auto                     tree = builder.build();
         gmx::FileIOXdrSerializer serializer(fp);
         gmx::serializeKeyValueTree(tree, &serializer);
@@ -2477,7 +2477,7 @@ static void read_checkpoint(const char*                           fn,
                             t_state*                              state,
                             ObservablesHistory*                   observablesHistory,
                             gmx_bool                              reproducibilityRequested,
-                            const gmx::CheckpointingNotification& checkpointingNotifier)
+                            const gmx::CheckpointingNotification& checkpointNotifier)
 {
     t_fileio* fp;
     char      buf[STEPSTRSIZE];
@@ -2657,7 +2657,7 @@ static void read_checkpoint(const char*                           fn,
     {
         cp_error();
     }
-    do_cpt_mdmodules(headerContents->file_version, fp, checkpointingNotifier);
+    do_cpt_mdmodules(headerContents->file_version, fp, checkpointNotifier);
     ret = do_cpt_footer(gmx_fio_getxdr(fp), headerContents->file_version);
     if (ret)
     {

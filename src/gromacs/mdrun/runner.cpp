@@ -1660,7 +1660,8 @@ int Mdrunner::mdrunner()
                 LegacyInput(static_cast<int>(filenames.size()), filenames.data(), inputrec, fr));
         simulatorBuilder.add(ReplicaExchangeParameters(replExParams));
         simulatorBuilder.add(InteractiveMD(imdSession.get()));
-        simulatorBuilder.add(SimulatorModules(mdModules_->outputProvider(), mdModules_->notifier()));
+        simulatorBuilder.add(SimulatorModules(mdModules_->outputProvider(), mdModules_->notifier(),
+                                              mdModules_->checkpoint()));
         simulatorBuilder.add(CenterOfMassPulling(pull_work));
         // Todo move to an MDModule
         simulatorBuilder.add(IonSwapping(swap));

@@ -96,7 +96,7 @@ struct gmx_mdoutf
     gmx::IMDOutputProvider*               outputProvider;
     const gmx::CheckpointingNotification* checkpointingNotifier;
     bool                                  simulationsShareState;
-    MPI_Comm                              mpiCommMasters;
+    MPI_Comm                              mastersComm;
 };
 
 
@@ -283,23 +283,23 @@ static void mpiBarrierBeforeRename(const bool applyMpiBarrierBeforeRename, MPI_C
  * Appends the _step<step>.cpt with bNumberAndKeep, otherwise moves
  * the previous checkpoint filename with suffix _prev.cpt.
  */
-static void write_checkpoint(const char*                   fn,
-                             gmx_bool                      bNumberAndKeep,
-                             FILE*                         fplog,
-                             const t_commrec*              cr,
-                             ivec                          domdecCells,
-                             int                           nppnodes,
-                             int                           eIntegrator,
-                             int                           simulation_part,
-                             gmx_bool                      bExpanded,
-                             int                           elamstats,
-                             int64_t                       step,
-                             double                        t,
-                             t_state*                      state,
-                             ObservablesHistory*           observablesHistory,
-                             const gmx::MdModulesNotifier& mdModulesNotifier,
-                             bool                          applyMpiBarrierBeforeRename,
-                             MPI_Comm                      mpiBarrierCommunicator)
+static void write_checkpoint(const char*                           fn,
+                             gmx_bool                              bNumberAndKeep,
+                             FILE*                                 fplog,
+                             const t_commrec*                      cr,
+                             ivec                                  domdecCells,
+                             int                                   nppnodes,
+                             int                                   eIntegrator,
+                             int                                   simulation_part,
+                             gmx_bool                              bExpanded,
+                             int                                   elamstats,
+                             int64_t                               step,
+                             double                                t,
+                             t_state*                              state,
+                             ObservablesHistory*                   observablesHistory,
+                             const gmx::CheckpointingNotification& checkpointNotifier,
+                             bool                                  applyMpiBarrierBeforeRename,
+                             MPI_Comm                              mpiBarrierCommunicator)
 {
     t_fileio* fp;
     char*     fntemp; /* the temporary checkpoint file name */
@@ -393,7 +393,7 @@ static void write_checkpoint(const char*                   fn,
     }
 
     write_checkpoint_data(fp, headerContents, bExpanded, elamstats, state, observablesHistory,
-                          mdModulesNotifier, &outputfiles);
+                          checkpointNotifier, &outputfiles);
 
     /* we really, REALLY, want to make sure to physically write the checkpoint,
        and all the files it depends on, out to disk. Because we've

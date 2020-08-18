@@ -67,6 +67,7 @@ struct t_swap;
 namespace gmx
 {
 class BoxDeformation;
+struct CheckpointingNotification;
 class Constraints;
 class IMDOutputProvider;
 class ImdSession;
@@ -206,14 +207,18 @@ public:
 class SimulatorModules
 {
 public:
-    SimulatorModules(IMDOutputProvider* mdOutputProvider, const MdModulesNotifier& notifier) :
+    SimulatorModules(IMDOutputProvider*               mdOutputProvider,
+                     const MdModulesNotifier&         notifier,
+                     const CheckpointingNotification& checkpointingNotification) :
         outputProvider(mdOutputProvider),
-        mdModulesNotifier(notifier)
+        mdModulesNotifier(notifier),
+        checkpointingNotification(checkpointingNotification)
     {
     }
 
-    IMDOutputProvider*       outputProvider;
-    const MdModulesNotifier& mdModulesNotifier;
+    IMDOutputProvider*               outputProvider;
+    const MdModulesNotifier&         mdModulesNotifier;
+    const CheckpointingNotification& checkpointingNotification;
 };
 
 class CenterOfMassPulling

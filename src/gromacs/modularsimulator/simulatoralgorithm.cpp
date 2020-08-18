@@ -510,7 +510,7 @@ ModularSimulatorAlgorithm ModularSimulatorAlgorithmBuilder::build()
     auto trajectoryElement = trajectoryElementBuilder_.build(
             legacySimulatorData_->fplog, legacySimulatorData_->nfile, legacySimulatorData_->fnm,
             legacySimulatorData_->mdrunOptions, legacySimulatorData_->cr,
-            legacySimulatorData_->outputProvider, legacySimulatorData_->mdModulesNotifier,
+            legacySimulatorData_->outputProvider, legacySimulatorData_->checkpointingNotification,
             legacySimulatorData_->inputrec, legacySimulatorData_->top_global,
             legacySimulatorData_->oenv, legacySimulatorData_->wcycle,
             legacySimulatorData_->startingBehavior, simulationsShareState);

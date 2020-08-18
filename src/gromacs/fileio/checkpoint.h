@@ -239,14 +239,14 @@ struct CheckpointHeaderContents
 };
 
 /*! \brief Low-level checkpoint writing function */
-void write_checkpoint_data(t_fileio*                         fp,
-                           CheckpointHeaderContents          headerContents,
-                           gmx_bool                          bExpanded,
-                           int                               elamstats,
-                           t_state*                          state,
-                           ObservablesHistory*               observablesHistory,
-                           const gmx::MdModulesNotifier&     notifier,
-                           std::vector<gmx_file_position_t>* outputfiles);
+void write_checkpoint_data(t_fileio*                             fp,
+                           CheckpointHeaderContents              headerContents,
+                           gmx_bool                              bExpanded,
+                           int                                   elamstats,
+                           t_state*                              state,
+                           ObservablesHistory*                   observablesHistory,
+                           const gmx::CheckpointingNotification& checkpointNotifier,
+                           std::vector<gmx_file_position_t>*     outputfiles);
 
 /* Loads a checkpoint from fn for run continuation.
  * Generates a fatal error on system size mismatch.
