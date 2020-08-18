@@ -326,7 +326,7 @@ public:
     //! Store whether any compatible GPUs exist.
     static bool s_hasCompatibleGpus;
     //! Before any test is run, work out whether any compatible GPUs exist.
-    static void SetUpTestCase() { s_hasCompatibleGpus = DevicesManager::canComputeOnDevice(); }
+    static void SetUpTestCase() { s_hasCompatibleGpus = canComputeOnDevice(); }
 };
 
 bool SettleTest::s_hasCompatibleGpus = false;

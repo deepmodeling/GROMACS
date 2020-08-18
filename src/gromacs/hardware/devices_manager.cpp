@@ -49,23 +49,21 @@
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
 
-DevicesManager::~DevicesManager() = default;
-
-std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
+std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 {
     return {};
 }
 
-void DevicesManager::setDevice(const DeviceInformation& /* deviceInfo */) {}
+void setDevice(const DeviceInformation& /* deviceInfo */) {}
 
-void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
+void freeDevice(DeviceInformation* /* deviceInfo */) {}
 
-std::string DevicesManager::getDeviceInformationString(const DeviceInformation& /* deviceInfo */)
+std::string getDeviceInformationString(const DeviceInformation& /* deviceInfo */)
 {
     gmx_fatal(FARGS, "Device information requested in CPU build.");
 }
 
-bool DevicesManager::isDeviceDetectionFunctional(std::string* /* errorMessage */)
+bool isDeviceDetectionFunctional(std::string* /* errorMessage */)
 {
     return false;
 }

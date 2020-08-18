@@ -97,7 +97,7 @@ bool PmeTest::s_hasCompatibleGpus = false;
 
 void PmeTest::SetUpTestCase()
 {
-    s_hasCompatibleGpus = DevicesManager::canComputeOnDevice();
+    s_hasCompatibleGpus = canComputeOnDevice();
 }
 
 void PmeTest::runTest(const RunModesList& runModes)

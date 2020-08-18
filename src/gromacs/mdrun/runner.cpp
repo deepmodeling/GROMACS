@@ -1749,7 +1749,7 @@ int Mdrunner::mdrunner()
     if (GMX_THREAD_MPI)
     {
         physicalNodeComm.barrier();
-        DevicesManager::freeDevice(deviceInfo);
+        freeDevice(deviceInfo);
     }
 
     /* Does what it says */

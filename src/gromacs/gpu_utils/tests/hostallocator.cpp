@@ -199,7 +199,7 @@ TYPED_TEST(HostAllocatorTestCopyable, VectorsWithDefaultHostAllocatorAlwaysWorks
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
 {
-    for (int deviceId : DevicesManager::getCompatibleDevices(this->devicesInfos_))
+    for (int deviceId : getCompatibleDevices(this->devicesInfos_))
     {
         auto&                            deviceInfo = this->devicesInfos_[deviceId];
         typename TestFixture::VectorType input;
@@ -320,7 +320,7 @@ bool isPinned(const VectorType& v)
 
 TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
 {
-    if (!DevicesManager::canComputeOnDevice())
+    if (!canComputeOnDevice())
     {
         return;
     }

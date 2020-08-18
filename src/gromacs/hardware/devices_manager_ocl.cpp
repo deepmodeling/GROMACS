@@ -264,9 +264,9 @@ static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation& deviceInf
 
 } // namespace gmx
 
-DevicesManager::~DevicesManager() = default;
+~DevicesManager() = default;
 
-bool DevicesManager::isDeviceDetectionFunctional(std::string* errorMessage)
+bool isDeviceDetectionFunctional(std::string* errorMessage)
 {
     cl_uint numPlatforms;
     cl_int  status = clGetPlatformIDs(0, nullptr, &numPlatforms);
@@ -295,7 +295,7 @@ bool DevicesManager::isDeviceDetectionFunctional(std::string* errorMessage)
     return foundPlatform;
 }
 
-std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
+std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 {
     cl_uint         ocl_platform_count;
     cl_platform_id* ocl_platform_ids;
@@ -482,7 +482,7 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
     return deviceInfos;
 }
 
-void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
+void setDevice(const DeviceInformation& deviceInfo)
 {
     // If the device is NVIDIA, for safety reasons we disable the JIT
     // caching as this is known to be broken at least until driver 364.19;
@@ -502,9 +502,9 @@ void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
     }
 }
 
-void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
+void freeDevice(DeviceInformation* /* deviceInfo */) {}
 
-std::string DevicesManager::getDeviceInformationString(const DeviceInformation& deviceInfo)
+std::string getDeviceInformationString(const DeviceInformation& deviceInfo)
 {
     bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
                       && deviceInfo.status != DeviceStatus::NonFunctional);

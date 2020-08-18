@@ -74,7 +74,7 @@ TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnHost)
 
 TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnDevice)
 {
-    if (DevicesManager::canComputeOnDevice())
+    if (canComputeOnDevice())
     {
         std::vector<RVec> rVecOutput(rVecInput.size());
         convertRVecToFloat3OnDevice(rVecOutput, rVecInput);

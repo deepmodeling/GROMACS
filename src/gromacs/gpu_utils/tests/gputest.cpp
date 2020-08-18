@@ -56,9 +56,9 @@ namespace test
 
 GpuTest::GpuTest()
 {
-    if (DevicesManager::canPerformDeviceDetection(nullptr))
+    if (canPerformDeviceDetection(nullptr))
     {
-        devicesInfos_ = DevicesManager::findDevices();
+        devicesInfos_ = findDevices();
     }
     // Failing to find valid GPUs does not require further action
 }

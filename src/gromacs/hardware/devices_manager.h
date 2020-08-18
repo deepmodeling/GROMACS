@@ -56,145 +56,127 @@
 
 struct DeviceInformation;
 
-/*! \brief The GPU devices management class
+/*! \brief Return whether GPUs can be detected.
  *
- * The class includes the information on either CUDA or OpenCL devices as well as all the
- * logic needed to initialize them, identify compatible devices and set the default device
- * for current rank.
+ * Returns true when this is a build of \Gromacs configured to support
+ * GPU usage, GPU detection is not disabled by an environment variable
+ * and a valid device driver, ICD, and/or runtime was detected.
+ * Does not throw.
  *
- * \todo Use a std::vector (requires PImpling of including the device information header).
+ * \param[out] errorMessage  When returning false on a build configured with
+ *                           GPU support and non-nullptr was passed,
+ *                           the string contains a descriptive message about
+ *                           why GPUs cannot be detected.
  */
-class DevicesManager
-{
-public:
-    //! Constructor.
-    DevicesManager() = default;
-    //! Destructor.
-    ~DevicesManager();
+bool canPerformDeviceDetection(std::string* errorMessage);
 
-    /*! \brief Return whether GPUs can be detected.
-     *
-     * Returns true when this is a build of \Gromacs configured to support
-     * GPU usage, GPU detection is not disabled by an environment variable
-     * and a valid device driver, ICD, and/or runtime was detected.
-     * Does not throw.
-     *
-     * \param[out] errorMessage  When returning false on a build configured with
-     *                           GPU support and non-nullptr was passed,
-     *                           the string contains a descriptive message about
-     *                           why GPUs cannot be detected.
-     */
-    static bool canPerformDeviceDetection(std::string* errorMessage);
+/*! \brief Return whether GPU detection is functioning correctly
+ *
+ * Returns true when this is a build of \Gromacs configured to support
+ * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
+ *
+ * This function is not intended to be called from build
+ * configurations that do not support GPUs, and there will be no
+ * descriptive message in that case.
+ *
+ * \param[out] errorMessage  When returning false on a build configured with
+ *                           GPU support and non-nullptr was passed,
+ *                           the string contains a descriptive message about
+ *                           why GPUs cannot be detected.
+ *
+ * Does not throw.
+ */
+bool isDeviceDetectionFunctional(std::string* errorMessage);
 
-    /*! \brief Return whether GPU detection is functioning correctly
-     *
-     * Returns true when this is a build of \Gromacs configured to support
-     * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
-     *
-     * This function is not intended to be called from build
-     * configurations that do not support GPUs, and there will be no
-     * descriptive message in that case.
-     *
-     * \param[out] errorMessage  When returning false on a build configured with
-     *                           GPU support and non-nullptr was passed,
-     *                           the string contains a descriptive message about
-     *                           why GPUs cannot be detected.
-     *
-     * Does not throw.
-     */
-    static bool isDeviceDetectionFunctional(std::string* errorMessage);
+/*! \brief Checks if one can compute on the GPU
+ *
+ * \returns  True if the build supports GPUs and there are at least one available.
+ */
+bool canComputeOnDevice();
 
-    /*! \brief Checks if one can compute on the GPU
-     *
-     * \returns  True if the build supports GPUs and there are at least one available.
-     */
-    static bool canComputeOnDevice();
+/*! \brief Find all GPUs in the system.
+ *
+ *  Will detect every GPU supported by the device driver in use.
+ *  Must only be called if canPerformDeviceDetection() has returned true.
+ *  This routine also checks for the compatibility of each and fill the
+ *  deviceInfo array with the required information on each the
+ *  device: ID, device properties, status.
+ *
+ *  Note that this function leaves the GPU runtime API error state clean;
+ *  this is implemented ATM in the CUDA flavor.
+ *
+ *  \todo:  Check if errors do propagate in OpenCL as they do in CUDA and
+ *          whether there is a mechanism to "clear" them.
+ *
+ * \return  Standard vector with the list of devices found
+ *
+ *  \throws InternalError if a GPU API returns an unexpected failure (because
+ *          the call to canDetectGpus() should always prevent this occuring)
+ */
+std::vector<std::unique_ptr<DeviceInformation>> findDevices();
 
-    /*! \brief Find all GPUs in the system.
-     *
-     *  Will detect every GPU supported by the device driver in use.
-     *  Must only be called if canPerformDeviceDetection() has returned true.
-     *  This routine also checks for the compatibility of each and fill the
-     *  deviceInfo array with the required information on each the
-     *  device: ID, device properties, status.
-     *
-     *  Note that this function leaves the GPU runtime API error state clean;
-     *  this is implemented ATM in the CUDA flavor.
-     *
-     *  \todo:  Check if errors do propagate in OpenCL as they do in CUDA and
-     *          whether there is a mechanism to "clear" them.
-     *
-     * \return  Standard vector with the list of devices found
-     *
-     *  \throws InternalError if a GPU API returns an unexpected failure (because
-     *          the call to canDetectGpus() should always prevent this occuring)
-     */
-    static std::vector<std::unique_ptr<DeviceInformation>> findDevices();
+/*! \brief Return a container of the detected GPUs that are compatible.
+ *
+ * This function filters the result of the detection for compatible
+ * GPUs, based on the previously run compatibility tests.
+ *
+ * \param[in] deviceInfos An information on available devices.
+ *
+ * \return  Vector of IDs of GPUs already recorded as compatible
+ */
+std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
 
-    /*! \brief Return a container of the detected GPUs that are compatible.
-     *
-     * This function filters the result of the detection for compatible
-     * GPUs, based on the previously run compatibility tests.
-     *
-     * \param[in] deviceInfos An information on available devices.
-     *
-     * \return  Vector of IDs of GPUs already recorded as compatible
-     */
-    static std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
+/*! \brief Set the active GPU
+ *
+ * \param[in] deviceInfo Information on the device to be set.
+ *
+ * Issues a fatal error for any critical errors that occur during
+ * initialization.
+ */
+void setDevice(const DeviceInformation& deviceInfo);
 
-    /*! \brief Set the active GPU
-     *
-     * \param[in] deviceInfo Information on the device to be set.
-     *
-     * Issues a fatal error for any critical errors that occur during
-     * initialization.
-     */
-    static void setDevice(const DeviceInformation& deviceInfo);
+/*! \brief Frees up the GPU device used by the active context at the time of calling (CUDA only).
+ *
+ * If \c deviceInfo is nullptr, then it is understood that no device
+ * was selected so no context is active to be freed. Otherwise, the
+ * context is explicitly destroyed and therefore all data uploaded to
+ * the GPU is lost. This must only be called when none of this data is
+ * required anymore, because subsequent attempts to free memory
+ * associated with the context will otherwise fail.
+ *
+ * Calls gmx_warning upon errors.
+ *
+ * \todo This should go through all the devices, not only the one currently active.
+ *       Reseting only one device will not work, e.g. in CUDA tests.
+ *
+ * \param[in] deviceInfo Information on the device to be released.
+ */
+void freeDevice(DeviceInformation* deviceInfo);
 
-    /*! \brief Frees up the GPU device used by the active context at the time of calling (CUDA only).
-     *
-     * If \c deviceInfo is nullptr, then it is understood that no device
-     * was selected so no context is active to be freed. Otherwise, the
-     * context is explicitly destroyed and therefore all data uploaded to
-     * the GPU is lost. This must only be called when none of this data is
-     * required anymore, because subsequent attempts to free memory
-     * associated with the context will otherwise fail.
-     *
-     * Calls gmx_warning upon errors.
-     *
-     * \todo This should go through all the devices, not only the one currently active.
-     *       Reseting only one device will not work, e.g. in CUDA tests.
-     *
-     * \param[in] deviceInfo Information on the device to be released.
-     */
-    static void freeDevice(DeviceInformation* deviceInfo);
+/*! \brief Formats and returns a device information string for a given GPU.
+ *
+ * Given an index *directly* into the array of available GPUs, returns
+ * a formatted info string for the respective GPU which includes ID, name,
+ * compute capability, and detection status.
+ *
+ * \param[in] deviceInfo  An information on device that is to be set.
+ *
+ * \returns A string describing the device.
+ */
+std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 
-    /*! \brief Formats and returns a device information string for a given GPU.
-     *
-     * Given an index *directly* into the array of available GPUs, returns
-     * a formatted info string for the respective GPU which includes ID, name,
-     * compute capability, and detection status.
-     *
-     * \param[in] deviceInfo  An information on device that is to be set.
-     *
-     * \returns A string describing the device.
-     */
-    static std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
+/*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
+ *
+ * \param[in] deviceInfos An information on available devices.
+ * \param[in] devdeviceId An index of the device to check
+ * \returns               A string describing the compatibility status, useful for error messages.
+ */
+std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                              int deviceId);
 
-    /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
-     *
-     * \param[in] deviceInfos An information on available devices.
-     * \param[in] devdeviceId An index of the device to check
-     * \returns               A string describing the compatibility status, useful for error messages.
-     */
-    static std::string
-    getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
-                                      int deviceId);
+void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                 gmx::ISerializer*                                      serializer);
 
-    static void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
-                                            gmx::ISerializer* serializer);
-
-    static std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
-};
+std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
 
 #endif // GMX_HARDWARE_DEVICES_MANAGER_H

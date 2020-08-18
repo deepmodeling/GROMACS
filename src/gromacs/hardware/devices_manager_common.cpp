@@ -49,11 +49,11 @@
 #include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/fatalerror.h"
 
-bool DevicesManager::canPerformDeviceDetection(std::string* errorMessage)
+bool canPerformDeviceDetection(std::string* errorMessage)
 {
     if (GMX_GPU && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
     {
-        return DevicesManager::isDeviceDetectionFunctional(errorMessage);
+        return isDeviceDetectionFunctional(errorMessage);
     }
     else
     {
@@ -61,18 +61,18 @@ bool DevicesManager::canPerformDeviceDetection(std::string* errorMessage)
     }
 }
 
-bool DevicesManager::canComputeOnDevice()
+bool canComputeOnDevice()
 {
     bool canComputeOnDevice = false;
-    if (DevicesManager::canPerformDeviceDetection(nullptr))
+    if (canPerformDeviceDetection(nullptr))
     {
         std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnDevice = !DevicesManager::getCompatibleDevices(devInfos).empty();
+        canComputeOnDevice = !getCompatibleDevices(devInfos).empty();
     }
     return canComputeOnDevice;
 }
 
-std::vector<int> DevicesManager::getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
+std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
 {
     // Possible minor over-allocation here, but not important for anything
     std::vector<int> compatibleGpus;
@@ -87,17 +87,16 @@ std::vector<int> DevicesManager::getCompatibleDevices(const std::vector<std::uni
     return compatibleGpus;
 }
 
-std::string DevicesManager::getDeviceCompatibilityDescription(
-        const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
-        int                                                    deviceId)
+std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                              int deviceId)
 {
     return (deviceId >= static_cast<int>(deviceInfos.size())
                     ? c_deviceStateString[DeviceStatus::Nonexistent]
                     : c_deviceStateString[deviceInfos[deviceId]->status]);
 }
 
-void DevicesManager::serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
-                                                 gmx::ISerializer* serializer)
+void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                 gmx::ISerializer*                                      serializer)
 {
     int numDevices = deviceInfos.size();
     serializer->doInt(&numDevices);
@@ -107,7 +106,7 @@ void DevicesManager::serializeDeviceInformations(const std::vector<std::unique_p
     }
 }
 
-std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::deserializeDeviceInformations(gmx::ISerializer* serializer)
+std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer)
 {
     int numDevices = 0;
     serializer->doInt(&numDevices);

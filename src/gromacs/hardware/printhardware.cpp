@@ -71,7 +71,7 @@ static std::string sprint_gpus(const std::vector<std::unique_ptr<DeviceInformati
     std::vector<std::string> gpuStrings(0);
     for (const auto& deviceInfo : deviceInfos)
     {
-        gpuStrings.emplace_back("    " + DevicesManager::getDeviceInformationString(*deviceInfo));
+        gpuStrings.emplace_back("    " + getDeviceInformationString(*deviceInfo));
     }
     return gmx::joinStrings(gpuStrings, "\n");
 }
@@ -143,7 +143,7 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         s += gmx::formatString(" %d cores,", hwinfo->ncore_tot);
     }
     s += gmx::formatString(" %d logical cores", hwinfo->nhwthread_tot);
-    if (DevicesManager::canPerformDeviceDetection(nullptr))
+    if (canPerformDeviceDetection(nullptr))
     {
         s += gmx::formatString(", %d compatible GPU%s", hwinfo->ngpu_compatible_tot,
                                hwinfo->ngpu_compatible_tot == 1 ? "" : "s");

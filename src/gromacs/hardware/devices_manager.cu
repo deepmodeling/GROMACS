@@ -255,7 +255,7 @@ static DeviceStatus checkDeviceStatus(int deviceId, const cudaDeviceProp& device
     return isDeviceFunctional(deviceId, deviceProp);
 }
 
-bool DevicesManager::isDeviceDetectionFunctional(std::string* errorMessage)
+bool isDeviceDetectionFunctional(std::string* errorMessage)
 {
     cudaError_t stat;
     int         driverVersion = -1;
@@ -310,7 +310,7 @@ bool DevicesManager::isDeviceDetectionFunctional(std::string* errorMessage)
     return true;
 }
 
-std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
+std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 {
     int         numDevices;
     cudaError_t stat = cudaGetDeviceCount(&numDevices);
@@ -369,7 +369,7 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
     return deviceInfos;
 }
 
-void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
+void setDevice(const DeviceInformation& deviceInfo)
 {
     int         deviceId = deviceInfo.id;
     cudaError_t stat;
@@ -387,7 +387,7 @@ void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
     }
 }
 
-void DevicesManager::freeDevice(DeviceInformation* deviceInfo)
+void freeDevice(DeviceInformation* deviceInfo)
 {
     // device was used is that deviceInfo will be non-null.
     if (deviceInfo != nullptr)
@@ -412,7 +412,7 @@ void DevicesManager::freeDevice(DeviceInformation* deviceInfo)
     }
 }
 
-std::string DevicesManager::getDeviceInformationString(const DeviceInformation& deviceInfo)
+std::string getDeviceInformationString(const DeviceInformation& deviceInfo)
 {
     bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
                       && deviceInfo.status != DeviceStatus::NonFunctional);

@@ -58,14 +58,14 @@ namespace
 
 TEST(DevicesManagerTest, Serialization)
 {
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfosIn = DevicesManager::findDevices();
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfosIn = findDevices();
     gmx::InMemorySerializer                         writer;
-    DevicesManager::serializeDeviceInformations(deviceInfosIn, &writer);
+    serializeDeviceInformations(deviceInfosIn, &writer);
     auto buffer = writer.finishAndGetBuffer();
 
     gmx::InMemoryDeserializer                       reader(buffer, false);
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfosOut =
-            DevicesManager::deserializeDeviceInformations(&reader);
+            deserializeDeviceInformations(&reader);
 
     EXPECT_EQ(deviceInfosOut.size(), deviceInfosIn.size())
             << "Number of accessible devices changed after serialization/deserialization.";
