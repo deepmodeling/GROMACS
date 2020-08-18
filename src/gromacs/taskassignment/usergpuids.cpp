@@ -139,7 +139,7 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString)
 std::vector<int> makeGpuIdsToUse(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
                                  const std::string& gpuIdsAvailableString)
 {
-    auto             compatibleGpus  = DevicesManager::getCompatibleGpus(deviceInfos);
+    auto             compatibleGpus  = DevicesManager::getCompatibleDevices(deviceInfos);
     std::vector<int> gpuIdsAvailable = parseUserGpuIdString(gpuIdsAvailableString);
 
     if (gpuIdsAvailable.empty())

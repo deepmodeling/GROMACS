@@ -187,7 +187,7 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
         int gpu_hash;
 
         nhwthread = hardwareInfo->nthreads_hw_avail;
-        ngpu      = DevicesManager::getCompatibleGpus(hardwareInfo->deviceInfos).size();
+        ngpu      = DevicesManager::getCompatibleDevices(hardwareInfo->deviceInfos).size();
         /* Create a unique hash of the GPU type(s) in this node */
         gpu_hash = 0;
         /* Here it might be better to only loop over the compatible GPU, but we
@@ -262,14 +262,14 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
         hardwareInfo->haveAmdZen1Cpu      = (maxMinReduced[10] > 0);
 #else
     /* All ranks use the same pointer, protected by a mutex in the caller */
-    int numCompatibleDevices    = DevicesManager::numCompatibleDevices(hardwareInfo->deviceInfos);
-    hardwareInfo->nphysicalnode = 1;
-    hardwareInfo->ncore_tot     = ncore;
-    hardwareInfo->ncore_min     = ncore;
-    hardwareInfo->ncore_max     = ncore;
-    hardwareInfo->nhwthread_tot = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->nhwthread_min = hardwareInfo->nthreads_hw_avail;
-    hardwareInfo->nhwthread_max = hardwareInfo->nthreads_hw_avail;
+    int numCompatibleDevices = DevicesManager::getCompatibleDevices(hardwareInfo->deviceInfos).size();
+    hardwareInfo->nphysicalnode       = 1;
+    hardwareInfo->ncore_tot           = ncore;
+    hardwareInfo->ncore_min           = ncore;
+    hardwareInfo->ncore_max           = ncore;
+    hardwareInfo->nhwthread_tot       = hardwareInfo->nthreads_hw_avail;
+    hardwareInfo->nhwthread_min       = hardwareInfo->nthreads_hw_avail;
+    hardwareInfo->nhwthread_max       = hardwareInfo->nthreads_hw_avail;
     hardwareInfo->ngpu_compatible_tot = numCompatibleDevices;
     hardwareInfo->ngpu_compatible_min = numCompatibleDevices;
     hardwareInfo->ngpu_compatible_max = numCompatibleDevices;

@@ -61,16 +61,16 @@ bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)
     }
 }
 
-std::vector<int> DevicesManager::getCompatibleGpus(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInformation)
+std::vector<int> DevicesManager::getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
 {
     // Possible minor over-allocation here, but not important for anything
     std::vector<int> compatibleGpus;
-    compatibleGpus.reserve(devicesInformation.size());
-    for (int i = 0; i < static_cast<int>(devicesInformation.size()); i++)
+    compatibleGpus.reserve(deviceInfos.size());
+    for (const auto& deviceInfo : deviceInfos)
     {
-        if (devicesInformation[i]->status == DeviceStatus::Compatible)
+        if (DevicesManager::isGpuCompatible(*deviceInfo))
         {
-            compatibleGpus.push_back(i);
+            compatibleGpus.push_back(deviceInfo->id);
         }
     }
     return compatibleGpus;
@@ -79,19 +79,6 @@ std::vector<int> DevicesManager::getCompatibleGpus(const std::vector<std::unique
 bool DevicesManager::isGpuCompatible(const DeviceInformation& deviceInformation)
 {
     return (deviceInformation.status == DeviceStatus::Compatible);
-}
-
-int DevicesManager::numCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
-{
-    int numCompatibleDevices = 0;
-    for (const auto& deviceInfo : deviceInfos)
-    {
-        if (DevicesManager::isGpuCompatible(*deviceInfo))
-        {
-            numCompatibleDevices++;
-        }
-    }
-    return numCompatibleDevices;
 }
 
 std::string DevicesManager::getGpuCompatibilityDescription(
@@ -109,7 +96,7 @@ bool DevicesManager::canComputeOnGpu()
     if (DevicesManager::canPerformGpuDetection(nullptr))
     {
         std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnGpu = (DevicesManager::numCompatibleDevices(devInfos) > 0);
+        canComputeOnGpu = (DevicesManager::getCompatibleDevices(devInfos).size() > 0);
     }
     return canComputeOnGpu;
 }

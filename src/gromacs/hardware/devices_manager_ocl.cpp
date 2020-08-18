@@ -486,8 +486,6 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 
 void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
 {
-    int deviceId = deviceInfo.id;
-
     // If the device is NVIDIA, for safety reasons we disable the JIT
     // caching as this is known to be broken at least until driver 364.19;
     // the cache does not always get regenerated when the source code changes,
@@ -522,9 +520,4 @@ std::string DevicesManager::getDeviceInformationString(const DeviceInformation& 
                                  deviceInfo.id, deviceInfo.device_name, deviceInfo.vendorName,
                                  deviceInfo.device_version, c_deviceStateString[deviceInfo.status]);
     }
-}
-
-size_t DevicesManager::getDeviceInformationSize()
-{
-    return sizeof(DeviceInformation);
 }
