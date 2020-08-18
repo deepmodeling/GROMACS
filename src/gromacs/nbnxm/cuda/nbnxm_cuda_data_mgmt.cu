@@ -57,7 +57,7 @@
 #include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/gpu_utils/pmalloc_cuda.h"
 #include "gromacs/hardware/device_information.h"
-#include "gromacs/hardware/devices_manager.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/force_flags.h"
 #include "gromacs/mdtypes/interaction_const.h"

@@ -35,7 +35,7 @@
 gmx_add_libgromacs_sources(
     cpuinfo.cpp
     detecthardware.cpp
-    devices_manager_common.cpp
+    device_management_common.cpp
     hardwaretopology.cpp
     printhardware.cpp
     identifyavx512fmaunits.cpp
@@ -43,15 +43,15 @@ gmx_add_libgromacs_sources(
 
 if(GMX_GPU_OPENCL)
     gmx_add_libgromacs_sources(
-        devices_manager_ocl.cpp
+        device_management_ocl.cpp
         )
 elseif(GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(
-        devices_manager.cu
+        device_management.cu
         )
 else()
     gmx_add_libgromacs_sources(
-        devices_manager.cpp
+        device_management.cpp
     )
 endif()
 

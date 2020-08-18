@@ -40,7 +40,7 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/hardware/devices_manager.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/basedefinitions.h"
 
 namespace gmx

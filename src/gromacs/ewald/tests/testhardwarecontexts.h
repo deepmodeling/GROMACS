@@ -49,7 +49,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/ewald/pme_gpu_program.h"
-#include "gromacs/hardware/devices_manager.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/gmxassert.h"
 
 #include "testhardwarecontext.h"

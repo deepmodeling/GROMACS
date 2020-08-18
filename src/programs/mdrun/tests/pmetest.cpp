@@ -56,7 +56,7 @@
 
 #include "gromacs/ewald/pme.h"
 #include "gromacs/hardware/detecthardware.h"
-#include "gromacs/hardware/devices_manager.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/trajectory/energyframe.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/gmxmpi.h"

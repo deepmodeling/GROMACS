@@ -45,7 +45,7 @@
 
 #include <gtest/gtest.h>
 
-#include "gromacs/hardware/devices_manager.h"
+#include "gromacs/hardware/device_management.h"
 
 struct DeviceInformation;
 

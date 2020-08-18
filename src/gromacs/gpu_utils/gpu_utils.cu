@@ -54,7 +54,7 @@
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/pmalloc_cuda.h"
 #include "gromacs/hardware/device_information.h"
-#include "gromacs/hardware/devices_manager.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/exceptions.h"

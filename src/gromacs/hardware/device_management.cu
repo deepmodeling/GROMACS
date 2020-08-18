@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "devices_manager.h"
+#include "device_management.h"
 
 #include <cuda_runtime.h>
 

@@ -44,8 +44,8 @@
  * \inlibraryapi
  * \ingroup module_hardware
  */
-#ifndef GMX_HARDWARE_DEVICES_MANAGER_H
-#define GMX_HARDWARE_DEVICES_MANAGER_H
+#ifndef GMX_HARDWARE_DEVICE_MANAGEMENT_H
+#define GMX_HARDWARE_DEVICE_MANAGEMENT_H
 
 #include <memory>
 #include <string>
@@ -179,4 +179,4 @@ void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInforma
 
 std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
 
-#endif // GMX_HARDWARE_DEVICES_MANAGER_H
+#endif // GMX_HARDWARE_DEVICE_MANAGEMENT_H
