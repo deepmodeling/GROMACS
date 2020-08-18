@@ -149,7 +149,6 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
 
     if (gpusCanBeDetected)
     {
-        hardwareInfo->gpu_info.findGpus();
         hardwareInfo->deviceInfos = DevicesManager::findDevices();
         // No need to tell the user anything at this point, they get a
         // hardware report later.

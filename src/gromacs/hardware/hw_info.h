@@ -62,8 +62,6 @@ struct gmx_hw_info_t
     ~gmx_hw_info_t();
 
     /* Data for our local physical node */
-    //! Information about GPUs detected on this physical node
-    DevicesManager gpu_info;
 
     /*! \brief Number of hardware threads available.
      *
@@ -74,7 +72,7 @@ struct gmx_hw_info_t
 
     std::unique_ptr<gmx::CpuInfo>          cpuInfo; /* Information about CPU capabilities */
     std::unique_ptr<gmx::HardwareTopology> hardwareTopology; /* Information about hardware topology */
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos;
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos; /* Information about GPUs detected on this physical node */
 
 
     /* Data reduced through MPI over all physical nodes */
