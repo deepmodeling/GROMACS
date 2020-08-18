@@ -61,6 +61,7 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
+#include "gromacs/utility/inmemoryserializer.h"
 #include "gromacs/utility/logger.h"
 #include "gromacs/utility/mutex.h"
 #include "gromacs/utility/physicalnodecommunicator.h"
@@ -155,16 +156,16 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
     }
 
 #if GMX_LIB_MPI
-    if (!allRanksMustDetectGpus && !deviceInfos.empty())
+    if (!allRanksMustDetectGpus && !hardwareInfo->deviceInfos.empty())
     {
         gmx::InMemorySerializer writer;
-        serializeDevicesInformation(hardwareInfo->deviceInfos, &writer);
+        serializeDeviceInformations(hardwareInfo->deviceInfos, &writer);
         auto buffer = writer.finishAndGetBuffer();
 
         MPI_Bcast(buffer.data(), buffer.size(), MPI_BYTE, 0, physicalNodeComm.comm_);
 
         gmx::InMemoryDeserializer reader(buffer, false);
-        hardwareInfo->deviceInfos = deserializeDeviceInfos(&writer);
+        hardwareInfo->deviceInfos = deserializeDeviceInformations(&writer);
     }
 #endif
 }
@@ -184,7 +185,7 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
                                     || cpuInfo.model() == 8 || cpuInfo.model() == 24))
                                || cpuInfo.vendor() == CpuInfo::Vendor::Hygon);
 #if GMX_LIB_MPI
-    int nhwthread, ngpu, i;
+    int nhwthread, ngpu;
     int gpu_hash;
 
     nhwthread = hardwareInfo->nthreads_hw_avail;
