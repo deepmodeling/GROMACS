@@ -197,20 +197,20 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
     int gpu_hash;
 
     nhwthread = hardwareInfo->nthreads_hw_avail;
-    ngpu      = hardwareInfo->gpu_info.numCompatibleDevices();
+    ngpu      = DevicesManager::getCompatibleGpus(hardwareInfo->deviceInfos).size();
     /* Create a unique hash of the GPU type(s) in this node */
     gpu_hash = 0;
     /* Here it might be better to only loop over the compatible GPU, but we
      * don't have that information available and it would also require
      * removing the device ID from the device info string.
      */
-    for (i = 0; i < hardwareInfo->gpu_info.numDevices(); i++)
+    for (const auto& deviceInfo : hardwareInfo->deviceInfos)
     {
         /* Since the device ID is incorporated in the hash, the order of
          * the GPUs affects the hash. Also two identical GPUs won't give
          * a gpu_hash of zero after XORing.
          */
-        std::string deviceInfoString = hardwareInfo->gpu_info.getDeviceInformationString(i);
+        std::string deviceInfoString = DevicesManager::getDeviceInformationString(*deviceInfo);
         gpu_hash ^= gmx_string_fullhash_func(deviceInfoString.c_str(), gmx_string_hash_init);
     }
 

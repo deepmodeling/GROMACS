@@ -151,8 +151,8 @@ public:
      * Issues a fatal error for any critical errors that occur during
      * initialization.
      */
-    void setDevice(int deviceId) const;
-    static void setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos, int deviceId);
+    void        setDevice(int deviceId) const;
+    static void setDevice(const DeviceInformation& deviceInfo);
 
     /*! \brief Return a pointer to the device information for \c deviceId
      *

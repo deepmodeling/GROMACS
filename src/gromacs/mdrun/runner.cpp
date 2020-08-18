@@ -1725,7 +1725,7 @@ int Mdrunner::mdrunner()
     sfree(disresdata);
     sfree(oriresdata);
 
-    if (hwinfo->gpu_info.numDevices() > 0)
+    if (!hwinfo->deviceInfos.empty())
     {
         /* stop the GPU profiler (only CUDA) */
         stopGpuProfiler();

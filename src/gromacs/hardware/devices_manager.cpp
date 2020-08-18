@@ -60,10 +60,7 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 
 void DevicesManager::setDevice(int /* deviceId */) const {}
 
-void DevicesManager::setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& /* deviceInfos */,
-                               int /* deviceId */)
-{
-}
+void DevicesManager::setDevice(const DeviceInformation& /* deviceInfo */) {}
 
 std::string DevicesManager::getDeviceInformationString(int deviceId) const
 {

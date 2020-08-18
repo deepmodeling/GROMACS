@@ -494,11 +494,9 @@ void DevicesManager::setDevice(int deviceId) const
     }
 }
 
-void DevicesManager::setDevice(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos, int deviceId)
+void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
 {
-    GMX_ASSERT(deviceId >= 0 && deviceId < static_cast<int>(deviceInfos.size()),
-               "Trying to set invalid device");
-
+    int         deviceId = deviceInfo.id;
     cudaError_t stat;
 
     stat = cudaSetDevice(deviceId);
@@ -510,7 +508,7 @@ void DevicesManager::setDevice(const std::vector<std::unique_ptr<DeviceInformati
 
     if (debug)
     {
-        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfos[deviceId]->prop.name);
+        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfo.prop.name);
     }
 }
 

@@ -342,10 +342,11 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         }
     }
 
-    if (bGPUBinary && hwinfo->gpu_info.numDevices() > 0)
+    if (bGPUBinary && !hwinfo->deviceInfos.empty())
     {
         s += gmx::formatString("  GPU info:\n");
-        s += gmx::formatString("    Number of GPUs detected: %d\n", hwinfo->gpu_info.numDevices());
+        s += gmx::formatString("    Number of GPUs detected: %d\n",
+                               static_cast<int>(hwinfo->deviceInfos.size()));
         s += sprint_gpus(hwinfo->deviceInfos) + "\n";
     }
     return s;
