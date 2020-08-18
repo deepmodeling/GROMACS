@@ -320,7 +320,7 @@ bool isPinned(const VectorType& v)
 
 TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
 {
-    if (!DevicesManager::canComputeOnGpu())
+    if (!DevicesManager::canComputeOnDevice())
     {
         return;
     }

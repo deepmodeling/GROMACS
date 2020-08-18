@@ -71,7 +71,6 @@ public:
     DevicesManager() = default;
     //! Destructor.
     ~DevicesManager();
-    static void freeDevice(DeviceInformation* deviceInfo);
 
     /*! \brief Return whether GPUs can be detected.
      *
@@ -79,12 +78,13 @@ public:
      * GPU usage, GPU detection is not disabled by an environment variable
      * and a valid device driver, ICD, and/or runtime was detected.
      * Does not throw.
+     *
      * \param[out] errorMessage  When returning false on a build configured with
      *                           GPU support and non-nullptr was passed,
      *                           the string contains a descriptive message about
      *                           why GPUs cannot be detected.
      */
-    static bool canPerformGpuDetection(std::string* errorMessage);
+    static bool canPerformDeviceDetection(std::string* errorMessage);
 
     /*! \brief Return whether GPU detection is functioning correctly
      *
@@ -102,18 +102,18 @@ public:
      *
      * Does not throw.
      */
-    static bool isGpuDetectionFunctional(std::string* errorMessage);
+    static bool isDeviceDetectionFunctional(std::string* errorMessage);
 
     /*! \brief Checks if one can compute on the GPU
      *
      * \returns  True if the build supports GPUs and there are at least one available.
      */
-    static bool canComputeOnGpu();
+    static bool canComputeOnDevice();
 
     /*! \brief Find all GPUs in the system.
      *
      *  Will detect every GPU supported by the device driver in use.
-     *  Must only be called if canPerformGpuDetection() has returned true.
+     *  Must only be called if canPerformDeviceDetection() has returned true.
      *  This routine also checks for the compatibility of each and fill the
      *  deviceInfo array with the required information on each the
      *  device: ID, device properties, status.
@@ -136,18 +136,38 @@ public:
      * This function filters the result of the detection for compatible
      * GPUs, based on the previously run compatibility tests.
      *
+     * \param[in] deviceInfos An information on available devices.
+     *
      * \return  Vector of IDs of GPUs already recorded as compatible
      */
-    static std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInfos);
+    static std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
 
     /*! \brief Set the active GPU
      *
-     * \param[in] deviceId  Index of selected device.
+     * \param[in] deviceInfo Information on the device to be set.
      *
      * Issues a fatal error for any critical errors that occur during
      * initialization.
      */
     static void setDevice(const DeviceInformation& deviceInfo);
+
+    /*! \brief Frees up the GPU device used by the active context at the time of calling (CUDA only).
+     *
+     * If \c deviceInfo is nullptr, then it is understood that no device
+     * was selected so no context is active to be freed. Otherwise, the
+     * context is explicitly destroyed and therefore all data uploaded to
+     * the GPU is lost. This must only be called when none of this data is
+     * required anymore, because subsequent attempts to free memory
+     * associated with the context will otherwise fail.
+     *
+     * Calls gmx_warning upon errors.
+     *
+     * \todo This should go through all the devices, not only the one currently active.
+     *       Reseting only one device will not work, e.g. in CUDA tests.
+     *
+     * \param[in] deviceInfo Information on the device to be released.
+     */
+    static void freeDevice(DeviceInformation* deviceInfo);
 
     /*! \brief Formats and returns a device information string for a given GPU.
      *
@@ -167,8 +187,9 @@ public:
      * \param[in] devdeviceId An index of the device to check
      * \returns               A string describing the compatibility status, useful for error messages.
      */
-    static std::string getGpuCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
-                                                      int deviceId);
+    static std::string
+    getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                      int deviceId);
 
     static void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
                                             gmx::ISerializer* serializer);

@@ -89,7 +89,7 @@ std::vector<std::string> getRunnersNames()
 {
     runnersNames.emplace_back("SHAKE");
     runnersNames.emplace_back("LINCS");
-    if (GMX_GPU_CUDA && DevicesManager::canComputeOnGpu())
+    if (GMX_GPU_CUDA && DevicesManager::canComputeOnDevice())
     {
         runnersNames.emplace_back("LINCS_GPU");
     }

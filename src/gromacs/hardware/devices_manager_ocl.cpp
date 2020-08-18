@@ -266,9 +266,7 @@ static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation& deviceInf
 
 DevicesManager::~DevicesManager() = default;
 
-void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
-
-bool DevicesManager::isGpuDetectionFunctional(std::string* errorMessage)
+bool DevicesManager::isDeviceDetectionFunctional(std::string* errorMessage)
 {
     cl_uint numPlatforms;
     cl_int  status = clGetPlatformIDs(0, nullptr, &numPlatforms);
@@ -503,6 +501,8 @@ void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
 #endif
     }
 }
+
+void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
 
 std::string DevicesManager::getDeviceInformationString(const DeviceInformation& deviceInfo)
 {

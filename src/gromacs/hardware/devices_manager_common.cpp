@@ -49,16 +49,27 @@
 #include "gromacs/hardware/devices_manager.h"
 #include "gromacs/utility/fatalerror.h"
 
-bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)
+bool DevicesManager::canPerformDeviceDetection(std::string* errorMessage)
 {
     if (GMX_GPU && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
     {
-        return DevicesManager::isGpuDetectionFunctional(errorMessage);
+        return DevicesManager::isDeviceDetectionFunctional(errorMessage);
     }
     else
     {
         return false;
     }
+}
+
+bool DevicesManager::canComputeOnDevice()
+{
+    bool canComputeOnDevice = false;
+    if (DevicesManager::canPerformDeviceDetection(nullptr))
+    {
+        std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
+        canComputeOnDevice = !DevicesManager::getCompatibleDevices(devInfos).empty();
+    }
+    return canComputeOnDevice;
 }
 
 std::vector<int> DevicesManager::getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
@@ -76,24 +87,13 @@ std::vector<int> DevicesManager::getCompatibleDevices(const std::vector<std::uni
     return compatibleGpus;
 }
 
-std::string DevicesManager::getGpuCompatibilityDescription(
+std::string DevicesManager::getDeviceCompatibilityDescription(
         const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
         int                                                    deviceId)
 {
     return (deviceId >= static_cast<int>(deviceInfos.size())
                     ? c_deviceStateString[DeviceStatus::Nonexistent]
                     : c_deviceStateString[deviceInfos[deviceId]->status]);
-}
-
-bool DevicesManager::canComputeOnGpu()
-{
-    bool canComputeOnGpu = false;
-    if (DevicesManager::canPerformGpuDetection(nullptr))
-    {
-        std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnGpu = !DevicesManager::getCompatibleDevices(devInfos).empty();
-    }
-    return canComputeOnGpu;
 }
 
 void DevicesManager::serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,

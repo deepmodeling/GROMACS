@@ -51,8 +51,6 @@
 
 DevicesManager::~DevicesManager() = default;
 
-void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
-
 std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 {
     return {};
@@ -60,12 +58,14 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 
 void DevicesManager::setDevice(const DeviceInformation& /* deviceInfo */) {}
 
+void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
+
 std::string DevicesManager::getDeviceInformationString(const DeviceInformation& /* deviceInfo */)
 {
     gmx_fatal(FARGS, "Device information requested in CPU build.");
 }
 
-bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)
+bool DevicesManager::isDeviceDetectionFunctional(std::string* /* errorMessage */)
 {
     return false;
 }

@@ -56,45 +56,6 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-/*! \brief Frees up the CUDA GPU used by the active context at the time of calling.
- *
- * If \c deviceInfos_ is nullptr, then it is understood that no device
- * was selected so no context is active to be freed. Otherwise, the
- * context is explicitly destroyed and therefore all data uploaded to
- * the GPU is lost. This must only be called when none of this data is
- * required anymore, because subsequent attempts to free memory
- * associated with the context will otherwise fail.
- *
- * Calls gmx_warning upon errors.
- *
- * \todo This should go through all the devices, not only the one currently active.
- *       Reseting only one device will not work, e.g. in CUDA tests.
- */
-void DevicesManager::freeDevice(DeviceInformation* deviceInfo)
-{
-    // device was used is that deviceInfo will be non-null.
-    if (deviceInfo != nullptr)
-    {
-        cudaError_t stat;
-
-        int gpuid;
-        stat = cudaGetDevice(&gpuid);
-        if (stat == cudaSuccess)
-        {
-            if (debug)
-            {
-                fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
-            }
-
-            stat = cudaDeviceReset();
-            if (stat != cudaSuccess)
-            {
-                gmx_warning("Failed to free GPU #%d: %s", gpuid, cudaGetErrorString(stat));
-            }
-        }
-    }
-}
-
 /*! \internal \brief
  * Max number of devices supported by CUDA (for consistency checking).
  *
@@ -294,7 +255,7 @@ static DeviceStatus checkDeviceStatus(int deviceId, const cudaDeviceProp& device
     return isDeviceFunctional(deviceId, deviceProp);
 }
 
-bool DevicesManager::isGpuDetectionFunctional(std::string* errorMessage)
+bool DevicesManager::isDeviceDetectionFunctional(std::string* errorMessage)
 {
     cudaError_t stat;
     int         driverVersion = -1;
@@ -423,6 +384,31 @@ void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
     if (debug)
     {
         fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfo.prop.name);
+    }
+}
+
+void DevicesManager::freeDevice(DeviceInformation* deviceInfo)
+{
+    // device was used is that deviceInfo will be non-null.
+    if (deviceInfo != nullptr)
+    {
+        cudaError_t stat;
+
+        int gpuid;
+        stat = cudaGetDevice(&gpuid);
+        if (stat == cudaSuccess)
+        {
+            if (debug)
+            {
+                fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
+            }
+
+            stat = cudaDeviceReset();
+            if (stat != cudaSuccess)
+            {
+                gmx_warning("Failed to free GPU #%d: %s", gpuid, cudaGetErrorString(stat));
+            }
+        }
     }
 }
 

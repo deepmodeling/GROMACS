@@ -233,7 +233,7 @@ void checkUserGpuIds(const std::vector<std::unique_ptr<DeviceInformation>>& devi
             foundIncompatibleGpuIds = true;
             message += gmx::formatString(
                     "    GPU #%d: %s\n", gpuId,
-                    DevicesManager::getGpuCompatibilityDescription(deviceInfos, gpuId).c_str());
+                    DevicesManager::getDeviceCompatibilityDescription(deviceInfos, gpuId).c_str());
         }
     }
     if (foundIncompatibleGpuIds)

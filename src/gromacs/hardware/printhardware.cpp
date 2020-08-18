@@ -143,7 +143,7 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         s += gmx::formatString(" %d cores,", hwinfo->ncore_tot);
     }
     s += gmx::formatString(" %d logical cores", hwinfo->nhwthread_tot);
-    if (DevicesManager::canPerformGpuDetection(nullptr))
+    if (DevicesManager::canPerformDeviceDetection(nullptr))
     {
         s += gmx::formatString(", %d compatible GPU%s", hwinfo->ngpu_compatible_tot,
                                hwinfo->ngpu_compatible_tot == 1 ? "" : "s");
