@@ -51,22 +51,14 @@
 
 DevicesManager::~DevicesManager() = default;
 
-void DevicesManager::findGpus() {}
+void DevicesManager::freeDevice(DeviceInformation* /* deviceInfo */) {}
 
 std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 {
     return {};
 }
 
-void DevicesManager::setDevice(int /* deviceId */) const {}
-
 void DevicesManager::setDevice(const DeviceInformation& /* deviceInfo */) {}
-
-std::string DevicesManager::getDeviceInformationString(int deviceId) const
-{
-    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
-    gmx_fatal(FARGS, "Device information requested in CPU build.");
-}
 
 std::string DevicesManager::getDeviceInformationString(const DeviceInformation& /* deviceInfo */)
 {
@@ -76,9 +68,4 @@ std::string DevicesManager::getDeviceInformationString(const DeviceInformation& 
 bool DevicesManager::isGpuDetectionFunctional(std::string* /* errorMessage */)
 {
     return false;
-}
-
-size_t DevicesManager::getDeviceInformationSize()
-{
-    return sizeof(DeviceInformation);
 }

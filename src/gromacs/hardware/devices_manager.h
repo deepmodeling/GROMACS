@@ -71,6 +71,7 @@ public:
     DevicesManager() = default;
     //! Destructor.
     ~DevicesManager();
+    static void freeDevice(DeviceInformation* deviceInfo);
 
     /*! \brief Return whether GPUs can be detected.
      *
@@ -117,11 +118,11 @@ public:
      *  \todo:  Check if errors do propagate in OpenCL as they do in CUDA and
      *          whether there is a mechanism to "clear" them.
      *
+     * \return  Standard vector with the list of devices found
+     *
      *  \throws InternalError if a GPU API returns an unexpected failure (because
      *          the call to canDetectGpus() should always prevent this occuring)
      */
-    void findGpus();
-
     static std::vector<std::unique_ptr<DeviceInformation>> findDevices();
 
     /*! \brief Return a container of the detected GPUs that are compatible.
@@ -131,16 +132,8 @@ public:
      *
      * \return  Vector of IDs of GPUs already recorded as compatible
      */
-    std::vector<int> getCompatibleGpus() const;
-
-    /*! \brief Return a container of the detected GPUs that are compatible.
-     *
-     * This function filters the result of the detection for compatible
-     * GPUs, based on the previously run compatibility tests.
-     *
-     * \return  Vector of IDs of GPUs already recorded as compatible
-     */
     static std::vector<int> getCompatibleGpus(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInformation);
+
 
     static bool isGpuCompatible(const DeviceInformation& deviceInformation);
 
@@ -154,16 +147,7 @@ public:
      * Issues a fatal error for any critical errors that occur during
      * initialization.
      */
-    void        setDevice(int deviceId) const;
     static void setDevice(const DeviceInformation& deviceInfo);
-
-    /*! \brief Return a pointer to the device information for \c deviceId
-     *
-     * \param[in] deviceId  ID for the GPU device requested.
-     *
-     * \returns  Pointer to the device info for \c deviceId.
-     */
-    DeviceInformation* getDeviceInformation(int deviceId) const;
 
     /*! \brief Formats and returns a device information string for a given GPU.
      *
@@ -171,11 +155,10 @@ public:
      * a formatted info string for the respective GPU which includes ID, name,
      * compute capability, and detection status.
      *
-     * \param[in] deviceId  An index *directly* into the array of available GPUs
+     * \param[in] deviceInfo  An information on device that is to be set.
      *
      * \returns A string describing the device.
      */
-    std::string        getDeviceInformationString(int deviceId) const;
     static std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 
     /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
@@ -206,19 +189,6 @@ public:
                                             gmx::ISerializer* serializer);
 
     static std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
-
-    //! Total number of GPU devices detected on this physical node
-    int numDevices() const { return numDevices_; }
-    //! Number of GPU devices detected on this physical node that are compatible.
-    int numCompatibleDevices() const { return numCompatibleDevices_; }
-
-
-    //! Total number of GPU devices detected on this physical node
-    int numDevices_ = 0;
-    //! Number of GPU devices detected on this physical node that are compatible.
-    int numCompatibleDevices_ = 0;
-    //! Information about each GPU device detected on this physical node
-    DeviceInformation* deviceInfos_ = nullptr;
 };
 
 #endif // GMX_HARDWARE_DEVICES_MANAGER_H

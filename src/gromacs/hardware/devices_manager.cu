@@ -70,12 +70,10 @@
  * \todo This should go through all the devices, not only the one currently active.
  *       Reseting only one device will not work, e.g. in CUDA tests.
  */
-DevicesManager::~DevicesManager()
+void DevicesManager::freeDevice(DeviceInformation* deviceInfo)
 {
-    // One should only attempt to clear the device context when
-    // it has been used, but currently the only way to know that a GPU
     // device was used is that deviceInfo will be non-null.
-    if (deviceInfos_ != nullptr)
+    if (deviceInfo != nullptr)
     {
         cudaError_t stat;
 
@@ -351,70 +349,6 @@ bool DevicesManager::isGpuDetectionFunctional(std::string* errorMessage)
     return true;
 }
 
-void DevicesManager::findGpus()
-{
-    numCompatibleDevices_ = 0;
-
-    cudaError_t stat = cudaGetDeviceCount(&numDevices_);
-    if (stat != cudaSuccess)
-    {
-        GMX_THROW(gmx::InternalError(
-                "Invalid call of findGpus() when CUDA API returned an error, perhaps "
-                "canDetectGpus() was not called appropriately beforehand."));
-    }
-
-    // We expect to start device support/sanity checks with a clean runtime error state
-    gmx::ensureNoPendingCudaError("");
-
-    DeviceInformation* devs;
-    snew(devs, numDevices_);
-    for (int i = 0; i < numDevices_; i++)
-    {
-        cudaDeviceProp prop;
-        memset(&prop, 0, sizeof(cudaDeviceProp));
-        stat = cudaGetDeviceProperties(&prop, i);
-        const DeviceStatus checkResult =
-                (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
-
-        devs[i].id     = i;
-        devs[i].prop   = prop;
-        devs[i].status = checkResult;
-
-        if (checkResult == DeviceStatus::Compatible)
-        {
-            numCompatibleDevices_++;
-        }
-        else
-        {
-            // TODO:
-            //  - we inspect the CUDA API state to retrieve and record any
-            //    errors that occurred during isDeviceSupported() here,
-            //    but this would be more elegant done within isDeviceSupported()
-            //    and only return a string with the error if one was encountered.
-            //  - we'll be reporting without rank information which is not ideal.
-            //  - we'll end up warning also in cases where users would already
-            //    get an error before mdrun aborts.
-            //
-            // Here we also clear the CUDA API error state so potential
-            // errors during sanity checks don't propagate.
-            if ((stat = cudaGetLastError()) != cudaSuccess)
-            {
-                gmx_warning("An error occurred while sanity checking device #%d; %s: %s",
-                            devs[i].id, cudaGetErrorName(stat), cudaGetErrorString(stat));
-            }
-        }
-    }
-
-    stat = cudaPeekAtLastError();
-    GMX_RELEASE_ASSERT(stat == cudaSuccess,
-                       gmx::formatString("We promise to return with clean CUDA state, but "
-                                         "non-success state encountered: %s: %s",
-                                         cudaGetErrorName(stat), cudaGetErrorString(stat))
-                               .c_str());
-
-    deviceInfos_ = devs;
-}
-
 std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
 {
     int         numDevices;
@@ -474,26 +408,6 @@ std::vector<std::unique_ptr<DeviceInformation>> DevicesManager::findDevices()
     return deviceInfos;
 }
 
-void DevicesManager::setDevice(int deviceId) const
-{
-    GMX_ASSERT(deviceId >= 0 && deviceId < numDevices_ && deviceInfos_ != nullptr,
-               "Trying to set invalid device");
-
-    cudaError_t stat;
-
-    stat = cudaSetDevice(deviceId);
-    if (stat != cudaSuccess)
-    {
-        auto message = gmx::formatString("Failed to initialize GPU #%d", deviceId);
-        CU_RET_ERR(stat, message.c_str());
-    }
-
-    if (debug)
-    {
-        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfos_[deviceId].prop.name);
-    }
-}
-
 void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
 {
     int         deviceId = deviceInfo.id;
@@ -509,29 +423,6 @@ void DevicesManager::setDevice(const DeviceInformation& deviceInfo)
     if (debug)
     {
         fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceId, deviceInfo.prop.name);
-    }
-}
-
-std::string DevicesManager::getDeviceInformationString(int deviceId) const
-{
-    GMX_RELEASE_ASSERT(deviceId >= 0 && deviceId < numDevices_, "Device index is out of range.");
-
-    const DeviceInformation& deviceInfo = deviceInfos_[deviceId];
-
-    bool gpuExists = (deviceInfo.status != DeviceStatus::Nonexistent
-                      && deviceInfo.status != DeviceStatus::NonFunctional);
-
-    if (!gpuExists)
-    {
-        return gmx::formatString("#%d: %s, stat: %s", deviceInfo.id, "N/A",
-                                 c_deviceStateString[deviceInfo.status]);
-    }
-    else
-    {
-        return gmx::formatString("#%d: NVIDIA %s, compute cap.: %d.%d, ECC: %3s, stat: %s",
-                                 deviceInfo.id, deviceInfo.prop.name, deviceInfo.prop.major,
-                                 deviceInfo.prop.minor, deviceInfo.prop.ECCEnabled ? "yes" : " no",
-                                 c_deviceStateString[deviceInfo.status]);
     }
 }
 
@@ -552,9 +443,4 @@ std::string DevicesManager::getDeviceInformationString(const DeviceInformation& 
                                  deviceInfo.prop.minor, deviceInfo.prop.ECCEnabled ? "yes" : " no",
                                  c_deviceStateString[deviceInfo.status]);
     }
-}
-
-size_t DevicesManager::getDeviceInformationSize()
-{
-    return sizeof(DeviceInformation);
 }

@@ -61,21 +61,6 @@ bool DevicesManager::canPerformGpuDetection(std::string* errorMessage)
     }
 }
 
-std::vector<int> DevicesManager::getCompatibleGpus() const
-{
-    // Possible minor over-allocation here, but not important for anything
-    std::vector<int> compatibleGpus;
-    compatibleGpus.reserve(numDevices_);
-    for (int i = 0; i < numDevices_; i++)
-    {
-        if (deviceInfos_[i].status == DeviceStatus::Compatible)
-        {
-            compatibleGpus.push_back(i);
-        }
-    }
-    return compatibleGpus;
-}
-
 std::vector<int> DevicesManager::getCompatibleGpus(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInformation)
 {
     // Possible minor over-allocation here, but not important for anything
@@ -109,15 +94,6 @@ int DevicesManager::numCompatibleDevices(const std::vector<std::unique_ptr<Devic
     return numCompatibleDevices;
 }
 
-DeviceInformation* DevicesManager::getDeviceInformation(int deviceId) const
-{
-    if (deviceId < 0 || deviceId >= numDevices_)
-    {
-        gmx_incons("Invalid GPU deviceId requested");
-    }
-    return &deviceInfos_[deviceId];
-}
-
 std::string DevicesManager::getGpuCompatibilityDescription(
         const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
         int                                                    deviceId)
@@ -129,12 +105,11 @@ std::string DevicesManager::getGpuCompatibilityDescription(
 
 bool DevicesManager::canComputeOnGpu()
 {
-    bool           canComputeOnGpu = false;
-    DevicesManager devicesManager{};
+    bool canComputeOnGpu = false;
     if (DevicesManager::canPerformGpuDetection(nullptr))
     {
-        devicesManager.findGpus();
-        canComputeOnGpu = !devicesManager.getCompatibleGpus().empty();
+        std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
+        canComputeOnGpu = (DevicesManager::numCompatibleDevices(devInfos) > 0);
     }
     return canComputeOnGpu;
 }
