@@ -68,17 +68,12 @@ std::vector<int> DevicesManager::getCompatibleDevices(const std::vector<std::uni
     compatibleGpus.reserve(deviceInfos.size());
     for (const auto& deviceInfo : deviceInfos)
     {
-        if (DevicesManager::isGpuCompatible(*deviceInfo))
+        if (deviceInfo->status == DeviceStatus::Compatible)
         {
             compatibleGpus.push_back(deviceInfo->id);
         }
     }
     return compatibleGpus;
-}
-
-bool DevicesManager::isGpuCompatible(const DeviceInformation& deviceInformation)
-{
-    return (deviceInformation.status == DeviceStatus::Compatible);
 }
 
 std::string DevicesManager::getGpuCompatibilityDescription(
@@ -96,7 +91,7 @@ bool DevicesManager::canComputeOnGpu()
     if (DevicesManager::canPerformGpuDetection(nullptr))
     {
         std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnGpu = (DevicesManager::getCompatibleDevices(devInfos).size() > 0);
+        canComputeOnGpu = !DevicesManager::getCompatibleDevices(devInfos).empty();
     }
     return canComputeOnGpu;
 }

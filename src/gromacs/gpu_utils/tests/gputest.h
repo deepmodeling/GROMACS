@@ -62,8 +62,6 @@ public:
 
     GpuTest();
     ~GpuTest() override;
-    //! Return whether compatible GPUs were found
-    bool haveCompatibleGpus() const;
     //! Return a vector of handles, each to a device info for a compatible GPU.
     std::vector<std::unique_ptr<DeviceInformation>>& getDeviceInfos();
 };

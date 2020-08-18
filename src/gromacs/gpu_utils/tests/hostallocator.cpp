@@ -99,18 +99,15 @@ ArrayRef<char> charArrayRefFromArray(T* data, size_t size)
 template<typename T>
 void runTest(const DeviceInformation& deviceInfo, ArrayRef<T> input, ArrayRef<T> output)
 {
-    if (DevicesManager::isGpuCompatible(deviceInfo))
-    {
-        // Convert the views of input and output to flat non-const chars,
-        // so that there's no templating when we call doDeviceTransfers.
-        auto inputRef  = charArrayRefFromArray(input.data(), input.size());
-        auto outputRef = charArrayRefFromArray(output.data(), output.size());
+    // Convert the views of input and output to flat non-const chars,
+    // so that there's no templating when we call doDeviceTransfers.
+    auto inputRef  = charArrayRefFromArray(input.data(), input.size());
+    auto outputRef = charArrayRefFromArray(output.data(), output.size());
 
-        ASSERT_EQ(inputRef.size(), outputRef.size());
+    ASSERT_EQ(inputRef.size(), outputRef.size());
 
-        doDeviceTransfers(deviceInfo, inputRef, outputRef);
-        compareViews(input, output);
-    }
+    doDeviceTransfers(deviceInfo, inputRef, outputRef);
+    compareViews(input, output);
 }
 
 struct MoveOnly
@@ -202,8 +199,9 @@ TYPED_TEST(HostAllocatorTestCopyable, VectorsWithDefaultHostAllocatorAlwaysWorks
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
 {
-    for (auto& deviceInfo : this->devicesInfos_)
+    for (int deviceId : DevicesManager::getCompatibleDevices(this->devicesInfos_))
     {
+        auto&                            deviceInfo = this->devicesInfos_[deviceId];
         typename TestFixture::VectorType input;
         fillInput(&input, 1);
         typename TestFixture::VectorType output;
@@ -322,7 +320,7 @@ bool isPinned(const VectorType& v)
 
 TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
 {
-    if (!this->haveCompatibleGpus())
+    if (!DevicesManager::canComputeOnGpu())
     {
         return;
     }

@@ -65,16 +65,6 @@ GpuTest::GpuTest()
 
 GpuTest::~GpuTest() = default;
 
-bool GpuTest::haveCompatibleGpus() const
-{
-    bool foundCompatibleDevice = false;
-    for (auto& deviceInfo : devicesInfos_)
-    {
-        foundCompatibleDevice = foundCompatibleDevice || DevicesManager::isGpuCompatible(*deviceInfo);
-    }
-    return foundCompatibleDevice;
-}
-
 std::vector<std::unique_ptr<DeviceInformation>>& GpuTest::getDeviceInfos()
 {
     return devicesInfos_;

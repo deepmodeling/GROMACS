@@ -104,6 +104,12 @@ public:
      */
     static bool isGpuDetectionFunctional(std::string* errorMessage);
 
+    /*! \brief Checks if one can compute on the GPU
+     *
+     * \returns  True if the build supports GPUs and there are at least one available.
+     */
+    static bool canComputeOnGpu();
+
     /*! \brief Find all GPUs in the system.
      *
      *  Will detect every GPU supported by the device driver in use.
@@ -134,8 +140,6 @@ public:
      */
     static std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& devicesInfos);
 
-    static bool isGpuCompatible(const DeviceInformation& deviceInformation);
-
     /*! \brief Set the active GPU
      *
      * \param[in] deviceId  Index of selected device.
@@ -165,12 +169,6 @@ public:
      */
     static std::string getGpuCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
                                                       int deviceId);
-
-    /*! \brief Checks if one can compute on the GPU
-     *
-     * \returns  True if the build supports GPUs and there are at least one available.
-     */
-    static bool canComputeOnGpu();
 
     static void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
                                             gmx::ISerializer* serializer);
