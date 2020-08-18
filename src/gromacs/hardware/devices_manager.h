@@ -205,8 +205,6 @@ public:
     int numCompatibleDevices() const { return numCompatibleDevices_; }
 
 
-    //! Did we attempt GPU detection?
-    bool performedDevicesDetection_ = false;
     //! Total number of GPU devices detected on this physical node
     int numDevices_ = 0;
     //! Number of GPU devices detected on this physical node that are compatible.
