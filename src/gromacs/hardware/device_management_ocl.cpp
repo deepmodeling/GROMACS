@@ -264,8 +264,6 @@ static DeviceStatus checkGpu(size_t deviceId, const DeviceInformation& deviceInf
 
 } // namespace gmx
 
-~DevicesManager() = default;
-
 bool isDeviceDetectionFunctional(std::string* errorMessage)
 {
     cl_uint numPlatforms;
