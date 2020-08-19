@@ -75,7 +75,7 @@ void throwUponFailure(cl_int status, const char* message)
 void doDeviceTransfers(const DeviceInformation& deviceInfo, ArrayRef<const char> input, ArrayRef<char> output)
 {
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
-   
+
     cl_int status;
 
     cl_context_properties properties[] = {

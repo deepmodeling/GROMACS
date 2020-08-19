@@ -82,7 +82,7 @@ void doDeviceTransfers(const DeviceInformation& deviceInfo, ArrayRef<const char>
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
     cudaError_t status;
 
-    int         oldDeviceId;
+    int oldDeviceId;
 
     status = cudaGetDevice(&oldDeviceId);
     throwUponFailure(status, "getting old device id");
