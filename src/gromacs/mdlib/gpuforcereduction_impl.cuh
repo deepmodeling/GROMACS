@@ -91,7 +91,7 @@ public:
      * \param [in] accumulate       Whether reduction should be accumulated
      * \param [in] completionMarker Event to be marked when launch of reduction is complete
      */
-    void reinit(void*                 baseForcePtr,
+    void reinit(float3*               baseForcePtr,
                 const int             numAtoms,
                 ArrayRef<const int>   cell,
                 const int             atomStart,
@@ -103,7 +103,7 @@ public:
 
 private:
     //! force to be used as a base for this reduction
-    void* baseForce_ = nullptr;
+    float3* baseForce_ = nullptr;
     //! starting atom
     int atomStart_ = 0;
     //! number of atoms

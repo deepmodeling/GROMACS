@@ -93,7 +93,7 @@ public:
      * \param [in] accumulate       Whether reduction should be accumulated
      * \param [in] completionMarker Event to be marked when launch of reduction is complete
      */
-    void reinit(void*                 baseForcePtr,
+    void reinit(DeviceBuffer<RVec>    baseForcePtr,
                 int                   numAtoms,
                 ArrayRef<const int>   cell,
                 int                   atomStart,

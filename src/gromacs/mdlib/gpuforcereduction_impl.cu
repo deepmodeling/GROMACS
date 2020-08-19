@@ -109,7 +109,7 @@ GpuForceReduction::Impl::Impl(const DeviceContext& deviceContext, const DeviceSt
     deviceContext_(deviceContext),
     deviceStream_(deviceStream){};
 
-void GpuForceReduction::Impl::reinit(void*                 baseForcePtr,
+void GpuForceReduction::Impl::reinit(float3*               baseForcePtr,
                                      const int             numAtoms,
                                      ArrayRef<const int>   cell,
                                      const int             atomStart,
@@ -216,14 +216,14 @@ void GpuForceReduction::addDependency(GpuEventSynchronizer* const dependency)
     impl_->addDependency(dependency);
 }
 
-void GpuForceReduction::reinit(void*                 baseForcePtr,
+void GpuForceReduction::reinit(DeviceBuffer<RVec>    baseForcePtr,
                                const int             numAtoms,
                                ArrayRef<const int>   cell,
                                const int             atomStart,
                                const bool            accumulate,
                                GpuEventSynchronizer* completionMarker)
 {
-    impl_->reinit(baseForcePtr, numAtoms, cell, atomStart, accumulate, completionMarker);
+    impl_->reinit(asFloat3(baseForcePtr), numAtoms, cell, atomStart, accumulate, completionMarker);
 }
 void GpuForceReduction::execute()
 {

@@ -1290,8 +1290,7 @@ void do_force(FILE*                               fplog,
                 GpuEventSynchronizer* const pmeSynchronizer =
                         (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
                                                        : // PME force buffer on same GPU
-                                 static_cast<GpuEventSynchronizer*>(
-                                         fr->pmePpCommGpu->getForcesReadySynchronizer())); // buffer received from other GPU
+                                 fr->pmePpCommGpu->getForcesReadySynchronizer()); // buffer received from other GPU
                 fr->gpuForceReductionLocal->addDependency(pmeSynchronizer);
             }
 
