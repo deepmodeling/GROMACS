@@ -58,40 +58,44 @@ namespace
 
 TEST(DevicesManagerTest, Serialization)
 {
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfosIn = findDevices();
-    gmx::InMemorySerializer                         writer;
-    serializeDeviceInformations(deviceInfosIn, &writer);
-    auto buffer = writer.finishAndGetBuffer();
-
-    gmx::InMemoryDeserializer                       reader(buffer, false);
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfosOut =
-            deserializeDeviceInformations(&reader);
-
-    EXPECT_EQ(deviceInfosOut.size(), deviceInfosIn.size())
-            << "Number of accessible devices changed after serialization/deserialization.";
-
-    for (int deviceId = 0; deviceId < static_cast<int>(deviceInfosIn.size()); deviceId++)
+    if (canPerformDeviceDetection(nullptr))
     {
-        EXPECT_FALSE(deviceInfosIn[deviceId] == nullptr) << gmx::formatString(
-                "Device #%d information is nullptr before serialization.", deviceId);
-        EXPECT_FALSE(deviceInfosOut[deviceId] == nullptr) << gmx::formatString(
-                "Device #%d information is nullptr after serialization.", deviceId);
+        std::vector<std::unique_ptr<DeviceInformation>> deviceInfosIn = findDevices();
+        gmx::InMemorySerializer                         writer;
+        serializeDeviceInformations(deviceInfosIn, &writer);
+        auto buffer = writer.finishAndGetBuffer();
 
-        const DeviceInformation& deviceInfoIn  = *deviceInfosIn[deviceId];
-        const DeviceInformation& deviceInfoOut = *deviceInfosOut[deviceId];
-        EXPECT_EQ(deviceInfoIn.status, deviceInfoOut.status) << gmx::formatString(
-                "Device status changed after serialization/deserialization for device #%d.", deviceId);
+        gmx::InMemoryDeserializer                       reader(buffer, false);
+        std::vector<std::unique_ptr<DeviceInformation>> deviceInfosOut =
+                deserializeDeviceInformations(&reader);
 
-        EXPECT_EQ(deviceInfoIn.id, deviceInfoOut.id) << gmx::formatString(
-                "Device id changed after serialization/deserialization for device #%d.", deviceId);
+        EXPECT_EQ(deviceInfosOut.size(), deviceInfosIn.size())
+                << "Number of accessible devices changed after serialization/deserialization.";
+
+        for (int deviceId = 0; deviceId < static_cast<int>(deviceInfosIn.size()); deviceId++)
+        {
+            EXPECT_FALSE(deviceInfosIn[deviceId] == nullptr) << gmx::formatString(
+                    "Device #%d information is nullptr before serialization.", deviceId);
+            EXPECT_FALSE(deviceInfosOut[deviceId] == nullptr) << gmx::formatString(
+                    "Device #%d information is nullptr after serialization.", deviceId);
+
+            const DeviceInformation& deviceInfoIn  = *deviceInfosIn[deviceId];
+            const DeviceInformation& deviceInfoOut = *deviceInfosOut[deviceId];
+            EXPECT_EQ(deviceInfoIn.status, deviceInfoOut.status) << gmx::formatString(
+                    "Device status changed after serialization/deserialization for device #%d.", deviceId);
+
+            EXPECT_EQ(deviceInfoIn.id, deviceInfoOut.id) << gmx::formatString(
+                    "Device id changed after serialization/deserialization for device #%d.", deviceId);
 
 #if GMX_GPU_OPENCL
-        EXPECT_EQ(deviceInfoIn.oclPlatformId, deviceInfoOut.oclPlatformId) << gmx::formatString(
-                "Device OpenCL platform ID changed after serialization/deserialization for device "
-                "#%d.",
-                deviceId);
+            EXPECT_EQ(deviceInfoIn.oclPlatformId, deviceInfoOut.oclPlatformId) << gmx::formatString(
+                    "Device OpenCL platform ID changed after serialization/deserialization for "
+                    "device "
+                    "#%d.",
+                    deviceId);
 
 #endif // GMX_GPU_OPENCL
+        }
     }
 }
 

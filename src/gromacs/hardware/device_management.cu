@@ -317,8 +317,8 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     if (stat != cudaSuccess)
     {
         GMX_THROW(gmx::InternalError(
-                "Invalid call of findGpus() when CUDA API returned an error, perhaps "
-                "canDetectGpus() was not called appropriately beforehand."));
+                "Invalid call of findDevices() when CUDA API returned an error, perhaps "
+                "canPerformDeviceDetection() was not called appropriately beforehand."));
     }
 
     // We expect to start device support/sanity checks with a clean runtime error state
