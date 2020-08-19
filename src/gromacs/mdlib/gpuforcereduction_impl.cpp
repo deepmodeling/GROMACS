@@ -64,7 +64,7 @@ GpuForceReduction::GpuForceReduction(const DeviceContext& /* deviceContext */,
 }
 
 // NOLINTNEXTLINE readability-convert-member-functions-to-static
-void GpuForceReduction::reinit(void* /*baseForcePtr*/,
+void GpuForceReduction::reinit(DeviceBuffer<RVec> /*baseForcePtr*/,
                                const int /*numAtoms*/,
                                ArrayRef<const int> /*cell*/,
                                const int /*atomStart*/,
