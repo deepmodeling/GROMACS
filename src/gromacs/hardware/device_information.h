@@ -139,6 +139,9 @@ struct DeviceInformation
     DeviceVendor   deviceVendor;        //!< Device vendor.
     size_t         maxWorkItemSizes[3]; //!< Workgroup size limits (CL_DEVICE_MAX_WORK_ITEM_SIZES).
     size_t         maxWorkGroupSize;    //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
+#elif GMX_GPU_SYCL
+    // SYCL-TODO:
+    // Add device data needed for SYCL here
 #endif
 };
 

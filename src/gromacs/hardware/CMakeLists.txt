@@ -49,6 +49,10 @@ elseif(GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(
         device_management.cu
         )
+elseif(GMX_GPU_SYCL)
+    gmx_add_libgromacs_sources(
+        device_management_sycl.cpp
+        )
 else()
     gmx_add_libgromacs_sources(
         device_management.cpp
