@@ -168,7 +168,7 @@ std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
  *
  * \param[in] deviceInfos An information on available devices.
- * \param[in] devdeviceId An index of the device to check
+ * \param[in] deviceId    An index of the device to check
  * \returns               A string describing the compatibility status, useful for error messages.
  */
 std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
