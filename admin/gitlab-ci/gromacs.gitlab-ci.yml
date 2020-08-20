@@ -223,6 +223,7 @@ gromacs:gcc-7:configure:
     - .use-opencl
     - .rules:merge-requests
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags: gitlab-runner-test
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AVX2_256"
     CMAKE_EXTRA_OPTIONS: "-DGMX_EXTERNAL_CLFFT=ON"
@@ -326,6 +327,7 @@ gromacs:gcc-7:release:configure:
     - .use-opencl
     - .rules:nightly-only-for-release
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags:	gitlab-runner-test
   variables:
     COMPILER_MAJOR_VERSION: 7
     CMAKE_EXTRA_OPTIONS: "-DGMX_EXTERNAL_CLFFT=ON"
@@ -408,6 +410,7 @@ gromacs:gcc-7:build:
     - .use-ccache
     - .rules:merge-requests
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags:	gitlab-runner-test
   needs:
     - job: gromacs:gcc-7:configure
       artifacts: true
@@ -516,6 +519,7 @@ gromacs:gcc-7:release:build:
     - .before_script:default
     - .use-ccache
     - .rules:nightly-only-for-release
+  tags: gitlab-runner-test
   stage: release-build
   variables:
     BUILD_DIR: release-builds-gcc
@@ -625,6 +629,7 @@ gromacs:gcc-7:test:
     - .gromacs:base:test
     - .rules:merge-requests
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags: gitlab-runner-test
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 2
@@ -704,6 +709,7 @@ gromacs:gcc-7:regressiontest:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags: gitlab-runner-test
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -803,6 +809,7 @@ gromacs:gcc-7:release:test:
     - .rules:nightly-only-for-release
   stage: release-tests
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags: gitlab-runner-test
   variables:
     BUILD_DIR: release-builds-gcc
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
@@ -847,6 +854,7 @@ gromacs:gcc-7:release:regressiontest:
     - .rules:nightly-only-for-release
   stage: release-tests
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
+  tags: gitlab-runner-test
   variables:
     BUILD_DIR: release-builds-gcc
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
