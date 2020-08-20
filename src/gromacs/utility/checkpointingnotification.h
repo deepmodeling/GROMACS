@@ -58,39 +58,15 @@ struct MdModulesWriteCheckpointData;
  *
  * Use members of this struct to sign up for checkpointing callbacks.
  *
-   \msc
-   wordwraparcs=true,
-   hscale="2";
-
-   runner [label="runner:\nMdrunner"],
-   CallParameter [label = "eventA:\nCallParameter"],
-   MOD [label = "mdModules_:\nMdModules"],
-   ModuleA [label="moduleA"],
-   ModuleB [label="moduleB"],
-   MdModuleNotification [label="notifier_:\nMdModuleNotification"];
-
-   MOD box MdModuleNotification [label = "mdModules_ owns notifier_ and moduleA/B"];
-   MOD =>> ModuleA [label="instantiates(notifier_)"];
-   ModuleA =>> MdModuleNotification [label="subscribe(otherfunc)"];
-   ModuleA =>> MOD;
-   MOD =>> ModuleB [label="instantiates(notifier_)"];
-   ModuleB =>> MdModuleNotification [label="subscribe(func)"];
-   ModuleB =>> MOD;
-   runner =>> CallParameter [label="instantiate"];
-   CallParameter =>> runner ;
-   runner =>> MOD [label="notify(eventA)"];
-   MOD =>> MdModuleNotification [label="notify(eventA)"];
-   MdModuleNotification =>> ModuleA [label="notify(eventA)"];
-   ModuleA -> ModuleA [label="func(eventA)"];
-   MdModuleNotification =>> ModuleB [label="notify(eventA)"];
-   ModuleB -> ModuleB [label="otherfunc(eventA)"];
-
-   \endmsc
+ * This struct allows to subscribe to a function trigger with a signature
+ * (void)(Parameter) by using 
+ * checkpointingNotifications_->subscribe((void)(Parameter)).
+ * 
+ * The available function signatures are registered via registerMdModuleNotification.
  *
- * The template arguments to the members of this struct directly reflect
- * the callback function signature. Arguments passed as pointers are always
- * meant to be modified, but never meant to be stored (in line with the policy
- * everywhere else).
+ * The object holding the CheckpointingNotification triggers the function call by
+ * checkpointingNotifications_->notify(Parameter).
+ *
  */
 struct CheckpointingNotification
 {
