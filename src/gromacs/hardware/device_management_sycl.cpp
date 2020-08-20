@@ -64,8 +64,16 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 {
     // SYCL-TODO:
     // Do the device detection and return the standard vector of SYCL-specific device informations.
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos;
-    return std::vector
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(0);
+    std::vector<cl::sycl::device> devices = cl::sycl::device::get_devices();
+    deviceInfos.reserve(devices.size());
+    for (int i = 0; i < static_cast<int>(devices.size()); i++)
+    {
+        deviceInfos[i] = std::make_unique<DeviceInformation>();
+        deviceInfos[i]->id = i;
+        deviceInfos[i]->syclDevice = syclDevice;
+    }
+    return deviceInfos;
 }
 
 void setDevice(const DeviceInformation& /* deviceInfo */)
