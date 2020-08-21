@@ -1294,12 +1294,13 @@ void do_force(FILE*                               fplog,
                 fr->gpuForceReductionLocal->addDependency(pmeSynchronizer);
             }
 
-            if ((domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr)) && !useGpuForcesHaloExchange)
+            if ((domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr))
+                && !ddUsesGpuDirectCommunication)
             {
                 fr->gpuForceReductionLocal->addDependency(
                         stateGpu->getForcesReadyOnDeviceEvent(AtomLocality::Local, true));
             }
-            if (useGpuForcesHaloExchange)
+            if (ddUsesGpuDirectCommunication)
             {
                 fr->gpuForceReductionLocal->addDependency(
                         cr->dd->gpuHaloExchange[0]->getForcesReadyOnDeviceEvent());
