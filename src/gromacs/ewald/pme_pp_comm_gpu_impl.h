@@ -73,7 +73,7 @@ public:
 
     /*! \brief Pull force buffer directly from GPU memory on PME
      * rank to either GPU or CPU memory on PP task using CUDA
-     * Memory copy.
+     * Memory copy or CUDA-aware MPI.
      *
      * recvPtr should be in GPU or CPU memory if recvPmeForceToGpu
      * is true or false, respectively. If receiving to GPU, this
@@ -87,12 +87,12 @@ public:
      * \param[in] recvSize Number of elements to receive
      * \param[in] receivePmeForceToGpu Whether receive is to GPU, otherwise CPU
      */
-    void receiveForceFromPmeCudaDirect(void* recvPtr, int recvSize, bool receivePmeForceToGpu);
+    void receiveForceFromPme(void* recvPtr, int recvSize, bool receivePmeForceToGpu);
 
 
     /*! \brief Push coordinates buffer directly to GPU memory on PME
      * task, from either GPU or CPU memory on PP task using CUDA
-     * Memory copy. sendPtr should be in GPU or CPU memory if
+     * Memory copy or CUDA-aware MPI. sendPtr should be in GPU or CPU memory if
      * sendPmeCoordinatesFromGpu is true or false respectively. If
      * sending from GPU, this method should be called after the
      * local GPU coordinate buffer operations. The remote PME task will
@@ -102,10 +102,10 @@ public:
      * \param[in] sendPmeCoordinatesFromGpu Whether send is from GPU, otherwise CPU
      * \param[in] coordinatesReadyOnDeviceEvent Event recorded when coordinates are available on device
      */
-    void sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
-                                        int                   sendSize,
-                                        bool                  sendPmeCoordinatesFromGpu,
-                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void sendCoordinatesToPme(void*                 sendPtr,
+                              int                   sendSize,
+                              bool                  sendPmeCoordinatesFromGpu,
+                              GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief
      * Return pointer to buffer used for staging PME force on GPU
@@ -115,17 +115,26 @@ public:
     /*! \brief
      * Return pointer to event recorded when forces are ready
      */
-    void* getForcesReadySynchronizer();
+    void* waitForcesReadyOrGetSynchronizer();
+
+private:
+#if GMX_MPI
+#    if GMX_THREAD_MPI
+    void sendCoordinatesToPmeCudaDirect(void* sendPtr,
+                                        int   sendSize,
+                                        bool gmx_unused       sendPmeCoordinatesFromGpu,
+                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+#    else
+    void sendCoordinatesToPmeCudaMPI(void* sendPtr,
+                                     int   sendSize,
+                                     bool gmx_unused       sendPmeCoordinatesFromGpu,
+                                     GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+#    endif
+#endif
 
 private:
     //! GPU context handle (not used in CUDA)
     const DeviceContext& deviceContext_;
-    //! Handle for CUDA stream used for the communication operations in this class
-    const DeviceStream& pmePpCommStream_;
-    //! Remote location of PME coordinate data buffer
-    void* remotePmeXBuffer_ = nullptr;
-    //! Remote location of PME force data buffer
-    void* remotePmeFBuffer_ = nullptr;
     //! communicator for simulation
     MPI_Comm comm_;
     //! Rank of PME task
@@ -136,10 +145,29 @@ private:
     int d_pmeForcesSize_ = -1;
     //! number of atoms allocated in recvbuf array
     int d_pmeForcesSizeAlloc_ = -1;
+
+    MPI_Request status_;
+
+#if GMX_THREAD_MPI
+    //! CUDA stream used for the communication operations in this class
+    const DeviceStream& pmePpCommStream_;
+    //! Remote location of PME coordinate data buffer
+    void* remotePmeXBuffer_ = nullptr;
+    //! Remote location of PME force data buffer
+    void* remotePmeFBuffer_ = nullptr;
+
     //! Event recorded when PME forces are ready on PME task
     GpuEventSynchronizer forcesReadySynchronizer_;
     //! Event recorded when coordinates have been transferred to PME task
     GpuEventSynchronizer pmeCoordinatesSynchronizer_;
+#else
+    //! Buffer for staging PP co-ordinates on GPU
+    rvec* d_ppCoord_ = nullptr;
+    //! number of atoms in PP co-ordinates staging array
+    int d_ppCoordSize_ = -1;
+    //! number of atoms allocated in recvbuf array
+    int d_ppCoordSizeAlloc_ = -1;
+#endif
 };
 
 } // namespace gmx

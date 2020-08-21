@@ -77,14 +77,17 @@ public:
 
     /*! \brief
      * launch receive of coordinate data from PP rank
-     * \param[in] ppRank  PP rank to send data
+     * \param[in] recvbuf  coordinates buffer in GPU memory
+     * \param[in] nat      starting element in buffer
+     * \param[in] numBytes number of bytes to transfer
+     * \param[in] ppRank   PP rank to send data
      */
-    void launchReceiveCoordinatesFromPpCudaDirect(int ppRank);
+    void launchReceiveCoordinatesFromPp(DeviceBuffer<RVec> recvbuf, int nat, int numBytes, int ppRank);
 
     /*! \brief
      * enqueue wait for coordinate data from PP ranks
      */
-    void enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+    void waitOrEnqueueWaitReceiveCoordinatesFromPp();
 
 private:
     class Impl;

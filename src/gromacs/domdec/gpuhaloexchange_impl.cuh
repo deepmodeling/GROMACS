@@ -134,6 +134,13 @@ private:
      */
     void communicateHaloDataWithCudaDirect(void* sendPtr, int sendSize, int sendRank, void* remotePtr, int recvRank);
 
+    void communicateHaloDataWithCudaMPI(void* sendPtr,
+                                        int   sendSize,
+                                        int   sendRank,
+                                        void* recvPtr,
+                                        int   recvSize,
+                                        int   recvRank);
+
     //! Domain decomposition object
     gmx_domdec_t* dd_ = nullptr;
     //! map of indices to be sent from this rank
@@ -204,6 +211,8 @@ private:
     int dimIndex_ = 0;
     //! The pulse corresponding to this halo exchange instance
     int pulse_ = 0;
+    //! The receive offset for this pulse
+    int pulseOffset_ = 0;
     //! Number of zones. Always 1 for 1-D case.
     const int nzone_ = 1;
     //! The wallclock counter

@@ -86,9 +86,11 @@ public:
 
     /*! \brief
      * Send PP data to PP rank
+     * \param[in] sendbuf  force buffer in GPU memory
+     * \param[in] numBytes number of bytes to transfer
      * \param[in] ppRank           PP rank to receive data
      */
-    void sendFToPpCudaDirect(int ppRank);
+    void sendFToPp(void* sendbuf, int numBytes, int ppRank);
 
 private:
     class Impl;

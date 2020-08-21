@@ -205,9 +205,9 @@ static DevelopmentFeatureFlags manageDevelopmentFeatures(const gmx::MDLogger& md
 
     devFlags.enableGpuBufferOps =
             GMX_GPU_CUDA && useGpuForNonbonded && (getenv("GMX_USE_GPU_BUFFER_OPS") != nullptr);
-    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_DD_COMMS") != nullptr;
+    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI) && getenv("GMX_GPU_DD_COMMS") != nullptr;
     devFlags.enableGpuPmePPComm =
-            GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
+            GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI) && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
 
 #pragma GCC diagnostic pop
 
@@ -1765,7 +1765,12 @@ int Mdrunner::mdrunner()
         physicalNodeComm.barrier();
     }
 
+#if !CUDA_AWARE_MPI
+    // Don't reset GPU in case of CUDA_AWARE_MPI
+    // UCX creates CUDA buffers which are cleaned-up as part of MPI_Finalize()
+    // resetting the device before MPI_Finalize() results in crashes inside UCX
     free_gpu(deviceInfo);
+#endif
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());

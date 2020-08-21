@@ -82,7 +82,7 @@ public:
      * \param[in]  recvSize Number of elements to receive
      * \param[in] recvPmeForceToGpu Whether receive is to GPU, otherwise CPU
      */
-    void receiveForceFromPmeCudaDirect(void* recvPtr, int recvSize, bool recvPmeForceToGpu);
+    void receiveForceFromPme(void* recvPtr, int recvSize, bool recvPmeForceToGpu);
 
     /*! \brief Push coordinates buffer directly to GPU memory on PME task
      * \param[in] sendPtr Buffer with coordinate data
@@ -90,10 +90,10 @@ public:
      * \param[in] sendPmeCoordinatesFromGpu Whether send is from GPU, otherwise CPU
      * \param[in] coordinatesReadyOnDeviceEvent Event recorded when coordinates are available on device
      */
-    void sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
-                                        int                   sendSize,
-                                        bool                  sendPmeCoordinatesFromGpu,
-                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void sendCoordinatesToPme(void*                 sendPtr,
+                              int                   sendSize,
+                              bool                  sendPmeCoordinatesFromGpu,
+                              GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief
      * Return pointer to buffer used for staging PME force on GPU
@@ -103,7 +103,7 @@ public:
     /*! \brief
      * Return pointer to event recorded when forces are ready
      */
-    void* getForcesReadySynchronizer();
+    void* waitForcesReadyOrGetSynchronizer();
 
 private:
     class Impl;

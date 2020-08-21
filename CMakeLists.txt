@@ -207,6 +207,14 @@ gmx_option_multichoice(
     OFF
     OFF CUDA OpenCL SYCL)
 
+gmx_dependent_option(
+    GMX_CUDA_AWARE_MPI
+    "Turn on this flag for MPI implementations which are cuda-aware. This enables faster data communication bwteen PP-PP and PP-PME ranks"
+    OFF
+    GMX_MPI;GMX_GPU;GMX_USE_CUDA)
+
+mark_as_advanced(GMX_CUDA_AWARE_MPI)
+
 gmx_option_multichoice(
     GMX_SIMD
     "SIMD instruction set for CPU kernels and compiler optimization"
