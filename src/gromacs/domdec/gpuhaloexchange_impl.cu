@@ -148,7 +148,8 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
     int numAtomsTotal = numHomeAtoms_;
     for (int i = 0; i <= dimIndex_; i++)
     {
-        for (int p = 0; p <= pulse_; p++)
+        int pulseMax = (i == dimIndex_) ? pulse_ : (comm.cd[i].numPulses() - 1);
+        for (int p = 0; p <= pulseMax; p++)
         {
             atomOffset_                     = numAtomsTotal;
             const gmx_domdec_ind_t& indTemp = comm.cd[i].ind[p];

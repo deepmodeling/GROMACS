@@ -845,8 +845,7 @@ void gmx::LegacySimulator::do_md()
         }
 
         // Allocate or re-size GPU halo exchange object, if necessary
-        if (bNS && havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange
-            && useGpuForNonbonded)
+        if (bNS && havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange && useGpuForNonbonded)
         {
             GMX_RELEASE_ASSERT(fr->deviceStreamManager != nullptr,
                                "GPU device manager has to be initialized to use GPU "
