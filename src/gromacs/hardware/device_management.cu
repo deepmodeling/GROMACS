@@ -332,6 +332,8 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
         const DeviceStatus checkResult =
                 (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
 
+        deviceInfos[i] = std::make_unique<DeviceInformation>();
+
         deviceInfos[i]->id     = i;
         deviceInfos[i]->prop   = prop;
         deviceInfos[i]->status = checkResult;
