@@ -1,17 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
-<<<<<<< HEAD
-<<<<<<<< HEAD:src/gromacs/hardware/device_management.cpp
  * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
  * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
-========
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
->>>>>>>> 358555b33bb23e9f3c1b9b9498bdb1d20a94d840:src/gromacs/gpu_utils/gpu_testutils.cpp
-=======
- * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
->>>>>>> 358555b33bb23e9f3c1b9b9498bdb1d20a94d840
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -43,11 +34,7 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
-<<<<<<< HEAD
- *  \brief Defines the CPU stubs for the DevicesManager class.
-=======
  *  \brief Defines the CPU stubs for the device management.
->>>>>>> 358555b33bb23e9f3c1b9b9498bdb1d20a94d840
  *
  *  \author Artem Zhmurov <zhmurov@gmail.com>
  *
