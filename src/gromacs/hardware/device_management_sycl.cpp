@@ -1,8 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -65,13 +64,37 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     // SYCL-TODO:
     // Do the device detection and return the standard vector of SYCL-specific device informations.
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(0);
-    std::vector<cl::sycl::device> devices = cl::sycl::device::get_devices();
+    std::vector<cl::sycl::device>                   devices = cl::sycl::device::get_devices();
     deviceInfos.reserve(devices.size());
-    for (int i = 0; i < static_cast<int>(devices.size()); i++)
+    for (auto syclDevice : devices)
     {
-        deviceInfos[i] = std::make_unique<DeviceInformation>();
-        deviceInfos[i]->id = i;
+        deviceInfos.emplace_back(std::make_unique<DeviceInformation>());
+
+        int i = deviceInfos.size() - 1;
+
+        deviceInfos[i]->id         = i;
         deviceInfos[i]->syclDevice = syclDevice;
+
+        std::cout << "    Device: " << device.get_info<sycl::info::device::name>() << std::endl;
+        std::cout << "    Type:   ";
+        if (device.is_gpu())
+        {
+            std::cout << "GPU" << std::endl;
+        }
+        else if (device.is_cpu())
+        {
+            std::cout << "CPU" << std::endl;
+        }
+        else
+        {
+            std::cout << "Unknown" << std::endl;
+        }
+        std::cout << "    Is host: " << (device.is_host() ? "Yes" : "No") << std::endl;
+        std::cout << "    Is accelerator: " << (device.is_accelerator() ? "Yes" : "No") << std::endl;
+        std::cout << "    Max work group size: "
+                  << device.get_info<sycl::info::device::max_work_group_size>() << std::endl;
+        std::cout << "    Local mem size: " << device.get_info<sycl::info::device::local_mem_size>()
+                  << std::endl;
     }
     return deviceInfos;
 }
