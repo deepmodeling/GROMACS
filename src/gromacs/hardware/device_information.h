@@ -115,7 +115,7 @@ enum class DeviceVendor : int
 };
 
 
-/*! \brief Platform-dependent device information.
+/*! \libinternal \brief Platform-dependent device information.
  *
  * The device information is queried and set at detection and contains
  * both information about the device/hardware returned by the runtime as well
