@@ -520,7 +520,38 @@ void findGpus(gmx_gpu_info_t* gpu_info)
     sfree(ocl_platform_ids);
 }
 
+void init_gpu(const DeviceInformation* deviceInfo)
+{
+    assert(deviceInfo);
+
+    // If the device is NVIDIA, for safety reasons we disable the JIT
+    // caching as this is known to be broken at least until driver 364.19;
+    // the cache does not always get regenerated when the source code changes,
+    // e.g. if the path to the kernel sources remains the same
+
+    if (deviceInfo->deviceVendor == DeviceVendor::Nvidia)
+    {
+        // Ignore return values, failing to set the variable does not mean
+        // that something will go wrong later.
+#ifdef _MSC_VER
+        _putenv("CUDA_CACHE_DISABLE=1");
+#else
+        // Don't override, maybe a dev is testing.
+        setenv("CUDA_CACHE_DISABLE", "1", 0);
+#endif
+    }
+}
+
 void free_gpu(const DeviceInformation* /* deviceInfo */) {}
+
+DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& gpu_info, int deviceId)
+{
+    if (deviceId < 0 || deviceId >= gpu_info.n_dev)
+    {
+        gmx_incons("Invalid GPU deviceId requested");
+    }
+    return &gpu_info.deviceInfo[deviceId];
+}
 
 void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int index)
 {
@@ -545,38 +576,6 @@ void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int ind
         sprintf(s, "#%d: name: %s, vendor: %s, device version: %s, stat: %s", index, dinfo->device_name,
                 dinfo->vendorName, dinfo->device_version, c_deviceStateString[dinfo->stat]);
     }
-}
-
-
-void init_gpu(const DeviceInformation* deviceInfo)
-{
-    assert(deviceInfo);
-
-    // If the device is NVIDIA, for safety reasons we disable the JIT
-    // caching as this is known to be broken at least until driver 364.19;
-    // the cache does not always get regenerated when the source code changes,
-    // e.g. if the path to the kernel sources remains the same
-
-    if (deviceInfo->deviceVendor == DeviceVendor::Nvidia)
-    {
-        // Ignore return values, failing to set the variable does not mean
-        // that something will go wrong later.
-#ifdef _MSC_VER
-        _putenv("CUDA_CACHE_DISABLE=1");
-#else
-        // Don't override, maybe a dev is testing.
-        setenv("CUDA_CACHE_DISABLE", "1", 0);
-#endif
-    }
-}
-
-DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& gpu_info, int deviceId)
-{
-    if (deviceId < 0 || deviceId >= gpu_info.n_dev)
-    {
-        gmx_incons("Invalid GPU deviceId requested");
-    }
-    return &gpu_info.deviceInfo[deviceId];
 }
 
 size_t sizeof_gpu_dev_info()

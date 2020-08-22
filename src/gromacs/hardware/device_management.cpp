@@ -63,12 +63,14 @@ void init_gpu(const DeviceInformation* /* deviceInfo */)
     GMX_RELEASE_ASSERT(false, "Trying to initialize GPU in the build that does not support GPUs.");
 }
 
-DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& /* gpu_info */, int /* index */)
-{
-    return DeviceStatus::Nonexistent;
-}
-
 void free_gpu(const DeviceInformation* /* deviceInfo */) {}
+
+DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& /* gpu_info */, int /* deviceId */)
+{
+    GMX_RELEASE_ASSERT(
+            false, "Trying to get GPU device information in the build that does not support GPUs.");
+    return nullptr;
+}
 
 void get_gpu_device_info_string(char* /* s */, const gmx_gpu_info_t& /* gpu_info */, int /* index */)
 {
@@ -82,9 +84,7 @@ size_t sizeof_gpu_dev_info()
     return 0;
 }
 
-DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& /* gpu_info */, int /* deviceId */)
+DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& /* gpu_info */, int /* index */)
 {
-    GMX_RELEASE_ASSERT(
-            false, "Trying to get GPU device information in the build that does not support GPUs.");
-    return nullptr;
+    return DeviceStatus::Nonexistent;
 }

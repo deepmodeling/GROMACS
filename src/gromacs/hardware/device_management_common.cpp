@@ -64,11 +64,6 @@ bool canPerformGpuDetection()
     }
 }
 
-void free_gpu_info(const gmx_gpu_info_t* gpu_info)
-{
-    sfree(static_cast<void*>(gpu_info->deviceInfo)); // circumvent is_pod check in sfree
-}
-
 std::vector<int> getCompatibleGpus(const gmx_gpu_info_t& gpu_info)
 {
     // Possible minor over-allocation here, but not important for anything
@@ -89,4 +84,9 @@ const char* getGpuCompatibilityDescription(const gmx_gpu_info_t& gpu_info, int i
 {
     return (index >= gpu_info.n_dev ? c_deviceStateString[DeviceStatus::Nonexistent]
                                     : c_deviceStateString[gpu_info_get_stat(gpu_info, index)]);
+}
+
+void free_gpu_info(const gmx_gpu_info_t* gpu_info)
+{
+    sfree(static_cast<void*>(gpu_info->deviceInfo)); // circumvent is_pod check in sfree
 }

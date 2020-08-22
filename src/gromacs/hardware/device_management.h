@@ -184,4 +184,4 @@ size_t sizeof_gpu_dev_info();
 //! Get status of device with specified index
 DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& info, int index);
 
-#endif GMX_HARDWARE_DEVICE_MANAGEMENT_H
+#endif // GMX_HARDWARE_DEVICE_MANAGEMENT_H

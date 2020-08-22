@@ -216,61 +216,6 @@ static DeviceStatus isDeviceFunctional(int dev_id, const cudaDeviceProp& dev_pro
     return DeviceStatus::Compatible;
 }
 
-void init_gpu(const DeviceInformation* deviceInfo)
-{
-    cudaError_t stat;
-
-    assert(deviceInfo);
-
-    stat = cudaSetDevice(deviceInfo->id);
-    if (stat != cudaSuccess)
-    {
-        auto message = gmx::formatString("Failed to initialize GPU #%d", deviceInfo->id);
-        CU_RET_ERR(stat, message.c_str());
-    }
-
-    if (debug)
-    {
-        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceInfo->id, deviceInfo->prop.name);
-    }
-}
-
-void free_gpu(const DeviceInformation* deviceInfo)
-{
-    // One should only attempt to clear the device context when
-    // it has been used, but currently the only way to know that a GPU
-    // device was used is that deviceInfo will be non-null.
-    if (deviceInfo == nullptr)
-    {
-        return;
-    }
-
-    cudaError_t stat;
-
-    if (debug)
-    {
-        int gpuid;
-        stat = cudaGetDevice(&gpuid);
-        CU_RET_ERR(stat, "cudaGetDevice failed");
-        fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
-    }
-
-    stat = cudaDeviceReset();
-    if (stat != cudaSuccess)
-    {
-        gmx_warning("Failed to free GPU #%d: %s", deviceInfo->id, cudaGetErrorString(stat));
-    }
-}
-
-DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& gpu_info, int deviceId)
-{
-    if (deviceId < 0 || deviceId >= gpu_info.n_dev)
-    {
-        gmx_incons("Invalid GPU deviceId requested");
-    }
-    return &gpu_info.deviceInfo[deviceId];
-}
-
 /*! \brief Returns true if the gpu characterized by the device properties is
  *  supported by the native gpu acceleration.
  *
@@ -427,6 +372,61 @@ void findGpus(gmx_gpu_info_t* gpu_info)
 
     gpu_info->n_dev      = ndev;
     gpu_info->deviceInfo = devs;
+}
+
+void init_gpu(const DeviceInformation* deviceInfo)
+{
+    cudaError_t stat;
+
+    assert(deviceInfo);
+
+    stat = cudaSetDevice(deviceInfo->id);
+    if (stat != cudaSuccess)
+    {
+        auto message = gmx::formatString("Failed to initialize GPU #%d", deviceInfo->id);
+        CU_RET_ERR(stat, message.c_str());
+    }
+
+    if (debug)
+    {
+        fprintf(stderr, "Initialized GPU ID #%d: %s\n", deviceInfo->id, deviceInfo->prop.name);
+    }
+}
+
+void free_gpu(const DeviceInformation* deviceInfo)
+{
+    // One should only attempt to clear the device context when
+    // it has been used, but currently the only way to know that a GPU
+    // device was used is that deviceInfo will be non-null.
+    if (deviceInfo == nullptr)
+    {
+        return;
+    }
+
+    cudaError_t stat;
+
+    if (debug)
+    {
+        int gpuid;
+        stat = cudaGetDevice(&gpuid);
+        CU_RET_ERR(stat, "cudaGetDevice failed");
+        fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
+    }
+
+    stat = cudaDeviceReset();
+    if (stat != cudaSuccess)
+    {
+        gmx_warning("Failed to free GPU #%d: %s", deviceInfo->id, cudaGetErrorString(stat));
+    }
+}
+
+DeviceInformation* getDeviceInfo(const gmx_gpu_info_t& gpu_info, int deviceId)
+{
+    if (deviceId < 0 || deviceId >= gpu_info.n_dev)
+    {
+        gmx_incons("Invalid GPU deviceId requested");
+    }
+    return &gpu_info.deviceInfo[deviceId];
 }
 
 void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int index)
