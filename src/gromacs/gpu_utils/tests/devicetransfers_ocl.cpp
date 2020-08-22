@@ -40,9 +40,9 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/hardware/device_management.h"
 #include "gromacs/gpu_utils/gmxopencl.h"
 #include "gromacs/gpu_utils/oclutils.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"

@@ -42,9 +42,9 @@
  */
 #include "gmxpre.h"
 
-#include <assert.h>
-
 #include "device_management.h"
+
+#include <assert.h>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"

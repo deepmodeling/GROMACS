@@ -47,9 +47,10 @@
 #include <assert.h>
 
 #include "gromacs/hardware/device_information.h"
-#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/smalloc.h"
+
+#include "device_management.h"
 
 bool canPerformGpuDetection()
 {

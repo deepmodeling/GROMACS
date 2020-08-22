@@ -40,6 +40,9 @@
  *
  * \ingroup module_gpu_utils
  */
+#ifndef GMX_HARDWARE_DEVICE_MANAGEMENT_H
+#define GMX_HARDWARE_DEVICE_MANAGEMENT_H
+
 #include "gmxpre.h"
 
 #include <string>
@@ -180,3 +183,5 @@ size_t sizeof_gpu_dev_info();
 
 //! Get status of device with specified index
 DeviceStatus gpu_info_get_stat(const gmx_gpu_info_t& info, int index);
+
+#endif GMX_HARDWARE_DEVICE_MANAGEMENT_H

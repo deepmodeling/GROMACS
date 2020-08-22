@@ -47,8 +47,8 @@
 
 #include <string>
 
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/gpu_utils/oclutils.h"
+#include "gromacs/hardware/device_information.h"
 
 namespace gmx
 {
