@@ -46,6 +46,9 @@
  */
 #include <cuda_runtime.h>
 
+//! Device texture for fast read-only data fetching
+using DeviceTexture = cudaTextureObject_t;
+
 //! \brief Single GPU call timing event - meaningless in CUDA
 using CommandEvent = void;
 

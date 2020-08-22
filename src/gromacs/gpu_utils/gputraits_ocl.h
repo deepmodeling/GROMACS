@@ -47,6 +47,8 @@
 
 #include "gromacs/gpu_utils/gmxopencl.h"
 
+using DeviceTexture = void*;
+
 //! \brief Single GPU call timing event
 using CommandEvent = cl_event;
 

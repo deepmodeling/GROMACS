@@ -41,7 +41,6 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/gmxopencl.h"
-#include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"

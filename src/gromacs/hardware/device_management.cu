@@ -34,7 +34,7 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Defines the CUDA implementations of the DevicesManager class.
+ *  \brief Defines the CUDA implementations of the device management.
  *
  *  \author Artem Zhmurov <zhmurov@gmail.com>
  *
@@ -44,7 +44,7 @@
 
 #include "device_management.h"
 
-#include <cuda_runtime.h>
+#include <assert.h>
 
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
@@ -332,7 +332,6 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
         const DeviceStatus checkResult =
                 (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
 
-        deviceInfos[i]         = std::make_unique<DeviceInformation>();
         deviceInfos[i]->id     = i;
         deviceInfos[i]->prop   = prop;
         deviceInfos[i]->status = checkResult;
@@ -341,8 +340,8 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
         {
             // TODO:
             //  - we inspect the CUDA API state to retrieve and record any
-            //    errors that occurred during isDeviceSupported() here,
-            //    but this would be more elegant done within isDeviceSupported()
+            //    errors that occurred during is_gmx_supported_gpu_id() here,
+            //    but this would be more elegant done within is_gmx_supported_gpu_id()
             //    and only return a string with the error if one was encountered.
             //  - we'll be reporting without rank information which is not ideal.
             //  - we'll end up warning also in cases where users would already

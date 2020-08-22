@@ -49,7 +49,7 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/stringutil.h"
