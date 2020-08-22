@@ -44,9 +44,9 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/hardwaretopology.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/hardware/identifyavx512fmaunits.h"
 #include "gromacs/simd/support.h"

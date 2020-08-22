@@ -59,11 +59,12 @@
 
 #include <memory.h>
 
-#include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/gpu_utils/ocl_compiler.h"
 #include "gromacs/gpu_utils/oclraii.h"
 #include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/hardware/hw_info.h"
+#include "gromacs/hardware/device_information.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
@@ -517,6 +518,8 @@ void findGpus(gmx_gpu_info_t* gpu_info)
 
     sfree(ocl_platform_ids);
 }
+
+void free_gpu(const DeviceInformation* /* deviceInfo */) {}
 
 void get_gpu_device_info_string(char* s, const gmx_gpu_info_t& gpu_info, int index)
 {
