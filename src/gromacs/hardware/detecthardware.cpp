@@ -66,7 +66,6 @@
 #include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "architecture.h"
-#include "device_management.h"
 
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h> // sysconf()
