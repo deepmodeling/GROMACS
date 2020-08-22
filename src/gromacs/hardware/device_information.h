@@ -1,6 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
+ * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
  * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
@@ -54,9 +55,6 @@
 #    include "gromacs/gpu_utils/gmxopencl.h"
 #endif
 #include "gromacs/utility/enumerationhelpers.h"
-
-//! Constant used to help minimize preprocessed code
-static constexpr bool c_binarySupportsGpus = (GMX_GPU != 0);
 
 //! Possible results of the GPU detection/check.
 enum class DeviceStatus : int
