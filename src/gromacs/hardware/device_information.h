@@ -55,6 +55,9 @@
 #endif
 #include "gromacs/utility/enumerationhelpers.h"
 
+//! Constant used to help minimize preprocessed code
+static constexpr bool c_binarySupportsGpus = (GMX_GPU != 0);
+
 //! Possible results of the GPU detection/check.
 enum class DeviceStatus : int
 {

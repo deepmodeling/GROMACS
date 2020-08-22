@@ -98,9 +98,6 @@ static bool runningOnCompatibleOSForAmd()
     size_t len = sizeof(kernelVersion);
 
     mib[0] = CTL_KERN;
-    mib[1] = KERN_OSRELEASE;
-
-    sysctl(mib, sizeof(mib) / sizeof(mib[0]), kernelVersion, &len, NULL, 0);
 
     int major = strtod(kernelVersion, NULL);
     int minor = strtod(strchr(kernelVersion, '.') + 1, NULL);

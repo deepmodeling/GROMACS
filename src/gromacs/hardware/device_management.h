@@ -36,7 +36,7 @@
 /*! \libinternal \file
  *  \brief Declares the class to manage GPU resources.
  *
- *  This class has several implementations: one for each supported GPU platform,
+ *  This has several implementations: one for each supported GPU platform,
  *  and a stub implementation if the build does not support GPUs.
  *
  *  \author Artem Zhmurov <zhmurov@gmail.com>

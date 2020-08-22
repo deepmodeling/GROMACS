@@ -48,7 +48,6 @@
 #include <vector>
 
 #include "gromacs/compat/pointers.h"
-#include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/hardwaretopology.h"
@@ -67,6 +66,7 @@
 #include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "architecture.h"
+#include "device_management.h"
 
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h> // sysconf()
