@@ -32,13 +32,14 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \internal \file
+/*! \libinternal \file
  *
  * \brief Implements the device management for OpenCL.
  *
  * \author Artem Zhmurov <zhmurov@gmail.com>
  *
- * \ingroup module_gpu_utils
+ * \inlibraryapi
+ * \ingroup module_hardware
  */
 #ifndef GMX_HARDWARE_DEVICE_MANAGEMENT_H
 #define GMX_HARDWARE_DEVICE_MANAGEMENT_H

@@ -42,8 +42,6 @@
  */
 #include "gmxpre.h"
 
-#include "config.h"
-
 #include <assert.h>
 
 #include "gromacs/hardware/device_information.h"

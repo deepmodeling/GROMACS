@@ -41,8 +41,6 @@
 
 #include "gpu_utils.h"
 
-#include "config.h"
-
 #include <cassert>
 
 #include "gromacs/hardware/device_information.h"
