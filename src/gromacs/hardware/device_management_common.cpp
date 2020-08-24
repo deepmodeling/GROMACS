@@ -34,7 +34,7 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Defines the implementations of the DevicesManager class that are common for CPU, CUDA and OpenCL.
+ *  \brief Defines the implementations of the device management class that are common for CPU, CUDA and OpenCL.
  *
  *  \author Anca Hamuraru <anca@streamcomputing.eu>
  *  \author Dimitrios Karkoulis <dimitris.karkoulis@gmail.com>
@@ -55,7 +55,7 @@
 
 bool canPerformDeviceDetection(std::string* errorMessage)
 {
-    if (GMX_GPU && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
+    if (c_binarySupportsGpus && getenv("GMX_DISABLE_GPU_DETECTION") == nullptr)
     {
         return isDeviceDetectionFunctional(errorMessage);
     }
