@@ -39,6 +39,7 @@
  *  \author Anca Hamuraru <anca@streamcomputing.eu>
  *  \author Dimitrios Karkoulis <dimitris.karkoulis@gmail.com>
  *  \author Teemu Virolainen <teemu@streamcomputing.eu>
+ *  \author Mark Abraham <mark.j.abraham@gmail.com>
  *  \author Szilárd Páll <pall.szilard@gmail.com>
  *  \author Artem Zhmurov <zhmurov@gmail.com>
  */
