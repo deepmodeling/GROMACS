@@ -34,7 +34,7 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Defines the OpenCL implementations of the DevicesManager class.
+ *  \brief Defines the OpenCL implementations of the device management.
  *
  *  \author Anca Hamuraru <anca@streamcomputing.eu>
  *  \author Dimitrios Karkoulis <dimitris.karkoulis@gmail.com>

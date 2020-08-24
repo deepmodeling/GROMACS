@@ -34,7 +34,7 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \libinternal \file
- *  \brief Declares the GPU type traits for non-GPU builds.
+ *  \brief Declares the GPU information structure and its helpers
  *
  *  \author Anca Hamuraru <anca@streamcomputing.eu>
  *  \author Dimitrios Karkoulis <dimitris.karkoulis@gmail.com>

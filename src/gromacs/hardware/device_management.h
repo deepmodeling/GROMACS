@@ -34,7 +34,7 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \libinternal \file
- *  \brief Declares the class to manage GPU resources.
+ *  \brief Declares functions to manage GPU resources.
  *
  *  This has several implementations: one for each supported GPU platform,
  *  and a stub implementation if the build does not support GPUs.

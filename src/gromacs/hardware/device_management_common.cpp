@@ -34,7 +34,8 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Defines the implementations of the device management class that are common for CPU, CUDA and OpenCL.
+ *  \brief Defines the implementations of device management functions that
+ *         are common for CPU, CUDA and OpenCL.
  *
  *  \author Anca Hamuraru <anca@streamcomputing.eu>
  *  \author Dimitrios Karkoulis <dimitris.karkoulis@gmail.com>
