@@ -50,6 +50,7 @@
 #include "gromacs/compat/pointers.h"
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/device_information.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/simd/support.h"
@@ -113,6 +114,13 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
     std::string errorMessage;
     if (!canPerformDeviceDetection(&errorMessage))
     {
+        GMX_LOG(mdlog.info)
+                .asParagraph()
+                .appendTextFormatted(
+                        "NOTE: Detection of GPUs failed. The API reported:\n"
+                        "      %s\n"
+                        "      GROMACS cannot run tasks on a GPU.",
+                        errorMessage.c_str());
         return;
     }
 

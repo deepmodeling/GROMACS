@@ -1,8 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2012,2013,2014,2015,2016, by the GROMACS development team.
+ * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,8 +34,13 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Defines the OpenCL implementations of the DevicesManager class.
+ *  \brief Defines the OpenCL implementations of the device management.
  *
+ *  \author Anca Hamuraru <anca@streamcomputing.eu>
+ *  \author Dimitrios Karkoulis <dimitris.karkoulis@gmail.com>
+ *  \author Teemu Virolainen <teemu@streamcomputing.eu>
+ *  \author Mark Abraham <mark.j.abraham@gmail.com>
+ *  \author Szilárd Páll <pall.szilard@gmail.com>
  *  \author Artem Zhmurov <zhmurov@gmail.com>
  *
  * \ingroup module_hardware
@@ -152,6 +157,33 @@ static DeviceStatus isDeviceSupported(const DeviceInformation& deviceInfo)
             return GMX_OPENCL_NB_CLUSTER_SIZE == 4 ? DeviceStatus::Compatible
                                                    : DeviceStatus::IncompatibleClusterSize;
         default: return DeviceStatus::Incompatible;
+    }
+}
+
+/*! \brief Make an error string following an OpenCL API call.
+ *
+ *  It is meant to be called with \p status != CL_SUCCESS, but it will
+ *  work correctly even if it is called with no OpenCL failure.
+ *
+ * \todo Make use of this function more.
+ *
+ * \param[in]  message  Supplies context, e.g. the name of the API call that returned the error.
+ * \param[in]  status   OpenCL API status code
+ * \returns             A string describing the OpenCL error.
+ */
+inline std::string makeOpenClInternalErrorString(const char* message, cl_int status)
+{
+    if (message != nullptr)
+    {
+        return gmx::formatString("%s did %ssucceed %d: %s", message,
+                                 ((status != CL_SUCCESS) ? "not " : ""), status,
+                                 ocl_get_error_string(status).c_str());
+    }
+    else
+    {
+        return gmx::formatString("%sOpenCL error encountered %d: %s",
+                                 ((status != CL_SUCCESS) ? "" : "No "), status,
+                                 ocl_get_error_string(status).c_str());
     }
 }
 

@@ -212,31 +212,4 @@ inline void launchGpuKernel(cl_kernel                 kernel,
     }
 }
 
-/*! \brief Make an error string following an OpenCL API call.
- *
- *  It is meant to be called with \p status != CL_SUCCESS, but it will
- *  work correctly even if it is called with no OpenCL failure.
- *
- * \todo Make use of this function more.
- *
- * \param[in]  message  Supplies context, e.g. the name of the API call that returned the error.
- * \param[in]  status   OpenCL API status code
- * \returns             A string describing the OpenCL error.
- */
-inline std::string makeOpenClInternalErrorString(const char* message, cl_int status)
-{
-    if (message != nullptr)
-    {
-        return gmx::formatString("%s did %ssucceed %d: %s", message,
-                                 ((status != CL_SUCCESS) ? "not " : ""), status,
-                                 ocl_get_error_string(status).c_str());
-    }
-    else
-    {
-        return gmx::formatString("%sOpenCL error encountered %d: %s",
-                                 ((status != CL_SUCCESS) ? "" : "No "), status,
-                                 ocl_get_error_string(status).c_str());
-    }
-}
-
 #endif

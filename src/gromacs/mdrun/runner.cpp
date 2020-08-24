@@ -1749,8 +1749,8 @@ int Mdrunner::mdrunner()
     if (GMX_THREAD_MPI)
     {
         physicalNodeComm.barrier();
-        freeDevice(deviceInfo);
     }
+    freeDevice(deviceInfo);
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());

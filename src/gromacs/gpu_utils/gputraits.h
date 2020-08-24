@@ -48,9 +48,13 @@
 #include "config.h"
 
 #if GMX_GPU_CUDA
+
 #    include "gromacs/gpu_utils/gputraits.cuh"
+
 #elif GMX_GPU_OPENCL
+
 #    include "gromacs/gpu_utils/gputraits_ocl.h"
+
 #else
 
 using DeviceTexture = void*;
