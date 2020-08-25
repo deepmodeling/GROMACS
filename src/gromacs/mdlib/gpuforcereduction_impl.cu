@@ -117,14 +117,15 @@ void GpuForceReduction::Impl::reinit(float3*               baseForcePtr,
                                      GpuEventSynchronizer* completionMarker)
 {
     GMX_ASSERT((baseForcePtr != nullptr), "Input base force for reduction has no data");
-    baseForce_        = baseForcePtr;
+    baseForce_        = &(baseForcePtr[atomStart]);
     numAtoms_         = numAtoms;
     atomStart_        = atomStart;
     accumulate_       = accumulate;
     completionMarker_ = completionMarker;
-    cell_             = cell.data();
-    reallocateDeviceBuffer(&d_cell_, atomStart_ + numAtoms_, &cellSize_, &cellSizeAlloc_, deviceContext_);
-    copyToDeviceBuffer(&d_cell_, cell_, 0, atomStart_ + numAtoms_, deviceStream_,
+    cellInfo_.cell    = cell.data();
+    reallocateDeviceBuffer(&cellInfo_.d_cell, numAtoms_, &cellInfo_.cellSize,
+                           &cellInfo_.cellSizeAlloc, deviceContext_);
+    copyToDeviceBuffer(&cellInfo_.d_cell, &(cellInfo_.cell[atomStart]), 0, numAtoms_, deviceStream_,
                        GpuApiCallBehavior::Async, nullptr);
 
     dependencyList_.clear();
@@ -164,7 +165,6 @@ void GpuForceReduction::Impl::execute()
     }
 
     float3* d_nbnxmForce     = static_cast<float3*>(nbnxmForceToAdd_);
-    int*    d_cell           = &d_cell_[atomStart_];
     float3* d_rvecForceToAdd = &(static_cast<float3*>(rvecForceToAdd_))[atomStart_];
 
     // Configure and launch kernel
@@ -180,10 +180,9 @@ void GpuForceReduction::Impl::execute()
     auto kernelFn = (rvecForceToAdd_ != nullptr)
                             ? (accumulate_ ? reduceKernel<true, true> : reduceKernel<true, false>)
                             : (accumulate_ ? reduceKernel<false, true> : reduceKernel<false, false>);
-    float3* d_fTotal = &(static_cast<float3*>(baseForce_))[atomStart_];
 
-    const auto kernelArgs = prepareGpuKernelArguments(
-            kernelFn, config, &d_nbnxmForce, &d_rvecForceToAdd, &d_fTotal, &d_cell, &numAtoms_);
+    const auto kernelArgs = prepareGpuKernelArguments(kernelFn, config, &d_nbnxmForce, &d_rvecForceToAdd,
+                                                      &baseForce_, &cellInfo_.d_cell, &numAtoms_);
 
     launchGpuKernel(kernelFn, config, deviceStream_, nullptr, "Force Reduction", kernelArgs);
 

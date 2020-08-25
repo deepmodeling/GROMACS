@@ -1398,16 +1398,6 @@ int Mdrunner::mdrunner()
                     deviceStreamManager->stream(DeviceStreamType::PmePpTransfer));
         }
 
-        if (devFlags.enableGpuBufferOps)
-        {
-            fr->gpuForceReductionLocal = std::make_unique<gmx::GpuForceReduction>(
-                    deviceStreamManager->context(),
-                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedLocal));
-            fr->gpuForceReductionNonLocal = std::make_unique<gmx::GpuForceReduction>(
-                    deviceStreamManager->context(),
-                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedNonLocal));
-        }
-
         fr->nbv = Nbnxm::init_nb_verlet(mdlog, inputrec, fr, cr, *hwinfo, useGpuForNonbonded,
                                         deviceStreamManager.get(), &mtop, box, wcycle);
         // TODO: Move the logic below to a GPU bonded builder
@@ -1635,6 +1625,16 @@ int Mdrunner::mdrunner()
                 createSimulationWorkload(*inputrec, useGpuForNonbonded, pmeRunMode, useGpuForBonded,
                                          useGpuForUpdate, devFlags.enableGpuBufferOps,
                                          devFlags.enableGpuHaloExchange, devFlags.enableGpuPmePPComm);
+
+        if (devFlags.enableGpuBufferOps)
+        {
+            fr->gpuForceReduction[gmx::AtomLocality::Local] = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedLocal));
+            fr->gpuForceReduction[gmx::AtomLocality::NonLocal] = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedNonLocal));
+        }
 
         std::unique_ptr<gmx::StatePropagatorDataGpu> stateGpu;
         if (gpusWereDetected

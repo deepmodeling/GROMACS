@@ -52,6 +52,21 @@
 namespace gmx
 {
 
+//! structure to hold cell information for any nbat-format forces
+struct cellInfo
+{
+    //! cell index mapping for any nbat-format forces
+    const int* cell = nullptr;
+    //! device copy of cell index mapping for any nbat-format forces
+    int* d_cell = nullptr;
+    //! number of atoms in cell array
+    int cellSize = -1;
+    //! number of atoms allocated in cell array
+    int cellSizeAlloc = -1;
+};
+
+typedef cellInfo cellInfo_t;
+
 class GpuForceReduction::Impl
 {
 
@@ -110,14 +125,8 @@ private:
     int numAtoms_ = 0;
     //! whether reduction is accumulated into base force buffer
     int accumulate_ = true;
-    //! cell index mapping for any nbat-format forces
-    const int* cell_ = nullptr;
-    //! device copy of cell index mapping for any nbat-format forces
-    int* d_cell_ = nullptr;
-    //! number of atoms in cell array
-    int cellSize_ = -1;
-    //! number of atoms allocated in cell array
-    int cellSizeAlloc_ = -1;
+    //! cell information for any nbat-format forces
+    cellInfo_t cellInfo_;
     //! GPU context object
     const DeviceContext& deviceContext_;
     //! list of dependencies
