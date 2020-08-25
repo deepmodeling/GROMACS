@@ -54,6 +54,15 @@ class GpuEventSynchronizer;
 namespace gmx
 {
 
+/*! \libinternal
+ * \brief Manages the force reduction directly in GPU memory
+ *
+ * Manages the reduction of multiple GPU force buffers into a single
+ * GPU force buffer. The reduction involves at least one (input/output)
+ * Rvec-format buffer and one (input) Nbat-format buffer, where the
+ * Nbat->Rvec conversion is handled internally. One additional (input)
+ * Rvec-format buffer is supported as optional.
+ */
 class GpuForceReduction
 {
 

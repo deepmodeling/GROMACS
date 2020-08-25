@@ -65,8 +65,6 @@ struct cellInfo
     int cellSizeAlloc = -1;
 };
 
-typedef cellInfo cellInfo_t;
-
 class GpuForceReduction::Impl
 {
 
@@ -126,7 +124,7 @@ private:
     //! whether reduction is accumulated into base force buffer
     int accumulate_ = true;
     //! cell information for any nbat-format forces
-    cellInfo_t cellInfo_;
+    struct cellInfo cellInfo_;
     //! GPU context object
     const DeviceContext& deviceContext_;
     //! list of dependencies
