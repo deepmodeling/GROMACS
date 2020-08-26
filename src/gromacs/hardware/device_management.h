@@ -63,10 +63,10 @@ struct DeviceInformation;
 
 /*! \brief Return whether GPUs can be detected.
  *
- * Returns true when this is a build of \Gromacs configured to support
- * GPU usage, GPU detection is not disabled by an environment variable
- * and a valid device driver, ICD, and/or runtime was detected.
- * Does not throw.
+ * Returns true when this is a build of \GROMACS configured to support
+ * GPU usage, GPU detection is not disabled by \c GMX_DISABLE_GPU_DETECTION
+ * environment variable and a valid device driver, ICD, and/or runtime was
+ * detected. Does not throw.
  *
  * \param[out] errorMessage  When returning false on a build configured with
  *                           GPU support and non-nullptr was passed,
@@ -77,7 +77,7 @@ bool canPerformDeviceDetection(std::string* errorMessage);
 
 /*! \brief Return whether GPU detection is functioning correctly
  *
- * Returns true when this is a build of \Gromacs configured to support
+ * Returns true when this is a build of \GROMACS configured to support
  * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
  *
  * This function is not intended to be called from build
@@ -102,10 +102,10 @@ bool canComputeOnDevice();
 /*! \brief Find all GPUs in the system.
  *
  *  Will detect every GPU supported by the device driver in use.
- *  Must only be called if canPerformDeviceDetection() has returned true.
- *  This routine also checks for the compatibility of each and fill the
- *  deviceInfo array with the required information on each the
- *  device: ID, device properties, status.
+ *  Must only be called if \c canPerformDeviceDetection() has returned true.
+ *  This routine also checks for the compatibility of each device and fill the
+ *  deviceInfo array with the required information on each device: ID, device
+ *  properties, status.
  *
  *  Note that this function leaves the GPU runtime API error state clean;
  *  this is implemented ATM in the CUDA flavor.
@@ -120,7 +120,7 @@ bool canComputeOnDevice();
  */
 std::vector<std::unique_ptr<DeviceInformation>> findDevices();
 
-/*! \brief Return a container of the detected GPUs that are compatible.
+/*! \brief Return a container of the detected GPU ids that are compatible.
  *
  * This function filters the result of the detection for compatible
  * GPUs, based on the previously run compatibility tests.
@@ -131,7 +131,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices();
  */
 std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
 
-/*! \brief Set the active GPU
+/*! \brief Set the active GPU.
  *
  * This sets the device for which the device information is passed active. Essential in CUDA, where
  * the device buffers and kernel launches are not connected to the device context. In OpenCL, makes
@@ -153,7 +153,7 @@ void setDevice(const DeviceInformation& deviceInfo);
  * required anymore, because subsequent attempts to free memory
  * associated with the context will otherwise fail.
  *
- * Calls gmx_warning upon errors.
+ * Calls \c gmx_warning upon errors.
  *
  * \todo This should go through all the devices, not only the one currently active.
  *       Reseting only one device will not work, e.g. in CUDA tests.
