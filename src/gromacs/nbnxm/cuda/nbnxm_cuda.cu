@@ -58,6 +58,7 @@
 #include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/nbnxm/gpu_common.h"
@@ -121,7 +122,7 @@ namespace Nbnxm
 constexpr static int c_bufOpsThreadsPerBlock = 128;
 
 /*! Nonbonded kernel function pointer type */
-typedef void (*nbnxn_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_plist_t, bool);
+typedef void (*nbnxn_cu_kfunc_ptr_t)(const cu_atomdata_t, const NBParamGpu, const gpu_plist, bool);
 
 /*********************************/
 
@@ -330,7 +331,7 @@ static inline nbnxn_cu_kfunc_ptr_t select_nbnxn_kernel(int                     e
 /*! \brief Calculates the amount of shared memory required by the nonbonded kernel in use. */
 static inline int calc_shmem_required_nonbonded(const int               num_threads_z,
                                                 const DeviceInformation gmx_unused* deviceInfo,
-                                                const cu_nbparam_t*                 nbp)
+                                                const NBParamGpu*                   nbp)
 {
     int shmem;
 
@@ -403,7 +404,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     int adat_begin, adat_len; /* local/nonlocal offset and length used for xq and f */
 
     cu_atomdata_t*      adat         = nb->atdat;
-    cu_plist_t*         plist        = nb->plist[iloc];
+    gpu_plist*          plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -483,8 +484,8 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
 void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const InteractionLocality iloc)
 {
     cu_atomdata_t*      adat         = nb->atdat;
-    cu_nbparam_t*       nbp          = nb->nbparam;
-    cu_plist_t*         plist        = nb->plist[iloc];
+    NBParamGpu*         nbp          = nb->nbparam;
+    gpu_plist*          plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -596,8 +597,8 @@ static inline int calc_shmem_required_prune(const int num_threads_z)
 void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, const int numParts)
 {
     cu_atomdata_t*      adat         = nb->atdat;
-    cu_nbparam_t*       nbp          = nb->nbparam;
-    cu_plist_t*         plist        = nb->plist[iloc];
+    NBParamGpu*         nbp          = nb->nbparam;
+    gpu_plist*          plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 

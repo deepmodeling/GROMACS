@@ -78,7 +78,7 @@ void applySettleCpu(SettleTestData*    testData,
     EXPECT_FALSE(errorOccured) << testDescription;
 }
 
-#if GMX_GPU != GMX_GPU_CUDA
+#if !GMX_GPU_CUDA
 
 void applySettleGpu(SettleTestData* /* testData */,
                     const t_pbc /* pbc */,

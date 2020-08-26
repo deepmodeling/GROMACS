@@ -370,27 +370,27 @@ about the data that is written to file - it is only responsible
 to inform clients about trajectory steps, and providing a valid
 file pointer to the objects that need to write to trajectory.
 
-#### `StatePropagatorData`
-The `StatePropagatorData` takes part in the simulator run, as it might
+#### `StatePropagatorData::Element`
+The `StatePropagatorData::Element` takes part in the simulator run, as it might
 have to save a valid state at the right moment during the
 integration. Placing the StatePropagatorData correctly is for now the
 duty of the simulator builder - this might be automated later
 if we have enough meta-data of the variables (i.e., if
 `StatePropagatorData` knows at which time the variables currently are,
 and can decide when a valid state (full-time step of all
-variables) is reached. The `StatePropagatorData` is also a client of
+variables) is reached. The `StatePropagatorData::Element` is also a client of
 both the trajectory signaller and writer - it will save a
 state for later writeout during the simulator step if it
 knows that trajectory writing will occur later in the step,
 and it knows how to write to file given a file pointer by
 the `TrajectoryElement`.
 
-#### `EnergyElement`
-The `EnergyElement` takes part in the simulator run, as it
+#### `EnergyData::Element`
+The `EnergyData::Element` takes part in the simulator run, as it
 does either add data (at energy calculation steps), or
 record a non-calculation step (all other steps). It is the
 responsibility of the simulator builder to ensure that the
-`EnergyElement` is called at a point of the simulator run
+`EnergyData::Element` is called at a point of the simulator run
 at which it has access to a valid energy state.
 
 #### `ComputeGlobalsElement`
@@ -459,13 +459,12 @@ It integrates the Parrinello-Rahman box velocity equations, takes a
 callback to the propagator to update the velocity scaling factor, and
 scales the box and the positions of the system.
 
-#### `FreeEnergyPerturbationElement`
-The `FreeEnergyPerturbationElement` holds the lambda vector and the
-current FEP state, offering access to its values via getter
-functions. The FreeEnergyPerturbationElement does update the lambda
+#### `FreeEnergyPerturbationData::Element`
+The `FreeEnergyPerturbationData::Element` is a member class of
+`FreeEnergyPerturbationData` that updates the lambda
 values during the simulation run if lambda is non-static. It
-implements the checkpointing client interface to save its current
-state for restart.
+implements the checkpointing client interface to save the current
+state of `FreeEnergyPerturbationData` for restart.
 
 ## Data structures
 
@@ -489,8 +488,8 @@ data approach - of the elements currently implemented, only
 domain decomposition, PME load balancing, and the initial
 constraining are using this.
 
-### `EnergyElement`
-The EnergyElement owns the EnergyObject, and is hence responsible
+### `EnergyData`
+The EnergyData owns the EnergyObject, and is hence responsible
 for saving energy data and writing it to trajectory. It also owns
 the tensors for the different virials and the pressure as well as
 the total dipole vector.
@@ -499,13 +498,18 @@ It subscribes to the trajectory signaller, the energy signaller,
 and the logging signaller to know when an energy calculation is
 needed and when a non-recording step is enough. The simulator
 builder is responsible to place the element in a location at
-which a valid energy state is available. The EnergyElement is
+which a valid energy state is available. The EnergyData is
 also a subscriber to the trajectory writer element, as it is
 responsible to write energy data to trajectory.
 
-The EnergyElement offers an interface to add virial contributions,
+The EnergyData offers an interface to add virial contributions,
 but also allows access to the raw pointers to tensor data, the
 dipole vector, and the legacy energy data structures.
+
+### `FreeEnergyPerturbationData`
+The `FreeEnergyPerturbationData` holds the lambda vector and the
+current FEP state, offering access to its values via getter
+functions.
 
 ### `TopologyHolder`
 The topology object owns the local topology and holds a constant reference

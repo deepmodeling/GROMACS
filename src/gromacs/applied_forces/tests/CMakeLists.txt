@@ -34,8 +34,6 @@
 
 gmx_add_unit_test(AppliedForcesUnitTest applied_forces-test
     CPP_SOURCE_FILES
-        densityfitting.cpp
-        densityfittingoptions.cpp
-        densityfittingamplitudelookup.cpp
+        densityfittingforceprovider.cpp
         electricfield.cpp
         )

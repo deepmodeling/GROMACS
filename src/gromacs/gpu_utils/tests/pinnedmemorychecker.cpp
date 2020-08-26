@@ -40,17 +40,21 @@
  */
 #include "gmxpre.h"
 
-#include <vector>
+#include "config.h"
 
-#include <gtest/gtest.h>
+#if GMX_GPU_CUDA
 
-#include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/gpu_utils/hostallocator.h"
-#include "gromacs/gpu_utils/pmalloc_cuda.h"
-#include "gromacs/utility/real.h"
-#include "gromacs/utility/smalloc.h"
+#    include <vector>
 
-#include "testutils/test_hardware_environment.h"
+#    include <gtest/gtest.h>
+
+#    include "gromacs/gpu_utils/gpu_utils.h"
+#    include "gromacs/gpu_utils/hostallocator.h"
+#    include "gromacs/gpu_utils/pmalloc_cuda.h"
+#    include "gromacs/utility/real.h"
+#    include "gromacs/utility/smalloc.h"
+
+#    include "testutils/test_hardware_environment.h"
 
 namespace gmx
 {
@@ -65,20 +69,6 @@ namespace
 using PinnedMemoryCheckerTest = ::testing::Test;
 
 TEST_F(PinnedMemoryCheckerTest, DefaultContainerIsRecognized)
-{
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
-    {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            std::vector<real> dummy(3, 1.5);
-            EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
-        }
-    }
-}
-
-TEST_F(PinnedMemoryCheckerTest, NonpinnedContainerIsRecognized)
 {
     const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
     for (const auto& context : hardwareContexts)
@@ -104,6 +94,26 @@ TEST_F(PinnedMemoryCheckerTest, PinnedContainerIsRecognized)
             HostVector<real> dummy(3, 1.5);
             changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
             EXPECT_TRUE(isHostMemoryPinned(dummy.data()));
+        }
+    }
+}
+
+TEST_F(PinnedMemoryCheckerTest, PinningChangesAreRecognized)
+{
+    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
+    for (const auto& context : hardwareContexts)
+    {
+        if (context->codePath() == CodePath::GPU)
+        {
+            context->activate();
+
+            HostVector<real> dummy(3, 1.5);
+            changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
+            EXPECT_TRUE(isHostMemoryPinned(dummy.data())) << "memory starts pinned";
+            changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
+            EXPECT_FALSE(isHostMemoryPinned(dummy.data())) << "memory is now unpinned";
+            changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
+            EXPECT_TRUE(isHostMemoryPinned(dummy.data())) << "memory is pinned again";
         }
     }
 }
@@ -143,3 +153,5 @@ TEST_F(PinnedMemoryCheckerTest, PinnedCBufferIsRecognized)
 } // namespace
 } // namespace test
 } // namespace gmx
+
+#endif // GMX_GPU_CUDA

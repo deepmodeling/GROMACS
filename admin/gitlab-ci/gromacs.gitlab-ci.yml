@@ -8,7 +8,7 @@ simple-build:
     - .use-clang:base
     - .rules:basic-push
   stage: pre-build
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   variables:
     KUBERNETES_CPU_LIMIT: 8
     KUBERNETES_CPU_REQUEST: 4
@@ -222,19 +222,19 @@ gromacs:gcc-7:configure:
     - .use-gcc:base
     - .use-opencl
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AVX2_256"
     CMAKE_EXTRA_OPTIONS: "-DGMX_EXTERNAL_CLFFT=ON"
     COMPILER_MAJOR_VERSION: 7
 
-gromacs:gcc-8-cuda-10.1:configure:
+gromacs:gcc-8-cuda-11.0:configure:
   extends:
     - .gromacs:base:configure
     - .use-gcc:base
     - .use-cuda
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=SSE4.1"
     COMPILER_MAJOR_VERSION: 8
@@ -244,7 +244,7 @@ gromacs:clang-TSAN:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   variables:
     COMPILER_MAJOR_VERSION: 8
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=TSAN"
@@ -264,7 +264,7 @@ gromacs:clang-9-mpi:configure:
    - .use-clang:base
    - .use-mpi
    - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   variables:
     COMPILER_MAJOR_VERSION: 9
     CMAKE_PRECISION_OPTIONS: -DGMX_DOUBLE=ON
@@ -274,7 +274,7 @@ gromacs:clang-static-analyzer:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   variables:
      CMAKE_COMPILER_SCRIPT: "-DCMAKE_CXX_COMPILER=/usr/local/libexec/c++-analyzer -DCMAKE_C_COMPILER=gcc"
      CMAKE_EXTRA_OPTIONS: "-DGMX_CLANG_ANALYZER=ON -DGMX_OPENMP=OFF -DGMX_USE_RDTSCP=OFF -DGMX_FFT_LIBRARY=fftpack -DGMX_DEVELOPER_BUILD=ON"
@@ -285,24 +285,49 @@ gromacs:clang-ASAN:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   variables:
     COMPILER_MAJOR_VERSION: 8
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=ASAN"
 
-gromacs:gcc-8-cuda-10.1:release:configure:
+gromacs:oneapi-2021.1-beta08-opencl:configure:
+  extends:
+   - .gromacs:base:configure
+   - .use-oneapi:base
+   - .use-opencl
+   - .rules:merge-requests
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  variables:
+    COMPILER_MAJOR_VERSION: 2021
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
+
+gromacs:clang-UBSAN:configure:
+  extends:
+    - .gromacs:base:configure
+    - .use-clang:base
+    - .rules:merge-requests
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
+  variables:
+    COMPILER_MAJOR_VERSION: 8
+    CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=UBSAN"
+
+gromacs:gcc-8-cuda-11.0:release:configure:
   extends:
     - .gromacs:base:release:configure
     - .use-gcc:base
     - .use-mpi
     - .use-cuda
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     COMPILER_MAJOR_VERSION: 8
     RELEASE_BUILD_DIR: release-builds-gcc
     CMAKE_EXTRA_OPTIONS: "-DGMX_BUILD_MDRUN_ONLY=ON"
-    CMAKE_BUILD_TYPE_OPTIONS : "-DCMAKE_BUILD_TYPE=RelWithDebug"
+    CMAKE_BUILD_TYPE_OPTIONS : "-DCMAKE_BUILD_TYPE=RelWithAssert"
     CMAKE_REGRESSIONTEST_OPTIONS: ""
   dependencies:
     - archive:package
@@ -314,7 +339,7 @@ gromacs:gcc-7:release:configure:
     - .gromacs:base:release:configure
     - .use-gcc:base
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     COMPILER_MAJOR_VERSION: 7
     RELEASE_BUILD_DIR: release-builds-gcc
@@ -330,7 +355,7 @@ gromacs:clang-9:release:configure:
     - .use-clang:base
     - .use-mpi
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   variables:
     COMPILER_MAJOR_VERSION: 9
     RELEASE_BUILD_DIR: release-builds-clang
@@ -347,11 +372,27 @@ gromacs:clang-8-cuda-10.1:release:configure:
     - .use-clang:base
     - .use-cuda
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   variables:
     COMPILER_MAJOR_VERSION: 8
     RELEASE_BUILD_DIR: release-builds-clang
-    CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=RelWithDebug"
+    CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=RelWithAssert"
+
+gromacs:oneapi-2021.1-beta08-opencl:release:configure:
+  extends:
+   - .gromacs:base:release:configure
+   - .use-oneapi:base
+   - .use-opencl
+   - .rules:nightly-only-for-release
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  variables:
+    COMPILER_MAJOR_VERSION: 2021
+    RELEASE_BUILD_DIR: release-builds-oneapi
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
 
 # Jobs running during build stage
 
@@ -366,6 +407,7 @@ gromacs:clang-8-cuda-10.1:release:configure:
     - grep "cannot be built" buildLogFile.log testBuildLogFile.log | tee -a buildErrors.log || true
     - cmake --build . --target install 2>&1 | tee installBuildLogFile.log
     - if [ -s buildErrors.log ] ; then echo "Found compiler warning during build"; cat buildErrors.log; exit 1; fi
+    - for file in `find . -mindepth 1 -name "*.o" ! -type l` ; do echo $file ; rm $file ; done 2>&1 > remove-build-objects.log
     - cd ..
   artifacts:
     when: always
@@ -395,21 +437,21 @@ gromacs:gcc-7:build:
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   needs:
     - job: gromacs:gcc-7:configure
       artifacts: true
 
-gromacs:gcc-8-cuda-10.1:build:
+gromacs:gcc-8-cuda-11.0:build:
   extends:
     - .variables:default
     - .gromacs:base:build
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   needs:
-    - job: gromacs:gcc-8-cuda-10.1:configure
+    - job: gromacs:gcc-8-cuda-11.0:configure
 
 gromacs:clang-TSAN:build:
   extends:
@@ -418,7 +460,7 @@ gromacs:clang-TSAN:build:
     - .use-clang:base
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   needs:
     - job: gromacs:clang-TSAN:configure
 
@@ -429,11 +471,24 @@ gromacs:clang-ASAN:build:
     - .use-clang:base
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   tags:
     - k8s-scilifelab
   needs:
     - job: gromacs:clang-ASAN:configure
+
+gromacs:clang-UBSAN:build:
+  extends:
+    - .variables:default
+    - .gromacs:base:build
+    - .use-clang:base
+    - .use-ccache
+    - .rules:merge-requests
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
+  tags:
+    - k8s-scilifelab
+  needs:
+    - job: gromacs:clang-UBSAN:configure
 
 gromacs:clang-static-analyzer:build:
   extends:
@@ -442,7 +497,7 @@ gromacs:clang-static-analyzer:build:
     - .use-clang:base
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   tags:
     - k8s-scilifelab
   needs:
@@ -459,6 +514,22 @@ gromacs:clang-8:build:
   needs:
     - job: gromacs:clang-8:configure
 
+gromacs:oneapi-2021.1-beta08-opencl:build:
+  extends:
+    - .variables:default
+    - .gromacs:base:build
+    - .use-ccache
+    - .before_script:default
+    - .rules:merge-requests
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  needs:
+    - job: gromacs:oneapi-2021.1-beta08-opencl:configure
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
+
 gromacs:clang-9-mpi:build:
   extends:
     - .variables:default
@@ -466,11 +537,11 @@ gromacs:clang-9-mpi:build:
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   needs:
     - job: gromacs:clang-9-mpi:configure
 
-gromacs:gcc-8-cuda-10.1:release:build:
+gromacs:gcc-8-cuda-11.0:release:build:
   extends:
     - .variables:default  
     - .gromacs:base:build
@@ -480,9 +551,9 @@ gromacs:gcc-8-cuda-10.1:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-gcc
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   needs:
-    - job: gromacs:gcc-8-cuda-10.1:release:configure
+    - job: gromacs:gcc-8-cuda-11.0:release:configure
 
 gromacs:gcc-7:release:build:
   extends:
@@ -494,7 +565,7 @@ gromacs:gcc-7:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-gcc
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   needs:
     - job: gromacs:gcc-7:release:configure
 
@@ -508,7 +579,7 @@ gromacs:clang-9:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-clang
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   needs:
     - job: gromacs:clang-9:release:configure
 
@@ -522,9 +593,31 @@ gromacs:clang-8-cuda-10.1:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-clang
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   needs:
     - job: gromacs:clang-8-cuda-10.1:release:configure
+
+gromacs:oneapi-2021.1-beta08-opencl:release:build:
+  extends:
+    - .variables:default
+    - .gromacs:base:build
+    - .use-oneapi:base
+    - .use-opencl
+    - .before_script:default
+    - .use-ccache
+    - .rules:nightly-only-for-release
+  stage: release-build
+  variables:
+    BUILD_DIR: release-builds-oneapi
+    COMPILER_MAJOR_VERSION: 2021
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  needs:
+    - job: gromacs:oneapi-2021.1-beta08-opencl:release:configure
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
 
 # Jobs running during test stage
 
@@ -539,9 +632,11 @@ gromacs:clang-8-cuda-10.1:release:build:
     CTEST_RUN_MODE: "ExperimentalTest"
   script:
     - cd $BUILD_DIR
+    - export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:suppressions=$CI_PROJECT_DIR/admin/ubsan-suppressions.txt
     # Needed to run MPI enabled code in the docker images, until we set up different users
     - export OMPI_ALLOW_RUN_AS_ROOT=1
     - export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+    - export ASAN_OPTIONS="check_initialization_order=1:detect_invalid_pointer_pairs=1:strict_init_order=true:strict_string_checks=true:detect_stack_use_after_return=true"
     - ctest -D $CTEST_RUN_MODE --output-on-failure | tee ctestLog.log || true
     - awk '/The following tests FAILED/,/^Errors while running CTest|^$/'
       ctestLog.log | tee ctestErrors.log
@@ -578,8 +673,8 @@ gromacs:clang-8-cuda-10.1:release:build:
   retry:
     max: 1
   script:
-    # This should go away once we are able to run ASAN on mdrun
-    - export ASAN_OPTIONS="detect_leaks=0"
+    - export LSAN_OPTIONS="suppressions=$CI_PROJECT_DIR/admin/lsan-suppressions.txt:print_suppressions=0"
+    - export ASAN_OPTIONS="check_initialization_order=1:detect_invalid_pointer_pairs=1:strict_init_order=true:strict_string_checks=true:detect_stack_use_after_return=true"
     # Needed to run MPI enabled code in the docker images, until we set up different users
     - export OMPI_ALLOW_RUN_AS_ROOT=1
     - export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
@@ -597,7 +692,7 @@ gromacs:gcc-7:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -606,18 +701,18 @@ gromacs:gcc-7:test:
   needs:
     - job: gromacs:gcc-7:build
 
-gromacs:gcc-8-cuda-10.1:test:
+gromacs:gcc-8-cuda-11.0:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
   tags:
     - k8s-scilifelab
   needs:
-    - job: gromacs:gcc-8-cuda-10.1:build
+    - job: gromacs:gcc-8-cuda-11.0:build
 
 gromacs:clang-8:test:
   extends:
@@ -631,7 +726,7 @@ gromacs:clang-TSAN:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   needs:
     - job: gromacs:clang-TSAN:build
 
@@ -640,7 +735,7 @@ gromacs:clang-ASAN:test:
     - .gromacs:base:test
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   variables:
     CTEST_RUN_MODE: "ExperimentalMemCheck"
   tags:
@@ -648,11 +743,35 @@ gromacs:clang-ASAN:test:
   needs:
     - job: gromacs:clang-ASAN:build
 
+gromacs:clang-UBSAN:test:
+  extends:
+    - .gromacs:base:test
+    - .use-clang:base
+    - .rules:merge-requests
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
+  tags:
+    - k8s-scilifelab
+  needs:
+    - job: gromacs:clang-UBSAN:build
+
+gromacs:oneapi-2021.1-beta08-opencl:test:
+  extends:
+    - .gromacs:base:test
+    - .rules:merge-requests
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  needs:
+    - job: gromacs:oneapi-2021.1-beta08-opencl:build
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
+
 gromacs:clang-9-mpi:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   tags:
     - k8s-scilifelab
   needs:
@@ -662,7 +781,7 @@ gromacs:gcc-7:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -675,11 +794,11 @@ gromacs:gcc-7:regressiontest:
     - job: gromacs:gcc-7:build
     - job: regressiontests:prepare
 
-gromacs:gcc-8-cuda-10.1:regressiontest:
+gromacs:gcc-8-cuda-11.0:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -689,7 +808,7 @@ gromacs:gcc-8-cuda-10.1:regressiontest:
   tags:
     - k8s-scilifelab
   needs:
-    - job: gromacs:gcc-8-cuda-10.1:build
+    - job: gromacs:gcc-8-cuda-11.0:build
     - job: regressiontests:prepare
 
 gromacs:clang-8:regressiontest:
@@ -707,7 +826,7 @@ gromacs:clang-TSAN:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   tags:
     - k8s-scilifelab
   needs:
@@ -719,7 +838,7 @@ gromacs:clang-ASAN:regressiontest:
     - .gromacs:base:regressiontest
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.13.0-llvm-8-tsan:master
+  image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   tags:
     - k8s-scilifelab
   needs:
@@ -730,7 +849,7 @@ gromacs:clang-9:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   variables:
     REGRESSIONTEST_DOUBLE: "-double"
     REGRESSIONTEST_PARALLEL: "-np"
@@ -740,12 +859,26 @@ gromacs:clang-9:regressiontest:
     - job: gromacs:clang-9-mpi:build
     - job: regressiontests:prepare
 
-gromacs:gcc-8-cuda-10.1:release:test:
+gromacs:oneapi-2021.1-beta08-opencl:regressiontest:
+  extends:
+    - .gromacs:base:regressiontest
+    - .rules:merge-requests
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  needs:
+    - job: gromacs:oneapi-2021.1-beta08-opencl:build
+    - job: regressiontests:prepare
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
+
+gromacs:gcc-8-cuda-11.0:release:test:
   extends:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-gcc-8-cuda-10.1-nvidiaopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -753,15 +886,15 @@ gromacs:gcc-8-cuda-10.1:release:test:
   tags:
     - k8s-scilifelab
   needs:
-    - job: gromacs:gcc-8-cuda-10.1:release:configure
-    - job: gromacs:gcc-8-cuda-10.1:release:build
+    - job: gromacs:gcc-8-cuda-11.0:release:configure
+    - job: gromacs:gcc-8-cuda-11.0:release:build
 
 gromacs:gcc-7:release:test:
   extends:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     BUILD_DIR: release-builds-gcc
   needs:
@@ -773,7 +906,7 @@ gromacs:clang-9:release:test:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   variables:
     BUILD_DIR: release-builds-clang
   needs:
@@ -785,7 +918,7 @@ gromacs:clang-8-cuda-10.1:release:test:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -796,12 +929,29 @@ gromacs:clang-8-cuda-10.1:release:test:
     - job: gromacs:clang-8-cuda-10.1:release:configure
     - job: gromacs:clang-8-cuda-10.1:release:build
 
+gromacs:oneapi-2021.1-beta08-opencl:release:test:
+  extends:
+    - .gromacs:base:test
+    - .rules:nightly-only-for-release
+  stage: release-tests
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  variables:
+    BUILD_DIR: release-builds-oneapi
+  needs:
+    - job: gromacs:oneapi-2021.1-beta08-opencl:release:configure
+    - job: gromacs:oneapi-2021.1-beta08-opencl:release:build
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh
+
 gromacs:gcc-7:release:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi:master
+  image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     BUILD_DIR: release-builds-gcc
   tags:
@@ -815,7 +965,7 @@ gromacs:clang-9:release:regressiontest:
     - .gromacs:base:regressiontest
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-llvm-9-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-9-openmpi-master
   variables:
     BUILD_DIR: release-builds-clang
     REGRESSIONTEST_DOUBLE: "-double"
@@ -831,7 +981,7 @@ gromacs:clang-8-cuda-10.1:release:regressiontest:
     - .gromacs:base:regressiontest
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:master
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   variables:
     BUILD_DIR: release-builds-clang
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
@@ -845,3 +995,22 @@ gromacs:clang-8-cuda-10.1:release:regressiontest:
     - job: gromacs:clang-8-cuda-10.1:release:build
     - job: regressiontests:package
 
+gromacs:oneapi-2021.1-beta08-opencl:release:regressiontest:
+  extends:
+    - .gromacs:base:regressiontest
+    - .rules:nightly-only-for-release
+  stage: release-tests
+  image: gromacs/cmake-3.17.2-oneapi-2021.1-beta08-master
+  variables:
+    BUILD_DIR: release-builds-oneapi
+    REGRESSIONTEST_PME_RANK_NUMBER: 0
+    REGRESSIONTEST_TOTAL_RANK_NUMBER: 2
+    REGRESSIONTEST_OMP_RANK_NUMBER: 1
+  needs:
+    - job: gromacs:oneapi-2021.1-beta08-opencl:release:build
+    - job: regressiontests:package
+  before_script:
+    # Necessary to override gitlab default 'set -e' which breaks Intel's
+    # setvar.sh script
+    - set +e
+    - source /opt/intel/oneapi/setvars.sh

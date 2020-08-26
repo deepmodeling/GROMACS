@@ -42,22 +42,18 @@ gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test HARDWARE_DETECTION
     CPP_SOURCE_FILES
         # Tests of code
         clfftinitializer.cpp
+        device_stream_manager.cpp
         hostallocator.cpp
+        pinnedmemorychecker.cpp
+        typecasts.cpp
 
     CUDA_CU_SOURCE_FILES
         devicetransfers.cu
         typecasts_runner.cu
 
-    CUDA_CPP_SOURCE_FILES
-        device_stream_manager.cpp
-        pinnedmemorychecker.cpp
-        typecasts.cpp
-        typecasts_runner.cpp
-
     OPENCL_CPP_SOURCE_FILES
         devicetransfers_ocl.cpp
 
     NON_GPU_CPP_SOURCE_FILES
-        device_stream_manager.cpp
         devicetransfers.cpp
     )

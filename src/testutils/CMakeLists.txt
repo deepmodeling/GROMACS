@@ -68,7 +68,7 @@ if(NOT HAVE_TINYXML2)
     list(APPEND TESTUTILS_SOURCES ../external/tinyxml2/tinyxml2.cpp)
 endif()
 
-if (GMX_USE_CUDA)
+if (GMX_GPU_CUDA)
     # Work around FindCUDA that prevents using target_link_libraries()
     # with keywords otherwise...
     set(CUDA_LIBRARIES PRIVATE ${CUDA_LIBRARIES})

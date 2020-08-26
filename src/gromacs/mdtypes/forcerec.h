@@ -55,6 +55,7 @@ struct nonbonded_verlet_t;
 struct bonded_threading_t;
 class DeviceContext;
 class DispersionCorrection;
+class ListedForces;
 struct t_forcetable;
 struct t_QMMMrec;
 
@@ -229,13 +230,7 @@ struct t_forcerec
     t_forcetable* pairsTable = nullptr; /* for 1-4 interactions, [pairs] and [pairs_nb] */
 
     /* Free energy */
-    int  efep          = 0;
-    real sc_alphavdw   = 0;
-    real sc_alphacoul  = 0;
-    int  sc_power      = 0;
-    real sc_r_power    = 0;
-    real sc_sigma6_def = 0;
-    real sc_sigma6_min = 0;
+    int efep = 0;
 
     /* Information about atom properties for the molecule blocks in the system */
     std::vector<cginfo_mb_t> cginfo_mb;
@@ -303,8 +298,8 @@ struct t_forcerec
     real userreal3 = 0;
     real userreal4 = 0;
 
-    /* Pointer to struct for managing threading of bonded force calculation */
-    struct bonded_threading_t* bondedThreading = nullptr;
+    /* The listed forces calculation data */
+    std::unique_ptr<ListedForces> listedForces;
 
     /* TODO: Replace the pointer by an object once we got rid of C */
     gmx::GpuBonded* gpuBonded = nullptr;

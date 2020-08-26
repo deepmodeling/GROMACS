@@ -105,6 +105,7 @@ void runTest(const DeviceInformation& deviceInfo, ArrayRef<T> input, ArrayRef<T>
     auto outputRef = charArrayRefFromArray(output.data(), output.size());
 
     ASSERT_EQ(inputRef.size(), outputRef.size());
+
     doDeviceTransfers(deviceInfo, inputRef, outputRef);
     compareViews(input, output);
 }
@@ -294,7 +295,7 @@ TYPED_TEST(HostAllocatorTestNoMem, Comparison)
     EXPECT_NE(AllocatorType{}, AllocatorType{ PinningPolicy::PinnedIfSupported });
 }
 
-#if GMX_GPU == GMX_GPU_CUDA
+#if GMX_GPU_CUDA
 
 // Policy suitable for pinning is only supported for a CUDA build
 
@@ -337,16 +338,8 @@ TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
             typename TestFixture::VectorType input;
             changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
             EXPECT_TRUE(input.get_allocator().pinningPolicy() == PinningPolicy::PinnedIfSupported);
-            EXPECT_EQ(0, input.size());
-            EXPECT_EQ(0, input.paddedSize());
             EXPECT_TRUE(input.empty());
-            EXPECT_FALSE(isPinned(input));
-
-            // Fill some contents, which will be pinned because of the policy.
             fillInput(&input, 1);
-            EXPECT_TRUE(isPinned(input));
-
-            // Switching policy to CannotBePinned must unpin the buffer (via
             // realloc and copy).
             auto oldInputData = input.data();
             changePinningPolicy(&input, PinningPolicy::CannotBePinned);

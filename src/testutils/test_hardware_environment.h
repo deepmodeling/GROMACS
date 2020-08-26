@@ -50,7 +50,6 @@
 
 #include <gtest/gtest.h>
 
-#include "gromacs/hardware/gpu_hw_info.h"
 #include "gromacs/utility/gmxassert.h"
 
 #include "testutils/test_hardware_context.h"

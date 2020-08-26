@@ -65,7 +65,7 @@
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/listed_forces/manage_threading.h"
+#include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"
@@ -102,7 +102,6 @@
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/df_history.h"
 #include "gromacs/mdtypes/energyhistory.h"
-#include "gromacs/mdtypes/fcdata.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/group.h"
 #include "gromacs/mdtypes/inputrec.h"
@@ -278,8 +277,9 @@ void gmx::LegacySimulator::do_rerun()
         auto nonConstGlobalTopology                          = const_cast<gmx_mtop_t*>(top_global);
         nonConstGlobalTopology->intermolecularExclusionGroup = genQmmmIndices(*top_global);
     }
-
-    initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
+    int*                fep_state = MASTER(cr) ? &state_global->fep_state : nullptr;
+    gmx::ArrayRef<real> lambda    = MASTER(cr) ? state_global->lambda : gmx::ArrayRef<real>();
+    initialize_lambdas(fplog, *ir, MASTER(cr), fep_state, lambda, lam0);
     const bool        simulationsShareState = false;
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
                                    mdModulesNotifier, ir, top_global, oenv, wcycle,
@@ -348,9 +348,9 @@ void gmx::LegacySimulator::do_rerun()
         bool   bSumEkinhOld = false;
         t_vcm* vcm          = nullptr;
         compute_globals(gstat, cr, ir, fr, ekind, makeConstArrayRef(state->x),
-                        makeConstArrayRef(state->v), state->box, state->lambda[efptVDW], mdatoms, nrnb,
-                        vcm, nullptr, enerd, force_vir, shake_vir, total_vir, pres, constr, &nullSignaller,
-                        state->box, &totalNumberOfBondedInteractions, &bSumEkinhOld, cglo_flags);
+                        makeConstArrayRef(state->v), state->box, mdatoms, nrnb, vcm, nullptr, enerd,
+                        force_vir, shake_vir, total_vir, pres, constr, &nullSignaller, state->box,
+                        &totalNumberOfBondedInteractions, &bSumEkinhOld, cglo_flags);
     }
     checkNumberOfBondedInteractions(mdlog, cr, totalNumberOfBondedInteractions, top_global, &top,
                                     makeConstArrayRef(state->x), state->box,
@@ -441,6 +441,9 @@ void gmx::LegacySimulator::do_rerun()
         calc_shifts(rerun_fr.box, fr->shift_vec);
     }
 
+    step     = ir->init_step;
+    step_rel = 0;
+
     auto stopHandler = stopHandlerBuilder->getStopHandlerMD(
             compat::not_null<SimulationSignal*>(&signals[eglsSTOPCOND]), false, MASTER(cr),
             ir->nstlist, mdrunOptions.reproducible, nstglobalcomm, mdrunOptions.maximumHoursToRun,
@@ -450,9 +453,6 @@ void gmx::LegacySimulator::do_rerun()
     walltime_accounting_set_valid_finish(walltime_accounting);
 
     const DDBalanceRegionHandler ddBalanceRegionHandler(cr);
-
-    step     = ir->init_step;
-    step_rel = 0;
 
     /* and stop now if we should */
     isLastStep = (isLastStep || (ir->nsteps >= 0 && step_rel > ir->nsteps));
@@ -522,7 +522,7 @@ void gmx::LegacySimulator::do_rerun()
         {
             /* Now is the time to relax the shells */
             relax_shell_flexcon(fplog, cr, ms, mdrunOptions.verbose, enforcedRotation, step, ir,
-                                imdSession, pull_work, bNS, force_flags, &top, constr, enerd, fcd,
+                                imdSession, pull_work, bNS, force_flags, &top, constr, enerd,
                                 state->natoms, state->x.arrayRefWithPadding(),
                                 state->v.arrayRefWithPadding(), state->box, state->lambda, &state->hist,
                                 f.arrayRefWithPadding(), force_vir, mdatoms, nrnb, wcycle, shellfc,
@@ -539,9 +539,8 @@ void gmx::LegacySimulator::do_rerun()
             gmx_edsam* ed  = nullptr;
             do_force(fplog, cr, ms, ir, awh, enforcedRotation, imdSession, pull_work, step, nrnb,
                      wcycle, &top, state->box, state->x.arrayRefWithPadding(), &state->hist,
-                     f.arrayRefWithPadding(), force_vir, mdatoms, enerd, fcd, state->lambda, fr,
-                     runScheduleWork, vsite, mu_tot, t, ed, GMX_FORCE_NS | force_flags,
-                     ddBalanceRegionHandler);
+                     f.arrayRefWithPadding(), force_vir, mdatoms, enerd, state->lambda, fr, runScheduleWork,
+                     vsite, mu_tot, t, ed, GMX_FORCE_NS | force_flags, ddBalanceRegionHandler);
         }
 
         /* Now we have the energies and forces corresponding to the
@@ -574,9 +573,9 @@ void gmx::LegacySimulator::do_rerun()
             SimulationSignaller signaller(&signals, cr, ms, doInterSimSignal, doIntraSimSignal);
 
             compute_globals(gstat, cr, ir, fr, ekind, makeConstArrayRef(state->x),
-                            makeConstArrayRef(state->v), state->box, state->lambda[efptVDW], mdatoms,
-                            nrnb, vcm, wcycle, enerd, force_vir, shake_vir, total_vir, pres, constr,
-                            &signaller, state->box, &totalNumberOfBondedInteractions, &bSumEkinhOld,
+                            makeConstArrayRef(state->v), state->box, mdatoms, nrnb, vcm, wcycle,
+                            enerd, force_vir, shake_vir, total_vir, pres, constr, &signaller,
+                            state->box, &totalNumberOfBondedInteractions, &bSumEkinhOld,
                             CGLO_GSTAT | CGLO_ENERGY
                                     | (shouldCheckNumberOfBondedInteractions ? CGLO_CHECK_NUMBER_OF_BONDED_INTERACTIONS
                                                                              : 0));
@@ -589,13 +588,6 @@ void gmx::LegacySimulator::do_rerun()
            the virial that should probably be addressed eventually. state->veta has better properies,
            but what we actually need entering the new cycle is the new shake_vir value. Ideally, we could
            generate the new shake_vir, but test the veta value for convergence.  This will take some thought. */
-
-        if (ir->efep != efepNO)
-        {
-            /* Sum up the foreign energy and dhdl terms for md and sd.
-               Currently done every step so that dhdl is correct in the .edr */
-            sum_dhdl(enerd, state->lambda, *ir->fepvals);
-        }
 
         /* Output stuff */
         if (MASTER(cr))
@@ -614,7 +606,8 @@ void gmx::LegacySimulator::do_rerun()
 
             EnergyOutput::printAnnealingTemperatures(do_log ? fplog : nullptr, groups, &(ir->opts));
             energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), do_ene, do_dr, do_or,
-                                               do_log ? fplog : nullptr, step, t, fcd, awh);
+                                               do_log ? fplog : nullptr, step, t,
+                                               &fr->listedForces->fcdata(), awh);
 
             if (do_per_step(step, ir->nstlog))
             {

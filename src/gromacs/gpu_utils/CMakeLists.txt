@@ -41,18 +41,16 @@ gmx_add_libgromacs_sources(
         device_stream_manager.cpp
         hostallocator.cpp
         gpu_utils.cpp
-        gpu_testutils.cpp
         )
-if(GMX_USE_OPENCL)
+if(GMX_GPU_OPENCL)
     gmx_add_libgromacs_sources(
         device_context_ocl.cpp
         device_stream_ocl.cpp
-        gpu_utils_ocl.cpp
         ocl_compiler.cpp
         ocl_caching.cpp
         oclutils.cpp
         )
-elseif(GMX_USE_CUDA)
+elseif(GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(
         device_context.cpp
         device_stream.cu

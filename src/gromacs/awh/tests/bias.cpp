@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -100,6 +100,7 @@ static AwhTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential)
     awhDimParams.end            = 1.5;
     awhDimParams.coordValueInit = awhDimParams.origin;
     awhDimParams.coverDiameter  = 0;
+    awhDimParams.eCoordProvider = eawhcoordproviderPULL;
 
     AwhBiasParams& awhBiasParams = params.awhBiasParams;
 
@@ -228,8 +229,9 @@ TEST_P(BiasTest, ForcesBiasPmf)
 
         awh_dvec                    coordValue = { coord, 0, 0, 0 };
         double                      potential  = 0;
-        gmx::ArrayRef<const double> biasForce  = bias.calcForceAndUpdateBias(
-                coordValue, &potential, &potentialJump, nullptr, nullptr, step, step, seed_, nullptr);
+        gmx::ArrayRef<const double> biasForce =
+                bias.calcForceAndUpdateBias(coordValue, {}, {}, &potential, &potentialJump, nullptr,
+                                            nullptr, step, step, seed_, nullptr);
 
         force.push_back(biasForce[0]);
         pot.push_back(potential);
@@ -313,8 +315,8 @@ TEST(BiasTest, DetectsCovering)
         awh_dvec coordValue    = { coord, 0, 0, 0 };
         double   potential     = 0;
         double   potentialJump = 0;
-        bias.calcForceAndUpdateBias(coordValue, &potential, &potentialJump, nullptr, nullptr, step,
-                                    step, params.awhParams.seed, nullptr);
+        bias.calcForceAndUpdateBias(coordValue, {}, {}, &potential, &potentialJump, nullptr,
+                                    nullptr, step, step, params.awhParams.seed, nullptr);
 
         inInitialStage = bias.state().inInitialStage();
         if (!inInitialStage)

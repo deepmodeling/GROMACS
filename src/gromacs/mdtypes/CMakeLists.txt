@@ -37,11 +37,12 @@ file(GLOB MDTYPES_SOURCES
     group.cpp
     iforceprovider.cpp
     inputrec.cpp
+    interaction_const.cpp
     md_enums.cpp
     observableshistory.cpp
     state.cpp)
 
-if(GMX_USE_CUDA OR GMX_USE_OPENCL)
+if(GMX_GPU)
     gmx_add_libgromacs_sources(
        state_propagator_data_gpu_impl_gpu.cpp
        )

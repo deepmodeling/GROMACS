@@ -54,6 +54,7 @@
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdtypes/group.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/nblist.h"
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/pbcutil/ishift.h"
@@ -248,7 +249,7 @@ static constexpr int sizeNeededForBufferFlags(const int numAtoms)
 static void resizeAndZeroBufferFlags(std::vector<gmx_bitmask_t>* flags, const int numAtoms)
 {
     flags->clear();
-    flags->resize(sizeNeededForBufferFlags(numAtoms), 0);
+    flags->resize(sizeNeededForBufferFlags(numAtoms), gmx_bitmask_t{ 0 });
 }
 
 
@@ -3893,7 +3894,7 @@ static Range<int> getIZoneRange(const Nbnxm::GridSet::DomainSetup& domainSetup,
 }
 
 /* Returns the j-zone range for pairlist construction for the give locality and i-zone */
-static Range<int> getJZoneRange(const gmx_domdec_zones_t& ddZones,
+static Range<int> getJZoneRange(const gmx_domdec_zones_t* ddZones,
                                 const InteractionLocality locality,
                                 const int                 iZone)
 {
@@ -3905,12 +3906,12 @@ static Range<int> getJZoneRange(const gmx_domdec_zones_t& ddZones,
     else if (iZone == 0)
     {
         /* Non-local: we need to avoid the local (zone 0 vs 0) interactions */
-        return { 1, *ddZones.iZones[iZone].jZoneRange.end() };
+        return { 1, *ddZones->iZones[iZone].jZoneRange.end() };
     }
     else
     {
         /* Non-local with non-local i-zone: use all j-zones */
-        return ddZones.iZones[iZone].jZoneRange;
+        return ddZones->iZones[iZone].jZoneRange;
     }
 }
 
@@ -3976,7 +3977,9 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
         }
     }
 
-    const gmx_domdec_zones_t& ddZones = *gridSet.domainSetup().zones;
+    const gmx_domdec_zones_t* ddZones = gridSet.domainSetup().zones;
+    GMX_ASSERT(locality_ == InteractionLocality::Local || ddZones != nullptr,
+               "Nonlocal interaction locality with null ddZones.");
 
     const auto iZoneRange = getIZoneRange(gridSet.domainSetup(), locality_);
 
@@ -4002,7 +4005,7 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
             /* With GPU: generate progressively smaller lists for
              * load balancing for local only or non-local with 2 zones.
              */
-            progBal = (locality_ == InteractionLocality::Local || ddZones.n <= 2);
+            progBal = (locality_ == InteractionLocality::Local || ddZones->n <= 2);
 
 #pragma omp parallel for num_threads(numLists) schedule(static)
             for (int th = 0; th < numLists; th++)

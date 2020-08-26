@@ -40,19 +40,24 @@
  */
 #include "gmxpre.h"
 
-#include <vector>
+#include "config.h"
 
-#include <gtest/gtest.h>
+#if GMX_GPU_CUDA
 
-#include "gromacs/gpu_utils/gpu_testutils.h"
-#include "gromacs/gpu_utils/gputraits.h"
-#include "gromacs/utility/exceptions.h"
+#    include "gromacs/gpu_utils/gputraits.h"
+#    include "gromacs/utility/exceptions.h"
 
-#include "testutils/test_hardware_environment.h"
-#include "testutils/testasserts.h"
-#include "testutils/testmatchers.h"
+#    include "testutils/test_hardware_environment.h"
+#    include "testutils/testasserts.h"
+#    include "testutils/testmatchers.h"
 
-#include "typecasts_runner.h"
+#    include "gromacs/hardware/device_management.h"
+#    include "gromacs/utility/exceptions.h"
+
+#    include "testutils/testasserts.h"
+#    include "testutils/testmatchers.h"
+
+#    include "typecasts_runner.h"
 
 namespace gmx
 {
@@ -77,3 +82,5 @@ TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3)
 
 } // namespace test
 } // namespace gmx
+
+#endif // GMX_GPU_CUDA

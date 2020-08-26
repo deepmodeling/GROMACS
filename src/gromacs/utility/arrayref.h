@@ -55,10 +55,41 @@
 #include <utility>
 #include <vector>
 
+#if __has_include(<boost/stl_interfaces/iterator_interface.hpp>)
+#    include <boost/stl_interfaces/iterator_interface.hpp>
+#else // fallback for installed headers
+#    include <gromacs/external/boost/stl_interfaces/iterator_interface.hpp>
+#endif
+
 #include "gromacs/utility/gmxassert.h"
 
 namespace gmx
 {
+
+template<class T>
+struct ArrayRefIter :
+    boost::stl_interfaces::iterator_interface<ArrayRefIter<T>, std::random_access_iterator_tag, T>
+{
+    // This default constructor does not initialize it_
+    constexpr ArrayRefIter() noexcept {}
+    constexpr explicit ArrayRefIter(T* it) noexcept : it_(it) {}
+    // TODO: Use std::is_const_v when CUDA 11 is a requirement.
+    template<class T2 = T, class = std::enable_if_t<std::is_const<T2>::value>>
+    constexpr ArrayRefIter(ArrayRefIter<std::remove_const_t<T2>> it) noexcept : it_(&*it)
+    {
+    }
+    constexpr T*            data() const noexcept { return it_; }
+    constexpr T&            operator*() const noexcept { return *it_; }
+    constexpr ArrayRefIter& operator+=(std::ptrdiff_t i) noexcept
+    {
+        it_ += i;
+        return *this;
+    }
+    constexpr auto operator-(ArrayRefIter other) const noexcept { return it_ - other.it_; }
+
+private:
+    T* it_;
+};
 
 /*! \brief STL-like interface to a C array of T (or part
  * of a std container of T).
@@ -115,13 +146,13 @@ public:
     //! Const pointer to an element.
     typedef const T* const_pointer;
     //! Const iterator type to an element.
-    typedef const T* const_iterator;
+    typedef ArrayRefIter<const T> const_iterator;
     //! Reference to an element.
     typedef T& reference;
     //! Pointer to an element.
     typedef T* pointer;
     //! Iterator type to an element.
-    typedef T* iterator;
+    typedef ArrayRefIter<T> iterator;
     //! Standard reverse iterator.
     typedef std::reverse_iterator<iterator> reverse_iterator;
     //! Standard reverse iterator.
@@ -145,6 +176,8 @@ public:
      *
      * This constructor is not explicit to allow directly passing
      * a container to a method that takes ArrayRef.
+     *
+     * \todo Use std::is_convertible_v when CUDA 11 is a requirement.
      */
     template<typename U, typename = std::enable_if_t<std::is_convertible<typename std::remove_reference_t<U>::pointer, pointer>::value>>
     ArrayRef(U&& o) : begin_(o.data()), end_(o.data() + o.size())
@@ -159,6 +192,18 @@ public:
      * Passed pointers must remain valid for the lifetime of this object.
      */
     ArrayRef(pointer begin, pointer end) : begin_(begin), end_(end)
+    {
+        GMX_ASSERT(end >= begin, "Invalid range");
+    }
+    /*! \brief
+     * Constructs a reference to a particular range.
+     *
+     * \param[in] begin  Iterator to the beginning of a range.
+     * \param[in] end    iterator to the end of a range.
+     *
+     * Passed iterators must remain valid for the lifetime of this object.
+     */
+    ArrayRef(iterator begin, iterator end) : begin_(begin), end_(end)
     {
         GMX_ASSERT(end >= begin, "Invalid range");
     }
@@ -192,9 +237,9 @@ public:
         return { begin_ + start, begin_ + start + count };
     }
     //! Returns an iterator to the beginning of the reference.
-    iterator begin() const { return begin_; }
+    iterator begin() const { return iterator(begin_); }
     //! Returns an iterator to the end of the reference.
-    iterator end() const { return end_; }
+    iterator end() const { return iterator(end_); }
     //! Returns an iterator to the reverse beginning of the reference.
     reverse_iterator rbegin() const { return reverse_iterator(end()); }
     //! Returns an iterator to the reverse end of the reference.
@@ -225,12 +270,12 @@ public:
         return begin_[n];
     }
     //! Returns the first element.
-    reference front() const { return *begin_; }
+    reference front() const { return *(begin_); }
     //! Returns the first element.
     reference back() const { return *(end_ - 1); }
 
     //! Returns a raw pointer to the contents of the array.
-    pointer data() const { return begin_; }
+    pointer data() const { return begin_.data(); }
 
     /*! \brief
      * Swaps referenced memory with the other object.
@@ -245,8 +290,8 @@ public:
     }
 
 private:
-    pointer begin_;
-    pointer end_;
+    iterator begin_;
+    iterator end_;
 };
 
 //! \copydoc ArrayRef::fromArray()
@@ -269,6 +314,8 @@ ArrayRef<const T> constArrayRefFromArray(const T* begin, size_t size)
  * Create ArrayRef from container with type deduction
  *
  * \see ArrayRef
+ *
+ * \todo Use std::is_const_v when CUDA 11 is a requirement.
  */
 template<typename T>
 ArrayRef<std::conditional_t<std::is_const<T>::value, const typename T::value_type, typename T::value_type>>

@@ -1055,16 +1055,17 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
     // BAR + thermodynamic integration values
     if ((fp_dhdl_ || dhc_) && bDoDHDL)
     {
-        for (gmx::index i = 0; i < static_cast<gmx::index>(enerd->enerpart_lambda.size()) - 1; i++)
+        const auto& foreignTerms = enerd->foreignLambdaTerms;
+        for (int i = 0; i < foreignTerms.numLambdas(); i++)
         {
             /* zero for simulated tempering */
-            dE_[i] = enerd->enerpart_lambda[i + 1] - enerd->enerpart_lambda[0];
+            dE_[i] = foreignTerms.deltaH(i);
             if (numTemperatures_ > 0)
             {
                 GMX_RELEASE_ASSERT(numTemperatures_ > state->fep_state,
                                    "Number of lambdas in state is bigger then in input record");
                 GMX_RELEASE_ASSERT(
-                        numTemperatures_ >= static_cast<gmx::index>(enerd->enerpart_lambda.size()) - 1,
+                        numTemperatures_ >= foreignTerms.numLambdas(),
                         "Number of lambdas in energy data is bigger then in input record");
                 /* MRS: is this right, given the way we have defined the exchange probabilities? */
                 /* is this even useful to have at all? */
@@ -1111,7 +1112,7 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
             {
                 fprintf(fp_dhdl_, " %#.8g", dE_[i]);
             }
-            if (bDynBox_ && bDiagPres_ && (epc_ != epcNO) && !enerd->enerpart_lambda.empty()
+            if (bDynBox_ && bDiagPres_ && (epc_ != epcNO) && foreignTerms.numLambdas() > 0
                 && (fep->init_lambda < 0))
             {
                 fprintf(fp_dhdl_, " %#.8g", pv); /* PV term only needed when
@@ -1176,7 +1177,7 @@ void EnergyOutput::printStepToEnergyFile(ener_file* fp_ene,
     fr.nsum    = ebin_->nsum;
     fr.nre     = (bEne) ? ebin_->nener : 0;
     fr.ener    = ebin_->e;
-    int ndisre = bDR ? fcd->disres.npair : 0;
+    int ndisre = bDR ? fcd->disres->npair : 0;
     /* these are for the old-style blocks (1 subblock, only reals), because
        there can be only one per ID for these */
     int   nr[enxNR];
@@ -1188,17 +1189,18 @@ void EnergyOutput::printStepToEnergyFile(ener_file* fp_ene,
         nr[i] = 0;
     }
 
-    if (bOR && fcd->orires.nr > 0)
+    if (bOR && fcd->orires->nr > 0)
     {
-        diagonalize_orires_tensors(&(fcd->orires));
-        nr[enxOR]     = fcd->orires.nr;
-        block[enxOR]  = fcd->orires.otav;
+        t_oriresdata& orires = *fcd->orires;
+        diagonalize_orires_tensors(&orires);
+        nr[enxOR]     = orires.nr;
+        block[enxOR]  = orires.otav;
         id[enxOR]     = enxOR;
-        nr[enxORI]    = (fcd->orires.oinsl != fcd->orires.otav) ? fcd->orires.nr : 0;
-        block[enxORI] = fcd->orires.oinsl;
+        nr[enxORI]    = (orires.oinsl != orires.otav) ? orires.nr : 0;
+        block[enxORI] = orires.oinsl;
         id[enxORI]    = enxORI;
-        nr[enxORT]    = fcd->orires.nex * 12;
-        block[enxORT] = fcd->orires.eig;
+        nr[enxORT]    = orires.nex * 12;
+        block[enxORT] = orires.eig;
         id[enxORT]    = enxORT;
     }
 
@@ -1237,19 +1239,20 @@ void EnergyOutput::printStepToEnergyFile(ener_file* fp_ene,
             add_blocks_enxframe(&fr, fr.nblock);
 
             add_subblocks_enxblock(&(fr.block[db]), 2);
-            fr.block[db].id        = enxDISRE;
-            fr.block[db].sub[0].nr = ndisre;
-            fr.block[db].sub[1].nr = ndisre;
+            const t_disresdata& disres = *fcd->disres;
+            fr.block[db].id            = enxDISRE;
+            fr.block[db].sub[0].nr     = ndisre;
+            fr.block[db].sub[1].nr     = ndisre;
 #if !GMX_DOUBLE
             fr.block[db].sub[0].type = xdr_datatype_float;
             fr.block[db].sub[1].type = xdr_datatype_float;
-            fr.block[db].sub[0].fval = fcd->disres.rt;
-            fr.block[db].sub[1].fval = fcd->disres.rm3tav;
+            fr.block[db].sub[0].fval = disres.rt;
+            fr.block[db].sub[1].fval = disres.rm3tav;
 #else
             fr.block[db].sub[0].type = xdr_datatype_double;
             fr.block[db].sub[1].type = xdr_datatype_double;
-            fr.block[db].sub[0].dval = fcd->disres.rt;
-            fr.block[db].sub[1].dval = fcd->disres.rm3tav;
+            fr.block[db].sub[0].dval = disres.rt;
+            fr.block[db].sub[1].dval = disres.rm3tav;
 #endif
         }
         /* here we can put new-style blocks */
@@ -1283,9 +1286,9 @@ void EnergyOutput::printStepToEnergyFile(ener_file* fp_ene,
     free_enxframe(&fr);
     if (log)
     {
-        if (bOR && fcd->orires.nr > 0)
+        if (bOR && fcd->orires->nr > 0)
         {
-            print_orires_log(log, &(fcd->orires));
+            print_orires_log(log, fcd->orires);
         }
 
         fprintf(log, "   Energies (%s)\n", unit_energy);

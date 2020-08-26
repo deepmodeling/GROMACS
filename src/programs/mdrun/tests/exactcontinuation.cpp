@@ -398,7 +398,7 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     {
         // Somehow, the bd integrator has never been as reproducible
         // as the others, either in continuations or reruns.
-        ulpToleranceInMixed = 128;
+        ulpToleranceInMixed = 200;
     }
     EnergyTermsToCompare energyTermsToCompare{
         { { interaction_function[F_EPOT].longname,
@@ -435,7 +435,7 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
 // TODO The time for OpenCL kernel compilation means these tests time
 // out. Once that compilation is cached for the whole process, these
 // tests can run in such configurations.
-#if GMX_GPU != GMX_GPU_OPENCL
+#if !GMX_GPU_OPENCL
 
 INSTANTIATE_TEST_CASE_P(
         NormalIntegrators,

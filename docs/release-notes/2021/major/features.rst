@@ -7,6 +7,12 @@ New and improved features
    Also, please use the syntax :issue:`number` to reference issues on GitLab, without the
    a space between the colon and number!
 
+Virtual site with single constructing atom
+""""""""""""""""""""""""""""""""""""""""""
+
+Added a virtual site that is constructed on top if its single constructing
+atom. This can be useful for free-energy calculations.
+
 Lower energy drift due to SETTLE
 """"""""""""""""""""""""""""""""
 
@@ -17,3 +23,11 @@ drift when large coordinate values are present. This allows for accurate
 simulations of systems with SETTLE up to 1000 nm in size (but note that
 constraining with LINCS and SHAKE still introduces significant drift,
 which limits the system size to 100 to 200 nm).
+
+FEP using AWH
+"""""""""""""
+
+It is now possible to control the lambda state of a free energy perturbation
+simulation using the Accelerated Weight Histogram method. This can be used
+as one of multiple AWH dimensions, where the other(s) are coupled to pull
+coordinates.

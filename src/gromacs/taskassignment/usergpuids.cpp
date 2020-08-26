@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -49,7 +49,7 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/stringutil.h"
@@ -136,9 +136,10 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString)
     return digits;
 }
 
-std::vector<int> makeGpuIdsToUse(const gmx_gpu_info_t& gpuInfo, const std::string& gpuIdsAvailableString)
+std::vector<int> makeGpuIdsToUse(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                                 const std::string& gpuIdsAvailableString)
 {
-    auto             compatibleGpus  = getCompatibleGpus(gpuInfo);
+    auto             compatibleGpus  = getCompatibleDevices(deviceInfos);
     std::vector<int> gpuIdsAvailable = parseUserGpuIdString(gpuIdsAvailableString);
 
     if (gpuIdsAvailable.empty())
@@ -217,9 +218,9 @@ std::string makeGpuIdString(const std::vector<int>& gpuIds, int totalNumberOfTas
     return formatAndJoin(resultGpuIds, ",", StringFormatter("%d"));
 }
 
-void checkUserGpuIds(const gmx_gpu_info_t&   gpu_info,
-                     const std::vector<int>& compatibleGpus,
-                     const std::vector<int>& gpuIds)
+void checkUserGpuIds(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+                     const std::vector<int>&                                compatibleGpus,
+                     const std::vector<int>&                                gpuIds)
 {
     bool        foundIncompatibleGpuIds = false;
     std::string message =
@@ -231,7 +232,7 @@ void checkUserGpuIds(const gmx_gpu_info_t&   gpu_info,
         {
             foundIncompatibleGpuIds = true;
             message += gmx::formatString("    GPU #%d: %s\n", gpuId,
-                                         getGpuCompatibilityDescription(gpu_info, gpuId));
+                                         getDeviceCompatibilityDescription(deviceInfos, gpuId).c_str());
         }
     }
     if (foundIncompatibleGpuIds)

@@ -55,24 +55,24 @@
 
 namespace gmx
 {
-DomDecHelper::DomDecHelper(bool                               isVerbose,
-                           int                                verbosePrintInterval,
-                           StatePropagatorData*               statePropagatorData,
-                           TopologyHolder*                    topologyHolder,
-                           CheckBondedInteractionsCallbackPtr checkBondedInteractionsCallback,
-                           int                                nstglobalcomm,
-                           FILE*                              fplog,
-                           t_commrec*                         cr,
-                           const MDLogger&                    mdlog,
-                           Constraints*                       constr,
-                           t_inputrec*                        inputrec,
-                           MDAtoms*                           mdAtoms,
-                           t_nrnb*                            nrnb,
-                           gmx_wallcycle*                     wcycle,
-                           t_forcerec*                        fr,
-                           VirtualSitesHandler*               vsite,
-                           ImdSession*                        imdSession,
-                           pull_t*                            pull_work) :
+DomDecHelper::DomDecHelper(bool                            isVerbose,
+                           int                             verbosePrintInterval,
+                           StatePropagatorData*            statePropagatorData,
+                           TopologyHolder*                 topologyHolder,
+                           CheckBondedInteractionsCallback checkBondedInteractionsCallback,
+                           int                             nstglobalcomm,
+                           FILE*                           fplog,
+                           t_commrec*                      cr,
+                           const MDLogger&                 mdlog,
+                           Constraints*                    constr,
+                           t_inputrec*                     inputrec,
+                           MDAtoms*                        mdAtoms,
+                           t_nrnb*                         nrnb,
+                           gmx_wallcycle*                  wcycle,
+                           t_forcerec*                     fr,
+                           VirtualSitesHandler*            vsite,
+                           ImdSession*                     imdSession,
+                           pull_t*                         pull_work) :
     nextNSStep_(-1),
     isVerbose_(isVerbose),
     verbosePrintInterval_(verbosePrintInterval),
@@ -115,7 +115,7 @@ void DomDecHelper::setup()
                         topologyHolder_->localTopology_.get(), fr_, vsite_, constr_, nrnb_, wcycle,
                         verbose);
     topologyHolder_->updateLocalTopology();
-    (*checkBondedInteractionsCallback_)();
+    checkBondedInteractionsCallback_();
     statePropagatorData_->setLocalState(std::move(localState));
 }
 
@@ -154,14 +154,13 @@ void DomDecHelper::run(Step step, Time gmx_unused time)
                         localState.get(), forcePointer, mdAtoms_, topologyHolder_->localTopology_.get(),
                         fr_, vsite_, constr_, nrnb_, wcycle_, verbose);
     topologyHolder_->updateLocalTopology();
-    (*checkBondedInteractionsCallback_)();
+    checkBondedInteractionsCallback_();
     statePropagatorData_->setLocalState(std::move(localState));
 }
 
-SignallerCallbackPtr DomDecHelper::registerNSCallback()
+std::optional<SignallerCallback> DomDecHelper::registerNSCallback()
 {
-    return std::make_unique<SignallerCallback>(
-            [this](Step step, Time gmx_unused time) { this->nextNSStep_ = step; });
+    return [this](Step step, Time gmx_unused time) { this->nextNSStep_ = step; };
 }
 
 } // namespace gmx

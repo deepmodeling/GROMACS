@@ -43,6 +43,7 @@
 
 #include <vector>
 
+#include "gromacs/compat/pointers.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/gmxmpi.h"
@@ -63,6 +64,64 @@ namespace gmx
 struct MdModulesNotifier;
 class KeyValueTreeObject;
 
+/*! \brief Read to a key-value-tree value used for checkpointing.
+ *
+ * \tparam ValueType
+ *
+ * \param[in] value the value to be checkpointed
+ * \param[in] name name of the value to be checkpointed
+ * \param[in] identifier uniquely identifies the module that is checkpointing
+ *                       typically the module name
+ * \param[in] kvt the key value tree to read from
+ *
+ * \throws InternalError if kvt does not contain requested value.
+ * \note Triggers assertion if value type is not correct.
+ */
+template<typename ValueType>
+void readKvtCheckpointValue(compat::not_null<ValueType*> value,
+                            const std::string&           name,
+                            const std::string&           identifier,
+                            const KeyValueTreeObject&    kvt);
+//! \copydoc readKvtCheckpointValue
+extern template void readKvtCheckpointValue(compat::not_null<std::int64_t*> value,
+                                            const std::string&              name,
+                                            const std::string&              identifier,
+                                            const KeyValueTreeObject&       kvt);
+//! \copydoc readKvtCheckpointValue
+extern template void readKvtCheckpointValue(compat::not_null<real*>   value,
+                                            const std::string&        name,
+                                            const std::string&        identifier,
+                                            const KeyValueTreeObject& kvt);
+
+/*! \brief Write to a key-value-tree used for checkpointing.
+ *
+ * \tparam ValueType
+ *
+ * \param[in] value name of the value to be checkpointed
+ * \param[in] name the value to be checkpointed
+ * \param[in] identifier uniquely identifies the module that is checkpointing
+ *                       typically the module name
+ * \param[in] kvtBuilder the key-value-tree builder used to store the checkpoint values
+ */
+template<typename ValueType>
+void writeKvtCheckpointValue(const ValueType&          value,
+                             const std::string&        name,
+                             const std::string&        identifier,
+                             KeyValueTreeObjectBuilder kvtBuilder);
+//! \copydoc writeKvtCheckpointValue
+extern template void writeKvtCheckpointValue(const std::int64_t&       value,
+                                             const std::string&        name,
+                                             const std::string&        identifier,
+                                             KeyValueTreeObjectBuilder kvtBuilder);
+//! \copydoc writeKvtCheckpointValue
+extern template void writeKvtCheckpointValue(const real&               value,
+                                             const std::string&        name,
+                                             const std::string&        identifier,
+                                             KeyValueTreeObjectBuilder kvtBuilder);
+
+/*! \libinternal
+ * \brief Provides the MdModules with the checkpointed data on the master rank.
+ */
 struct MdModulesCheckpointReadingDataOnMaster
 {
     //! The data of the MdModules that is stored in the checkpoint file
@@ -179,27 +238,15 @@ struct CheckpointHeaderContents
     int eSwapCoords;
 };
 
-/* Write a checkpoint to <fn>.cpt
- * Appends the _step<step>.cpt with bNumberAndKeep,
- * otherwise moves the previous <fn>.cpt to <fn>_prev.cpt
- */
-void write_checkpoint(const char*                   fn,
-                      gmx_bool                      bNumberAndKeep,
-                      FILE*                         fplog,
-                      const t_commrec*              cr,
-                      ivec                          domdecCells,
-                      int                           nppnodes,
-                      int                           eIntegrator,
-                      int                           simulation_part,
-                      gmx_bool                      bExpanded,
-                      int                           elamstats,
-                      int64_t                       step,
-                      double                        t,
-                      t_state*                      state,
-                      ObservablesHistory*           observablesHistory,
-                      const gmx::MdModulesNotifier& notifier,
-                      bool                          applyMpiBarrierBeforeRename,
-                      MPI_Comm                      mpiBarrierCommunicator);
+/*! \brief Low-level checkpoint writing function */
+void write_checkpoint_data(t_fileio*                         fp,
+                           CheckpointHeaderContents          headerContents,
+                           gmx_bool                          bExpanded,
+                           int                               elamstats,
+                           t_state*                          state,
+                           ObservablesHistory*               observablesHistory,
+                           const gmx::MdModulesNotifier&     notifier,
+                           std::vector<gmx_file_position_t>* outputfiles);
 
 /* Loads a checkpoint from fn for run continuation.
  * Generates a fatal error on system size mismatch.

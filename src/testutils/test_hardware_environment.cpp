@@ -52,6 +52,7 @@
 
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/detecthardware.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/utility/basenetwork.h"
 #include "gromacs/utility/exceptions.h"
@@ -102,15 +103,13 @@ void TestHardwareEnvironment::SetUp()
     hardwareContexts_.clear();
     hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>("CPU"));
     hardwareInfo_ = hardwareInit();
-    // Constructing contexts for all compatible GPUs - will not add anything for non-GPU builds
-    for (int gpuIndex : getCompatibleGpus(hardwareInfo_->gpu_info))
+    // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
+    for (int deviceId : getCompatibleDevices(hardwareInfo_->deviceInfos))
     {
-        const DeviceInformation* deviceInfo = getDeviceInfo(hardwareInfo_->gpu_info, gpuIndex);
-        init_gpu(deviceInfo);
-
-        char stmp[200] = {};
-        get_gpu_device_info_string(stmp, hardwareInfo_->gpu_info, gpuIndex);
-        std::string description = "(GPU " + std::string(stmp) + ") ";
+        const auto& deviceInfo = hardwareInfo_->deviceInfos[deviceId];
+        setDevice(*deviceInfo);
+        std::string deviceDescription = getDeviceInformationString(*deviceInfo);
+        std::string description       = "(GPU " + deviceDescription + ") ";
         hardwareContexts_.emplace_back(
                 std::make_unique<TestHardwareContext>(description.c_str(), *deviceInfo));
     }

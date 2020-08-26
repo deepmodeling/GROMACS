@@ -49,8 +49,7 @@
 #include "devicetransfers.h"
 
 #include "gromacs/gpu_utils/cudautils.cuh"
-#include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"

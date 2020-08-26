@@ -41,9 +41,9 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/gmxopencl.h"
-#include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/gpu_utils/oclutils.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include "gromacs/hardware/device_information.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
@@ -74,6 +74,7 @@ void throwUponFailure(cl_int status, const char* message)
 void doDeviceTransfers(const DeviceInformation& deviceInfo, ArrayRef<const char> input, ArrayRef<char> output)
 {
     GMX_RELEASE_ASSERT(input.size() == output.size(), "Input and output must have matching size");
+
     cl_int status;
 
     cl_context_properties properties[] = {
