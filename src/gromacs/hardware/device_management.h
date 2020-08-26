@@ -133,6 +133,10 @@ std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceIn
 
 /*! \brief Set the active GPU
  *
+ * This sets the device for which the device information is passed active. Essential in CUDA, where
+ * the device buffers and kernel launches are not connected to the device context. In OpenCL, makes
+ * performance adjustment, that are specific to the device being set.
+ *
  * \param[in] deviceInfo Information on the device to be set.
  *
  * Issues a fatal error for any critical errors that occur during
