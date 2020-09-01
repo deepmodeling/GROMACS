@@ -374,7 +374,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     return deviceInfoList;
 }
 
-void setDevice(const DeviceInformation& deviceInfo)
+void setActiveDevice(const DeviceInformation& deviceInfo)
 {
     int         deviceId = deviceInfo.id;
     cudaError_t stat;

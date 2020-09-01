@@ -142,7 +142,7 @@ std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceIn
  * Issues a fatal error for any critical errors that occur during
  * initialization.
  */
-void setDevice(const DeviceInformation& deviceInfo);
+void setActiveDevice(const DeviceInformation& deviceInfo);
 
 /*! \brief Frees up the GPU device used by the active context at the time of calling (CUDA only).
  *

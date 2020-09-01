@@ -108,7 +108,7 @@ void PmeTestEnvironment::SetUp()
     for (int deviceId : getCompatibleDevices(hardwareInfo_->deviceInfoList))
     {
         const auto& deviceInfo = hardwareInfo_->deviceInfoList[deviceId];
-        setDevice(*deviceInfo);
+        setActiveDevice(*deviceInfo);
         std::string deviceDescription = getDeviceInformationString(*deviceInfo);
         std::string description       = "(GPU " + deviceDescription + ") ";
         hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>(

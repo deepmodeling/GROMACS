@@ -505,7 +505,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     return deviceInfoList;
 }
 
-void setDevice(const DeviceInformation& deviceInfo)
+void setActiveDevice(const DeviceInformation& deviceInfo)
 {
     // If the device is NVIDIA, for safety reasons we disable the JIT
     // caching as this is known to be broken at least until driver 364.19;
