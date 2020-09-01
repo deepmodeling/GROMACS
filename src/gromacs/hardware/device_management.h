@@ -144,7 +144,7 @@ std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceIn
  */
 void setActiveDevice(const DeviceInformation& deviceInfo);
 
-/*! \brief Frees up the GPU device used by the active context at the time of calling (CUDA only).
+/*! \brief Releases the GPU device used by the active context at the time of calling (CUDA only).
  *
  * If \c deviceInfo is nullptr, then it is understood that no device
  * was selected so no context is active to be freed. Otherwise, the
@@ -160,7 +160,7 @@ void setActiveDevice(const DeviceInformation& deviceInfo);
  *
  * \param[in] deviceInfo Information on the device to be released.
  */
-void freeDevice(DeviceInformation* deviceInfo);
+void releaseDevice(DeviceInformation* deviceInfo);
 
 /*! \brief Formats and returns a device information string for a given GPU.
  *

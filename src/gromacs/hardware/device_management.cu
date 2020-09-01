@@ -392,7 +392,7 @@ void setActiveDevice(const DeviceInformation& deviceInfo)
     }
 }
 
-void freeDevice(DeviceInformation* deviceInfo)
+void releaseDevice(DeviceInformation* deviceInfo)
 {
     // device was used is that deviceInfo will be non-null.
     if (deviceInfo != nullptr)

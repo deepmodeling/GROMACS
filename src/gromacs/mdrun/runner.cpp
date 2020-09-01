@@ -1764,7 +1764,7 @@ int Mdrunner::mdrunner()
     {
         physicalNodeComm.barrier();
     }
-    freeDevice(deviceInfo);
+    releaseDevice(deviceInfo);
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());
