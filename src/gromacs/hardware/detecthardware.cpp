@@ -79,6 +79,8 @@ gmx_hw_info_t::gmx_hw_info_t(std::unique_ptr<gmx::CpuInfo>          cpuInfo,
 {
 }
 
+gmx_hw_info_t::~gmx_hw_info_t() = default;
+
 namespace gmx
 {
 
