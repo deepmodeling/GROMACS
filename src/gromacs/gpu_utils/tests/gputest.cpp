@@ -63,8 +63,6 @@ GpuTest::GpuTest()
     // Failing to find valid GPUs does not require further action
 }
 
-GpuTest::~GpuTest() = default;
-
 std::vector<std::unique_ptr<DeviceInformation>>& GpuTest::getDeviceInfoList()
 {
     return deviceInfoList_;
