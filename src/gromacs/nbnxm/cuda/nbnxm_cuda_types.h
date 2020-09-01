@@ -144,20 +144,9 @@ typedef struct Nbnxm::gpu_timers_t cu_timers_t;
 
 class GpuEventSynchronizer;
 
-/*! \internal
- * \brief Main data structure for CUDA nonbonded force calculations.
- */
-struct NbnxmGpu
+/*! \brief Structure to hold data required for buffer operations */
+struct NbnxmGpuBufferOpsData
 {
-    /*! \brief GPU device context.
-     *
-     * \todo Make it constant reference, once NbnxmGpu is a proper class.
-     */
-    const DeviceContext* deviceContext_;
-    /*! \brief true if doing both local/non-local NB work on GPU */
-    bool bUseTwoStreams = false;
-    /*! \brief atom data */
-    cu_atomdata_t* atdat = nullptr;
     /*! \brief array of atom indices */
     int* atomIndices = nullptr;
     /*! \brief size of atom indices */
@@ -176,6 +165,24 @@ struct NbnxmGpu
     int ncxy_ind = 0;
     /*! \brief number of elements allocated allocated in device buffer */
     int ncxy_ind_alloc = 0;
+};
+
+/*! \internal
+ * \brief Main data structure for CUDA nonbonded force calculations.
+ */
+struct NbnxmGpu
+{
+    /*! \brief GPU device context.
+     *
+     * \todo Make it constant reference, once NbnxmGpu is a proper class.
+     */
+    const DeviceContext* deviceContext_;
+    /*! \brief true if doing both local/non-local NB work on GPU */
+    bool bUseTwoStreams = false;
+    /*! \brief atom data */
+    cu_atomdata_t* atdat = nullptr;
+    /*! \brief data required for buffer operations */
+    struct NbnxmGpuBufferOpsData bufferOpsData;
     /*! \brief parameters required for the non-bonded calc. */
     NBParamGpu* nbparam = nullptr;
     /*! \brief pair-list data structures (local and non-local) */

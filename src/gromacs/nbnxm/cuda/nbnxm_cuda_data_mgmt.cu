@@ -332,12 +332,12 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
 
     cuda_init_const(nb, ic, listParams, nbat->params());
 
-    nb->atomIndicesSize       = 0;
-    nb->atomIndicesSize_alloc = 0;
-    nb->ncxy_na               = 0;
-    nb->ncxy_na_alloc         = 0;
-    nb->ncxy_ind              = 0;
-    nb->ncxy_ind_alloc        = 0;
+    nb->bufferOpsData.atomIndicesSize       = 0;
+    nb->bufferOpsData.atomIndicesSize_alloc = 0;
+    nb->bufferOpsData.ncxy_na               = 0;
+    nb->bufferOpsData.ncxy_na_alloc         = 0;
+    nb->bufferOpsData.ncxy_ind              = 0;
+    nb->bufferOpsData.ncxy_ind_alloc        = 0;
 
     if (debug)
     {
@@ -671,10 +671,12 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
     bool                bDoTime       = gpu_nbv->bDoTime;
     const int           maxNumColumns = gridSet.numColumnsMax();
 
-    reallocateDeviceBuffer(&gpu_nbv->cxy_na, maxNumColumns * gridSet.grids().size(),
-                           &gpu_nbv->ncxy_na, &gpu_nbv->ncxy_na_alloc, *gpu_nbv->deviceContext_);
-    reallocateDeviceBuffer(&gpu_nbv->cxy_ind, maxNumColumns * gridSet.grids().size(),
-                           &gpu_nbv->ncxy_ind, &gpu_nbv->ncxy_ind_alloc, *gpu_nbv->deviceContext_);
+    reallocateDeviceBuffer(&(gpu_nbv->bufferOpsData.cxy_na), maxNumColumns * gridSet.grids().size(),
+                           &(gpu_nbv->bufferOpsData.ncxy_na),
+                           &(gpu_nbv->bufferOpsData.ncxy_na_alloc), *gpu_nbv->deviceContext_);
+    reallocateDeviceBuffer(&(gpu_nbv->bufferOpsData.cxy_ind), maxNumColumns * gridSet.grids().size(),
+                           &(gpu_nbv->bufferOpsData.ncxy_ind),
+                           &(gpu_nbv->bufferOpsData.ncxy_ind_alloc), *gpu_nbv->deviceContext_);
 
     for (unsigned int g = 0; g < gridSet.grids().size(); g++)
     {
@@ -687,8 +689,9 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
         const int* cxy_na          = grid.cxy_na().data();
         const int* cxy_ind         = grid.cxy_ind().data();
 
-        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+        reallocateDeviceBuffer(&(gpu_nbv->bufferOpsData.atomIndices), atomIndicesSize,
+                               &(gpu_nbv->bufferOpsData.atomIndicesSize),
+                               &(gpu_nbv->bufferOpsData.atomIndicesSize_alloc), *gpu_nbv->deviceContext_);
 
         if (atomIndicesSize > 0)
         {
@@ -698,8 +701,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
                 gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
             }
 
-            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&(gpu_nbv->bufferOpsData.atomIndices), atomIndices, 0,
+                               atomIndicesSize, deviceStream, GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)
             {
@@ -714,7 +717,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
                 gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
             }
 
-            int* destPtr = &gpu_nbv->cxy_na[maxNumColumns * g];
+            int* destPtr = &(gpu_nbv->bufferOpsData.cxy_na[maxNumColumns * g]);
             copyToDeviceBuffer(&destPtr, cxy_na, 0, numColumns, deviceStream,
                                GpuApiCallBehavior::Async, nullptr);
 
@@ -728,7 +731,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
                 gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
             }
 
-            destPtr = &gpu_nbv->cxy_ind[maxNumColumns * g];
+            destPtr = &(gpu_nbv->bufferOpsData.cxy_ind[maxNumColumns * g]);
             copyToDeviceBuffer(&destPtr, cxy_ind, 0, numColumns, deviceStream,
                                GpuApiCallBehavior::Async, nullptr);
 
