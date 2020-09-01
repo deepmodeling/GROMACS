@@ -199,9 +199,9 @@ TYPED_TEST(HostAllocatorTestCopyable, VectorsWithDefaultHostAllocatorAlwaysWorks
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
 {
-    for (int deviceId : getCompatibleDevices(this->devicesInfos_))
+    for (int deviceId : getCompatibleDevices(this->deviceInfoList_))
     {
-        auto&                            deviceInfo = this->devicesInfos_[deviceId];
+        auto&                            deviceInfo = this->deviceInfoList_[deviceId];
         typename TestFixture::VectorType input;
         fillInput(&input, 1);
         typename TestFixture::VectorType output;
@@ -297,7 +297,7 @@ TYPED_TEST(HostAllocatorTestNoMem, Comparison)
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithPinningWorkWithCuda)
 {
-    for (auto& deviceInfo : this->devicesInfos_)
+    for (auto& deviceInfo : this->deviceInfoList_)
     {
         typename TestFixture::VectorType input;
         changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);

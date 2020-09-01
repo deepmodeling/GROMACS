@@ -125,11 +125,11 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices();
  * This function filters the result of the detection for compatible
  * GPUs, based on the previously run compatibility tests.
  *
- * \param[in] deviceInfos An information on available devices.
+ * \param[in] deviceInfoList An information on available devices.
  *
  * \return  Vector of IDs of GPUs already recorded as compatible
  */
-std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
+std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList);
 
 /*! \brief Set the active GPU.
  *
@@ -176,26 +176,26 @@ std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 
 /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
  *
- * \param[in] deviceInfos An information on available devices.
- * \param[in] deviceId    An index of the device to check
- * \returns               A string describing the compatibility status, useful for error messages.
+ * \param[in] deviceInfoList An information on available devices.
+ * \param[in] deviceId       An index of the device to check
+ * \returns                  A string describing the compatibility status, useful for error messages.
  */
-std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                               int deviceId);
 
 /*! \brief Serialization of information on devices for MPI broadcasting.
  *
- * \param[in] deviceInfos   The vector with device informations to serialize.
- * \param[in] serializer    Serializing object.
+ * \param[in] deviceInfoList  The vector with device informations to serialize.
+ * \param[in] serializer      Serializing object.
  */
-void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                  gmx::ISerializer*                                      serializer);
 
 /*! \brief Deserialization of information on devices after MPI broadcasting.
  *
  * \param[in] serializer Serializing object.
  *
- * \return deviceInfos   Deserialized vector with device informations.
+ * \return deviceInfoList   Deserialized vector with device informations.
  */
 std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
 

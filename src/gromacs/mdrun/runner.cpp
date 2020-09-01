@@ -773,7 +773,7 @@ int Mdrunner::mdrunner()
 
     gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hwinfo);
 
-    std::vector<int> gpuIdsToUse = makeGpuIdsToUse(hwinfo->deviceInfos, hw_opt.gpuIdsAvailable);
+    std::vector<int> gpuIdsToUse = makeGpuIdsToUse(hwinfo->deviceInfoList, hw_opt.gpuIdsAvailable);
 
     // Print citation requests after all software/hardware printing
     pleaseCiteGromacs(fplog);
@@ -1739,7 +1739,7 @@ int Mdrunner::mdrunner()
     sfree(disresdata);
     sfree(oriresdata);
 
-    if (!hwinfo->deviceInfos.empty())
+    if (!hwinfo->deviceInfoList.empty())
     {
         /* stop the GPU profiler (only CUDA) */
         stopGpuProfiler();

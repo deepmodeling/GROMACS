@@ -105,9 +105,9 @@ void PmeTestEnvironment::SetUp()
         return;
     }
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
-    for (int deviceId : getCompatibleDevices(hardwareInfo_->deviceInfos))
+    for (int deviceId : getCompatibleDevices(hardwareInfo_->deviceInfoList))
     {
-        const auto& deviceInfo = hardwareInfo_->deviceInfos[deviceId];
+        const auto& deviceInfo = hardwareInfo_->deviceInfoList[deviceId];
         setDevice(*deviceInfo);
         std::string deviceDescription = getDeviceInformationString(*deviceInfo);
         std::string description       = "(GPU " + deviceDescription + ") ";

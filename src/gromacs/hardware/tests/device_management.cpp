@@ -60,27 +60,27 @@ TEST(DevicesManagerTest, Serialization)
 {
     if (canPerformDeviceDetection(nullptr))
     {
-        std::vector<std::unique_ptr<DeviceInformation>> deviceInfosIn = findDevices();
+        std::vector<std::unique_ptr<DeviceInformation>> deviceInfoListIn = findDevices();
         gmx::InMemorySerializer                         writer;
-        serializeDeviceInformations(deviceInfosIn, &writer);
+        serializeDeviceInformations(deviceInfoListIn, &writer);
         auto buffer = writer.finishAndGetBuffer();
 
         gmx::InMemoryDeserializer                       reader(buffer, false);
-        std::vector<std::unique_ptr<DeviceInformation>> deviceInfosOut =
+        std::vector<std::unique_ptr<DeviceInformation>> deviceInfoListOut =
                 deserializeDeviceInformations(&reader);
 
-        EXPECT_EQ(deviceInfosOut.size(), deviceInfosIn.size())
+        EXPECT_EQ(deviceInfoListOut.size(), deviceInfoListIn.size())
                 << "Number of accessible devices changed after serialization/deserialization.";
 
-        for (int deviceId = 0; deviceId < static_cast<int>(deviceInfosIn.size()); deviceId++)
+        for (int deviceId = 0; deviceId < static_cast<int>(deviceInfoListIn.size()); deviceId++)
         {
-            EXPECT_FALSE(deviceInfosIn[deviceId] == nullptr) << gmx::formatString(
+            EXPECT_FALSE(deviceInfoListIn[deviceId] == nullptr) << gmx::formatString(
                     "Device #%d information is nullptr before serialization.", deviceId);
-            EXPECT_FALSE(deviceInfosOut[deviceId] == nullptr) << gmx::formatString(
+            EXPECT_FALSE(deviceInfoListOut[deviceId] == nullptr) << gmx::formatString(
                     "Device #%d information is nullptr after serialization.", deviceId);
 
-            const DeviceInformation& deviceInfoIn  = *deviceInfosIn[deviceId];
-            const DeviceInformation& deviceInfoOut = *deviceInfosOut[deviceId];
+            const DeviceInformation& deviceInfoIn  = *deviceInfoListIn[deviceId];
+            const DeviceInformation& deviceInfoOut = *deviceInfoListOut[deviceId];
             EXPECT_EQ(deviceInfoIn.status, deviceInfoOut.status) << gmx::formatString(
                     "Device status changed after serialization/deserialization for device #%d.", deviceId);
 
