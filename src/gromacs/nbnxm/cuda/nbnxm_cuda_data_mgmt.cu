@@ -338,8 +338,6 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     nb->ncxy_na_alloc         = 0;
     nb->ncxy_ind              = 0;
     nb->ncxy_ind_alloc        = 0;
-    nb->ncell                 = 0;
-    nb->ncell_alloc           = 0;
 
     if (debug)
     {

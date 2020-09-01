@@ -158,12 +158,6 @@ struct NbnxmGpu
     bool bUseTwoStreams = false;
     /*! \brief atom data */
     cu_atomdata_t* atdat = nullptr;
-    /*! \brief f buf ops cell index mapping */
-    int* cell = nullptr;
-    /*! \brief number of indices in cell buffer */
-    int ncell = 0;
-    /*! \brief number of indices allocated in cell buffer */
-    int ncell_alloc = 0;
     /*! \brief array of atom indices */
     int* atomIndices = nullptr;
     /*! \brief size of atom indices */
