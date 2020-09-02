@@ -194,7 +194,7 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
 
     int numCompatibleDevices = getCompatibleDevices(hardwareInfo->deviceInfoList).size();
 #if GMX_LIB_MPI
-    int nhwthread, ngpu;
+    int nhwthread;
     int gpu_hash;
 
     nhwthread = hardwareInfo->nthreads_hw_avail;
