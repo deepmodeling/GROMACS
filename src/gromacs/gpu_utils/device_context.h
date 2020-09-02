@@ -71,11 +71,7 @@ public:
     //! Get the associated device information
     const DeviceInformation& deviceInfo() const { return deviceInfo_; }
 
-#if !GMX_GPU
-    void activate() {}
-#else
-    void activate() { setDevice(deviceInfo_); }
-#endif
+    void activate() { setActiveDevice(deviceInfo_); }
 
 private:
     //! A reference to the device information used upon context creation
