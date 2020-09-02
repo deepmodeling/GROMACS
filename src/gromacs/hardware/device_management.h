@@ -93,12 +93,6 @@ bool canPerformDeviceDetection(std::string* errorMessage);
  */
 bool isDeviceDetectionFunctional(std::string* errorMessage);
 
-/*! \brief Checks if one can compute on the GPU
- *
- * \returns  True if the build supports GPUs and there are at least one available.
- */
-bool canComputeOnDevice();
-
 /*! \brief Find all GPUs in the system.
  *
  *  Will detect every GPU supported by the device driver in use.

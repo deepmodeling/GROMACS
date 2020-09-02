@@ -65,17 +65,6 @@ bool canPerformDeviceDetection(std::string* errorMessage)
     }
 }
 
-bool canComputeOnDevice()
-{
-    bool canComputeOnDevice = false;
-    if (canPerformDeviceDetection(nullptr))
-    {
-        std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnDevice = !getCompatibleDevices(devInfos).empty();
-    }
-    return canComputeOnDevice;
-}
-
 std::vector<std::reference_wrapper<DeviceInformation>>
 getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
 {
