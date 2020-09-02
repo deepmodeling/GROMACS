@@ -75,6 +75,8 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
         deviceInfos[i]->id         = i;
         deviceInfos[i]->syclDevice = syclDevice;
 
+        // DELETE-ME: Code for testing purposes
+
         std::cout << "    Device: " << device.get_info<sycl::info::device::name>() << std::endl;
         std::cout << "    Type:   ";
         if (device.is_gpu())
@@ -95,6 +97,8 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
                   << device.get_info<sycl::info::device::max_work_group_size>() << std::endl;
         std::cout << "    Local mem size: " << device.get_info<sycl::info::device::local_mem_size>()
                   << std::endl;
+
+        // DELETE-ME: End of testing code
     }
     return deviceInfos;
 }
