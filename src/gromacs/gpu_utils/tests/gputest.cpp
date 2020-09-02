@@ -41,7 +41,6 @@
 #include "gmxpre.h"
 
 #include "gputest.h"
-
 #include <gtest/gtest.h>
 
 #include "gromacs/gpu_utils/gpu_utils.h"
@@ -58,16 +57,16 @@ GpuTest::GpuTest()
 {
     if (canPerformDeviceDetection(nullptr))
     {
-        devicesInfos_ = findDevices();
+        deviceInfoList_ = findDevices();
     }
     // Failing to find valid GPUs does not require further action
 }
 
 GpuTest::~GpuTest() = default;
 
-std::vector<std::unique_ptr<DeviceInformation>>& GpuTest::getDeviceInfos()
+std::vector<std::unique_ptr<DeviceInformation>>& GpuTest::getDeviceInfoList()
 {
-    return devicesInfos_;
+    return deviceInfoList_;
 }
 
 } // namespace test

@@ -46,8 +46,6 @@
 
 #include "test_hardware_environment.h"
 
-#include "config.h"
-
 #include <memory>
 
 #include "gromacs/gpu_utils/gpu_utils.h"
@@ -104,10 +102,10 @@ void TestHardwareEnvironment::SetUp()
     hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>("CPU"));
     hardwareInfo_ = hardwareInit();
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
-    for (int deviceId : getCompatibleDevices(hardwareInfo_->deviceInfos))
+    for (int deviceId : getCompatibleDevices(hardwareInfo_->deviceInfoList))
     {
-        const auto& deviceInfo = hardwareInfo_->deviceInfos[deviceId];
-        setDevice(*deviceInfo);
+        const auto& deviceInfo = hardwareInfo_->deviceInfoList[deviceId];
+        setActiveDevice(*deviceInfo);
         std::string deviceDescription = getDeviceInformationString(*deviceInfo);
         std::string description       = "(GPU " + deviceDescription + ") ";
         hardwareContexts_.emplace_back(

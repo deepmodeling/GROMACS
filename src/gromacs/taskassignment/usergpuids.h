@@ -84,7 +84,7 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString);
  * all compatible GPUs on this physical node. Otherwise, check the
  * user specified compatible GPUs and return their IDs.
  *
- * \param[in]  deviceInfos            Information on the GPUs on this physical node.
+ * \param[in]  deviceInfoList         Information on the GPUs on this physical node.
  * \param[in]  gpuIdsAvailableString  String like "013" or "0,1,3" typically
  *                                    supplied by the user to mdrun -gpu_id.
  *                                    Must contain only unique decimal digits, or only decimal
@@ -100,7 +100,7 @@ std::vector<int> parseUserGpuIdString(const std::string& gpuIdString);
  *           InvalidInputError  If gpuIdsAvailableString specifies GPU IDs that are
  *                              not compatible.
  */
-std::vector<int> makeGpuIdsToUse(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+std::vector<int> makeGpuIdsToUse(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                  const std::string& gpuIdsAvailableString);
 
 /*! \brief Parse a GPU ID specifier string into a container describing device ID to task mapping.
@@ -165,14 +165,14 @@ std::string makeGpuIdString(const std::vector<int>& gpuIds, int totalNumberOfTas
  * infrastructure to do a good job of coordinating error messages and
  * behaviour across MPMD ranks and multiple simulations.
  *
- * \param[in]   deviceInfos     Information on the GPUs on this physical node.
+ * \param[in]   deviceInfoList  Information on the GPUs on this physical node.
  * \param[in]   compatibleGpus  Vector of GPUs that are compatible
  * \param[in]   gpuIds          The GPU IDs selected by the user.
  *
  * \throws  std::bad_alloc          If out of memory
  *          InconsistentInputError  If the assigned GPUs are not valid
  */
-void checkUserGpuIds(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+void checkUserGpuIds(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                      const std::vector<int>&                                compatibleGpus,
                      const std::vector<int>&                                gpuIds);
 

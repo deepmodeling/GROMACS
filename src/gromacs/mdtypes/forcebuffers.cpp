@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,51 +33,46 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Function definitions for non-GPU builds
+ * \brief
+ * Implements the ForceBuffers class
  *
- *  \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \author Berk Hess <hess@kth.se>
+ * \ingroup module_mdtypes
  */
+
 #include "gmxpre.h"
 
-#include "gpu_utils.h"
+#include "forcebuffers.h"
 
-#include "config.h"
+#include "gromacs/gpu_utils/hostallocator.h"
 
-#include <cassert>
-
-#include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/smalloc.h"
-#include "gromacs/utility/stringutil.h"
-
-#ifdef _MSC_VER
-#    pragma warning(disable : 6237)
-#endif
-
-/*! \brief Help build a descriptive message in \c error if there are
- * \c errorReasons why nonbondeds on a GPU are not supported.
- *
- * \returns Whether the lack of errorReasons indicate there is support. */
-static bool addMessageIfNotSupported(gmx::ArrayRef<const std::string> errorReasons, std::string* error)
+namespace gmx
 {
-    bool isSupported = errorReasons.empty();
-    if (!isSupported && error)
-    {
-        *error = "Nonbonded interactions cannot run on GPUs: ";
-        *error += joinStrings(errorReasons, "; ") + ".";
-    }
-    return isSupported;
+
+ForceBuffers::ForceBuffers(PinningPolicy pinningPolicy) : force_({}, { pinningPolicy }), view_({})
+{
 }
 
-bool buildSupportsNonbondedOnGpu(std::string* error)
+ForceBuffers::~ForceBuffers() = default;
+
+ForceBuffers& ForceBuffers::operator=(ForceBuffers const& o)
 {
-    std::vector<std::string> errorReasons;
-    if (GMX_DOUBLE)
-    {
-        errorReasons.emplace_back("double precision");
-    }
-    if (!GMX_GPU)
-    {
-        errorReasons.emplace_back("non-GPU build of GROMACS");
-    }
-    return addMessageIfNotSupported(errorReasons, error);
+    auto oForce = o.view().force();
+    resize(oForce.size());
+    std::copy(oForce.begin(), oForce.end(), view().force().begin());
+
+    return *this;
 }
+
+PinningPolicy ForceBuffers::pinningPolicy() const
+{
+    return force_.get_allocator().pinningPolicy();
+}
+
+void ForceBuffers::resize(int numAtoms)
+{
+    force_.resizeWithPadding(numAtoms);
+    view_ = ForceBuffersView(force_.arrayRefWithPadding());
+}
+
+} // namespace gmx

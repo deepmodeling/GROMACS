@@ -45,15 +45,10 @@
 #if GMX_GPU_CUDA
 
 #    include "gromacs/gpu_utils/gputraits.h"
-#    include "gromacs/utility/exceptions.h"
-
-#    include "testutils/test_hardware_environment.h"
-#    include "testutils/testasserts.h"
-#    include "testutils/testmatchers.h"
-
 #    include "gromacs/hardware/device_management.h"
 #    include "gromacs/utility/exceptions.h"
 
+#    include "testutils/test_hardware_environment.h"
 #    include "testutils/testasserts.h"
 #    include "testutils/testmatchers.h"
 

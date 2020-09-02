@@ -77,7 +77,7 @@ bool canPerformDeviceDetection(std::string* errorMessage);
 
 /*! \brief Return whether GPU detection is functioning correctly
  *
- * Returns true when this is a build of \GROMACS configured to support
+ * Returns true when this is a build of GROMACS configured to support
  * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
  *
  * This function is not intended to be called from build
@@ -125,26 +125,26 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices();
  * This function filters the result of the detection for compatible
  * GPUs, based on the previously run compatibility tests.
  *
- * \param[in] deviceInfos An information on available devices.
+ * \param[in] deviceInfoList An information on available devices.
  *
  * \return  Vector of IDs of GPUs already recorded as compatible
  */
-std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos);
+std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList);
 
 /*! \brief Set the active GPU.
  *
  * This sets the device for which the device information is passed active. Essential in CUDA, where
- * the device buffers and kernel launches are not connected to the device context. In OpenCL, makes
- * performance adjustment, that are specific to the device being set.
+ * the device buffers and kernel launches are not connected to the device context. In OpenCL, checks
+ * the device vendor and makes vendor-specific performance adjustments.
  *
  * \param[in] deviceInfo Information on the device to be set.
  *
  * Issues a fatal error for any critical errors that occur during
  * initialization.
  */
-void setDevice(const DeviceInformation& deviceInfo);
+void setActiveDevice(const DeviceInformation& deviceInfo);
 
-/*! \brief Frees up the GPU device used by the active context at the time of calling (CUDA only).
+/*! \brief Releases the GPU device used by the active context at the time of calling (CUDA only).
  *
  * If \c deviceInfo is nullptr, then it is understood that no device
  * was selected so no context is active to be freed. Otherwise, the
@@ -160,7 +160,7 @@ void setDevice(const DeviceInformation& deviceInfo);
  *
  * \param[in] deviceInfo Information on the device to be released.
  */
-void freeDevice(DeviceInformation* deviceInfo);
+void releaseDevice(DeviceInformation* deviceInfo);
 
 /*! \brief Formats and returns a device information string for a given GPU.
  *
@@ -176,26 +176,26 @@ std::string getDeviceInformationString(const DeviceInformation& deviceInfo);
 
 /*! \brief Return a string describing how compatible the GPU with given \c deviceId is.
  *
- * \param[in] deviceInfos An information on available devices.
- * \param[in] deviceId    An index of the device to check
- * \returns               A string describing the compatibility status, useful for error messages.
+ * \param[in] deviceInfoList An information on available devices.
+ * \param[in] deviceId       An index of the device to check
+ * \returns                  A string describing the compatibility status, useful for error messages.
  */
-std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                               int deviceId);
 
 /*! \brief Serialization of information on devices for MPI broadcasting.
  *
- * \param[in] deviceInfos   The vector with device informations to serialize.
- * \param[in] serializer    Serializing object.
+ * \param[in] deviceInfoList  The vector with device informations to serialize.
+ * \param[in] serializer      Serializing object.
  */
-void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                  gmx::ISerializer*                                      serializer);
 
 /*! \brief Deserialization of information on devices after MPI broadcasting.
  *
  * \param[in] serializer Serializing object.
  *
- * \return deviceInfos   Deserialized vector with device informations.
+ * \return deviceInfoList   Deserialized vector with device informations.
  */
 std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer);
 

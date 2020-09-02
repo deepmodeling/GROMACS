@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,51 +33,54 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- *  \brief Function definitions for non-GPU builds
+ * \brief
+ * Tests for gmx genrestr.
  *
- *  \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \author Kevin Boyd <kevin44boyd@gmail.com>
  */
+
 #include "gmxpre.h"
 
-#include "gpu_utils.h"
+#include "gromacs/gmxpreprocess/genrestr.h"
 
-#include "config.h"
+#include "testutils/cmdlinetest.h"
+#include "testutils/filematchers.h"
+#include "testutils/refdata.h"
+#include "testutils/stdiohelper.h"
+#include "testutils/testfilemanager.h"
+#include "testutils/textblockmatchers.h"
 
-#include <cassert>
-
-#include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/smalloc.h"
-#include "gromacs/utility/stringutil.h"
-
-#ifdef _MSC_VER
-#    pragma warning(disable : 6237)
-#endif
-
-/*! \brief Help build a descriptive message in \c error if there are
- * \c errorReasons why nonbondeds on a GPU are not supported.
- *
- * \returns Whether the lack of errorReasons indicate there is support. */
-static bool addMessageIfNotSupported(gmx::ArrayRef<const std::string> errorReasons, std::string* error)
+namespace gmx
 {
-    bool isSupported = errorReasons.empty();
-    if (!isSupported && error)
-    {
-        *error = "Nonbonded interactions cannot run on GPUs: ";
-        *error += joinStrings(errorReasons, "; ") + ".";
-    }
-    return isSupported;
-}
-
-bool buildSupportsNonbondedOnGpu(std::string* error)
+namespace test
 {
-    std::vector<std::string> errorReasons;
-    if (GMX_DOUBLE)
+
+class GenRestrTest : public CommandLineTestBase
+{
+public:
+    void runTest(const std::string& interactiveCommandLineInput)
     {
-        errorReasons.emplace_back("double precision");
+        StdioTestHelper stdIoHelper(&fileManager());
+        stdIoHelper.redirectStringToStdin(interactiveCommandLineInput.c_str());
+
+        CommandLine& cmdline = commandLine();
+        // Provide the name of the module to call
+        std::string module[] = { "genrestr" };
+        cmdline.merge(CommandLine(module));
+
+        ASSERT_EQ(0, gmx_genrestr(cmdline.argc(), cmdline.argv()));
+        checkOutputFiles();
     }
-    if (!GMX_GPU)
-    {
-        errorReasons.emplace_back("non-GPU build of GROMACS");
-    }
-    return addMessageIfNotSupported(errorReasons, error);
+};
+
+TEST_F(GenRestrTest, SimpleRestraintsGenerated)
+{
+    setInputFile("-f", "lysozyme.pdb");
+    ExactTextMatch settings;
+    setOutputFile("-o", "restraints.itp", TextFileMatch(settings));
+    // Select c-alphas from default index options.
+    std::string selection = "3";
+    runTest(selection);
 }
+} // namespace test
+} // namespace gmx

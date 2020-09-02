@@ -54,11 +54,12 @@
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
+
+#include "device_information.h"
 
 /*! \internal \brief
  * Max number of devices supported by CUDA (for consistency checking).
@@ -328,7 +329,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     // We expect to start device support/sanity checks with a clean runtime error state
     gmx::ensureNoPendingCudaError("");
 
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(numDevices);
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList(numDevices);
     for (int i = 0; i < numDevices; i++)
     {
         cudaDeviceProp prop;
@@ -337,11 +338,11 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
         const DeviceStatus checkResult =
                 (stat != cudaSuccess) ? DeviceStatus::NonFunctional : checkDeviceStatus(i, prop);
 
-        deviceInfos[i] = std::make_unique<DeviceInformation>();
+        deviceInfoList[i] = std::make_unique<DeviceInformation>();
 
-        deviceInfos[i]->id     = i;
-        deviceInfos[i]->prop   = prop;
-        deviceInfos[i]->status = checkResult;
+        deviceInfoList[i]->id     = i;
+        deviceInfoList[i]->prop   = prop;
+        deviceInfoList[i]->status = checkResult;
 
         if (checkResult != DeviceStatus::Compatible)
         {
@@ -359,7 +360,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
             if ((stat = cudaGetLastError()) != cudaSuccess)
             {
                 gmx_warning("An error occurred while sanity checking device #%d; %s: %s",
-                            deviceInfos[i]->id, cudaGetErrorName(stat), cudaGetErrorString(stat));
+                            deviceInfoList[i]->id, cudaGetErrorName(stat), cudaGetErrorString(stat));
             }
         }
     }
@@ -371,10 +372,10 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
                                          cudaGetErrorName(stat), cudaGetErrorString(stat))
                                .c_str());
 
-    return deviceInfos;
+    return deviceInfoList;
 }
 
-void setDevice(const DeviceInformation& deviceInfo)
+void setActiveDevice(const DeviceInformation& deviceInfo)
 {
     int         deviceId = deviceInfo.id;
     cudaError_t stat;
@@ -392,7 +393,7 @@ void setDevice(const DeviceInformation& deviceInfo)
     }
 }
 
-void freeDevice(DeviceInformation* deviceInfo)
+void releaseDevice(DeviceInformation* deviceInfo)
 {
     // device was used is that deviceInfo will be non-null.
     if (deviceInfo != nullptr)
