@@ -201,7 +201,6 @@ struct PmeTestHardwareContext
     // Constructor
     PmeTestHardwareContext(TestHardwareContext* testHardwareContext);
 
-public:
     //! Get the PME GPU program
     const PmeGpuProgram* pmeGpuProgram() const
     {
