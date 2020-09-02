@@ -41,6 +41,8 @@
 
 #include "gpu_utils.h"
 
+#include "config.h"
+
 #include <cassert>
 
 #include "gromacs/utility/arrayref.h"

@@ -50,8 +50,9 @@
 #include "device_management.h"
 
 #include "gromacs/gpu_utils/gputraits.h"
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/fatalerror.h"
+
+#include "device_information.h"
 
 std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 {

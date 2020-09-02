@@ -77,7 +77,7 @@ bool canPerformDeviceDetection(std::string* errorMessage);
 
 /*! \brief Return whether GPU detection is functioning correctly
  *
- * Returns true when this is a build of \GROMACS configured to support
+ * Returns true when this is a build of GROMACS configured to support
  * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
  *
  * This function is not intended to be called from build

@@ -49,7 +49,6 @@
 
 #include "gromacs/compat/pointers.h"
 #include "gromacs/hardware/cpuinfo.h"
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/hw_info.h"
@@ -67,6 +66,7 @@
 #include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "architecture.h"
+#include "device_information.h"
 
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h> // sysconf()
