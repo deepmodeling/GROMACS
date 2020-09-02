@@ -63,7 +63,7 @@ struct DeviceInformation;
 
 /*! \brief Return whether GPUs can be detected.
  *
- * Returns true when this is a build of \GROMACS configured to support
+ * Returns true when this is a build of GROMACS configured to support
  * GPU usage, GPU detection is not disabled by \c GMX_DISABLE_GPU_DETECTION
  * environment variable and a valid device driver, ICD, and/or runtime was
  * detected. Does not throw.
