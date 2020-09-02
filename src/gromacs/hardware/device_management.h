@@ -127,9 +127,10 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices();
  *
  * \param[in] deviceInfoList An information on available devices.
  *
- * \return  Vector of IDs of GPUs already recorded as compatible
+ * \return  Vector of DeviceInformations on GPUs recorded as compatible
  */
-std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList);
+std::vector<std::reference_wrapper<DeviceInformation>>
+getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList);
 
 /*! \brief Set the active GPU.
  *

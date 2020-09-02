@@ -191,12 +191,13 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
                                 && (cpuInfo.model() == 1 || cpuInfo.model() == 17
                                     || cpuInfo.model() == 8 || cpuInfo.model() == 24))
                                || cpuInfo.vendor() == CpuInfo::Vendor::Hygon);
+
+    int numCompatibleDevices = getCompatibleDevices(hardwareInfo->deviceInfoList).size();
 #if GMX_LIB_MPI
     int nhwthread, ngpu;
     int gpu_hash;
 
     nhwthread = hardwareInfo->nthreads_hw_avail;
-    ngpu      = getCompatibleDevices(hardwareInfo->deviceInfoList).size();
     /* Create a unique hash of the GPU type(s) in this node */
     gpu_hash = 0;
     /* Here it might be better to only loop over the compatible GPU, but we
@@ -225,7 +226,7 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
             countsLocal[0] = 1;
             countsLocal[1] = ncore;
             countsLocal[2] = nhwthread;
-            countsLocal[3] = ngpu;
+            countsLocal[3] = numCompatibleDevices;
         }
 
         MPI_Allreduce(countsLocal.data(), countsReduced.data(), countsLocal.size(), MPI_INT,
@@ -241,7 +242,7 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
          */
         maxMinLocal[0]  = ncore;
         maxMinLocal[1]  = nhwthread;
-        maxMinLocal[2]  = ngpu;
+        maxMinLocal[2]  = numCompatibleDevices;
         maxMinLocal[3]  = static_cast<int>(gmx::simdSuggested(cpuInfo));
         maxMinLocal[4]  = gpu_hash;
         maxMinLocal[5]  = -maxMinLocal[0];
@@ -271,7 +272,6 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
     hardwareInfo->haveAmdZen1Cpu      = (maxMinReduced[10] > 0);
 #else
     /* All ranks use the same pointer, protected by a mutex in the caller */
-    int numCompatibleDevices          = getCompatibleDevices(hardwareInfo->deviceInfoList).size();
     hardwareInfo->nphysicalnode       = 1;
     hardwareInfo->ncore_tot           = ncore;
     hardwareInfo->ncore_min           = ncore;

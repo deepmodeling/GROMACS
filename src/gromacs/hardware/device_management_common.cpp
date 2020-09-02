@@ -76,19 +76,20 @@ bool canComputeOnDevice()
     return canComputeOnDevice;
 }
 
-std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
+std::vector<std::reference_wrapper<DeviceInformation>>
+getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
 {
     // Possible minor over-allocation here, but not important for anything
-    std::vector<int> compatibleGpus;
-    compatibleGpus.reserve(deviceInfoList.size());
+    std::vector<std::reference_wrapper<DeviceInformation>> compatibleDeviceInfoList;
+    compatibleDeviceInfoList.reserve(deviceInfoList.size());
     for (const auto& deviceInfo : deviceInfoList)
     {
         if (deviceInfo->status == DeviceStatus::Compatible)
         {
-            compatibleGpus.push_back(deviceInfo->id);
+            compatibleDeviceInfoList.emplace_back(*deviceInfo);
         }
     }
-    return compatibleGpus;
+    return compatibleDeviceInfoList;
 }
 
 std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
