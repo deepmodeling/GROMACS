@@ -71,6 +71,8 @@ private:
     gmx_hw_info_t* hardwareInfo_;
     //! Storage of hardware contexts
     std::vector<std::unique_ptr<TestHardwareContext>> hardwareContexts_;
+    //! List of compatible GPU devices
+    std::vector<std::reference_wrapper<DeviceInformation>> compatibleDeviceInfoList_;
 
 public:
     //! This is called by GTest framework once to query the hardware
@@ -81,6 +83,11 @@ public:
     const std::vector<std::unique_ptr<TestHardwareContext>>& getHardwareContexts() const
     {
         return hardwareContexts_;
+    }
+    //! Get the list of available compatible GPU devices
+    const std::vector<std::reference_wrapper<DeviceInformation>>& compatibleDeviceInfoList() const
+    {
+        return compatibleDeviceInfoList_;
     }
     //! Get available hardware information.
     const gmx_hw_info_t* hwinfo() const { return hardwareInfo_; }

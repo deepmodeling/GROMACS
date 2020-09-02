@@ -100,9 +100,10 @@ void TestHardwareEnvironment::SetUp()
 {
     hardwareContexts_.clear();
     hardwareContexts_.emplace_back(std::make_unique<TestHardwareContext>("CPU"));
-    hardwareInfo_ = hardwareInit();
+    hardwareInfo_             = hardwareInit();
+    compatibleDeviceInfoList_ = getCompatibleDevices(hardwareInfo_->deviceInfoList);
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
-    for (const DeviceInformation& compatibleDeviceInfo : getCompatibleDevices(hardwareInfo_->deviceInfoList))
+    for (const DeviceInformation& compatibleDeviceInfo : compatibleDeviceInfoList_)
     {
         setActiveDevice(compatibleDeviceInfo);
         std::string deviceDescription = getDeviceInformationString(compatibleDeviceInfo);
