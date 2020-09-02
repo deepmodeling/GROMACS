@@ -50,6 +50,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/hardware/device_information.h"
+#include "gromacs/hardware/device_management_internal.h"
 #include "gromacs/utility/inmemoryserializer.h"
 #include "gromacs/utility/stringutil.h"
 

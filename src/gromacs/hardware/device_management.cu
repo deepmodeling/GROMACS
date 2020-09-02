@@ -54,6 +54,7 @@
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/hardware/device_management_internal.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"

@@ -52,54 +52,28 @@
 #ifndef GMX_HARDWARE_DEVICE_MANAGEMENT_H
 #define GMX_HARDWARE_DEVICE_MANAGEMENT_H
 
+#include "config.h"
+
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/iserializer.h"
+#include "gromacs/utility/logger.h"
 
 struct DeviceInformation;
 
-/*! \brief Return whether GPUs can be detected.
- *
- * Returns true when this is a build of GROMACS configured to support
- * GPU usage, GPU detection is not disabled by \c GMX_DISABLE_GPU_DETECTION
- * environment variable and a valid device driver, ICD, and/or runtime was
- * detected. Does not throw.
- *
- * \param[out] errorMessage  When returning false on a build configured with
- *                           GPU support and non-nullptr was passed,
- *                           the string contains a descriptive message about
- *                           why GPUs cannot be detected.
- */
-bool canPerformDeviceDetection(std::string* errorMessage);
-
-/*! \brief Return whether GPU detection is functioning correctly
- *
- * Returns true when this is a build of GROMACS configured to support
- * GPU usage, and a valid device driver, ICD, and/or runtime was detected.
- *
- * This function is not intended to be called from build
- * configurations that do not support GPUs, and there will be no
- * descriptive message in that case.
- *
- * \param[out] errorMessage  When returning false on a build configured with
- *                           GPU support and non-nullptr was passed,
- *                           the string contains a descriptive message about
- *                           why GPUs cannot be detected.
- *
- * Does not throw.
- */
-bool isDeviceDetectionFunctional(std::string* errorMessage);
+//! Constant used to help minimize preprocessed code
+static constexpr bool c_binarySupportsGpus = (GMX_GPU != 0);
 
 /*! \brief Find all GPUs in the system.
  *
  *  Will detect every GPU supported by the device driver in use.
- *  Must only be called if \c canPerformDeviceDetection() has returned true.
- *  This routine also checks for the compatibility of each device and fill the
- *  deviceInfo array with the required information on each device: ID, device
- *  properties, status.
+ *  Calls internal \c canPerformDeviceDetection() and in case of the detection
+ *  failure, prints message to the log and exits. This routine also checks for
+ *  the compatibility of each device and fill the deviceInfo array with the
+ *  required information on each device: ID, device properties, status.
  *
  *  Note that this function leaves the GPU runtime API error state clean;
  *  this is implemented ATM in the CUDA flavor.
@@ -107,12 +81,14 @@ bool isDeviceDetectionFunctional(std::string* errorMessage);
  *  \todo:  Check if errors do propagate in OpenCL as they do in CUDA and
  *          whether there is a mechanism to "clear" them.
  *
+ * \param mdLogger Logger to print detection errors into.
+ *
  * \return  Standard vector with the list of devices found
  *
  *  \throws InternalError if a GPU API returns an unexpected failure (because
  *          the call to canDetectGpus() should always prevent this occuring)
  */
-std::vector<std::unique_ptr<DeviceInformation>> findDevices();
+std::vector<std::unique_ptr<DeviceInformation>> findDevices(const gmx::MDLogger& mdLogger);
 
 /*! \brief Return a container of the detected GPU ids that are compatible.
  *

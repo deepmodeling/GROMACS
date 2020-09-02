@@ -49,6 +49,7 @@
 #include "gmxpre.h"
 
 #include "gromacs/hardware/device_management.h"
+#include "gromacs/hardware/device_management_internal.h"
 #include "gromacs/utility/fatalerror.h"
 
 #include "device_information.h"
@@ -63,6 +64,24 @@ bool canPerformDeviceDetection(std::string* errorMessage)
     {
         return false;
     }
+}
+
+std::vector<std::unique_ptr<DeviceInformation>> findDevices(const gmx::MDLogger& mdLogger)
+{
+    std::string errorMessage;
+    if (!canPerformDeviceDetection(&errorMessage))
+    {
+        GMX_LOG(mdLogger.info)
+                .asParagraph()
+                .appendTextFormatted(
+                        "NOTE: Detection of GPUs failed. The API reported:\n"
+                        "      %s\n"
+                        "      GROMACS cannot run tasks on a GPU.",
+                        errorMessage.c_str());
+        std::vector<std::unique_ptr<DeviceInformation>> emptyDeviceInfoList(0);
+        return emptyDeviceInfoList;
+    }
+    return findDevices();
 }
 
 std::vector<std::reference_wrapper<DeviceInformation>>

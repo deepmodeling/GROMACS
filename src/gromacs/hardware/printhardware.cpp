@@ -60,9 +60,6 @@
 #include "gromacs/utility/stringutil.h"
 #include "gromacs/utility/sysinfo.h"
 
-//! Constant used to help minimize preprocessed code
-static constexpr bool bGPUBinary = (GMX_GPU != 0);
-
 /*! \internal \brief
  * Returns the GPU information text, one GPU per line.
  */
@@ -143,12 +140,12 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         s += gmx::formatString(" %d cores,", hwinfo->ncore_tot);
     }
     s += gmx::formatString(" %d logical cores", hwinfo->nhwthread_tot);
-    if (canPerformDeviceDetection(nullptr))
+    if (c_binarySupportsGpus)
     {
         s += gmx::formatString(", %d compatible GPU%s", hwinfo->ngpu_compatible_tot,
                                hwinfo->ngpu_compatible_tot == 1 ? "" : "s");
     }
-    else if (bGPUBinary)
+    else if (c_binarySupportsGpus)
     {
         s += gmx::formatString(" (GPU detection deactivated)");
     }
@@ -172,7 +169,7 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
             s += gmx::formatString(" - %2d", hwinfo->nhwthread_max);
         }
         s += gmx::formatString("\n");
-        if (bGPUBinary)
+        if (c_binarySupportsGpus)
         {
             s += gmx::formatString("  Compatible GPUs per node: %2d", hwinfo->ngpu_compatible_min);
             if (hwinfo->ngpu_compatible_max > hwinfo->ngpu_compatible_min)
@@ -342,7 +339,7 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         }
     }
 
-    if (bGPUBinary && !hwinfo->deviceInfoList.empty())
+    if (c_binarySupportsGpus)
     {
         s += gmx::formatString("  GPU info:\n");
         s += gmx::formatString("    Number of GPUs detected: %d\n",

@@ -111,19 +111,6 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
                             const PhysicalNodeCommunicator&  physicalNodeComm,
                             compat::not_null<gmx_hw_info_t*> hardwareInfo)
 {
-    std::string errorMessage;
-    if (!canPerformDeviceDetection(&errorMessage))
-    {
-        GMX_LOG(mdlog.info)
-                .asParagraph()
-                .appendTextFormatted(
-                        "NOTE: Detection of GPUs failed. The API reported:\n"
-                        "      %s\n"
-                        "      GROMACS cannot run tasks on a GPU.",
-                        errorMessage.c_str());
-        return;
-    }
-
     bool isMasterRankOfPhysicalNode = true;
 #if GMX_LIB_MPI
     isMasterRankOfPhysicalNode = (physicalNodeComm.rank_ == 0);
@@ -138,26 +125,10 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
      * With CUDA we don't need to, and prefer to detect on one rank
      * and send the information to the other ranks over MPI. */
     constexpr bool allRanksMustDetectGpus = (GMX_GPU_OPENCL != 0);
-    bool           gpusCanBeDetected      = false;
+
     if (isMasterRankOfPhysicalNode || allRanksMustDetectGpus)
     {
-        std::string errorMessage;
-        gpusCanBeDetected = isDeviceDetectionFunctional(&errorMessage);
-        if (!gpusCanBeDetected)
-        {
-            GMX_LOG(mdlog.info)
-                    .asParagraph()
-                    .appendTextFormatted(
-                            "NOTE: Detection of GPUs failed. The API reported:\n"
-                            "      %s\n"
-                            "      GROMACS cannot run tasks on a GPU.",
-                            errorMessage.c_str());
-        }
-    }
-
-    if (gpusCanBeDetected)
-    {
-        hardwareInfo->deviceInfoList = findDevices();
+        hardwareInfo->deviceInfoList = findDevices(mdlog);
         // No need to tell the user anything at this point, they get a
         // hardware report later.
     }

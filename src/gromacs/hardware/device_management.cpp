@@ -50,6 +50,7 @@
 #include "device_management.h"
 
 #include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/hardware/device_management_internal.h"
 #include "gromacs/utility/fatalerror.h"
 
 #include "device_information.h"

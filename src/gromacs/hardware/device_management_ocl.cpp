@@ -52,6 +52,7 @@
 #include "gromacs/gpu_utils/oclraii.h"
 #include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/hardware/device_management.h"
+#include "gromacs/hardware/device_management_internal.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
