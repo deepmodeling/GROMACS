@@ -50,6 +50,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/real.h"
@@ -199,19 +200,16 @@ TYPED_TEST(HostAllocatorTestCopyable, VectorsWithDefaultHostAllocatorAlwaysWorks
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            typename TestFixture::VectorType input;
-            fillInput(&input, 1);
-            typename TestFixture::VectorType output;
-            output.resizeWithPadding(input.size());
+        setActiveDevice(compatibleDeviceInfo);
+        typename TestFixture::VectorType input;
+        fillInput(&input, 1);
+        typename TestFixture::VectorType output;
+        output.resizeWithPadding(input.size());
 
-            runTest(context->deviceInfo(), makeArrayRef(input), makeArrayRef(output));
-        }
+        runTest(compatibleDeviceInfo, makeArrayRef(input), makeArrayRef(output));
     }
 }
 
@@ -301,21 +299,18 @@ TYPED_TEST(HostAllocatorTestNoMem, Comparison)
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithPinningWorkWithCuda)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            typename TestFixture::VectorType input;
-            changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
-            fillInput(&input, 1);
-            typename TestFixture::VectorType output;
-            changePinningPolicy(&output, PinningPolicy::PinnedIfSupported);
-            output.resizeWithPadding(input.size());
+        setActiveDevice(compatibleDeviceInfo);
+        typename TestFixture::VectorType input;
+        changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
+        fillInput(&input, 1);
+        typename TestFixture::VectorType output;
+        changePinningPolicy(&output, PinningPolicy::PinnedIfSupported);
+        output.resizeWithPadding(input.size());
 
-            runTest(context->deviceInfo(), makeArrayRef(input), makeArrayRef(output));
-        }
+        runTest(compatibleDeviceInfo, makeArrayRef(input), makeArrayRef(output));
     }
 }
 
@@ -329,34 +324,31 @@ bool isPinned(const VectorType& v)
 
 TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            typename TestFixture::VectorType input;
-            changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
-            EXPECT_TRUE(input.get_allocator().pinningPolicy() == PinningPolicy::PinnedIfSupported);
-            EXPECT_TRUE(input.empty());
-            fillInput(&input, 1);
-            // realloc and copy).
-            auto oldInputData = input.data();
-            changePinningPolicy(&input, PinningPolicy::CannotBePinned);
-            EXPECT_FALSE(isPinned(input));
-            // These cannot be equal as both had to be allocated at the same
-            // time for the contents to be able to be copied.
-            EXPECT_NE(oldInputData, input.data());
+        setActiveDevice(compatibleDeviceInfo);
+        typename TestFixture::VectorType input;
+        changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
+        EXPECT_TRUE(input.get_allocator().pinningPolicy() == PinningPolicy::PinnedIfSupported);
+        EXPECT_TRUE(input.empty());
+        fillInput(&input, 1);
+        // realloc and copy).
+        auto oldInputData = input.data();
+        changePinningPolicy(&input, PinningPolicy::CannotBePinned);
+        EXPECT_FALSE(isPinned(input));
+        // These cannot be equal as both had to be allocated at the same
+        // time for the contents to be able to be copied.
+        EXPECT_NE(oldInputData, input.data());
 
-            // Switching policy to PinnedIfSupported must pin the buffer (via
-            // realloc and copy).
-            oldInputData = input.data();
-            changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
-            EXPECT_TRUE(isPinned(input));
-            // These cannot be equal as both had to be allocated at the same
-            // time for the contents to be able to be copied.
-            EXPECT_NE(oldInputData, input.data());
-        }
+        // Switching policy to PinnedIfSupported must pin the buffer (via
+        // realloc and copy).
+        oldInputData = input.data();
+        changePinningPolicy(&input, PinningPolicy::PinnedIfSupported);
+        EXPECT_TRUE(isPinned(input));
+        // These cannot be equal as both had to be allocated at the same
+        // time for the contents to be able to be copied.
+        EXPECT_NE(oldInputData, input.data());
     }
 }
 
