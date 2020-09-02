@@ -51,6 +51,7 @@
 #    include "gromacs/gpu_utils/gpu_utils.h"
 #    include "gromacs/gpu_utils/hostallocator.h"
 #    include "gromacs/gpu_utils/pmalloc_cuda.h"
+#    include "gromacs/hardware/device_management.h"
 #    include "gromacs/utility/real.h"
 #    include "gromacs/utility/smalloc.h"
 
@@ -70,83 +71,68 @@ using PinnedMemoryCheckerTest = ::testing::Test;
 
 TEST_F(PinnedMemoryCheckerTest, DefaultContainerIsRecognized)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            HostVector<real> dummy(3, 1.5);
-            changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
-            EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
-        }
+        setActiveDevice(compatibleDeviceInfo);
+        HostVector<real> dummy(3, 1.5);
+        changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
+        EXPECT_FALSE(isHostMemoryPinned(dummy.data()));
     }
 }
 
 TEST_F(PinnedMemoryCheckerTest, PinnedContainerIsRecognized)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            HostVector<real> dummy(3, 1.5);
-            changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
-            EXPECT_TRUE(isHostMemoryPinned(dummy.data()));
-        }
+        setActiveDevice(compatibleDeviceInfo);
+        HostVector<real> dummy(3, 1.5);
+        changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
+        EXPECT_TRUE(isHostMemoryPinned(dummy.data()));
     }
 }
 
 TEST_F(PinnedMemoryCheckerTest, PinningChangesAreRecognized)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
+        setActiveDevice(compatibleDeviceInfo);
 
-            HostVector<real> dummy(3, 1.5);
-            changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
-            EXPECT_TRUE(isHostMemoryPinned(dummy.data())) << "memory starts pinned";
-            changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
-            EXPECT_FALSE(isHostMemoryPinned(dummy.data())) << "memory is now unpinned";
-            changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
-            EXPECT_TRUE(isHostMemoryPinned(dummy.data())) << "memory is pinned again";
-        }
+        HostVector<real> dummy(3, 1.5);
+        changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
+        EXPECT_TRUE(isHostMemoryPinned(dummy.data())) << "memory starts pinned";
+        changePinningPolicy(&dummy, PinningPolicy::CannotBePinned);
+        EXPECT_FALSE(isHostMemoryPinned(dummy.data())) << "memory is now unpinned";
+        changePinningPolicy(&dummy, PinningPolicy::PinnedIfSupported);
+        EXPECT_TRUE(isHostMemoryPinned(dummy.data())) << "memory is pinned again";
     }
 }
 
 TEST_F(PinnedMemoryCheckerTest, DefaultCBufferIsRecognized)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            real* dummy;
-            snew(dummy, 3);
-            EXPECT_FALSE(isHostMemoryPinned(dummy));
-            sfree(dummy);
-        }
+        setActiveDevice(compatibleDeviceInfo);
+        real* dummy;
+        snew(dummy, 3);
+        EXPECT_FALSE(isHostMemoryPinned(dummy));
+        sfree(dummy);
     }
 }
 
 TEST_F(PinnedMemoryCheckerTest, PinnedCBufferIsRecognized)
 {
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
+    for (const DeviceInformation& compatibleDeviceInfo :
+         getTestHardwareEnvironment()->compatibleDeviceInfoList())
     {
-        if (context->codePath() == CodePath::GPU)
-        {
-            context->activate();
-            real* dummy = nullptr;
-            pmalloc(reinterpret_cast<void**>(&dummy), 3 * sizeof(real));
-            EXPECT_TRUE(isHostMemoryPinned(dummy));
-            pfree(dummy);
-        }
+        setActiveDevice(compatibleDeviceInfo);
+        real* dummy = nullptr;
+        pmalloc(reinterpret_cast<void**>(&dummy), 3 * sizeof(real));
+        EXPECT_TRUE(isHostMemoryPinned(dummy));
+        pfree(dummy);
     }
 }
 
