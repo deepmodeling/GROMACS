@@ -49,7 +49,6 @@
 
 #include "gromacs/compat/pointers.h"
 #include "gromacs/hardware/cpuinfo.h"
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/hw_info.h"
@@ -67,6 +66,7 @@
 #include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "architecture.h"
+#include "device_information.h"
 
 #ifdef HAVE_UNISTD_H
 #    include <unistd.h> // sysconf()
@@ -79,7 +79,7 @@ gmx_hw_info_t::gmx_hw_info_t(std::unique_ptr<gmx::CpuInfo>          cpuInfo,
 {
 }
 
-gmx_hw_info_t::~gmx_hw_info_t() {}
+gmx_hw_info_t::~gmx_hw_info_t() = default;
 
 namespace gmx
 {
@@ -157,22 +157,22 @@ static void gmx_detect_gpus(const gmx::MDLogger&             mdlog,
 
     if (gpusCanBeDetected)
     {
-        hardwareInfo->deviceInfos = findDevices();
+        hardwareInfo->deviceInfoList = findDevices();
         // No need to tell the user anything at this point, they get a
         // hardware report later.
     }
 
 #if GMX_LIB_MPI
-    if (!allRanksMustDetectGpus && !hardwareInfo->deviceInfos.empty())
+    if (!allRanksMustDetectGpus && !hardwareInfo->deviceInfoList.empty())
     {
         gmx::InMemorySerializer writer;
-        serializeDeviceInformations(hardwareInfo->deviceInfos, &writer);
+        serializeDeviceInformations(hardwareInfo->deviceInfoList, &writer);
         auto buffer = writer.finishAndGetBuffer();
 
         MPI_Bcast(buffer.data(), buffer.size(), MPI_BYTE, 0, physicalNodeComm.comm_);
 
         gmx::InMemoryDeserializer reader(buffer, false);
-        hardwareInfo->deviceInfos = deserializeDeviceInformations(&writer);
+        hardwareInfo->deviceInfoList = deserializeDeviceInformations(&writer);
     }
 #endif
 }
@@ -191,19 +191,20 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
                                 && (cpuInfo.model() == 1 || cpuInfo.model() == 17
                                     || cpuInfo.model() == 8 || cpuInfo.model() == 24))
                                || cpuInfo.vendor() == CpuInfo::Vendor::Hygon);
+
+    int numCompatibleDevices = getCompatibleDevices(hardwareInfo->deviceInfoList).size();
 #if GMX_LIB_MPI
-    int nhwthread, ngpu;
+    int nhwthread;
     int gpu_hash;
 
     nhwthread = hardwareInfo->nthreads_hw_avail;
-    ngpu      = getCompatibleDevices(hardwareInfo->deviceInfos).size();
     /* Create a unique hash of the GPU type(s) in this node */
     gpu_hash = 0;
     /* Here it might be better to only loop over the compatible GPU, but we
      * don't have that information available and it would also require
      * removing the device ID from the device info string.
      */
-    for (const auto& deviceInfo : hardwareInfo->deviceInfos)
+    for (const auto& deviceInfo : hardwareInfo->deviceInfoList)
     {
         /* Since the device ID is incorporated in the hash, the order of
          * the GPUs affects the hash. Also two identical GPUs won't give
@@ -225,7 +226,7 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
             countsLocal[0] = 1;
             countsLocal[1] = ncore;
             countsLocal[2] = nhwthread;
-            countsLocal[3] = ngpu;
+            countsLocal[3] = numCompatibleDevices;
         }
 
         MPI_Allreduce(countsLocal.data(), countsReduced.data(), countsLocal.size(), MPI_INT,
@@ -241,7 +242,7 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
          */
         maxMinLocal[0]  = ncore;
         maxMinLocal[1]  = nhwthread;
-        maxMinLocal[2]  = ngpu;
+        maxMinLocal[2]  = numCompatibleDevices;
         maxMinLocal[3]  = static_cast<int>(gmx::simdSuggested(cpuInfo));
         maxMinLocal[4]  = gpu_hash;
         maxMinLocal[5]  = -maxMinLocal[0];
@@ -271,7 +272,6 @@ static void gmx_collect_hardware_mpi(const gmx::CpuInfo&              cpuInfo,
     hardwareInfo->haveAmdZen1Cpu      = (maxMinReduced[10] > 0);
 #else
     /* All ranks use the same pointer, protected by a mutex in the caller */
-    int numCompatibleDevices          = getCompatibleDevices(hardwareInfo->deviceInfos).size();
     hardwareInfo->nphysicalnode       = 1;
     hardwareInfo->ncore_tot           = ncore;
     hardwareInfo->ncore_min           = ncore;

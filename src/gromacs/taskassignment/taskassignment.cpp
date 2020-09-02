@@ -330,7 +330,7 @@ GpuTaskAssignments GpuTaskAssignmentsBuilder::build(const std::vector<int>& gpuI
                         userGpuTaskAssignment.size(), host, numGpuTasksOnThisNode)));
             }
             // Did the user choose compatible GPUs?
-            checkUserGpuIds(hardwareInfo.deviceInfos, gpuIdsToUse, userGpuTaskAssignment);
+            checkUserGpuIds(hardwareInfo.deviceInfoList, gpuIdsToUse, userGpuTaskAssignment);
 
             gpuIdsForTaskAssignment = userGpuTaskAssignment;
         }
@@ -433,8 +433,8 @@ DeviceInformation* GpuTaskAssignments::initDevice(int* deviceId) const
     if (gpuTaskMapping != gpuTaskAssignment.end())
     {
         *deviceId  = gpuTaskMapping->deviceId_;
-        deviceInfo = hardwareInfo_.deviceInfos[*deviceId].get();
-        setDevice(*deviceInfo);
+        deviceInfo = hardwareInfo_.deviceInfoList[*deviceId].get();
+        setActiveDevice(*deviceInfo);
     }
     return deviceInfo;
 }

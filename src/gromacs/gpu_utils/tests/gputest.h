@@ -58,12 +58,12 @@ class GpuTest : public ::testing::Test
 {
 public:
     //! List of all available devices
-    std::vector<std::unique_ptr<DeviceInformation>> devicesInfos_;
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList_;
 
     GpuTest();
     ~GpuTest() override;
     //! Return a vector of handles, each to a device info for a compatible GPU.
-    std::vector<std::unique_ptr<DeviceInformation>>& getDeviceInfos();
+    std::vector<std::unique_ptr<DeviceInformation>>& getDeviceInfoList();
 };
 
 } // namespace test

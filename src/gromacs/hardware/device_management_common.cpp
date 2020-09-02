@@ -48,11 +48,10 @@
  */
 #include "gmxpre.h"
 
-#include "config.h"
-
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/fatalerror.h"
+
+#include "device_information.h"
 
 bool canPerformDeviceDetection(std::string* errorMessage)
 {
@@ -77,35 +76,36 @@ bool canComputeOnDevice()
     return canComputeOnDevice;
 }
 
-std::vector<int> getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
+std::vector<std::reference_wrapper<DeviceInformation>>
+getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
 {
     // Possible minor over-allocation here, but not important for anything
-    std::vector<int> compatibleGpus;
-    compatibleGpus.reserve(deviceInfos.size());
-    for (const auto& deviceInfo : deviceInfos)
+    std::vector<std::reference_wrapper<DeviceInformation>> compatibleDeviceInfoList;
+    compatibleDeviceInfoList.reserve(deviceInfoList.size());
+    for (const auto& deviceInfo : deviceInfoList)
     {
         if (deviceInfo->status == DeviceStatus::Compatible)
         {
-            compatibleGpus.push_back(deviceInfo->id);
+            compatibleDeviceInfoList.emplace_back(*deviceInfo);
         }
     }
-    return compatibleGpus;
+    return compatibleDeviceInfoList;
 }
 
-std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                               int deviceId)
 {
-    return (deviceId >= static_cast<int>(deviceInfos.size())
+    return (deviceId >= static_cast<int>(deviceInfoList.size())
                     ? c_deviceStateString[DeviceStatus::Nonexistent]
-                    : c_deviceStateString[deviceInfos[deviceId]->status]);
+                    : c_deviceStateString[deviceInfoList[deviceId]->status]);
 }
 
-void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos,
+void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                  gmx::ISerializer*                                      serializer)
 {
-    int numDevices = deviceInfos.size();
+    int numDevices = deviceInfoList.size();
     serializer->doInt(&numDevices);
-    for (auto& deviceInfo : deviceInfos)
+    for (auto& deviceInfo : deviceInfoList)
     {
         serializer->doOpaque(reinterpret_cast<char*>(deviceInfo.get()), sizeof(DeviceInformation));
     }
@@ -115,11 +115,11 @@ std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gm
 {
     int numDevices = 0;
     serializer->doInt(&numDevices);
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(numDevices);
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList(numDevices);
     for (int i = 0; i < numDevices; i++)
     {
-        deviceInfos[i] = std::make_unique<DeviceInformation>();
-        serializer->doOpaque(reinterpret_cast<char*>(deviceInfos[i].get()), sizeof(DeviceInformation));
+        deviceInfoList[i] = std::make_unique<DeviceInformation>();
+        serializer->doOpaque(reinterpret_cast<char*>(deviceInfoList[i].get()), sizeof(DeviceInformation));
     }
-    return deviceInfos;
+    return deviceInfoList;
 }

@@ -51,11 +51,12 @@
 
 #include "gromacs/gpu_utils/oclraii.h"
 #include "gromacs/gpu_utils/oclutils.h"
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
+
+#include "device_information.h"
 
 namespace gmx
 {
@@ -332,7 +333,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     }
 
     int                                             numDevices = 0;
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos(0);
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList(0);
 
     while (true)
     {
@@ -381,7 +382,7 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
             break;
         }
 
-        deviceInfos.resize(numDevices);
+        deviceInfoList.resize(numDevices);
 
         {
             int           device_index;
@@ -409,49 +410,49 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 
                 for (unsigned int j = 0; j < ocl_device_count; j++)
                 {
-                    deviceInfos[device_index] = std::make_unique<DeviceInformation>();
+                    deviceInfoList[device_index] = std::make_unique<DeviceInformation>();
 
-                    deviceInfos[device_index]->id = device_index;
+                    deviceInfoList[device_index]->id = device_index;
 
-                    deviceInfos[device_index]->oclPlatformId = ocl_platform_ids[i];
-                    deviceInfos[device_index]->oclDeviceId   = ocl_device_ids[j];
+                    deviceInfoList[device_index]->oclPlatformId = ocl_platform_ids[i];
+                    deviceInfoList[device_index]->oclDeviceId   = ocl_device_ids[j];
 
-                    deviceInfos[device_index]->device_name[0] = 0;
+                    deviceInfoList[device_index]->device_name[0] = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_NAME,
-                                    sizeof(deviceInfos[device_index]->device_name),
-                                    deviceInfos[device_index]->device_name, nullptr);
+                                    sizeof(deviceInfoList[device_index]->device_name),
+                                    deviceInfoList[device_index]->device_name, nullptr);
 
-                    deviceInfos[device_index]->device_version[0] = 0;
+                    deviceInfoList[device_index]->device_version[0] = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_VERSION,
-                                    sizeof(deviceInfos[device_index]->device_version),
-                                    deviceInfos[device_index]->device_version, nullptr);
+                                    sizeof(deviceInfoList[device_index]->device_version),
+                                    deviceInfoList[device_index]->device_version, nullptr);
 
-                    deviceInfos[device_index]->vendorName[0] = 0;
+                    deviceInfoList[device_index]->vendorName[0] = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_VENDOR,
-                                    sizeof(deviceInfos[device_index]->vendorName),
-                                    deviceInfos[device_index]->vendorName, nullptr);
+                                    sizeof(deviceInfoList[device_index]->vendorName),
+                                    deviceInfoList[device_index]->vendorName, nullptr);
 
-                    deviceInfos[device_index]->compute_units = 0;
+                    deviceInfoList[device_index]->compute_units = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_COMPUTE_UNITS,
-                                    sizeof(deviceInfos[device_index]->compute_units),
-                                    &(deviceInfos[device_index]->compute_units), nullptr);
+                                    sizeof(deviceInfoList[device_index]->compute_units),
+                                    &(deviceInfoList[device_index]->compute_units), nullptr);
 
-                    deviceInfos[device_index]->adress_bits = 0;
+                    deviceInfoList[device_index]->adress_bits = 0;
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_ADDRESS_BITS,
-                                    sizeof(deviceInfos[device_index]->adress_bits),
-                                    &(deviceInfos[device_index]->adress_bits), nullptr);
+                                    sizeof(deviceInfoList[device_index]->adress_bits),
+                                    &(deviceInfoList[device_index]->adress_bits), nullptr);
 
-                    deviceInfos[device_index]->deviceVendor =
-                            gmx::getDeviceVendor(deviceInfos[device_index]->vendorName);
+                    deviceInfoList[device_index]->deviceVendor =
+                            gmx::getDeviceVendor(deviceInfoList[device_index]->vendorName);
 
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_WORK_ITEM_SIZES, 3 * sizeof(size_t),
-                                    &deviceInfos[device_index]->maxWorkItemSizes, nullptr);
+                                    &deviceInfoList[device_index]->maxWorkItemSizes, nullptr);
 
                     clGetDeviceInfo(ocl_device_ids[j], CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
-                                    &deviceInfos[device_index]->maxWorkGroupSize, nullptr);
+                                    &deviceInfoList[device_index]->maxWorkGroupSize, nullptr);
 
-                    deviceInfos[device_index]->status =
-                            gmx::checkGpu(device_index, *deviceInfos[device_index]);
+                    deviceInfoList[device_index]->status =
+                            gmx::checkGpu(device_index, *deviceInfoList[device_index]);
 
                     device_index++;
                 }
@@ -466,13 +467,13 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
                 int last = -1;
                 for (int i = 0; i < numDevices; i++)
                 {
-                    if (deviceInfos[i]->deviceVendor == DeviceVendor::Amd)
+                    if (deviceInfoList[i]->deviceVendor == DeviceVendor::Amd)
                     {
                         last++;
 
                         if (last < i)
                         {
-                            std::swap(deviceInfos[i], deviceInfos[last]);
+                            std::swap(deviceInfoList[i], deviceInfoList[last]);
                         }
                     }
                 }
@@ -482,13 +483,13 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
                 {
                     for (int i = 0; i < numDevices; i++)
                     {
-                        if (deviceInfos[i]->deviceVendor == DeviceVendor::Nvidia)
+                        if (deviceInfoList[i]->deviceVendor == DeviceVendor::Nvidia)
                         {
                             last++;
 
                             if (last < i)
                             {
-                                std::swap(deviceInfos[i], deviceInfos[last]);
+                                std::swap(deviceInfoList[i], deviceInfoList[last]);
                             }
                         }
                     }
@@ -502,10 +503,10 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     }
 
     sfree(ocl_platform_ids);
-    return deviceInfos;
+    return deviceInfoList;
 }
 
-void setDevice(const DeviceInformation& deviceInfo)
+void setActiveDevice(const DeviceInformation& deviceInfo)
 {
     // If the device is NVIDIA, for safety reasons we disable the JIT
     // caching as this is known to be broken at least until driver 364.19;
@@ -525,7 +526,7 @@ void setDevice(const DeviceInformation& deviceInfo)
     }
 }
 
-void freeDevice(DeviceInformation* /* deviceInfo */) {}
+void releaseDevice(DeviceInformation* /* deviceInfo */) {}
 
 std::string getDeviceInformationString(const DeviceInformation& deviceInfo)
 {

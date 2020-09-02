@@ -72,7 +72,7 @@ struct gmx_hw_info_t
 
     std::unique_ptr<gmx::CpuInfo>          cpuInfo; /* Information about CPU capabilities */
     std::unique_ptr<gmx::HardwareTopology> hardwareTopology; /* Information about hardware topology */
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfos; /* Information about GPUs detected on this physical node */
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList; /* Information about GPUs detected on this physical node */
 
 
     /* Data reduced through MPI over all physical nodes */
