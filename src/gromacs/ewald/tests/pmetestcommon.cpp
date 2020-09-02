@@ -883,15 +883,5 @@ PmeTestHardwareContext::PmeTestHardwareContext(TestHardwareContext* testHardware
     }
 }
 
-
-void fillPmeTestHardwareContexts(std::vector<std::unique_ptr<PmeTestHardwareContext>> pmeTestHardwareContexts)
-{
-    const auto& hardwareContexts = getTestHardwareEnvironment()->getHardwareContexts();
-    for (const auto& context : hardwareContexts)
-    {
-        pmeTestHardwareContexts.emplace_back(std::make_unique<PmeTestHardwareContext>(context.get()));
-    }
-}
-
 } // namespace test
 } // namespace gmx

@@ -208,8 +208,6 @@ struct PmeTestHardwareContext
     }
 };
 
-void fillPmeTestHardwareContexts(std::vector<std::unique_ptr<PmeTestHardwareContext>> pmeTestHardwareContexts);
-
 } // namespace test
 } // namespace gmx
 
