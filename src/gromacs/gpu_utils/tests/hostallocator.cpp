@@ -199,15 +199,14 @@ TYPED_TEST(HostAllocatorTestCopyable, VectorsWithDefaultHostAllocatorAlwaysWorks
 
 TYPED_TEST(HostAllocatorTestCopyable, TransfersWithoutPinningWork)
 {
-    for (int deviceId : getCompatibleDevices(this->deviceInfoList_))
+    for (const DeviceInformation& compatibleDeviceInfo : getCompatibleDevices(this->deviceInfoList_))
     {
-        auto&                            deviceInfo = this->deviceInfoList_[deviceId];
         typename TestFixture::VectorType input;
         fillInput(&input, 1);
         typename TestFixture::VectorType output;
         output.resizeWithPadding(input.size());
 
-        runTest(*deviceInfo, makeArrayRef(input), makeArrayRef(output));
+        runTest(compatibleDeviceInfo, makeArrayRef(input), makeArrayRef(output));
     }
 }
 
