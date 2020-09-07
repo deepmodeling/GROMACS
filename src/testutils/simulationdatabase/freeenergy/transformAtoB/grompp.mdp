@@ -53,7 +53,7 @@ rlist                    = 1.0
 ; Method for doing electrostatics
 coulomb_type             = pme
 coulomb-modifier         = Potential-shift-Verlet
-rcoulomb_switch          = 0
+rcoulomb_switch          = 0.99
 rcoulomb                 = 1.0
 ; Relative dielectric constant for the medium and the reaction field
 epsilon_r                = 1.0

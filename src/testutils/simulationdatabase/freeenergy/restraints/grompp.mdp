@@ -1,4 +1,4 @@
-;
+1;95;0c>;
 ;	File 'mdout.mdp' was generated
 ;	By user: mark (1302)
 ;	On host: amd2
@@ -13,7 +13,7 @@ include                  =
 define                   = 
 
 ; RUN CONTROL PARAMETERS
-integrator               = md-vv
+integrator               = md
 ; Start time and timestep in ps
 tinit                    = 0.0
 dt                       = 0.001
@@ -55,7 +55,7 @@ rlist                    = 1.0
 ; Method for doing electrostatics
 coulomb_type             = pme
 coulomb-modifier         = Potential-shift-Verlet
-rcoulomb_switch          = 0
+rcoulomb_switch          = 0.99
 rcoulomb                 = 1.0
 ; Relative dielectric constant for the medium and the reaction field
 epsilon_r                = 1.0
@@ -145,10 +145,4 @@ separate-dhdl-file       = no
 dhdl-derivatives         = yes
 dh_hist_size             = 0
 dh_hist_spacing          = 0.1
-
-; simulated tempering variables
-simulated-tempering      = no
-simulated-tempering-scaling = geometric
-sim-temp-low             = 300
-sim-temp-high            = 300
 

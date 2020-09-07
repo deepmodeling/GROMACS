@@ -53,7 +53,7 @@ rlist                    = 1.0
 ; Method for doing electrostatics
 coulomb_type             = pme
 coulomb-modifier         = Potential-shift-Verlet
-rcoulomb_switch          = 0
+rcoulomb_switch          = 0.99
 rcoulomb                 = 1.0
 ; Relative dielectric constant for the medium and the reaction field
 epsilon_r                = 1.0
@@ -82,8 +82,6 @@ epsilon-surface          = 0
 ; Temperature coupling  
 tcoupl                   = berendsen
 nsttcouple               = 1
-nh-chain-length          = 10
-print-nose-hoover-chain-variables = no
 ; Groups to couple separately
 tc-grps                  = system
 ; Time constant (ps) and reference temperature (K)

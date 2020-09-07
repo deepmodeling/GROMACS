@@ -126,8 +126,7 @@ mass-lambdas             =
 coul-lambdas             = 0.0 0.1 0.2 0.3 0.5 0.7 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.00 1.0 1.00 1.0 1.00 1.0 1.0
 vdw-lambdas              = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.65 0.7 0.75 0.8 0.85 0.9 1.0
 bonded-lambdas           = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.65 0.7 0.75 0.8 0.85 0.9 1.0
-bonded-lambdas           = 
-restraint-lambdas        = 
+restraint-lambdas        = 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.9 0.9 0.9 0.90 0.9 1.00 1.0 1.00 1.0 1.0
 temperature-lambdas      = 
 init-lambda-weights      = 
 dhdl-print-energy        = no
@@ -141,8 +140,3 @@ dhdl-derivatives         = yes
 dh_hist_size             = 0
 dh_hist_spacing          = 0.1
 
-; simulated tempering variables
-simulated-tempering      = no
-simulated-tempering-scaling = geometric
-sim-temp-low             = 300
-sim-temp-high            = 300
