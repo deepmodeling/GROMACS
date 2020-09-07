@@ -48,6 +48,10 @@
 
 #include "config.h"
 
+#if GMX_GPU_SYCL
+#    include <CL/sycl.hpp>
+#endif
+
 #if GMX_GPU_CUDA
 #    include <cuda_runtime.h>
 #endif
