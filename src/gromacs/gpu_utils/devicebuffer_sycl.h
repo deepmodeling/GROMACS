@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -63,7 +63,9 @@
  * \param[in]     deviceContext        The buffer's device context-to-be.
  */
 template<typename ValueType>
-void allocateDeviceBuffer(DeviceBuffer<ValueType>* /* buffer */, size_t /* numValues */, const DeviceContext& /* deviceContext */)
+void allocateDeviceBuffer(DeviceBuffer<ValueType>* /* buffer */,
+                          size_t /* numValues */,
+                          const DeviceContext& /* deviceContext */)
 {
     // SYCL-TODO
 }
@@ -101,12 +103,12 @@ void freeDeviceBuffer(DeviceBuffer* /* buffer */)
  */
 template<typename ValueType>
 void copyToDeviceBuffer(DeviceBuffer<ValueType>* /* buffer */,
-                        const ValueType*         /* hostBuffer */,
-                        size_t                   /* startingOffset */,
-                        size_t                   /* numValues */,
-                        const DeviceStream&      /* deviceStream */,
-                        GpuApiCallBehavior       /* transferKind */,
-                        CommandEvent*            /* timingEvent */)
+                        const ValueType* /* hostBuffer */,
+                        size_t /* startingOffset */,
+                        size_t /* numValues */,
+                        const DeviceStream& /* deviceStream */,
+                        GpuApiCallBehavior /* transferKind */,
+                        CommandEvent* /* timingEvent */)
 {
     // SYCL-TODO
 }
@@ -129,13 +131,13 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* /* buffer */,
  *                                     to queue a wait for this operation or to query profiling information.
  */
 template<typename ValueType>
-void copyFromDeviceBuffer(ValueType*               /* hostBuffer */,
+void copyFromDeviceBuffer(ValueType* /* hostBuffer */,
                           DeviceBuffer<ValueType>* /* buffer */,
-                          size_t                   /* startingOffset */,
-                          size_t                   /* numValues */,
-                          const DeviceStream&      /* deviceStream */,
-                          GpuApiCallBehavior       /* transferKind */,
-                          CommandEvent*            /* timingEvent */)
+                          size_t /* startingOffset */,
+                          size_t /* numValues */,
+                          const DeviceStream& /* deviceStream */,
+                          GpuApiCallBehavior /* transferKind */,
+                          CommandEvent* /* timingEvent */)
 {
     // SYCL-TODO
 }
@@ -151,9 +153,9 @@ void copyFromDeviceBuffer(ValueType*               /* hostBuffer */,
  */
 template<typename ValueType>
 void clearDeviceBufferAsync(DeviceBuffer<ValueType>* /* buffer */,
-                            size_t                   /* startingOffset */,
-                            size_t                   /* numValues */,
-                            const DeviceStream&      /* deviceStream */)
+                            size_t /* startingOffset */,
+                            size_t /* numValues */,
+                            const DeviceStream& /* deviceStream */)
 {
     // SYCL-TODO
 }
@@ -192,8 +194,8 @@ using DeviceTexture = void*;
 template<typename ValueType>
 void initParamLookupTable(DeviceBuffer<ValueType>* /* deviceBuffer */,
                           DeviceTexture* /* deviceTexture */,
-                          const ValueType*     /* hostBuffer */,
-                          int                  /* numValues */,
+                          const ValueType* /* hostBuffer */,
+                          int /* numValues */,
                           const DeviceContext& /* deviceContext */)
 {
     // SYCL-TODO
@@ -211,4 +213,4 @@ void destroyParamLookupTable(DeviceBuffer<ValueType>* /* deviceBuffer */, Device
     // SYCL-TODO
 }
 
-#endif //GMX_GPU_UTILS_DEVICEBUFFER_SYCL_H
+#endif // GMX_GPU_UTILS_DEVICEBUFFER_SYCL_H
