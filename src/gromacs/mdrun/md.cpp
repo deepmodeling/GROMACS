@@ -260,7 +260,7 @@ void gmx::LegacySimulator::do_md()
     const bool doSimulatedAnnealing = initSimulatedAnnealing(ir, &upd);
     const bool useReplicaExchange   = (replExParams.exchangeInterval > 0);
 
-    const t_fcdata& fcdata = fr->listedForces->fcdata();
+    const t_fcdata& fcdata = *fr->fcdata;
 
     bool simulationsShareState = false;
     int  nstSignalComm         = nstglobalcomm;
@@ -841,18 +841,18 @@ void gmx::LegacySimulator::do_md()
                                     fr, vsite, constr, nrnb, wcycle, do_verbose && !bPMETunePrinting);
                 shouldCheckNumberOfBondedInteractions = true;
                 upd.setNumAtoms(state->natoms);
-
-                // Allocate or re-size GPU halo exchange object, if necessary
-                if (havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange
-                    && useGpuForNonbonded && is1D(*cr->dd))
-                {
-                    GMX_RELEASE_ASSERT(fr->deviceStreamManager != nullptr,
-                                       "GPU device manager has to be initialized to use GPU "
-                                       "version of halo exchange.");
-                    // TODO remove need to pass local stream into GPU halo exchange - Issue #3093
-                    constructGpuHaloExchange(mdlog, *cr, *fr->deviceStreamManager, wcycle);
-                }
             }
+        }
+
+        // Allocate or re-size GPU halo exchange object, if necessary
+        if (bNS && havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange
+            && useGpuForNonbonded && is1D(*cr->dd))
+        {
+            GMX_RELEASE_ASSERT(fr->deviceStreamManager != nullptr,
+                               "GPU device manager has to be initialized to use GPU "
+                               "version of halo exchange.");
+            // TODO remove need to pass local stream into GPU halo exchange - Issue #3093
+            constructGpuHaloExchange(mdlog, *cr, *fr->deviceStreamManager, wcycle);
         }
 
         if (MASTER(cr) && do_log)
@@ -1530,7 +1530,12 @@ void gmx::LegacySimulator::do_md()
             {
                 energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), do_ene, do_dr, do_or,
                                                    do_log ? fplog : nullptr, step, t,
-                                                   &fr->listedForces->fcdata(), awh.get());
+                                                   fr->fcdata.get(), awh.get());
+            }
+            if (do_log && ir->bDoAwh && awh->hasFepLambdaDimension())
+            {
+                const bool isInitialOutput = false;
+                printLambdaStateToLog(fplog, state->lambda, isInitialOutput);
             }
 
             if (ir->bPull)

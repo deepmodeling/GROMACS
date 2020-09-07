@@ -110,6 +110,7 @@
 #include "gromacs/mdrunutility/multisim.h"
 #include "gromacs/mdrunutility/printtime.h"
 #include "gromacs/mdrunutility/threadaffinity.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/enerdata.h"
 #include "gromacs/mdtypes/fcdata.h"
@@ -1070,6 +1071,7 @@ int Mdrunner::mdrunner()
 
     ObservablesHistory observablesHistory = {};
 
+    auto modularSimulatorCheckpointData = std::make_unique<ReadCheckpointDataHolder>();
     if (startingBehavior != StartingBehavior::NewSimulation)
     {
         /* Check if checkpoint file exists before doing continuation.
@@ -1086,7 +1088,8 @@ int Mdrunner::mdrunner()
 
         load_checkpoint(opt2fn_master("-cpi", filenames.size(), filenames.data(), cr),
                         logFileHandle, cr, domdecOptions.numCells, inputrec.get(), globalState.get(),
-                        &observablesHistory, mdrunOptions.reproducible, mdModules_->notifier());
+                        &observablesHistory, mdrunOptions.reproducible, mdModules_->notifier(),
+                        modularSimulatorCheckpointData.get(), useModularSimulator);
 
         if (startingBehavior == StartingBehavior::RestartWithAppending && logFileHandle)
         {
@@ -1388,8 +1391,8 @@ int Mdrunner::mdrunner()
                       opt2fn("-tablep", filenames.size(), filenames.data()),
                       opt2fns("-tableb", filenames.size(), filenames.data()), pforce);
         // Dirty hack, for fixing disres and orires should be made mdmodules
-        fr->listedForces->fcdata().disres = disresdata;
-        fr->listedForces->fcdata().orires = oriresdata;
+        fr->fcdata->disres = disresdata;
+        fr->fcdata->orires = oriresdata;
 
         // Save a handle to device stream manager to use elsewhere in the code
         // TODO: Forcerec is not a correct place to store it.
@@ -1679,6 +1682,7 @@ int Mdrunner::mdrunner()
         simulatorBuilder.add(IonSwapping(swap));
         simulatorBuilder.add(TopologyData(&mtop, mdAtoms.get()));
         simulatorBuilder.add(BoxDeformationHandle(deform.get()));
+        simulatorBuilder.add(std::move(modularSimulatorCheckpointData));
 
         // build and run simulator object based on user-input
         auto simulator = simulatorBuilder.build(useModularSimulator);

@@ -350,18 +350,19 @@ bool ModularSimulator::isInputCompatible(bool                             exitOn
     return isInputCompatible;
 }
 
-ModularSimulator::ModularSimulator(std::unique_ptr<LegacySimulatorData> legacySimulatorData) :
-    legacySimulatorData_(std::move(legacySimulatorData))
+ModularSimulator::ModularSimulator(std::unique_ptr<LegacySimulatorData>      legacySimulatorData,
+                                   std::unique_ptr<ReadCheckpointDataHolder> checkpointDataHolder) :
+    legacySimulatorData_(std::move(legacySimulatorData)),
+    checkpointDataHolder_(std::move(checkpointDataHolder))
 {
     checkInputForDisabledFunctionality();
 }
 
 void ModularSimulator::checkInputForDisabledFunctionality()
 {
-    isInputCompatible(true, legacySimulatorData_->inputrec,
-                      legacySimulatorData_->mdrunOptions.rerun, *legacySimulatorData_->top_global,
-                      legacySimulatorData_->ms, legacySimulatorData_->replExParams,
-                      &legacySimulatorData_->fr->listedForces->fcdata(),
+    isInputCompatible(true, legacySimulatorData_->inputrec, legacySimulatorData_->mdrunOptions.rerun,
+                      *legacySimulatorData_->top_global, legacySimulatorData_->ms,
+                      legacySimulatorData_->replExParams, legacySimulatorData_->fr->fcdata.get(),
                       opt2bSet("-ei", legacySimulatorData_->nfile, legacySimulatorData_->fnm),
                       legacySimulatorData_->membed != nullptr);
     if (legacySimulatorData_->observablesHistory->edsamHistory)

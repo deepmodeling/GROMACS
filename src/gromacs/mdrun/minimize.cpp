@@ -90,6 +90,7 @@
 #include "gromacs/mdlib/vsite.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 #include "gromacs/mdrunutility/printtime.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/forcebuffers.h"
 #include "gromacs/mdtypes/forcerec.h"
@@ -532,9 +533,10 @@ static void write_em_traj(FILE*               fplog,
         mdof_flags |= MDOF_IMD;
     }
 
+    gmx::WriteCheckpointDataHolder checkpointDataHolder;
     mdoutf_write_to_trajectory_files(fplog, cr, outf, mdof_flags, top_global->natoms, step,
                                      static_cast<double>(step), &state->s, state_global,
-                                     observablesHistory, state->f.view().force());
+                                     observablesHistory, state->f.view().force(), &checkpointDataHolder);
 
     if (confout != nullptr)
     {
@@ -544,7 +546,8 @@ static void write_em_traj(FILE*               fplog,
             if (!bX)
             {
                 auto globalXRef = MASTER(cr) ? state_global->x : gmx::ArrayRef<gmx::RVec>();
-                dd_collect_vec(cr->dd, &state->s, state->s.x, globalXRef);
+                dd_collect_vec(cr->dd, state->s.ddp_count, state->s.ddp_count_cg_gl, state->s.cg_gl,
+                               state->s.x, globalXRef);
             }
         }
         else
@@ -1128,7 +1131,7 @@ void LegacySimulator::do_cg()
 
         EnergyOutput::printHeader(fplog, step, step);
         energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), TRUE, FALSE, FALSE, fplog, step,
-                                           step, &fr->listedForces->fcdata(), nullptr);
+                                           step, fr->fcdata.get(), nullptr);
     }
 
     /* Estimate/guess the initial stepsize */
@@ -1546,7 +1549,7 @@ void LegacySimulator::do_cg()
             }
             energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), do_ene, FALSE, FALSE,
                                                do_log ? fplog : nullptr, step, step,
-                                               &fr->listedForces->fcdata(), nullptr);
+                                               fr->fcdata.get(), nullptr);
         }
 
         /* Send energies and positions to the IMD client if bIMD is TRUE. */
@@ -1590,7 +1593,7 @@ void LegacySimulator::do_cg()
             /* Write final energy file entries */
             energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), !do_ene, FALSE, FALSE,
                                                !do_log ? fplog : nullptr, step, step,
-                                               &fr->listedForces->fcdata(), nullptr);
+                                               fr->fcdata.get(), nullptr);
         }
     }
 
@@ -1778,7 +1781,7 @@ void LegacySimulator::do_lbfgs()
 
         EnergyOutput::printHeader(fplog, step, step);
         energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), TRUE, FALSE, FALSE, fplog, step,
-                                           step, &fr->listedForces->fcdata(), nullptr);
+                                           step, fr->fcdata.get(), nullptr);
     }
 
     /* Set the initial step.
@@ -1856,9 +1859,10 @@ void LegacySimulator::do_lbfgs()
             mdof_flags |= MDOF_IMD;
         }
 
+        gmx::WriteCheckpointDataHolder checkpointDataHolder;
         mdoutf_write_to_trajectory_files(fplog, cr, outf, mdof_flags, top_global->natoms, step,
-                                         static_cast<real>(step), &ems.s, state_global,
-                                         observablesHistory, ems.f.view().force());
+                                         static_cast<real>(step), &ems.s, state_global, observablesHistory,
+                                         ems.f.view().force(), &checkpointDataHolder);
 
         /* Do the linesearching in the direction dx[point][0..(n-1)] */
 
@@ -2271,7 +2275,7 @@ void LegacySimulator::do_lbfgs()
             }
             energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), do_ene, FALSE, FALSE,
                                                do_log ? fplog : nullptr, step, step,
-                                               &fr->listedForces->fcdata(), nullptr);
+                                               fr->fcdata.get(), nullptr);
         }
 
         /* Send x and E to IMD client, if bIMD is TRUE. */
@@ -2313,8 +2317,8 @@ void LegacySimulator::do_lbfgs()
     if (!do_ene || !do_log) /* Write final energy file entries */
     {
         energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), !do_ene, FALSE, FALSE,
-                                           !do_log ? fplog : nullptr, step, step,
-                                           &fr->listedForces->fcdata(), nullptr);
+                                           !do_log ? fplog : nullptr, step, step, fr->fcdata.get(),
+                                           nullptr);
     }
 
     /* Print some stuff... */
@@ -2477,8 +2481,8 @@ void LegacySimulator::do_steep()
 
                 const bool do_dr = do_per_step(steps_accepted, inputrec->nstdisreout);
                 const bool do_or = do_per_step(steps_accepted, inputrec->nstorireout);
-                energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), TRUE, do_dr, do_or, fplog,
-                                                   count, count, &fr->listedForces->fcdata(), nullptr);
+                energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), TRUE, do_dr, do_or,
+                                                   fplog, count, count, fr->fcdata.get(), nullptr);
                 fflush(fplog);
             }
         }
