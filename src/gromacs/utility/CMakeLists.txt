@@ -42,8 +42,7 @@ set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${UTILITY_SOURCES} PARENT_SCOPE)
 # TODO: (https://gitlab.com/gromacs/gromacs/-/issues/988) Find a new convention for defining public API.
 install(FILES
         basedefinitions.h
-        current_function.h
-        gmxassert.h
+        gmxapiassert.h
         real.h
         DESTINATION include/gromacs/utility)
 

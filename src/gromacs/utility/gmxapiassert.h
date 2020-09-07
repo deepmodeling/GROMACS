@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2019, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,23 +32,33 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#include "gmxpre.h"
+/*! \file
+ * \brief
+ * Defines assert macros customized for Gromacs public API.
+ *
+ * \author Joe Jordan <ejjordan@kth.se>
+ * \inpublicapi
+ * \ingroup module_utility
+ */
+#ifndef GMX_UTILITY_GMXAPIASSERT_H
+#define GMX_UTILITY_GMXAPIASSERT_H
 
-#include "interaction_const.h"
+#include <cassert>
 
-#include <cstdio>
-
-#include "gromacs/math/functions.h"
-#include "gromacs/mdtypes/inputrec.h"
-#include "gromacs/utility/gmxassert.h"
-
-interaction_const_t::SoftCoreParameters::SoftCoreParameters(const t_lambda& fepvals) :
-    alphaVdw(fepvals.sc_alpha),
-    alphaCoulomb(fepvals.bScCoul ? fepvals.sc_alpha : 0),
-    lambdaPower(fepvals.sc_power),
-    sigma6WithInvalidSigma(gmx::power6(fepvals.sc_sigma)),
-    sigma6Minimum(fepvals.bScCoul ? gmx::power6(fepvals.sc_sigma_min) : 0)
+namespace gmx
 {
-    // This is checked during tpr reading, so we can assert here
-    GMX_RELEASE_ASSERT(fepvals.sc_r_power == 6.0, "We only support soft-core r-power 6");
-}
+/*! \def API_ASSERT
+ * \brief
+ * Macro for debug asserts. Similar to GMX_ASSERT, but for public API exposure.
+ *
+ * If NDEBUG is defined, this macro expands to nothing.
+ *
+ */
+#ifdef NDEBUG
+#    define API_ASSERT(condition, message) ((void)0)
+#else
+#    define API_ASSERT(condition, message) assert(((void)message, condition))
+#endif
+} // namespace gmx
+
+#endif // GMX_UTILITY_GMXAPIASSERT_H

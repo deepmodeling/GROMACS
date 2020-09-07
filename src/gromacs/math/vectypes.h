@@ -43,7 +43,7 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "gromacs/utility/gmxassert.h"
+#include "gromacs/utility/gmxapiassert.h"
 #include "gromacs/utility/real.h"
 
 #define XX 0 /* Defines for indexing in */
@@ -146,7 +146,7 @@ public:
     //! Allow vector scalar division
     BasicVector<ValueType> operator/(const ValueType& right) const
     {
-        GMX_ASSERT(right != 0, "Cannot divide by zero");
+        API_ASSERT(right != 0, "Cannot divide by zero");
 
         return *this * (1 / right);
     }
@@ -162,7 +162,7 @@ public:
     //! Divide vector by a scalar
     BasicVector<ValueType>& operator/=(const ValueType& right)
     {
-        GMX_ASSERT(right != 0, "Cannot divide by zero");
+        API_ASSERT(right != 0, "Cannot divide by zero");
 
         return *this *= 1 / right;
     }
@@ -184,7 +184,7 @@ public:
     BasicVector<ValueType> unitVector() const
     {
         const ValueType vectorNorm = norm();
-        GMX_ASSERT(vectorNorm != 0, "unitVector() should not be called with a zero vector");
+        API_ASSERT(vectorNorm != 0, "unitVector() should not be called with a zero vector");
 
         return *this / vectorNorm;
     }

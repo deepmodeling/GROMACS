@@ -46,7 +46,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "gromacs/utility/gmxassert.h"
+#include "gromacs/utility/gmxapiassert.h"
 #include "gromacs/utility/real.h"
 
 namespace gmx
@@ -430,13 +430,15 @@ float erfinv(float x);
  */
 constexpr int32_t exactDiv(int32_t a, int32_t b)
 {
-    return GMX_ASSERT(a % b == 0, "exactDiv called with non-divisible arguments"), a / b;
+    API_ASSERT(a % b == 0, "exactDiv called with non-divisible arguments");
+    return a / b;
 }
 
 //! Exact integer division, 64bit.
 constexpr int64_t exactDiv(int64_t a, int64_t b)
 {
-    return GMX_ASSERT(a % b == 0, "exactDiv called with non-divisible arguments"), a / b;
+    API_ASSERT(a % b == 0, "exactDiv called with non-divisible arguments");
+    return a / b;
 }
 
 /*! \brief Round float to int
