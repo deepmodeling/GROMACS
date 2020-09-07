@@ -450,3 +450,7 @@ if(GMX_GPU_OPENCL)
         DESTINATION ${GMX_INSTALL_OCLDIR}/gromacs/ewald
         COMPONENT libraries)
 endif()
+
+install(FILES
+    gromacs.h
+    DESTINATION include/gromacs)
