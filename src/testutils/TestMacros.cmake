@@ -244,6 +244,16 @@ function (gmx_register_gtest_test NAME EXENAME)
         set_tests_properties(${NAME} PROPERTIES LABELS "${_labels}")
         set_tests_properties(${NAME} PROPERTIES TIMEOUT ${_timeout})
         add_dependencies(tests ${EXENAME})
+        # here we add our hacks to force GPU code paths
+        if (GMX_GPU)
+            set(_name ${NAME}-force-gpu)
+            add_test(NAME ${_name}
+                     COMMAND ${_cmd} --gtest_output=xml:${_xml_path} -forcegpu)
+            set_tests_properties(${_name} PROPERTIES LABELS "${_labels}")
+            set_tests_properties(${_name} PROPERTIES TIMEOUT ${_timeout})
+            add_dependencies(force-gpu-tests ${EXENAME})
+        endif()
+
     endif()
 endfunction ()
 

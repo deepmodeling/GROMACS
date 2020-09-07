@@ -42,6 +42,7 @@ set(TESTUTILS_SOURCES
     cmdlinetest.cpp
     conftest.cpp
     filematchers.cpp
+    gputest.cpp
     interactivetest.cpp
     loggertest.cpp
     mpi_printer.cpp

@@ -48,6 +48,8 @@
 
 #    include <gtest/gtest.h>
 
+#    include "testutils/gputest.h"
+
 #    include "gromacs/gpu_utils/gpu_utils.h"
 #    include "gromacs/gpu_utils/hostallocator.h"
 #    include "gromacs/gpu_utils/pmalloc_cuda.h"
@@ -72,6 +74,7 @@ TEST_F(PinnedMemoryCheckerTest, DefaultContainerIsRecognized)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 
@@ -83,6 +86,7 @@ TEST_F(PinnedMemoryCheckerTest, NonpinnedContainerIsRecognized)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 
@@ -95,6 +99,7 @@ TEST_F(PinnedMemoryCheckerTest, PinnedContainerIsRecognized)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 
@@ -107,6 +112,7 @@ TEST_F(PinnedMemoryCheckerTest, PinningChangesAreRecognized)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 
@@ -123,6 +129,7 @@ TEST_F(PinnedMemoryCheckerTest, DefaultCBufferIsRecognized)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 
@@ -136,6 +143,7 @@ TEST_F(PinnedMemoryCheckerTest, PinnedCBufferIsRecognized)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 

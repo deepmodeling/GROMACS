@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,60 +34,55 @@
  */
 /*! \internal \file
  * \brief
- * Tests for CUDA float3 type layout.
+ * Implements functions in gputest.h.
  *
- * \author Artem Zhmurov <zhmurov@gmail.com>
+ * \author Paul Bauer <paul.bauer.q@gmail.com>
+ * \ingroup module_testutils
  */
 #include "gmxpre.h"
 
+#include "gputest.h"
+
 #include "config.h"
 
-#if GMX_GPU_CUDA
+#include <gtest/gtest.h>
 
-#    include <vector>
+#include "gromacs/options/basicoptions.h"
+#include "gromacs/options/ioptionscontainer.h"
 
-#    include <gtest/gtest.h>
-
-#    include "testutils/gputest.h"
-
-#    include "gromacs/hardware/device_management.h"
-#    include "gromacs/utility/exceptions.h"
-
-#    include "testutils/testasserts.h"
-#    include "testutils/testmatchers.h"
-
-#    include "typecasts_runner.h"
+#include "testutils/testoptions.h"
 
 namespace gmx
 {
-
 namespace test
 {
 
-//! Test data in RVec format
-static const std::vector<RVec> rVecInput = { { 1.0, 2.0, 3.0 }, { 4.0, 5.0, 6.0 } };
+#if GMX_GPU
 
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnHost)
+namespace
 {
-    std::vector<RVec> rVecOutput(rVecInput.size());
-    convertRVecToFloat3OnHost(rVecOutput, rVecInput);
-    EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
+//! Global bool if we force GPU paths or not.
+bool g_forceGpuPath = false;
+//! \cond
+GMX_TEST_OPTIONS(GpuTestOptions, options)
+{
+    options->addOption(
+            BooleanOption("forcegpu").store(&g_forceGpuPath).description("Force tests to run on GPU"));
 }
 
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnDevice)
-{
-    if (!canComputeOnDevice())
-    {
-        ASSERT_TRUE(!forceToRunOnGpu());
-        return;
-    }
+} // namespace
 
-    std::vector<RVec> rVecOutput(rVecInput.size());
-    convertRVecToFloat3OnDevice(rVecOutput, rVecInput);
-    EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
+//! \endcond
+#endif
+
+bool forceToRunOnGpu()
+{
+#if GMX_GPU
+    return g_forceGpuPath;
+#else
+    return false;
+#endif
 }
 
 } // namespace test
 } // namespace gmx
-
-#endif // GMX_GPU_CUDA

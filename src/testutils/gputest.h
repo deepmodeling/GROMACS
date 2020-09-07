@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,62 +32,32 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \internal \file
+/*! \libinternal \file
  * \brief
- * Tests for CUDA float3 type layout.
+ * Helper functions for MPI tests to make thread-MPI look like real MPI.
  *
- * \author Artem Zhmurov <zhmurov@gmail.com>
+ * \author Paul Bauer <paul.bauer.q@gmail.com>
+ * \inlibraryapi
+ * \ingroup module_testutils
  */
-#include "gmxpre.h"
-
-#include "config.h"
-
-#if GMX_GPU_CUDA
-
-#    include <vector>
-
-#    include <gtest/gtest.h>
-
-#    include "testutils/gputest.h"
-
-#    include "gromacs/hardware/device_management.h"
-#    include "gromacs/utility/exceptions.h"
-
-#    include "testutils/testasserts.h"
-#    include "testutils/testmatchers.h"
-
-#    include "typecasts_runner.h"
+#ifndef GMX_TESTUTILS_GPUTEST_H
+#define GMX_TESTUTILS_GPUTEST_H
 
 namespace gmx
 {
-
 namespace test
 {
 
-//! Test data in RVec format
-static const std::vector<RVec> rVecInput = { { 1.0, 2.0, 3.0 }, { 4.0, 5.0, 6.0 } };
-
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnHost)
-{
-    std::vector<RVec> rVecOutput(rVecInput.size());
-    convertRVecToFloat3OnHost(rVecOutput, rVecInput);
-    EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
-}
-
-TEST(GpuDataTypesCompatibilityTest, RVecAndFloat3OnDevice)
-{
-    if (!canComputeOnDevice())
-    {
-        ASSERT_TRUE(!forceToRunOnGpu());
-        return;
-    }
-
-    std::vector<RVec> rVecOutput(rVecInput.size());
-    convertRVecToFloat3OnDevice(rVecOutput, rVecInput);
-    EXPECT_THAT(rVecInput, testing::Pointwise(RVecEq(ulpTolerance(0)), rVecOutput));
-}
+/*! \brief
+ * Returns whether we force GPU paths to be run.
+ *
+ * Always false when build without GPU support.
+ *
+ * \ingroup module_testutils
+ */
+bool forceToRunOnGpu();
 
 } // namespace test
 } // namespace gmx
 
-#endif // GMX_GPU_CUDA
+#endif

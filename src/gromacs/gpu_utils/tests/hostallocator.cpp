@@ -49,6 +49,8 @@
 
 #include <gtest/gtest.h>
 
+#include "testutils/gputest.h"
+
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
@@ -321,6 +323,7 @@ TYPED_TEST(HostAllocatorTestCopyable, ManualPinningOperationsWorkWithCuda)
 {
     if (!canComputeOnDevice())
     {
+        ASSERT_TRUE(!forceToRunOnGpu());
         return;
     }
 
