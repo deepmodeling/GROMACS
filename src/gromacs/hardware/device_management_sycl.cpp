@@ -103,13 +103,13 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
     return deviceInfos;
 }
 
-void setDevice(const DeviceInformation& /* deviceInfo */)
+void setActiveDevice(const DeviceInformation& /* deviceInfo */)
 {
     // SYCL-TODO:
     // Activate the selected device
 }
 
-void freeDevice(DeviceInformation* /* deviceInfo */)
+void releaseDevice(DeviceInformation* /* deviceInfo */)
 {
     // SYCL-TODO:
     // Release the device
