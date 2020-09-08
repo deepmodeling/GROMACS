@@ -1315,11 +1315,14 @@ void cmp_inputrec(FILE* fp, const t_inputrec* ir1, const t_inputrec* ir2, real f
     cmp_int64(fp, "inputrec->init_step", ir1->init_step, ir2->init_step);
     cmp_int(fp, "inputrec->simulation_part", -1, ir1->simulation_part, ir2->simulation_part);
     cmp_int(fp, "inputrec->mts", -1, static_cast<int>(ir1->useMts), static_cast<int>(ir2->useMts));
-    cmp_int(fp, "inputrec->mts-levels", -1, ir1->mtsLevels.size(), ir2->mtsLevels.size());
-    cmp_int(fp, "inputrec->mts-level2-forces", -1, ir1->mtsLevels[1].forceGroups.to_ulong(),
-            ir2->mtsLevels[1].forceGroups.to_ulong());
-    cmp_int(fp, "inputrec->mts-level2-factor", -1, ir1->mtsLevels[1].stepFactor,
-            ir2->mtsLevels[1].stepFactor);
+    if (ir1->useMts && ir2->useMts)
+    {
+        cmp_int(fp, "inputrec->mts-levels", -1, ir1->mtsLevels.size(), ir2->mtsLevels.size());
+        cmp_int(fp, "inputrec->mts-level2-forces", -1, ir1->mtsLevels[1].forceGroups.to_ulong(),
+                ir2->mtsLevels[1].forceGroups.to_ulong());
+        cmp_int(fp, "inputrec->mts-level2-factor", -1, ir1->mtsLevels[1].stepFactor,
+                ir2->mtsLevels[1].stepFactor);
+    }
     cmp_int(fp, "inputrec->pbcType", -1, static_cast<int>(ir1->pbcType), static_cast<int>(ir2->pbcType));
     cmp_bool(fp, "inputrec->bPeriodicMols", -1, ir1->bPeriodicMols, ir2->bPeriodicMols);
     cmp_int(fp, "inputrec->cutoff_scheme", -1, ir1->cutoff_scheme, ir2->cutoff_scheme);

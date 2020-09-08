@@ -1549,12 +1549,12 @@ void do_force(FILE*                               fplog,
      */
     // We use std::move to keep the compiler happy, it has no effect.
     ForceOutputs forceOutFast = setupForceOutputs(&fr->forceHelperBuffers[0], pull_work, *inputrec,
-                                                  std::move(force), stepWork, wcycle);
+                                                  force, stepWork, wcycle);
     //! \todo find if there is a way to avoid creating an empty, unused ForceOutputs
     ForceOutputs forceOutMts =
             ((useMts && computeSlowForces)
                      ? setupForceOutputs(&fr->forceHelperBuffers[1], nullptr, *inputrec,
-                                         std::move(forceView->forceMtsCombinedWithPadding()), stepWork, wcycle)
+                                         forceView->forceMtsCombinedWithPadding(), stepWork, wcycle)
                      : ForceOutputs(gmx::ForceWithShiftForces({}, false, {}), false,
                                     gmx::ForceWithVirial({}, false)));
     ForceOutputs& forceOutSlow = (useMts ? forceOutMts : forceOutFast);
@@ -1779,7 +1779,7 @@ void do_force(FILE*                               fplog,
      */
     const bool combineMtsForcesBeforeHaloExchange =
             (stepWork.computeForces && useMts && computeSlowForces
-             && (legacyFlags & GMX_FORCE_DO_NOT_NEED_NORMAL_FORCE)
+             && (legacyFlags & GMX_FORCE_DO_NOT_NEED_NORMAL_FORCE) != 0
              && !(stepWork.computeVirial || simulationWork.useGpuNonbonded || useGpuPmeOnThisRank));
     if (combineMtsForcesBeforeHaloExchange)
     {

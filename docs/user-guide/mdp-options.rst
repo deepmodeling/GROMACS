@@ -253,12 +253,12 @@ Run control
    (longrange-nonbonded nonbonded pair dihedral)
    A list of force groups that will be evaluated only every
    :mdp:`mts-level2-factor` steps. Supported entries are:
-	``longrange-nonbonded``, ``nonbonded``, ``pair``, ``dihedral`` and
-	``angle``. With ``pair`` the listed pair forces (such as 1-4) are
-	selected. With ``dihedral`` all dihedrals are selected, including cmap.
-	All other forces, including all restraints, are evaluated and
-	integrated every step.When PME or Ewald is used for electrostatics
-	and/or LJ interactions,	``longrange-nonbonded`` has to be entered here.
+   ``longrange-nonbonded``, ``nonbonded``, ``pair``, ``dihedral`` and
+   ``angle``. With ``pair`` the listed pair forces (such as 1-4) are
+   selected. With ``dihedral`` all dihedrals are selected, including cmap.
+   All other forces, including all restraints, are evaluated and
+   integrated every step.When PME or Ewald is used for electrostatics
+   and/or LJ interactions, ``longrange-nonbonded`` has to be entered here.
 
 .. mdp:: mts-level2-factor
 
