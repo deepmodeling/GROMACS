@@ -552,6 +552,7 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
         }
     }
     serializer->doReal(&fepvals->sc_alpha);
+    serializer->doReal(&fepvals->sc_beta);
     serializer->doInt(&fepvals->sc_power);
     if (file_version >= 79)
     {

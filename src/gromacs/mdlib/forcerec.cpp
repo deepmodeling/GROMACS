@@ -1080,7 +1080,7 @@ void init_forcerec(FILE*                            fp,
     fr->sc_alphavdw = ir->fepvals->sc_alpha;
     if (ir->fepvals->bScCoul)
     {
-        fr->sc_alphacoul  = ir->fepvals->sc_alpha;
+        fr->sc_alphacoul  = ir->fepvals->sc_beta;
         fr->sc_sigma6_min = gmx::power6(ir->fepvals->sc_sigma_min);
     }
     else
