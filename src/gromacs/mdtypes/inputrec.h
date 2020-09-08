@@ -41,9 +41,9 @@
 #include <cstdio>
 
 #include <memory>
+#include <vector>
 
 #include <bitset>
-#include <vector>
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
