@@ -560,7 +560,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma_pow */
                         if (useSoftCore)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rp);
+                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rp);
                             pthRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
                             if (scLambdasOrAlphasDiffer)
                             {
@@ -676,7 +676,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     {
                         dvdl_coul +=
                                 Vcoul[i] * DLF[i]
-                                + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i] * sigma_pow[i];
+                                + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i];
                         dvdl_vdw += Vvdw[i] * DLF[i]
                                     + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * FscalV[i] * sigma_pow[i];
                     }
