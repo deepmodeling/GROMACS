@@ -104,6 +104,25 @@ inline void pthRoot<SoftCoreTreatment::RPower48>(const double r, real* pthRoot, 
     *invPthRoot = 1 / (*pthRoot);
 }
 
+//! Computes r^(1/p) and 1/r^(1/p) for the standard coulomb n=2
+template<SoftCoreTreatment softCoreTreatment>
+static inline void sqRoot(const real r, real* pthRoot, real* invPthRoot)
+{
+    *invPthRoot = gmx::invsqrt(r);
+    *pthRoot    = 1 / (*invPthRoot);
+}
+
+// We need a double version to make the specialization below work
+#if !GMX_DOUBLE
+//! Computes r^(1/p) and 1/r^(1/p) for the standard coulomb n=2
+template<SoftCoreTreatment softCoreTreatment>
+static inline void sqRoot(const double r, real* pthRoot, double* invPthRoot)
+{
+    *invPthRoot = gmx::invsqrt(r);
+    *pthRoot    = 1 / (*invPthRoot);
+}
+#endif
+
 template<SoftCoreTreatment softCoreTreatment>
 static inline real calculateSigmaPow(const real sigma6)
 {
@@ -567,7 +586,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         if (useSoftCore)
                         {
                             rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
-                            pthRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
+                            sqRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
                             if (scLambdasOrAlphasDiffer)
                             {
                                 rpinvV = one / (alpha_vdw_eff * lfac_vdw[i] * sigma_pow[i] + rp);
