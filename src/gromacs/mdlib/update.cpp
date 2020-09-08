@@ -34,6 +34,10 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
 #include "gmxpre.h"
 
 #include "update.h"
@@ -82,17 +86,25 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/gmxomp.h"
 #include "gromacs/utility/smalloc.h"
+#include "gromacs/linearalgebra/eigensolver.h"
 
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 
 struct gmx_sd_const_t
 {
-    double em = 0;
-};
-
-struct gmx_sd_sigma_t
-{
-    real V = 0;
+    int ns;
+    real *A;
+    real *T;
+    real *C;
+    real *S;
+    real *SC;
+    real *tmpvec;
+    real *tmpvec2;
+    real *tmpmat;
+    real *tmpmat2;
+    real *tmpmat3;
+    real *eigenvalues;
+    real *eigenvectors;
 };
 
 struct gmx_stochd_t
@@ -101,7 +113,8 @@ struct gmx_stochd_t
     std::vector<real> bd_rf;
     /* SD stuff */
     std::vector<gmx_sd_const_t> sdc;
-    std::vector<gmx_sd_sigma_t> sdsig;
+    /* GLE stuff */
+    std::vector<std::vector<std::vector<double> > > gle_s;
     /* andersen temperature control stuff */
     std::vector<bool> randomize_group;
     std::vector<real> boltzfac;
@@ -759,19 +772,115 @@ gmx_stochd_t::gmx_stochd_t(const t_inputrec* ir)
     else if (EI_SD(ir->eI))
     {
         sdc.resize(ngtc);
-        sdsig.resize(ngtc);
 
         for (int gt = 0; gt < ngtc; gt++)
         {
-            if (opts->tau_t[gt] > 0)
-            {
-                sdc[gt].em = std::exp(-ir->delta_t / opts->tau_t[gt]);
+            /* A is a general matrix, gamma * I by default */
+            int ns;
+            std::ifstream fin;
+            char filename[50];
+            sprintf(filename, "gle.dat.%d", gt);
+            fin.open(filename);
+            if (!fin.is_open()) { 
+                std::cout << "Cannot open file " << filename << std::endl; 
+                std::cout << "Will not use GLE thermostat" << std::endl; 
+                ns = 1;
+                sdc[gt].A = new real[1];
+                if (opts->tau_t[gt] > 0)
+                {
+                    sdc[gt].A[0] = 1 / opts->tau_t[gt];
+                }
+                else
+                {
+                    /* No friction and noise on this group */
+                    sdc[gt].A[0] = 0;
+                }
             }
-            else
-            {
-                /* No friction and noise on this group */
-                sdc[gt].em = 1;
+            else {
+                std::string line;
+                std::istringstream iss;
+                real val;
+                std::vector<std::vector<real> > matA;
+                std::vector<real> rowA;
+                while (getline(fin, line)) {
+                    if (line[0] == '#') {
+                        continue;
+                    }
+                    iss.clear();
+                    iss.str(line);
+                    rowA.clear();
+                    while (iss >> val) {
+                        rowA.push_back(val);
+                    }
+                    matA.push_back(rowA);
+                }
+                ns = matA.size();
+                sdc[gt].A = new real[ns*ns];
+                for (int ii = 0; ii < ns; ii++) {
+                    for (int jj = 0; jj < ns; jj++) {
+                        sdc[gt].A[ii+jj*ns] = matA[ii][jj];
+                    }
+                }
             }
+
+            sdc[gt].ns = ns;
+            sdc[gt].tmpvec = new real[ns];
+            sdc[gt].tmpvec2 = new real[ns];
+            sdc[gt].eigenvalues = new real[ns];
+            sdc[gt].eigenvectors = new real[ns*ns];
+            sdc[gt].T = new real[ns*ns];
+            sdc[gt].tmpmat = new real[ns*ns];
+            sdc[gt].tmpmat2 = new real[ns*ns];
+            sdc[gt].tmpmat3 = new real[ns*ns];
+
+            /* T is the exponential matrix of -dt*A */
+            int ntaylor = 10;
+            int nsquare = 5;
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sdc[gt].tmpmat[jj+ii*ns] = -ir->delta_t * sdc[gt].A[jj+ii*ns] / pow(2, nsquare);
+                    sdc[gt].tmpmat2[jj+ii*ns] = 0;
+                    sdc[gt].T[jj+ii*ns] = 0;
+                    if (ii == jj) {
+                        sdc[gt].tmpmat2[jj+ii*ns] = 1;
+                        sdc[gt].T[jj+ii*ns] = 1;
+                    }
+                }
+            }
+            real tc = 1.0;
+            for (int nn = 0; nn < ntaylor; nn++) {
+                tc /= (nn + 1);
+                for (int ii = 0; ii < ns; ii++) {
+                    for (int jj = 0; jj < ns; jj++) {
+                        sdc[gt].tmpmat3[jj+ii*ns] = 0;
+                        for (int kk = 0; kk < ns; kk++) {
+                            sdc[gt].tmpmat3[jj+ii*ns] += sdc[gt].tmpmat2[jj+kk*ns] * sdc[gt].tmpmat[kk+ii*ns];
+                        }
+                    }
+                }
+                for (int ii = 0; ii < ns; ii++) {
+                    for (int jj = 0; jj < ns; jj++) {
+                        sdc[gt].tmpmat2[jj+ii*ns] = sdc[gt].tmpmat3[jj+ii*ns];
+                        sdc[gt].T[jj+ii*ns] += sdc[gt].tmpmat2[jj+ii*ns] * tc;
+                    }
+                }
+            }
+            for (int nn = 0; nn < nsquare; nn++) {
+                for (int ii = 0; ii < ns; ii++) {
+                    for (int jj = 0; jj < ns; jj++) {
+                        sdc[gt].tmpmat[jj+ii*ns] = 0;
+                        for (int kk = 0; kk < ns; kk++) {
+                            sdc[gt].tmpmat[jj+ii*ns] += sdc[gt].T[jj+kk*ns] * sdc[gt].T[kk+ii*ns];
+                        }
+                    }
+                }
+                for (int ii = 0; ii < ns; ii++) {
+                    for (int jj = 0; jj < ns; jj++) {
+                        sdc[gt].T[jj+ii*ns] = sdc[gt].tmpmat[jj+ii*ns];
+                    }
+                }
+            }
+
         }
     }
     else if (ETC_ANDERSEN(ir->etc))
@@ -824,7 +933,69 @@ void update_temperature_constants(gmx_stochd_t* sd, const t_inputrec* ir)
         {
             real kT = BOLTZ * ir->opts.ref_t[gt];
             /* The mass is accounted for later, since this differs per atom */
-            sd->sdsig[gt].V = std::sqrt(kT * (1 - sd->sdc[gt].em * sd->sdc[gt].em));
+
+            int ns = sd->sdc[gt].ns;
+
+            /* C is a symmetric positive definite matrix, kT * I by default */
+            sd->sdc[gt].C = new real[ns*ns];
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].C[jj+ii*ns] = 0;
+                    if ( ii == jj ) {
+                        sd->sdc[gt].C[jj+ii*ns] = kT;
+                    }
+                }
+            }
+
+            /* SC is the square root matrix of C */
+            sd->sdc[gt].SC = new real[ns*ns];
+            eigensolver(sd->sdc[gt].C, ns, 0, ns-1, sd->sdc[gt].eigenvalues, sd->sdc[gt].eigenvectors);
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].tmpmat[jj+ii*ns] = sd->sdc[gt].eigenvalues[jj] > 0 ? sd->sdc[gt].eigenvectors[ii+jj*ns]*std::sqrt(sd->sdc[gt].eigenvalues[jj]) : 0;
+                }
+            }
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].SC[jj+ii*ns] = 0;
+                    for (int kk = 0; kk < ns; kk++) {
+                        sd->sdc[gt].SC[jj+ii*ns] += sd->sdc[gt].eigenvectors[jj+kk*ns]*sd->sdc[gt].tmpmat[kk+ii*ns];
+                    }
+                }
+            }
+
+            /* S is the square root matrix of C-TCT^T */
+            sd->sdc[gt].S = new real[ns*ns];
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].tmpmat[jj+ii*ns] = 0;
+                    for (int kk = 0; kk < ns; kk++) {
+                        sd->sdc[gt].tmpmat[jj+ii*ns] += sd->sdc[gt].T[jj+kk*ns]*sd->sdc[gt].C[kk+ii*ns];
+                    }
+                }
+            }
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].tmpmat2[jj+ii*ns] = sd->sdc[gt].C[jj+ii*ns];
+                    for (int kk = 0; kk < ns; kk++) {
+                        sd->sdc[gt].tmpmat2[jj+ii*ns] -= sd->sdc[gt].tmpmat[jj+kk*ns]*sd->sdc[gt].T[ii+kk*ns];
+                    }
+                }
+            }
+            eigensolver(sd->sdc[gt].tmpmat2, ns, 0, ns-1, sd->sdc[gt].eigenvalues, sd->sdc[gt].eigenvectors);
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].tmpmat[jj+ii*ns] = sd->sdc[gt].eigenvalues[jj] > 0 ? sd->sdc[gt].eigenvectors[ii+jj*ns]*std::sqrt(sd->sdc[gt].eigenvalues[jj]) : 0;
+                }
+            }
+            for (int ii = 0; ii < ns; ii++) {
+                for (int jj = 0; jj < ns; jj++) {
+                    sd->sdc[gt].S[jj+ii*ns] = 0;
+                    for (int kk = 0; kk < ns; kk++) {
+                        sd->sdc[gt].S[jj+ii*ns] += sd->sdc[gt].eigenvectors[jj+kk*ns]*sd->sdc[gt].tmpmat[kk+ii*ns];
+                    }
+                }
+            }
         }
     }
 }
@@ -865,7 +1036,7 @@ enum class SDUpdate : int
  * Thus three instantiations of this templated function will be made,
  * two with only one contribution, and one with both contributions. */
 template<SDUpdate updateType>
-static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
+static void doSDUpdateGeneral(gmx_stochd_t&  sd,
                               int                  start,
                               int                  nrend,
                               real                 dt,
@@ -906,18 +1077,40 @@ static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
     gmx::ThreeFry2x64<0>                       rng(seed, gmx::RandomDomain::UpdateCoordinates);
     gmx::TabulatedNormalDistribution<real, 14> dist;
 
+    if ( sd.gle_s.size() < nrend ) {
+        sd.gle_s.resize(nrend);
+    }
+
     for (int n = start; n < nrend; n++)
     {
         int globalAtomIndex = gatindex ? gatindex[n] : n;
-        rng.restart(step, globalAtomIndex);
-        dist.reset();
 
         real inverseMass = invmass[n];
         real invsqrtMass = std::sqrt(inverseMass);
+        real sqrtMass = 1 / invsqrtMass;
 
         int freezeGroup       = cFREEZE ? cFREEZE[n] : 0;
         int accelerationGroup = cACC ? cACC[n] : 0;
         int temperatureGroup  = cTC ? cTC[n] : 0;
+        int ns = sd.sdc[temperatureGroup].ns;
+
+        if (sd.gle_s[n].size() < DIM) {
+            sd.gle_s[n].resize(DIM);
+            for (int d = 0; d < DIM; d++) {
+                sd.gle_s[n][d].resize(ns);
+                for (int ii = 0; ii < ns; ii++) {
+                    rng.restart(-1*DIM*ns+d*ns+ii, globalAtomIndex);
+                    dist.reset();
+                    sd.sdc[temperatureGroup].tmpvec[ii] = dist(rng);
+                }
+                for (int ii = 0; ii < ns; ii++) {
+                    sd.gle_s[n][d][ii] = 0;
+                    for (int jj = 0; jj < ns; jj++) {
+                        sd.gle_s[n][d][ii] += sd.sdc[temperatureGroup].SC[ii+jj*ns] * sd.sdc[temperatureGroup].tmpvec[jj];
+                    }
+                }
+            }
+        }
 
         for (int d = 0; d < DIM; d++)
         {
@@ -933,8 +1126,22 @@ static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
                 else if (updateType == SDUpdate::FrictionAndNoiseOnly)
                 {
                     real vn = v[n][d];
-                    v[n][d] = (vn * sd.sdc[temperatureGroup].em
-                               + invsqrtMass * sd.sdsig[temperatureGroup].V * dist(rng));
+                    sd.gle_s[n][d][0] = vn * sqrtMass;
+                    for (int ii = 0; ii < ns; ii++) {
+                        rng.restart(step*DIM*ns+d*ns+ii, globalAtomIndex);
+                        dist.reset();
+                        sd.sdc[temperatureGroup].tmpvec[ii] = dist(rng);
+                    }
+                    for (int ii = 0; ii < ns; ii++) {
+                        sd.sdc[temperatureGroup].tmpvec2[ii] = 0;
+                        for (int jj = 0; jj < ns; jj++) {
+                            sd.sdc[temperatureGroup].tmpvec2[ii] += sd.sdc[temperatureGroup].T[ii+jj*ns] * sd.gle_s[n][d][jj] + sd.sdc[temperatureGroup].S[ii+jj*ns] * sd.sdc[temperatureGroup].tmpvec[jj];
+                        }
+                    }
+                    for (int ii = 0; ii < ns; ii++) {
+                        sd.gle_s[n][d][ii] = sd.sdc[temperatureGroup].tmpvec2[ii];
+                    }
+                    v[n][d] = sd.gle_s[n][d][0] * invsqrtMass;
                     // The previous phase already updated the
                     // positions with a full v*dt term that must
                     // now be half removed.
@@ -943,8 +1150,22 @@ static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
                 else
                 {
                     real vn = v[n][d] + (inverseMass * f[n][d] + accel[accelerationGroup][d]) * dt;
-                    v[n][d] = (vn * sd.sdc[temperatureGroup].em
-                               + invsqrtMass * sd.sdsig[temperatureGroup].V * dist(rng));
+                    sd.gle_s[n][d][0] = vn * sqrtMass;
+                    for (int ii = 0; ii < ns; ii++) {
+                        rng.restart(step*DIM*ns+d*ns+ii, globalAtomIndex);
+                        dist.reset();
+                        sd.sdc[temperatureGroup].tmpvec[ii] = dist(rng);
+                    }
+                    for (int ii = 0; ii < ns; ii++) {
+                        sd.sdc[temperatureGroup].tmpvec2[ii] = 0;
+                        for (int jj = 0; jj < ns; jj++) {
+                            sd.sdc[temperatureGroup].tmpvec2[ii] += sd.sdc[temperatureGroup].T[ii+jj*ns] * sd.gle_s[n][d][jj] + sd.sdc[temperatureGroup].S[ii+jj*ns] * sd.sdc[temperatureGroup].tmpvec[jj];
+                        }
+                    }
+                    for (int ii = 0; ii < ns; ii++) {
+                        sd.gle_s[n][d][ii] = sd.sdc[temperatureGroup].tmpvec2[ii];
+                    }
+                    v[n][d] = sd.gle_s[n][d][0] * invsqrtMass;
                     // Here we include half of the friction+noise
                     // update of v into the position update.
                     xprime[n][d] = x[n][d] + 0.5 * (vn + v[n][d]) * dt;
