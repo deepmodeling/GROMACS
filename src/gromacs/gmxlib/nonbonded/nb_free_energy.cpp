@@ -430,7 +430,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             const int  jnr = jjnr[k];
             const int  j3  = 3 * jnr;
             real       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
-            real       r, rinv, rp, rpm2;
+            real       r, rinv, rp, rpm2, rpc, rpcm2;
             real       alpha_vdw_eff, alpha_coul_eff, sigma_pow[NSTATES];
             const real dx  = ix - x[j3];
             const real dy  = iy - x[j3 + 1];
@@ -478,11 +478,15 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  */
                 rpm2 = rinv * rinv;
                 rp   = 1;
+                rpc  = rp;
+                rpcm2= rpm2;
             }
             if (softCoreTreatment == SoftCoreTreatment::RPower6)
             {
                 rpm2 = rsq * rsq;  /* r4 */
                 rp   = rpm2 * rsq; /* r6 */
+                rpc  = rsq;
+                rpcm2= rsq / rsq;
             }
             if (softCoreTreatment == SoftCoreTreatment::RPower48)
             {
@@ -491,6 +495,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 rp   = rp * rp;         /* r24 */
                 rp   = rp * rp;         /* r48 */
                 rpm2 = rp / rsq;        /* r46 */
+                rpc  = rp;
+                rpcm2= rpm2;
             }
 
             real Fscal = 0;
@@ -560,7 +566,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma_pow */
                         if (useSoftCore)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rp);
+                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
                             pthRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
                             if (scLambdasOrAlphasDiffer)
                             {
@@ -669,7 +675,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     vctot += LFC[i] * Vcoul[i];
                     vvtot += LFV[i] * Vvdw[i];
 
-                    Fscal += LFC[i] * FscalC[i] * rpm2;
+                    Fscal += LFC[i] * FscalC[i] * rpcm2;
                     Fscal += LFV[i] * FscalV[i] * rpm2;
 
                     if (useSoftCore)
