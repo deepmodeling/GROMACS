@@ -1075,9 +1075,20 @@ int Mdrunner::mdrunner()
     snew(oriresdata, 1);
     init_orires(fplog, &mtop, inputrec.get(), cr, ms, globalState.get(), oriresdata);
 
-    auto deform = prepareBoxDeformation(
-            globalState != nullptr ? globalState->box : box, MASTER(cr) ? DDRole::Master : DDRole::Agent,
-            PAR(cr) ? NumRanks::Multiple : NumRanks::Single, cr->mpi_comm_mygroup, *inputrec);
+
+    matrix simbox;
+    if (globalState != nullptr)
+    {
+        copy_mat(globalState->box, simbox);
+    }
+    else
+    {
+        copy_mat(box, simbox);
+    }
+
+    auto deform = prepareBoxDeformation(simbox, MASTER(cr) ? DDRole::Master : DDRole::Agent,
+                                        PAR(cr) ? NumRanks::Multiple : NumRanks::Single,
+                                        cr->mpi_comm_mygroup, *inputrec);
 
     ObservablesHistory observablesHistory = {};
 
