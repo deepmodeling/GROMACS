@@ -42,6 +42,8 @@
 #ifndef GMX_MODULARSIMULATOR_CHECKPOINTDATA_H
 #define GMX_MODULARSIMULATOR_CHECKPOINTDATA_H
 
+#include <optional>
+
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
@@ -389,8 +391,9 @@ WriteCheckpointData::arrayRef(const std::string& key, ArrayRef<const T> values)
 }
 
 template<>
-template<>
-inline void ReadCheckpointData::arrayRef(const std::string& key, ArrayRef<RVec> values) const
+template<CheckpointDataOperation op>
+inline std::enable_if_t<op == CheckpointDataOperation::Read, void>
+ReadCheckpointData::arrayRef(const std::string& key, ArrayRef<RVec> values) const
 {
     GMX_RELEASE_ASSERT(values.size() >= (*inputTree_)[key].asArray().values().size(),
                        "Read vector does not fit in passed ArrayRef.");
@@ -407,8 +410,9 @@ inline void ReadCheckpointData::arrayRef(const std::string& key, ArrayRef<RVec> 
 }
 
 template<>
-template<>
-inline void WriteCheckpointData::arrayRef(const std::string& key, ArrayRef<const RVec> values)
+template<CheckpointDataOperation op>
+inline std::enable_if_t<op == CheckpointDataOperation::Write, void>
+WriteCheckpointData::arrayRef(const std::string& key, ArrayRef<const RVec> values)
 {
     auto builder = outputTreeBuilder_->addObjectArray(key);
     for (const auto& value : values)
@@ -419,8 +423,9 @@ inline void WriteCheckpointData::arrayRef(const std::string& key, ArrayRef<const
 }
 
 template<>
-template<>
-inline void ReadCheckpointData::tensor(const std::string& key, ::tensor values) const
+template<CheckpointDataOperation op>
+inline std::enable_if_t<op == CheckpointDataOperation::Read, void>
+ReadCheckpointData::tensor(const std::string& key, ::tensor values) const
 {
     auto array     = (*inputTree_)[key].asArray().values();
     values[XX][XX] = array[0].cast<real>();
@@ -435,8 +440,9 @@ inline void ReadCheckpointData::tensor(const std::string& key, ::tensor values) 
 }
 
 template<>
-template<>
-inline void WriteCheckpointData::tensor(const std::string& key, const ::tensor values)
+template<CheckpointDataOperation op>
+inline std::enable_if_t<op == CheckpointDataOperation::Write, void>
+WriteCheckpointData::tensor(const std::string& key, const ::tensor values)
 {
     auto builder = outputTreeBuilder_->addUniformArray<real>(key);
     builder.addValue(values[XX][XX]);
@@ -451,15 +457,17 @@ inline void WriteCheckpointData::tensor(const std::string& key, const ::tensor v
 }
 
 template<>
-template<>
-inline ReadCheckpointData ReadCheckpointData::subCheckpointData(const std::string& key) const
+template<CheckpointDataOperation op>
+inline std::enable_if_t<op == CheckpointDataOperation::Read, ReadCheckpointData>
+ReadCheckpointData::subCheckpointData(const std::string& key) const
 {
     return CheckpointData((*inputTree_)[key].asObject());
 }
 
 template<>
-template<>
-inline WriteCheckpointData WriteCheckpointData::subCheckpointData(const std::string& key)
+template<CheckpointDataOperation op>
+inline std::enable_if_t<op == CheckpointDataOperation::Write, WriteCheckpointData>
+WriteCheckpointData::subCheckpointData(const std::string& key)
 {
     return CheckpointData(outputTreeBuilder_->addObject(key));
 }
