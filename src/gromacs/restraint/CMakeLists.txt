@@ -37,9 +37,13 @@ gmx_add_libgromacs_sources(
     manager.cpp
     restraintmdmodule.cpp
     )
-# TODO this is a hacky way to expose things for the API and needs to be changed to something proper
-install(FILES restraintpotential.h DESTINATION include/gromacs/restraint)
 
+# TODO: (https://gitlab.com/gromacs/gromacs/-/issues/988) Find a new convention for defining public API.
+if(GMX_INSTALL_LEGACY_API)
+  install(FILES
+    restraintpotential.h
+    DESTINATION include/gromacs/restraint)
+endif()
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()
