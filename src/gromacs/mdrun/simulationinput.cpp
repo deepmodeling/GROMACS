@@ -32,54 +32,47 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \internal \file
- * \brief
- * Tests amplitude lookup for density fitting
- *
- * \author Christian Blau <blau@kth.se>
- * \ingroup module_applied_forces
- */
+
 #include "gmxpre.h"
 
-#include <gtest/gtest.h>
+#include "simulationinput.h"
 
-#include "gromacs/applied_forces/densityfitting/densityfittingforceprovider.h"
+#include <utility>
+
+#include "simulationinput_impl.h"
 
 namespace gmx
 {
 
-TEST(DensityFittingForceProviderState, RoundTripSaving)
+struct MdModulesNotifier;
+
+SimulationInput::SimulationInput(const char* tprFilename, const char* cpiFilename) :
+    tprFilename_(tprFilename),
+    cpiFilename_(cpiFilename)
 {
-    DensityFittingForceProviderState state;
-    // set-up state
-    state.adaptiveForceConstantScale_                   = 1.0;
-    state.stepsSinceLastCalculation_                    = 0;
-    state.exponentialMovingAverageState_.increasing_    = false;
-    state.exponentialMovingAverageState_.weightedCount_ = 0;
-    state.exponentialMovingAverageState_.weightedSum_   = 0;
-
-    KeyValueTreeBuilder kvtBuilder;
-    const std::string   identifier = "test-module";
-    state.writeState(kvtBuilder.rootObject(), identifier);
-    KeyValueTreeObject stateStoredInKvt = kvtBuilder.build();
-
-    // invalidate state
-    state.adaptiveForceConstantScale_                   = -1;
-    state.stepsSinceLastCalculation_                    = -1;
-    state.exponentialMovingAverageState_.increasing_    = true;
-    state.exponentialMovingAverageState_.weightedCount_ = -1;
-    state.exponentialMovingAverageState_.weightedSum_   = -1;
-
-    // read back the original state
-    state.readState(stateStoredInKvt, identifier);
-
-    EXPECT_EQ(state.adaptiveForceConstantScale_, 1.0);
-    EXPECT_EQ(state.stepsSinceLastCalculation_, 0);
-
-    EXPECT_EQ(state.exponentialMovingAverageState_.increasing_, false);
-    EXPECT_EQ(state.exponentialMovingAverageState_.weightedCount_, 0);
-    EXPECT_EQ(state.exponentialMovingAverageState_.weightedSum_, 0);
 }
 
+SimulationInputHolder::SimulationInputHolder() = default;
 
-} // namespace gmx
+SimulationInputHolder::~SimulationInputHolder() = default;
+
+namespace detail
+{
+
+SimulationInputHolder makeSimulationInput(const char* tprFilename, const char* cpiFilename)
+{
+    // Note: it seems clear that we will want a SimulationInput to be linked to
+    // a communications context (whether the SimulationContext or something higher level)
+    // so that it can encapsulate the data locality details. Otherwise, we have
+    // to choose whether to read the files everywhere or just to store the
+    // filenames until a communications context is known.
+    auto simulationInput = std::make_unique<SimulationInput>(tprFilename, cpiFilename);
+
+    SimulationInputHolder holder;
+    holder.object_ = std::move(simulationInput);
+    return holder;
+}
+
+} // end namespace detail
+
+} // end namespace gmx

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,30 +32,39 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
- *  \brief Declare functions for detection of GPU devices, specific for tests.
+/*! \internal \file
  *
- *  \todo This should eventually go to src/testutils
+ * \brief Implements routines in matrix.h .
  *
- *  \author Artem Zhmurov <zhmurov@gmail.com>
- *
- *  \inlibraryapi
+ * \author Christian Blau <blau@kth.se>
  */
 
-#ifndef GMX_GPU_UTILS_GPU_TESTUTILS_H
-#define GMX_GPU_UTILS_GPU_TESTUTILS_H
+#include "gmxpre.h"
 
-/*! \brief Checks if there is a compatible GPU to run the computations on
- *
- * There are several reasons why code can not rune on the GPU:
- * 1. The GPU can not be detected, because there is none in the system.
- * 2. GPU detection is disabled by GMX_DISABLE_GPU_DETECTION environmental variable.
- * 3. GPUs are detected, but none of them is compatible.
- * This function checks all these conditions and returns true only if there at least
- * one GPU that can be used for computations.
- *
- * \returns True, if there a GPU that can be used for computations
- */
-bool canComputeOnGpu();
+#include "matrix.h"
 
-#endif // GMX_GPU_UTILS_GPU_TESTUTILS_H
+namespace gmx
+{
+
+
+Matrix3x3 transpose(Matrix3x3ConstSpan matrixView)
+{
+
+    return Matrix3x3({ matrixView(0, 0), matrixView(1, 0), matrixView(2, 0), matrixView(0, 1),
+                       matrixView(1, 1), matrixView(2, 1), matrixView(0, 2), matrixView(1, 2),
+                       matrixView(2, 2) });
+}
+
+void matrixVectorMultiply(Matrix3x3ConstSpan matrix, RVec* v)
+{
+    const real resultXX =
+            matrix(XX, XX) * (*v)[XX] + matrix(XX, YY) * (*v)[YY] + matrix(XX, ZZ) * (*v)[ZZ];
+    const real resultYY =
+            matrix(YY, XX) * (*v)[XX] + matrix(YY, YY) * (*v)[YY] + matrix(YY, ZZ) * (*v)[ZZ];
+    (*v)[ZZ] = matrix(ZZ, XX) * (*v)[XX] + matrix(ZZ, YY) * (*v)[YY] + matrix(ZZ, ZZ) * (*v)[ZZ];
+    (*v)[XX] = resultXX;
+    (*v)[YY] = resultYY;
+}
+
+
+} // namespace gmx

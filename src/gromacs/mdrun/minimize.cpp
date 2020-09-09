@@ -90,6 +90,7 @@
 #include "gromacs/mdlib/vsite.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 #include "gromacs/mdrunutility/printtime.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/forcebuffers.h"
 #include "gromacs/mdtypes/forcerec.h"
@@ -532,9 +533,10 @@ static void write_em_traj(FILE*               fplog,
         mdof_flags |= MDOF_IMD;
     }
 
+    gmx::WriteCheckpointDataHolder checkpointDataHolder;
     mdoutf_write_to_trajectory_files(fplog, cr, outf, mdof_flags, top_global->natoms, step,
                                      static_cast<double>(step), &state->s, state_global,
-                                     observablesHistory, state->f.view().force());
+                                     observablesHistory, state->f.view().force(), &checkpointDataHolder);
 
     if (confout != nullptr)
     {
@@ -1124,8 +1126,8 @@ void LegacySimulator::do_cg()
         /* Copy stuff to the energy bin for easy printing etc. */
         matrix nullBox = {};
         energyOutput.addDataAtEnergyStep(false, false, static_cast<double>(step), mdatoms->tmass,
-                                         enerd, nullptr, nullptr, nullptr, nullBox, nullptr,
-                                         nullptr, vir, pres, nullptr, mu_tot, constr);
+                                         enerd, nullptr, nullptr, nullBox, PTCouplingArrays(), 0,
+                                         nullptr, nullptr, vir, pres, nullptr, mu_tot, constr);
 
         EnergyOutput::printHeader(fplog, step, step);
         energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), TRUE, FALSE, FALSE, fplog, step,
@@ -1533,8 +1535,8 @@ void LegacySimulator::do_cg()
             /* Store the new (lower) energies */
             matrix nullBox = {};
             energyOutput.addDataAtEnergyStep(false, false, static_cast<double>(step), mdatoms->tmass,
-                                             enerd, nullptr, nullptr, nullptr, nullBox, nullptr,
-                                             nullptr, vir, pres, nullptr, mu_tot, constr);
+                                             enerd, nullptr, nullptr, nullBox, PTCouplingArrays(), 0,
+                                             nullptr, nullptr, vir, pres, nullptr, mu_tot, constr);
 
             do_log = do_per_step(step, inputrec->nstlog);
             do_ene = do_per_step(step, inputrec->nstenergy);
@@ -1774,8 +1776,8 @@ void LegacySimulator::do_lbfgs()
         /* Copy stuff to the energy bin for easy printing etc. */
         matrix nullBox = {};
         energyOutput.addDataAtEnergyStep(false, false, static_cast<double>(step), mdatoms->tmass,
-                                         enerd, nullptr, nullptr, nullptr, nullBox, nullptr,
-                                         nullptr, vir, pres, nullptr, mu_tot, constr);
+                                         enerd, nullptr, nullptr, nullBox, PTCouplingArrays(), 0,
+                                         nullptr, nullptr, vir, pres, nullptr, mu_tot, constr);
 
         EnergyOutput::printHeader(fplog, step, step);
         energyOutput.printStepToEnergyFile(mdoutf_get_fp_ene(outf), TRUE, FALSE, FALSE, fplog, step,
@@ -1857,9 +1859,10 @@ void LegacySimulator::do_lbfgs()
             mdof_flags |= MDOF_IMD;
         }
 
+        gmx::WriteCheckpointDataHolder checkpointDataHolder;
         mdoutf_write_to_trajectory_files(fplog, cr, outf, mdof_flags, top_global->natoms, step,
-                                         static_cast<real>(step), &ems.s, state_global,
-                                         observablesHistory, ems.f.view().force());
+                                         static_cast<real>(step), &ems.s, state_global, observablesHistory,
+                                         ems.f.view().force(), &checkpointDataHolder);
 
         /* Do the linesearching in the direction dx[point][0..(n-1)] */
 
@@ -2258,8 +2261,8 @@ void LegacySimulator::do_lbfgs()
             /* Store the new (lower) energies */
             matrix nullBox = {};
             energyOutput.addDataAtEnergyStep(false, false, static_cast<double>(step), mdatoms->tmass,
-                                             enerd, nullptr, nullptr, nullptr, nullBox, nullptr,
-                                             nullptr, vir, pres, nullptr, mu_tot, constr);
+                                             enerd, nullptr, nullptr, nullBox, PTCouplingArrays(), 0,
+                                             nullptr, nullptr, vir, pres, nullptr, mu_tot, constr);
 
             do_log = do_per_step(step, inputrec->nstlog);
             do_ene = do_per_step(step, inputrec->nstenergy);
@@ -2470,9 +2473,10 @@ void LegacySimulator::do_steep()
             {
                 /* Store the new (lower) energies  */
                 matrix nullBox = {};
-                energyOutput.addDataAtEnergyStep(false, false, static_cast<double>(count), mdatoms->tmass,
-                                                 enerd, nullptr, nullptr, nullptr, nullBox, nullptr,
-                                                 nullptr, vir, pres, nullptr, mu_tot, constr);
+                energyOutput.addDataAtEnergyStep(false, false, static_cast<double>(count),
+                                                 mdatoms->tmass, enerd, nullptr, nullptr, nullBox,
+                                                 PTCouplingArrays(), 0, nullptr, nullptr, vir, pres,
+                                                 nullptr, mu_tot, constr);
 
                 imdSession->fillEnergyRecord(count, TRUE);
 

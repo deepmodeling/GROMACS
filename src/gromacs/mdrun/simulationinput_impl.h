@@ -1,8 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2012,2013,2014,2015,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,30 +32,47 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_HARDWARE_GPU_HW_INFO_H
-#define GMX_HARDWARE_GPU_HW_INFO_H
 
-#include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/enumerationhelpers.h"
+#ifndef GROMACS_SIMULATIONINPUT_IMPL_H
+#define GROMACS_SIMULATIONINPUT_IMPL_H
 
-struct DeviceInformation;
-
-/*! \brief Information about GPU devices on this physical node.
+/*! \libinternal \file
+ * \brief Library interface for SimulationInput.
  *
- * Includes either CUDA or OpenCL devices.  The gmx_hardware_detect
- * module initializes it.
- *
- * \todo Use a std::vector */
-struct gmx_gpu_info_t
+ * \ingroup module_mdrun
+ */
+
+#include <string>
+
+namespace gmx
 {
-    //! Did we attempt GPU detection?
-    gmx_bool bDetectGPUs;
-    //! Total number of GPU devices detected on this physical node
-    int n_dev;
-    //! Information about each GPU device detected on this physical node
-    DeviceInformation* deviceInfo;
-    //! Number of GPU devices detected on this physical node that are compatible.
-    int n_dev_compatible;
+
+struct MdModulesNotifier;
+
+/*
+ * \brief Prescription for molecular simulation.
+ *
+ * In the first implementation, this is a POD struct to allow removal of direct
+ * references to TPR and CPT files from Mdrunner. The interface for SimulationInput
+ * should be considered to be *completely unspecified* until resolution of
+ * https://gitlab.com/gromacs/gromacs/-/issues/3374
+ *
+ * Clients should use the utility functions defined in simulationinpututility.h
+ *
+ * Design note: It is probably sufficient for future versions to compose SimulationInput
+ * through a Builder rather than to subclass an Interface or base class. Outside of this
+ * translation unit, we should avoid coupling to the class definition until/unless we
+ * develop a much better understanding of simulation input portability.
+ */
+class SimulationInput
+{
+public:
+    SimulationInput(const char* tprFilename, const char* cpiFilename);
+
+    std::string tprFilename_;
+    std::string cpiFilename_;
 };
 
-#endif
+} // end namespace gmx
+
+#endif // GROMACS_SIMULATIONINPUT_IMPL_H

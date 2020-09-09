@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,27 +32,53 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+
 /*! \internal \file
- *  \brief Function definitions for GPU detection, specific for tests.
  *
- *  \author Artem Zhmurov <zhmurov@gmail.com>
+ * \brief
+ * Declares functions to check bias sharing properties.
+ *
+ * This actual sharing of biases is currently implemeted in BiasState.
+ *
+ * \author Berk Hess <hess@kth.se>
+ * \ingroup module_awh
  */
-#include "gmxpre.h"
 
-#include "gpu_testutils.h"
+#ifndef GMX_AWH_BIASSHARING_H
+#define GMX_AWH_BIASSHARING_H
 
-#include "gromacs/hardware/device_management.h"
-#include "gromacs/hardware/gpu_hw_info.h"
+#include <cstddef>
 
-bool canComputeOnGpu()
+#include <vector>
+
+struct gmx_multisim_t;
+
+namespace gmx
 {
-    bool           canComputeOnGpu = false;
-    gmx_gpu_info_t gpuInfo{};
-    if (canPerformGpuDetection())
-    {
-        findGpus(&gpuInfo);
-        canComputeOnGpu = !getCompatibleGpus(gpuInfo).empty();
-    }
-    free_gpu_info(&gpuInfo);
-    return canComputeOnGpu;
-}
+
+struct AwhParams;
+
+/*! \brief Returns if any bias is sharing within a simulation.
+ *
+ * \param[in] awhParams  The AWH parameters.
+ */
+bool haveBiasSharingWithinSimulation(const AwhParams& awhParams);
+
+/*! \brief Checks if biases are compatible for sharing between simulations, throws if not.
+ *
+ * Should be called simultaneously on the master rank of every simulation.
+ * Note that this only checks for technical compatibility. It is up to
+ * the user to check that the sharing physically makes sense.
+ * Throws an exception when shared biases are not compatible.
+ *
+ * \param[in] awhParams     The AWH parameters.
+ * \param[in] pointSize     Vector of grid-point sizes for each bias.
+ * \param[in] multiSimComm  Struct for multi-simulation communication.
+ */
+void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           awhParams,
+                                                     const std::vector<size_t>& pointSize,
+                                                     const gmx_multisim_t*      multiSimComm);
+
+} // namespace gmx
+
+#endif /* GMX_AWH_BIASSHARING_H */
