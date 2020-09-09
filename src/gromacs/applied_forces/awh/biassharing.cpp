@@ -38,7 +38,7 @@
  * Implements bias sharing checking functionality.
  *
  * \author Berk Hess <hess@kth.se>
- * \ingroup module_awh
+ * \ingroup module_applied_forces
  */
 
 #include "gmxpre.h"

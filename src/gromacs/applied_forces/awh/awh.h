@@ -34,7 +34,6 @@
  */
 
 /*! \libinternal
- * \defgroup module_awh Accelerated weight histogram (AWH) method
  * \ingroup module_applied_forces
  * \brief
  * Implements the "accelerated weight histogram" sampling method.
@@ -57,7 +56,7 @@
  * \author Viveca Lindahl
  * \author Berk Hess <hess@kth.se>
  * \inlibraryapi
- * \ingroup module_awh
+ * \ingroup module_applied_forces
  */
 
 #ifndef GMX_AWH_H

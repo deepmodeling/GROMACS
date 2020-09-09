@@ -11,11 +11,11 @@ mdlib -> essentialdynamics
 mdlib -> imd
 mdlib -> ewald
 mdlib -> pulling
-mdlib -> awh
 nbnxm -> domdec
 nbnxm -> mdlib
 simd -> hardware
 gpu_utils -> hardware
+gpu_utils -> mdtypes
 listed_forces -> mdlib
 utility -> math
 

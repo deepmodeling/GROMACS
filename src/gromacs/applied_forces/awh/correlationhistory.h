@@ -41,7 +41,7 @@
  *
  * \author Viveca Lindahl
  * \author Berk Hess <hess@kth.se>
- * \ingroup module_awh
+ * \ingroup module_applied_forces
  */
 
 #ifndef GMX_AWH_CORRELATIONHISTORY_H

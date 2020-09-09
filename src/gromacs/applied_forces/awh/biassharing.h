@@ -41,7 +41,7 @@
  * This actual sharing of biases is currently implemeted in BiasState.
  *
  * \author Berk Hess <hess@kth.se>
- * \ingroup module_awh
+ * \ingroup module_applied_forces
  */
 
 #ifndef GMX_AWH_BIASSHARING_H

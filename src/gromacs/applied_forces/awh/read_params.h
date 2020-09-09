@@ -41,7 +41,7 @@
  *
  * \author Viveca Lindahl
  * \inlibraryapi
- * \ingroup module_awh
+ * \ingroup module_applied_forces
  */
 
 #ifndef GMX_AWH_READPARAMS_H
