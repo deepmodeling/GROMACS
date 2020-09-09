@@ -1075,7 +1075,11 @@ int Mdrunner::mdrunner()
     snew(oriresdata, 1);
     init_orires(fplog, &mtop, inputrec.get(), cr, ms, globalState.get(), oriresdata);
 
-
+    /* MSVC could not convert that ternary operator:
+     * globalState != nullptr ? globalState->box : box
+     * into to const matrix& required by prepareBoxDeformation()
+     * this is made to work around that behaviour
+     */
     matrix simbox;
     if (globalState != nullptr)
     {
