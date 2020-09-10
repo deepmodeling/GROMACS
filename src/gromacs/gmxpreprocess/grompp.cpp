@@ -2390,6 +2390,7 @@ int gmx_grompp(int argc, char* argv[])
     sfree(opts->wall_atomtype[0]);
     sfree(opts->wall_atomtype[1]);
     sfree(opts->include);
+    sfree(opts->mtsLevel2Forces);
     sfree(opts);
     for (auto& mol : mi)
     {
