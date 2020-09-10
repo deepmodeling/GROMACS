@@ -720,21 +720,21 @@ static void launchPmeGpuFftAndGather(gmx_pme_t*               pmedata,
  *
  * \param[in]     nbv              Nonbonded verlet structure
  * \param[in,out] pmedata          PME module data
- * \param[in,out] forceBuffersNonbonded  Output buffer for the non-bonded forces and shift forces
- * \param[in,out] forceBuffersPme  Output buffers for the PME forces and virial
+ * \param[in,out] forceOutputsNonbonded  Force outputs for the non-bonded forces and shift forces
+ * \param[in,out] forceOutputsPme  Force outputs for the PME forces and virial
  * \param[in,out] enerd            Energy data structure results are reduced into
  * \param[in]     lambdaQ          The Coulomb lambda of the current system state.
  * \param[in]     stepWork         Step schedule flags
  * \param[in]     wcycle           The wallcycle structure
  */
-static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t*        nbv,
-                                        gmx_pme_t*                 pmedata,
-                                        gmx::ForceWithShiftForces* forceBuffersNonbonded,
-                                        gmx::ForceWithVirial*      forceBuffersPme,
-                                        gmx_enerdata_t*            enerd,
-                                        const real                 lambdaQ,
-                                        const StepWorkload&        stepWork,
-                                        gmx_wallcycle_t            wcycle)
+static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
+                                        gmx_pme_t*          pmedata,
+                                        gmx::ForceOutputs*  forceOutputsNonbonded,
+                                        gmx::ForceOutputs*  forceOutputsPme,
+                                        gmx_enerdata_t*     enerd,
+                                        const real          lambdaQ,
+                                        const StepWorkload& stepWork,
+                                        gmx_wallcycle_t     wcycle)
 {
     bool isPmeGpuDone = false;
     bool isNbGpuDone  = false;
@@ -747,22 +747,24 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t*        nbv,
         {
             GpuTaskCompletion completionType =
                     (isNbGpuDone) ? GpuTaskCompletion::Wait : GpuTaskCompletion::Check;
-            isPmeGpuDone = pme_gpu_try_finish_task(pmedata, stepWork, wcycle, forceBuffersPme,
-                                                   enerd, lambdaQ, completionType);
+            isPmeGpuDone = pme_gpu_try_finish_task(pmedata, stepWork, wcycle,
+                                                   &forceOutputsPme->forceWithVirial(), enerd,
+                                                   lambdaQ, completionType);
         }
 
         if (!isNbGpuDone)
         {
+            auto&             forceBuffersNonbonded = forceOutputsNonbonded->forceWithShiftForces();
             GpuTaskCompletion completionType =
                     (isPmeGpuDone) ? GpuTaskCompletion::Wait : GpuTaskCompletion::Check;
             isNbGpuDone = Nbnxm::gpu_try_finish_task(
                     nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                    enerd->grpp.ener[egCOULSR].data(), forceBuffersNonbonded->shiftForces(),
+                    enerd->grpp.ener[egCOULSR].data(), forceBuffersNonbonded.shiftForces(),
                     completionType, wcycle);
 
             if (isNbGpuDone)
             {
-                nbv->atomdata_add_nbat_f_to_f(AtomLocality::Local, forceBuffersNonbonded->force());
+                nbv->atomdata_add_nbat_f_to_f(AtomLocality::Local, forceBuffersNonbonded.force());
             }
         }
     }
@@ -1834,9 +1836,8 @@ void do_force(FILE*                               fplog,
                              && !DOMAINDECOMP(cr) && !stepWork.useGpuFBufferOps);
     if (alternateGpuWait)
     {
-        alternatePmeNbGpuWaitReduce(
-                fr->nbv.get(), fr->pmedata, &forceOutNonbonded.forceWithShiftForces(),
-                &forceOutSlow.forceWithVirial(), enerd, lambda[efptCOUL], stepWork, wcycle);
+        alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, &forceOutNonbonded, &forceOutSlow,
+                                    enerd, lambda[efptCOUL], stepWork, wcycle);
     }
 
     if (!alternateGpuWait && useGpuPmeOnThisRank)

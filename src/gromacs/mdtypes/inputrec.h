@@ -60,7 +60,7 @@ namespace gmx
 class Awh;
 struct AwhParams;
 class KeyValueTreeObject;
-class MtsLevel;
+struct MtsLevel;
 } // namespace gmx
 
 enum class PbcType;
