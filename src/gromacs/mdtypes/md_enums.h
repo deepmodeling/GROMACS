@@ -355,18 +355,6 @@ extern const char* ei_names[eiNR + 1];
 //! Do we deal with particle velocities
 #define EI_STATE_VELOCITY(e) (EI_MD(e) || EI_SD(e))
 
-//! Multiple time stepping schemes
-enum
-{
-    emtsschemePmeNonbondedPairDihedral,
-    emtsschemePme,
-    emtsschemeNR
-};
-//! String corresponding to constraint algorithm
-extern const char* emtsscheme_names[emtsschemeNR + 1];
-//! Macro to select the correct string
-#define EMTSSCHEME(e) enum_name(e, emtsschemeNR, emtsscheme_names)
-
 //! Constraint algorithm
 enum
 {

@@ -58,8 +58,6 @@ const char* ei_names[eiNR + 1] = { "md",    "steep",      "cg",    "bd",   "sd2 
                                    "nm",    "l-bfgs",     "tpi",   "tpic", "sd",
                                    "md-vv", "md-vv-avek", "mimic", nullptr };
 
-const char* emtsscheme_names[emtsschemeNR + 1] = { "PME-nonbonded-pair-dihedral", "PME", nullptr };
-
 const char* ecutscheme_names[ecutsNR + 1] = { "Verlet", "Group", nullptr };
 
 const char* erefscaling_names[erscNR + 1] = { "No", "All", "COM", nullptr };
