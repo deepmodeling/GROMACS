@@ -82,6 +82,7 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
@@ -1178,7 +1179,7 @@ void init_forcerec(FILE*                            fp,
 
     // Note that we do allow arbitrary nstlist when only use MTS for PME
     GMX_RELEASE_ASSERT(
-            !(fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(MtsForceGroups::Nonbonded)]
+            !(fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]
               && ir->nstlist % ir->mtsLevels[1].stepFactor != 0),
             "With multiple time stepping for the non-bonded pair interactions, nstlist should be a "
             "multiple of mtsFactor");
@@ -1310,15 +1311,15 @@ void init_forcerec(FILE*                            fp,
         if (fr->useMts)
         {
             const auto& forceGroups = ir->mtsLevels[mtsIndex].forceGroups;
-            if (forceGroups[static_cast<int>(MtsForceGroups::Pair)])
+            if (forceGroups[static_cast<int>(gmx::MtsForceGroups::Pair)])
             {
                 interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Pairs));
             }
-            if (forceGroups[static_cast<int>(MtsForceGroups::Dihedral)])
+            if (forceGroups[static_cast<int>(gmx::MtsForceGroups::Dihedral)])
             {
                 interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Dihedrals));
             }
-            if (forceGroups[static_cast<int>(MtsForceGroups::Angle)])
+            if (forceGroups[static_cast<int>(gmx::MtsForceGroups::Angle)])
             {
                 interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Angles));
             }

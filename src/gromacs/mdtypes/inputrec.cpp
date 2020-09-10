@@ -50,6 +50,7 @@
 #include "gromacs/math/vecdump.h"
 #include "gromacs/mdtypes/awh_params.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/utility/compare.h"
@@ -830,7 +831,7 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
                 const auto&       mtsLevel = ir->mtsLevels[mtsIndex];
                 const std::string forceKey = gmx::formatString("mts-level%d-forces", mtsIndex + 1);
                 std::string       forceGroups;
-                for (int i = 0; i < static_cast<int>(MtsForceGroups::Count); i++)
+                for (int i = 0; i < static_cast<int>(gmx::MtsForceGroups::Count); i++)
                 {
                     if (mtsLevel.forceGroups[i])
                     {
@@ -838,7 +839,7 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
                         {
                             forceGroups += " ";
                         }
-                        forceGroups += mtsForceGroupNames[i];
+                        forceGroups += gmx::mtsForceGroupNames[i];
                     }
                 }
                 PS(forceKey.c_str(), forceGroups.c_str());

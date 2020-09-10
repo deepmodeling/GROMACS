@@ -60,6 +60,7 @@
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/mdtypes/state.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/pbcutil/boxutilities.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/topology/block.h"
@@ -1096,7 +1097,7 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
         {
             int forceGroups = mtsLevel.forceGroups.to_ulong();
             serializer->doInt(&forceGroups);
-            mtsLevel.forceGroups = std::bitset<static_cast<int>(MtsForceGroups::Count)>(forceGroups);
+            mtsLevel.forceGroups = std::bitset<static_cast<int>(gmx::MtsForceGroups::Count)>(forceGroups);
             serializer->doInt(&mtsLevel.stepFactor);
         }
     }

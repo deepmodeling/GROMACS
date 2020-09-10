@@ -92,6 +92,7 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/mdtypes/mdatom.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
@@ -1071,7 +1072,8 @@ void do_force(FILE*                               fplog,
                                                   thisRankHasDuty(cr, DUTY_PME));
     /* modify force flag if not doing nonbonded */
     const bool nonbondedIsSlow =
-            (useMts && inputrec->mtsLevels[1].forceGroups[static_cast<int>(MtsForceGroups::Nonbonded)]);
+            (useMts
+             && inputrec->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]);
     if (!computeSlowForces && nonbondedIsSlow)
     {
         runScheduleWork->stepWork.computeNonbondedForces = false;

@@ -43,12 +43,9 @@
 #include <memory>
 #include <vector>
 
-#include <bitset>
-
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/real.h"
 
 #define EGP_EXCL (1 << 0)
@@ -63,6 +60,7 @@ namespace gmx
 class Awh;
 struct AwhParams;
 class KeyValueTreeObject;
+class MtsLevel;
 } // namespace gmx
 
 enum class PbcType;
@@ -103,30 +101,6 @@ struct t_grpopts
     /* QMMM stuff */
     //! Number of QM groups
     int ngQM;
-};
-
-//! Force group available for selection for multiple time step integration
-enum class MtsForceGroups : int
-{
-    LongrangeNonbonded, //!< PME-mesh or Ewald for electrostatics and/or LJ
-    Nonbonded,          //!< Non-bonded pair interactions
-    Pair,               //!< Bonded pair interactions
-    Dihedral,           //!< Dihedrals, including cmap (not restraints)
-    Angle,              //! Bonded angle potentials (not restraints)
-    Count               //! The number of groups above
-};
-
-static const gmx::EnumerationArray<MtsForceGroups, std::string> mtsForceGroupNames = {
-    "longrange-nonbonded", "nonbonded", "pair", "dihedral", "angle"
-};
-
-//! Setting for a single level for multiple time step integration
-struct MtsLevel
-{
-    //! The force group selection for this level;
-    std::bitset<static_cast<int>(MtsForceGroups::Count)> forceGroups;
-    //! The factor between the base, fastest, time step and the time step for this level
-    int stepFactor;
 };
 
 struct t_simtemp
@@ -379,7 +353,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Whether we use multiple time stepping
     bool useMts;
     //! The multiple time stepping levels
-    std::vector<MtsLevel> mtsLevels;
+    std::vector<gmx::MtsLevel> mtsLevels;
     //! Precision of x in compressed trajectory file
     real x_compression_precision;
     //! Requested fourier_spacing, when nk? not set

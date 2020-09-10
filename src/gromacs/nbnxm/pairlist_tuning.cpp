@@ -59,6 +59,7 @@
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/interaction_const.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/topology/topology.h"
@@ -120,21 +121,6 @@ static const float c_nbnxnListSizeFactorGPU = 1.4;
 //! Never increase the size of the pair-list more than the factor above plus this margin
 static const float c_nbnxnListSizeFactorMargin = 0.1;
 
-//! Return the interval in steps at which the non-bonded pair forces are calculated
-static int nonbondedMtsFactor(const t_inputrec& ir)
-{
-    GMX_RELEASE_ASSERT(!ir.useMts || ir.mtsLevels.size() == 2, "Only 2 MTS levels supported here");
-
-    if (ir.useMts && ir.mtsLevels[1].forceGroups[static_cast<int>(MtsForceGroups::Nonbonded)])
-    {
-        return ir.mtsLevels[1].stepFactor;
-    }
-    else
-    {
-        return 1;
-    }
-}
-
 void increaseNstlist(FILE*               fp,
                      t_commrec*          cr,
                      t_inputrec*         ir,
@@ -171,7 +157,7 @@ void increaseNstlist(FILE*               fp,
      * performed every ir->mtsFactor steps due to multiple time stepping,
      * we scaling all nstlist values by this factor.
      */
-    const int mtsFactor = nonbondedMtsFactor(*ir);
+    const int mtsFactor = gmx::nonbondedMtsFactor(*ir);
 
     if (nstlist_cmdline <= 0)
     {
@@ -422,7 +408,7 @@ static void setDynamicPairlistPruningParameters(const t_inputrec*          ir,
      * we only compute then every mtsFactor steps, so all parameters here
      * should be a multiple of mtsFactor.
      */
-    listParams->mtsFactor = nonbondedMtsFactor(*ir);
+    listParams->mtsFactor = gmx::nonbondedMtsFactor(*ir);
 
     const int mtsFactor = listParams->mtsFactor;
 

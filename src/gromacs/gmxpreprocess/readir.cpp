@@ -59,6 +59,7 @@
 #include "gromacs/mdrun/mdmodules.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/options/options.h"
 #include "gromacs/options/treesupport.h"
@@ -232,37 +233,6 @@ static void process_interaction_modifier(int* eintmod)
     }
 }
 
-static void assertMtsRequirements(const t_inputrec& ir)
-{
-    if (!ir.useMts)
-    {
-        return;
-    }
-
-    GMX_RELEASE_ASSERT(ir.mtsLevels.size() >= 2, "Need at least two levels for MTS");
-
-    GMX_RELEASE_ASSERT(ir.mtsLevels[0].stepFactor == 1, "Base MTS step should be 1");
-
-    GMX_RELEASE_ASSERT(
-            (!EEL_FULL(ir.coulombtype) && !EVDW_PME(ir.vdwtype))
-                    || ir.mtsLevels.back().forceGroups[static_cast<int>(MtsForceGroups::LongrangeNonbonded)],
-            "Long-range nonbondes should be in the highest MTS level");
-
-    for (const auto& mtsLevel : ir.mtsLevels)
-    {
-        const int mtsFactor = mtsLevel.stepFactor;
-        GMX_RELEASE_ASSERT(ir.nstcalcenergy % mtsFactor == 0,
-                           "nstcalcenergy should be a multiple of mtsFactor");
-        GMX_RELEASE_ASSERT(ir.nstenergy % mtsFactor == 0,
-                           "nstenergy should be a multiple of mtsFactor");
-        GMX_RELEASE_ASSERT(ir.nstlog % mtsFactor == 0, "nstlog should be a multiple of mtsFactor");
-        GMX_RELEASE_ASSERT(ir.epc == epcNO || ir.nstpcouple % mtsFactor == 0,
-                           "nstpcouple should be a multiple of mtsFactor");
-        GMX_RELEASE_ASSERT(ir.efep == efepNO || ir.fepvals->nstdhdl % mtsFactor == 0,
-                           "nstdhdl should be a multiple of mtsFactor");
-    }
-}
-
 static void checkMtsRequirement(const t_inputrec& ir, const char* param, const int nstValue, warninp_t wi)
 {
     GMX_RELEASE_ASSERT(ir.mtsLevels.size() >= 2, "Need at least two levels for MTS");
@@ -275,10 +245,10 @@ static void checkMtsRequirement(const t_inputrec& ir, const char* param, const i
     }
 }
 
-static void setupMtsLevels(gmx::ArrayRef<MtsLevel> mtsLevels,
-                           const t_inputrec&       ir,
-                           const t_gromppopts&     opts,
-                           warninp_t               wi)
+static void setupMtsLevels(gmx::ArrayRef<gmx::MtsLevel> mtsLevels,
+                           const t_inputrec&            ir,
+                           const t_gromppopts&          opts,
+                           warninp_t                    wi)
 {
     if (!(ir.eI == eiMD || ir.eI == eiSD1))
     {
@@ -299,7 +269,7 @@ static void setupMtsLevels(gmx::ArrayRef<MtsLevel> mtsLevels,
         {
             bool found     = false;
             int  nameIndex = 0;
-            for (const auto& forceGroupName : mtsForceGroupNames)
+            for (const auto& forceGroupName : gmx::mtsForceGroupNames)
             {
                 if (gmx::equalCaseInsensitive(inputForceGroup, forceGroupName))
                 {
@@ -326,7 +296,7 @@ static void setupMtsLevels(gmx::ArrayRef<MtsLevel> mtsLevels,
         mtsLevels[0].stepFactor  = 1;
 
         if ((EEL_FULL(ir.coulombtype) || EVDW_PME(ir.vdwtype))
-            && !mtsLevels[1].forceGroups[static_cast<int>(MtsForceGroups::LongrangeNonbonded)])
+            && !mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::LongrangeNonbonded)])
         {
             warning_error(wi,
                           "With long-range electrostatics and/or LJ treatment, the long-range part "
@@ -2012,7 +1982,7 @@ void get_ir(const char*     mdparin,
     {
         opts->numMtsLevels = get_eint(&inp, "mts-levels", 2, wi);
         ir->mtsLevels.resize(2);
-        MtsLevel& mtsLevel = ir->mtsLevels[1];
+        gmx::MtsLevel& mtsLevel = ir->mtsLevels[1];
         setStringEntry(&inp, "mts-level2-forces", opts->mtsLevel2Forces,
                        "longrange-nonbonded nonbonded pair dihedral");
         mtsLevel.stepFactor = get_eint(&inp, "mts-level2-factor", 2, wi);
@@ -4210,7 +4180,7 @@ static void check_combination_rules(const t_inputrec* ir, const gmx_mtop_t* mtop
 void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_t wi)
 {
     // Not meeting MTS requires should have resulted in a fatal error, so we can assert here
-    assertMtsRequirements(*ir);
+    gmx::assertMtsRequirements(*ir);
 
     char                      err_buf[STRLEN];
     int                       i, m, c, nmol;
