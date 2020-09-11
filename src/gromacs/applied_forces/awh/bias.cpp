@@ -176,7 +176,13 @@ gmx::ArrayRef<const double> Bias::calcForceAndUpdateBias(const awh_dvec         
     else
     {
         /* Umbrella force */
-        GMX_RELEASE_ASSERT(state_.points()[coordState.umbrellaGridpoint()].inTargetRegion(),
+        int symmetryCorrectedPointIndex = coordState.umbrellaGridpoint();
+        if (grid_.point(coordState.umbrellaGridpoint()).symmetryMirroredPoint.has_value())
+        {
+            symmetryCorrectedPointIndex =
+                    grid_.point(coordState.umbrellaGridpoint()).symmetryMirroredPoint.value();
+        }
+        GMX_RELEASE_ASSERT(state_.points()[symmetryCorrectedPointIndex].inTargetRegion(),
                            "AWH bias grid point for the umbrella reference value is outside of the "
                            "target region.");
         potential = state_.calcUmbrellaForceAndPotential(
@@ -418,8 +424,8 @@ void Bias::updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeig
     gmx::ArrayRef<double> forceFromNeighbor = tempForce_;
     for (size_t n = 0; n < neighbor.size(); n++)
     {
-        double weightNeighbor = probWeightNeighbor[n];
-        int    indexNeighbor  = neighbor[n];
+        double    weightNeighbor = probWeightNeighbor[n];
+        const int indexNeighbor  = neighbor[n];
 
         /* Add the force data of this neighbor point. Note: the sum of these forces is the convolved force.
 
@@ -430,7 +436,12 @@ void Bias::updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeig
                                              forceFromNeighbor);
 
         /* Note: we might want to give a whole list of data to add instead and have this loop in the data adding function */
-        forceCorrelationGrid_->addData(indexNeighbor, weightNeighbor, forceFromNeighbor, t);
+        int IndexToAddTo = indexNeighbor;
+        if (grid_.point(indexNeighbor).symmetryMirroredPoint.has_value())
+        {
+            IndexToAddTo = grid_.point(indexNeighbor).symmetryMirroredPoint.value();
+        }
+        forceCorrelationGrid_->addData(IndexToAddTo, weightNeighbor, forceFromNeighbor, t);
     }
 }
 

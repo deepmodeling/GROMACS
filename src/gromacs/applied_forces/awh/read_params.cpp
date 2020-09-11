@@ -172,6 +172,31 @@ void checkPullDimParams(const std::string&   prefix,
         warning(wi, message);
     }
 
+    if (dimParams->isSymmetric)
+    {
+        if (dimParams->origin > 0)
+        {
+            gmx_fatal(FARGS,
+                      "%s-start (%g) must not be negative in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->origin);
+        }
+        if (dimParams->end < 0)
+        {
+            gmx_fatal(FARGS,
+                      "%s-end (%g) must not be negative in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->end);
+        }
+        if (!gmx_within_tol(dimParams->end, -dimParams->origin, GMX_REAL_EPS))
+        {
+            gmx_fatal(FARGS,
+                      "%s-start (%g) must be the inverted value of %s-end (%g) in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->origin, prefix.c_str(), dimParams->end);
+        }
+    }
+
     if (dimParams->forceConstant <= 0)
     {
         warning_error(wi, "The force AWH bias force constant should be > 0");
@@ -367,6 +392,18 @@ void readDimParams(std::vector<t_inpfile>* inp,
     dimParams->origin = get_ereal(inp, opt, 0., wi);
     opt               = prefix + "-end";
     dimParams->end    = get_ereal(inp, opt, 0., wi);
+
+    if (bComment)
+    {
+        printStringNoNewline(inp, "Make the coordinate dimension symmetric around the origin (0).");
+        printStringNoNewline(inp,
+                             "Negative coordinate samples affect the bias in the positive "
+                             "coordinate range and ");
+        printStringNoNewline(
+                inp, "are in turn affected by the same bias as positive coordinate samples.");
+    }
+    opt                    = prefix + "-symmetric";
+    dimParams->isSymmetric = (get_eeenum(inp, opt, yesno_names, wi) != 0);
 
     if (bComment)
     {
@@ -848,9 +885,13 @@ void checkAwhParams(const AwhParams* awhParams, const t_inputrec* ir, warninp_t 
  * \param[in] pullCoordParams   The parameters for the pull coordinate.
  * \param[in] pbc               The PBC setup
  * \param[in] intervalLength    The length of the AWH interval for this pull coordinate
+ * \param[in] isSymmetric       True if this pull coordinate is symmetric.
  * \returns the period (or 0 if not periodic).
  */
-static double get_pull_coord_period(const t_pull_coord& pullCoordParams, const t_pbc& pbc, const real intervalLength)
+static double get_pull_coord_period(const t_pull_coord& pullCoordParams,
+                                    const t_pbc&        pbc,
+                                    const real          intervalLength,
+                                    const bool          isSymmetric)
 {
     double period = 0;
 
@@ -875,7 +916,7 @@ static double get_pull_coord_period(const t_pull_coord& pullCoordParams, const t
                               intervalLength, boxLength);
                 }
 
-                if (intervalLength > periodicFraction * boxLength)
+                if ((isSymmetric ? intervalLength * 2 : intervalLength) > periodicFraction * boxLength)
                 {
                     period = boxLength;
                 }
@@ -1037,7 +1078,8 @@ static void setStateDependentAwhPullDimParams(AwhDimParams*        dimParams,
                   EPULLGEOM(epullgDIRPBC), EPULLGEOM(epullgDIR));
     }
 
-    dimParams->period = get_pull_coord_period(pullCoordParams, pbc, dimParams->end - dimParams->origin);
+    dimParams->period = get_pull_coord_period(
+            pullCoordParams, pbc, dimParams->end - dimParams->origin, dimParams->isSymmetric);
     // We would like to check for scaling, but we don't have the full inputrec available here
     if (dimParams->period > 0
         && !(pullCoordParams.eGeom == epullgANGLE || pullCoordParams.eGeom == epullgDIHEDRAL))

@@ -281,6 +281,10 @@ public:
      */
     inline const std::vector<DimParams>& dimParams() const { return dimParams_; }
 
+    /*! \brief Returns the grid organizing the coordinate point locations.
+     */
+    inline const BiasGrid& grid() const { return grid_; }
+
     //! Returns the bias parameters
     inline const BiasParams& params() const { return params_; }
 
