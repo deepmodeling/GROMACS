@@ -69,3 +69,6 @@ if(BUILD_TESTING AND GMX_BUILD_UNITTESTS)
     set(GTEST_IS_THREADSAFE "${GTEST_IS_THREADSAFE}" PARENT_SCOPE)
 endif()
 add_subdirectory(boost)
+
+add_library(gsl-lite INTERFACE)
+target_include_directories(gsl-lite INTERFACE)
