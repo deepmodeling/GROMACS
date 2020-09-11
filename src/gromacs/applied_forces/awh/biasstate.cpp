@@ -255,20 +255,7 @@ double biasedLogWeightFromPoint(const std::vector<DimParams>&  dimParams,
             else
             {
                 double dev = getDeviationFromPointAlongGridAxis(grid, d, pointIndex, value[d]);
-                double logWeightContrib = -0.5 * dimParams[d].betak * dev * dev;
-                if (grid.axis(d).isSymmetric())
-                {
-                    double projectionDev =
-                            getDistanceToSymmetryProjectionAlongGridAxis(grid, d, pointIndex);
-                    dev += projectionDev;
-                    double symLogWeightContrib = -0.5 * dimParams[d].betak * dev * dev;
-                    double weightSum = std::exp(logWeightContrib) + std::exp(symLogWeightContrib);
-                    logWeight += std::log(weightSum);
-                }
-                else
-                {
-                    logWeight += logWeightContrib;
-                }
+                logWeight -= 0.5 * dimParams[d].betak * dev * dev;
             }
         }
     }
@@ -325,15 +312,20 @@ void BiasState::calcConvolvedPmf(const std::vector<DimParams>& dimParams,
     {
         double           freeEnergyWeights = 0;
         const GridPoint& point             = grid.point(m);
-        for (auto& neighbor : point.neighbor)
+        for (int neighbor : point.neighbor)
         {
+            int neighborIndexToUse = neighbor;
+            if (grid.point(neighbor).symmetryMirroredPoint.has_value())
+            {
+                neighborIndexToUse = grid.point(neighbor).symmetryMirroredPoint.value();
+            }
             /* The negative PMF is a positive bias. */
-            double biasNeighbor = -pmf[neighbor];
+            double biasNeighbor = -pmf[neighborIndexToUse];
 
             /* Add the convolved PMF weights for the neighbors of this point.
                Note that this function only adds point within the target > 0 region.
                Sum weights, take the logarithm last to get the free energy. */
-            double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
+            double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighborIndexToUse,
                                                         biasNeighbor, point.coordValue, {}, m);
             freeEnergyWeights += std::exp(logWeight);
         }
@@ -773,7 +765,16 @@ void makeLocalUpdateList(const BiasGrid&                grid,
 
         if (pointExists && points[pointIndex].inTargetRegion())
         {
-            updateList->push_back(pointIndex);
+            int symmetryCorrectedPointIndex = pointIndex;
+            if (grid.point(pointIndex).symmetryMirroredPoint.has_value())
+            {
+                symmetryCorrectedPointIndex = grid.point(pointIndex).symmetryMirroredPoint.value();
+            }
+            if (std::find(updateList->begin(), updateList->end(), symmetryCorrectedPointIndex)
+                == updateList->end())
+            {
+                updateList->push_back(symmetryCorrectedPointIndex);
+            }
         }
     }
 }
@@ -1209,6 +1210,10 @@ void BiasState::updateFreeEnergyAndAddSamplesToHistogram(const std::vector<DimPa
     /* Update free energy and reference weight histogram for points in the update list. */
     for (int pointIndex : *updateList)
     {
+        if (grid.point(pointIndex).symmetryMirroredPoint.has_value())
+        {
+            pointIndex = grid.point(pointIndex).symmetryMirroredPoint.value();
+        }
         PointState* pointStateToUpdate = &points_[pointIndex];
 
         /* Do updates from previous update steps that were skipped because this point was at that time non-local. */
@@ -1276,9 +1281,14 @@ double BiasState::updateProbabilityWeightsAndConvolvedBias(const std::vector<Dim
         {
             if (n < neighbors.size())
             {
-                const int neighbor = neighbors[n];
-                (*weight)[n]       = biasedLogWeightFromPoint(
-                        dimParams, points_, grid, neighbor, points_[neighbor].bias(),
+                const int neighbor          = neighbors[n];
+                int       neighborBiasPoint = neighbor;
+                if (grid.point(neighbor).symmetryMirroredPoint.has_value())
+                {
+                    neighborBiasPoint = grid.point(neighbor).symmetryMirroredPoint.value();
+                }
+                (*weight)[n] = biasedLogWeightFromPoint(
+                        dimParams, points_, grid, neighbor, points_[neighborBiasPoint].bias(),
                         coordState_.coordValue(), neighborLambdaEnergies, coordState_.gridpointIndex());
             }
             else
@@ -1348,8 +1358,14 @@ double BiasState::calcConvolvedBias(const std::vector<DimParams>& dimParams,
         {
             continue;
         }
-        double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
-                                                    points_[neighbor].bias(), coordValue, {}, point);
+        int neighborBiasPoint = neighbor;
+        if (grid.point(neighbor).symmetryMirroredPoint.has_value())
+        {
+            neighborBiasPoint = grid.point(neighbor).symmetryMirroredPoint.value();
+        }
+        double logWeight =
+                biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
+                                         points_[neighborBiasPoint].bias(), coordValue, {}, point);
         weightSum += std::exp(logWeight);
     }
 
@@ -1364,7 +1380,12 @@ void BiasState::sampleProbabilityWeights(const BiasGrid& grid, gmx::ArrayRef<con
     /* Save weights for next update */
     for (size_t n = 0; n < neighbor.size(); n++)
     {
-        points_[neighbor[n]].increaseWeightSumIteration(probWeightNeighbor[n]);
+        int neighborIndexToSample = neighbor[n];
+        if (grid.point(neighborIndexToSample).symmetryMirroredPoint.has_value())
+        {
+            neighborIndexToSample = grid.point(neighborIndexToSample).symmetryMirroredPoint.value();
+        }
+        points_[neighborIndexToSample].increaseWeightSumIteration(probWeightNeighbor[n]);
     }
 
     /* Update the local update range. Two corner points define this rectangular
@@ -1429,7 +1450,7 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
      * it works (mainly because how the PMF histogram is rescaled).
      */
 
-    const int                gridPointIndex  = coordState_.gridpointIndex();
+    int                      gridPointIndex  = coordState_.gridpointIndex();
     const std::optional<int> lambdaAxisIndex = grid.lambdaAxisIndex();
 
     /* Update the PMF of points along a lambda axis with their bias. */
@@ -1444,8 +1465,8 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
                                            coordState_.coordValue()[2], coordState_.coordValue()[3] };
         for (size_t i = 0; i < neighbors.size(); i++)
         {
-            const int neighbor = neighbors[i];
-            double    bias;
+            int    neighbor = neighbors[i];
+            double bias;
             if (pointsAlongLambdaAxis(grid, gridPointIndex, neighbor))
             {
                 const double neighborLambda = grid.point(neighbor).coordValue[lambdaAxisIndex.value()];
@@ -1464,10 +1485,18 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
 
                 if (neighbor == gridPointIndex && grid.covers(coordState_.coordValue()))
                 {
+                    if (grid.point(neighbor).symmetryMirroredPoint.has_value())
+                    {
+                        neighbor = grid.point(neighbor).symmetryMirroredPoint.value();
+                    }
                     points_[neighbor].samplePmf(weightedBias);
                 }
                 else
                 {
+                    if (grid.point(neighbor).symmetryMirroredPoint.has_value())
+                    {
+                        neighbor = grid.point(neighbor).symmetryMirroredPoint.value();
+                    }
                     points_[neighbor].updatePmfUnvisited(weightedBias);
                 }
             }
@@ -1481,6 +1510,10 @@ void BiasState::sampleCoordAndPmf(const std::vector<DimParams>& dimParams,
         if (grid.covers(coordState_.coordValue()))
         {
             /* Save PMF sum and keep a histogram of the sampled coordinate values */
+            if (grid.point(gridPointIndex).symmetryMirroredPoint.has_value())
+            {
+                gridPointIndex = grid.point(gridPointIndex).symmetryMirroredPoint.value();
+            }
             points_[gridPointIndex].samplePmf(convolvedBias);
         }
     }

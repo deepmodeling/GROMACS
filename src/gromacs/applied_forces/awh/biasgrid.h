@@ -154,8 +154,8 @@ private:
     double spacing_;           /**< Point spacing */
     int    numPoints_;         /**< Number of points in the interval */
     int    numPointsInPeriod_; /**< Number of points in a period (0 if no periodicity) */
-    bool   isFepLambdaAxis_;   /**< If this axis is coupled to the system's free energy lambda state */
-    bool   isSymmetric_;       /**< Whether this axis is symmetric around the origin or not. */
+    bool isFepLambdaAxis_; /**< If this axis is coupled to the system's free energy lambda state */
+    bool isSymmetric_;     /**< Whether this axis is symmetric around the origin or not. */
 };
 
 /*! \internal
@@ -167,9 +167,10 @@ private:
  */
 struct GridPoint
 {
-    awh_dvec         coordValue; /**< Multidimensional coordinate value of this point */
-    awh_ivec         index;      /**< Multidimensional point indices */
-    std::vector<int> neighbor;   /**< Linear point indices of the neighboring points */
+    awh_dvec           coordValue; /**< Multidimensional coordinate value of this point */
+    awh_ivec           index;      /**< Multidimensional point indices */
+    std::vector<int>   neighbor;   /**< Linear point indices of the neighboring points */
+    std::optional<int> symmetryMirroredPoint; /**< Linear point index of mirrored point positive along all symmetric axes */
 };
 
 /*! \internal

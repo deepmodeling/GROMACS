@@ -132,8 +132,8 @@ enum tpxv
     tpxv_AddSizeField, /**< Added field with information about the size of the serialized tpr file in bytes, excluding the header */
     tpxv_StoreNonBondedInteractionExclusionGroup, /**< Store the non bonded interaction exclusion group in the topology */
     tpxv_VSite1,                                  /**< Added 1 type virtual site */
-    tpxv_AWHSymmetry,                             /**< Added AWH option to symmetrise bias dimensions */
-    tpxv_Count                                    /**< the total number of tpxv versions */
+    tpxv_AWHSymmetry, /**< Added AWH option to symmetrise bias dimensions */
+    tpxv_Count        /**< the total number of tpxv versions */
 };
 
 /*! \brief Version number of the file format written to run input

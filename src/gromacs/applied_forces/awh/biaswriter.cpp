@@ -292,6 +292,12 @@ void BiasWriter::transferPointDataToWriter(AwhOutputEntryType         outputType
     const CorrelationGrid& forceCorrelation = bias.forceCorrelationGrid();
     int                    numCorrelation   = forceCorrelation.tensorSize();
 
+    int symmetryCorrectedPointIndex = pointIndex;
+    if (bias.grid().point(pointIndex).symmetryMirroredPoint.has_value())
+    {
+        symmetryCorrectedPointIndex = bias.grid().point(pointIndex).symmetryMirroredPoint.value();
+    }
+
     /* Transfer the point data of this variable to the right block(s) */
     int b = blockStart;
     switch (outputType)
@@ -310,36 +316,41 @@ void BiasWriter::transferPointDataToWriter(AwhOutputEntryType         outputType
         }
         break;
         case AwhOutputEntryType::Pmf:
-            block_[b].data()[pointIndex] =
-                    bias.state().points()[pointIndex].inTargetRegion() ? pmf[pointIndex] : 0;
+            block_[b].data()[pointIndex] = bias.state().points()[pointIndex].inTargetRegion()
+                                                   ? pmf[symmetryCorrectedPointIndex]
+                                                   : 0;
             break;
         case AwhOutputEntryType::Bias:
         {
-            const awh_dvec& coordValue   = bias.getGridCoordValue(pointIndex);
+            const awh_dvec& coordValue   = bias.getGridCoordValue(symmetryCorrectedPointIndex);
             block_[b].data()[pointIndex] = bias.state().points()[pointIndex].inTargetRegion()
                                                    ? bias.calcConvolvedBias(coordValue)
                                                    : 0;
         }
         break;
         case AwhOutputEntryType::Visits:
-            block_[b].data()[pointIndex] = bias.state().points()[pointIndex].numVisitsTot();
+            block_[b].data()[pointIndex] =
+                    bias.state().points()[symmetryCorrectedPointIndex].numVisitsTot();
             break;
         case AwhOutputEntryType::Weights:
-            block_[b].data()[pointIndex] = bias.state().points()[pointIndex].weightSumTot();
+            block_[b].data()[pointIndex] =
+                    bias.state().points()[symmetryCorrectedPointIndex].weightSumTot();
             break;
         case AwhOutputEntryType::Target:
             block_[b].data()[pointIndex] = bias.state().points()[pointIndex].target();
             break;
         case AwhOutputEntryType::ForceCorrelationVolume:
             block_[b].data()[pointIndex] =
-                    forceCorrelation.tensors()[pointIndex].getVolumeElement(forceCorrelation.dtSample);
+                    forceCorrelation.tensors()[symmetryCorrectedPointIndex].getVolumeElement(
+                            forceCorrelation.dtSample);
             break;
         case AwhOutputEntryType::FrictionTensor:
             /* Store force correlation in units of friction, i.e. time/length^2 */
             for (int n = 0; n < numCorrelation; n++)
             {
-                block_[b].data()[pointIndex] = forceCorrelation.tensors()[pointIndex].getTimeIntegral(
-                        n, forceCorrelation.dtSample);
+                block_[b].data()[pointIndex] =
+                        forceCorrelation.tensors()[symmetryCorrectedPointIndex].getTimeIntegral(
+                                n, forceCorrelation.dtSample);
                 b++;
             }
             break;

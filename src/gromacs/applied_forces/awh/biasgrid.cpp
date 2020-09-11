@@ -258,28 +258,6 @@ bool pointsHaveDifferentLambda(const BiasGrid& grid, int pointIndex1, int pointI
     return false;
 }
 
-double getDistanceToSymmetryProjectionAlongGridAxis(const BiasGrid& grid, const int dimIndex, const int pointIndex)
-{
-    const double coordValue = grid.point(pointIndex).coordValue[dimIndex];
-    const double dimEndValue = grid.axis(dimIndex).period(); // Will be 0 if the axis is not periodic.
-    const double devToEnd    = dimEndValue - coordValue;
-    const double devToOrigin = coordValue;
-
-    double dev;
-    /* If the axis is not periodic only measure the distance to the symmetry projection across
-     * the origin (0). */
-    if (devToOrigin <= devToEnd || !grid.axis(dimIndex).isPeriodic())
-    {
-        dev = 2 * devToOrigin;
-    }
-    else
-    {
-        dev = 2 * -devToEnd;
-    }
-
-    return dev;
-}
-
 void linearArrayIndexToMultiDim(int indexLinear, int numDimensions, const awh_ivec numPointsDim, awh_ivec indexMulti)
 {
     for (int d = 0; d < numDimensions; d++)
@@ -730,6 +708,41 @@ void setNeighborsOfGridPoint(int pointIndex, const BiasGrid& grid, std::vector<i
     }
 }
 
+/*! \brief
+ * Find and set mirrored points across symmetric dimensions.
+ *
+ * \param[in]     pointIndex           BiasGrid point index.
+ * \param[in]     grid                 The grid.
+ */
+std::optional<int> getPositiveSymmetryMirroredPointOfGridPoint(int pointIndex, const BiasGrid& grid)
+{
+    for (int d = 0; d < grid.numDimensions(); d++)
+    {
+        if (grid.axis(d).isSymmetric())
+        {
+            awh_dvec coordValue;
+            for (int i = 0; i < c_biasMaxNumDim; i++)
+            {
+                coordValue[i] = grid.point(pointIndex).coordValue[i];
+            }
+            if (coordValue[d] < 0)
+            {
+                /* Find the positive coordinate along all symmetric axes. */
+                for (int i = 0; i < grid.numDimensions(); i++)
+                {
+                    if (grid.axis(d).isSymmetric() && coordValue[i] < 0)
+                    {
+                        coordValue[i] *= -1;
+                    }
+                }
+                int symmetryMirroredPointIndex = grid.nearestIndex(coordValue);
+                return symmetryMirroredPointIndex;
+            }
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 void BiasGrid::initPoints()
@@ -754,16 +767,16 @@ void BiasGrid::initPoints()
             else
             {
                 point.coordValue[d] = axis_[d].origin() + indexWork[d] * axis_[d].spacing();
+
+                if (axis_[d].period() > 0)
+                {
+                    /* Do we always want the values to be centered around 0 ? */
+                    centerPeriodicValueAroundZero(&point.coordValue[d], axis_[d].period());
+                }
                 if (axis_[d].isSymmetric())
                 {
                     point.coordValue[d] += axis_[d].spacing() / 2;
                 }
-            }
-
-            if (axis_[d].period() > 0)
-            {
-                /* Do we always want the values to be centered around 0 ? */
-                centerPeriodicValueAroundZero(&point.coordValue[d], axis_[d].period());
             }
 
             point.index[d] = indexWork[d];
@@ -814,12 +827,12 @@ GridAxis::GridAxis(double origin, double end, double period, double pointDensity
     {
         numPointsInPeriod_ = 0;
         spacing_           = numPoints_ > 1 ? length_ / (numPoints_ - 1) : 0;
-    }
-    if (isSymmetric)
-    {
-        /* For a symmetric grid axis the number of points should be one fewer and the points
-           should be shifted half a spacing, i.e., no points at all in the ends. */
-        numPoints_ -= 1;
+        if (isSymmetric)
+        {
+            /* For a symmetric grid axis the number of points should be one fewer and the points
+            should be shifted half a spacing, i.e., no points at all in the ends. */
+            numPoints_ -= 1;
+        }
     }
     isSymmetric_ = isSymmetric;
 }
@@ -836,6 +849,7 @@ GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool
         length_            = end - origin_;
         spacing_           = 1;
         numPointsInPeriod_ = numPoints;
+        isSymmetric_       = false;
     }
     else
     {
@@ -843,13 +857,20 @@ GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool
         if (isSymmetric)
         {
             spacing_ = numPoints_ > 1 ? length_ / numPoints_ : period_;
+            numPoints_ -= 1;
         }
         else
         {
             spacing_ = numPoints_ > 1 ? length_ / (numPoints_ - 1) : period_;
         }
         numPointsInPeriod_ = static_cast<int>(std::round(period_ / spacing_));
-        isSymmetric_       = isSymmetric;
+        if (isSymmetric)
+        {
+            /* For a symmetric grid axis the number of points should be one fewer and the points
+            should be shifted half a spacing, i.e., no points at all in the ends. */
+            numPointsInPeriod_ -= 1;
+        }
+        isSymmetric_ = isSymmetric;
     }
 }
 
@@ -870,7 +891,7 @@ BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* 
                     "The number of points per sigma should be at least 1.0 to get a uniformly "
                     "covering the reaction using Gaussians");
             double pointDensity = std::sqrt(dimParams[d].betak) * c_numPointsPerSigma;
-            axis_.emplace_back(origin, end, period[d], pointDensity, awhDimParams->isSymmetric);
+            axis_.emplace_back(origin, end, period[d], pointDensity, awhDimParams[d].isSymmetric);
         }
         else
         {
@@ -893,6 +914,8 @@ BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* 
         std::vector<int>* neighbor = &point_[m].neighbor;
 
         setNeighborsOfGridPoint(m, *this, neighbor);
+
+        point_[m].symmetryMirroredPoint = getPositiveSymmetryMirroredPointOfGridPoint(m, *this);
     }
 }
 

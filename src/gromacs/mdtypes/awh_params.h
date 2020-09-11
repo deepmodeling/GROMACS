@@ -118,7 +118,7 @@ struct AwhDimParams
     double end;            /**< End value of the interval. */
     bool isSymmetric; /**< Whether this coordinate dimension is mirrored around the origin or not. */
     double period;    /**< The period of this dimension (= 0 if not periodic). */
-    double forceConstant;  /**< The force constant in kJ/mol/nm^2, kJ/mol/rad^2 */
+    double forceConstant; /**< The force constant in kJ/mol/nm^2, kJ/mol/rad^2 */
     double diffusion; /**< Estimated diffusion constant in units of nm^2/ps, rad^2/ps or ps^-1. */
     double coordValueInit; /**< The initial coordinate value. */
     double coverDiameter; /**< The diameter that needs to be sampled around a point before it is considered covered. */

@@ -121,11 +121,25 @@ void checkPullDimParams(const std::string&   prefix,
 
     if (dimParams->isSymmetric)
     {
-        if (dimParams->origin < 0 || dimParams->end < 0)
+        if (dimParams->origin > 0)
         {
             gmx_fatal(FARGS,
-                      "%s-start (%g) and %s-end (%g) must not be negative in a symmetric "
-                      "coordinate dimension. ",
+                      "%s-start (%g) must not be negative in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->origin);
+        }
+        if (dimParams->end < 0)
+        {
+            gmx_fatal(FARGS,
+                      "%s-end (%g) must not be negative in a symmetric "
+                      "coordinate dimension.",
+                      prefix.c_str(), dimParams->end);
+        }
+        if (!gmx_within_tol(dimParams->end, -dimParams->origin, GMX_REAL_EPS))
+        {
+            gmx_fatal(FARGS,
+                      "%s-start (%g) must be the inverted value of %s-end (%g) in a symmetric "
+                      "coordinate dimension.",
                       prefix.c_str(), dimParams->origin, prefix.c_str(), dimParams->end);
         }
     }
@@ -848,7 +862,7 @@ static double get_pull_coord_period(const t_pull_coord& pullCoordParams,
                               intervalLength, boxLength);
                 }
 
-                if (intervalLength > periodicFraction * boxLength || isSymmetric)
+                if ((isSymmetric ? intervalLength * 2 : intervalLength) > periodicFraction * boxLength)
                 {
                     period = boxLength;
                 }

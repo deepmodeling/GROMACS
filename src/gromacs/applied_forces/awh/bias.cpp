@@ -418,8 +418,8 @@ void Bias::updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeig
     gmx::ArrayRef<double> forceFromNeighbor = tempForce_;
     for (size_t n = 0; n < neighbor.size(); n++)
     {
-        double weightNeighbor = probWeightNeighbor[n];
-        int    indexNeighbor  = neighbor[n];
+        double    weightNeighbor = probWeightNeighbor[n];
+        const int indexNeighbor  = neighbor[n];
 
         /* Add the force data of this neighbor point. Note: the sum of these forces is the convolved force.
 
@@ -430,7 +430,12 @@ void Bias::updateForceCorrelationGrid(gmx::ArrayRef<const double> probWeightNeig
                                              forceFromNeighbor);
 
         /* Note: we might want to give a whole list of data to add instead and have this loop in the data adding function */
-        forceCorrelationGrid_->addData(indexNeighbor, weightNeighbor, forceFromNeighbor, t);
+        int IndexToAddTo = indexNeighbor;
+        if (grid_.point(indexNeighbor).symmetryMirroredPoint.has_value())
+        {
+            IndexToAddTo = grid_.point(indexNeighbor).symmetryMirroredPoint.value();
+        }
+        forceCorrelationGrid_->addData(IndexToAddTo, weightNeighbor, forceFromNeighbor, t);
     }
 }
 
