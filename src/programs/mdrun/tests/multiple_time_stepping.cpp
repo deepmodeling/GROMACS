@@ -42,8 +42,6 @@
  */
 #include "gmxpre.h"
 
-#include "config.h"
-
 #include "gromacs/topology/ifunc.h"
 #include "gromacs/utility/stringutil.h"
 
