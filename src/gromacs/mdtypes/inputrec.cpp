@@ -67,6 +67,9 @@
 //! Macro to select a bool name
 #define EBOOL(e) gmx::boolToString(e)
 
+/* Default values for nstcalcenergy, used when the are no other restrictions. */
+constexpr int c_defaultNstCalcEnergy = 10;
+
 /* The minimum number of integration steps required for reasonably accurate
  * integration of first and second order coupling algorithms.
  */
@@ -105,13 +108,12 @@ int ir_optimal_nstcalcenergy(const t_inputrec* ir)
     }
     else
     {
-        nst = 10;
+        nst = c_defaultNstCalcEnergy;
     }
 
     if (ir->useMts)
     {
-        GMX_RELEASE_ASSERT(ir->mtsLevels.size() == 2, "Currently only 2 levels are supported");
-        nst = std::lcm(nst, ir->mtsLevels[1].stepFactor);
+        nst = std::lcm(nst, ir->mtsLevels.back().stepFactor);
     }
 
     return nst;
@@ -200,27 +202,39 @@ int pcouple_min_integration_steps(int epc)
 
 int ir_optimal_nstpcouple(const t_inputrec* ir)
 {
-    int nmin, nwanted, n;
+    const int minIntegrationSteps = pcouple_min_integration_steps(ir->epc);
 
-    nmin = pcouple_min_integration_steps(ir->epc);
+    const int nwanted = c_defaultNstPCouple;
 
-    nwanted = c_defaultNstPCouple;
+    // With multiple time-stepping we can only compute the pressure at slowest steps
+    const int minNstPCouple = (ir->useMts ? ir->mtsLevels.back().stepFactor : 1);
 
-    if (nmin == 0 || ir->delta_t * nwanted <= ir->tau_p)
+    int n;
+    if (minIntegrationSteps == 0 || ir->delta_t * nwanted <= ir->tau_p)
     {
         n = nwanted;
     }
     else
     {
-        n = static_cast<int>(ir->tau_p / (ir->delta_t * nmin) + 0.001);
-        if (n < 1)
+        n = static_cast<int>(ir->tau_p / (ir->delta_t * minIntegrationSteps) + 0.001);
+        if (n < minNstPCouple)
         {
-            n = 1;
+            n = minNstPCouple;
         }
-        while (nwanted % n != 0)
+        // Without MTS we try to make nstpcouple a "nice" number
+        if (!ir->useMts)
         {
-            n--;
+            while (nwanted % n != 0)
+            {
+                n--;
+            }
         }
+    }
+
+    // With MTS, nstpcouple should be a multiple of the slowest MTS interval
+    if (ir->useMts)
+    {
+        n = n - (n % minNstPCouple);
     }
 
     return n;

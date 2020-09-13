@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,19 +33,18 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \libinternal \file
- *  \brief Implements a GpuEventSynchronizer class for CUDA.
+ *  \brief Implements a GpuEventSynchronizer class for OpenCL.
  *
  *  \author Aleksei Iupinov <a.yupinov@gmail.com>
- *  \inlibraryapi
+ * \inlibraryapi
  */
-#ifndef GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_CUH
-#define GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_CUH
-
-#include "gromacs/gpu_utils/device_stream.h"
-#include "gromacs/gpu_utils/gputraits.cuh"
-#include "gromacs/utility/gmxassert.h"
+#ifndef GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_OCL_H
+#define GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_OCL_H
 
 #ifndef DOXYGEN
+
+#    include "gromacs/utility/exceptions.h"
+#    include "gromacs/utility/gmxassert.h"
 
 /*! \libinternal \brief
  * A class which allows for CPU thread to mark and wait for certain GPU stream execution point.
@@ -53,26 +52,20 @@
  * This can be repeated as necessary, but the current implementation does not allow waiting on
  * completed event more than once, expecting only exact pairs of markEvent(stream); waitForEvent().
  * The class generally attempts to track the correctness of its state transitions, but
- * please note that calling waitForEvent() right after the construction will succeed with CUDA but fail with OpenCL.
+ * please note that calling waitForEvent() right after the construction will fail with OpenCL but succeed with CUDA.
  *
  * Another possible mode of operation can be implemented if needed:
- * multiple calls to waitForEvent() after a single markEvent().
- * For this, only some small alterations to gpueventsynchronizer_ocl.h need to be made.
- * This was tested to work both with CUDA and NVidia OpenCL, but not with AMD/Intel OpenCL.
+ * multiple calls to waitForEvent() after a single markEvent(). For this, clReleaseEvent() call
+ * from waitForEvent() should instead happen conditionally at the beginning of markEvent(), replacing
+ * the GMX_ASSERT(). This was tested to work both with CUDA and NVidia OpenCL, but not with AMD/Intel OpenCl.
  */
 class GpuEventSynchronizer
 {
 public:
-    GpuEventSynchronizer()
-    {
-        cudaError_t gmx_used_in_debug stat = cudaEventCreateWithFlags(&event_, cudaEventDisableTiming);
-        GMX_RELEASE_ASSERT(stat == cudaSuccess, "cudaEventCreate failed");
-    }
-    ~GpuEventSynchronizer()
-    {
-        cudaError_t gmx_used_in_debug stat = cudaEventDestroy(event_);
-        GMX_ASSERT(stat == cudaSuccess, "cudaEventDestroy failed");
-    }
+    //! A constructor
+    GpuEventSynchronizer() {}
+    //! A destructor
+    ~GpuEventSynchronizer() {}
     //! No copying
     GpuEventSynchronizer(const GpuEventSynchronizer&) = delete;
     //! No assignment
@@ -81,28 +74,29 @@ public:
     GpuEventSynchronizer(GpuEventSynchronizer&&) = delete;
 
     /*! \brief Marks the synchronization point in the \p stream.
-     * Should be followed by waitForEvent().
+     * Should be called first and then followed by waitForEvent().
      */
-    inline void markEvent(const DeviceStream& deviceStream)
+    inline void markEvent(const DeviceStream& /* deviceStream */)
     {
-        cudaError_t gmx_used_in_debug stat = cudaEventRecord(event_, deviceStream.stream());
-        GMX_ASSERT(stat == cudaSuccess, "cudaEventRecord failed");
+        // SYCL-TODO
     }
     /*! \brief Synchronizes the host thread on the marked event. */
     inline void waitForEvent()
     {
-        cudaError_t gmx_used_in_debug stat = cudaEventSynchronize(event_);
-        GMX_ASSERT(stat == cudaSuccess, "cudaEventSynchronize failed");
+        // SYCL-TODO
     }
-    /*! \brief Enqueues a wait for the recorded event in stream \p stream */
-    inline void enqueueWaitEvent(const DeviceStream& deviceStream)
+    /*! \brief Enqueues a wait for the recorded event in stream \p stream
+     *
+     *  After enqueue, the associated event is released, so this method should
+     *  be only called once per markEvent() call.
+     */
+    inline void enqueueWaitEvent(const DeviceStream& /* deviceStream */)
     {
-        cudaError_t gmx_used_in_debug stat = cudaStreamWaitEvent(deviceStream.stream(), event_, 0);
-        GMX_ASSERT(stat == cudaSuccess, "cudaStreamWaitEvent failed");
+        // SYCL-TODO
     }
 
 private:
-    cudaEvent_t event_;
+    // SYCL-TODO
 };
 
 #endif

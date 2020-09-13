@@ -1012,7 +1012,9 @@ Temperature coupling
    (-1)
    The frequency for coupling the temperature. The default value of -1
    sets :mdp:`nsttcouple` equal to 10, or fewer steps if required
-   for accurate integration. For velocity
+   for accurate integration. Note that the default value is not 1
+   because additional computation and communication is required for
+   obtaining the kinetic energy. For velocity
    Verlet integrators :mdp:`nsttcouple` is set to 1.
 
 .. mdp:: nh-chain-length
@@ -1146,7 +1148,9 @@ Pressure coupling
    (-1)
    The frequency for coupling the pressure. The default value of -1
    sets :mdp:`nstpcouple` equal to 10, or fewer steps if required
-   for accurate integration. For velocity
+   for accurate integration. Note that the default value is not 1
+   because additional computation and communication is required for
+   obtaining the virial. For velocity
    Verlet integrators :mdp:`nstpcouple` is set to 1.
 
 .. mdp:: tau-p
