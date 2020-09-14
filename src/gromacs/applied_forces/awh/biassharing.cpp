@@ -129,11 +129,14 @@ BiasSharing::BiasSharing(const AwhParams& awhParams, const t_commrec& commRecord
             const int shareGroup = awhParams.awhBiasParams[k].shareGroup;
             GMX_RELEASE_ASSERT(shareGroup >= 0, "Bias share group values should be >= 0");
             localShareIndices.push_back(shareGroup);
-            if (shareGroup > 0 && shareGroup <= shareGroupPrev)
+            if (shareGroup > 0)
             {
-                GMX_THROW(
-                        InvalidInputError("AWH biases that are shared should use increasing "
-                                          "share-group values"));
+                if (shareGroup <= shareGroupPrev)
+                {
+                    GMX_THROW(
+                            InvalidInputError("AWH biases that are shared should use increasing "
+                                              "share-group values"));
+                }
                 shareGroupPrev = shareGroup;
             }
         }
