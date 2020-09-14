@@ -67,6 +67,7 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
+#include "biassharing.h"
 #include "correlationgrid.h"
 #include "correlationhistory.h"
 #include "pointstate.h"
@@ -107,8 +108,6 @@ gmx::ArrayRef<const double> Bias::calcForceAndUpdateBias(const awh_dvec         
                                                          ArrayRef<const double> neighborLambdaDhdl,
                                                          double*                awhPotential,
                                                          double*                potentialJump,
-                                                         const t_commrec*       commRecord,
-                                                         const gmx_multisim_t*  ms,
                                                          double                 t,
                                                          int64_t                step,
                                                          int64_t                seed,
@@ -201,8 +200,8 @@ gmx::ArrayRef<const double> Bias::calcForceAndUpdateBias(const awh_dvec         
     /* Update the free energy estimates and bias and other history dependent method parameters */
     if (params_.isUpdateFreeEnergyStep(step))
     {
-        state_.updateFreeEnergyAndAddSamplesToHistogram(dimParams_, grid_, params_, commRecord, ms,
-                                                        t, step, fplog, &updateList_);
+        state_.updateFreeEnergyAndAddSamplesToHistogram(dimParams_, grid_, params_, t, step, fplog,
+                                                        &updateList_);
 
         if (params_.convolveForce)
         {
@@ -343,7 +342,7 @@ Bias::Bias(int                            biasIndexInCollection,
            const std::vector<DimParams>&  dimParamsInit,
            double                         beta,
            double                         mdTimeStep,
-           int                            numSharingSimulations,
+           const BiasSharing*             biasSharing,
            const std::string&             biasInitFilename,
            ThisRankWillDoIO               thisRankWillDoIO,
            BiasParams::DisableUpdateSkips disableUpdateSkips) :
@@ -355,13 +354,12 @@ Bias::Bias(int                            biasIndexInCollection,
             beta,
             mdTimeStep,
             disableUpdateSkips,
-            numSharingSimulations,
+            biasSharing ? biasSharing->numSharingSimulations(biasIndexInCollection) : 1,
             grid_.axis(),
             biasIndexInCollection),
-    state_(awhBiasParams, params_.initialHistogramSize, dimParams_, grid_),
+    state_(awhBiasParams, params_.initialHistogramSize, dimParams_, grid_, biasSharing),
     thisRankDoesIO_(thisRankWillDoIO == ThisRankWillDoIO::Yes),
     biasForce_(ndim()),
-
     tempForce_(ndim()),
     numWarningsIssued_(0)
 {

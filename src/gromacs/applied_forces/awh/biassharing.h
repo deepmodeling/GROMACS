@@ -49,14 +49,64 @@
 
 #include <cstddef>
 
+#include <memory>
 #include <vector>
 
+#include "gromacs/utility/arrayref.h"
+#include "gromacs/utility/classhelpers.h"
+#include "gromacs/utility/gmxmpi.h"
+
 struct gmx_multisim_t;
+struct t_commrec;
 
 namespace gmx
 {
 
 struct AwhParams;
+
+class BiasSharing
+{
+public:
+    /*! \brief Constructor
+     *
+     * \param[in] awhParams              Parameters for all biases in this simulation
+     * \param[in] commRecord             Intra-simulation communication record
+     * \param[in] simulationMastersComm  MPI communicator for all master ranks of all simulations that share this bias
+     */
+    BiasSharing(const AwhParams& awhParams, const t_commrec& commRecord, MPI_Comm simulationMastersComm);
+
+    ~BiasSharing();
+
+    //! Returns the number of simulations sharing bias \p biasIndex
+    int numSharingSimulations(int biasIndex) const { return numSharingSimulations_[biasIndex]; }
+
+    //! Returns the index of our simulation in the simulations sharing bias \p biasIndex
+    int sharingSimulationIndex(int biasIndex) const { return sharingSimulationIndices_[biasIndex]; }
+
+    //! Sums data over all simulations sharing bias \p biasIndex
+    void sum(ArrayRef<int> data, int biasIndex) const;
+
+    //! Sums data over all simulations sharing bias \p biasIndex
+    void sum(ArrayRef<long> data, int biasIndex) const;
+
+    //! Sums data over all simulations sharing bias \p biasIndex
+    void sum(ArrayRef<double> data, int biasIndex) const;
+
+private:
+    //! The number of simulations sharing for each bias
+    std::vector<int> numSharingSimulations_;
+    //! The index of our simulations in the simulations for each bias
+    std::vector<int> sharingSimulationIndices_;
+    //! Reference to the intra-simulation communication record
+    const t_commrec& commRecord_;
+
+    //! Communicator between master ranks sharing a bias, for each bias
+    std::vector<MPI_Comm> multiSimCommPerBias_;
+    //! List of MPI communicators created by this object so we can destroy them on distruction
+    std::vector<MPI_Comm> createdCommList_;
+
+    GMX_DISALLOW_COPY_AND_ASSIGN(BiasSharing);
+};
 
 /*! \brief Returns if any bias is sharing within a simulation.
  *
@@ -64,7 +114,7 @@ struct AwhParams;
  */
 bool haveBiasSharingWithinSimulation(const AwhParams& awhParams);
 
-/*! \brief Checks if biases are compatible for sharing between simulations, throws if not.
+/*! \brief Checks whether biases are compatible for sharing between simulations, throws when not.
  *
  * Should be called simultaneously on the master rank of every simulation.
  * Note that this only checks for technical compatibility. It is up to
@@ -73,11 +123,11 @@ bool haveBiasSharingWithinSimulation(const AwhParams& awhParams);
  *
  * \param[in] awhParams     The AWH parameters.
  * \param[in] pointSize     Vector of grid-point sizes for each bias.
- * \param[in] multiSimComm  Struct for multi-simulation communication.
+ * \param[in] biasSharing   Object for communication for sharing bias data over simulations.
  */
 void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           awhParams,
                                                      const std::vector<size_t>& pointSize,
-                                                     const gmx_multisim_t*      multiSimComm);
+                                                     const BiasSharing&         biasSharing);
 
 } // namespace gmx
 

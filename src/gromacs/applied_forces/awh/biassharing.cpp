@@ -45,6 +45,10 @@
 
 #include "biassharing.h"
 
+#include "config.h"
+
+#include <algorithm>
+#include <set>
 #include <vector>
 
 #include "gromacs/gmxlib/network.h"
@@ -52,10 +56,223 @@
 #include "gromacs/mdtypes/awh_params.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/utility/exceptions.h"
+#include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
 namespace gmx
 {
+
+namespace
+{
+
+std::multiset<int> getGlobalShareIndices(ArrayRef<const int> localShareIndices, MPI_Comm simulationMastersComm)
+{
+#if GMX_MPI
+    int numSimulations;
+    MPI_Comm_size(simulationMastersComm, &numSimulations);
+    int ourRank;
+    MPI_Comm_rank(simulationMastersComm, &ourRank);
+    std::vector<int> biasCountsIn(numSimulations, 0);
+    std::vector<int> biasCounts(numSimulations, 0);
+    biasCountsIn[ourRank] = localShareIndices.size();
+    MPI_Allreduce(biasCountsIn.data(), biasCounts.data(), numSimulations, MPI_INT, MPI_SUM,
+                  simulationMastersComm);
+    std::vector<int> biasOffsets;
+    biasOffsets.push_back(0);
+    for (int c : biasCounts)
+    {
+        biasOffsets.push_back(biasOffsets.back() + c);
+    }
+    const int        totNumBiases = biasOffsets.back();
+    std::vector<int> shareIndicesAll(totNumBiases);
+    MPI_Allgatherv(const_cast<int*>(localShareIndices.data()), localShareIndices.size(), MPI_INT,
+                   shareIndicesAll.data(), biasCounts.data(), biasOffsets.data(), MPI_INT,
+                   simulationMastersComm);
+#else
+    GMX_UNUSED_VALUE(simulationMastersComm);
+
+    ArrayRef<const int> shareIndicesAll = localShareIndices;
+#endif // GMX_MPI
+
+    std::multiset<int> shareIndicesSet;
+    for (int shareIndex : shareIndicesAll)
+    {
+        if (shareIndex > 0)
+        {
+            shareIndicesSet.insert(shareIndex);
+        }
+    }
+
+    return shareIndicesSet;
+}
+
+} // namespace
+
+BiasSharing::BiasSharing(const AwhParams& awhParams, const t_commrec& commRecord, MPI_Comm simulationMastersComm) :
+    commRecord_(commRecord)
+{
+    if (MASTER(&commRecord))
+    {
+        std::vector<int> localShareIndices;
+        int              shareGroupPrev = 0;
+        for (int k = 0; k < awhParams.numBias; k++)
+        {
+            const int shareGroup = awhParams.awhBiasParams[k].shareGroup;
+            GMX_RELEASE_ASSERT(shareGroup >= 0, "Bias share group values should be >= 0");
+            localShareIndices.push_back(shareGroup);
+            if (shareGroup > 0 && shareGroup <= shareGroupPrev)
+            {
+                GMX_THROW(
+                        InvalidInputError("AWH biases that are shared should use increasing "
+                                          "share-group values"));
+                shareGroupPrev = shareGroup;
+            }
+        }
+        std::multiset<int> globalShareIndices =
+                getGlobalShareIndices(localShareIndices, simulationMastersComm);
+
+        int numSimulations = 1;
+#if GMX_MPI
+        MPI_Comm_size(simulationMastersComm, &numSimulations);
+        int myRank;
+        MPI_Comm_rank(simulationMastersComm, &myRank);
+#endif // GMX_MPI
+
+        numSharingSimulations_.resize(awhParams.numBias, 1);
+        sharingSimulationIndices_.resize(awhParams.numBias, 0);
+        multiSimCommPerBias_.resize(awhParams.numBias, MPI_COMM_NULL);
+
+        for (int shareIndex : globalShareIndices)
+        {
+            if (globalShareIndices.count(shareIndex) > 1)
+            {
+                const auto& findBiasIndex =
+                        std::find(localShareIndices.begin(), localShareIndices.end(), shareIndex);
+                const index localBiasIndex = (findBiasIndex == localShareIndices.end()
+                                                      ? -1
+                                                      : findBiasIndex - localShareIndices.begin());
+                MPI_Comm    splitComm;
+                if (static_cast<int>(globalShareIndices.count(shareIndex)) == numSimulations)
+                {
+                    splitComm = simulationMastersComm;
+                }
+                else
+                {
+#if GMX_MPI
+                    const int haveLocally = (localBiasIndex >= 0 ? 1 : 0);
+                    MPI_Comm_split(simulationMastersComm, haveLocally, myRank, &splitComm);
+                    createdCommList_.push_back(splitComm);
+#else
+                    GMX_RELEASE_ASSERT(false, "Can not have sharing without MPI");
+#endif // GMX_MPI
+                }
+                if (localBiasIndex >= 0)
+                {
+                    numSharingSimulations_[localBiasIndex] = globalShareIndices.count(shareIndex);
+#if GMX_MPI
+                    MPI_Comm_rank(splitComm, &sharingSimulationIndices_[localBiasIndex]);
+#endif // GMX_MPI
+                    multiSimCommPerBias_[localBiasIndex] = splitComm;
+                }
+            }
+        }
+    }
+
+#if GMX_MPI
+    if (commRecord.nnodes > 1)
+    {
+        numSharingSimulations_.resize(awhParams.numBias);
+        MPI_Bcast(numSharingSimulations_.data(), numSharingSimulations_.size(), MPI_INT, 0,
+                  commRecord.mpi_comm_mygroup);
+    }
+#endif // GMX_MPI
+}
+
+BiasSharing::~BiasSharing()
+{
+#if GMX_MPI
+    for (MPI_Comm comm : createdCommList_)
+    {
+        MPI_Comm_free(&comm);
+    }
+#endif // GMX_MPI
+}
+
+namespace
+{
+
+#if GMX_MPI
+
+template<typename T>
+std::enable_if_t<std::is_same_v<T, int>, MPI_Datatype> mpiType()
+{
+    return MPI_INT;
+}
+
+template<typename T>
+std::enable_if_t<std::is_same_v<T, long>, MPI_Datatype> mpiType()
+{
+    return MPI_LONG;
+}
+
+template<typename T>
+std::enable_if_t<std::is_same_v<T, double>, MPI_Datatype> mpiType()
+{
+    return MPI_DOUBLE;
+}
+
+#endif // GMX_MPI
+
+} // namespace
+
+/*! \brief
+ * Sum an array over all simulations on all ranks of each simulation.
+ *
+ * This assumes the data is identical on all ranks within each simulation.
+ *
+ * \param[in,out] data          The data to sum.
+ * \param[in]     commRecord    Struct for intra-simulation communication.
+ * \param[in]     multiSimComm  Communicator for the master rank of sharing simulations.
+ */
+template<typename T>
+void sumOverSimulations(ArrayRef<T> data, const t_commrec& commRecord, const MPI_Comm multiSimComm)
+{
+#if GMX_MPI
+    if (MASTER(&commRecord))
+    {
+#    if MPI_IN_PLACE_EXISTS
+        MPI_Allreduce(MPI_IN_PLACE, data.data(), data.size(), mpiType<T>(), MPI_SUM, multiSimComm);
+#    else
+        std::vector<T> buffer(data.size());
+        MPI_Allreduce(data.data(), buffer.data(), data.size(), mpiType<T>(), MPI_SUM, multiSimComm);
+        std::copy(buffer.begin(), buffer.end(), data.begin());
+#    endif
+    }
+    if (commRecord.nnodes > 1)
+    {
+        gmx_bcast(data.size() * sizeof(T), data.data(), commRecord.mpi_comm_mygroup);
+    }
+#else
+    GMX_UNUSED_VALUE(data);
+    GMX_UNUSED_VALUE(commRecord);
+    GMX_UNUSED_VALUE(multiSimComm);
+#endif // GMX_MPI
+}
+
+void BiasSharing::sum(ArrayRef<int> data, const int biasIndex) const
+{
+    sumOverSimulations(data, commRecord_, multiSimCommPerBias_[biasIndex]);
+}
+
+void BiasSharing::sum(ArrayRef<long> data, const int biasIndex) const
+{
+    sumOverSimulations(data, commRecord_, multiSimCommPerBias_[biasIndex]);
+}
+
+void BiasSharing::sum(ArrayRef<double> data, const int biasIndex) const
+{
+    sumOverSimulations(data, commRecord_, multiSimCommPerBias_[biasIndex]);
+}
 
 bool haveBiasSharingWithinSimulation(const AwhParams& awhParams)
 {
@@ -81,10 +298,8 @@ bool haveBiasSharingWithinSimulation(const AwhParams& awhParams)
 
 void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           awhParams,
                                                      const std::vector<size_t>& pointSize,
-                                                     const gmx_multisim_t*      multiSimComm)
+                                                     const BiasSharing&         biasSharing)
 {
-    const int numSim = multiSimComm->numSimulations_;
-
     /* We currently enforce subsequent shared biases to have consecutive
      * share-group values starting at 1. This means we can reduce shared
      * biases in order over the ranks and it does not restrict possibilities.
@@ -99,38 +314,9 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
             if (group != numShare)
             {
                 GMX_THROW(
-                        InvalidInputError("AWH biases that are shared should use consequetive "
-                                          "share-group values starting at 1"));
+                        InvalidInputError("AWH biases that are shared should use increasing "
+                                          "share-group values"));
             }
-        }
-    }
-    std::vector<int> numShareAll(numSim);
-    numShareAll[multiSimComm->simulationIndex_] = numShare;
-    gmx_sumi_sim(numShareAll.size(), numShareAll.data(), multiSimComm);
-    for (int sim = 1; sim < numSim; sim++)
-    {
-        if (numShareAll[sim] != numShareAll[0])
-        {
-            GMX_THROW(InvalidInputError(
-                    "Different simulations attempt to share different number of biases"));
-        }
-    }
-
-    std::vector<int> intervals(numSim * 2);
-    intervals[numSim * 0 + multiSimComm->simulationIndex_] = awhParams.nstSampleCoord;
-    intervals[numSim * 1 + multiSimComm->simulationIndex_] = awhParams.numSamplesUpdateFreeEnergy;
-    gmx_sumi_sim(intervals.size(), intervals.data(), multiSimComm);
-    for (int sim = 1; sim < numSim; sim++)
-    {
-        if (intervals[sim] != intervals[0])
-        {
-            GMX_THROW(
-                    InvalidInputError("All simulations should have the same AWH sample interval"));
-        }
-        if (intervals[numSim + sim] != intervals[numSim])
-        {
-            GMX_THROW(InvalidInputError(
-                    "All simulations should have the same AWH free-energy update interval"));
         }
     }
 
@@ -141,9 +327,30 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
     {
         if (awhParams.awhBiasParams[b].shareGroup > 0)
         {
-            std::vector<int64_t> pointSizes(numSim);
-            pointSizes[multiSimComm->simulationIndex_] = pointSize[b];
-            gmx_sumli_sim(pointSizes.size(), pointSizes.data(), multiSimComm);
+            const int        numSim   = biasSharing.numSharingSimulations(b);
+            const int        simIndex = biasSharing.sharingSimulationIndex(b);
+            std::vector<int> intervals(numSim * 2);
+            intervals[numSim * 0 + simIndex] = awhParams.nstSampleCoord;
+            intervals[numSim * 1 + simIndex] = awhParams.numSamplesUpdateFreeEnergy;
+            biasSharing.sum(intervals, b);
+            for (int sim = 1; sim < numSim; sim++)
+            {
+                if (intervals[sim] != intervals[0])
+                {
+                    GMX_THROW(InvalidInputError(
+                            "All simulations should have the same AWH sample interval"));
+                }
+                if (intervals[numSim + sim] != intervals[numSim])
+                {
+                    GMX_THROW(
+                            InvalidInputError("All simulations should have the same AWH "
+                                              "free-energy update interval"));
+                }
+            }
+
+            std::vector<long> pointSizes(numSim);
+            pointSizes[simIndex] = pointSize[b];
+            biasSharing.sum(pointSizes, b);
             for (int sim = 1; sim < numSim; sim++)
             {
                 if (pointSizes[sim] != pointSizes[0])

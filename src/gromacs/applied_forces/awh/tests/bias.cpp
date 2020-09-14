@@ -196,8 +196,8 @@ public:
                            "the test should also runs fine without this condition).");
 
         bias_ = std::make_unique<Bias>(-1, params.awhParams, params.awhBiasParams, params.dimParams,
-                                       params.beta, mdTimeStep, 1, "", Bias::ThisRankWillDoIO::No,
-                                       disableUpdateSkips);
+                                       params.beta, mdTimeStep, nullptr, "",
+                                       Bias::ThisRankWillDoIO::No, disableUpdateSkips);
     }
 };
 
@@ -229,9 +229,8 @@ TEST_P(BiasTest, ForcesBiasPmf)
 
         awh_dvec                    coordValue = { coord, 0, 0, 0 };
         double                      potential  = 0;
-        gmx::ArrayRef<const double> biasForce =
-                bias.calcForceAndUpdateBias(coordValue, {}, {}, &potential, &potentialJump, nullptr,
-                                            nullptr, step, step, seed_, nullptr);
+        gmx::ArrayRef<const double> biasForce  = bias.calcForceAndUpdateBias(
+                coordValue, {}, {}, &potential, &potentialJump, step, step, seed_, nullptr);
 
         force.push_back(biasForce[0]);
         pot.push_back(potential);
@@ -294,7 +293,7 @@ TEST(BiasTest, DetectsCovering)
     const double mdTimeStep = 0.1;
 
     Bias bias(-1, params.awhParams, params.awhBiasParams, params.dimParams, params.beta, mdTimeStep,
-              1, "", Bias::ThisRankWillDoIO::No);
+              nullptr, "", Bias::ThisRankWillDoIO::No);
 
     /* We use a trajectory of the sum of two sines to cover the reaction
      * coordinate range in a semi-realistic way. The period is 4*pi=12.57.
@@ -315,8 +314,8 @@ TEST(BiasTest, DetectsCovering)
         awh_dvec coordValue    = { coord, 0, 0, 0 };
         double   potential     = 0;
         double   potentialJump = 0;
-        bias.calcForceAndUpdateBias(coordValue, {}, {}, &potential, &potentialJump, nullptr,
-                                    nullptr, step, step, params.awhParams.seed, nullptr);
+        bias.calcForceAndUpdateBias(coordValue, {}, {}, &potential, &potentialJump, step, step,
+                                    params.awhParams.seed, nullptr);
 
         inInitialStage = bias.state().inInitialStage();
         if (!inInitialStage)
