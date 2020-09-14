@@ -77,17 +77,26 @@ std::multiset<int> getGlobalShareIndices(ArrayRef<const int> localShareIndices, 
     biasCountsIn[ourRank] = localShareIndices.size();
     MPI_Allreduce(biasCountsIn.data(), biasCounts.data(), numSimulations, MPI_INT, MPI_SUM,
                   simulationMastersComm);
-    std::vector<int> biasOffsets;
-    biasOffsets.push_back(0);
-    for (int c : biasCounts)
+    // Now we need to gather the share indices to all (master) ranks.
+    // We could use MPI_Allgatherv, but thread-MPI does not support that and using
+    // MPI_Allreduce produces simpler code, so we use that.
+    int totNumBiases = 0;
+    int ourOffset    = 0;
+    for (int rank = 0; rank < numSimulations; rank++)
     {
-        biasOffsets.push_back(biasOffsets.back() + c);
+        if (rank == ourRank)
+        {
+            ourOffset = totNumBiases;
+        }
+        totNumBiases += biasCounts[rank];
     }
-    const int        totNumBiases = biasOffsets.back();
+    // Fill a buffer with zeros and our part of sharing indices
+    std::vector<int> shareIndicesAllIn(totNumBiases, 0);
+    std::copy(localShareIndices.begin(), localShareIndices.end(), shareIndicesAllIn.begin() + ourOffset);
+    // Gather all sharing indices to all (master) ranks
     std::vector<int> shareIndicesAll(totNumBiases);
-    MPI_Allgatherv(const_cast<int*>(localShareIndices.data()), localShareIndices.size(), MPI_INT,
-                   shareIndicesAll.data(), biasCounts.data(), biasOffsets.data(), MPI_INT,
-                   simulationMastersComm);
+    MPI_Allreduce(shareIndicesAllIn.data(), shareIndicesAll.data(), totNumBiases, MPI_INT, MPI_SUM,
+                  simulationMastersComm);
 #else
     GMX_UNUSED_VALUE(simulationMastersComm);
 
