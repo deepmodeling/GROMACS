@@ -32,56 +32,36 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_GPU_UTILS_DEVICE_CONTEXT_OCL_H
-#define GMX_GPU_UTILS_DEVICE_CONTEXT_OCL_H
-
-/*! \libinternal \file
+/*! \internal \file
  *
- * \brief Declarations for DeviceContext class.
+ * \brief Handling of free energy parameters
  *
- * Only needed for OpenCL builds. Other platforms will be given a stub class.
- *
- * \author Mark Abraham <mark.j.abraham@gmail.com>
- * \author Artem Zhmurov <zhmurov@gmail.com>
- *
- * \ingroup module_gpu_utils
- * \inlibraryapi
+ * \author Christian Blau <blau@kth.se>
+ * \ingroup module_mdlib
  */
 
-#ifndef DOXYGEN
+#ifndef GMX_MDLIB_FREEENERGYPARAMETERS_H
+#define GMX_MDLIB_FREEENERGYPARAMETERS_H
 
-#    include "gromacs/gpu_utils/gmxopencl.h"
-#    include "gromacs/utility/classhelpers.h"
+#include <array>
 
-struct DeviceInformation;
+#include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/utility/real.h"
 
-// OpenCL device context class
-class DeviceContext
+struct t_lambda;
+
+namespace gmx
 {
-public:
-    /*! \brief Constructor that creates the \c cl_context
-     *
-     * \param[in] deviceInfo Platform-specific device information.
-     *
-     * \throws InternalError if context creation failed.
-     */
-    DeviceContext(const DeviceInformation& deviceInfo);
-    //! Destructor
-    ~DeviceContext();
 
-    //! Get the associated device information
-    const DeviceInformation& deviceInfo() const { return deviceInfo_; }
-    //! Getter
-    cl_context context() const;
+/*! \brief Evaluate the current lambdas
+ *
+ * \param[in] step the current simulation step
+ * \param[in] fepvals describing the lambda setup
+ * \param[in] currentLambdaState the lambda state to use to set the lambdas, -1 if not set
+ * \returns the current lambda-value array
+ */
+std::array<real, efptNR> currentLambdas(int64_t step, const t_lambda& fepvals, int currentLambdaState);
 
-private:
-    //! A reference to the device information used upon context creation
-    const DeviceInformation& deviceInfo_;
-    //! OpenCL context object
-    cl_context context_ = nullptr;
+} // namespace gmx
 
-    GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceContext);
-};
-
-#endif // !defined DOXYGEN
-#endif // GMX_GPU_UTILS_DEVICE_CONTEXT_OCL_H
+#endif
