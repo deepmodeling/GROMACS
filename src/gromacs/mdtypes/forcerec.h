@@ -301,6 +301,8 @@ struct t_forcerec
 
     /* Tells whether we use multiple time stepping, computing some forces less frequently */
     bool useMts = false;
+    /* Tells whether the non-bonded are computed less frequently using MTS */
+    bool nonbondedAtSlowMtsSteps = false;
 
     /* Data for special listed force calculations */
     std::unique_ptr<t_fcdata> fcdata;

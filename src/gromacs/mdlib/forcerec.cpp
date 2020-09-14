@@ -1177,10 +1177,12 @@ void init_forcerec(FILE*                            fp,
     // Multiple time stepping
     fr->useMts = ir->useMts;
 
+    fr->nonbondedAtSlowMtsSteps =
+            (fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]);
+
     // Note that we do allow arbitrary nstlist when only use MTS for PME
     GMX_RELEASE_ASSERT(
-            !(fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]
-              && ir->nstlist % ir->mtsLevels[1].stepFactor != 0),
+            !(fr->nonbondedAtSlowMtsSteps && ir->nstlist % ir->mtsLevels[1].stepFactor != 0),
             "With multiple time stepping for the non-bonded pair interactions, nstlist should be a "
             "multiple of mtsFactor");
 

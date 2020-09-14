@@ -882,14 +882,16 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
 /*! \brief Set up force flag stuct from the force bitmask.
  *
  * \param[in]      legacyFlags          Force bitmask flags used to construct the new flags
- * \param[in]      isNonbondedOn        Global override, if false forces to turn off all nonbonded calculation.
- * \param[in]      simulationWork       Simulation workload description.
- * \param[in]      rankHasPmeDuty       If this rank computes PME.
+ * \param[in]      isNonbondedOn        Global override, if false forces to turn off all nonbonded
+ * calculation. \param[in]      computeSlowForces    Tells whether the slow forces need to be
+ * computed, always pass true without MTS \param[in]      simulationWork       Simulation workload
+ * description. \param[in]      rankHasPmeDuty       If this rank computes PME.
  *
  * \returns New Stepworkload description.
  */
 static StepWorkload setupStepWorkload(const int                 legacyFlags,
                                       const bool                isNonbondedOn,
+                                      const bool                computeSlowForces,
                                       const SimulationWorkload& simulationWork,
                                       const bool                rankHasPmeDuty)
 {
@@ -897,6 +899,7 @@ static StepWorkload setupStepWorkload(const int                 legacyFlags,
     flags.stateChanged           = ((legacyFlags & GMX_FORCE_STATECHANGED) != 0);
     flags.haveDynamicBox         = ((legacyFlags & GMX_FORCE_DYNAMICBOX) != 0);
     flags.doNeighborSearch       = ((legacyFlags & GMX_FORCE_NS) != 0);
+    flags.computeSlowForces      = computeSlowForces;
     flags.computeVirial          = ((legacyFlags & GMX_FORCE_VIRIAL) != 0);
     flags.computeEnergy          = ((legacyFlags & GMX_FORCE_ENERGY) != 0);
     flags.computeForces          = ((legacyFlags & GMX_FORCE_FORCES) != 0);
@@ -1062,29 +1065,20 @@ void do_force(FILE*                               fplog,
     nonbonded_verlet_t*  nbv = fr->nbv.get();
     interaction_const_t* ic  = fr->ic;
 
-    const bool useMts            = fr->useMts;
-    const bool computeSlowForces = (!useMts || step % inputrec->mtsLevels[1].stepFactor == 0);
-
     gmx::StatePropagatorDataGpu* stateGpu = fr->stateGpu;
 
     const SimulationWorkload& simulationWork = runScheduleWork->simulationWork;
 
 
-    runScheduleWork->stepWork = setupStepWorkload(legacyFlags, fr->bNonbonded, simulationWork,
-                                                  thisRankHasDuty(cr, DUTY_PME));
-    /* modify force flag if not doing nonbonded */
-    const bool nonbondedIsSlow =
-            (useMts
-             && inputrec->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]);
-    if (!computeSlowForces && nonbondedIsSlow)
-    {
-        runScheduleWork->stepWork.computeNonbondedForces = false;
-    }
+    const bool computeSlowForces = (!fr->useMts || step % inputrec->mtsLevels[1].stepFactor == 0);
+    const bool computeNonbonded =
+            fr->bNonbonded && !(fr->useMts && fr->nonbondedAtSlowMtsSteps && !computeSlowForces);
+    runScheduleWork->stepWork = setupStepWorkload(legacyFlags, computeNonbonded, computeSlowForces,
+                                                  simulationWork, thisRankHasDuty(cr, DUTY_PME));
     const StepWorkload& stepWork = runScheduleWork->stepWork;
 
-
     const bool useGpuPmeOnThisRank =
-            simulationWork.useGpuPme && thisRankHasDuty(cr, DUTY_PME) && computeSlowForces;
+            simulationWork.useGpuPme && thisRankHasDuty(cr, DUTY_PME) && stepWork.computeSlowForces;
 
     /* At a search step we need to start the first balancing region
      * somewhere early inside the step after communication during domain
@@ -1131,7 +1125,7 @@ void do_force(FILE*                               fplog,
 
     // If coordinates are to be sent to PME task from CPU memory, perform that send here.
     // Otherwise the send will occur after H2D coordinate transfer.
-    if (GMX_MPI && !thisRankHasDuty(cr, DUTY_PME) && !pmeSendCoordinatesFromGpu && computeSlowForces)
+    if (GMX_MPI && !thisRankHasDuty(cr, DUTY_PME) && !pmeSendCoordinatesFromGpu && stepWork.computeSlowForces)
     {
         /* Send particle coordinates to the pme nodes */
         if (!stepWork.doNeighborSearch && simulationWork.useGpuUpdate)
@@ -1548,22 +1542,21 @@ void do_force(FILE*                               fplog,
      * forceOutFast:      everything except what is in the other two outputs
      * forceOutSlow:      PME-mesh and listed-forces group 1
      * forceOutNonbonded: non-bonded forces
-     * Without multiple time stepping all point to thes same single object
-     * With multiple time stepping the use is different for slow and fast steps.
+     * Without multiple time stepping all point to the same object.
+     * With multiple time-stepping the use is different for slow and fast steps.
      */
-    // We use std::move to keep the compiler happy, it has no effect.
     ForceOutputs forceOutFast = setupForceOutputs(&fr->forceHelperBuffers[0], pull_work, *inputrec,
                                                   force, stepWork, wcycle);
     //! \todo find if there is a way to avoid creating an empty, unused ForceOutputs
     ForceOutputs forceOutMts =
-            ((useMts && computeSlowForces)
+            ((fr->useMts && stepWork.computeSlowForces)
                      ? setupForceOutputs(&fr->forceHelperBuffers[1], nullptr, *inputrec,
                                          forceView->forceMtsCombinedWithPadding(), stepWork, wcycle)
                      : ForceOutputs(gmx::ForceWithShiftForces({}, false, {}), false,
                                     gmx::ForceWithVirial({}, false)));
-    ForceOutputs& forceOutSlow = (useMts ? forceOutMts : forceOutFast);
+    ForceOutputs& forceOutSlow = (fr->useMts ? forceOutMts : forceOutFast);
 
-    ForceOutputs& forceOutNonbonded = (nonbondedIsSlow ? forceOutSlow : forceOutFast);
+    ForceOutputs& forceOutNonbonded = (fr->nonbondedAtSlowMtsSteps ? forceOutSlow : forceOutFast);
 
     /* We calculate the non-bonded forces, when done on the CPU, here.
      * We do this before calling do_force_lowlevel, because in that
@@ -1669,7 +1662,7 @@ void do_force(FILE*                               fplog,
             set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
         }
 
-        for (int mtsIndex = 0; mtsIndex < (fr->useMts && computeSlowForces ? 2 : 1); mtsIndex++)
+        for (int mtsIndex = 0; mtsIndex < (fr->useMts && stepWork.computeSlowForces ? 2 : 1); mtsIndex++)
         {
             ListedForces& listedForces = fr->listedForces[mtsIndex];
             ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutFast : forceOutSlow);
@@ -1680,7 +1673,7 @@ void do_force(FILE*                               fplog,
         }
     }
 
-    if (computeSlowForces)
+    if (stepWork.computeSlowForces)
     {
         calculateLongRangeNonbondeds(fr, inputrec, cr, nrnb, wcycle, mdatoms,
                                      x.unpaddedConstArrayRef(), &forceOutSlow.forceWithVirial(),
@@ -1782,7 +1775,7 @@ void do_force(FILE*                               fplog,
      * avoids an extra halo exchange (when DD is used) and a extra post-processing step.
      */
     const bool combineMtsForcesBeforeHaloExchange =
-            (stepWork.computeForces && useMts && computeSlowForces
+            (stepWork.computeForces && fr->useMts && stepWork.computeSlowForces
              && (legacyFlags & GMX_FORCE_DO_NOT_NEED_NORMAL_FORCE) != 0
              && !(stepWork.computeVirial || simulationWork.useGpuNonbonded || useGpuPmeOnThisRank));
     if (combineMtsForcesBeforeHaloExchange)
@@ -1822,7 +1815,7 @@ void do_force(FILE*                               fplog,
                 {
                     dd_move_f(cr->dd, &forceOutFast.forceWithShiftForces(), wcycle);
                 }
-                if (fr->useMts && computeSlowForces)
+                if (fr->useMts && stepWork.computeSlowForces)
                 {
                     dd_move_f(cr->dd, &forceOutSlow.forceWithShiftForces(), wcycle);
                 }
@@ -1992,14 +1985,14 @@ void do_force(FILE*                               fplog,
         dd_force_flop_stop(cr->dd, nrnb);
     }
 
-    const bool haveCombinedMtsForces = (stepWork.computeForces && useMts && computeSlowForces
+    const bool haveCombinedMtsForces = (stepWork.computeForces && fr->useMts && stepWork.computeSlowForces
                                         && combineMtsForcesBeforeHaloExchange);
     if (stepWork.computeForces)
     {
         postProcessForceWithShiftForces(nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutFast,
                                         vir_force, *mdatoms, *fr, vsite, stepWork);
 
-        if (useMts && computeSlowForces && !haveCombinedMtsForces)
+        if (fr->useMts && stepWork.computeSlowForces && !haveCombinedMtsForces)
         {
             postProcessForceWithShiftForces(nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutSlow,
                                             vir_force, *mdatoms, *fr, vsite, stepWork);
@@ -2008,7 +2001,7 @@ void do_force(FILE*                               fplog,
 
     // TODO refactor this and unify with above GPU PME-PP / GPU update path call to the same function
     if (PAR(cr) && !thisRankHasDuty(cr, DUTY_PME) && !simulationWork.useGpuPmePpCommunication
-        && !simulationWork.useGpuUpdate && computeSlowForces)
+        && !simulationWork.useGpuUpdate && stepWork.computeSlowForces)
     {
         /* In case of node-splitting, the PP nodes receive the long-range
          * forces, virial and energy from the PME nodes here.
@@ -2027,7 +2020,7 @@ void do_force(FILE*                               fplog,
         postProcessForces(cr, step, nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutCombined,
                           vir_force, mdatoms, fr, vsite, stepWork);
 
-        if (useMts && computeSlowForces && !haveCombinedMtsForces)
+        if (fr->useMts && stepWork.computeSlowForces && !haveCombinedMtsForces)
         {
             postProcessForces(cr, step, nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutSlow,
                               vir_force, mdatoms, fr, vsite, stepWork);

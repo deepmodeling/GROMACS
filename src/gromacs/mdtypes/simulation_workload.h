@@ -69,6 +69,8 @@ public:
     bool haveDynamicBox = false;
     //! Whether neighbor searching needs to be done this step
     bool doNeighborSearch = false;
+    //! Whether the slow forces need to be computed this step (in addition to the faster forces)
+    bool computeSlowForces = false;
     //! Whether virial needs to be computed this step
     bool computeVirial = false;
     //! Whether energies need to be computed this step this step
