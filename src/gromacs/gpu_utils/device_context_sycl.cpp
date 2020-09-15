@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,40 +33,38 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 /*! \internal \file
- * \brief
- * Declares test fixture testing GPU utility components.
  *
- * \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \brief Implements the DeviceContext for SYCL builds.
+ *
+ * \author Erik Lindahl <erik.lindahl@gmail.com>
+ *
+ * \ingroup module_gpu_utils
  */
-#ifndef GMX_GPU_UTILS_TESTS_GPUTEST_H
-#define GMX_GPU_UTILS_TESTS_GPUTEST_H
-
 #include "gmxpre.h"
 
-#include <gtest/gtest.h>
+#include <vector>
 
-#include "gromacs/hardware/device_management.h"
+#include <CL/sycl.hpp>
 
-struct DeviceInformation;
+#include "gromacs/gpu_utils/device_context.h"
 
-namespace gmx
+
+//! Constructor.
+DeviceContext::DeviceContext(const DeviceInformation& deviceInfo) : deviceInfo_(deviceInfo)
 {
-namespace test
-{
+    // This code is just a meaningless placeholder for now, but to actually test that
+    // compilation with and without SYCL works, and that the correct flags are set, it's
+    // important to have a file that actually contains SYCL code.
+    std::vector<cl::sycl::platform> platforms = cl::sycl::platform::get_platforms();
+    if (platforms.size() > 0)
+    {
+        for (const auto& platform : platforms)
+        {
+            printf("Found SYCL platform %s.\n",
+                   platform.get_info<cl::sycl::info::platform::name>().c_str());
+        }
+    }
+}
 
-class GpuTest : public ::testing::Test
-{
-public:
-    //! List of all available devices
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList_;
-
-    GpuTest();
-    ~GpuTest() override;
-    //! Return a vector of handles, each to a device info for a compatible GPU.
-    std::vector<std::unique_ptr<DeviceInformation>>& getDeviceInfoList();
-};
-
-} // namespace test
-} // namespace gmx
-
-#endif
+//! Destructor
+DeviceContext::~DeviceContext() = default;

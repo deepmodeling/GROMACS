@@ -105,6 +105,8 @@
 #include "gromacs/mdlib/vsite.h"
 #include "gromacs/mdrun/mdmodules.h"
 #include "gromacs/mdrun/simulationcontext.h"
+#include "gromacs/mdrun/simulationinput.h"
+#include "gromacs/mdrun/simulationinputhandle.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 #include "gromacs/mdrunutility/logging.h"
 #include "gromacs/mdrunutility/multisim.h"
@@ -167,8 +169,6 @@
 #include "isimulator.h"
 #include "membedholder.h"
 #include "replicaexchange.h"
-#include "simulationinput.h"
-#include "simulationinpututility.h"
 #include "simulatorbuilder.h"
 
 #if GMX_FAHCORE
@@ -352,10 +352,12 @@ Mdrunner Mdrunner::cloneOnSpawnedThread() const
     newRunner.pforce          = pforce;
     // Give the spawned thread the newly created valid communicator
     // for the simulation.
+    newRunner.worldCommunicator   = MPI_COMM_WORLD;
     newRunner.communicator        = MPI_COMM_WORLD;
     newRunner.ms                  = ms;
     newRunner.startingBehavior    = startingBehavior;
     newRunner.stopHandlerBuilder_ = std::make_unique<StopHandlerBuilder>(*stopHandlerBuilder_);
+    newRunner.inputHolder_        = inputHolder_;
 
     threadMpiMdrunnerAccessBarrier();
 
@@ -397,7 +399,8 @@ void Mdrunner::spawnThreads(int numThreadsToLaunch)
 
     // Give the master thread the newly created valid communicator for
     // the simulation.
-    communicator = MPI_COMM_WORLD;
+    worldCommunicator = MPI_COMM_WORLD;
+    communicator      = MPI_COMM_WORLD;
     threadMpiMdrunnerAccessBarrier();
 #else
     GMX_UNUSED_VALUE(numThreadsToLaunch);
@@ -772,7 +775,7 @@ int Mdrunner::mdrunner()
     // this is expressed, e.g. by expressly running detection only the
     // master rank for thread-MPI, rather than relying on the mutex
     // and reference count.
-    PhysicalNodeCommunicator physicalNodeComm(communicator, gmx_physicalnode_id_hash());
+    PhysicalNodeCommunicator physicalNodeComm(worldCommunicator, gmx_physicalnode_id_hash());
     hwinfo = gmx_detect_hardware(mdlog, physicalNodeComm);
 
     gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hwinfo);
@@ -781,13 +784,6 @@ int Mdrunner::mdrunner()
 
     // Print citation requests after all software/hardware printing
     pleaseCiteGromacs(fplog);
-
-    // TODO: Use SimulationInputHolder member to access SimulationInput. Issue #3374.
-    const auto* const tprFilename = ftp2fn(efTPR, filenames.size(), filenames.data());
-    const auto* const cpiFilename = opt2fn("-cpi", filenames.size(), filenames.data());
-    // Note that, as of this change, there is no public API for simulationInput or its creation.
-    // TODO: (#3374) Public API for providing simulationInput from client.
-    auto simulationInput = detail::makeSimulationInput(tprFilename, cpiFilename);
 
     // Note: legacy program logic relies on checking whether these pointers are assigned.
     // Objects may or may not be allocated later.
@@ -806,7 +802,7 @@ int Mdrunner::mdrunner()
         /* Read (nearly) all data required for the simulation
          * and keep the partly serialized tpr contents to send to other ranks later
          */
-        applyGlobalSimulationState(*simulationInput.object_, partialDeserializedTpr.get(),
+        applyGlobalSimulationState(*inputHolder_.get(), partialDeserializedTpr.get(),
                                    globalState.get(), inputrec.get(), &mtop);
     }
 
@@ -850,7 +846,7 @@ int Mdrunner::mdrunner()
         spawnThreads(hw_opt.nthreads_tmpi);
         // The spawned threads enter mdrunner() and execution of
         // master and spawned threads joins at the end of this block.
-        physicalNodeComm = PhysicalNodeCommunicator(communicator, gmx_physicalnode_id_hash());
+        physicalNodeComm = PhysicalNodeCommunicator(worldCommunicator, gmx_physicalnode_id_hash());
     }
 
     GMX_RELEASE_ASSERT(ms || communicator == MPI_COMM_WORLD,
@@ -1098,7 +1094,7 @@ int Mdrunner::mdrunner()
 
         // Finish applying initial simulation state information from external sources on all ranks.
         // Reconcile checkpoint file data with Mdrunner state established up to this point.
-        applyLocalState(*simulationInput.object_, logFileHandle, cr, domdecOptions.numCells,
+        applyLocalState(*inputHolder_.get(), logFileHandle, cr, domdecOptions.numCells,
                         inputrec.get(), globalState.get(), &observablesHistory,
                         mdrunOptions.reproducible, mdModules_->notifier(),
                         modularSimulatorCheckpointData.get(), useModularSimulator);
@@ -1253,8 +1249,7 @@ int Mdrunner::mdrunner()
     MdrunScheduleWorkload runScheduleWork;
     // Also populates the simulation constant workload description.
     runScheduleWork.simulationWork = createSimulationWorkload(
-            *inputrec, useGpuForNonbonded, pmeRunMode, useGpuForBonded, useGpuForUpdate,
-            devFlags.enableGpuBufferOps, devFlags.enableGpuHaloExchange, devFlags.enableGpuPmePPComm);
+            *inputrec, devFlags, useGpuForNonbonded, pmeRunMode, useGpuForBonded, useGpuForUpdate);
 
     std::unique_ptr<DeviceStreamManager> deviceStreamManager = nullptr;
 
@@ -1875,6 +1870,8 @@ public:
 
     void addDomdec(const DomdecOptions& options);
 
+    void addInput(SimulationInputHandle inputHolder);
+
     void addVerletList(int nstlist);
 
     void addReplicaExchange(const ReplicaExchangeParameters& params);
@@ -1918,6 +1915,9 @@ private:
     //! Command-line override for the duration of a neighbor list with the Verlet scheme.
     int nstlist_ = 0;
 
+    //! World communicator, used for hardware detection and task assignment
+    MPI_Comm worldCommunicator_ = MPI_COMM_NULL;
+
     //! Multisim communicator handle.
     gmx_multisim_t* multiSimulation_;
 
@@ -1959,14 +1959,17 @@ private:
      * \brief Builder for simulation stop signal handler.
      */
     std::unique_ptr<StopHandlerBuilder> stopHandlerBuilder_ = nullptr;
+
+    SimulationInputHandle inputHolder_;
 };
 
 Mdrunner::BuilderImplementation::BuilderImplementation(std::unique_ptr<MDModules> mdModules,
                                                        compat::not_null<SimulationContext*> context) :
     mdModules_(std::move(mdModules))
 {
-    communicator_    = context->communicator_;
-    multiSimulation_ = context->multiSimulation_.get();
+    worldCommunicator_ = context->worldCommunicator_;
+    communicator_      = context->simulationCommunicator_;
+    multiSimulation_   = context->multiSimulation_.get();
 }
 
 Mdrunner::BuilderImplementation::~BuilderImplementation() = default;
@@ -2016,10 +2019,21 @@ Mdrunner Mdrunner::BuilderImplementation::build()
 
     newRunner.filenames = filenames_;
 
+    newRunner.worldCommunicator = worldCommunicator_;
+
     newRunner.communicator = communicator_;
 
     // nullptr is a valid value for the multisim handle
     newRunner.ms = multiSimulation_;
+
+    if (inputHolder_)
+    {
+        newRunner.inputHolder_ = std::move(inputHolder_);
+    }
+    else
+    {
+        GMX_THROW(gmx::APIError("MdrunnerBuilder::addInput() is required before build()."));
+    }
 
     // \todo Clarify ownership and lifetime management for gmx_output_env_t
     // \todo Update sanity checking when output environment has clearly specified invariants.
@@ -2136,6 +2150,11 @@ void Mdrunner::BuilderImplementation::addStopHandlerBuilder(std::unique_ptr<Stop
     stopHandlerBuilder_ = std::move(builder);
 }
 
+void Mdrunner::BuilderImplementation::addInput(SimulationInputHandle inputHolder)
+{
+    inputHolder_ = std::move(inputHolder);
+}
+
 MdrunnerBuilder::MdrunnerBuilder(std::unique_ptr<MDModules>           mdModules,
                                  compat::not_null<SimulationContext*> context) :
     impl_{ std::make_unique<Mdrunner::BuilderImplementation>(std::move(mdModules), context) }
@@ -2237,6 +2256,12 @@ MdrunnerBuilder& MdrunnerBuilder::addLogFile(t_fileio* logFileHandle)
 MdrunnerBuilder& MdrunnerBuilder::addStopHandlerBuilder(std::unique_ptr<StopHandlerBuilder> builder)
 {
     impl_->addStopHandlerBuilder(std::move(builder));
+    return *this;
+}
+
+MdrunnerBuilder& MdrunnerBuilder::addInput(SimulationInputHandle input)
+{
+    impl_->addInput(std::move(input));
     return *this;
 }
 

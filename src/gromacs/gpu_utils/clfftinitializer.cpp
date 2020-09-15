@@ -60,15 +60,17 @@ namespace gmx
 namespace
 {
 
+#if GMX_GPU_OPENCL
 /*! \brief The clFFT library may only be initialized once per process,
  * and this is orchestrated by this shared value and mutex.
  *
  * This ensures that thread-MPI and OpenMP builds can't accidentally
  * initialize it more than once. */
 //! @{
-gmx_unused bool g_clfftInitialized = false;
-gmx::Mutex      g_clfftMutex;
+bool       g_clfftInitialized = false;
+gmx::Mutex g_clfftMutex;
 //! @}
+#endif
 
 } // namespace
 
@@ -90,8 +92,6 @@ ClfftInitializer::ClfftInitializer()
                 "Failed to initialize the clFFT library, error code %d", initErrorCode)));
     }
     g_clfftInitialized = true;
-#else
-    GMX_UNUSED_VALUE(g_clfftInitialized);
 #endif
 }
 

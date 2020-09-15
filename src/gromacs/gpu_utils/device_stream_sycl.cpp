@@ -32,47 +32,32 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-
-#ifndef GROMACS_SIMULATIONINPUT_IMPL_H
-#define GROMACS_SIMULATIONINPUT_IMPL_H
-
-/*! \libinternal \file
- * \brief Library interface for SimulationInput.
+/*! \internal \file
  *
- * \ingroup module_mdrun
+ * \brief Implements the DeviceStream for SYCL builds.
+ *
+ * \author Erik Lindahl <erik.lindahl@gmail.com>
+ *
+ * \ingroup module_gpu_utils
  */
+#include "gmxpre.h"
 
-#include <string>
+#include "gromacs/gpu_utils/device_stream.h"
 
-namespace gmx
+DeviceStream::DeviceStream() = default;
+
+void DeviceStream::init(const DeviceContext& /* deviceContext */,
+                        DeviceStreamPriority /* priority */,
+                        const bool /* useTiming */)
 {
+}
 
-struct MdModulesNotifier;
+DeviceStream::~DeviceStream() = default;
 
-/*
- * \brief Prescription for molecular simulation.
- *
- * In the first implementation, this is a POD struct to allow removal of direct
- * references to TPR and CPT files from Mdrunner. The interface for SimulationInput
- * should be considered to be *completely unspecified* until resolution of
- * https://gitlab.com/gromacs/gromacs/-/issues/3374
- *
- * Clients should use the utility functions defined in simulationinpututility.h
- *
- * Design note: It is probably sufficient for future versions to compose SimulationInput
- * through a Builder rather than to subclass an Interface or base class. Outside of this
- * translation unit, we should avoid coupling to the class definition until/unless we
- * develop a much better understanding of simulation input portability.
- */
-class SimulationInput
+// NOLINTNEXTLINE readability-convert-member-functions-to-static
+bool DeviceStream::isValid() const
 {
-public:
-    SimulationInput(const char* tprFilename, const char* cpiFilename);
+    return false;
+}
 
-    std::string tprFilename_;
-    std::string cpiFilename_;
-};
-
-} // end namespace gmx
-
-#endif // GROMACS_SIMULATIONINPUT_IMPL_H
+void DeviceStream::synchronize() const {};
