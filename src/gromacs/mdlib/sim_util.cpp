@@ -827,7 +827,7 @@ static ForceOutputs setupForceOutputs(ForceHelperBuffers*                 forceH
         clearRVecs(forceWithVirial.force_, true);
     }
 
-    if (pull_work && inputrec.bPull && pull_have_constraint(pull_work))
+    if (inputrec.bPull && pull_have_constraint(pull_work))
     {
         clear_pull_forces(pull_work);
     }
@@ -882,15 +882,16 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
 /*! \brief Set up force flag stuct from the force bitmask.
  *
  * \param[in]      legacyFlags          Force bitmask flags used to construct the new flags
- * \param[in]      isNonbondedOn        Global override, if false forces to turn off all nonbonded
- * calculation. \param[in]      computeSlowForces    Tells whether the slow forces need to be
- * computed, always pass true without MTS \param[in]      simulationWork       Simulation workload
- * description. \param[in]      rankHasPmeDuty       If this rank computes PME.
+ * \param[in]      computeNonbondedForces  Whether to compute nonbonded interactions
+ * calculation.
+ * \param[in]      computeSlowForces    Whether to compute the slow forces, always pass true without MTS
+ * \param[in]      simulationWork       Simulation workload description.
+ * \param[in]      rankHasPmeDuty       If this rank computes PME.
  *
  * \returns New Stepworkload description.
  */
 static StepWorkload setupStepWorkload(const int                 legacyFlags,
-                                      const bool                isNonbondedOn,
+                                      const bool                computeNonbondedForces,
                                       const bool                computeSlowForces,
                                       const SimulationWorkload& simulationWork,
                                       const bool                rankHasPmeDuty)
@@ -914,10 +915,9 @@ static StepWorkload setupStepWorkload(const int                 legacyFlags,
     }
     flags.useGpuXBufferOps = simulationWork.useGpuBufferOps;
     // on virial steps the CPU reduction path is taken
-    flags.useGpuFBufferOps    = simulationWork.useGpuBufferOps && !flags.computeVirial;
-    flags.useGpuPmeFReduction = flags.useGpuFBufferOps
-                                && (simulationWork.useGpuPme
-                                    && (rankHasPmeDuty || simulationWork.useGpuPmePpCommunication));
+    flags.useGpuFBufferOps = simulationWork.useGpuBufferOps && !flags.computeVirial;
+    flags.useGpuPmeFReduction = flags.computeSlowForces && flags.useGpuFBufferOps && simulationWork.useGpuPme
+                                && (rankHasPmeDuty || simulationWork.useGpuPmePpCommunication);
 
     return flags;
 }
@@ -1707,6 +1707,10 @@ void do_force(FILE*                               fplog,
                          wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda, stepWork,
                          &forceOutFast.forceWithVirial(), enerd, ed, stepWork.doNeighborSearch);
 
+    GMX_ASSERT(!(fr->nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
+               "The schedule below does not allow for nonbonded MTS with GPU buffer ops");
+    GMX_ASSERT(!(fr->nonbondedAtSlowMtsSteps && useGpuForcesHaloExchange),
+               "The schedule below does not allow for nonbonded MTS with GPU halo exchange");
     // Will store the amount of cycles spent waiting for the GPU that
     // will be later used in the DLB accounting.
     float cycles_wait_gpu = 0;
@@ -1752,6 +1756,13 @@ void do_force(FILE*                               fplog,
                 nbv->atomdata_add_nbat_f_to_f_gpu(AtomLocality::NonLocal, stateGpu->getForces(),
                                                   pme_gpu_get_device_f(fr->pmedata), dependencyList,
                                                   false, haveNonLocalForceContribInCpuBuffer);
+
+                if (!useGpuForcesHaloExchange)
+                {
+                    // copy from GPU input for dd_move_f()
+                    stateGpu->copyForcesFromGpu(forceOutSlow.forceWithShiftForces().force(),
+                                                AtomLocality::NonLocal);
+                }
             }
             else
             {
@@ -1763,12 +1774,6 @@ void do_force(FILE*                               fplog,
                 nbnxn_atomdata_add_nbat_fshift_to_fshift(*nbv->nbat, forceWithShiftForces.shiftForces());
             }
         }
-    }
-
-    if (stepWork.useGpuFBufferOps && havePPDomainDecomposition(cr) && !useGpuForcesHaloExchange)
-    {
-        // copy from GPU input for dd_move_f()
-        stateGpu->copyForcesFromGpu(forceOutSlow.forceWithShiftForces().force(), AtomLocality::NonLocal);
     }
 
     /* Combining the forces for multiple time stepping before the halo exchange, when possible,
@@ -1882,7 +1887,7 @@ void do_force(FILE*                               fplog,
 
     // If on GPU PME-PP comms or GPU update path, receive forces from PME before GPU buffer ops
     // TODO refactor this and unify with below default-path call to the same function
-    if (PAR(cr) && !thisRankHasDuty(cr, DUTY_PME)
+    if (PAR(cr) && !thisRankHasDuty(cr, DUTY_PME) && stepWork.computeSlowForces
         && (simulationWork.useGpuPmePpCommunication || simulationWork.useGpuUpdate))
     {
         /* In case of node-splitting, the PP nodes receive the long-range
@@ -1896,28 +1901,23 @@ void do_force(FILE*                               fplog,
 
     /* Do the nonbonded GPU (or emulation) force buffer reduction
      * on the non-alternating path. */
-    if (useOrEmulateGpuNb && stepWork.computeNonbondedForces && !alternateGpuWait)
+    GMX_ASSERT(!(fr->nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
+               "The schedule below does not allow for nonbonded MTS with GPU buffer ops");
+    if (useOrEmulateGpuNb && !alternateGpuWait)
     {
-        // TODO simplify the below conditionals. Pass buffer and sync pointers at init stage rather than here. Unify getter fns for sameGPU/otherGPU cases.
-        void* pmeForcePtr =
-                stepWork.useGpuPmeFReduction
-                        ? (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_device_f(fr->pmedata)
-                                                         : // PME force buffer on same GPU
-                                   fr->pmePpCommGpu->getGpuForceStagingPtr()) // buffer received from other GPU
-                        : nullptr; // PME reduction not active on GPU
-
-        GpuEventSynchronizer* const pmeSynchronizer =
-                stepWork.useGpuPmeFReduction
-                        ? (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
-                                                         : // PME force buffer on same GPU
-                                   static_cast<GpuEventSynchronizer*>(
-                                           fr->pmePpCommGpu->getForcesReadySynchronizer())) // buffer received from other GPU
-                        : nullptr; // PME reduction not active on GPU
-
         gmx::FixedCapacityVector<GpuEventSynchronizer*, 3> dependencyList;
 
         if (stepWork.useGpuPmeFReduction)
         {
+            // TODO simplify this conditional. Pass buffer and sync pointers at init stage rather than here. Unify getter fns for sameGPU/otherGPU cases.
+            GpuEventSynchronizer* const pmeSynchronizer =
+                    stepWork.useGpuPmeFReduction
+                            ? (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
+                                                             : // PME force buffer on same GPU
+                                       static_cast<GpuEventSynchronizer*>(
+                                               fr->pmePpCommGpu->getForcesReadySynchronizer())) // buffer received from other GPU
+                            : nullptr; // PME reduction not active on GPU
+
             dependencyList.push_back(pmeSynchronizer);
         }
 
@@ -1956,9 +1956,19 @@ void do_force(FILE*                               fplog,
             {
                 dependencyList.push_back(cr->dd->gpuHaloExchange[0]->getForcesReadyOnDeviceEvent());
             }
-            nbv->atomdata_add_nbat_f_to_f_gpu(AtomLocality::Local, stateGpu->getForces(), pmeForcePtr,
-                                              dependencyList, stepWork.useGpuPmeFReduction,
-                                              haveLocalForceContribInCpuBuffer);
+            if (stepWork.computeNonbondedForces)
+            {
+                // TODO this conditional. Pass buffer and sync pointers at init stage rather than here. Unify getter fns for sameGPU/otherGPU cases.
+                void* pmeForcePtr = stepWork.useGpuPmeFReduction
+                                            ? (thisRankHasDuty(cr, DUTY_PME)
+                                                       ? pme_gpu_get_device_f(fr->pmedata)
+                                                       : // PME force buffer on same GPU
+                                                       fr->pmePpCommGpu->getGpuForceStagingPtr()) // buffer received from other GPU
+                                            : nullptr; // PME reduction not active on GPU
+                nbv->atomdata_add_nbat_f_to_f_gpu(
+                        AtomLocality::Local, stateGpu->getForces(), pmeForcePtr, dependencyList,
+                        stepWork.useGpuPmeFReduction, haveLocalForceContribInCpuBuffer);
+            }
             // Copy forces to host if they are needed for update or if virtual sites are enabled.
             // If there are vsites, we need to copy forces every step to spread vsite forces on host.
             // TODO: When the output flags will be included in step workload, this copy can be combined with the
@@ -2034,6 +2044,7 @@ void do_force(FILE*                               fplog,
     {
         /* Compute the final potential energy terms */
         accumulatePotentialEnergies(enerd, lambda, inputrec->fepvals);
+
         if (!EI_TPI(inputrec->eI))
         {
             checkPotentialEnergyValidity(step, *enerd, *inputrec);
