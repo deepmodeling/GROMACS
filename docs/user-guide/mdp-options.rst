@@ -3276,6 +3276,17 @@ electron-microscopy experiments. (See the `reference manual`_ for details)
    and energies. Corresponds to a shift of the input density in the opposite
    direction by (-1) * density-guided-simulation-shift-vector.
 
+.. mdp:: density-guided-simulation-transformation-matrix
+
+   (1,0,0,0,1,0,0,0,1) Multiply all atoms with this matrix in the 
+   density-guided-simulation-group before calculating forces and energies for
+   density-guided-simulations. Affects only the density-guided-simulation forces
+   and energies. Corresponds to a transformation of the input density by the
+   inverse of this matrix. The matrix is given in row-major order.
+   This option allows, e.g., rotation of the density-guided atom group around the
+   z-axis by :math:`\theta` degress by using following input:
+   :math:`(\cos \theta , -\sin \theta , 0 , \sin \theta , \cos \theta , 0 , 0 , 0 , 1)` .
+
 User defined thingies
 ^^^^^^^^^^^^^^^^^^^^^
 

@@ -32,43 +32,67 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+#ifndef GMX_TESTUTILS_TEST_HARDWARE_ENVIRONMENT_H
+#define GMX_TESTUTILS_TEST_HARDWARE_ENVIRONMENT_H
+
 /*! \internal \file
  * \brief
- * Tests utilities for GPU device allocation and free.
+ * Describes test environment class which performs hardware enumeration for unit tests.
  *
- * \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \author Aleksei Iupinov <a.yupinov@gmail.com>
+ * \author Artem Zhmurov <zhmurov@gmail.com>
+ *
+ * \ingroup module_testutils
  */
-#include "gmxpre.h"
 
-#include "gputest.h"
+#include <map>
+#include <vector>
 
 #include <gtest/gtest.h>
 
-#include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/hardware/device_information.h"
-#include "gromacs/hardware/device_management.h"
-#include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/gmxassert.h"
+
+#include "testutils/test_device.h"
+
+struct gmx_hw_info_t;
 
 namespace gmx
 {
 namespace test
 {
 
-GpuTest::GpuTest()
+/*! \internal \brief
+ * This class performs one-time test initialization (enumerating the hardware)
+ */
+class TestHardwareEnvironment : public ::testing::Environment
 {
-    if (canPerformDeviceDetection(nullptr))
+private:
+    //! General hardware info
+    gmx_hw_info_t* hardwareInfo_;
+    //! Storage of hardware contexts
+    std::vector<std::unique_ptr<TestDevice>> testDeviceList_;
+
+public:
+    //! This is called by GTest framework once to query the hardware
+    void SetUp() override;
+    //! This is called by GTest framework once release the hardware
+    void TearDown() override;
+    //! Get available hardware contexts.
+    const std::vector<std::unique_ptr<TestDevice>>& getTestDeviceList() const
     {
-        deviceInfoList_ = findDevices();
+        return testDeviceList_;
     }
-    // Failing to find valid GPUs does not require further action
-}
+    //! Get available hardware information.
+    const gmx_hw_info_t* hwinfo() const { return hardwareInfo_; }
+};
 
-GpuTest::~GpuTest() = default;
+//! Get the test environment
+const TestHardwareEnvironment* getTestHardwareEnvironment();
 
-std::vector<std::unique_ptr<DeviceInformation>>& GpuTest::getDeviceInfoList()
-{
-    return deviceInfoList_;
-}
+/*! \brief This constructs the test environment during setup of the
+ * unit test so that they can use the hardware context. */
+void callAddGlobalTestEnvironment();
 
 } // namespace test
 } // namespace gmx
+#endif // GMX_TESTUTILS_TEST_HARDWARE_ENVIRONMENT_H
