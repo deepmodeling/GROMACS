@@ -312,26 +312,6 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
                                                      const std::vector<size_t>& pointSize,
                                                      const BiasSharing&         biasSharing)
 {
-    /* We currently enforce subsequent shared biases to have consecutive
-     * share-group values starting at 1. This means we can reduce shared
-     * biases in order over the ranks and it does not restrict possibilities.
-     */
-    int numShare = 0;
-    for (int b = 0; b < awhParams.numBias; b++)
-    {
-        int group = awhParams.awhBiasParams[b].shareGroup;
-        if (group > 0)
-        {
-            numShare++;
-            if (group != numShare)
-            {
-                GMX_THROW(
-                        InvalidInputError("AWH biases that are shared should use increasing "
-                                          "share-group values"));
-            }
-        }
-    }
-
     /* Check the point sizes. This is a sufficient condition for running
      * as shared multi-sim run. No physics checks are performed here.
      */

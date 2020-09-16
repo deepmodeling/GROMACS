@@ -213,10 +213,11 @@ Awh::Awh(FILE*                 fplog,
         biasSharing_ = std::make_unique<BiasSharing>(awhParams, *commRecord, multiSimRecord->mastersComm_);
         for (int k = 0; k < awhParams.numBias; k++)
         {
-            if (biasSharing_->numSharingSimulations(k) > 1)
+            const int shareGroup = awhParams.awhBiasParams[k].shareGroup;
+            if (shareGroup > 0)
             {
-                fprintf(fplog, "awh%d: bias is shared between %d simulations\n", 1 + k,
-                        biasSharing_->numSharingSimulations(k));
+                fprintf(fplog, "awh%d: bias with share group %d is shared between %d simulations\n",
+                        1 + k, shareGroup, biasSharing_->numSharingSimulations(k));
             }
             else
             {
