@@ -162,7 +162,6 @@ private:
     //! we cannot efficiently compute indices during the build-phase
     //! so we delay the conversion until TopologyBuilder requests it
     std::vector<std::tuple<std::string, std::string, std::string, std::string>> exclusionsByName_;
-
 };
 
 } // namespace nblib
