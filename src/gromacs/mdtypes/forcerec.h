@@ -242,8 +242,7 @@ struct t_forcerec
 
     std::unique_ptr<gmx::WholeMoleculeTransform> wholeMoleculeTransform;
 
-    int      cutoff_scheme = 0;     /* group- or Verlet-style cutoff */
-    gmx_bool bNonbonded    = FALSE; /* true if nonbonded calculations are *not* turned off */
+    int cutoff_scheme = 0; /* group- or Verlet-style cutoff */
 
     /* The Nbnxm Verlet non-bonded machinery */
     std::unique_ptr<nonbonded_verlet_t> nbv;
@@ -301,8 +300,6 @@ struct t_forcerec
 
     /* Tells whether we use multiple time stepping, computing some forces less frequently */
     bool useMts = false;
-    /* Tells whether the non-bonded are computed less frequently using MTS */
-    bool nonbondedAtSlowMtsSteps = false;
 
     /* Data for special listed force calculations */
     std::unique_ptr<t_fcdata> fcdata;

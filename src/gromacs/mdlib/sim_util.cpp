@@ -873,8 +873,6 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
 /*! \brief Set up force flag stuct from the force bitmask.
  *
  * \param[in]      legacyFlags          Force bitmask flags used to construct the new flags
- * \param[in]      computeNonbondedForces  Whether to compute nonbonded interactions
- * calculation.
  * \param[in]      computeSlowForces    Whether to compute the slow forces, always pass true without MTS
  * \param[in]      simulationWork       Simulation workload description.
  * \param[in]      rankHasPmeDuty       If this rank computes PME.
@@ -882,7 +880,6 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
  * \returns New Stepworkload description.
  */
 static StepWorkload setupStepWorkload(const int                 legacyFlags,
-                                      const bool                computeNonbondedForces,
                                       const bool                computeSlowForces,
                                       const SimulationWorkload& simulationWork,
                                       const bool                rankHasPmeDuty)
@@ -896,8 +893,10 @@ static StepWorkload setupStepWorkload(const int                 legacyFlags,
     flags.computeEnergy       = ((legacyFlags & GMX_FORCE_ENERGY) != 0);
     flags.computeForces       = ((legacyFlags & GMX_FORCE_FORCES) != 0);
     flags.computeListedForces = ((legacyFlags & GMX_FORCE_LISTED) != 0);
-    flags.computeNonbondedForces = ((legacyFlags & GMX_FORCE_NONBONDED) != 0) && computeNonbondedForces;
-    flags.computeDhdl            = ((legacyFlags & GMX_FORCE_DHDL) != 0);
+    flags.computeNonbondedForces =
+            ((legacyFlags & GMX_FORCE_NONBONDED) != 0) && simulationWork.computeNonbonded
+            && !(simulationWork.computeNonbondedAtSlowMtsSteps && !computeSlowForces);
+    flags.computeDhdl = ((legacyFlags & GMX_FORCE_DHDL) != 0);
 
     if (simulationWork.useGpuBufferOps)
     {
@@ -1060,12 +1059,9 @@ void do_force(FILE*                               fplog,
 
     const SimulationWorkload& simulationWork = runScheduleWork->simulationWork;
 
-
     const bool computeSlowForces = (!fr->useMts || step % inputrec->mtsLevels[1].stepFactor == 0);
-    const bool computeNonbonded =
-            fr->bNonbonded && !(fr->useMts && fr->nonbondedAtSlowMtsSteps && !computeSlowForces);
-    runScheduleWork->stepWork = setupStepWorkload(legacyFlags, computeNonbonded, computeSlowForces,
-                                                  simulationWork, thisRankHasDuty(cr, DUTY_PME));
+    runScheduleWork->stepWork    = setupStepWorkload(legacyFlags, computeSlowForces, simulationWork,
+                                                  thisRankHasDuty(cr, DUTY_PME));
     const StepWorkload& stepWork = runScheduleWork->stepWork;
 
     const bool useGpuPmeOnThisRank =
@@ -1546,7 +1542,9 @@ void do_force(FILE*                               fplog,
                                     gmx::ForceWithVirial({}, false)));
     ForceOutputs& forceOutSlow = (fr->useMts ? forceOutMts : forceOutFast);
 
-    ForceOutputs& forceOutNonbonded = (fr->nonbondedAtSlowMtsSteps ? forceOutSlow : forceOutFast);
+    const bool nonbondedAtSlowMtsSteps = runScheduleWork->simulationWork.computeNonbondedAtSlowMtsSteps;
+
+    ForceOutputs& forceOutNonbonded = (nonbondedAtSlowMtsSteps ? forceOutSlow : forceOutFast);
 
     if (inputrec->bPull && pull_have_constraint(pull_work))
     {
@@ -1702,9 +1700,9 @@ void do_force(FILE*                               fplog,
                          wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda, stepWork,
                          &forceOutFast.forceWithVirial(), enerd, ed, stepWork.doNeighborSearch);
 
-    GMX_ASSERT(!(fr->nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
+    GMX_ASSERT(!(nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
                "The schedule below does not allow for nonbonded MTS with GPU buffer ops");
-    GMX_ASSERT(!(fr->nonbondedAtSlowMtsSteps && useGpuForcesHaloExchange),
+    GMX_ASSERT(!(nonbondedAtSlowMtsSteps && useGpuForcesHaloExchange),
                "The schedule below does not allow for nonbonded MTS with GPU halo exchange");
     // Will store the amount of cycles spent waiting for the GPU that
     // will be later used in the DLB accounting.
@@ -1896,7 +1894,7 @@ void do_force(FILE*                               fplog,
 
     /* Do the nonbonded GPU (or emulation) force buffer reduction
      * on the non-alternating path. */
-    GMX_ASSERT(!(fr->nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
+    GMX_ASSERT(!(nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
                "The schedule below does not allow for nonbonded MTS with GPU buffer ops");
     if (useOrEmulateGpuNb && !alternateGpuWait)
     {

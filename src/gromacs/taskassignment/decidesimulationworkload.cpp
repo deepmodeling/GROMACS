@@ -44,6 +44,7 @@
 #include "decidesimulationworkload.h"
 
 #include "gromacs/ewald/pme.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/taskassignment/decidegpuusage.h"
 #include "gromacs/taskassignment/taskassignment.h"
 #include "gromacs/utility/arrayref.h"
@@ -51,7 +52,8 @@
 namespace gmx
 {
 
-SimulationWorkload createSimulationWorkload(const t_inputrec&              inputrec,
+SimulationWorkload createSimulationWorkload(const t_inputrec& inputrec,
+                                            const bool        disableNonbondedCalculation,
                                             const DevelopmentFeatureFlags& devFlags,
                                             bool                           useGpuForNonbonded,
                                             PmeRunMode                     pmeRunMode,
@@ -59,6 +61,10 @@ SimulationWorkload createSimulationWorkload(const t_inputrec&              input
                                             bool                           useGpuForUpdate)
 {
     SimulationWorkload simulationWorkload;
+    simulationWorkload.computeNonbonded = !disableNonbondedCalculation;
+    simulationWorkload.computeNonbondedAtSlowMtsSteps =
+            simulationWorkload.computeNonbonded && inputrec.useMts
+            && inputrec.mtsLevels.back().forceGroups[static_cast<int>(MtsForceGroups::Nonbonded)];
     simulationWorkload.computeMuTot    = inputrecNeedMutot(&inputrec);
     simulationWorkload.useCpuNonbonded = !useGpuForNonbonded;
     simulationWorkload.useGpuNonbonded = useGpuForNonbonded;

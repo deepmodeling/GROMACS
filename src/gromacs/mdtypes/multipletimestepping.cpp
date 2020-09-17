@@ -84,6 +84,13 @@ void assertMtsRequirements(const t_inputrec& ir)
                            "nstpcouple should be a multiple of mtsFactor");
         GMX_RELEASE_ASSERT(ir.efep == efepNO || ir.fepvals->nstdhdl % mtsFactor == 0,
                            "nstdhdl should be a multiple of mtsFactor");
+        if (ir.mtsLevels.back().forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)])
+        {
+            GMX_RELEASE_ASSERT(ir.nstlist % ir.mtsLevels.back().stepFactor == 0,
+                               "With multiple time stepping for the non-bonded pair interactions, "
+                               "nstlist should be a "
+                               "multiple of mtsFactor");
+        }
     }
 }
 

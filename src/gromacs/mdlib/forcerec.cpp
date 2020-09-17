@@ -1008,18 +1008,6 @@ void init_forcerec(FILE*                            fp,
     /* Free energy */
     fr->efep = ir->efep;
 
-    fr->bNonbonded = TRUE;
-    if (getenv("GMX_NO_NONBONDED") != nullptr)
-    {
-        /* turn off non-bonded calculations */
-        fr->bNonbonded = FALSE;
-        GMX_LOG(mdlog.warning)
-                .asParagraph()
-                .appendText(
-                        "Found environment variable GMX_NO_NONBONDED.\n"
-                        "Disabling nonbonded calculations.");
-    }
-
     if ((getenv("GMX_DISABLE_SIMD_KERNELS") != nullptr) || (getenv("GMX_NOOPTIMIZEDKERNELS") != nullptr))
     {
         fr->use_simd_kernels = FALSE;
@@ -1183,15 +1171,6 @@ void init_forcerec(FILE*                            fp,
     {
         gmx::assertMtsRequirements(*ir);
     }
-
-    fr->nonbondedAtSlowMtsSteps =
-            (fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]);
-
-    // Note that we do allow arbitrary nstlist when only use MTS for PME
-    GMX_RELEASE_ASSERT(
-            !(fr->nonbondedAtSlowMtsSteps && ir->nstlist % ir->mtsLevels[1].stepFactor != 0),
-            "With multiple time stepping for the non-bonded pair interactions, nstlist should be a "
-            "multiple of mtsFactor");
 
     const bool haveDirectVirialContributionsFast =
             fr->forceProviders->hasForceProvider() || gmx_mtop_ftype_count(mtop, F_POSRES) > 0
