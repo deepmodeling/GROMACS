@@ -773,8 +773,6 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
 /*! \brief Set up the different force buffers; also does clearing.
  *
  * \param[in] forceHelperBuffers  Helper force buffers
- * \param[in] pull_work The pull work object.
- * \param[in] inputrec  input record
  * \param[in] force     force array
  * \param[in] stepWork  Step schedule flags
  * \param[out] wcycle   wallcycle recording structure
@@ -782,8 +780,6 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
  * \returns             Cleared force output structure
  */
 static ForceOutputs setupForceOutputs(ForceHelperBuffers*                 forceHelperBuffers,
-                                      pull_t*                             pull_work,
-                                      const t_inputrec&                   inputrec,
                                       gmx::ArrayRefWithPadding<gmx::RVec> force,
                                       const StepWorkload&                 stepWork,
                                       gmx_wallcycle_t                     wcycle)
@@ -825,11 +821,6 @@ static ForceOutputs setupForceOutputs(ForceHelperBuffers*                 forceH
          * cleared separately in the vsite spreading code.
          */
         clearRVecs(forceWithVirial.force_, true);
-    }
-
-    if (inputrec.bPull && pull_have_constraint(pull_work))
-    {
-        clear_pull_forces(pull_work);
     }
 
     wallcycle_sub_stop(wcycle, ewcsCLEAR_FORCE_BUFFER);
@@ -1545,18 +1536,22 @@ void do_force(FILE*                               fplog,
      * Without multiple time stepping all point to the same object.
      * With multiple time-stepping the use is different for slow and fast steps.
      */
-    ForceOutputs forceOutFast = setupForceOutputs(&fr->forceHelperBuffers[0], pull_work, *inputrec,
-                                                  force, stepWork, wcycle);
+    ForceOutputs forceOutFast = setupForceOutputs(&fr->forceHelperBuffers[0], force, stepWork, wcycle);
     //! \todo find if there is a way to avoid creating an empty, unused ForceOutputs
     ForceOutputs forceOutMts =
             ((fr->useMts && stepWork.computeSlowForces)
-                     ? setupForceOutputs(&fr->forceHelperBuffers[1], nullptr, *inputrec,
+                     ? setupForceOutputs(&fr->forceHelperBuffers[1],
                                          forceView->forceMtsCombinedWithPadding(), stepWork, wcycle)
                      : ForceOutputs(gmx::ForceWithShiftForces({}, false, {}), false,
                                     gmx::ForceWithVirial({}, false)));
     ForceOutputs& forceOutSlow = (fr->useMts ? forceOutMts : forceOutFast);
 
     ForceOutputs& forceOutNonbonded = (fr->nonbondedAtSlowMtsSteps ? forceOutSlow : forceOutFast);
+
+    if (inputrec->bPull && pull_have_constraint(pull_work))
+    {
+        clear_pull_forces(pull_work);
+    }
 
     /* We calculate the non-bonded forces, when done on the CPU, here.
      * We do this before calling do_force_lowlevel, because in that

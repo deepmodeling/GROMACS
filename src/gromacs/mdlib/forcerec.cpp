@@ -1179,6 +1179,11 @@ void init_forcerec(FILE*                            fp,
     // Multiple time stepping
     fr->useMts = ir->useMts;
 
+    if (fr->useMts)
+    {
+        gmx::assertMtsRequirements(*ir);
+    }
+
     fr->nonbondedAtSlowMtsSteps =
             (fr->useMts && ir->mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::Nonbonded)]);
 
