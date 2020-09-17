@@ -1293,12 +1293,14 @@ void init_forcerec(FILE*                            fp,
     }
 
     /* Initialize the thread working data for bonded interactions */
-    for (int mtsIndex = 0; mtsIndex < (fr->useMts ? 2 : 1); mtsIndex++)
+    if (fr->useMts)
     {
-        ListedForces::InteractionSelection interactionSelection;
-        if (fr->useMts)
+        // Add one ListedForces object for reach MTS level
+        bool isFirstLevel = true;
+        for (const auto& mtsLevel : ir->mtsLevels)
         {
-            const auto& forceGroups = ir->mtsLevels[mtsIndex].forceGroups;
+            ListedForces::InteractionSelection interactionSelection;
+            const auto&                        forceGroups = mtsLevel.forceGroups;
             if (forceGroups[static_cast<int>(gmx::MtsForceGroups::Pair)])
             {
                 interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Pairs));
@@ -1311,18 +1313,22 @@ void init_forcerec(FILE*                            fp,
             {
                 interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Angles));
             }
-            if (mtsIndex == 0)
+            if (isFirstLevel)
             {
                 interactionSelection.set(static_cast<int>(ListedForces::InteractionGroup::Rest));
+                isFirstLevel = false;
             }
+            fr->listedForces.emplace_back(
+                    mtop->ffparams, mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
+                    gmx_omp_nthreads_get(emntBonded), interactionSelection, fp);
         }
-        else if (mtsIndex == 0)
-        {
-            interactionSelection = ListedForces::interactionSelectionAll();
-        }
+    }
+    else
+    {
+        // Add one ListedForces object with all listed interactions
         fr->listedForces.emplace_back(
                 mtop->ffparams, mtop->groups.groups[SimulationAtomGroupType::EnergyOutput].size(),
-                gmx_omp_nthreads_get(emntBonded), interactionSelection, fp);
+                gmx_omp_nthreads_get(emntBonded), ListedForces::interactionSelectionAll(), fp);
     }
 
     // QM/MM initialization if requested

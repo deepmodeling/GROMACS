@@ -288,7 +288,7 @@ static void setupMtsLevels(gmx::ArrayRef<gmx::MtsLevel> mtsLevels,
 
         if (mtsLevels[1].stepFactor <= 1)
         {
-            gmx_fatal(FARGS, "mst-factor should be larger than 1");
+            gmx_fatal(FARGS, "mts-factor should be larger than 1");
         }
 
         // Make the level 0 use the complement of the force groups of group 1
@@ -4179,7 +4179,7 @@ static void check_combination_rules(const t_inputrec* ir, const gmx_mtop_t* mtop
 
 void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_t wi)
 {
-    // Not meeting MTS requires should have resulted in a fatal error, so we can assert here
+    // Not meeting MTS requirements should have resulted in a fatal error, so we can assert here
     gmx::assertMtsRequirements(*ir);
 
     char                      err_buf[STRLEN];

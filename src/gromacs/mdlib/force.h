@@ -80,7 +80,7 @@ class VirtualSitesHandler;
  *
  * Without multiple time stepping the force is returned in force->force().
  *
- * With multiple time stepping the behavior depends on the time.
+ * With multiple time stepping the behavior depends on the integration step.
  * At fast steps (step % mtsFactor != 0), the fast force is returned in
  * force->force(). The force->forceMtsCombined() buffer is unused.
  * At slow steps, the normal force is returned in force->force(),

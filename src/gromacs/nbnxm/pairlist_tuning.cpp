@@ -405,7 +405,7 @@ static void setDynamicPairlistPruningParameters(const t_inputrec*          ir,
                                                 PairlistParams*            listParams)
 {
     /* When applying multiple time stepping to the non-bonded forces,
-     * we only compute then every mtsFactor steps, so all parameters here
+     * we only compute them every mtsFactor steps, so all parameters here
      * should be a multiple of mtsFactor.
      */
     listParams->mtsFactor = gmx::nonbondedMtsFactor(*ir);

@@ -1306,7 +1306,9 @@ void gmx::LegacySimulator::do_md()
         {
             /* With multiple time stepping we need to do an additional normal
              * update step to obtain the virial, as the actual MTS integration
-             * using an acceleration where the fast forces a multiplied by mtsFactor.
+             * using an acceleration where the slow forces a multiplied by mtsFactor.
+             * Using that acceleration would result in a virial with the slow
+             * force contribution would be a factor mtsFactor too large.
              */
             if (fr->useMts && bCalcVir && constr != nullptr)
             {

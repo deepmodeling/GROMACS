@@ -134,7 +134,7 @@ private:
  * forces for use with multiple time stepping.
  * More buffers can be added when needed. Those should also be added
  * to ForceBuffersView.
- * The force buffer (only) can be pinned for efficient transfer to/from GPUs.
+ * The force buffer (not forceMtsCombined) can be pinned for efficient transfer to/from GPUs.
  * All access happens through the ForceBuffersView object.
  */
 class ForceBuffers

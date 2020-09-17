@@ -873,17 +873,21 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
 /*! \brief Set up force flag stuct from the force bitmask.
  *
  * \param[in]      legacyFlags          Force bitmask flags used to construct the new flags
- * \param[in]      computeSlowForces    Whether to compute the slow forces, always pass true without MTS
+ * \param[in]      inputrec             The input record
+ * \param[in]      step                 The current MD step
  * \param[in]      simulationWork       Simulation workload description.
  * \param[in]      rankHasPmeDuty       If this rank computes PME.
  *
  * \returns New Stepworkload description.
  */
 static StepWorkload setupStepWorkload(const int                 legacyFlags,
-                                      const bool                computeSlowForces,
+                                      const t_inputrec&         inputrec,
+                                      const int64_t             step,
                                       const SimulationWorkload& simulationWork,
                                       const bool                rankHasPmeDuty)
 {
+    const bool computeSlowForces = (!inputrec.useMts || step % inputrec.mtsLevels[1].stepFactor == 0);
+
     StepWorkload flags;
     flags.stateChanged        = ((legacyFlags & GMX_FORCE_STATECHANGED) != 0);
     flags.haveDynamicBox      = ((legacyFlags & GMX_FORCE_DYNAMICBOX) != 0);
@@ -1006,6 +1010,13 @@ static void reduceAndUpdateMuTot(DipoleData*                   dipoleData,
     }
 }
 
+/*! \brief Combines fast and slow force buffes into a full and MTS-combined force buffer.
+ *
+ * \param[in]     numAtoms   The number of atoms to combine forces for
+ * \param[in,out] forceFast  Input: the fast forces, output: fast forces + slow forces
+ * \param[in,out] forceMts   Input: the slow forces, output: fast forces + mtsFactor * slow forces
+ * \param[in]     mtsFactor  The factor between the fast and slow time step
+ */
 static void combineMtsForces(const int numAtoms, ArrayRef<RVec> forceFast, ArrayRef<RVec> forceMts, const real mtsFactor)
 {
     const int gmx_unused numThreads = gmx_omp_nthreads_get(emntDefault);
@@ -1059,8 +1070,7 @@ void do_force(FILE*                               fplog,
 
     const SimulationWorkload& simulationWork = runScheduleWork->simulationWork;
 
-    const bool computeSlowForces = (!fr->useMts || step % inputrec->mtsLevels[1].stepFactor == 0);
-    runScheduleWork->stepWork    = setupStepWorkload(legacyFlags, computeSlowForces, simulationWork,
+    runScheduleWork->stepWork    = setupStepWorkload(legacyFlags, *inputrec, step, simulationWork,
                                                   thisRankHasDuty(cr, DUTY_PME));
     const StepWorkload& stepWork = runScheduleWork->stepWork;
 
@@ -1770,7 +1780,7 @@ void do_force(FILE*                               fplog,
     }
 
     /* Combining the forces for multiple time stepping before the halo exchange, when possible,
-     * avoids an extra halo exchange (when DD is used) and a extra post-processing step.
+     * avoids an extra halo exchange (when DD is used) and post-processing step.
      */
     const bool combineMtsForcesBeforeHaloExchange =
             (stepWork.computeForces && fr->useMts && stepWork.computeSlowForces
@@ -1809,10 +1819,14 @@ void do_force(FILE*                               fplog,
                 {
                     stateGpu->waitForcesReadyOnHost(AtomLocality::NonLocal);
                 }
+
+                // Without MTS or with MTS at slow steps with uncombined forces we need to
+                // communicate the fast forces
                 if (!fr->useMts || !combineMtsForcesBeforeHaloExchange)
                 {
                     dd_move_f(cr->dd, &forceOutFast.forceWithShiftForces(), wcycle);
                 }
+                // With MTS we need to communicate the slow or combined (in forceOutSlow) forces
                 if (fr->useMts && stepWork.computeSlowForces)
                 {
                     dd_move_f(cr->dd, &forceOutSlow.forceWithShiftForces(), wcycle);
