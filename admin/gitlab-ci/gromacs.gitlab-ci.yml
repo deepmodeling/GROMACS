@@ -8,7 +8,7 @@ simple-build:
     - .use-gcc:base
     - .rules:basic-push
   stage: pre-build
-  image: gromacs/cmake-3.9.6-gcc-5-cuda-9.0-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-5-cuda-9.0-openmpi-2020
   tags: []
   variables:
     KUBERNETES_CPU_LIMIT: 8
@@ -222,7 +222,7 @@ gromacs:gcc-7:configure:
     - .gromacs:base:configure
     - .use-gcc:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AVX2_256"
     CMAKE_GPU_OPTIONS: "-DGMX_GPU=ON -DGMX_USE_OPENCL=ON"
@@ -234,7 +234,7 @@ gromacs:gcc-6:configure:
     - .use-gcc:base
     - .use-opencl
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=SSE4.1"
     COMPILER_MAJOR_VERSION: 6
@@ -245,7 +245,7 @@ gromacs:clang-TSAN:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   variables:
     COMPILER_MAJOR_VERSION: 8
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=TSAN"
@@ -255,7 +255,7 @@ gromacs:clang-8:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi-2020
   variables:
     COMPILER_MAJOR_VERSION: 8
 
@@ -265,7 +265,7 @@ gromacs:clang-3.6:configure:
     - .use-clang:base
     - .use-mpi
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   variables:
     COMPILER_MAJOR_VERSION: "3.6"
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=ON"
@@ -277,7 +277,7 @@ gromacs:clang-static-analyzer:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   variables:
      CMAKE_COMPILER_SCRIPT: "-DCMAKE_CXX_COMPILER=/usr/local/libexec/c++-analyzer -DCMAKE_C_COMPILER=gcc"
      CMAKE_EXTRA_OPTIONS: "-DGMX_CLANG_ANALYZER=ON -DGMX_OPENMP=OFF -DGMX_USE_RDTSCP=OFF -DGMX_FFT_LIBRARY=fftpack -DGMX_DEVELOPER_BUILD=ON"
@@ -288,7 +288,7 @@ gromacs:clang-ASAN:configure:
     - .gromacs:base:configure
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   variables:
     COMPILER_MAJOR_VERSION: 8
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=ASAN"
@@ -299,7 +299,7 @@ gromacs:gcc-6:release:configure:
     - .use-gcc:base
     - .use-cuda
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   variables:
     COMPILER_MAJOR_VERSION: 6
     RELEASE_BUILD_DIR: release-builds-gcc
@@ -316,7 +316,7 @@ gromacs:gcc-7:release:configure:
     - .gromacs:base:release:configure
     - .use-gcc:base
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   variables:
     COMPILER_MAJOR_VERSION: 7
     RELEASE_BUILD_DIR: release-builds-gcc
@@ -332,7 +332,7 @@ gromacs:clang-3.6:release:configure:
     - .use-clang:base
     - .use-mpi
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   variables:
     COMPILER_MAJOR_VERSION: "3.6"
     RELEASE_BUILD_DIR: release-builds-clang
@@ -351,7 +351,7 @@ gromacs:clang-8:release:configure:
     - .use-clang:base
     - .use-cuda
     - .rules:nightly-only-for-release
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-2020
   variables:
     COMPILER_MAJOR_VERSION: 8
     RELEASE_BUILD_DIR: release-builds-clang
@@ -399,7 +399,7 @@ gromacs:gcc-7:build:
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   needs:
     - job: gromacs:gcc-7:configure
       artifacts: true
@@ -411,7 +411,7 @@ gromacs:gcc-6:build:
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   needs:
     - job: gromacs:gcc-6:configure
 
@@ -422,7 +422,7 @@ gromacs:clang-TSAN:build:
     - .use-clang:base
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   needs:
     - job: gromacs:clang-TSAN:configure
 
@@ -433,7 +433,7 @@ gromacs:clang-ASAN:build:
     - .use-clang:base
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   needs:
     - job: gromacs:clang-ASAN:configure
 
@@ -444,7 +444,7 @@ gromacs:clang-static-analyzer:build:
     - .use-clang:base
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   needs:
     - job: gromacs:clang-static-analyzer:configure
 
@@ -455,7 +455,7 @@ gromacs:clang-8:build:
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi-2020
   needs:
     - job: gromacs:clang-8:configure
 
@@ -466,7 +466,7 @@ gromacs:clang-3.6:build:
     - .before_script:default
     - .use-ccache
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   needs:
     - job: gromacs:clang-3.6:configure
 
@@ -480,7 +480,7 @@ gromacs:gcc-6:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-gcc
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   needs:
     - job: gromacs:gcc-6:release:configure
 
@@ -494,7 +494,7 @@ gromacs:gcc-7:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-gcc
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   needs:
     - job: gromacs:gcc-7:release:configure
 
@@ -508,7 +508,7 @@ gromacs:clang-3.6:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-clang
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   needs:
     - job: gromacs:clang-3.6:release:configure
 
@@ -522,7 +522,7 @@ gromacs:clang-8:release:build:
   stage: release-build
   variables:
     BUILD_DIR: release-builds-clang
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-2020
   needs:
     - job: gromacs:clang-8:release:configure
 
@@ -594,7 +594,7 @@ gromacs:gcc-7:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -605,7 +605,7 @@ gromacs:gcc-6:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -616,7 +616,7 @@ gromacs:clang-8:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi-2020
   needs:
     - job: gromacs:clang-8:build
 
@@ -624,7 +624,7 @@ gromacs:clang-TSAN:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   needs:
     - job: gromacs:clang-TSAN:build
 
@@ -633,7 +633,7 @@ gromacs:clang-ASAN:test:
     - .gromacs:base:test
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   variables:
     CTEST_RUN_MODE: "ExperimentalMemCheck"
   needs:
@@ -643,7 +643,7 @@ gromacs:clang-3.6:test:
   extends:
     - .gromacs:base:test
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   needs:
     - job: gromacs:clang-3.6:build
 
@@ -651,7 +651,7 @@ gromacs:gcc-7:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "amd.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -666,7 +666,7 @@ gromacs:gcc-6:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   variables:
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
     KUBERNETES_EXTENDED_RESOURCE_LIMIT: 1
@@ -681,7 +681,7 @@ gromacs:clang-8:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-intelopencl-openmpi-2020
   needs:
     - job: gromacs:clang-8:build
     - job: regressiontests:prepare
@@ -690,7 +690,7 @@ gromacs:clang-TSAN:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   needs:
     - job: gromacs:clang-TSAN:build
     - job: regressiontests:prepare
@@ -700,7 +700,7 @@ gromacs:clang-ASAN:regressiontest:
     - .gromacs:base:regressiontest
     - .use-clang:base
     - .rules:merge-requests
-  image: gromacs/cmake-3.15.7-llvm-8-tsan:2020
+  image: gromacs/cmake-3.15.7-llvm-8-tsan-2020
   needs:
     - job: gromacs:clang-ASAN:build
     - job: regressiontests:prepare
@@ -709,7 +709,7 @@ gromacs:clang-3.6:regressiontest:
   extends:
     - .gromacs:base:regressiontest
     - .rules:merge-requests
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   variables:
     REGRESSIONTEST_DOUBLE: "-double"
     REGRESSIONTEST_OMP_RANK_NUMBER: 0
@@ -723,7 +723,7 @@ gromacs:gcc-6:release:test:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-6-cuda-10.1-nvidiaopencl-clfft-openmpi-2020
   variables:
     BUILD_DIR: release-builds-gcc
   needs:
@@ -735,7 +735,7 @@ gromacs:gcc-7:release:test:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   variables:
     BUILD_DIR: release-builds-gcc
   needs:
@@ -747,7 +747,7 @@ gromacs:clang-3.6:release:test:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   variables:
     BUILD_DIR: release-builds-clang
   needs:
@@ -759,7 +759,7 @@ gromacs:clang-8:release:test:
     - .gromacs:base:test
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-2020
   variables:
     BUILD_DIR: release-builds-clang
   needs:
@@ -771,7 +771,7 @@ gromacs:gcc-7:release:regressiontest:
     - .gromacs:base:regressiontest
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi:2020
+  image: gromacs/cmake-3.9.6-gcc-7-amdopencl-clfft-openmpi-2020
   variables:
     BUILD_DIR: release-builds-gcc
   needs:
@@ -783,7 +783,7 @@ gromacs:clang-3.6:release:regressiontest:
     - .gromacs:base:regressiontest
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi:2020
+  image: gromacs/cmake-3.9.6-llvm-3.6-amdopencl-openmpi-2020
   variables:
     BUILD_DIR: release-builds-clang
     REGRESSIONTEST_DOUBLE: "-double"
@@ -798,7 +798,7 @@ gromacs:clang-8:release:regressiontest:
     - .gromacs:base:regressiontest
     - .rules:nightly-only-for-release
   stage: release-tests
-  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi:2020
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-2020
   variables:
     BUILD_DIR: release-builds-clang
     KUBERNETES_EXTENDED_RESOURCE_NAME: "nvidia.com/gpu"
