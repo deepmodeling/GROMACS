@@ -44,6 +44,7 @@
 #include <cstring>
 
 #include <array>
+#include <optional>
 
 #include "gromacs/applied_forces/awh/awh.h"
 #include "gromacs/domdec/dlbtiming.h"
@@ -873,20 +874,21 @@ static DomainLifetimeWorkload setupDomainLifetimeWorkload(const t_inputrec&     
 /*! \brief Set up force flag stuct from the force bitmask.
  *
  * \param[in]      legacyFlags          Force bitmask flags used to construct the new flags
- * \param[in]      inputrec             The input record
+ * \param[in]      mtsLevels            The multiple time-stepping levels, either empty or 2 levels
  * \param[in]      step                 The current MD step
  * \param[in]      simulationWork       Simulation workload description.
  * \param[in]      rankHasPmeDuty       If this rank computes PME.
  *
  * \returns New Stepworkload description.
  */
-static StepWorkload setupStepWorkload(const int                 legacyFlags,
-                                      const t_inputrec&         inputrec,
-                                      const int64_t             step,
-                                      const SimulationWorkload& simulationWork,
-                                      const bool                rankHasPmeDuty)
+static StepWorkload setupStepWorkload(const int                     legacyFlags,
+                                      ArrayRef<const gmx::MtsLevel> mtsLevels,
+                                      const int64_t                 step,
+                                      const SimulationWorkload&     simulationWork,
+                                      const bool                    rankHasPmeDuty)
 {
-    const bool computeSlowForces = (!inputrec.useMts || step % inputrec.mtsLevels[1].stepFactor == 0);
+    GMX_ASSERT(mtsLevels.empty() || mtsLevels.size() == 2, "Expect 0 or 2 MTS levels");
+    const bool computeSlowForces = (mtsLevels.empty() || step % mtsLevels[1].stepFactor == 0);
 
     StepWorkload flags;
     flags.stateChanged        = ((legacyFlags & GMX_FORCE_STATECHANGED) != 0);
@@ -1070,8 +1072,8 @@ void do_force(FILE*                               fplog,
 
     const SimulationWorkload& simulationWork = runScheduleWork->simulationWork;
 
-    runScheduleWork->stepWork    = setupStepWorkload(legacyFlags, *inputrec, step, simulationWork,
-                                                  thisRankHasDuty(cr, DUTY_PME));
+    runScheduleWork->stepWork    = setupStepWorkload(legacyFlags, inputrec->mtsLevels, step,
+                                                  simulationWork, thisRankHasDuty(cr, DUTY_PME));
     const StepWorkload& stepWork = runScheduleWork->stepWork;
 
     const bool useGpuPmeOnThisRank =
@@ -1543,18 +1545,21 @@ void do_force(FILE*                               fplog,
      * With multiple time-stepping the use is different for slow and fast steps.
      */
     ForceOutputs forceOutFast = setupForceOutputs(&fr->forceHelperBuffers[0], force, stepWork, wcycle);
-    //! \todo find if there is a way to avoid creating an empty, unused ForceOutputs
-    ForceOutputs forceOutMts =
-            ((fr->useMts && stepWork.computeSlowForces)
-                     ? setupForceOutputs(&fr->forceHelperBuffers[1],
-                                         forceView->forceMtsCombinedWithPadding(), stepWork, wcycle)
-                     : ForceOutputs(gmx::ForceWithShiftForces({}, false, {}), false,
-                                    gmx::ForceWithVirial({}, false)));
-    ForceOutputs& forceOutSlow = (fr->useMts ? forceOutMts : forceOutFast);
+
+    // Force output for MTS combined forces, only set at slow MTS steps
+    std::optional<ForceOutputs> forceOutMts =
+            (fr->useMts && stepWork.computeSlowForces)
+                    ? std::optional(setupForceOutputs(&fr->forceHelperBuffers[1],
+                                                      forceView->forceMtsCombinedWithPadding(),
+                                                      stepWork, wcycle))
+                    : std::nullopt;
+
+    ForceOutputs* forceOutSlow =
+            fr->useMts ? (stepWork.computeSlowForces ? &forceOutMts.value() : nullptr) : &forceOutFast;
 
     const bool nonbondedAtSlowMtsSteps = runScheduleWork->simulationWork.computeNonbondedAtSlowMtsSteps;
 
-    ForceOutputs& forceOutNonbonded = (nonbondedAtSlowMtsSteps ? forceOutSlow : forceOutFast);
+    ForceOutputs* forceOutNonbonded = nonbondedAtSlowMtsSteps ? forceOutSlow : &forceOutFast;
 
     if (inputrec->bPull && pull_have_constraint(pull_work))
     {
@@ -1583,14 +1588,14 @@ void do_force(FILE*                               fplog,
          */
         nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
                                       as_rvec_array(x.unpaddedArrayRef().data()),
-                                      &forceOutNonbonded.forceWithShiftForces(), *mdatoms,
+                                      &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
                                       inputrec->fepvals, lambda, enerd, stepWork, nrnb);
 
         if (havePPDomainDecomposition(cr))
         {
             nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
                                           as_rvec_array(x.unpaddedArrayRef().data()),
-                                          &forceOutNonbonded.forceWithShiftForces(), *mdatoms,
+                                          &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
                                           inputrec->fepvals, lambda, enerd, stepWork, nrnb);
         }
     }
@@ -1611,7 +1616,7 @@ void do_force(FILE*                               fplog,
              */
             wallcycle_stop(wcycle, ewcFORCE);
             nbv->atomdata_add_nbat_f_to_f(AtomLocality::All,
-                                          forceOutNonbonded.forceWithShiftForces().force());
+                                          forceOutNonbonded->forceWithShiftForces().force());
             wallcycle_start_nocount(wcycle, ewcFORCE);
         }
 
@@ -1621,7 +1626,7 @@ void do_force(FILE*                               fplog,
             /* This is not in a subcounter because it takes a
                negligible and constant-sized amount of time */
             nbnxn_atomdata_add_nbat_fshift_to_fshift(
-                    *nbv->nbat, forceOutNonbonded.forceWithShiftForces().shiftForces());
+                    *nbv->nbat, forceOutNonbonded->forceWithShiftForces().shiftForces());
         }
     }
 
@@ -1668,7 +1673,7 @@ void do_force(FILE*                               fplog,
         for (int mtsIndex = 0; mtsIndex < (fr->useMts && stepWork.computeSlowForces ? 2 : 1); mtsIndex++)
         {
             ListedForces& listedForces = fr->listedForces[mtsIndex];
-            ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutFast : forceOutSlow);
+            ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutFast : *forceOutSlow);
             listedForces.calculate(
                     wcycle, box, inputrec->fepvals, cr, ms, x, xWholeMolecules, fr->fcdata.get(),
                     hist, &forceOut, fr, &pbc, enerd, nrnb, lambda.data(), mdatoms,
@@ -1679,7 +1684,7 @@ void do_force(FILE*                               fplog,
     if (stepWork.computeSlowForces)
     {
         calculateLongRangeNonbondeds(fr, inputrec, cr, nrnb, wcycle, mdatoms,
-                                     x.unpaddedConstArrayRef(), &forceOutSlow.forceWithVirial(),
+                                     x.unpaddedConstArrayRef(), &forceOutSlow->forceWithVirial(),
                                      enerd, box, lambda.data(), as_rvec_array(dipoleData.muStateAB),
                                      stepWork, ddBalanceRegionHandler);
     }
@@ -1719,7 +1724,7 @@ void do_force(FILE*                               fplog,
     float cycles_wait_gpu = 0;
     if (useOrEmulateGpuNb && stepWork.computeNonbondedForces)
     {
-        auto& forceWithShiftForces = forceOutNonbonded.forceWithShiftForces();
+        auto& forceWithShiftForces = forceOutNonbonded->forceWithShiftForces();
 
         /* wait for non-local forces (or calculate in emulation mode) */
         if (havePPDomainDecomposition(cr))
@@ -1750,7 +1755,7 @@ void do_force(FILE*                               fplog,
 
                 if (haveNonLocalForceContribInCpuBuffer)
                 {
-                    stateGpu->copyForcesToGpu(forceOutSlow.forceWithShiftForces().force(),
+                    stateGpu->copyForcesToGpu(forceOutFast.forceWithShiftForces().force(),
                                               AtomLocality::NonLocal);
                     dependencyList.push_back(stateGpu->getForcesReadyOnDeviceEvent(
                             AtomLocality::NonLocal, stepWork.useGpuFBufferOps));
@@ -1763,7 +1768,7 @@ void do_force(FILE*                               fplog,
                 if (!useGpuForcesHaloExchange)
                 {
                     // copy from GPU input for dd_move_f()
-                    stateGpu->copyForcesFromGpu(forceOutSlow.forceWithShiftForces().force(),
+                    stateGpu->copyForcesFromGpu(forceOutFast.forceWithShiftForces().force(),
                                                 AtomLocality::NonLocal);
                 }
             }
@@ -1808,7 +1813,7 @@ void do_force(FILE*                               fplog,
             {
                 if (domainWork.haveCpuLocalForceWork)
                 {
-                    stateGpu->copyForcesToGpu(forceOutSlow.forceWithShiftForces().force(),
+                    stateGpu->copyForcesToGpu(forceOutFast.forceWithShiftForces().force(),
                                               AtomLocality::Local);
                 }
                 communicateGpuHaloForces(*cr, domainWork.haveCpuLocalForceWork);
@@ -1829,7 +1834,7 @@ void do_force(FILE*                               fplog,
                 // With MTS we need to communicate the slow or combined (in forceOutSlow) forces
                 if (fr->useMts && stepWork.computeSlowForces)
                 {
-                    dd_move_f(cr->dd, &forceOutSlow.forceWithShiftForces(), wcycle);
+                    dd_move_f(cr->dd, &forceOutSlow->forceWithShiftForces(), wcycle);
                 }
             }
         }
@@ -1841,13 +1846,13 @@ void do_force(FILE*                               fplog,
                              && !DOMAINDECOMP(cr) && !stepWork.useGpuFBufferOps);
     if (alternateGpuWait)
     {
-        alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, &forceOutNonbonded, &forceOutSlow,
+        alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, forceOutNonbonded, forceOutSlow,
                                     enerd, lambda[efptCOUL], stepWork, wcycle);
     }
 
     if (!alternateGpuWait && useGpuPmeOnThisRank)
     {
-        pme_gpu_wait_and_reduce(fr->pmedata, stepWork, wcycle, &forceOutSlow.forceWithVirial(),
+        pme_gpu_wait_and_reduce(fr->pmedata, stepWork, wcycle, &forceOutSlow->forceWithVirial(),
                                 enerd, lambda[efptCOUL]);
     }
 
@@ -1863,7 +1868,7 @@ void do_force(FILE*                               fplog,
         const float waitCycles               = Nbnxm::gpu_wait_finish_task(
                 nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
                 enerd->grpp.ener[egCOULSR].data(),
-                forceOutNonbonded.forceWithShiftForces().shiftForces(), wcycle);
+                forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle);
 
         if (ddBalanceRegionHandler.useBalancingRegion())
         {
@@ -1900,7 +1905,7 @@ void do_force(FILE*                               fplog,
         /* In case of node-splitting, the PP nodes receive the long-range
          * forces, virial and energy from the PME nodes here.
          */
-        pme_receive_force_ener(fr, cr, &forceOutSlow.forceWithVirial(), enerd,
+        pme_receive_force_ener(fr, cr, &forceOutSlow->forceWithVirial(), enerd,
                                simulationWork.useGpuPmePpCommunication,
                                stepWork.useGpuPmeFReduction, wcycle);
     }
@@ -1928,7 +1933,7 @@ void do_force(FILE*                               fplog,
             dependencyList.push_back(pmeSynchronizer);
         }
 
-        gmx::ArrayRef<gmx::RVec> forceWithShift = forceOutNonbonded.forceWithShiftForces().force();
+        gmx::ArrayRef<gmx::RVec> forceWithShift = forceOutNonbonded->forceWithShiftForces().force();
 
         if (stepWork.useGpuFBufferOps)
         {
@@ -2011,7 +2016,7 @@ void do_force(FILE*                               fplog,
 
         if (fr->useMts && stepWork.computeSlowForces && !haveCombinedMtsForces)
         {
-            postProcessForceWithShiftForces(nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutSlow,
+            postProcessForceWithShiftForces(nrnb, wcycle, box, x.unpaddedArrayRef(), forceOutSlow,
                                             vir_force, *mdatoms, *fr, vsite, stepWork);
         }
     }
@@ -2023,7 +2028,7 @@ void do_force(FILE*                               fplog,
         /* In case of node-splitting, the PP nodes receive the long-range
          * forces, virial and energy from the PME nodes here.
          */
-        pme_receive_force_ener(fr, cr, &forceOutSlow.forceWithVirial(), enerd,
+        pme_receive_force_ener(fr, cr, &forceOutSlow->forceWithVirial(), enerd,
                                simulationWork.useGpuPmePpCommunication, false, wcycle);
     }
 
@@ -2033,13 +2038,13 @@ void do_force(FILE*                               fplog,
          * need to post-process one ForceOutputs object here, called forceOutCombined,
          * otherwise we have to post-process two outputs and then combine them.
          */
-        ForceOutputs& forceOutCombined = (haveCombinedMtsForces ? forceOutMts : forceOutFast);
+        ForceOutputs& forceOutCombined = (haveCombinedMtsForces ? forceOutMts.value() : forceOutFast);
         postProcessForces(cr, step, nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutCombined,
                           vir_force, mdatoms, fr, vsite, stepWork);
 
         if (fr->useMts && stepWork.computeSlowForces && !haveCombinedMtsForces)
         {
-            postProcessForces(cr, step, nrnb, wcycle, box, x.unpaddedArrayRef(), &forceOutSlow,
+            postProcessForces(cr, step, nrnb, wcycle, box, x.unpaddedArrayRef(), forceOutSlow,
                               vir_force, mdatoms, fr, vsite, stepWork);
 
             combineMtsForces(mdatoms->homenr, force.unpaddedArrayRef(),

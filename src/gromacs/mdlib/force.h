@@ -76,7 +76,7 @@ class StepWorkload;
 class VirtualSitesHandler;
 } // namespace gmx
 
-/* Perform the force, and if requested, energy computation
+/* Perform the force and, if requested, energy computation
  *
  * Without multiple time stepping the force is returned in force->force().
  *
