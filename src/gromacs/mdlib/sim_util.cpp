@@ -1933,10 +1933,10 @@ void do_force(FILE*                               fplog,
             dependencyList.push_back(pmeSynchronizer);
         }
 
-        gmx::ArrayRef<gmx::RVec> forceWithShift = forceOutNonbonded->forceWithShiftForces().force();
-
         if (stepWork.useGpuFBufferOps)
         {
+            ArrayRef<gmx::RVec> forceWithShift = forceOutNonbonded->forceWithShiftForces().force();
+
             // Flag to specify whether the CPU force buffer has contributions to
             // local atoms. This depends on whether there are CPU-based force tasks
             // or when DD is active the halo exchange has resulted in contributions
@@ -1995,6 +1995,7 @@ void do_force(FILE*                               fplog,
         }
         else if (stepWork.computeNonbondedForces)
         {
+            ArrayRef<gmx::RVec> forceWithShift = forceOutNonbonded->forceWithShiftForces().force();
             nbv->atomdata_add_nbat_f_to_f(AtomLocality::Local, forceWithShift);
         }
     }
