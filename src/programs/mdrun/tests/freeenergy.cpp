@@ -85,10 +85,8 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     SCOPED_TRACE(formatString("Comparing FEP simulation '%s' to reference", simulationName.c_str()));
 
     // TODO: These are the legacy regression test tolerances. Think about them and justify them!
-    const auto defaultRegressionEnergyTolerance =
-            FloatingPointTolerance(0.05, 0.05, 0.001, 0.001, UINT64_MAX, UINT64_MAX, false);
-    const auto gmx_unused defaultRegressionVirialTolerance =
-            FloatingPointTolerance(0.1, 0.1, 0.01, 0.01, UINT64_MAX, UINT64_MAX, false);
+    const auto defaultRegressionEnergyTolerance = relativeToleranceAsFloatingPoint(50.0, 0.001);
+    const auto gmx_unused defaultRegressionVirialTolerance = relativeToleranceAsFloatingPoint(10.0, 0.01);
 
     // TODO: Regression tests only test Epot. Add other energy terms to be tested here.
     EnergyTermsToCompare energyTermsToCompare{ {
