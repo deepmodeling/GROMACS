@@ -1857,7 +1857,7 @@ void do_force(FILE*                               fplog,
     }
 
     /* Wait for local GPU NB outputs on the non-alternating wait path */
-    if (!alternateGpuWait && simulationWork.useGpuNonbonded)
+    if (!alternateGpuWait && stepWork.computeNonbondedForces && simulationWork.useGpuNonbonded)
     {
         /* Measured overhead on CUDA and OpenCL with(out) GPU sharing
          * is between 0.5 and 1.5 Mcycles. So 2 MCycles is an overestimate,
