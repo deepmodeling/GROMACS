@@ -62,7 +62,7 @@ SimulationWorkload createSimulationWorkload(const t_inputrec& inputrec,
 {
     SimulationWorkload simulationWorkload;
     simulationWorkload.computeNonbonded = !disableNonbondedCalculation;
-    simulationWorkload.computeNonbondedAtSlowMtsSteps =
+    simulationWorkload.computeNonbondedAtMtsLevel1 =
             simulationWorkload.computeNonbonded && inputrec.useMts
             && inputrec.mtsLevels.back().forceGroups[static_cast<int>(MtsForceGroups::Nonbonded)];
     simulationWorkload.computeMuTot    = inputrecNeedMutot(&inputrec);

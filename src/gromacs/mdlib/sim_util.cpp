@@ -901,7 +901,7 @@ static StepWorkload setupStepWorkload(const int                     legacyFlags,
     flags.computeListedForces = ((legacyFlags & GMX_FORCE_LISTED) != 0);
     flags.computeNonbondedForces =
             ((legacyFlags & GMX_FORCE_NONBONDED) != 0) && simulationWork.computeNonbonded
-            && !(simulationWork.computeNonbondedAtSlowMtsSteps && !computeSlowForces);
+            && !(simulationWork.computeNonbondedAtMtsLevel1 && !computeSlowForces);
     flags.computeDhdl = ((legacyFlags & GMX_FORCE_DHDL) != 0);
 
     if (simulationWork.useGpuBufferOps)
@@ -1015,9 +1015,9 @@ static void reduceAndUpdateMuTot(DipoleData*                   dipoleData,
 /*! \brief Combines MTS level0 and level1 force buffes into a full and MTS-combined force buffer.
  *
  * \param[in]     numAtoms        The number of atoms to combine forces for
- * \param[in,out] forceMtsLevel0  Input: the level0 forces, output: level0 forces + level1 forces
- * \param[in,out] forceMts        Input: the level1 forces, output: level0 forces + mtsFactor *
- * level1 forces \param[in]     mtsFactor       The factor between the level0 and level1 time step
+ * \param[in,out] forceMtsLevel0  Input: F_level0, output: F_level0 + F_level1
+ * \param[in,out] forceMts        Input: F_level1, output: F_level0 + mtsFactor * F_level1
+ * \param[in]     mtsFactor       The factor between the level0 and level1 time step
  */
 static void combineMtsForces(const int      numAtoms,
                              ArrayRef<RVec> forceMtsLevel0,
@@ -1028,9 +1028,9 @@ static void combineMtsForces(const int      numAtoms,
 #pragma omp parallel for num_threads(numThreads) schedule(static)
     for (int i = 0; i < numAtoms; i++)
     {
-        const RVec forceFastTmp = forceFast[i];
-        forceFast[i] += forceMts[i];
-        forceMts[i] = forceFastTmp + mtsFactor * forceMts[i];
+        const RVec forceMtsLevel0Tmp = forceMtsLevel0[i];
+        forceMtsLevel0[i] += forceMts[i];
+        forceMts[i] = forceMtsLevel0Tmp + mtsFactor * forceMts[i];
     }
 }
 
@@ -1561,9 +1561,9 @@ void do_force(FILE*                               fplog,
     ForceOutputs* forceOutMtsLevel1 =
             fr->useMts ? (stepWork.computeSlowForces ? &forceOutMts.value() : nullptr) : &forceOutMtsLevel0;
 
-    const bool nonbondedAtSlowMtsSteps = runScheduleWork->simulationWork.computeNonbondedAtSlowMtsSteps;
+    const bool nonbondedAtMtsLevel1 = runScheduleWork->simulationWork.computeNonbondedAtMtsLevel1;
 
-    ForceOutputs* forceOutNonbonded = nonbondedAtSlowMtsSteps ? forceOutMtsLevel1 : &forceOutMtsLevel0;
+    ForceOutputs* forceOutNonbonded = nonbondedAtMtsLevel1 ? forceOutMtsLevel1 : &forceOutMtsLevel0;
 
     if (inputrec->bPull && pull_have_constraint(pull_work))
     {
@@ -1719,9 +1719,9 @@ void do_force(FILE*                               fplog,
                          wcycle, fr->forceProviders, box, x.unpaddedArrayRef(), mdatoms, lambda, stepWork,
                          &forceOutMtsLevel0.forceWithVirial(), enerd, ed, stepWork.doNeighborSearch);
 
-    GMX_ASSERT(!(nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
+    GMX_ASSERT(!(nonbondedAtMtsLevel1 && stepWork.useGpuFBufferOps),
                "The schedule below does not allow for nonbonded MTS with GPU buffer ops");
-    GMX_ASSERT(!(nonbondedAtSlowMtsSteps && useGpuForcesHaloExchange),
+    GMX_ASSERT(!(nonbondedAtMtsLevel1 && useGpuForcesHaloExchange),
                "The schedule below does not allow for nonbonded MTS with GPU halo exchange");
     // Will store the amount of cycles spent waiting for the GPU that
     // will be later used in the DLB accounting.
@@ -1917,7 +1917,7 @@ void do_force(FILE*                               fplog,
 
     /* Do the nonbonded GPU (or emulation) force buffer reduction
      * on the non-alternating path. */
-    GMX_ASSERT(!(nonbondedAtSlowMtsSteps && stepWork.useGpuFBufferOps),
+    GMX_ASSERT(!(nonbondedAtMtsLevel1 && stepWork.useGpuFBufferOps),
                "The schedule below does not allow for nonbonded MTS with GPU buffer ops");
     if (useOrEmulateGpuNb && !alternateGpuWait)
     {
