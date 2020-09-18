@@ -85,16 +85,19 @@ namespace
 const char* g_specifyEverythingFormatString =
         "When you use mdrun -gputasks, %s must be set to non-default "
         "values, so that the device IDs can be interpreted correctly."
-#if GMX_GPU != GMX_GPU_NONE
+#if GMX_GPU
         " If you simply want to restrict which GPUs are used, then it is "
         "better to use mdrun -gpu_id. Otherwise, setting the "
-#    if GMX_GPU == GMX_GPU_CUDA
+#    if GMX_GPU_CUDA
         "CUDA_VISIBLE_DEVICES"
-#    elif GMX_GPU == GMX_GPU_OPENCL
+#    elif GMX_GPU_OPENCL
         // Technically there is no portable way to do this offered by the
         // OpenCL standard, but the only current relevant case for GROMACS
         // is AMD OpenCL, which offers this variable.
         "GPU_DEVICE_ORDINAL"
+#    elif GMX_GPU_SYCL
+        // SYCL-TODO:
+        "How to restrict visible devices in SYCL?"
 #    else
 #        error "Unreachable branch"
 #    endif
@@ -154,14 +157,12 @@ bool decideWhetherToUseGpusForPmeWithThreadMpi(const bool              useGpuFor
                                                const std::vector<int>& userGpuTaskAssignment,
                                                const gmx_hw_info_t&    hardwareInfo,
                                                const t_inputrec&       inputrec,
-                                               const gmx_mtop_t&       mtop,
                                                const int               numRanksPerSimulation,
                                                const int               numPmeRanksPerSimulation)
 {
     // First, exclude all cases where we can't run PME on GPUs.
     if ((pmeTarget == TaskTarget::Cpu) || !useGpuForNonbonded || !pme_gpu_supports_build(nullptr)
-        || !pme_gpu_supports_hardware(hardwareInfo, nullptr)
-        || !pme_gpu_supports_input(inputrec, mtop, nullptr))
+        || !pme_gpu_supports_hardware(hardwareInfo, nullptr) || !pme_gpu_supports_input(inputrec, nullptr))
     {
         // PME can't run on a GPU. If the user required that, we issue
         // an error later.
@@ -328,7 +329,6 @@ bool decideWhetherToUseGpusForPme(const bool              useGpuForNonbonded,
                                   const std::vector<int>& userGpuTaskAssignment,
                                   const gmx_hw_info_t&    hardwareInfo,
                                   const t_inputrec&       inputrec,
-                                  const gmx_mtop_t&       mtop,
                                   const int               numRanksPerSimulation,
                                   const int               numPmeRanksPerSimulation,
                                   const bool              gpusWereDetected)
@@ -365,7 +365,7 @@ bool decideWhetherToUseGpusForPme(const bool              useGpuForNonbonded,
         }
         return false;
     }
-    if (!pme_gpu_supports_input(inputrec, mtop, &message))
+    if (!pme_gpu_supports_input(inputrec, &message))
     {
         if (pmeTarget == TaskTarget::Gpu)
         {
@@ -605,7 +605,7 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     {
         errorMessage += "Compatible GPUs must have been found.\n";
     }
-    if (GMX_GPU != GMX_GPU_CUDA)
+    if (!GMX_GPU_CUDA)
     {
         errorMessage += "Only a CUDA build is supported.\n";
     }
@@ -670,7 +670,7 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     // does not support it, the actual CUDA LINCS code does support it
     if (gmx_mtop_ftype_count(mtop, F_CONSTRNC) > 0)
     {
-        errorMessage += "Non-connecting constraints are not supported";
+        errorMessage += "Non-connecting constraints are not supported\n";
     }
     if (!UpdateConstrainGpu::isNumCoupledConstraintsSupported(mtop))
     {

@@ -186,6 +186,7 @@ static KernelSetup pick_nbnxn_kernel_cpu(const t_inputrec gmx_unused* ir,
          * On AMD Zen, tabulated Ewald kernels are faster on all 4 combinations
          * of single or double precision and 128 or 256-bit AVX2.
          */
+        MSVC_DIAGNOSTIC_IGNORE(6285) // Always zero because compile time constant
         if (
 #if GMX_SIMD
                 (GMX_SIMD_REAL_WIDTH >= 8 || (GMX_SIMD_REAL_WIDTH >= 4 && GMX_SIMD_HAVE_FMA && !GMX_DOUBLE)) &&
@@ -194,10 +195,8 @@ static KernelSetup pick_nbnxn_kernel_cpu(const t_inputrec gmx_unused* ir,
         {
             kernelSetup.ewaldExclusionType = EwaldExclusionType::Analytical;
         }
-        else
-        {
-            kernelSetup.ewaldExclusionType = EwaldExclusionType::Table;
-        }
+        MSVC_DIAGNOSTIC_RESET
+        else { kernelSetup.ewaldExclusionType = EwaldExclusionType::Table; }
         if (getenv("GMX_NBNXN_EWALD_TABLE") != nullptr)
         {
             kernelSetup.ewaldExclusionType = EwaldExclusionType::Table;
@@ -393,7 +392,7 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
 
     const bool haveMultipleDomains = havePPDomainDecomposition(cr);
 
-    bool           bFEP_NonBonded = (fr->efep != efepNO) && haveFepPerturbedNBInteractions(mtop);
+    bool           bFEP_NonBonded = (fr->efep != efepNO) && haveFepPerturbedNBInteractions(*mtop);
     PairlistParams pairlistParams(kernelSetup.kernelType, bFEP_NonBonded, ir->rlist, haveMultipleDomains);
 
     setupDynamicPairlistPruning(mdlog, ir, mtop, box, fr->ic, &pairlistParams);

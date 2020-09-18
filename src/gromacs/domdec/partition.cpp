@@ -2624,27 +2624,27 @@ void print_dd_statistics(const t_commrec* cr, const t_inputrec* ir, FILE* fplog)
 }
 
 //!\brief TODO Remove fplog when group scheme and charge groups are gone
-void dd_partition_system(FILE*                        fplog,
-                         const gmx::MDLogger&         mdlog,
-                         int64_t                      step,
-                         const t_commrec*             cr,
-                         gmx_bool                     bMasterState,
-                         int                          nstglobalcomm,
-                         t_state*                     state_global,
-                         const gmx_mtop_t&            top_global,
-                         const t_inputrec*            ir,
-                         gmx::ImdSession*             imdSession,
-                         pull_t*                      pull_work,
-                         t_state*                     state_local,
-                         PaddedHostVector<gmx::RVec>* f,
-                         gmx::MDAtoms*                mdAtoms,
-                         gmx_localtop_t*              top_local,
-                         t_forcerec*                  fr,
-                         gmx_vsite_t*                 vsite,
-                         gmx::Constraints*            constr,
-                         t_nrnb*                      nrnb,
-                         gmx_wallcycle*               wcycle,
-                         gmx_bool                     bVerbose)
+void dd_partition_system(FILE*                     fplog,
+                         const gmx::MDLogger&      mdlog,
+                         int64_t                   step,
+                         const t_commrec*          cr,
+                         gmx_bool                  bMasterState,
+                         int                       nstglobalcomm,
+                         t_state*                  state_global,
+                         const gmx_mtop_t&         top_global,
+                         const t_inputrec*         ir,
+                         gmx::ImdSession*          imdSession,
+                         pull_t*                   pull_work,
+                         t_state*                  state_local,
+                         gmx::ForceBuffers*        f,
+                         gmx::MDAtoms*             mdAtoms,
+                         gmx_localtop_t*           top_local,
+                         t_forcerec*               fr,
+                         gmx::VirtualSitesHandler* vsite,
+                         gmx::Constraints*         constr,
+                         t_nrnb*                   nrnb,
+                         gmx_wallcycle*            wcycle,
+                         gmx_bool                  bVerbose)
 {
     gmx_domdec_t*      dd;
     gmx_domdec_comm_t* comm;
@@ -3088,7 +3088,7 @@ void dd_partition_system(FILE*                        fplog,
         switch (range)
         {
             case DDAtomRanges::Type::Vsites:
-                if (vsite && vsite->numInterUpdategroupVsites)
+                if (vsite && vsite->numInterUpdategroupVirtualSites())
                 {
                     n = dd_make_local_vsites(dd, n, top_local->idef.il);
                 }
@@ -3117,27 +3117,20 @@ void dd_partition_system(FILE*                        fplog,
 
     state_change_natoms(state_local, state_local->natoms);
 
-    if (fr->haveDirectVirialContributions)
+    if (vsite && vsite->numInterUpdategroupVirtualSites())
     {
-        if (vsite && vsite->numInterUpdategroupVsites)
-        {
-            nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
-        }
-        else
-        {
-            if (EEL_FULL(ir->coulombtype) && dd->haveExclusions)
-            {
-                nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Zones);
-            }
-            else
-            {
-                nat_f_novirsum = comm->atomRanges.numHomeAtoms();
-            }
-        }
+        nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
     }
     else
     {
-        nat_f_novirsum = 0;
+        if (EEL_FULL(ir->coulombtype) && dd->haveExclusions)
+        {
+            nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Zones);
+        }
+        else
+        {
+            nat_f_novirsum = comm->atomRanges.numHomeAtoms();
+        }
     }
 
     /* Set the number of atoms required for the force calculation.
@@ -3186,7 +3179,7 @@ void dd_partition_system(FILE*                        fplog,
      * the last vsite construction, we need to communicate the constructing
      * atom coordinates again (for spreading the forces this MD step).
      */
-    dd_move_x_vsites(dd, state_local->box, state_local->x.rvec_array());
+    dd_move_x_vsites(*dd, state_local->box, state_local->x.rvec_array());
 
     wallcycle_sub_stop(wcycle, ewcsDD_TOPOTHER);
 

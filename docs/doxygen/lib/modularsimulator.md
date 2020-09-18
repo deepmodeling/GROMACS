@@ -370,27 +370,27 @@ about the data that is written to file - it is only responsible
 to inform clients about trajectory steps, and providing a valid
 file pointer to the objects that need to write to trajectory.
 
-#### `StatePropagatorData`
-The `StatePropagatorData` takes part in the simulator run, as it might
+#### `StatePropagatorData::Element`
+The `StatePropagatorData::Element` takes part in the simulator run, as it might
 have to save a valid state at the right moment during the
 integration. Placing the StatePropagatorData correctly is for now the
 duty of the simulator builder - this might be automated later
 if we have enough meta-data of the variables (i.e., if
 `StatePropagatorData` knows at which time the variables currently are,
 and can decide when a valid state (full-time step of all
-variables) is reached. The `StatePropagatorData` is also a client of
+variables) is reached. The `StatePropagatorData::Element` is also a client of
 both the trajectory signaller and writer - it will save a
 state for later writeout during the simulator step if it
 knows that trajectory writing will occur later in the step,
 and it knows how to write to file given a file pointer by
 the `TrajectoryElement`.
 
-#### `EnergyElement`
-The `EnergyElement` takes part in the simulator run, as it
+#### `EnergyData::Element`
+The `EnergyData::Element` takes part in the simulator run, as it
 does either add data (at energy calculation steps), or
 record a non-calculation step (all other steps). It is the
 responsibility of the simulator builder to ensure that the
-`EnergyElement` is called at a point of the simulator run
+`EnergyData::Element` is called at a point of the simulator run
 at which it has access to a valid energy state.
 
 #### `ComputeGlobalsElement`
@@ -459,13 +459,12 @@ It integrates the Parrinello-Rahman box velocity equations, takes a
 callback to the propagator to update the velocity scaling factor, and
 scales the box and the positions of the system.
 
-#### `FreeEnergyPerturbationElement`
-The `FreeEnergyPerturbationElement` holds the lambda vector and the
-current FEP state, offering access to its values via getter
-functions. The FreeEnergyPerturbationElement does update the lambda
+#### `FreeEnergyPerturbationData::Element`
+The `FreeEnergyPerturbationData::Element` is a member class of
+`FreeEnergyPerturbationData` that updates the lambda
 values during the simulation run if lambda is non-static. It
-implements the checkpointing client interface to save its current
-state for restart.
+implements the checkpointing client interface to save the current
+state of `FreeEnergyPerturbationData` for restart.
 
 ## Data structures
 
@@ -489,8 +488,8 @@ data approach - of the elements currently implemented, only
 domain decomposition, PME load balancing, and the initial
 constraining are using this.
 
-### `EnergyElement`
-The EnergyElement owns the EnergyObject, and is hence responsible
+### `EnergyData`
+The EnergyData owns the EnergyObject, and is hence responsible
 for saving energy data and writing it to trajectory. It also owns
 the tensors for the different virials and the pressure as well as
 the total dipole vector.
@@ -499,13 +498,18 @@ It subscribes to the trajectory signaller, the energy signaller,
 and the logging signaller to know when an energy calculation is
 needed and when a non-recording step is enough. The simulator
 builder is responsible to place the element in a location at
-which a valid energy state is available. The EnergyElement is
+which a valid energy state is available. The EnergyData is
 also a subscriber to the trajectory writer element, as it is
 responsible to write energy data to trajectory.
 
-The EnergyElement offers an interface to add virial contributions,
+The EnergyData offers an interface to add virial contributions,
 but also allows access to the raw pointers to tensor data, the
 dipole vector, and the legacy energy data structures.
+
+### `FreeEnergyPerturbationData`
+The `FreeEnergyPerturbationData` holds the lambda vector and the
+current FEP state, offering access to its values via getter
+functions.
 
 ### `TopologyHolder`
 The topology object owns the local topology and holds a constant reference
@@ -534,9 +538,8 @@ steps. This allows elements to receive the new topology / state before
 deciding what functionality they need to run.
 
 ### `Checkpointing`
-The `CheckpointHelper` is responsible to write checkpoints. In the
-longer term, it will also be responsible to read checkpoints, but this
-is not yet implemented.
+The `CheckpointHelper` is responsible to write checkpoints, and to offer
+its clients access to the data read from checkpoint.
 
 Writing checkpoints is done just before neighbor-searching (NS) steps,
 or before the last step. Checkpointing occurs periodically (by default,
@@ -551,11 +554,148 @@ but does only register a function if the last step has been called.
 Checkpointing happens at the top of a simulation step, which gives a
 straightforward re-entry point at the top of the simulator loop.
 
-In the current implementation, the clients of CheckpointHelper fill a
-legacy t_state object (passed via pointer) with whatever data they need
-to store. The CheckpointHelper then writes the t_state object to file.
-This is an intermediate state of the code, as the long-term plan is for
-modules to read and write from a checkpoint file directly, without the
-need for a central object. The current implementation allows, however,
-to define clearly which modules take part in checkpointing, while using
-the current infrastructure for reading and writing to checkpoint.
+#### Implementation details
+##### Other (older) approaches
+**Legacy checkpointing approach:** All data to be checkpointed needs to be
+stored in one of the following data structures:
+* `t_state`, which also holds pointers to
+  - `history_t` (history for restraints)
+  - `df_history_t` (history for free energy)
+  - `ekinstate`
+  - `AwhHistory`
+* `ObservableHistory`, consisting of
+  - `energyhistory_t`
+  - `PullHistory`
+  - `edsamhistory_t`
+  - `swaphistory_t`
+* Checkpoint further saves details about the output files being used
+
+These data structures are then serialized by a function having knowledge of
+their implementation details. One possibility to add data to the checkpoint
+is to expand one of the objects that is currently being checkpointed, and
+edit the respective `do_cpt_XXX` function in `checkpoint.cpp` which interacts
+with the XDR library. The alternative would be to write an entirely new data
+structure, changing the function signature of all checkpoint-related functions,
+and write a corresponding low-level routing interacting with the XDR library.
+
+**The MdModule approach:** To allow for modules to write checkpoints, the legacy
+checkpoint was extended by a KVTree. When writing to checkpoint, this tree gets
+filled (via callbacks) by the single modules, and then serialized. When reading,
+the KVTree gets deserialized, and then distributed to the modules which can read
+back the data previously stored.
+
+**The modular simulator approach in GROMACS 2020:** To allow for checkpointing
+before a truly modularized checkpoint infrastructure existed, modular simulator
+as implemented in GROMACS 2020 passed a t_state object to the checkpoint clients,
+which they could fill with their data. This is obviously not a permanent solution.
+
+##### Modular simulator design
+
+The MdModule checks off almost all requirements to a modularized checkpointing format.
+The proposed design is therefore an evolved form of this approach. Notably, two
+improvements include
+* Hide the implementation details of the data structure holding the data (currently,
+  a KV-Tree) from the clients. This allows to change the implementation details of
+  reading / writing checkpoints without touching client code.
+* Offer a unified way to read and write to data, allowing clients write one
+  (templated) function to read to and write from checkpoint. This allows to
+   eliminate code duplication and the danger of having read and write functions
+   getting out of sync.
+
+The modular simulator checkpointing does not currently change the way that the
+legacy simulator is checkpointing. Some data structures involved in the legacy
+checkpoint did, however, get an implementation of the new approach. This is
+needed for ModularSimulator checkpointing, but also gives a glimpse of how
+implementing this for legacy data structures would look like.
+
+The most important design part is the `CheckpointData` class. It exposes methods
+to read and write scalar values, ArrayRefs, and tensors. It also allows to create
+a "sub-object" of the same type `CheckpointData` which allows to have more complex
+members implement their own checkpointing routines (without having to be aware that
+they are a member). All methods are templated on the chosen operation,
+`CheckpointDataOperation::Read` or `CheckpointDataOperation::Write`, allowing clients
+to use the same code to read and write to checkpoint. Type traits and constness are
+used to catch as many errors as possible at compile time. `CheckpointData` uses a
+KV-tree to store the data internally. This is however never exposed to the client.
+Having this abstraction layer gives freedom to change the internal implementation
+in the future.
+
+All `CheckpointData` objects are owned by a `ReadCheckpointDataHolder` or
+`WriteCheckpointDataHolder`. These holder classes own the internal KV-tree, and offer
+`deserialize(ISerializer*)` and `serialize(ISerializer*)` functions, respectively,
+which allow to read from / write to file. This separation clearly defines ownership
+and separates the interface aimed at file IO from the interface aimed at objects
+reading / writing checkpoints.
+
+Checkpointing for modular simulator is tied in the general checkpoint facility by
+passing a `ReadCheckpointDataHolder` or `WriteCheckpointDataHolder` object to the
+legacy checkpoint read and write operations.
+
+##### Notes about the modular simulator checkpointing design
+
+**Distinction of data between clients:** The design requires that separate
+clients have independent sub-`CheckpointData` objects identified by a unique key.
+This key is the only thing that needs to be unique between clients, i.e. clients are
+free to use any key _within_ their sub-`CheckpointData` without danger to overwrite
+data used by other clients.
+
+**Versioning:** The design relies on clients keeping their own versioning system
+within their sub-`CheckpointData` object. As the data stored by clients is opaque
+to the top level checkpointing facility, it has no way to know when the internals
+change. Only fundamental changes to the checkpointing architecture can still be
+tracked by a top-level checkpoint version.
+
+**Key existence:** The currently uploaded design does not allow to check whether
+a key is present in `CheckpointData`. This could be introduced if needed - however,
+if clients write self-consistent read and write code, this should never be needed.
+Checking for key existence seems rather to be a lazy way to circumvent versioning,
+and is therefore discouraged.
+
+**Callback method:** The modular simulator and MdModules don't use the exact same
+way of communicating with clients. The two methods could be unified if needed.
+The only _fundamental_ difference is that modular simulator clients need to identify
+with a unique key to receive their dedicated sub-data, while MdModules all read from
+and write to the same KV-tree. MdModules could be adapted to that by either requiring
+a unique key from the modules, or by using the same `CheckpointData` for all modules
+and using a single unique key (something like "MdModules") to register that object
+with the global checkpoint.
+
+**Performance:** One of the major differences between the new approach and the legacy
+checkpointing is that data gets _copied_ into `CheckpointData`, while the legacy
+approach only took a pointer to the data and serialized it. This slightly reduces
+performance. Some thoughts on that:
+* By default, checkpointing happens at the start of the simulation (only if reading
+from checkpoint), every 15 minutes during simulation runs, and at the end of the
+simulation run. This makes it a low priority target for optimization. Consequently,
+not much thoughts have been put in the optimization, but there's certainly some way
+to improve things here and there if we consider it necessary.
+* The copying will only have measurable effect when large data gets checkpointed -
+likely only for saving the positions / velocities of the entire state, so that
+should be the first target for optimization if needed.
+* Copying data could have advantages moving forward - we could continue the
+simulation as soon as the data is written to the `CheckpointData` object, and don't
+necessarily need to wait for writing to the physical medium to happen. It also
+simplifies moving the point at which checkpointing is performed within the
+integrator. One could envision clients storing their data any time during the
+integration step, and serializing the resulting `CheckpointData` after the step.
+This avoids the need to find a single point within the loop at which all clients
+need to be in a state suitable for checkpointing.
+* If, however, we wanted to use the same approach for other, more frequent
+(and hence more perfomance critical) operations such as saving/restoring states
+for MC type algorithms or swapping of states between running simulations in
+multi-sim type settings, performance would become more of an issue.
+
+**ISerializer vs KV-tree:** The new approach uses a KV tree internally. The
+KV tree is well suited to represent the design philosophy of the approach:
+Checkpointing offers a functionality which allows clients to write/read any data
+they want. This data remains opaque to the checkpointing element. Clients can
+read or write in any order, and in the future, maybe even simultaneously. Data
+written by any element should be protected from access from other elements to
+avoid bugs. The downside of the KV tree is that all data gets copied before
+getting written to file (see above).
+
+Replacing a KV tree by a single ISerializer object which gets passed to clients
+would require elements to read and write sequentially in a prescribed order. With
+the help of InMemorySerializer, a KV-Tree could likely be emulated (with sub-objects
+that serialize to memory, and then a parent object that serializes this memory to
+file), but that doesn't present a clear advantage anymore.

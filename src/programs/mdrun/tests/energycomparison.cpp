@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -64,14 +64,17 @@ namespace gmx
 namespace test
 {
 
-const EnergyTermsToCompare EnergyComparison::s_defaultEnergyTermsToCompare = {
-    { interaction_function[F_EPOT].longname, relativeToleranceAsUlp(10.0, 50) },
-    { interaction_function[F_EKIN].longname, relativeToleranceAsUlp(10.0, 50) },
-    // The pressure is very strongly affected by summation errors,
-    // so we need a large tolerance.
-    // The value of 15000 is calibrated for running a small water box for 16 steps.
-    // For a single frame for a water box a value of 150 could work.
-    { interaction_function[F_PRES].longname, relativeToleranceAsUlp(10.0, 15000) },
+EnergyTermsToCompare EnergyComparison::defaultEnergyTermsToCompare()
+{
+    return {
+        { interaction_function[F_EPOT].longname, relativeToleranceAsUlp(10.0, 50) },
+        { interaction_function[F_EKIN].longname, relativeToleranceAsUlp(10.0, 50) },
+        // The pressure is very strongly affected by summation errors,
+        // so we need a large tolerance.
+        // The value of 15000 is calibrated for running a small water box for 16 steps.
+        // For a single frame for a water box a value of 150 could work.
+        { interaction_function[F_PRES].longname, relativeToleranceAsUlp(10.0, 15000) },
+    };
 };
 
 EnergyComparison::EnergyComparison(const EnergyTermsToCompare& energyTermsToCompare) :
@@ -144,12 +147,13 @@ void checkEnergiesAgainstReferenceData(const std::string&          energyFilenam
             const EnergyFrame& frame     = energyReader->frame();
             const std::string  frameName = frame.frameName() + " in frame " + toString(frameNumber);
 
+            SCOPED_TRACE("Comparing frame " + frameName);
             for (const auto& energyTermToCompare : energyTermsToCompare)
             {
                 const std::string& energyName  = energyTermToCompare.first;
                 const real         energyValue = frame.at(energyName);
 
-                SCOPED_TRACE("Comparing " + energyName + " in " + frameName);
+                SCOPED_TRACE("Comparing energy " + energyName);
                 checkers[energyName].checkReal(energyValue, frameName.c_str());
             }
             ++frameNumber;

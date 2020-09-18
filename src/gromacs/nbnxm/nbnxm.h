@@ -266,7 +266,9 @@ public:
                            t_nrnb*                      nrnb);
 
     //! Updates all the atom properties in Nbnxm
-    void setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo);
+    void setAtomProperties(gmx::ArrayRef<const int>  atomTypes,
+                           gmx::ArrayRef<const real> atomCharges,
+                           gmx::ArrayRef<const int>  atomInfo);
 
     /*!\brief Convert the coordinates to NBNXM format for the given locality.
      *
@@ -329,7 +331,7 @@ public:
                                   gmx::ForceWithShiftForces* forceWithShiftForces,
                                   const t_mdatoms&           mdatoms,
                                   t_lambda*                  fepvals,
-                                  real*                      lambda,
+                                  gmx::ArrayRef<const real>  lambda,
                                   gmx_enerdata_t*            enerd,
                                   const gmx::StepWorkload&   stepWork,
                                   t_nrnb*                    nrnb);
