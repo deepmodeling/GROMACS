@@ -191,7 +191,7 @@ std::unique_ptr<MDAtoms> makeMDAtoms(FILE* fp, const gmx_mtop_t& mtop, const t_i
     md->havePartiallyFrozenAtoms = FALSE;
     for (int g = 0; g < ir.opts.ngfrz; g++)
     {
-        for (int d = YY; d < DIM; d++)
+        for (int d = YY; d < c_dim; d++)
         {
             if (ir.opts.nFreeze[g][d] != ir.opts.nFreeze[g][XX])
             {
@@ -421,7 +421,7 @@ void atoms2md(const gmx_mtop_t*  mtop,
                      */
                     md->invmass[i] = 1.0 / mA;
                 }
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     md->invMassPerDim[i][d] = (opts->nFreeze[g][d] ? 0 : 1.0 / mA);
                 }
@@ -429,7 +429,7 @@ void atoms2md(const gmx_mtop_t*  mtop,
             else
             {
                 md->invmass[i] = 1.0 / mA;
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     md->invMassPerDim[i][d] = 1.0 / mA;
                 }
@@ -541,7 +541,7 @@ void update_mdatoms(t_mdatoms* md, real lambda)
                 if (md->invmass[i] > 1.1 * ALMOST_ZERO)
                 {
                     md->invmass[i] = 1.0 / md->massT[i];
-                    for (int d = 0; d < DIM; d++)
+                    for (int d = 0; d < gmx::c_dim; d++)
                     {
                         if (md->invMassPerDim[i][d] > 1.1 * ALMOST_ZERO)
                         {

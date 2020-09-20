@@ -84,7 +84,7 @@ static real calc_gyro(rvec     x[],
         {
             return Itot;
         }
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             d[m] = std::sqrt(d[m] / tm);
         }
@@ -102,7 +102,7 @@ static real calc_gyro(rvec     x[],
         {
             m0 = atom[ii].m;
         }
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             dx2 = x[ii][m] * x[ii][m];
             comp[m] += dx2 * m0;
@@ -110,7 +110,7 @@ static real calc_gyro(rvec     x[],
     }
     gyro = comp[XX] + comp[YY] + comp[ZZ];
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         gvec[m] = std::sqrt((gyro - comp[m]) / tm);
     }
@@ -271,7 +271,7 @@ int gmx_gyrate(int argc, char* argv[])
     if (bRot)
     {
         printf("Will rotate system along principal axes\n");
-        snew(moi_trans, DIM);
+        snew(moi_trans, gmx::c_dim);
     }
     if (bMOI)
     {
@@ -371,14 +371,14 @@ int gmx_gyrate(int argc, char* argv[])
                 if (j >= max_moi)
                 {
                     max_moi += delta_moi;
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
-                        srenew(moi_trans[m], max_moi * DIM);
+                        srenew(moi_trans[m], max_moi * gmx::c_dim);
                     }
                 }
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
-                    copy_rvec(trans[m], moi_trans[m] + DIM * j);
+                    copy_rvec(trans[m], moi_trans[m] + gmx::c_dim * j);
                 }
                 fprintf(out, "%10g  %10g  %10g  %10g  %10g\n", t, gyro, d[XX], d[YY], d[ZZ]);
             }

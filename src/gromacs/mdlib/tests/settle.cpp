@@ -235,9 +235,9 @@ public:
                                      const FloatingPointTolerance tolerance,
                                      const SettleTestData&        testData)
     {
-        for (int d = 0; d < DIM; ++d)
+        for (int d = 0; d < c_dim; ++d)
         {
-            for (int dd = 0; dd < DIM; ++dd)
+            for (int dd = 0; dd < c_dim; ++dd)
             {
 
                 EXPECT_TRUE(calcVirial == (0. != testData.virial_[d][dd]))

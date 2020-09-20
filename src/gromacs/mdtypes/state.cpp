@@ -201,25 +201,25 @@ void comp_state(const t_state* st1, const t_state* st2, gmx_bool bRMSD, real fto
     fprintf(stdout, "comparing flags\n");
     cmp_int(stdout, "flags", -1, st1->flags, st2->flags);
     fprintf(stdout, "comparing box\n");
-    cmp_rvecs(stdout, "box", DIM, st1->box, st2->box, FALSE, ftol, abstol);
+    cmp_rvecs(stdout, "box", gmx::c_dim, st1->box, st2->box, FALSE, ftol, abstol);
     fprintf(stdout, "comparing box_rel\n");
-    cmp_rvecs(stdout, "box_rel", DIM, st1->box_rel, st2->box_rel, FALSE, ftol, abstol);
+    cmp_rvecs(stdout, "box_rel", gmx::c_dim, st1->box_rel, st2->box_rel, FALSE, ftol, abstol);
     fprintf(stdout, "comparing boxv\n");
-    cmp_rvecs(stdout, "boxv", DIM, st1->boxv, st2->boxv, FALSE, ftol, abstol);
+    cmp_rvecs(stdout, "boxv", gmx::c_dim, st1->boxv, st2->boxv, FALSE, ftol, abstol);
     if (st1->flags & (1 << estSVIR_PREV))
     {
         fprintf(stdout, "comparing shake vir_prev\n");
-        cmp_rvecs(stdout, "svir_prev", DIM, st1->svir_prev, st2->svir_prev, FALSE, ftol, abstol);
+        cmp_rvecs(stdout, "svir_prev", gmx::c_dim, st1->svir_prev, st2->svir_prev, FALSE, ftol, abstol);
     }
     if (st1->flags & (1 << estFVIR_PREV))
     {
         fprintf(stdout, "comparing force vir_prev\n");
-        cmp_rvecs(stdout, "fvir_prev", DIM, st1->fvir_prev, st2->fvir_prev, FALSE, ftol, abstol);
+        cmp_rvecs(stdout, "fvir_prev", gmx::c_dim, st1->fvir_prev, st2->fvir_prev, FALSE, ftol, abstol);
     }
     if (st1->flags & (1 << estPRES_PREV))
     {
         fprintf(stdout, "comparing prev_pres\n");
-        cmp_rvecs(stdout, "pres_prev", DIM, st1->pres_prev, st2->pres_prev, FALSE, ftol, abstol);
+        cmp_rvecs(stdout, "pres_prev", gmx::c_dim, st1->pres_prev, st2->pres_prev, FALSE, ftol, abstol);
     }
     cmp_int(stdout, "ngtc", -1, st1->ngtc, st2->ngtc);
     cmp_int(stdout, "nhchainlength", -1, st1->nhchainlength, st2->nhchainlength);

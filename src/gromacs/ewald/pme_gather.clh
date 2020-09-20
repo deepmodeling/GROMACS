@@ -108,13 +108,13 @@ inline void reduce_atom_forces(__local float* __restrict__ sm_forces,
     // All those guys are defines and not consts, because they go into the local memory array size.
 #    define blockSize (atomsPerBlock * atomDataSize)
 #    define smemPerDim warp_size
-#    define smemReserved (DIM * smemPerDim)
+#    define smemReserved (gmx::c_dim * smemPerDim)
 
     const int numWarps  = blockSize / smemPerDim;
     const int minStride = max(1, atomDataSize / numWarps);
 
-#    pragma unroll DIM
-    for (int dimIndex = 0; dimIndex < DIM; dimIndex++)
+#    pragma unroll gmx::c_dim
+    for (int dimIndex = 0; dimIndex < gmx::c_dim; dimIndex++)
     {
         int elementIndex = smemReserved + lineIndex;
         // Store input force contributions
@@ -156,13 +156,13 @@ inline void reduce_atom_forces(__local float* __restrict__ sm_forces,
     barrier(CLK_LOCAL_MEM_FENCE);
 #    endif
 
-    assert((blockSize / warp_size) >= DIM);
+    assert((blockSize / warp_size) >= gmx::c_dim);
 
     const int warpIndex = lineIndex / warp_size;
     const int dimIndex  = warpIndex;
 
     // First 3 warps can now process 1 dimension each
-    if (dimIndex < DIM)
+    if (dimIndex < gmx::c_dim)
     {
         const int sourceIndex = lineIndex % warp_size;
 #    pragma unroll
@@ -178,7 +178,7 @@ inline void reduce_atom_forces(__local float* __restrict__ sm_forces,
         const int   atomIndex = sourceIndex / minStride;
         if (sourceIndex == minStride * atomIndex)
         {
-            sm_forces[atomIndex * DIM + dimIndex] =
+            sm_forces[atomIndex * gmx::c_dim + dimIndex] =
                     (sm_forceTemp[dimIndex][sourceIndex] + sm_forceTemp[dimIndex][sourceIndex + 1]) * n;
         }
     }
@@ -249,7 +249,7 @@ inline void sumForceComponents(float*        fx,
 inline void calculateAndStoreGridForces(__local float* __restrict__ sm_forces,
                                         const int   forceIndexLocal,
                                         const int   forceIndexGlobal,
-                                        const float recipBox[DIM][DIM],
+                                        const float recipBox[gmx::c_dim][gmx::c_dim],
                                         const float scale,
                                         __global const float* __restrict__ gm_coefficients)
 {
@@ -308,10 +308,10 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
 #define blockSize (atomsPerBlock * atomDataSize)
     assert(blockSize == (get_local_size(0) * get_local_size(1) * get_local_size(2)));
 #define smemPerDim warp_size
-#define smemReserved (DIM * smemPerDim)
+#define smemReserved (gmx::c_dim * smemPerDim)
 #define totalSharedMemory (smemReserved + blockSize)
-#define gridlineIndicesSize (atomsPerBlock * DIM)
-#define splineParamsSize (atomsPerBlock * DIM * order)
+#define gridlineIndicesSize (atomsPerBlock * gmx::c_dim)
+#define splineParamsSize (atomsPerBlock * gmx::c_dim * order)
 
     __local int sm_gridlineIndices[gridlineIndicesSize];
     __local float2 sm_splineParams[splineParamsSize]; /* Theta/dtheta pairs  as .x/.y */
@@ -333,7 +333,7 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
                   + get_local_id(0));    /* Relative to the current particle , 0..15 for order 4 */
     const int lineIndex = threadLocalId; /* And to all the block's particles */
 
-    /* Staging the atom gridline indices, DIM * atomsPerBlock threads */
+    /* Staging the atom gridline indices, gmx::c_dim * atomsPerBlock threads */
     const int localGridlineIndicesIndex = threadLocalId;
     const int globalGridlineIndicesIndex =
             (int)get_group_id(XX) * gridlineIndicesSize + localGridlineIndicesIndex;
@@ -342,7 +342,7 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
         sm_gridlineIndices[localGridlineIndicesIndex] = gm_gridlineIndices[globalGridlineIndicesIndex];
         assert(sm_gridlineIndices[localGridlineIndicesIndex] >= 0);
     }
-    /* Staging the spline parameters, DIM * order * atomsPerBlock threads */
+    /* Staging the spline parameters, gmx::c_dim * order * atomsPerBlock threads */
     const int localSplineParamsIndex = threadLocalId;
     const int globalSplineParamsIndex = (int)get_group_id(XX) * splineParamsSize + localSplineParamsIndex;
     if (localSplineParamsIndex < splineParamsSize)
@@ -375,13 +375,13 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
     const int    splineIndexZ    = getSplineParamIndex(splineIndexBase, ZZ, ithz);
     const float2 tdz             = sm_splineParams[splineIndexZ];
 
-    const int ixBase = sm_gridlineIndices[atomIndexLocal * DIM + XX];
-    int       iy     = sm_gridlineIndices[atomIndexLocal * DIM + YY] + ithy;
+    const int ixBase = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + XX];
+    int       iy     = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + YY] + ithy;
     if (wrapY & (iy >= ny))
     {
         iy -= ny;
     }
-    int iz = sm_gridlineIndices[atomIndexLocal * DIM + ZZ] + ithz;
+    int iz = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + ZZ] + ithz;
     if (iz >= nz)
     {
         iz -= nz;
@@ -395,10 +395,10 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
     }
 
     // Reduction of partial force contributions
-    __local float sm_forces[atomsPerBlock * DIM];
+    __local float sm_forces[atomsPerBlock * gmx::c_dim];
 
     __local float  sm_forceReduction[totalSharedMemory];
-    __local float* sm_forceTemp[DIM];
+    __local float* sm_forceTemp[gmx::c_dim];
 
     reduce_atom_forces(sm_forces, atomIndexLocal, splineIndex, lineIndex,
                        kernelParams.grid.realGridSizeFP, fx, fy, fz, sm_forceReduction, sm_forceTemp);
@@ -424,7 +424,7 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
     assert(atomsPerBlock <= warp_size);
 
     /* Writing or adding the final forces component-wise, single warp */
-    const int blockForcesSize = atomsPerBlock * DIM;
+    const int blockForcesSize = atomsPerBlock * gmx::c_dim;
     const int numIter         = (blockForcesSize + warp_size - 1) / warp_size;
     const int iterThreads     = blockForcesSize / numIter;
     if (threadLocalId < iterThreads)

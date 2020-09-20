@@ -172,7 +172,7 @@ public:
                         gridValuesMagnitude = std::max(std::fabs(point.second.im), gridValuesMagnitude);
                     }
                     // Spline moduli participate 3 times in the computation; 2 is an additional factor for SIMD exp() precision
-                    uint64_t gridUlpToleranceFactor = DIM * 2;
+                    uint64_t gridUlpToleranceFactor = c_dim * 2;
                     if (method == PmeSolveAlgorithm::LennardJones)
                     {
                         // Lennard Jones is more complex and also uses erfc(), relax more
@@ -236,7 +236,7 @@ public:
                         TestReferenceChecker virialChecker(
                                 checker.checkCompound("Matrix", "Virial"));
                         virialChecker.setDefaultTolerance(virialTolerance);
-                        for (int i = 0; i < DIM; i++)
+                        for (int i = 0; i < c_dim; i++)
                         {
                             for (int j = 0; j <= i; j++)
                             {

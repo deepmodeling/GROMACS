@@ -279,7 +279,7 @@ void settle_proj(const SettleData&    settled,
     int                     i, m, m2, ow1, hw2, hw3;
     rvec                    roh2, roh3, rhh, dc, fc;
 
-    calcvir_atom_end *= DIM;
+    calcvir_atom_end *= c_dim;
 
     if (econq == ConstraintVariable::Force)
     {
@@ -324,7 +324,7 @@ void settle_proj(const SettleData&    settled,
 
         /* Determine the projections of der on the bonds */
         clear_rvec(dc);
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < c_dim; m++)
         {
             dc[0] += (der[ow1][m] - der[hw2][m]) * roh2[m];
             dc[1] += (der[ow1][m] - der[hw3][m]) * roh3[m];
@@ -337,7 +337,7 @@ void settle_proj(const SettleData&    settled,
         /* 15 flops */
 
         /* Subtract the corrections from derp */
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < c_dim; m++)
         {
             derp[ow1][m] -= imO * (fc[0] * roh2[m] + fc[1] * roh3[m]);
             derp[hw2][m] -= imH * (-fc[0] * roh2[m] + fc[2] * rhh[m]);
@@ -352,9 +352,9 @@ void settle_proj(const SettleData&    settled,
              * since fc contains the mass weighted corrections for der.
              */
 
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < c_dim; m++)
             {
-                for (m2 = 0; m2 < DIM; m2++)
+                for (m2 = 0; m2 < c_dim; m2++)
                 {
                     vir_r_m_dder[m][m2] += dOH * roh2[m] * roh2[m2] * fc[0]
                                            + dOH * roh3[m] * roh3[m2] * fc[1]
@@ -411,13 +411,13 @@ static void settleTemplate(const SettleData& settled,
 
     T almost_zero = T(1e-12);
 
-    T sum_r_m_dr[DIM][DIM];
+    T sum_r_m_dr[c_dim][c_dim];
 
     if (bCalcVirial)
     {
-        for (int d2 = 0; d2 < DIM; d2++)
+        for (int d2 = 0; d2 < c_dim; d2++)
         {
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 sum_r_m_dr[d2][d] = T(0);
             }
@@ -434,20 +434,20 @@ static void settleTemplate(const SettleData& settled,
         const int* hw2 = settled.hw2() + i;
         const int* hw3 = settled.hw3() + i;
 
-        T x_ow1[DIM], x_hw2[DIM], x_hw3[DIM];
+        T x_ow1[c_dim], x_hw2[c_dim], x_hw3[c_dim];
 
         gatherLoadUTranspose<3>(x, ow1, &x_ow1[XX], &x_ow1[YY], &x_ow1[ZZ]);
         gatherLoadUTranspose<3>(x, hw2, &x_hw2[XX], &x_hw2[YY], &x_hw2[ZZ]);
         gatherLoadUTranspose<3>(x, hw3, &x_hw3[XX], &x_hw3[YY], &x_hw3[ZZ]);
 
-        T xprime_ow1[DIM], xprime_hw2[DIM], xprime_hw3[DIM];
+        T xprime_ow1[c_dim], xprime_hw2[c_dim], xprime_hw3[c_dim];
 
         gatherLoadUTranspose<3>(xprime, ow1, &xprime_ow1[XX], &xprime_ow1[YY], &xprime_ow1[ZZ]);
         gatherLoadUTranspose<3>(xprime, hw2, &xprime_hw2[XX], &xprime_hw2[YY], &xprime_hw2[ZZ]);
         gatherLoadUTranspose<3>(xprime, hw3, &xprime_hw3[XX], &xprime_hw3[YY], &xprime_hw3[ZZ]);
 
-        T dist21[DIM], dist31[DIM];
-        T doh2[DIM], doh3[DIM];
+        T dist21[c_dim], dist31[c_dim];
+        T doh2[c_dim], doh3[c_dim];
 
         pbc_dx_aiuc(pbc, x_hw2, x_ow1, dist21);
 
@@ -469,18 +469,18 @@ static void settleTemplate(const SettleData& settled,
          * significantly reduces the energy drift, but not using the COM at all,
          * as we do now, is optimal.
          */
-        T a1[DIM];
-        for (int d = 0; d < DIM; d++)
+        T a1[c_dim];
+        for (int d = 0; d < c_dim; d++)
         {
             a1[d] = -(doh2[d] + doh3[d]) * wh;
         }
-        T b1[DIM];
-        for (int d = 0; d < DIM; d++)
+        T b1[c_dim];
+        for (int d = 0; d < c_dim; d++)
         {
             b1[d] = doh2[d] + a1[d];
         }
-        T c1[DIM];
-        for (int d = 0; d < DIM; d++)
+        T c1[c_dim];
+        for (int d = 0; d < c_dim; d++)
         {
             c1[d] = doh3[d] + a1[d];
         }
@@ -501,7 +501,7 @@ static void settleTemplate(const SettleData& settled,
         T aylng = gmx::invsqrt(xaksyd * xaksyd + yaksyd * yaksyd + zaksyd * zaksyd);
         T azlng = gmx::invsqrt(xakszd * xakszd + yakszd * yakszd + zakszd * zakszd);
 
-        T trns1[DIM], trns2[DIM], trns3[DIM];
+        T trns1[c_dim], trns2[c_dim], trns3[c_dim];
 
         trns1[XX] = xaksxd * axlng;
         trns2[XX] = yaksxd * axlng;
@@ -522,10 +522,10 @@ static void settleTemplate(const SettleData& settled,
             c0d[d] = trns1[d] * dist31[XX] + trns2[d] * dist31[YY] + trns3[d] * dist31[ZZ];
         }
 
-        T a1d_z, b1d[DIM], c1d[DIM];
+        T a1d_z, b1d[c_dim], c1d[c_dim];
 
         a1d_z = trns1[ZZ] * a1[XX] + trns2[ZZ] * a1[YY] + trns3[ZZ] * a1[ZZ];
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             b1d[d] = trns1[d] * b1[XX] + trns2[d] * b1[YY] + trns3[d] * b1[ZZ];
             c1d[d] = trns1[d] * c1[XX] + trns2[d] * c1[YY] + trns3[d] * c1[ZZ];
@@ -573,7 +573,7 @@ static void settleTemplate(const SettleData& settled,
         tmp2     = 1.0 - sinthe * sinthe;
         T costhe = tmp2 * gmx::invsqrt(tmp2);
 
-        T a3d[DIM], b3d[DIM], c3d[DIM];
+        T a3d[c_dim], b3d[c_dim], c3d[c_dim];
 
         a3d[XX] = -a2d_y * sinthe;
         a3d[YY] = a2d_y * costhe;
@@ -587,7 +587,7 @@ static void settleTemplate(const SettleData& settled,
         /* 26 flops */
 
         /*    --- Step5  A3 --- */
-        T a3[DIM], b3[DIM], c3[DIM];
+        T a3[c_dim], b3[c_dim], c3[c_dim];
 
         a3[XX] = trns1[XX] * a3d[XX] + trns1[YY] * a3d[YY] + trns1[ZZ] * a3d[ZZ];
         a3[YY] = trns2[XX] * a3d[XX] + trns2[YY] * a3d[YY] + trns2[ZZ] * a3d[ZZ];
@@ -601,20 +601,20 @@ static void settleTemplate(const SettleData& settled,
         /* 45 flops */
 
         /* Compute and store the corrected new coordinate */
-        T dxOw1[DIM];
-        for (int d = 0; d < DIM; d++)
+        T dxOw1[c_dim];
+        for (int d = 0; d < c_dim; d++)
         {
             dxOw1[d]      = a3[d] - a1[d];
             xprime_ow1[d] = xprime_ow1[d] + dxOw1[d];
         }
-        T dxHw2[DIM];
-        for (int d = 0; d < DIM; d++)
+        T dxHw2[c_dim];
+        for (int d = 0; d < c_dim; d++)
         {
             dxHw2[d]      = b3[d] - b1[d];
             xprime_hw2[d] = xprime_hw2[d] + dxHw2[d];
         }
-        T dxHw3[DIM];
-        for (int d = 0; d < DIM; d++)
+        T dxHw3[c_dim];
+        for (int d = 0; d < c_dim; d++)
         {
             dxHw3[d]      = c3[d] - c1[d];
             xprime_hw3[d] = xprime_hw3[d] + dxHw3[d];
@@ -627,22 +627,22 @@ static void settleTemplate(const SettleData& settled,
 
         if (bCorrectVelocity)
         {
-            T v_ow1[DIM], v_hw2[DIM], v_hw3[DIM];
+            T v_ow1[c_dim], v_hw2[c_dim], v_hw3[c_dim];
 
             gatherLoadUTranspose<3>(v, ow1, &v_ow1[XX], &v_ow1[YY], &v_ow1[ZZ]);
             gatherLoadUTranspose<3>(v, hw2, &v_hw2[XX], &v_hw2[YY], &v_hw2[ZZ]);
             gatherLoadUTranspose<3>(v, hw3, &v_hw3[XX], &v_hw3[YY], &v_hw3[ZZ]);
 
             /* Add the position correction divided by dt to the velocity */
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 v_ow1[d] = gmx::fma(dxOw1[d], invdt, v_ow1[d]);
             }
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 v_hw2[d] = gmx::fma(dxHw2[d], invdt, v_hw2[d]);
             }
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 v_hw3[d] = gmx::fma(dxHw3[d], invdt, v_hw3[d]);
             }
@@ -660,18 +660,18 @@ static void settleTemplate(const SettleData& settled,
             T mOf    = filter * mO;
             T mHf    = filter * mH;
 
-            T mdo[DIM], mdb[DIM], mdc[DIM];
+            T mdo[c_dim], mdb[c_dim], mdc[c_dim];
 
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 mdb[d] = mHf * dxHw2[d];
                 mdc[d] = mHf * dxHw3[d];
                 mdo[d] = mOf * dxOw1[d] + mdb[d] + mdc[d];
             }
 
-            for (int d2 = 0; d2 < DIM; d2++)
+            for (int d2 = 0; d2 < c_dim; d2++)
             {
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < c_dim; d++)
                 {
                     sum_r_m_dr[d2][d] =
                             sum_r_m_dr[d2][d]
@@ -684,9 +684,9 @@ static void settleTemplate(const SettleData& settled,
 
     if (bCalcVirial)
     {
-        for (int d2 = 0; d2 < DIM; d2++)
+        for (int d2 = 0; d2 < c_dim; d2++)
         {
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 vir_r_m_dr[d2][d] += reduce(sum_r_m_dr[d2][d]);
             }

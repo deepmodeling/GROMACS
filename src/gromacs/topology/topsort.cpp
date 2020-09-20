@@ -102,7 +102,7 @@ static gmx_bool ip_pert(int ftype, const t_iparams* ip)
         case F_TABDIHS: bPert = (ip->tab.kA != ip->tab.kB); break;
         case F_POSRES:
             bPert = FALSE;
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (ip->posres.pos0A[i] != ip->posres.pos0B[i] || ip->posres.fcA[i] != ip->posres.fcB[i])
                 {

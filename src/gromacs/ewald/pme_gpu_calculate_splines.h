@@ -73,13 +73,13 @@ int inline getSplineParamIndexBase(int warpIndex, int atomWarpIndex)
     const int dimIndex    = 0;
     const int splineIndex = 0;
     // The zeroes are here to preserve the full index formula for reference
-    return (((splineIndex + order * warpIndex) * DIM + dimIndex) * atomsPerWarp + atomWarpIndex);
+    return (((splineIndex + order * warpIndex) * gmx::c_dim + dimIndex) * atomsPerWarp + atomWarpIndex);
 }
 
 /*! \internal \brief
  * Gets a unique index to an element in a spline parameter buffer (theta/dtheta),
  * which is laid out for GPU spread/gather kernels. The index is wrt to the execution block,
- * in range(0, atomsPerBlock * order * DIM).
+ * in range(0, atomsPerBlock * order * c_dim).
  * This function consumes result of getSplineParamIndexBase() and adjusts it for \p dimIndex and \p splineIndex.
  *
  * \tparam order               PME order
@@ -93,9 +93,9 @@ int inline getSplineParamIndexBase(int warpIndex, int atomWarpIndex)
 template<int order, int atomsPerWarp>
 int inline getSplineParamIndex(int paramIndexBase, int dimIndex, int splineIndex)
 {
-    assert((dimIndex >= XX) && (dimIndex < DIM));
+    assert((dimIndex >= XX) && (dimIndex < gmx::c_dim));
     assert((splineIndex >= 0) && (splineIndex < order));
-    return (paramIndexBase + (splineIndex * DIM + dimIndex) * atomsPerWarp);
+    return (paramIndexBase + (splineIndex * gmx::c_dim + dimIndex) * atomsPerWarp);
 }
 
 #endif

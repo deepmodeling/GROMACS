@@ -86,9 +86,9 @@ void clearForceBuffer(nbnxn_atomdata_t* nbat, int outputIndex)
 {
     if (nbat->bUseBufferFlags)
     {
-        GMX_ASSERT(nbat->fstride == DIM, "Only fstride=3 is currently handled here");
+        GMX_ASSERT(nbat->fstride == gmx::c_dim, "Only fstride=3 is currently handled here");
 
-        clearBufferFlagged<DIM>(*nbat, outputIndex, nbat->out[outputIndex].f);
+        clearBufferFlagged<gmx::c_dim>(*nbat, outputIndex, nbat->out[outputIndex].f);
     }
     else
     {
@@ -100,7 +100,7 @@ void clear_fshift(real* fshift)
 {
     int i;
 
-    for (i = 0; i < SHIFTS * DIM; i++)
+    for (i = 0; i < SHIFTS * gmx::c_dim; i++)
     {
         fshift[i] = 0;
     }

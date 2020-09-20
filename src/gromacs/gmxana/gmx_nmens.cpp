@@ -152,7 +152,7 @@ int gmx_nmens(int argc, char* argv[])
 
     if (last == -1)
     {
-        last = natoms * DIM;
+        last = natoms * gmx::c_dim;
     }
     if (first > -1)
     {
@@ -248,7 +248,7 @@ int gmx_nmens(int argc, char* argv[])
 
             for (i = 0; i < natoms; i++)
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     xout1[i][d] += disp * eigvec[v][i][d] * invsqrtm[i];
                 }

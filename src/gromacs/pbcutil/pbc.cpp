@@ -110,7 +110,7 @@ void dump_pbc(FILE* fp, t_pbc* pbc)
     rvec sum_box;
 
     fprintf(fp, "pbcTypeDX = %d\n", pbc->pbcTypeDX);
-    pr_rvecs(fp, 0, "box", pbc->box, DIM);
+    pr_rvecs(fp, 0, "box", pbc->box, gmx::c_dim);
     pr_rvecs(fp, 0, "fbox_diag", &pbc->fbox_diag, 1);
     pr_rvecs(fp, 0, "hbox_diag", &pbc->hbox_diag, 1);
     pr_rvecs(fp, 0, "mhbox_diag", &pbc->mhbox_diag, 1);
@@ -260,13 +260,13 @@ static int correct_box_elem(FILE* fplog, int step, tensor box, int v, int d)
         if (fplog)
         {
             fprintf(fplog, "Step %d: correcting invalid box:\n", step);
-            pr_rvecs(fplog, 0, "old box", box, DIM);
+            pr_rvecs(fplog, 0, "old box", box, gmx::c_dim);
         }
         rvec_dec(box[v], box[d]);
         shift--;
         if (fplog)
         {
-            pr_rvecs(fplog, 0, "new box", box, DIM);
+            pr_rvecs(fplog, 0, "new box", box, gmx::c_dim);
         }
         if (shift <= -maxshift)
         {
@@ -278,13 +278,13 @@ static int correct_box_elem(FILE* fplog, int step, tensor box, int v, int d)
         if (fplog)
         {
             fprintf(fplog, "Step %d: correcting invalid box:\n", step);
-            pr_rvecs(fplog, 0, "old box", box, DIM);
+            pr_rvecs(fplog, 0, "old box", box, gmx::c_dim);
         }
         rvec_inc(box[v], box[d]);
         shift++;
         if (fplog)
         {
-            pr_rvecs(fplog, 0, "new box", box, DIM);
+            pr_rvecs(fplog, 0, "new box", box, gmx::c_dim);
         }
         if (shift >= maxshift)
         {
@@ -331,7 +331,7 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
     pbc->dim         = -1;
     pbc->ntric_vec   = 0;
 
-    for (int i = 0; (i < DIM); i++)
+    for (int i = 0; (i < gmx::c_dim); i++)
     {
         pbc->fbox_diag[i]  = box[i][i];
         pbc->hbox_diag[i]  = pbc->fbox_diag[i] * 0.5;
@@ -342,7 +342,7 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
     if (ptr)
     {
         fprintf(stderr, "Warning: %s\n", ptr);
-        pr_rvecs(stderr, 0, "         Box", box, DIM);
+        pr_rvecs(stderr, 0, "         Box", box, gmx::c_dim);
         fprintf(stderr, "         Can not fix pbc.\n\n");
         pbc->pbcTypeDX = epbcdxUNSUPPORTED;
     }
@@ -355,7 +355,7 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
         }
 
         int npbcdim = 0;
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             if ((dd_pbc && dd_pbc[i] == 0) || (pbcType == PbcType::XY && i == ZZ))
             {
@@ -374,14 +374,14 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
                  * with single shifts.
                  */
                 pbc->pbcTypeDX = epbcdx1D_RECT;
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
                     if (bPBC[i])
                     {
                         pbc->dim = i;
                     }
                 }
-                GMX_ASSERT(pbc->dim < DIM, "Dimension for PBC incorrect");
+                GMX_ASSERT(pbc->dim < gmx::c_dim, "Dimension for PBC incorrect");
                 for (int i = 0; i < pbc->dim; i++)
                 {
                     if (pbc->box[pbc->dim][i] != 0)
@@ -392,14 +392,14 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
                 break;
             case 2:
                 pbc->pbcTypeDX = epbcdx2D_RECT;
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
                     if (!bPBC[i])
                     {
                         pbc->dim = i;
                     }
                 }
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
                     if (bPBC[i])
                     {
@@ -446,7 +446,7 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
         {
             if (debug)
             {
-                pr_rvecs(debug, 0, "Box", box, DIM);
+                pr_rvecs(debug, 0, "Box", box, gmx::c_dim);
                 fprintf(debug, "max cutoff %.3f\n", sqrt(pbc->max_cutoff2));
             }
             /* We will only need single shifts here */
@@ -479,7 +479,7 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
                             real d2old = 0;
                             real d2new = 0;
 
-                            for (int d = 0; d < DIM; d++)
+                            for (int d = 0; d < gmx::c_dim; d++)
                             {
                                 trial[d] = i * box[XX][d] + j * box[YY][d] + k * box[ZZ][d];
                                 /* Choose the vector within the brick around 0,0,0 that
@@ -508,13 +508,13 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
                             {
                                 /* Check if shifts with one box vector less do better */
                                 gmx_bool bUse = TRUE;
-                                for (int dd = 0; dd < DIM; dd++)
+                                for (int dd = 0; dd < gmx::c_dim; dd++)
                                 {
                                     int shift = (dd == 0 ? i : (dd == 1 ? j : k));
                                     if (shift)
                                     {
                                         real d2new_c = 0;
-                                        for (int d = 0; d < DIM; d++)
+                                        for (int d = 0; d < gmx::c_dim; d++)
                                         {
                                             d2new_c += gmx::square(pos[d] + trial[d] - shift * box[dd][d]);
                                         }
@@ -535,7 +535,7 @@ static void low_set_pbc(t_pbc* pbc, PbcType pbcType, const ivec dd_pbc, const ma
                                                 "  There is probably something wrong with your "
                                                 "box.\n",
                                                 MAX_NTRICVEC);
-                                        pr_rvecs(stderr, 0, "         Box", box, DIM);
+                                        pr_rvecs(stderr, 0, "         Box", box, gmx::c_dim);
                                     }
                                     else
                                     {
@@ -598,7 +598,7 @@ t_pbc* set_pbc_dd(t_pbc* pbc, PbcType pbcType, const ivec domdecCells, gmx_bool 
 
         ivec usePBC;
         int  npbcdim = 0;
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             usePBC[i] = 0;
             if (domdecCells[i] <= (bSingleDir ? 1 : 2) && !(pbcType == PbcType::XY && i == ZZ))
@@ -633,7 +633,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
     switch (pbc->pbcTypeDX)
     {
         case epbcdxRECTANGULAR:
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 while (dx[i] > pbc->hbox_diag[i])
                 {
@@ -646,7 +646,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
             }
             break;
         case epbcdxTRICLINIC:
-            for (i = DIM - 1; i >= 0; i--)
+            for (i = gmx::c_dim - 1; i >= 0; i--)
             {
                 while (dx[i] > pbc->hbox_diag[i])
                 {
@@ -687,7 +687,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
             }
             break;
         case epbcdx2D_RECT:
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (i != pbc->dim)
                 {
@@ -704,7 +704,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
             break;
         case epbcdx2D_TRIC:
             d2min = 0;
-            for (i = DIM - 1; i >= 0; i--)
+            for (i = gmx::c_dim - 1; i >= 0; i--)
             {
                 if (i != pbc->dim)
                 {
@@ -737,7 +737,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
                 {
                     rvec_add(dx_start, pbc->tric_vec[i], trial);
                     d2trial = 0;
-                    for (j = 0; j < DIM; j++)
+                    for (j = 0; j < gmx::c_dim; j++)
                     {
                         if (j != pbc->dim)
                         {
@@ -804,7 +804,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
     switch (pbc->pbcTypeDX)
     {
         case epbcdxRECTANGULAR:
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (dx[i] > pbc->hbox_diag[i])
                 {
@@ -826,7 +826,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
              * can cause unlimited displacements.
              * Also allowing multiple shifts would index fshift beyond bounds.
              */
-            for (i = DIM - 1; i >= 1; i--)
+            for (i = gmx::c_dim - 1; i >= 1; i--)
             {
                 if (dx[i] > pbc->hbox_diag[i])
                 {
@@ -892,7 +892,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
             }
             break;
         case epbcdx2D_RECT:
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (i != pbc->dim)
                 {
@@ -911,7 +911,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
             break;
         case epbcdx2D_TRIC:
             d2min = 0;
-            for (i = DIM - 1; i >= 1; i--)
+            for (i = gmx::c_dim - 1; i >= 1; i--)
             {
                 if (i != pbc->dim)
                 {
@@ -971,7 +971,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
                 {
                     rvec_add(dx_start, pbc->tric_vec[i], trial);
                     d2trial = 0;
-                    for (j = 0; j < DIM; j++)
+                    for (j = 0; j < gmx::c_dim; j++)
                     {
                         if (j != pbc->dim)
                         {
@@ -1077,7 +1077,7 @@ void pbc_dx_d(const t_pbc* pbc, const dvec x1, const dvec x2, dvec dx)
     {
         case epbcdxRECTANGULAR:
         case epbcdx2D_RECT:
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (i != pbc->dim)
                 {
@@ -1095,7 +1095,7 @@ void pbc_dx_d(const t_pbc* pbc, const dvec x1, const dvec x2, dvec dx)
         case epbcdxTRICLINIC:
         case epbcdx2D_TRIC:
             d2min = 0;
-            for (i = DIM - 1; i >= 0; i--)
+            for (i = gmx::c_dim - 1; i >= 0; i--)
             {
                 if (i != pbc->dim)
                 {
@@ -1125,12 +1125,12 @@ void pbc_dx_d(const t_pbc* pbc, const dvec x1, const dvec x2, dvec dx)
                 i = 0;
                 while ((d2min > pbc->max_cutoff2) && (i < pbc->ntric_vec))
                 {
-                    for (j = 0; j < DIM; j++)
+                    for (j = 0; j < gmx::c_dim; j++)
                     {
                         trial[j] = dx_start[j] + pbc->tric_vec[i][j];
                     }
                     d2trial = 0;
-                    for (j = 0; j < DIM; j++)
+                    for (j = 0; j < gmx::c_dim; j++)
                     {
                         if (j != pbc->dim)
                         {
@@ -1192,7 +1192,7 @@ void calc_shifts(const matrix box, rvec shift_vec[])
         {
             for (int k = -D_BOX_X; k <= D_BOX_X; k++, n++)
             {
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     shift_vec[n][d] = k * box[XX][d] + l * box[YY][d] + m * box[ZZ][d];
                 }
@@ -1209,16 +1209,16 @@ void calc_box_center(int ecenter, const matrix box, rvec box_center)
     switch (ecenter)
     {
         case ecenterTRIC:
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     box_center[d] += 0.5 * box[m][d];
                 }
             }
             break;
         case ecenterRECT:
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 box_center[d] = 0.5 * box[d][d];
             }
@@ -1289,7 +1289,7 @@ void calc_compact_unitcell_vertices(int ecenter, const matrix box, rvec vert[])
         tmp[3] = tmp[1] + 4;
         for (j = 0; j < 4; j++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 vert[n][d] = img[i][d] + img[tmp[j]][d] + img[tmp[(j + 1) % 4]][d];
             }
@@ -1311,7 +1311,7 @@ void calc_compact_unitcell_vertices(int ecenter, const matrix box, rvec vert[])
         tmp[3] = i - 1;
         for (j = 0; j < 4; j++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 vert[n][d] = img[i][d] + img[tmp[j]][d] + img[tmp[(j + 1) % 4]][d];
             }
@@ -1340,7 +1340,7 @@ void calc_compact_unitcell_vertices(int ecenter, const matrix box, rvec vert[])
         tmp[3] = i - 1;
         for (j = 0; j < 4; j++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 vert[n][d] = img[i][d] + img[tmp[j]][d] + img[tmp[(j + 1) % 4]][d];
             }
@@ -1351,7 +1351,7 @@ void calc_compact_unitcell_vertices(int ecenter, const matrix box, rvec vert[])
     calc_box_center(ecenter, box, box_center);
     for (i = 0; i < NCUCVERT; i++)
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             vert[i][d] = vert[i][d] * oneFourth + box_center[d];
         }
@@ -1477,7 +1477,7 @@ void put_atoms_in_triclinic_unitcell(int ecenter, const matrix box, gmx::ArrayRe
     shm12 = box[2][1] / box[2][2];
 
     clear_rvec(shift_center);
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         rvec_inc(shift_center, box[d]);
     }
@@ -1490,7 +1490,7 @@ void put_atoms_in_triclinic_unitcell(int ecenter, const matrix box, gmx::ArrayRe
 
     for (gmx::index i = 0; (i < x.ssize()); ++i)
     {
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             shift = shift_center[m];
             if (m == 0)

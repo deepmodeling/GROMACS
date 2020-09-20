@@ -71,9 +71,9 @@ struct gmx_specatsend_t
 struct gmx_domdec_specat_comm_t
 {
     /* The number of indices to receive during the setup */
-    int nreq[DIM][2][2] = { { { 0 } } }; /**< The nr. of atoms requested, per DIM, direction and direct/indirect */
+    int nreq[gmx::c_dim][2][2] = { { { 0 } } }; /**< The nr. of atoms requested, per c_dim, direction and direct/indirect */
     /* The atoms to send */
-    gmx_specatsend_t  spas[DIM][2]; /**< The communication setup per DIM, direction */
+    gmx_specatsend_t  spas[gmx::c_dim][2]; /**< The communication setup per c_dim, direction */
     std::vector<bool> sendAtom;     /**< Work buffer that tells if spec.atoms should be sent */
 
     /* Send buffers */

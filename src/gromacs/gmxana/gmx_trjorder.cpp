@@ -258,7 +258,7 @@ int gmx_trjorder(int argc, char* argv[])
                     sa   = ind_sol[i * na + j];
                     mass = top.atoms.atom[sa].m;
                     totmass += mass;
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         xsol[i][d] += mass * x[sa][d];
                     }
@@ -292,7 +292,7 @@ int gmx_trjorder(int argc, char* argv[])
             {
                 mass = top.atoms.atom[ind_ref[i]].m;
                 totmass += mass;
-                for (j = 0; j < DIM; j++)
+                for (j = 0; j < gmx::c_dim; j++)
                 {
                     xcom[j] += mass * x[ind_ref[i]][j];
                 }

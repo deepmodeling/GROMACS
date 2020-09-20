@@ -71,12 +71,12 @@ static void low_mspeed(real tempi, gmx_mtop_t* mtop, rvec v[], gmx::ThreeFry2x64
         {
             rng->restart(i, 0);
             real sd = std::sqrt(boltz / mass);
-            for (int m = 0; (m < DIM); m++)
+            for (int m = 0; (m < gmx::c_dim); m++)
             {
                 v[i][m] = sd * normalDist(*rng);
                 ekin += 0.5 * mass * v[i][m] * v[i][m];
             }
-            nrdf += DIM;
+            nrdf += gmx::c_dim;
         }
     }
     temp = (2.0 * ekin) / (nrdf * BOLTZ);
@@ -85,7 +85,7 @@ static void low_mspeed(real tempi, gmx_mtop_t* mtop, rvec v[], gmx::ThreeFry2x64
         real scal = std::sqrt(tempi / temp);
         for (int i = 0; (i < mtop->natoms); i++)
         {
-            for (int m = 0; (m < DIM); m++)
+            for (int m = 0; (m < gmx::c_dim); m++)
             {
                 v[i][m] *= scal;
             }
@@ -133,7 +133,7 @@ static real calc_cm(int natoms, const real mass[], rvec x[], rvec v[], rvec xcm,
         m0 = mass[i];
         tm += m0;
         cprod(x[i], v[i], a0);
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             xcm[m] += m0 * x[i][m]; /* c.o.m. position */
             vcm[m] += m0 * v[i][m]; /* c.o.m. velocity */
@@ -141,7 +141,7 @@ static real calc_cm(int natoms, const real mass[], rvec x[], rvec v[], rvec xcm,
         }
     }
     cprod(xcm, vcm, a0);
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         xcm[m] /= tm;
         vcm[m] /= tm;
@@ -160,7 +160,7 @@ static real calc_cm(int natoms, const real mass[], rvec x[], rvec v[], rvec xcm,
     for (i = 0; (i < natoms); i++)
     {
         m0 = mass[i];
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             dx[m] = x[i][m] - xcm[m];
         }
@@ -194,7 +194,7 @@ void stop_cm(const gmx::MDLogger gmx_unused& logger, int natoms, real mass[], rv
     /* Subtract center of mass velocity */
     for (i = 0; (i < natoms); i++)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             v[i][m] -= vcm[m];
         }

@@ -76,7 +76,7 @@ static void norm_princ(const t_atoms* atoms, int isize, int* index, int natoms, 
 
     /* calc our own principal components */
     clear_rvec(vec);
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < gmx::c_dim; m++)
     {
         for (i = 0; i < isize; i++)
         {
@@ -90,7 +90,7 @@ static void norm_princ(const t_atoms* atoms, int isize, int* index, int natoms, 
     /* scale coordinates */
     for (i = 0; i < natoms; i++)
     {
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             x[i][m] *= vec[m];
         }

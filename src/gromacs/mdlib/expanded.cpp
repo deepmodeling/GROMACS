@@ -1353,7 +1353,7 @@ int ExpandedEnsembleDynamics(FILE*                 log,
             {
                 gt = mdatoms->cTC[n];
             }
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 v[n][d] *= buf_ngtc[gt];
             }

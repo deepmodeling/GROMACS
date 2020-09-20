@@ -107,10 +107,10 @@ static void init_atomdata_first(cl_atomdata_t* ad, int ntypes, const DeviceConte
 {
     ad->ntypes = ntypes;
 
-    allocateDeviceBuffer(&ad->shift_vec, SHIFTS * DIM, deviceContext);
+    allocateDeviceBuffer(&ad->shift_vec, SHIFTS * gmx::c_dim, deviceContext);
     ad->bShiftVecUploaded = CL_FALSE;
 
-    allocateDeviceBuffer(&ad->fshift, SHIFTS * DIM, deviceContext);
+    allocateDeviceBuffer(&ad->fshift, SHIFTS * gmx::c_dim, deviceContext);
     allocateDeviceBuffer(&ad->e_lj, 1, deviceContext);
     allocateDeviceBuffer(&ad->e_el, 1, deviceContext);
 
@@ -440,7 +440,7 @@ static void nbnxn_ocl_clear_f(NbnxmGpu* nb, int natoms_clear)
     cl_atomdata_t*      atomData    = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
 
-    clearDeviceBufferAsync(&atomData->f, 0, natoms_clear * DIM, localStream);
+    clearDeviceBufferAsync(&atomData->f, 0, natoms_clear * gmx::c_dim, localStream);
 }
 
 //! This function is documented in the header file
@@ -469,10 +469,10 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
     /* only if we have a dynamic box */
     if (nbatom->bDynamicBox || !adat->bShiftVecUploaded)
     {
-        GMX_ASSERT(sizeof(float) * DIM == sizeof(*nbatom->shift_vec.data()),
+        GMX_ASSERT(sizeof(float) * gmx::c_dim == sizeof(*nbatom->shift_vec.data()),
                    "Sizes of host- and device-side shift vectors should be the same.");
         copyToDeviceBuffer(&adat->shift_vec, reinterpret_cast<const float*>(nbatom->shift_vec.data()),
-                           0, SHIFTS * DIM, deviceStream, GpuApiCallBehavior::Async, nullptr);
+                           0, SHIFTS * gmx::c_dim, deviceStream, GpuApiCallBehavior::Async, nullptr);
         adat->bShiftVecUploaded = CL_TRUE;
     }
 }
@@ -514,8 +514,8 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         }
 
 
-        allocateDeviceBuffer(&d_atdat->f, nalloc * DIM, deviceContext);
-        allocateDeviceBuffer(&d_atdat->xq, nalloc * (DIM + 1), deviceContext);
+        allocateDeviceBuffer(&d_atdat->f, nalloc * gmx::c_dim, deviceContext);
+        allocateDeviceBuffer(&d_atdat->xq, nalloc * (gmx::c_dim + 1), deviceContext);
 
         if (useLjCombRule(nb->nbparam->vdwtype))
         {

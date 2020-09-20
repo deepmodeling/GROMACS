@@ -119,7 +119,7 @@ void read_ab(char* line, const char* fn, MoleculePatch* hack)
     hack->atom.clear();
     hack->cgnr  = NOTSET;
     hack->bXSet = false;
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         hack->newx[i] = NOTSET;
     }

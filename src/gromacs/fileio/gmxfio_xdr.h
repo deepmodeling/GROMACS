@@ -193,9 +193,9 @@ public:
     void doDouble(double* value) override;
     //! Handle GROMACS floating point number I/O.
     void doReal(real* value) override;
-    //! Handle I/O of integer vector of size DIM.
+    //! Handle I/O of integer vector of size c_dim.
     void doIvec(ivec* value) override;
-    //! Handle I/O of GROMACS real vector of size DIM.
+    //! Handle I/O of GROMACS real vector of size c_dim.
     void doRvec(rvec* value) override;
     //! Handle I/O if string.
     void doString(std::string* value) override;

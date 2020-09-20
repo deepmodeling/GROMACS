@@ -173,7 +173,7 @@ real do_ewald(const t_inputrec* ir,
     boxScaler.scaleBox(box, scaledBox);
 
     rvec boxDiag;
-    for (int i = 0; (i < DIM); i++)
+    for (int i = 0; (i < gmx::c_dim); i++)
     {
         boxDiag[i] = scaledBox[i][i];
     }
@@ -349,7 +349,7 @@ real ewald_charge_correction(const t_commrec*  cr,
 
         *dvdlambda += -vol * (qs2B - qs2A) * fac;
 
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             vir[d][d] += vc;
         }

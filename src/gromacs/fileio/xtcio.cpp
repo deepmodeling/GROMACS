@@ -148,9 +148,9 @@ static int xtc_coord(XDR* xd, int* natoms, rvec* box, rvec* x, real* prec, gmx_b
 
     /* box */
     result = 1;
-    for (i = 0; ((i < DIM) && result); i++)
+    for (i = 0; ((i < gmx::c_dim) && result); i++)
     {
-        for (j = 0; ((j < DIM) && result); j++)
+        for (j = 0; ((j < gmx::c_dim) && result); j++)
         {
             result = XTC_CHECK("box", xdr_r2f(xd, &(box[i][j]), bRead));
         }
@@ -163,16 +163,16 @@ static int xtc_coord(XDR* xd, int* natoms, rvec* box, rvec* x, real* prec, gmx_b
 
 #if GMX_DOUBLE
     /* allocate temp. single-precision array */
-    snew(ftmp, (*natoms) * DIM);
+    snew(ftmp, (*natoms) * gmx::c_dim);
 
     /* Copy data to temp. array if writing */
     if (!bRead)
     {
         for (i = 0; (i < *natoms); i++)
         {
-            ftmp[DIM * i + XX] = x[i][XX];
-            ftmp[DIM * i + YY] = x[i][YY];
-            ftmp[DIM * i + ZZ] = x[i][ZZ];
+            ftmp[gmx::c_dim * i + XX] = x[i][XX];
+            ftmp[gmx::c_dim * i + YY] = x[i][YY];
+            ftmp[gmx::c_dim * i + ZZ] = x[i][ZZ];
         }
         fprec = *prec;
     }
@@ -183,9 +183,9 @@ static int xtc_coord(XDR* xd, int* natoms, rvec* box, rvec* x, real* prec, gmx_b
     {
         for (i = 0; (i < *natoms); i++)
         {
-            x[i][XX] = ftmp[DIM * i + XX];
-            x[i][YY] = ftmp[DIM * i + YY];
-            x[i][ZZ] = ftmp[DIM * i + ZZ];
+            x[i][XX] = ftmp[gmx::c_dim * i + XX];
+            x[i][YY] = ftmp[gmx::c_dim * i + YY];
+            x[i][ZZ] = ftmp[gmx::c_dim * i + ZZ];
         }
         *prec = fprec;
     }

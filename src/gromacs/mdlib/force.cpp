@@ -252,10 +252,10 @@ void calculateLongRangeNonbondeds(t_forcerec*                   fr,
         {
             fprintf(debug, "Vlr_q = %g, Vcorr_q = %g, Vlr_corr_q = %g\n", Vlr_q,
                     ewaldOutput.Vcorr_q, enerd->term[F_COUL_RECIP]);
-            pr_rvecs(debug, 0, "vir_el_recip after corr", ewaldOutput.vir_q, DIM);
+            pr_rvecs(debug, 0, "vir_el_recip after corr", ewaldOutput.vir_q, gmx::c_dim);
             fprintf(debug, "Vlr_lj: %g, Vcorr_lj = %g, Vlr_corr_lj = %g\n", Vlr_lj,
                     ewaldOutput.Vcorr_lj, enerd->term[F_LJ_RECIP]);
-            pr_rvecs(debug, 0, "vir_lj_recip after corr", ewaldOutput.vir_lj, DIM);
+            pr_rvecs(debug, 0, "vir_lj_recip after corr", ewaldOutput.vir_lj, gmx::c_dim);
         }
     }
 

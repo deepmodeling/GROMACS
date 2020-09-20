@@ -49,17 +49,22 @@
 #define XX 0 /* Defines for indexing in */
 #define YY 1 /* vectors                 */
 #define ZZ 2
-#define DIM 3 /* Dimension of vectors    */
 
-typedef real rvec[DIM];
+namespace gmx
+{
+//! Dimension of vectors
+constexpr const int c_dim = 3;
+} // namespace gmx
 
-typedef double dvec[DIM];
+typedef real rvec[gmx::c_dim];
 
-typedef real matrix[DIM][DIM];
+typedef double dvec[gmx::c_dim];
 
-typedef real tensor[DIM][DIM];
+typedef real matrix[gmx::c_dim][gmx::c_dim];
 
-typedef int ivec[DIM];
+typedef real tensor[gmx::c_dim][gmx::c_dim];
+
+typedef int ivec[gmx::c_dim];
 
 namespace gmx
 {
@@ -87,7 +92,7 @@ class BasicVector
 {
 public:
     //! Underlying raw C array type (rvec/dvec/ivec).
-    using RawArray = ValueType[DIM];
+    using RawArray = ValueType[c_dim];
 
     // The code here assumes ValueType has been deduced as a data type like int
     // and not a pointer like int*. If there is a use case for a 3-element array

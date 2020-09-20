@@ -370,13 +370,13 @@
 
 #if UNROLLJ <= 4
         int sci  = ci * STRIDE;
-        int scix = sci * DIM;
+        int scix = sci * c_dim;
 #    if defined LJ_COMB_LB || defined LJ_COMB_GEOM || defined LJ_EWALD_GEOM
         int sci2 = sci * 2;
 #    endif
 #else
         int sci  = (ci >> 1) * STRIDE;
-        int scix = sci * DIM + (ci & 1) * (STRIDE >> 1);
+        int scix = sci * c_dim + (ci & 1) * (STRIDE >> 1);
 #    if defined LJ_COMB_LB || defined LJ_COMB_GEOM || defined LJ_EWALD_GEOM
         int sci2 = sci * 2 + (ci & 1) * (STRIDE >> 1);
 #    endif

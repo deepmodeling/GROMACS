@@ -101,8 +101,8 @@ struct MrcDataStatistics
 struct MrcDensitySkewData
 {
     bool                        valid_ = false; //!< True if skew matrix is stored.
-    std::array<float, DIM* DIM> matrix_ = {}; //!< Skew matrix for crystallographic unit cell in Ångström
-    std::array<float, DIM> translation_ = {}; //!< Translation of crystallographic unit cell in Ångström
+    std::array<float, c_dim* c_dim> matrix_ = {}; //!< Skew matrix for crystallographic unit cell in Ångström
+    std::array<float, c_dim> translation_ = {}; //!< Translation of crystallographic unit cell in Ångström
 };
 
 /*! \libinternal
@@ -143,16 +143,16 @@ struct MrcDensityMapHeader
     CrystallographicLabels labels_ = {};
 
     //! Length of the crystallographic unit cell in Ångström
-    std::array<float, DIM> cellLength_ = { { 1., 1., 1. } };
+    std::array<float, c_dim> cellLength_ = { { 1., 1., 1. } };
     //! crystallographic unit cell angles
-    std::array<float, DIM> cellAngles_ = { { 90., 90., 90. } };
+    std::array<float, c_dim> cellAngles_ = { { 90., 90., 90. } };
 
     //! Data axis order with columns varying the fastest, and sections the slowest.
-    std::array<int32_t, DIM> columnRowSectionToXyz_ = { { 0, 1, 2 } };
+    std::array<int32_t, c_dim> columnRowSectionToXyz_ = { { 0, 1, 2 } };
 
-    std::array<int32_t, DIM> numColumnRowSection_   = {}; //!< Column, row and section count
-    std::array<int32_t, DIM> columnRowSectionStart_ = {}; //!< Start of values in grid
-    std::array<int32_t, DIM> extent_ = {}; //!< The number of grid points in the crystall cell
+    std::array<int32_t, c_dim> numColumnRowSection_   = {}; //!< Column, row and section count
+    std::array<int32_t, c_dim> columnRowSectionStart_ = {}; //!< Start of values in grid
+    std::array<int32_t, c_dim> extent_ = {}; //!< The number of grid points in the crystall cell
 
     //! Statistics about the data stored in the file.
     MrcDataStatistics dataStatistics_ = {};

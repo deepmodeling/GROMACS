@@ -110,7 +110,7 @@ static void generateCoordinates(int multiplicationFactor, std::vector<gmx::RVec>
         factors[dim] *= 2;
         multiplicationFactor /= 2;
         dim++;
-        if (dim == DIM)
+        if (dim == c_dim)
         {
             dim = 0;
         }
@@ -141,9 +141,9 @@ static void generateCoordinates(int multiplicationFactor, std::vector<gmx::RVec>
         }
     }
 
-    for (int d1 = 0; d1 < DIM; d1++)
+    for (int d1 = 0; d1 < c_dim; d1++)
     {
-        for (int d2 = 0; d2 < DIM; d2++)
+        for (int d2 = 0; d2 < c_dim; d2++)
         {
             box[d1][d2] = factors[d1] * box1000[d1][d2];
         }

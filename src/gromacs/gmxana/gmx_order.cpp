@@ -653,7 +653,7 @@ static void calc_order(const char*             fn,
                     cossum[ZZ] = gmx::square(Sz[axis]);
                 }
 
-                for (m = 0; m < DIM; m++)
+                for (m = 0; m < gmx::c_dim; m++)
                 {
                     frameorder[m] += 0.5 * (3.0 * cossum[m] - 1.0);
                 }
@@ -716,7 +716,7 @@ static void calc_order(const char*             fn,
                 }
             } /* end loop j, over all atoms in group */
 
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 (*order)[i][m] += (frameorder[m] / static_cast<real>(size));
             }

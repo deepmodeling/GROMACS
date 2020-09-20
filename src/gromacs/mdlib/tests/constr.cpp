@@ -311,9 +311,9 @@ public:
      */
     static void checkVirialTensor(FloatingPointTolerance tolerance, const ConstraintsTestData& testData)
     {
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 EXPECT_REAL_EQ_TOL(testData.virialScaledRef_[i][j], testData.virialScaled_[i][j], tolerance)
                         << gmx::formatString(

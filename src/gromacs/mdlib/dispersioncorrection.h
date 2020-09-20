@@ -103,7 +103,7 @@ public:
          */
         void correctVirial(tensor virialTensor) const
         {
-            for (int m = 0; m < DIM; m++)
+            for (int m = 0; m < gmx::c_dim; m++)
             {
                 virialTensor[m][m] += virial;
             }

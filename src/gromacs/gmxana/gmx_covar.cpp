@@ -249,7 +249,7 @@ int gmx_covar(int argc, char* argv[])
 
     snew(x, natoms);
     snew(xav, natoms);
-    ndim = natoms * DIM;
+    ndim = natoms * gmx::c_dim;
     if (std::sqrt(static_cast<real>(INT64_MAX)) < static_cast<real>(ndim))
     {
         gmx_fatal(FARGS, "Number of degrees of freedoms to large for matrix.\n");
@@ -287,7 +287,7 @@ int gmx_covar(int argc, char* argv[])
     inv_nframes = 1.0 / nframes0;
     for (i = 0; i < natoms; i++)
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             xav[i][d] *= inv_nframes;
             xread[index[i]][d] = xav[i][d];
@@ -333,14 +333,14 @@ int gmx_covar(int argc, char* argv[])
 
         for (j = 0; j < natoms; j++)
         {
-            for (dj = 0; dj < DIM; dj++)
+            for (dj = 0; dj < gmx::c_dim; dj++)
             {
-                k  = ndim * (DIM * j + dj);
+                k  = ndim * (gmx::c_dim * j + dj);
                 xj = x[j][dj];
                 for (i = j; i < natoms; i++)
                 {
-                    l = k + DIM * i;
-                    for (d = 0; d < DIM; d++)
+                    l = k + gmx::c_dim * i;
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         mat[l + d] += x[i][d] * xj;
                     }
@@ -371,12 +371,12 @@ int gmx_covar(int argc, char* argv[])
     inv_nframes = 1.0 / nframes;
     for (j = 0; j < natoms; j++)
     {
-        for (dj = 0; dj < DIM; dj++)
+        for (dj = 0; dj < gmx::c_dim; dj++)
         {
             for (i = j; i < natoms; i++)
             {
-                k = ndim * (DIM * j + dj) + DIM * i;
-                for (d = 0; d < DIM; d++)
+                k = ndim * (gmx::c_dim * j + dj) + gmx::c_dim * i;
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     mat[k + d] = mat[k + d] * inv_nframes * sqrtm[i] * sqrtm[j];
                 }
@@ -461,19 +461,19 @@ int gmx_covar(int argc, char* argv[])
     {
         min = 0;
         max = 0;
-        snew(mat2, ndim / DIM);
-        for (i = 0; i < ndim / DIM; i++)
+        snew(mat2, ndim / gmx::c_dim);
+        for (i = 0; i < ndim / gmx::c_dim; i++)
         {
-            snew(mat2[i], ndim / DIM);
+            snew(mat2[i], ndim / gmx::c_dim);
         }
-        for (j = 0; j < ndim / DIM; j++)
+        for (j = 0; j < ndim / gmx::c_dim; j++)
         {
             for (i = 0; i <= j; i++)
             {
                 mat2[j][i] = 0;
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
-                    mat2[j][i] += mat[ndim * (DIM * j + d) + DIM * i + d];
+                    mat2[j][i] += mat[ndim * (gmx::c_dim * j + d) + gmx::c_dim * i + d];
                 }
                 if (mat2[j][i] < min)
                 {
@@ -486,8 +486,8 @@ int gmx_covar(int argc, char* argv[])
                 mat2[i][j] = mat2[j][i];
             }
         }
-        snew(axis, ndim / DIM);
-        for (i = 0; i < ndim / DIM; i++)
+        snew(axis, ndim / gmx::c_dim);
+        for (i = 0; i < ndim / gmx::c_dim; i++)
         {
             axis[i] = i + 1;
         }
@@ -502,11 +502,11 @@ int gmx_covar(int argc, char* argv[])
         rhi.b   = 0;
         out     = gmx_ffopen(xpmafile, "w");
         nlevels = 80;
-        write_xpm3(out, 0, "Covariance", bM ? "u nm^2" : "nm^2", "atom", "atom", ndim / DIM,
-                   ndim / DIM, axis, axis, mat2, min, 0.0, max, rlo, rmi, rhi, &nlevels);
+        write_xpm3(out, 0, "Covariance", bM ? "u nm^2" : "nm^2", "atom", "atom", ndim / gmx::c_dim,
+                   ndim / gmx::c_dim, axis, axis, mat2, min, 0.0, max, rlo, rmi, rhi, &nlevels);
         gmx_ffclose(out);
         sfree(axis);
-        for (i = 0; i < ndim / DIM; i++)
+        for (i = 0; i < ndim / gmx::c_dim; i++)
         {
             sfree(mat2[i]);
         }

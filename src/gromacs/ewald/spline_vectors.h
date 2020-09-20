@@ -48,6 +48,6 @@
 #include "gromacs/utility/real.h"
 
 /*! \brief Helper typedef for spline vectors */
-typedef real* splinevec[DIM];
+typedef real* splinevec[gmx::c_dim];
 
 #endif

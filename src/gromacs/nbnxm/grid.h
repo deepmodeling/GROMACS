@@ -216,11 +216,11 @@ public:
         //! The maximum distance an atom can be outside of a cell and outside of the grid
         real maxAtomGroupRadius;
         //! Size of cell along dimension x and y
-        real cellSize[DIM - 1];
+        real cellSize[gmx::c_dim - 1];
         //! 1/size of a cell along dimensions x and y
-        real invCellSize[DIM - 1];
+        real invCellSize[gmx::c_dim - 1];
         //! The number of grid cells along dimensions x and y
-        int numCells[DIM - 1];
+        int numCells[gmx::c_dim - 1];
     };
 
     //! Constructs a grid given the type of pairlist

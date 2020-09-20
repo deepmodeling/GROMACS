@@ -149,7 +149,7 @@ void calc_pbc_cluster(int ecenter, int nrefat, t_topology* top, PbcType pbcType,
         {
             /* Normalize center of geometry */
             fac = 1.0 / (molind[i + 1] - molind[i]);
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 m_com[i][m] *= fac;
             }
@@ -268,7 +268,7 @@ void put_molecule_com_in_box(int      unitcell_enum,
         for (j = mols->index[i]; (j < mols->index[i + 1] && j < natoms); j++)
         {
             m = atom[j].m;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 com[d] += m * x[j][d];
             }
@@ -373,7 +373,7 @@ void put_residue_com_in_box(int     unitcell_enum,
         {
             /* calc COM */
             m = atom[i].m;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 com[d] += m * x[i][d];
             }
@@ -396,7 +396,7 @@ void center_x(int ecenter, rvec x[], matrix box, int n, int nc, const int ci[])
         for (i = 0; i < nc; i++)
         {
             ai = ci[i];
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 if (x[ai][m] < cmin[m])
                 {
@@ -409,7 +409,7 @@ void center_x(int ecenter, rvec x[], matrix box, int n, int nc, const int ci[])
             }
         }
         calc_box_center(ecenter, box, box_center);
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             dx[m] = box_center[m] - (cmin[m] + cmax[m]) * 0.5;
         }

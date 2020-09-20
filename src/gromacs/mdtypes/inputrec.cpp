@@ -409,7 +409,7 @@ static void pr_grp_opts(FILE* out, int indent, const char* title, const t_grpopt
     fprintf(out, "acc:\t");
     for (i = 0; (i < opts->ngacc); i++)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             fprintf(out, "  %10g", opts->acc[i][m]);
         }
@@ -420,7 +420,7 @@ static void pr_grp_opts(FILE* out, int indent, const char* title, const t_grpopt
     fprintf(out, "nfreeze:");
     for (i = 0; (i < opts->ngfrz); i++)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             fprintf(out, "  %10s", opts->nFreeze[i][m] ? "Y" : "N");
         }
@@ -451,7 +451,7 @@ static void pr_matrix(FILE* fp, int indent, const char* title, const rvec* m, gm
     }
     else
     {
-        pr_rvecs(fp, indent, title, m, DIM);
+        pr_rvecs(fp, indent, title, m, gmx::c_dim);
     }
 }
 
@@ -490,9 +490,9 @@ static void pr_pull_coord(FILE* fp, int indent, int c, const t_pull_coord* pcrd)
         sprintf(buf, "group[%d]", g);
         PI(buf, pcrd->group[g]);
     }
-    pr_ivec(fp, indent, "dim", pcrd->dim, DIM, TRUE);
-    pr_rvec(fp, indent, "origin", pcrd->origin, DIM, TRUE);
-    pr_rvec(fp, indent, "vec", pcrd->vec, DIM, TRUE);
+    pr_ivec(fp, indent, "dim", pcrd->dim, gmx::c_dim, TRUE);
+    pr_rvec(fp, indent, "origin", pcrd->origin, gmx::c_dim, TRUE);
+    pr_rvec(fp, indent, "vec", pcrd->vec, gmx::c_dim, TRUE);
     PS("start", EBOOL(pcrd->bStart));
     PR("init", pcrd->init);
     PR("rate", pcrd->rate);
@@ -707,8 +707,8 @@ static void pr_rotgrp(FILE* fp, int indent, int g, const t_rotgrp* rotg)
     PS("rot-massw", EBOOL(rotg->bMassW));
     pr_ivec_block(fp, indent, "atom", rotg->ind, rotg->nat, TRUE);
     pr_rvecs(fp, indent, "x-ref", rotg->x_ref, rotg->nat);
-    pr_rvec(fp, indent, "rot-vec", rotg->inputVec, DIM, TRUE);
-    pr_rvec(fp, indent, "rot-pivot", rotg->pivot, DIM, TRUE);
+    pr_rvec(fp, indent, "rot-vec", rotg->inputVec, gmx::c_dim, TRUE);
+    pr_rvec(fp, indent, "rot-pivot", rotg->pivot, gmx::c_dim, TRUE);
     PR("rot-rate", rotg->rate);
     PR("rot-k", rotg->k);
     PR("rot-slab-dist", rotg->slab_dist);
@@ -916,8 +916,8 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
         }
         else
         {
-            pr_rvec(fp, indent, "posres-com", ir->posres_com, DIM, TRUE);
-            pr_rvec(fp, indent, "posres-comB", ir->posres_comB, DIM, TRUE);
+            pr_rvec(fp, indent, "posres-com", ir->posres_com, gmx::c_dim, TRUE);
+            pr_rvec(fp, indent, "posres-comB", ir->posres_comB, gmx::c_dim, TRUE);
         }
 
         /* QMMM */

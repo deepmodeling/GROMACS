@@ -137,9 +137,9 @@ struct gmx_ddbox_t
     gmx::IVec tric_dir = { 0, 0, 0 };
     gmx::RVec skew_fac = { 0, 0, 0 };
     /* Orthogonal vectors for triclinic cells, Cartesian index */
-    rvec v[DIM][DIM];
+    rvec v[gmx::c_dim][gmx::c_dim];
     /* Normal vectors for the cells walls */
-    rvec normal[DIM];
+    rvec normal[gmx::c_dim];
 };
 
 /*! \internal \brief Provides information about properties of the unit cell */
@@ -191,7 +191,7 @@ struct gmx_domdec_t
     gmx::IVec dim      = { 0, 0, 0 }; /* indexed by 0 to ndim */
 
     /* Forward and backward neighboring cells, indexed by 0 to ndim */
-    int neighbor[DIM][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };
+    int neighbor[gmx::c_dim][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
     /* Only available on the master node */
     std::unique_ptr<AtomDistribution> ma;

@@ -114,9 +114,9 @@ static inline Matrix3x3 createMatrix3x3FromLegacyMatrix(const matrix legacyMatri
 {
     GMX_RELEASE_ASSERT(legacyMatrix, "Need valid legacy matrix");
     Matrix3x3 newMatrix;
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < c_dim; j++)
         {
             newMatrix(i, j) = legacyMatrix[i][j];
         }
@@ -128,9 +128,9 @@ static inline Matrix3x3 createMatrix3x3FromLegacyMatrix(const matrix legacyMatri
 static inline void fillLegacyMatrix(Matrix3x3ConstSpan newMatrix, matrix legacyMatrix)
 {
     GMX_RELEASE_ASSERT(legacyMatrix, "Need valid legacy matrix");
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < c_dim; j++)
         {
             legacyMatrix[i][j] = newMatrix(i, j);
         }

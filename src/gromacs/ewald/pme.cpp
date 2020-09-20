@@ -720,7 +720,7 @@ gmx_pme_t* gmx_pme_init(const t_commrec*     cr,
         double imbal;
 
 #if GMX_MPI
-        MPI_Type_contiguous(DIM, GMX_MPI_REAL, &(pme->rvec_mpi));
+        MPI_Type_contiguous(gmx::c_dim, GMX_MPI_REAL, &(pme->rvec_mpi));
         MPI_Type_commit(&(pme->rvec_mpi));
 #endif
 
@@ -1158,7 +1158,7 @@ int gmx_pme_do(struct gmx_pme_t*              pme,
 
         if (bFirst)
         {
-            inc_nrnb(nrnb, eNR_WEIGHTS, DIM * atc.numAtoms());
+            inc_nrnb(nrnb, eNR_WEIGHTS, gmx::c_dim * atc.numAtoms());
         }
         inc_nrnb(nrnb, eNR_SPREADBSP, pme->pme_order * pme->pme_order * pme->pme_order * atc.numAtoms());
 
@@ -1395,7 +1395,7 @@ int gmx_pme_do(struct gmx_pme_t*              pme,
 
                 if (bFirst)
                 {
-                    inc_nrnb(nrnb, eNR_WEIGHTS, DIM * atc.numAtoms());
+                    inc_nrnb(nrnb, eNR_WEIGHTS, gmx::c_dim * atc.numAtoms());
                 }
 
                 inc_nrnb(nrnb, eNR_SPREADBSP,
@@ -1583,9 +1583,9 @@ int gmx_pme_do(struct gmx_pme_t*              pme,
             {
                 *energy_q = (1.0 - lambda_q) * output[0].coulombEnergy_ + lambda_q * output[1].coulombEnergy_;
                 *dvdlambda_q += output[1].coulombEnergy_ - output[0].coulombEnergy_;
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
-                    for (int j = 0; j < DIM; j++)
+                    for (int j = 0; j < gmx::c_dim; j++)
                     {
                         vir_q[i][j] += (1.0 - lambda_q) * output[0].coulombVirial_[i][j]
                                        + lambda_q * output[1].coulombVirial_[i][j];
@@ -1614,9 +1614,9 @@ int gmx_pme_do(struct gmx_pme_t*              pme,
                 *energy_lj = (1.0 - lambda_lj) * output[0].lennardJonesEnergy_
                              + lambda_lj * output[1].lennardJonesEnergy_;
                 *dvdlambda_lj += output[1].lennardJonesEnergy_ - output[0].lennardJonesEnergy_;
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
-                    for (int j = 0; j < DIM; j++)
+                    for (int j = 0; j < gmx::c_dim; j++)
                     {
                         vir_lj[i][j] += (1.0 - lambda_lj) * output[0].lennardJonesVirial_[i][j]
                                         + lambda_lj * output[1].lennardJonesVirial_[i][j];
@@ -1667,7 +1667,7 @@ void gmx_pme_destroy(gmx_pme_t* pme)
     sfree(pme->cfftgrid);
     sfree(pme->pfft_setup);
 
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         sfree(pme->bsp_mod[i]);
     }

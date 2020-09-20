@@ -60,7 +60,7 @@ AtomDistribution::AtomDistribution(const ivec numCells, int numAtomGroups, int n
     intBuffer(2 * numRanks(numCells)),
     rvecBuffer(numRanks(numCells) > c_maxNumRanksUseSendRecvForScatterAndGather ? numAtoms : 0)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         cellSizesBuffer[d].resize(numCells[d] + 1);
     }

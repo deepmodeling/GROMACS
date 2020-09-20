@@ -94,7 +94,7 @@ void integrateLeapFrogSimple(LeapFrogTestData* testData, int numSteps)
     auto xp = makeArrayRef(*testData->update_->xp()).subArray(0, testData->numAtoms_);
     for (int i = 0; i < testData->numAtoms_; i++)
     {
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             testData->x_[i][d]      = testData->state_.x[i][d];
             testData->v_[i][d]      = testData->state_.v[i][d];

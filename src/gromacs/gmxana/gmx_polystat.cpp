@@ -62,11 +62,11 @@ static void gyro_eigen(double** gyr, double* eig, double** eigv, int* ord)
 {
     int nrot, d;
 
-    jacobi(gyr, DIM, eig, eigv, &nrot);
+    jacobi(gyr, gmx::c_dim, eig, eigv, &nrot);
     /* Order the eigenvalues */
     ord[0] = 0;
     ord[2] = 2;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (eig[d] > eig[ord[0]])
         {
@@ -77,7 +77,7 @@ static void gyro_eigen(double** gyr, double* eig, double** eigv, int* ord)
             ord[2] = d;
         }
     }
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (ord[0] != d && ord[2] != d)
         {
@@ -154,9 +154,9 @@ int gmx_polystat(int argc, char* argv[])
     real              t;
     rvec *            x, *bond = nullptr;
     matrix            box;
-    int               natoms, i, j, frame, ind0, ind1, a, d, d2, ord[DIM] = { 0 };
+    int               natoms, i, j, frame, ind0, ind1, a, d, d2, ord[gmx::c_dim] = { 0 };
     dvec              cm, sum_eig = { 0, 0, 0 };
-    double **         gyr, **gyr_all, eig[DIM], **eigv;
+    double **         gyr, **gyr_all, eig[gmx::c_dim], **eigv;
     double            sum_eed2, sum_eed2_tot, sum_gyro, sum_gyro_tot, sum_pers_tot;
     int*              ninp    = nullptr;
     double *          sum_inp = nullptr, pers;
@@ -215,16 +215,16 @@ int gmx_polystat(int argc, char* argv[])
     {
         outv = xvgropen(opt2fn("-v", NFILE, fnm), "Principal components",
                         output_env_get_xvgr_tlabel(oenv), "(nm)", oenv);
-        snew(legp, DIM * DIM);
-        for (d = 0; d < DIM; d++)
+        snew(legp, gmx::c_dim * gmx::c_dim);
+        for (d = 0; d < gmx::c_dim; d++)
         {
-            for (d2 = 0; d2 < DIM; d2++)
+            for (d2 = 0; d2 < gmx::c_dim; d2++)
             {
                 sprintf(buf, "eig%d %c", d + 1, 'x' + d2);
-                legp[d * DIM + d2] = gmx_strdup(buf);
+                legp[d * gmx::c_dim + d2] = gmx_strdup(buf);
             }
         }
-        xvgr_legend(outv, DIM * DIM, legp, oenv);
+        xvgr_legend(outv, gmx::c_dim * gmx::c_dim, legp, oenv);
     }
     else
     {
@@ -259,14 +259,14 @@ int gmx_polystat(int argc, char* argv[])
 
     natoms = read_first_x(oenv, &status, ftp2fn(efTRX, NFILE, fnm), &t, &x, box);
 
-    snew(gyr, DIM);
-    snew(gyr_all, DIM);
-    snew(eigv, DIM);
-    for (d = 0; d < DIM; d++)
+    snew(gyr, gmx::c_dim);
+    snew(gyr_all, gmx::c_dim);
+    snew(eigv, gmx::c_dim);
+    for (d = 0; d < gmx::c_dim; d++)
     {
-        snew(gyr[d], DIM);
-        snew(gyr_all[d], DIM);
-        snew(eigv[d], DIM);
+        snew(gyr[d], gmx::c_dim);
+        snew(gyr_all[d], gmx::c_dim);
+        snew(eigv[d], gmx::c_dim);
     }
 
     frame        = 0;
@@ -281,7 +281,7 @@ int gmx_polystat(int argc, char* argv[])
         gmx_rmpbc(gpbc, natoms, box, x);
 
         sum_eed2 = 0;
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             clear_dvec(gyr_all[d]);
         }
@@ -316,7 +316,7 @@ int gmx_polystat(int argc, char* argv[])
 
             /* Determine the radius of gyration */
             clear_dvec(cm);
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 clear_dvec(gyr[d]);
             }
@@ -334,19 +334,19 @@ int gmx_polystat(int argc, char* argv[])
                     m = 1;
                 }
                 mmol += m;
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     cm[d] += m * x[a][d];
-                    for (d2 = 0; d2 < DIM; d2++)
+                    for (d2 = 0; d2 < gmx::c_dim; d2++)
                     {
                         gyr[d][d2] += m * x[a][d] * x[a][d2];
                     }
                 }
             }
             dsvmul(1 / mmol, cm, cm);
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                for (d2 = 0; d2 < DIM; d2++)
+                for (d2 = 0; d2 < gmx::c_dim; d2++)
                 {
                     gyr[d][d2] = gyr[d][d2] / mmol - cm[d] * cm[d2];
                     gyr_all[d][d2] += gyr[d][d2];
@@ -355,7 +355,7 @@ int gmx_polystat(int argc, char* argv[])
             if (bPC)
             {
                 gyro_eigen(gyr, eig, eigv, ord);
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     sum_eig[d] += eig[ord[d]];
                 }
@@ -380,9 +380,9 @@ int gmx_polystat(int argc, char* argv[])
         sum_eed2 /= nmol;
 
         sum_gyro = 0;
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
-            for (d2 = 0; d2 < DIM; d2++)
+            for (d2 = 0; d2 < gmx::c_dim; d2++)
             {
                 gyr_all[d][d2] /= nmol;
             }
@@ -396,7 +396,7 @@ int gmx_polystat(int argc, char* argv[])
                 std::sqrt(eig[ord[2]]));
         if (bPC)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 fprintf(out, " %8.4f", std::sqrt(sum_eig[d] / nmol));
             }
@@ -406,9 +406,9 @@ int gmx_polystat(int argc, char* argv[])
         if (outv)
         {
             fprintf(outv, "%10.3f", t * output_env_get_time_factor(oenv));
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                for (d2 = 0; d2 < DIM; d2++)
+                for (d2 = 0; d2 < gmx::c_dim; d2++)
                 {
                     fprintf(outv, " %6.3f", eigv[ord[d]][d2]);
                 }

@@ -103,7 +103,7 @@ struct PmeShared
     /*! \brief Grid count */
     int ngrids;
     /*! \brief Grid dimensions - nkx, nky, nkz */
-    int nk[DIM];
+    int nk[gmx::c_dim];
     /*! \brief PME interpolation order */
     int pme_order;
     /*! \brief Ewald splitting coefficient for Coulomb */
@@ -115,7 +115,7 @@ struct PmeShared
     /*! \brief Fractional shifts - fshx, fshy, fshz */
     std::vector<real> fsh;
     /*! \brief Precomputed B-spline values */
-    std::vector<real> bsp_mod[DIM];
+    std::vector<real> bsp_mod[gmx::c_dim];
     /*! \brief The PME codepath being taken */
     PmeRunMode runMode;
     /*! \brief  Whether PME execution is happening on a PME-only rank (from gmx_pme_t.bPPnode). */

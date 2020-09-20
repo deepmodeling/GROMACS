@@ -222,7 +222,7 @@ static void do_gkr(t_gkrbin*     gb,
                 {
                     q = std::abs(atom[j].q);
                     qtot += q;
-                    for (k = 0; k < DIM; k++)
+                    for (k = 0; k < gmx::c_dim; k++)
                     {
                         xcm[n][i][k] += q * x[j][k];
                     }
@@ -437,7 +437,7 @@ read_mu_from_enx(ener_file_t fmu, int Vol, const ivec iMu, rvec mu, real* vol, r
         {
             *vol = fr->ener[Vol].e;
         }
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             mu[i] = fr->ener[iMu[i]].e;
         }
@@ -496,7 +496,7 @@ static void mol_dip(int k0, int k1, rvec x[], const t_atom atom[], rvec mu)
     for (k = k0; (k < k1); k++)
     {
         q = e2d(atom[k].q);
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             mu[m] += q * x[k][m];
         }
@@ -510,14 +510,14 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
     rvec     com; /* center of mass */
     rvec     r;   /* distance of atoms to center of mass */
     double** inten;
-    double   dd[DIM], **ev;
+    double   dd[gmx::c_dim], **ev;
 
-    snew(inten, DIM);
-    snew(ev, DIM);
-    for (i = 0; (i < DIM); i++)
+    snew(inten, gmx::c_dim);
+    snew(ev, gmx::c_dim);
+    for (i = 0; (i < gmx::c_dim); i++)
     {
-        snew(inten[i], DIM);
-        snew(ev[i], DIM);
+        snew(inten[i], gmx::c_dim);
+        snew(ev[i], gmx::c_dim);
         dd[i] = 0.0;
     }
 
@@ -528,7 +528,7 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
     {
         mass = atom[k].m;
         masstot += mass;
-        for (i = 0; (i < DIM); i++)
+        for (i = 0; (i < gmx::c_dim); i++)
         {
             com[i] += mass * x[k][i];
         }
@@ -542,9 +542,9 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
 
 #define delta(a, b) (((a) == (b)) ? 1.0 : 0.0)
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
-        for (n = 0; (n < DIM); n++)
+        for (n = 0; (n < gmx::c_dim); n++)
         {
             inten[m][n] = 0;
         }
@@ -554,9 +554,9 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
         q = (atom[k].q) * 100.0;
         rvec_sub(x[k], com, r);
         r2 = iprod(r, r);
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
-            for (n = 0; (n < DIM); n++)
+            for (n = 0; (n < gmx::c_dim); n++)
             {
                 inten[m][n] += 0.5 * q * (3.0 * r[m] * r[n] - r2 * delta(m, n)) * EANG2CM * CM2D;
             }
@@ -564,7 +564,7 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
     }
     if (debug)
     {
-        for (i = 0; (i < DIM); i++)
+        for (i = 0; (i < gmx::c_dim); i++)
         {
             fprintf(debug, "Q[%d] = %8.3f  %8.3f  %8.3f\n", i, inten[i][XX], inten[i][YY], inten[i][ZZ]);
         }
@@ -575,11 +575,11 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
 
     if (debug)
     {
-        for (i = 0; (i < DIM); i++)
+        for (i = 0; (i < gmx::c_dim); i++)
         {
             fprintf(debug, "ev[%d] = %8.3f  %8.3f  %8.3f\n", i, ev[i][XX], ev[i][YY], ev[i][ZZ]);
         }
-        for (i = 0; (i < DIM); i++)
+        for (i = 0; (i < gmx::c_dim); i++)
         {
             fprintf(debug, "Q'[%d] = %8.3f  %8.3f  %8.3f\n", i, inten[i][XX], inten[i][YY], inten[i][ZZ]);
         }
@@ -604,7 +604,7 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
         std::swap(dd[0], dd[1]);
     }
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         quad[0] = dd[2]; /* yy */
         quad[1] = dd[0]; /* zz */
@@ -613,11 +613,11 @@ static void mol_quad(int k0, int k1, rvec x[], const t_atom atom[], rvec quad)
 
     if (debug)
     {
-        pr_rvec(debug, 0, "Quadrupole", quad, DIM, TRUE);
+        pr_rvec(debug, 0, "Quadrupole", quad, gmx::c_dim, TRUE);
     }
 
     /* clean-up */
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         sfree(inten[i]);
         sfree(ev[i]);
@@ -683,7 +683,7 @@ static void dump_slab_dipoles(const char*             fn,
 
     sprintf(buf, "Box-%c (nm)", 'X' + idim);
     fp = xvgropen(fn, "Average dipole moment per slab", buf, "\\f{12}m\\f{4} (D)", oenv);
-    xvgr_legend(fp, DIM, leg_dim, oenv);
+    xvgr_legend(fp, gmx::c_dim, leg_dim, oenv);
     for (i = 0; (i < nslice); i++)
     {
         mutot = norm(slab_dipole[i]) / nframes;
@@ -796,7 +796,7 @@ static void do_dip(const t_topology*       top,
     matrix         box;
     gmx_bool       bCorr, bTotal, bCont;
     double         M_diff = 0, epsilon, invtel, vol_aver;
-    double         mu_ave, mu_mol, M2_ave = 0, M_ave2 = 0, M_av[DIM], M_av2[DIM];
+    double         mu_ave, mu_mol, M2_ave = 0, M_ave2 = 0, M_av[gmx::c_dim], M_av2[gmx::c_dim];
     double         M[3], M2[3], M4[3], Gk = 0, g_k = 0;
     gmx_stats_t *  Qlsq, mulsq, muframelsq = nullptr;
     ivec           iMu;
@@ -867,14 +867,14 @@ static void do_dip(const t_topology*       top,
         if (bTotal)
         {
             snew(muall, 1);
-            snew(muall[0], nframes * DIM);
+            snew(muall[0], nframes * gmx::c_dim);
         }
         else
         {
             snew(muall, gnx[0]);
             for (i = 0; (i < gnx[0]); i++)
             {
-                snew(muall[i], nframes * DIM);
+                snew(muall[i], nframes * gmx::c_dim);
             }
         }
     }
@@ -888,8 +888,8 @@ static void do_dip(const t_topology*       top,
     }
 
     /* Statistics */
-    snew(Qlsq, DIM);
-    for (i = 0; (i < DIM); i++)
+    snew(Qlsq, gmx::c_dim);
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         Qlsq[i] = gmx_stats_init();
     }
@@ -903,11 +903,11 @@ static void do_dip(const t_topology*       top,
     if (bSlab)
     {
         idim = axtitle[0] - 'X';
-        if ((idim < 0) || (idim >= DIM))
+        if ((idim < 0) || (idim >= gmx::c_dim))
         {
             idim = axtitle[0] - 'x';
         }
-        if ((idim < 0) || (idim >= DIM))
+        if ((idim < 0) || (idim >= gmx::c_dim))
         {
             bSlab = FALSE;
         }
@@ -1006,7 +1006,7 @@ static void do_dip(const t_topology*       top,
     ndipbin = 1 + static_cast<int>(mu_max / 0.01);
     snew(dipole_bin, ndipbin);
     mu_ave = 0.0;
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         M[m] = M2[m] = M4[m] = 0.0;
     }
@@ -1032,13 +1032,13 @@ static void do_dip(const t_topology*       top,
             nframes += 1000;
             if (bTotal)
             {
-                srenew(muall[0], nframes * DIM);
+                srenew(muall[0], nframes * gmx::c_dim);
             }
             else
             {
                 for (i = 0; (i < gnx_tot); i++)
                 {
-                    srenew(muall[i], nframes * DIM);
+                    srenew(muall[i], nframes * gmx::c_dim);
                 }
             }
         }
@@ -1047,7 +1047,7 @@ static void do_dip(const t_topology*       top,
         muframelsq = gmx_stats_init();
 
         /* Initialise */
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             M_av2[m] = 0;
         }
@@ -1055,7 +1055,7 @@ static void do_dip(const t_topology*       top,
         if (bMU)
         {
             /* Copy rvec into double precision local variable */
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 M_av[m] = mu_t[m];
             }
@@ -1063,7 +1063,7 @@ static void do_dip(const t_topology*       top,
         else
         {
             /* Initialise */
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 M_av[m] = 0;
             }
@@ -1090,20 +1090,20 @@ static void do_dip(const t_topology*       top,
                     if (bQuad)
                     {
                         mol_quad(ind0, ind1, x, atom, quad);
-                        for (m = 0; (m < DIM); m++)
+                        for (m = 0; (m < gmx::c_dim); m++)
                         {
                             gmx_stats_add_point(Qlsq[m], 0, quad[m], 0, 0);
                         }
                     }
                     if (bCorr && !bTotal)
                     {
-                        tel3                = DIM * teller;
+                        tel3                = gmx::c_dim * teller;
                         muall[i][tel3 + XX] = dipole[i][XX];
                         muall[i][tel3 + YY] = dipole[i][YY];
                         muall[i][tel3 + ZZ] = dipole[i][ZZ];
                     }
                     mu_mol = 0.0;
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         M_av[m] += dipole[i][m];               /* M per frame */
                         mu_mol += dipole[i][m] * dipole[i][m]; /* calc. mu for distribution */
@@ -1190,7 +1190,7 @@ static void do_dip(const t_topology*       top,
             }
         }
         /* Compute square of total dipole */
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             M_av2[m] = M_av[m] * M_av[m];
         }
@@ -1219,7 +1219,7 @@ static void do_dip(const t_topology*       top,
 
         if (bTotal)
         {
-            tel3                = DIM * teller;
+            tel3                = gmx::c_dim * teller;
             muall[0][tel3 + XX] = M_av[XX];
             muall[0][tel3 + YY] = M_av[YY];
             muall[0][tel3 + ZZ] = M_av[ZZ];
@@ -1234,7 +1234,7 @@ static void do_dip(const t_topology*       top,
                     std::sqrt(M_av2[XX] + M_av2[YY] + M_av2[ZZ]));
         }
 
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             M[m] += M_av[m];
             M2[m] += M_av2[m];
@@ -1398,7 +1398,7 @@ static void do_dip(const t_topology*       top,
         if (bQuad)
         {
             rvec a, s, e;
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 gmx_stats_get_ase(mulsq, &(a[m]), &(s[m]), &(e[m]));
             }

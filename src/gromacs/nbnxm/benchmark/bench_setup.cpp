@@ -351,7 +351,7 @@ void bench(const int sizeFactor, const KernelBenchOptions& options)
     const gmx::BenchmarkSystem system(sizeFactor);
 
     real minBoxSize = norm(system.box[XX]);
-    for (int dim = YY; dim < DIM; dim++)
+    for (int dim = YY; dim < gmx::c_dim; dim++)
     {
         minBoxSize = std::min(minBoxSize, norm(system.box[dim]));
     }

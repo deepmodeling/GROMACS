@@ -236,7 +236,7 @@ void
 
         ish = (ciEntry.shift & NBNXN_CI_SHIFT);
         /* x, f and fshift are assumed to be stored with stride 3 */
-        ishf   = ish * DIM;
+        ishf   = ish * gmx::c_dim;
         cjind0 = ciEntry.cj_ind_start;
         cjind1 = ciEntry.cj_ind_end;
         /* Currently only works super-cells equal to sub-cells */
@@ -274,7 +274,7 @@ void
 
         for (i = 0; i < UNROLLI; i++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 xi[i * XI_STRIDE + d] = x[(ci * UNROLLI + i) * X_STRIDE + d] + shiftvec[ishf + d];
                 fi[i * FI_STRIDE + d] = 0;
@@ -376,7 +376,7 @@ void
         /* Add accumulated i-forces to the force array */
         for (i = 0; i < UNROLLI; i++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 f[(ci * UNROLLI + i) * F_STRIDE + d] += fi[i * FI_STRIDE + d];
             }
@@ -387,7 +387,7 @@ void
             /* Add i forces to shifted force list */
             for (i = 0; i < UNROLLI; i++)
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     fshift[ishf + d] += fi[i * FI_STRIDE + d];
                 }

@@ -94,7 +94,7 @@ void computeBoundingBox(int posCount, const rvec x[], rvec origin, rvec size)
     copy_rvec(x[0], maxBound);
     for (int i = 1; i < posCount; ++i)
     {
-        for (int d = 0; d < DIM; ++d)
+        for (int d = 0; d < c_dim; ++d)
         {
             if (origin[d] > x[i][d])
             {
@@ -158,7 +158,7 @@ private:
      *     grid.
      * \returns   `false` if grid search is not suitable.
      */
-    bool initGridCells(const matrix box, bool bSingleCell[DIM], int posCount);
+    bool initGridCells(const matrix box, bool bSingleCell[c_dim], int posCount);
     /*! \brief
      * Sets ua a search grid for a given box.
      *
@@ -291,7 +291,7 @@ private:
     //! false if the box is rectangular.
     bool bTric_;
     //! Whether the grid is periodic in a dimension.
-    bool bGridPBC_[DIM];
+    bool bGridPBC_[c_dim];
     //! Array for storing in-unit-cell reference positions.
     std::vector<RVec> xrefAlloc_;
     //! Origin of the grid (zero for periodic dimensions).
@@ -467,7 +467,7 @@ AnalysisNeighborhoodSearchImpl::PairSearchImplPointer AnalysisNeighborhoodSearch
     return pairSearch;
 }
 
-bool AnalysisNeighborhoodSearchImpl::initGridCells(const matrix box, bool bSingleCell[DIM], int posCount)
+bool AnalysisNeighborhoodSearchImpl::initGridCells(const matrix box, bool bSingleCell[c_dim], int posCount)
 {
     // Determine the size of cubes where there are on average 10 positions.
     // The loop takes care of cases where some of the box edges are shorter
@@ -482,7 +482,7 @@ bool AnalysisNeighborhoodSearchImpl::initGridCells(const matrix box, bool bSingl
     {
         real volume   = 1.0;
         int  dimCount = 3;
-        for (int dd = 0; dd < DIM; ++dd)
+        for (int dd = 0; dd < c_dim; ++dd)
         {
             const real boxSize = box[dd][dd];
             if (boxSize < targetsize)
@@ -512,7 +512,7 @@ bool AnalysisNeighborhoodSearchImpl::initGridCells(const matrix box, bool bSingl
     }
 
     int totalCellCount = 1;
-    for (int dd = 0; dd < DIM; ++dd)
+    for (int dd = 0; dd < c_dim; ++dd)
     {
         int cellCount;
         if (bSingleCell[dd])
@@ -583,7 +583,7 @@ bool AnalysisNeighborhoodSearchImpl::initGrid(const t_pbc& pbc, int posCount, co
             return false;
     }
 
-    bool   bSingleCell[DIM] = { false, false, bXY_ };
+    bool   bSingleCell[c_dim] = { false, false, bXY_ };
     matrix box;
     copy_mat(pbc.box, box);
     // TODO: In principle, we could use the bounding box for periodic
@@ -592,7 +592,7 @@ bool AnalysisNeighborhoodSearchImpl::initGrid(const t_pbc& pbc, int posCount, co
     rvec origin, boundingBoxSize;
     computeBoundingBox(posCount, x, origin, boundingBoxSize);
     clear_rvec(gridOrigin_);
-    for (int dd = 0; dd < DIM; ++dd)
+    for (int dd = 0; dd < c_dim; ++dd)
     {
         if (!bGridPBC_[dd] && !bSingleCell[dd])
         {
@@ -617,7 +617,7 @@ bool AnalysisNeighborhoodSearchImpl::initGrid(const t_pbc& pbc, int posCount, co
     }
 
     bTric_ = TRICLINIC(pbc.box);
-    for (int dd = 0; dd < DIM; ++dd)
+    for (int dd = 0; dd < c_dim; ++dd)
     {
         cellSize_[dd] = box[dd][dd] / ncelldim_[dd];
         if (bSingleCell[dd])
@@ -655,7 +655,7 @@ void AnalysisNeighborhoodSearchImpl::mapPointToGridCell(const rvec x, rvec cell,
     // The reverse order is necessary for triclinic cells: shifting in Z may
     // modify also X and Y, and shifting in Y may modify X, so the mapping to
     // a rectangular grid needs to be done in this order.
-    for (int dd = DIM - 1; dd >= 0; --dd)
+    for (int dd = c_dim - 1; dd >= 0; --dd)
     {
         real cellIndex = xtmp[dd] * invCellSize_[dd];
         if (bGridPBC_[dd])
@@ -688,7 +688,7 @@ int AnalysisNeighborhoodSearchImpl::getGridCellIndex(const ivec cell) const
 int AnalysisNeighborhoodSearchImpl::getGridCellIndex(const rvec cell) const
 {
     ivec icell;
-    for (int dd = 0; dd < DIM; ++dd)
+    for (int dd = 0; dd < c_dim; ++dd)
     {
         int cellIndex = static_cast<int>(floor(cell[dd]));
         if (!bGridPBC_[dd])
@@ -782,7 +782,7 @@ real AnalysisNeighborhoodSearchImpl::computeCutoffExtent(const RVec centerCell, 
     }
 
     real dist2 = 0;
-    for (int d = dim + 1; d < DIM; ++d)
+    for (int d = dim + 1; d < c_dim; ++d)
     {
         real dimDist = cell[d] - centerCell[d];
         if (dimDist < -1)
@@ -805,7 +805,7 @@ real AnalysisNeighborhoodSearchImpl::computeCutoffExtent(const RVec centerCell, 
 bool AnalysisNeighborhoodSearchImpl::nextCell(const rvec centerCell, ivec cell, ivec upperBound) const
 {
     int dim = 0;
-    while (dim < DIM)
+    while (dim < c_dim)
     {
     next:
         ++cell[dim];
@@ -834,7 +834,7 @@ int AnalysisNeighborhoodSearchImpl::shiftCell(const ivec cell, rvec shift) const
     copy_ivec(cell, shiftedCell);
 
     clear_rvec(shift);
-    for (int d = 0; d < DIM; ++d)
+    for (int d = 0; d < c_dim; ++d)
     {
         const int cellCount = ncelldim_[d];
         if (bGridPBC_[d])

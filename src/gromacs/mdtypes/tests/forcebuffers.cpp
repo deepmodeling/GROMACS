@@ -114,7 +114,7 @@ TEST(ForceBuffers, CopyWorks)
     EXPECT_EQ(forceBuffersCopy.view().force().size(), 2);
     for (index i = 0; i < ssize(forceCopy); i++)
     {
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             EXPECT_EQ(forceCopy[i][d], force[i][d]);
         }

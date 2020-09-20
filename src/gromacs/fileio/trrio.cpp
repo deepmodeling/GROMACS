@@ -56,19 +56,19 @@ static int nFloatSize(gmx_trr_header_t* sh)
 
     if (sh->box_size)
     {
-        nflsize = sh->box_size / (DIM * DIM);
+        nflsize = sh->box_size / (gmx::c_dim * gmx::c_dim);
     }
     else if (sh->x_size)
     {
-        nflsize = sh->x_size / (sh->natoms * DIM);
+        nflsize = sh->x_size / (sh->natoms * gmx::c_dim);
     }
     else if (sh->v_size)
     {
-        nflsize = sh->v_size / (sh->natoms * DIM);
+        nflsize = sh->v_size / (sh->natoms * gmx::c_dim);
     }
     else if (sh->f_size)
     {
-        nflsize = sh->f_size / (sh->natoms * DIM);
+        nflsize = sh->f_size / (sh->natoms * gmx::c_dim);
     }
     else
     {
@@ -175,15 +175,15 @@ static gmx_bool do_trr_frame_data(t_fileio* fio, gmx_trr_header_t* sh, rvec* box
     bOK = TRUE;
     if (sh->box_size != 0)
     {
-        bOK = bOK && gmx_fio_ndo_rvec(fio, box, DIM);
+        bOK = bOK && gmx_fio_ndo_rvec(fio, box, gmx::c_dim);
     }
     if (sh->vir_size != 0)
     {
-        bOK = bOK && gmx_fio_ndo_rvec(fio, pv, DIM);
+        bOK = bOK && gmx_fio_ndo_rvec(fio, pv, gmx::c_dim);
     }
     if (sh->pres_size != 0)
     {
-        bOK = bOK && gmx_fio_ndo_rvec(fio, pv, DIM);
+        bOK = bOK && gmx_fio_ndo_rvec(fio, pv, gmx::c_dim);
     }
     if (sh->x_size != 0)
     {

@@ -72,7 +72,7 @@ static void calc_com_pbc(int nrefat, t_topology* top, rvec x[], t_pbc* pbc, cons
     {
         ai   = index[m];
         mass = top->atoms.atom[ai].m;
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             xref[j] += mass * x[ai][j];
         }
@@ -92,7 +92,7 @@ static void calc_com_pbc(int nrefat, t_topology* top, rvec x[], t_pbc* pbc, cons
                 mass = top->atoms.atom[ai].m / mtot;
                 pbc_dx(pbc, x[ai], xref, dx);
                 rvec_add(xref, dx, xtest);
-                for (j = 0; (j < DIM); j++)
+                for (j = 0; (j < gmx::c_dim); j++)
                 {
                     if (std::abs(xtest[j] - x[ai][j]) > tol)
                     {

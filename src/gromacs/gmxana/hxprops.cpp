@@ -209,7 +209,7 @@ real dip(int nbb, int const bbind[], const rvec x[], const t_atom atom[])
     {
         ai = bbind[i];
         q  = atom[ai].q;
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             dipje[m] += x[ai][m] * q;
         }

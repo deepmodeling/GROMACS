@@ -333,7 +333,7 @@ int gmx_densmap(int argc, char* argv[])
                     {
                         k = ind[i][j];
                         m = top.atoms.atom[k].m;
-                        for (l = 0; l < DIM; l++)
+                        for (l = 0; l < gmx::c_dim; l++)
                         {
                             xcom[i][l] += m * x[k][l];
                         }
@@ -343,7 +343,7 @@ int gmx_densmap(int argc, char* argv[])
                 }
             }
             pbc_dx(&pbc, xcom[1], xcom[0], direction);
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 center[i] = xcom[0][i] + 0.5 * direction[i];
             }

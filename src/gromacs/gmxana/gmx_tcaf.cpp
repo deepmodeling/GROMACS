@@ -429,7 +429,7 @@ int gmx_tcaf(int argc, char* argv[])
         rho += 1 / det(fr.box);
         for (k = 0; k < nk; k++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 kfac[k][d] = 2 * M_PI * v0[k][d] / fr.box[d][d];
             }

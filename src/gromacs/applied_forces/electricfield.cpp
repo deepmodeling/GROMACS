@@ -194,7 +194,7 @@ private:
     void printComponents(double t) const;
 
     //! The components of the applied electric field in each coordinate dimension
-    ElectricFieldDimension efield_[DIM];
+    ElectricFieldDimension efield_[c_dim];
     //! File pointer for electric field
     FILE* fpField_;
 };
@@ -306,7 +306,7 @@ void ElectricField::calculateForces(const ForceProviderInput& forceProviderInput
         // NOTE: The non-conservative electric field does not have a virial
         ArrayRef<RVec> f = forceProviderOutput->forceWithVirial_.force_;
 
-        for (int m = 0; (m < DIM); m++)
+        for (int m = 0; (m < c_dim); m++)
         {
             const real fieldStrength = FIELDFAC * field(m, t);
 

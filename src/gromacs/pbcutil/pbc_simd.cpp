@@ -75,7 +75,7 @@ void set_pbc_simd(const t_pbc gmx_unused* pbc, real gmx_unused* pbc_simd)
     else
     {
         /* Setting inv_box_diag to zero leads to no PBC being applied */
-        for (int i = 0; i < (DIM + DIM * (DIM + 1) / 2); i++)
+        for (int i = 0; i < (c_dim + c_dim * (c_dim + 1) / 2); i++)
         {
             store(pbc_simd + i * GMX_SIMD_REAL_WIDTH, SimdReal(0));
         }

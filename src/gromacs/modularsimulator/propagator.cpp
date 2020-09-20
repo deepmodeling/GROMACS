@@ -71,7 +71,7 @@ static void inline updateVelocities(int         a,
                                     const rvec               diagPR,
                                     const matrix             matrixPR)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         // TODO: Extract this into policy classes
         if (numVelocityScalingValues != NumVelocityScalingValues::None
@@ -110,7 +110,7 @@ static void inline updatePositions(int         a,
                                    rvec* gmx_restrict xprime,
                                    const rvec* gmx_restrict v)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         xprime[a][d] = x[a][d] + v[a][d] * dt;
     }

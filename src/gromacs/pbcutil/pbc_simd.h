@@ -56,7 +56,7 @@ struct gmx_domdec_t;
  *
  * \param pbc        Type of periodic boundary,
  *                   NULL can be passed for then no PBC will be used.
- * \param pbc_simd   Pointer to aligned memory with (DIM + DIM*(DIM+1)/2)
+ * \param pbc_simd   Pointer to aligned memory with (c_dim + c_dim*(c_dim+1)/2)
  *                   GMX_SIMD_REAL_WIDTH reals describing the box vectors
  *                   unrolled by GMX_SIMD_REAL_WIDTH.
  *                   These are sorted in a slightly non-standard
@@ -117,7 +117,7 @@ static inline void gmx_simdcall pbc_dx_aiuc(const real*          pbc_simd,
                                             const gmx::SimdReal* x2,
                                             gmx::SimdReal*       dx)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         dx[d] = x1[d] - x2[d];
     }

@@ -101,7 +101,7 @@ void PmePpCommGpu::Impl::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSi
 
     // Pull force data from remote GPU
     void*       pmeForcePtr = receivePmeForceToGpu ? static_cast<void*>(d_pmeForces_) : recvPtr;
-    cudaError_t stat = cudaMemcpyAsync(pmeForcePtr, remotePmeFBuffer_, recvSize * DIM * sizeof(float),
+    cudaError_t stat = cudaMemcpyAsync(pmeForcePtr, remotePmeFBuffer_, recvSize * c_dim * sizeof(float),
                                        cudaMemcpyDefault, pmePpCommStream_.stream());
     CU_RET_ERR(stat, "cudaMemcpyAsync on Recv from PME CUDA direct data transfer failed");
 
@@ -134,7 +134,7 @@ void PmePpCommGpu::Impl::sendCoordinatesToPmeCudaDirect(void* sendPtr,
     // ensure stream waits until coordinate data is available on device
     coordinatesReadyOnDeviceEvent->enqueueWaitEvent(pmePpCommStream_);
 
-    cudaError_t stat = cudaMemcpyAsync(remotePmeXBuffer_, sendPtr, sendSize * DIM * sizeof(float),
+    cudaError_t stat = cudaMemcpyAsync(remotePmeXBuffer_, sendPtr, sendSize * c_dim * sizeof(float),
                                        cudaMemcpyDefault, pmePpCommStream_.stream());
     CU_RET_ERR(stat, "cudaMemcpyAsync on Send to PME CUDA direct data transfer failed");
 

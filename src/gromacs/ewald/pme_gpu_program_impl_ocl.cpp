@@ -153,7 +153,7 @@ void PmeGpuProgramImpl::compileKernels(const DeviceInformation& deviceInfo)
                 warpSize_, c_pmeGpuOrder, c_pmeGpuOrder * c_pmeGpuOrder,
                 static_cast<float>(c_pmeMaxUnitcellShift), static_cast<int>(c_skipNeutralAtoms),
                 c_virialAndEnergyCount, spreadWorkGroupSize, solveMaxWorkGroupSize,
-                gatherWorkGroupSize, DIM, XX, YY, ZZ);
+                gatherWorkGroupSize, gmx::c_dim, XX, YY, ZZ);
         try
         {
             /* TODO when we have a proper MPI-aware logging module,

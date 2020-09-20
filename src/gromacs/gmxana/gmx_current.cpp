@@ -162,13 +162,13 @@ static void remove_jump(matrix box, int natoms, rvec xp[], rvec x[])
     rvec hbox;
     int  d, i, m;
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         hbox[d] = 0.5 * box[d][d];
     }
     for (i = 0; i < natoms; i++)
     {
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             while (x[i][m] - xp[i][m] <= -hbox[m])
             {

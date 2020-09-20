@@ -92,7 +92,7 @@ __launch_bounds__(c_maxThreadsPerBlock) __global__
                                             float3* __restrict__ gm_x,
                                             const ScalingMatrix scalingMatrix)
 {
-    int threadIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    int threadIndex = blockIdx.x * blockc_dim.x + threadIdx.x;
     if (threadIndex < numAtoms)
     {
         float3 x = gm_x[threadIndex];
@@ -135,9 +135,9 @@ void UpdateConstrainGpu::Impl::integrate(GpuEventSynchronizer*             fRead
 
     // scaledVirial -> virial (methods above returns scaled values)
     float scaleFactor = 0.5f / (dt * dt);
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < c_dim; j++)
         {
             virial[i][j] = scaleFactor * virial[i][j];
         }

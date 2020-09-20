@@ -225,14 +225,14 @@ int gmx_filter(int argc, char* argv[])
             xp = x[nffr - 2];
             for (j = 0; j < nat; j++)
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     hbox[d] = 0.5 * box[nffr - 1][d][d];
                 }
             }
             for (i = 0; i < nat; i++)
             {
-                for (m = DIM - 1; m >= 0; m--)
+                for (m = gmx::c_dim - 1; m >= 0; m--)
                 {
                     if (hbox[m] > 0)
                     {
@@ -283,14 +283,14 @@ int gmx_filter(int argc, char* argv[])
             {
                 for (j = 0; j < nat; j++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         xf[j][d] += filt[i] * x[i][j][d];
                     }
                 }
-                for (j = 0; j < DIM; j++)
+                for (j = 0; j < gmx::c_dim; j++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         boxf[j][d] += filt[i] * box[i][j][d];
                     }
@@ -306,7 +306,7 @@ int gmx_filter(int argc, char* argv[])
                 /* Highpass filtering */
                 for (j = 0; j < nat; j++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         xf[j][d] = xtop[j][d] + x[nf - 1][j][d] - xf[j][d];
                     }
@@ -318,9 +318,9 @@ int gmx_filter(int argc, char* argv[])
                         rvec_inc(xf[j], xcmtop);
                     }
                 }
-                for (j = 0; j < DIM; j++)
+                for (j = 0; j < gmx::c_dim; j++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         boxf[j][d] = topbox[j][d] + box[nf - 1][j][d] - boxf[j][d];
                     }

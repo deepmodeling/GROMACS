@@ -552,12 +552,12 @@ static int vec_shakef(FILE*                     fplog,
         {
             /* Correct the velocities */
             real mm = scaled_lagrange_multiplier[ll] * invmass[i] * invdt;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < c_dim; d++)
             {
                 v[ia[1]][d] += mm * rij[ll][d];
             }
             mm = scaled_lagrange_multiplier[ll] * invmass[j] * invdt;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < c_dim; d++)
             {
                 v[ia[2]][d] -= mm * rij[ll][d];
             }
@@ -568,10 +568,10 @@ static int vec_shakef(FILE*                     fplog,
         if (bCalcVir)
         {
             const real mm = scaled_lagrange_multiplier[ll];
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < c_dim; d++)
             {
                 const real tmp = mm * rij[ll][d];
-                for (d2 = 0; d2 < DIM; d2++)
+                for (d2 = 0; d2 < c_dim; d2++)
                 {
                     vir_r_m_dr[d][d2] -= tmp * rij[ll][d2];
                 }

@@ -211,7 +211,7 @@ void dd_move_x_specat(const gmx_domdec_t*       dd,
                 {
                     bPBC   = TRUE;
                     bScrew = (dd->unitCellInfo.haveScrewPBC && dim == XX);
-                    for (i = 0; i < DIM; i++)
+                    for (i = 0; i < gmx::c_dim; i++)
                     {
                         shift[i] = -box[dim][i];
                     }

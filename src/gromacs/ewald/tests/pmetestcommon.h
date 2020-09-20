@@ -94,7 +94,7 @@ typedef ArrayRef<const IVec> GridLineIndicesVector;
 typedef ArrayRef<const real> SplineParamsDimVector;
 /*! \brief Spline parameters (theta or dtheta) in all 3 dimensions
  */
-typedef std::array<SplineParamsDimVector, DIM> SplineParamsVector;
+typedef std::array<SplineParamsDimVector, c_dim> SplineParamsVector;
 
 //! Non-zero grid values for test input; keys are 3d indices (IVec)
 template<typename ValueType>
@@ -111,7 +111,7 @@ typedef SparseGridValuesOutput<real> SparseRealGridValuesOutput;
 //! Non-zero complex grid values
 typedef SparseGridValuesOutput<t_complex> SparseComplexGridValuesOutput;
 //! TODO: make proper C++ matrix for the whole Gromacs, get rid of this
-typedef std::array<real, DIM * DIM> Matrix3x3;
+typedef std::array<real, c_dim * c_dim> Matrix3x3;
 //! PME solver type
 enum class PmeSolveAlgorithm : int
 {

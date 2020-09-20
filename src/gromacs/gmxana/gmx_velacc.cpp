@@ -281,10 +281,10 @@ int gmx_velacc(int argc, char* argv[])
             n_alloc += 100;
             for (i = 0; i < gnx; i++)
             {
-                srenew(c1[i], DIM * n_alloc);
+                srenew(c1[i], gmx::c_dim * n_alloc);
             }
         }
-        counter_dim = DIM * counter;
+        counter_dim = gmx::c_dim * counter;
         if (bMol)
         {
             for (i = 0; i < gnx; i++)

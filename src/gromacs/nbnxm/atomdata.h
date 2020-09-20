@@ -95,15 +95,15 @@ static constexpr int c_packX4 = 4;
 //! Size of packs of x, y or z with SIMD 8-grouped packed coordinates/forces
 static constexpr int c_packX8 = 8;
 //! Stridefor a pack of 4 coordinates/forces
-static constexpr int STRIDE_P4 = DIM * c_packX4;
+static constexpr int STRIDE_P4 = gmx::c_dim * c_packX4;
 //! Stridefor a pack of 8 coordinates/forces
-static constexpr int STRIDE_P8 = DIM * c_packX8;
+static constexpr int STRIDE_P8 = gmx::c_dim * c_packX8;
 
 //! Returns the index in a coordinate array corresponding to atom a
 template<int packSize>
 static inline int atom_to_x_index(int a)
 {
-    return DIM * (a & ~(packSize - 1)) + (a & (packSize - 1));
+    return gmx::c_dim * (a & ~(packSize - 1)) + (a & (packSize - 1));
 }
 
 /*! \internal
@@ -124,7 +124,7 @@ struct nbnxn_atomdata_output_t
 
     //! f, size natoms*fstride
     gmx::HostVector<real> f;
-    //! Shift force array, size SHIFTS*DIM
+    //! Shift force array, size SHIFTS*c_dim
     gmx::HostVector<real> fshift;
     //! Temporary Van der Waals group energy storage
     gmx::HostVector<real> Vvdw;

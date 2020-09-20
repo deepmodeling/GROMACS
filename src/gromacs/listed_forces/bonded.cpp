@@ -214,7 +214,7 @@ inline void spreadBondForces(const real bondForce,
                              int        shiftIndex,
                              rvec*      fshift)
 {
-    for (int m = 0; m < DIM; m++) /*  15          */
+    for (int m = 0; m < c_dim; m++) /*  15          */
     {
         const real fij = bondForce * dx[m];
         f[ai][m] += fij;
@@ -849,7 +849,7 @@ real water_pol(int             nbonds,
             /* Compute displacement of shell along components of the vector */
             dx[ZZ] = iprod(dDS, dOD);
             /* Compute projection on the XY plane: dDS - dx[ZZ]*dOD */
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < c_dim); m++)
             {
                 proj[m] = dDS[m] - dx[ZZ] * dOD[m];
             }
@@ -857,7 +857,7 @@ real water_pol(int             nbonds,
             /*dx[XX] = iprod(dDS,nW);
                dx[YY] = iprod(dDS,dHH);*/
             dx[XX] = iprod(proj, nW);
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < c_dim); m++)
             {
                 proj[m] -= dx[XX] * nW[m];
             }
@@ -868,7 +868,7 @@ real water_pol(int             nbonds,
             kdx[ZZ] = kk[ZZ] * dx[ZZ];
             vtot += iprod(dx, kdx);
 
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < c_dim); m++)
             {
                 /* This is a tensor operation but written out for speed */
                 tx  = nW[m] * kdx[XX];
@@ -906,7 +906,7 @@ do_1_thole(const rvec xi, const rvec xj, rvec fi, rvec fj, const t_pbc* pbc, rea
     v1     = (1 - (1 + 0.5 * r12bar) * ebar);                                     /*  4 */
     fscal  = ((v0 * r12_1) * v1 - v0 * 0.5 * afac * ebar * (r12bar + 1)) * r12_1; /* 9 */
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < c_dim); m++)
     {
         fff = fscal * r12[m];
         fi[m] += fff;
@@ -1028,7 +1028,7 @@ angles(int             nbonds,
             cii = sth * nrij_1 * nrij_1; /*   2		*/
             ckk = sth * nrkj_1 * nrkj_1; /*   2		*/
 
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < c_dim; m++)
             { /*  39		*/
                 f_i[m] = -(cik * r_kj[m] - cii * r_ij[m]);
                 f_k[m] = -(cik * r_ij[m] - ckk * r_kj[m]);
@@ -1260,7 +1260,7 @@ real linear_angles(int             nbonds,
         rvec_sub(r_ij, r_kj, r_ik);
 
         dr2 = 0;
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < c_dim); m++)
         {
             dr = -a * r_ij[m] - b * r_kj[m];
             dr2 += dr * dr;
@@ -1352,7 +1352,7 @@ urey_bradley(int             nbonds,
             cii = sth / nrij2;                      /*  10		*/
             ckk = sth / nrkj2;                      /*  10		*/
 
-            for (m = 0; (m < DIM); m++) /*  39		*/
+            for (m = 0; (m < c_dim); m++) /*  39		*/
             {
                 f_i[m] = -(cik * r_kj[m] - cii * r_ij[m]);
                 f_k[m] = -(cik * r_ij[m] - ckk * r_kj[m]);
@@ -1377,7 +1377,7 @@ urey_bradley(int             nbonds,
         vtot += vbond;              /* 1*/
         fbond *= gmx::invsqrt(dr2); /*   6		*/
 
-        for (m = 0; (m < DIM); m++) /*  15		*/
+        for (m = 0; (m < c_dim); m++) /*  15		*/
         {
             fik = fbond * r_ik[m];
             f[ai][m] += fik;
@@ -1602,7 +1602,7 @@ real quartic_angles(int             nbonds,
             cii = sth / nrij2;                      /*  10		*/
             ckk = sth / nrkj2;                      /*  10		*/
 
-            for (m = 0; (m < DIM); m++) /*  39		*/
+            for (m = 0; (m < c_dim); m++) /*  39		*/
             {
                 f_i[m] = -(cik * r_kj[m] - cii * r_ij[m]);
                 f_k[m] = -(cik * r_ij[m] - ckk * r_kj[m]);
@@ -2332,7 +2332,7 @@ real low_angres(int             nbonds,
             cij = sth / nrij2;                      /*  10		*/
             ckl = sth / nrkl2;                      /*  10		*/
 
-            for (m = 0; m < DIM; m++) /*  18+18       */
+            for (m = 0; m < c_dim; m++) /*  18+18       */
             {
                 f_i[m] = (c * r_kl[m] - cij * r_ij[m]);
                 f[ai][m] += f_i[m];
@@ -2575,7 +2575,7 @@ real restrangles(int             nbonds,
                                    &ratio_ante, &ratio_post, &v);
 
         /*   Forces are computed per component */
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < c_dim; d++)
         {
             f_i[d] = prefactor * (ratio_ante * delta_ante[d] - delta_post[d]);
             f_j[d] = prefactor
@@ -2589,7 +2589,7 @@ real restrangles(int             nbonds,
 
         /*   Update forces */
 
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < c_dim); m++)
         {
             f[ai][m] += f_i[m];
             f[aj][m] += f_j[m];
@@ -2666,7 +2666,7 @@ real restrdihs(int             nbonds,
 
 
         /*      Computation of forces per component */
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < c_dim; d++)
         {
             f_i[d] = prefactor_phi
                      * (factor_phi_ai_ante * delta_ante[d] + factor_phi_ai_crnt * delta_crnt[d]
@@ -2775,7 +2775,7 @@ real cbtdihs(int             nbonds,
 
 
         /*      Acumulate the resuts per beads */
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < c_dim; d++)
         {
             f_i[d] = f_phi_ai[d] + f_theta_ante_ai[d];
             f_j[d] = f_phi_aj[d] + f_theta_ante_aj[d] + f_theta_post_aj[d];
@@ -3260,7 +3260,7 @@ real cmap_dihs(int                 nbonds,
         gaa1 = -ra2r1 * rg1;
         gbb1 = rb2r1 * rg1;
 
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < c_dim; i++)
         {
             dtf1[i] = gaa1 * a1[i];
             dtg1[i] = fga1 * a1[i] - hgb1 * b1[i];
@@ -3289,7 +3289,7 @@ real cmap_dihs(int                 nbonds,
         gaa2 = -ra2r2 * rg2;
         gbb2 = rb2r2 * rg2;
 
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < c_dim; i++)
         {
             dtf2[i] = gaa2 * a2[i];
             dtg2[i] = fga2 * a2[i] - hgb2 * b2[i];
@@ -3465,7 +3465,7 @@ real g96angles(int             nbonds,
         rkj_2    = rkj_1 * rkj_1;
         rijrkj_1 = rij_1 * rkj_1; /* 23 */
 
-        for (m = 0; (m < DIM); m++) /*  42	*/
+        for (m = 0; (m < c_dim); m++) /*  42	*/
         {
             f_i[m] = dVdt * (r_kj[m] * rijrkj_1 - r_ij[m] * rij_2 * cos_theta);
             f_k[m] = dVdt * (r_ij[m] * rijrkj_1 - r_kj[m] * rkj_2 * cos_theta);
@@ -3539,7 +3539,7 @@ real cross_bond_bond(int             nbonds,
         svmul(-krr * s2 / r1, r_ij, f_i);
         svmul(-krr * s1 / r2, r_kj, f_k);
 
-        for (m = 0; (m < DIM); m++) /*  12	*/
+        for (m = 0; (m < c_dim); m++) /*  12	*/
         {
             f_j[m] = -f_i[m] - f_k[m];
             f[ai][m] += f_i[m];
@@ -3615,14 +3615,14 @@ real cross_bond_angle(int             nbonds,
         k1 = -krt * (s3 / r1);
         k2 = -krt * (s3 / r2);
         k3 = -krt * (s1 + s2) / r3;
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < c_dim); m++)
         {
             f_i[m] = k1 * r_ij[m] + k3 * r_ik[m];
             f_k[m] = k2 * r_kj[m] - k3 * r_ik[m];
             f_j[m] = -f_i[m] - f_k[m];
         }
 
-        for (m = 0; (m < DIM); m++) /*  12	*/
+        for (m = 0; (m < c_dim); m++) /*  12	*/
         {
             f[ai][m] += f_i[m];
             f[aj][m] += f_j[m];
@@ -3789,7 +3789,7 @@ real tab_angles(int             nbonds,
             cii = sth / nrij2;                      /*  10		*/
             ckk = sth / nrkj2;                      /*  10		*/
 
-            for (m = 0; (m < DIM); m++) /*  39		*/
+            for (m = 0; (m < c_dim); m++) /*  39		*/
             {
                 f_i[m] = -(cik * r_kj[m] - cii * r_ij[m]);
                 f_k[m] = -(cik * r_ij[m] - ckk * r_kj[m]);

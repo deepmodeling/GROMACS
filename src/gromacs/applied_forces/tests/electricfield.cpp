@@ -90,7 +90,7 @@ public:
         // Fill the module as if from .mdp inputs
         {
             const char* dimXYZ[3] = { "x", "y", "z" };
-            GMX_RELEASE_ASSERT(dim >= 0 && dim < DIM, "Dimension should be 0, 1 or 2");
+            GMX_RELEASE_ASSERT(dim >= 0 && dim < c_dim, "Dimension should be 0, 1 or 2");
 
             KeyValueTreeBuilder mdpValues;
             mdpValues.rootObject().addValue(formatString("electric-field-%s", dimXYZ[dim]),

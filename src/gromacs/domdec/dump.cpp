@@ -77,9 +77,9 @@ void write_dd_grid_pdb(const char* fn, int64_t step, gmx_domdec_t* dd, matrix bo
 
     if (DDMASTER(dd))
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (d == i)
                 {
@@ -105,7 +105,7 @@ void write_dd_grid_pdb(const char* fn, int64_t step, gmx_domdec_t* dd, matrix bo
         for (i = 0; i < dd->nnodes; i++)
         {
             vol = dd->nnodes / (box[XX][XX] * box[YY][YY] * box[ZZ][ZZ]);
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 vol *= grid_r[i * 2 + 1][d] - grid_r[i * 2][d];
             }
@@ -124,7 +124,7 @@ void write_dd_grid_pdb(const char* fn, int64_t step, gmx_domdec_t* dd, matrix bo
                     }
                 }
             }
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 for (x = 0; x < 4; x++)
                 {

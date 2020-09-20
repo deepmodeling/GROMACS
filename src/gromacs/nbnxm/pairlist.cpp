@@ -410,7 +410,7 @@ static inline void gmx_simdcall clusterBoundingBoxDistance2_xxxx_simd4_inner(con
 {
     constexpr int stride = c_packedBoundingBoxesDimSize;
 
-    const int shi = boundingBoxStart * Nbnxm::c_numBoundingBoxBounds1D * DIM;
+    const int shi = boundingBoxStart * Nbnxm::c_numBoundingBoxBounds1D * c_dim;
 
     const Simd4Float zero = setZero();
 
@@ -489,7 +489,7 @@ clusterpair_in_range(const NbnxnPairlistGpuWork& work, int si, int csj, int stri
 
     for (int i = 0; i < c_nbnxnGpuClusterSize; i++)
     {
-        int i0 = (si * c_nbnxnGpuClusterSize + i) * DIM;
+        int i0 = (si * c_nbnxnGpuClusterSize + i) * c_dim;
         for (int j = 0; j < c_nbnxnGpuClusterSize; j++)
         {
             int j0 = (csj * c_nbnxnGpuClusterSize + j) * stride;
@@ -519,7 +519,7 @@ clusterpair_in_range(const NbnxnPairlistGpuWork& work, int si, int csj, int stri
 
     const real* x_i = work.iSuperClusterData.xSimd.data();
 
-    int       dim_stride = c_nbnxnGpuClusterSize * DIM;
+    int       dim_stride = c_nbnxnGpuClusterSize * c_dim;
     Simd4Real ix_S0      = load4(x_i + si * dim_stride + 0 * GMX_SIMD4_WIDTH);
     Simd4Real iy_S0      = load4(x_i + si * dim_stride + 1 * GMX_SIMD4_WIDTH);
     Simd4Real iz_S0      = load4(x_i + si * dim_stride + 2 * GMX_SIMD4_WIDTH);
@@ -2368,9 +2368,9 @@ static void icell_set_x(int                       ci,
     int ia = ci * c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize;
     for (int i = 0; i < c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize; i++)
     {
-        x_ci[i * DIM + XX] = x[(ia + i) * stride + XX] + shx;
-        x_ci[i * DIM + YY] = x[(ia + i) * stride + YY] + shy;
-        x_ci[i * DIM + ZZ] = x[(ia + i) * stride + ZZ] + shz;
+        x_ci[i * c_dim + XX] = x[(ia + i) * stride + XX] + shx;
+        x_ci[i * c_dim + YY] = x[(ia + i) * stride + YY] + shy;
+        x_ci[i * c_dim + ZZ] = x[(ia + i) * stride + ZZ] + shz;
     }
 
 #else /* !GMX_SIMD4_HAVE_REAL */
@@ -2385,9 +2385,9 @@ static void icell_set_x(int                       ci,
             int ia = ci * c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize + io;
             for (int j = 0; j < GMX_SIMD4_WIDTH; j++)
             {
-                x_ci[io * DIM + j + XX * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + XX] + shx;
-                x_ci[io * DIM + j + YY * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + YY] + shy;
-                x_ci[io * DIM + j + ZZ * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + ZZ] + shz;
+                x_ci[io * c_dim + j + XX * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + XX] + shx;
+                x_ci[io * c_dim + j + YY * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + YY] + shy;
+                x_ci[io * c_dim + j + ZZ * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + ZZ] + shz;
             }
         }
     }
@@ -2457,7 +2457,7 @@ static real nonlocal_vol2(const struct gmx_domdec_zones_t* zones, const rvec ls,
             cl = 0;
             ca = 1;
             za = 1;
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 if (zones->shift[z][d] == 0)
                 {
@@ -3168,7 +3168,7 @@ static void nbnxn_make_pairlist_part(const Nbnxm::GridSet&   gridSet,
     const bool isIntraGridList = (&iGrid == &jGrid);
 
     /* Set the shift range */
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         /* Check if we need periodicity shifts.
          * Without PBC or with domain decomposition we don't need them.

@@ -294,14 +294,14 @@ static inline int computeAtomGroupDomainIndex(const gmx_domdec_t& dd,
         {
             rvec_inc(cog, pos[a]);
         }
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             cog[d] *= invNumAtoms;
         }
     }
     /* Put the charge group in the box and determine the cell index ind */
     ivec ind;
-    for (int d = DIM - 1; d >= 0; d--)
+    for (int d = gmx::c_dim - 1; d >= 0; d--)
     {
         real pos_d = cog[d];
         if (d < dd.unitCellInfo.npbcdim)
@@ -310,7 +310,7 @@ static inline int computeAtomGroupDomainIndex(const gmx_domdec_t& dd,
             if (ddbox.tric_dir[d] && dd.numCells[d] > 1)
             {
                 /* Use triclinic coordinates for this dimension */
-                for (int j = d + 1; j < DIM; j++)
+                for (int j = d + 1; j < gmx::c_dim; j++)
                 {
                     pos_d += cog[j] * triclinicCorrectionMatrix[j][d];
                 }

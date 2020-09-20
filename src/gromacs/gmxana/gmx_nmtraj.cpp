@@ -251,7 +251,7 @@ int gmx_nmtraj(int argc, char* argv[])
             for (k = 0; k < natoms; k++)
             {
                 m = atoms->atom[k].m;
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     vel = omega * this_eigvec[k][d];
                     Ekin += 0.5 * 0.5 * m * vel * vel;
@@ -293,7 +293,7 @@ int gmx_nmtraj(int argc, char* argv[])
 
             for (j = 0; j < natoms; j++)
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     xout[j][d] += amplitude[k] * std::sin(2 * M_PI * (fraction + phases[k] / 360.0))
                                   * this_eigvec[j][d];

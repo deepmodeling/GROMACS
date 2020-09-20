@@ -95,7 +95,7 @@ static void process_pull_dim(char* dim_buf, ivec dim, const t_pull_coord* pcrd)
 
     ptr  = dim_buf;
     ndim = 0;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (sscanf(ptr, "%s%n", pulldim1, &nchar) != 1)
         {
@@ -252,7 +252,7 @@ static void init_pull_coord(t_pull_coord* pcrd,
             gmx_fatal(FARGS, "With pull geometry %s the pull vector can not be 0,0,0",
                       epullg_names[pcrd->eGeom]);
         }
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             if (vec[d] != 0 && pcrd->dim[d] == 0)
             {
@@ -279,7 +279,7 @@ static void init_pull_coord(t_pull_coord* pcrd,
             warning(wi, buf);
         }
     }
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < gmx::c_dim; m++)
     {
         pcrd->origin[m] = origin[m];
         pcrd->vec[m]    = vec[m];

@@ -114,9 +114,9 @@ void BoxDeformation::apply(ArrayRef<RVec> x, matrix box, int64_t step)
 
     double elapsedTime = (step + 1 - initialStep_) * timeStep_;
     copy_mat(box, updatedBox);
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < c_dim; j++)
         {
             if (deformationTensor_[i][j] != 0)
             {
@@ -128,7 +128,7 @@ void BoxDeformation::apply(ArrayRef<RVec> x, matrix box, int64_t step)
      * which can grow indefinitely during shearing,
      * so the shifts do not get messed up.
      */
-    for (int i = 1; i < DIM; i++)
+    for (int i = 1; i < c_dim; i++)
     {
         for (int j = i - 1; j >= 0; j--)
         {

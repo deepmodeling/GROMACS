@@ -126,7 +126,7 @@ void ParrinelloRahmanBarostat::scaleBoxAndPositions()
 {
     // Propagate the box by the box velocities
     auto box = statePropagatorData_->box();
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
         for (int m = 0; m <= i; m++)
         {
@@ -197,7 +197,7 @@ real ParrinelloRahmanBarostat::conservedEnergyContribution() const
     real        volume       = det(box);
 
     // contribution from the pressure momenta
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
         for (int j = 0; j <= i; j++)
         {
@@ -217,7 +217,7 @@ real ParrinelloRahmanBarostat::conservedEnergyContribution() const
      * track of unwrapped box diagonal elements. This case is
      * excluded in integratorHasConservedEnergyQuantity().
      */
-    energy += volume * trace(inputrec_->ref_p) / (DIM * PRESFAC);
+    energy += volume * trace(inputrec_->ref_p) / (c_dim * PRESFAC);
 
     return energy;
 }

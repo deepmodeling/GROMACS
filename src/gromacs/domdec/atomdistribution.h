@@ -69,7 +69,7 @@ struct AtomDistribution
     std::vector<int>              atomGroups; /**< The atom group division of the whole system, pointed into by counts[].atomGroups */
 
     /* Temporary buffers, stored permanently here to avoid reallocation */
-    std::array<std::vector<real>, DIM> cellSizesBuffer; /**< Cell boundaries, sizes: num_cells_in_dim + 1 */
+    std::array<std::vector<real>, gmx::c_dim> cellSizesBuffer; /**< Cell boundaries, sizes: num_cells_in_dim + 1 */
     std::vector<int>       intBuffer;  /**< Buffer for communicating cg and atom counts */
     std::vector<gmx::RVec> rvecBuffer; /**< Buffer for state scattering and gathering */
 };

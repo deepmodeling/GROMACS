@@ -528,12 +528,12 @@ static void do_edfit(int natoms, rvec* xp, rvec* x, matrix R, t_edpar* edi)
 
     if (bFirst)
     {
-        snew(loc->omega, 2 * DIM);
-        snew(loc->om, 2 * DIM);
-        for (i = 0; i < 2 * DIM; i++)
+        snew(loc->omega, 2 * gmx::c_dim);
+        snew(loc->om, 2 * gmx::c_dim);
+        for (i = 0; i < 2 * gmx::c_dim; i++)
         {
-            snew(loc->omega[i], 2 * DIM);
-            snew(loc->om[i], 2 * DIM);
+            snew(loc->omega[i], 2 * gmx::c_dim);
+            snew(loc->om[i], 2 * gmx::c_dim);
         }
     }
 
@@ -551,10 +551,10 @@ static void do_edfit(int natoms, rvec* xp, rvec* x, matrix R, t_edpar* edi)
     clear_mat(u);
     for (n = 0; (n < natoms); n++)
     {
-        for (c = 0; (c < DIM); c++)
+        for (c = 0; (c < gmx::c_dim); c++)
         {
             xpc = xp[n][c];
-            for (r = 0; (r < DIM); r++)
+            for (r = 0; (r < gmx::c_dim); r++)
             {
                 xnr = x[n][r];
                 u[c][r] += xnr * xpc;
@@ -606,7 +606,7 @@ static void do_edfit(int natoms, rvec* xp, rvec* x, matrix R, t_edpar* edi)
         for (i = 0; (i < 3); i++)
         {
             vh[j][i] = M_SQRT2 * loc->om[i][index];
-            vk[j][i] = M_SQRT2 * loc->om[i + DIM][index];
+            vk[j][i] = M_SQRT2 * loc->om[i + gmx::c_dim][index];
         }
     }
 

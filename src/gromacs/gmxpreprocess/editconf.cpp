@@ -110,7 +110,7 @@ static real calc_geom(int isize, const int* index, rvec* x, rvec geom_center, rv
         {
             ii = 0;
         }
-        for (j = 0; j < DIM; j++)
+        for (j = 0; j < gmx::c_dim; j++)
         {
             minval[j] = maxval[j] = x[ii][j];
         }
@@ -125,7 +125,7 @@ static real calc_geom(int isize, const int* index, rvec* x, rvec geom_center, rv
                 ii = i;
             }
             rvec_inc(geom_center, x[ii]);
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 if (x[ii][j] < minval[j])
                 {
@@ -183,14 +183,14 @@ static void scale_conf(int natom, rvec x[], matrix box, const rvec scale)
 
     for (i = 0; i < natom; i++)
     {
-        for (j = 0; j < DIM; j++)
+        for (j = 0; j < gmx::c_dim; j++)
         {
             x[i][j] *= scale[j];
         }
     }
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
-        for (j = 0; j < DIM; j++)
+        for (j = 0; j < gmx::c_dim; j++)
         {
             box[i][j] *= scale[j];
         }
@@ -386,7 +386,7 @@ static void visualize_box(FILE* out, int a0, int r0, matrix box, const rvec grid
             {
                 for (x = 0; x < nx; x++)
                 {
-                    for (i = 0; i < DIM; i++)
+                    for (i = 0; i < gmx::c_dim; i++)
                     {
                         shift[i] = x * box[0][i] + y * box[1][i] + z * box[2][i];
                     }
@@ -861,7 +861,7 @@ int gmx_editconf(int argc, char* argv[])
     bHaveV = FALSE;
     for (i = 0; (i < natom) && !bHaveV; i++)
     {
-        for (j = 0; (j < DIM) && !bHaveV; j++)
+        for (j = 0; (j < gmx::c_dim) && !bHaveV; j++)
         {
             bHaveV = bHaveV || (v[i][j] != 0);
         }
@@ -1052,7 +1052,7 @@ int gmx_editconf(int argc, char* argv[])
         /* Rotate */
         printf("Rotating %g, %g, %g degrees around the X, Y and Z axis respectively\n",
                rotangles[XX], rotangles[YY], rotangles[ZZ]);
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             rotangles[i] *= DEG2RAD;
         }
@@ -1075,7 +1075,7 @@ int gmx_editconf(int argc, char* argv[])
         pbcType = PbcType::Xyz;
         if (!(bSetSize || bDist))
         {
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 newbox[i] = norm(box[i]);
             }
@@ -1087,7 +1087,7 @@ int gmx_editconf(int argc, char* argv[])
             case 't':
                 if (bDist)
                 {
-                    for (i = 0; i < DIM; i++)
+                    for (i = 0; i < gmx::c_dim; i++)
                     {
                         newbox[i] = size[i] + 2 * dist;
                     }
@@ -1116,7 +1116,7 @@ int gmx_editconf(int argc, char* argv[])
                 }
                 if (btype[0][0] == 'c')
                 {
-                    for (i = 0; i < DIM; i++)
+                    for (i = 0; i < gmx::c_dim; i++)
                     {
                         box[i][i] = d;
                     }

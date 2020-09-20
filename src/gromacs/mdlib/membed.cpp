@@ -484,7 +484,7 @@ static void init_resize(t_block* ins_at, rvec* r_ins, pos_ins_t* pos_ins, mem_t*
     {
         c          = 0;
         outsidesum = 0;
-        for (j = 0; j < DIM; j++)
+        for (j = 0; j < gmx::c_dim; j++)
         {
             pos_ins->geom_cent[i][j] = 0;
         }
@@ -530,7 +530,7 @@ static void resize(rvec* r_ins, rvec* r, pos_ins_t* pos_ins, const rvec fac)
         for (i = 0; i < pos_ins->nidx[k]; i++)
         {
             at = pos_ins->subindex[k][i];
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 r[at][j] = pos_ins->geom_cent[k][j] + fac[j] * (r_ins[c][j] - pos_ins->geom_cent[k][j]);
             }
@@ -1206,7 +1206,7 @@ gmx_membed_t* init_membed(FILE*          fplog,
             gmx_fatal(FARGS, "\"%s\" not as freezegroup defined in the mdp-file.", ins);
         }
 
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             if (inputrec->opts.nFreeze[fr_i][i] != 1)
             {

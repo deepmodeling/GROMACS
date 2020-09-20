@@ -94,7 +94,7 @@ static void dump_dih_trr(int nframes, int nangles, real** dih, const char* fn, r
                 GMX_ASSERT(dih != nullptr && dih[j] != nullptr, "Incorrect dihedral array data");
                 x[k][l] = (m == 0) ? std::cos(dih[j][i]) : std::sin(dih[j][i]);
                 l++;
-                if (l == DIM)
+                if (l == gmx::c_dim)
                 {
                     l = 0;
                     k++;

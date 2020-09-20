@@ -225,7 +225,7 @@ void update_pcouple_after_coordinates(FILE*                fplog,
                  * since we need to be able to shift/unshift above.
                  */
                 real dtpc = inputrec->nstpcouple * dt;
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
                     for (int m = 0; m <= i; m++)
                     {
@@ -249,18 +249,18 @@ void update_pcouple_after_coordinates(FILE*                fplog,
             switch (inputrec->epct)
             {
                 case (epctISOTROPIC):
-                    /* DIM * eta = ln V.  so DIM*eta_new = DIM*eta_old + DIM*dt*veta =>
+                    /* c_dim * eta = ln V.  so c_dim*eta_new = c_dim*eta_old + c_dim*dt*veta =>
                        ln V_new = ln V_old + 3*dt*veta => V_new = V_old*exp(3*dt*veta) =>
                        Side length scales as exp(veta*dt) */
 
                     msmul(state->box, std::exp(state->veta * dt), state->box);
 
-                    /* Relate veta to boxv.  veta = d(eta)/dT = (1/DIM)*1/V dV/dT.
+                    /* Relate veta to boxv.  veta = d(eta)/dT = (1/c_dim)*1/V dV/dT.
                        o               If we assume isotropic scaling, and box length scaling
-                       factor L, then V = L^DIM (det(M)).  So dV/dt = DIM
-                       L^(DIM-1) dL/dt det(M), and veta = (1/L) dL/dt.  The
-                       determinant of B is L^DIM det(M), and the determinant
-                       of dB/dt is (dL/dT)^DIM det (M).  veta will be
+                       factor L, then V = L^c_dim (det(M)).  So dV/dt = c_dim
+                       L^(c_dim-1) dL/dt det(M), and veta = (1/L) dL/dt.  The
+                       determinant of B is L^c_dim det(M), and the determinant
+                       of dB/dt is (dL/dT)^c_dim det (M).  veta will be
                        (det(dB/dT)/det(B))^(1/3).  Then since M =
                        B_new*(vol_new)^(1/3), dB/dT_new = (veta_new)*B(new). */
 
@@ -508,7 +508,7 @@ static void boxv_trotter(const t_inputrec*     ir,
         gmx_fatal(FARGS, "Barostat is coupled to a T-group with no degrees of freedom\n");
     }
     /* alpha factor for phase space volume, then multiply by the ekin scaling factor.  */
-    alpha = 1.0 + DIM / (static_cast<double>(ir->opts.nrdf[0]));
+    alpha = 1.0 + gmx::c_dim / (static_cast<double>(ir->opts.nrdf[0]));
     alpha *= ekind->tcstat[0].ekinscalef_nhc;
     msmul(ekind->ekin, alpha, ekinmod);
     /* for now, we use Elr = 0, because if you want to get it right, you
@@ -517,7 +517,7 @@ static void boxv_trotter(const t_inputrec*     ir,
     pscal = calc_pres(ir->pbcType, nwall, box, ekinmod, vir, localpres) + pcorr;
 
     vol = det(box);
-    GW  = (vol * (MassQ->Winv / PRESFAC)) * (DIM * pscal - trace(ir->ref_p)); /* W is in ps^2 * bar * nm^3 */
+    GW  = (vol * (MassQ->Winv / PRESFAC)) * (gmx::c_dim * pscal - trace(ir->ref_p)); /* W is in ps^2 * bar * nm^3 */
 
     *veta += 0.5 * dt * GW;
 }
@@ -547,9 +547,9 @@ real calc_pres(PbcType pbcType, int nwall, const matrix box, const tensor ekin, 
          */
 
         fac = PRESFAC * 2.0 / det(box);
-        for (n = 0; (n < DIM); n++)
+        for (n = 0; (n < gmx::c_dim); n++)
         {
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 pres[n][m] = (ekin[n][m] - vir[n][m]) * fac;
             }
@@ -557,13 +557,13 @@ real calc_pres(PbcType pbcType, int nwall, const matrix box, const tensor ekin, 
 
         if (debug)
         {
-            pr_rvecs(debug, 0, "PC: pres", pres, DIM);
-            pr_rvecs(debug, 0, "PC: ekin", ekin, DIM);
-            pr_rvecs(debug, 0, "PC: vir ", vir, DIM);
-            pr_rvecs(debug, 0, "PC: box ", box, DIM);
+            pr_rvecs(debug, 0, "PC: pres", pres, gmx::c_dim);
+            pr_rvecs(debug, 0, "PC: ekin", ekin, gmx::c_dim);
+            pr_rvecs(debug, 0, "PC: vir ", vir, gmx::c_dim);
+            pr_rvecs(debug, 0, "PC: box ", box, gmx::c_dim);
         }
     }
-    return trace(pres) / DIM;
+    return trace(pres) / gmx::c_dim;
 }
 
 real calc_temp(real ekin, real nrdf)
@@ -587,9 +587,9 @@ static void calcParrinelloRahmanInvMass(const t_inputrec* ir, const matrix box, 
     maxBoxLength = std::max(box[XX][XX], box[YY][YY]);
     maxBoxLength = std::max(maxBoxLength, box[ZZ][ZZ]);
 
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
-        for (int n = 0; n < DIM; n++)
+        for (int n = 0; n < gmx::c_dim; n++)
         {
             wInv[d][n] = (4 * M_PI * M_PI * ir->compress[d][n]) / (3 * ir->tau_p * ir->tau_p * maxBoxLength);
         }
@@ -667,7 +667,7 @@ void parrinellorahman_pcoupl(FILE*             fplog,
         /* Move the off-diagonal elements of the 'force' to one side to ensure
          * that we obey the box constraints.
          */
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             for (int n = 0; n < d; n++)
             {
@@ -679,7 +679,7 @@ void parrinellorahman_pcoupl(FILE*             fplog,
         switch (ir->epct)
         {
             case epctANISOTROPIC:
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     for (int n = 0; n <= d; n++)
                     {
@@ -694,7 +694,7 @@ void parrinellorahman_pcoupl(FILE*             fplog,
                 arel = atot / (3 * vol);
                 /* set all RELATIVE box accelerations equal, and maintain total V
                  * change speed */
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     for (int n = 0; n <= d; n++)
                     {
@@ -718,7 +718,7 @@ void parrinellorahman_pcoupl(FILE*             fplog,
                         t1[d][n] = winv[d][n] * vol * arel * box[d][n];
                     }
                 }
-                for (int n = 0; n < DIM; n++)
+                for (int n = 0; n < gmx::c_dim; n++)
                 {
                     t1[ZZ][n] *= winv[ZZ][n] * vol;
                 }
@@ -731,7 +731,7 @@ void parrinellorahman_pcoupl(FILE*             fplog,
         }
 
         real maxchange = 0;
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             for (int n = 0; n <= d; n++)
             {
@@ -777,7 +777,7 @@ void parrinellorahman_pcoupl(FILE*             fplog,
     mtmul(t2, invbox, M);
 
     /* Determine the scaling matrix mu for the coordinates */
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         for (int n = 0; n <= d; n++)
         {
@@ -809,12 +809,12 @@ void berendsen_pcoupl(FILE*             fplog,
      */
     scalar_pressure = 0;
     xy_pressure     = 0;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
-        scalar_pressure += pres[d][d] / DIM;
+        scalar_pressure += pres[d][d] / gmx::c_dim;
         if (d != ZZ)
         {
-            xy_pressure += pres[d][d] / (DIM - 1);
+            xy_pressure += pres[d][d] / (gmx::c_dim - 1);
         }
     }
     /* Pressure is now in bar, everywhere. */
@@ -827,24 +827,24 @@ void berendsen_pcoupl(FILE*             fplog,
     switch (ir->epct)
     {
         case epctISOTROPIC:
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                mu[d][d] = 1.0 - factor(d, d) * (ir->ref_p[d][d] - scalar_pressure) / DIM;
+                mu[d][d] = 1.0 - factor(d, d) * (ir->ref_p[d][d] - scalar_pressure) / gmx::c_dim;
             }
             break;
         case epctSEMIISOTROPIC:
             for (d = 0; d < ZZ; d++)
             {
-                mu[d][d] = 1.0 - factor(d, d) * (ir->ref_p[d][d] - xy_pressure) / DIM;
+                mu[d][d] = 1.0 - factor(d, d) * (ir->ref_p[d][d] - xy_pressure) / gmx::c_dim;
             }
-            mu[ZZ][ZZ] = 1.0 - factor(ZZ, ZZ) * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / DIM;
+            mu[ZZ][ZZ] = 1.0 - factor(ZZ, ZZ) * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim;
             break;
         case epctANISOTROPIC:
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                for (n = 0; n < DIM; n++)
+                for (n = 0; n < gmx::c_dim; n++)
                 {
-                    mu[d][n] = (d == n ? 1.0 : 0.0) - factor(d, n) * (ir->ref_p[d][n] - pres[d][n]) / DIM;
+                    mu[d][n] = (d == n ? 1.0 : 0.0) - factor(d, n) * (ir->ref_p[d][n] - pres[d][n]) / gmx::c_dim;
                 }
             }
             break;
@@ -862,13 +862,13 @@ void berendsen_pcoupl(FILE*             fplog,
                 p_corr_z = 0;
             }
             mu[ZZ][ZZ] = 1.0 - ir->compress[ZZ][ZZ] * p_corr_z;
-            for (d = 0; d < DIM - 1; d++)
+            for (d = 0; d < gmx::c_dim - 1; d++)
             {
                 mu[d][d] = 1.0
                            + factor(d, d)
                                      * (ir->ref_p[d][d] / (mu[ZZ][ZZ] * box[ZZ][ZZ])
                                         - (pres[ZZ][ZZ] + p_corr_z - xy_pressure))
-                                     / (DIM - 1);
+                                     / (gmx::c_dim - 1);
             }
             break;
         default:
@@ -895,7 +895,7 @@ void berendsen_pcoupl(FILE*             fplog,
      * distances are corrected at the next step). The kinetic component
      * of the constraint virial captures the angular momentum change.
      */
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         for (int n = 0; n <= d; n++)
         {
@@ -978,7 +978,7 @@ void berendsen_pscale(const t_inputrec*    ir,
         }
     }
     /* compute final boxlengths */
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         box[d][XX] = mu[XX][XX] * box[d][XX] + mu[YY][XX] * box[d][YY] + mu[ZZ][XX] * box[d][ZZ];
         box[d][YY] = mu[YY][YY] * box[d][YY] + mu[ZZ][YY] * box[d][ZZ];
@@ -1084,7 +1084,7 @@ void andersen_tcoupl(const t_inputrec*         ir,
 
                 normalDist.reset();
 
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     v[i][d] = scal * normalDist(rng);
                 }
@@ -1217,14 +1217,14 @@ void trotter_update(const t_inputrec*               ir,
                     {
                         gc = md->cTC[n];
                     }
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         v[n][d] *= scalefac[gc];
                     }
 
                     if (debug)
                     {
-                        for (d = 0; d < DIM; d++)
+                        for (d = 0; d < gmx::c_dim; d++)
                         {
                             sumv[d] += (v[n][d]) / md->invmass[n];
                         }
@@ -1285,12 +1285,12 @@ extern void init_npt_masses(const t_inputrec* ir, t_state* state, t_extmass* Mas
         /* units are nm^3 * ns^2 / (nm^3 * bar / kJ/mol) = kJ/mol  */
         /* Consider evaluating eventually if this the right mass to use.  All are correct, some might be more stable  */
         MassQ->Winv = (PRESFAC * trace(ir->compress) * BOLTZ * opts->ref_t[0])
-                      / (DIM * state->vol0 * gmx::square(ir->tau_p / M_2PI));
+                      / (gmx::c_dim * state->vol0 * gmx::square(ir->tau_p / M_2PI));
         /* An alternate mass definition, from Tuckerman et al. */
-        /* MassQ->Winv = 1.0/(gmx::square(ir->tau_p/M_2PI)*(opts->nrdf[0]+DIM)*BOLTZ*opts->ref_t[0]); */
-        for (d = 0; d < DIM; d++)
+        /* MassQ->Winv = 1.0/(gmx::square(ir->tau_p/M_2PI)*(opts->nrdf[0]+gmx::c_dim)*BOLTZ*opts->ref_t[0]); */
+        for (d = 0; d < gmx::c_dim; d++)
         {
-            for (n = 0; n < DIM; n++)
+            for (n = 0; n < gmx::c_dim; n++)
             {
                 MassQ->Winvm[d][n] =
                         PRESFAC * ir->compress[d][n] / (state->vol0 * gmx::square(ir->tau_p / M_2PI));
@@ -1480,7 +1480,7 @@ init_npt_vars(const t_inputrec* ir, t_state* state, t_extmass* MassQ, gmx_bool b
     switch (ir->epct)
     {
         case epctISOTROPIC:
-        default: bmass = DIM * DIM; /* recommended mass parameters for isotropic barostat */
+        default: bmass = gmx::c_dim * gmx::c_dim; /* recommended mass parameters for isotropic barostat */
     }
 
     MassQ->QPinv.resize(nnhpres * opts->nhchainlength);
@@ -1633,7 +1633,7 @@ real NPT_energy(const t_inputrec* ir, const t_state* state, const t_extmass* Mas
                 /* contribution from the pressure momenta */
                 tensor invMass;
                 calcParrinelloRahmanInvMass(ir, state->box, invMass);
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     for (int n = 0; n <= d; n++)
                     {
@@ -1651,7 +1651,7 @@ real NPT_energy(const t_inputrec* ir, const t_state* state, const t_extmass* Mas
                  * track of unwrapped box diagonal elements. This case is
                  * excluded in integratorHasConservedEnergyQuantity().
                  */
-                energyNPT += vol * trace(ir->ref_p) / (DIM * PRESFAC);
+                energyNPT += vol * trace(ir->ref_p) / (gmx::c_dim * PRESFAC);
                 break;
             }
             case epcMTTK:
@@ -1659,7 +1659,7 @@ real NPT_energy(const t_inputrec* ir, const t_state* state, const t_extmass* Mas
                 energyNPT += 0.5 * gmx::square(state->veta) / MassQ->Winv;
 
                 /* contribution from the PV term */
-                energyNPT += vol * trace(ir->ref_p) / (DIM * PRESFAC);
+                energyNPT += vol * trace(ir->ref_p) / (gmx::c_dim * PRESFAC);
 
                 if (ir->epc == epcMTTK)
                 {
@@ -1858,7 +1858,7 @@ void rescale_velocities(const gmx_ekindata_t* ekind, const t_mdatoms* mdatoms, i
             /* Only scale the velocity component relative to the COM velocity */
             rvec_sub(v[n], gstat[ga].u, vrel);
             lg = tcstat[gt].lambda;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 v[n][d] = gstat[ga].u[d] + lg * vrel[d];
             }
@@ -1874,7 +1874,7 @@ void rescale_velocities(const gmx_ekindata_t* ekind, const t_mdatoms* mdatoms, i
                 gt = cTC[n];
             }
             lg = tcstat[gt].lambda;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 v[n][d] *= lg;
             }

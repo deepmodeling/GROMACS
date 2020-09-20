@@ -943,10 +943,10 @@ static void make_benchmark_tprs(const char* fn_sim_tpr,  /* READ : User-provided
     nlist_buffer = ir->rlist - ir->rcoulomb;
 
     /* Determine length of triclinic box vectors */
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         box_size[d] = 0;
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             box_size[d] += state.box[d][i] * state.box[d][i];
         }

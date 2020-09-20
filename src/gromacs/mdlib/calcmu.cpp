@@ -77,7 +77,7 @@ void calc_mu(int                            start,
     mu[YY] = mu_y;
     mu[ZZ] = mu_z;
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         mu[m] *= ENM2DEBYE;
     }

@@ -222,7 +222,7 @@ void InMemorySerializer::doReal(real* value)
 
 void InMemorySerializer::doRvec(rvec* value)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         doReal(&(*value)[d]);
     }
@@ -230,7 +230,7 @@ void InMemorySerializer::doRvec(rvec* value)
 
 void InMemorySerializer::doIvec(ivec* value)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         doInt(&(*value)[d]);
     }
@@ -370,7 +370,7 @@ void InMemoryDeserializer::doReal(real* value)
 
 void InMemoryDeserializer::doRvec(rvec* value)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         doReal(&(*value)[d]);
     }
@@ -378,7 +378,7 @@ void InMemoryDeserializer::doRvec(rvec* value)
 
 void InMemoryDeserializer::doIvec(ivec* value)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         doInt(&(*value)[d]);
     }

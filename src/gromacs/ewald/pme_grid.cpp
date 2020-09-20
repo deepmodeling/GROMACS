@@ -667,7 +667,7 @@ void pmegrids_init(pmegrids_t* grids,
         ivec nst;
         int  gridsize;
 
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             nst[d] = div_round_up(n[d], grids->nc[d]) + pme_order - 1;
         }
@@ -710,7 +710,7 @@ void pmegrids_init(pmegrids_t* grids,
     }
 
     tfac = 1;
-    for (d = DIM - 1; d >= 0; d--)
+    for (d = gmx::c_dim - 1; d >= 0; d--)
     {
         snew(grids->g2t[d], n[d]);
         t = 0;
@@ -769,7 +769,7 @@ void pmegrids_destroy(pmegrids_t* grids)
             sfree_aligned(grids->grid_all);
             sfree(grids->grid_th);
         }
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             sfree(grids->g2t[d]);
         }
@@ -838,7 +838,7 @@ void reuse_pmegrids(const pmegrids_t* oldgrid, pmegrids_t* newgrid)
 {
     int d, t;
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (newgrid->grid.n[d] > oldgrid->grid.n[d])
         {

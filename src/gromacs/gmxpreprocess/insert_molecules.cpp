@@ -312,7 +312,7 @@ static void insert_mols(int                  nmol_insrt,
 
     if (rpos != nullptr)
     {
-        for (int i = 0; i < DIM; ++i)
+        for (int i = 0; i < gmx::c_dim; ++i)
         {
             sfree(rpos[i]);
         }

@@ -992,7 +992,7 @@ int gmx_trjconv(int argc, char* argv[])
                     {
                         clear_mat(fr.box);
                     }
-                    for (m = 0; m < DIM; m++)
+                    for (m = 0; m < gmx::c_dim; m++)
                     {
                         if (newbox[m] >= 0)
                         {
@@ -1044,7 +1044,7 @@ int gmx_trjconv(int argc, char* argv[])
                 /* determine if an atom jumped across the box and reset it if so */
                 if (bNoJump && (bTPS || frame != 0))
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         hbox[d] = 0.5 * fr.box[d][d];
                     }
@@ -1054,7 +1054,7 @@ int gmx_trjconv(int argc, char* argv[])
                         {
                             rvec_dec(fr.x[i], x_shift);
                         }
-                        for (m = DIM - 1; m >= 0; m--)
+                        for (m = gmx::c_dim - 1; m >= 0; m--)
                         {
                             if (hbox[m] > 0)
                             {
@@ -1298,7 +1298,7 @@ int gmx_trjconv(int argc, char* argv[])
                         {
                             for (i = 0; i < nout; i++)
                             {
-                                for (d = 0; d < DIM; d++)
+                                for (d = 0; d < gmx::c_dim; d++)
                                 {
                                     frout.x[i][d] += outframe * shift[d];
                                 }

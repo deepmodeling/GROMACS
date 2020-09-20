@@ -101,7 +101,7 @@ nbnxn_atomdata_output_t::nbnxn_atomdata_output_t(Nbnxm::KernelType  kernelType,
     Vvdw({}, { pinningPolicy }),
     Vc({}, { pinningPolicy })
 {
-    fshift.resize(SHIFTS * DIM);
+    fshift.resize(SHIFTS * c_dim);
     Vvdw.resize(numEnergyGroups * numEnergyGroups);
     Vc.resize(numEnergyGroups * numEnergyGroups);
 
@@ -195,7 +195,7 @@ void copy_rvec_to_nbat_real(const int* a, int na, int na_round, const rvec* x, i
                 c++;
                 if (c == c_packX4)
                 {
-                    j += (DIM - 1) * c_packX4;
+                    j += (c_dim - 1) * c_packX4;
                     c = 0;
                 }
             }
@@ -209,7 +209,7 @@ void copy_rvec_to_nbat_real(const int* a, int na, int na_round, const rvec* x, i
                 c++;
                 if (c == c_packX4)
                 {
-                    j += (DIM - 1) * c_packX4;
+                    j += (c_dim - 1) * c_packX4;
                     c = 0;
                 }
             }
@@ -226,7 +226,7 @@ void copy_rvec_to_nbat_real(const int* a, int na, int na_round, const rvec* x, i
                 c++;
                 if (c == c_packX8)
                 {
-                    j += (DIM - 1) * c_packX8;
+                    j += (c_dim - 1) * c_packX8;
                     c = 0;
                 }
             }
@@ -240,7 +240,7 @@ void copy_rvec_to_nbat_real(const int* a, int na, int na_round, const rvec* x, i
                 c++;
                 if (c == c_packX8)
                 {
-                    j += (DIM - 1) * c_packX8;
+                    j += (c_dim - 1) * c_packX8;
                     c = 0;
                 }
             }
@@ -664,8 +664,8 @@ void nbnxn_atomdata_init(const gmx::MDLogger&    mdlog,
 
     nbat->shift_vec.resize(SHIFTS);
 
-    nbat->xstride = (nbat->XFormat == nbatXYZQ ? STRIDE_XYZQ : DIM);
-    nbat->fstride = (nbat->FFormat == nbatXYZQ ? STRIDE_XYZQ : DIM);
+    nbat->xstride = (nbat->XFormat == nbatXYZQ ? STRIDE_XYZQ : c_dim);
+    nbat->fstride = (nbat->FFormat == nbatXYZQ ? STRIDE_XYZQ : c_dim);
 
     /* Initialize the output data structures */
     for (int i = 0; i < nout; i++)
@@ -1503,9 +1503,9 @@ void nbnxn_atomdata_add_nbat_fshift_to_fshift(const nbnxn_atomdata_t& nbat, gmx:
         clear_rvec(sum);
         for (const nbnxn_atomdata_output_t& out : outputBuffers)
         {
-            sum[XX] += out.fshift[s * DIM + XX];
-            sum[YY] += out.fshift[s * DIM + YY];
-            sum[ZZ] += out.fshift[s * DIM + ZZ];
+            sum[XX] += out.fshift[s * c_dim + XX];
+            sum[YY] += out.fshift[s * c_dim + YY];
+            sum[ZZ] += out.fshift[s * c_dim + ZZ];
         }
         fshift[s] += sum;
     }

@@ -260,7 +260,7 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
 
     epc_            = isRerun ? epcNO : ir->epc;
     bDiagPres_      = !TRICLINIC(ir->ref_p) && !isRerun;
-    ref_p_          = (ir->ref_p[XX][XX] + ir->ref_p[YY][YY] + ir->ref_p[ZZ][ZZ]) / DIM;
+    ref_p_          = (ir->ref_p[XX][XX] + ir->ref_p[YY][YY] + ir->ref_p[ZZ][ZZ]) / c_dim;
     bTricl_         = TRICLINIC(ir->compress) || TRICLINIC(ir->deform);
     bDynBox_        = inputrecDynamicBox(ir);
     etc_            = isRerun ? etcNO : ir->etc;
@@ -307,7 +307,7 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
     }
     if (epc_ == epcPARRINELLORAHMAN || epc_ == epcMTTK)
     {
-        ipc_ = get_ebin_space(ebin_, bTricl_ ? boxvel_nm.size() : DIM, boxvel_nm.data(), unit_vel);
+        ipc_ = get_ebin_space(ebin_, bTricl_ ? boxvel_nm.size() : c_dim, boxvel_nm.data(), unit_vel);
     }
     if (bMu_)
     {

@@ -362,7 +362,7 @@ int gmx_dos(int argc, char* argv[])
 
     Natom = grpNatoms;
     Nmol  = calcMoleculesInIndexGroup(&top.mols, top.atoms.nr, index, grpNatoms);
-    gnx   = Natom * DIM;
+    gnx   = Natom * gmx::c_dim;
 
     /* Correlation stuff */
     snew(c1, gnx);
@@ -394,11 +394,11 @@ int gmx_dos(int argc, char* argv[])
                 srenew(c1[i], n_alloc);
             }
         }
-        for (i = 0; i < gnx; i += DIM)
+        for (i = 0; i < gnx; i += gmx::c_dim)
         {
-            c1[i + XX][nframes] = fr.v[index[i / DIM]][XX];
-            c1[i + YY][nframes] = fr.v[index[i / DIM]][YY];
-            c1[i + ZZ][nframes] = fr.v[index[i / DIM]][ZZ];
+            c1[i + XX][nframes] = fr.v[index[i / gmx::c_dim]][XX];
+            c1[i + YY][nframes] = fr.v[index[i / gmx::c_dim]][YY];
+            c1[i + ZZ][nframes] = fr.v[index[i / gmx::c_dim]][ZZ];
         }
 
         t1 = fr.time;
@@ -449,9 +449,9 @@ int gmx_dos(int argc, char* argv[])
     {
         printf("Going to merge the ACFs into the mass-weighted and plain ACF\n");
     }
-    for (i = 0; (i < gnx); i += DIM)
+    for (i = 0; (i < gnx); i += gmx::c_dim)
     {
-        mi = top.atoms.atom[index[i / DIM]].m;
+        mi = top.atoms.atom[index[i / gmx::c_dim]].m;
         for (j = 0; (j < nframes / 2); j++)
         {
             c1j = (c1[i + XX][j] + c1[i + YY][j] + c1[i + ZZ][j]);

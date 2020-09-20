@@ -120,7 +120,7 @@ void init_ekindata(FILE gmx_unused*  log,
 #define EKIN_WORK_BUFFER_SIZE 2
             /* Allocate 2 extra elements on both sides, so in single
              * precision we have
-             * EKIN_WORK_BUFFER_SIZE*DIM*DIM*sizeof(real) = 72/144 bytes
+             * EKIN_WORK_BUFFER_SIZE*c_dim*c_dim*sizeof(real) = 72/144 bytes
              * buffer on both sides to avoid cache pollution.
              */
             snew(ekind->ekin_work_alloc[thread], ekind->ngtc + 2 * EKIN_WORK_BUFFER_SIZE);
@@ -152,13 +152,13 @@ void accumulate_u(const t_commrec* cr, const t_grpopts* opts, gmx_ekindata_t* ek
 
     for (g = 0; (g < opts->ngacc); g++)
     {
-        add_binr(rb, DIM, ekind->grpstat[g].u);
+        add_binr(rb, gmx::c_dim, ekind->grpstat[g].u);
     }
     sum_bin(rb, cr);
 
     for (g = 0; (g < opts->ngacc); g++)
     {
-        extract_binr(rb, DIM * g, DIM, ekind->grpstat[g].u);
+        extract_binr(rb, gmx::c_dim * g, gmx::c_dim, ekind->grpstat[g].u);
     }
     destroy_bin(rb);
 }
@@ -194,7 +194,7 @@ void update_ekindata(int              start,
             {
                 g = md->cACC[n];
             }
-            for (d = 0; (d < DIM); d++)
+            for (d = 0; (d < gmx::c_dim); d++)
             {
                 mv = md->massT[n] * v[n][d];
                 ekind->grpstat[g].u[d] += mv;
@@ -203,7 +203,7 @@ void update_ekindata(int              start,
 
         for (g = 0; (g < opts->ngacc); g++)
         {
-            for (d = 0; (d < DIM); d++)
+            for (d = 0; (d < gmx::c_dim); d++)
             {
                 ekind->grpstat[g].u[d] /=
                         (1 - lambda) * ekind->grpstat[g].mA + lambda * ekind->grpstat[g].mB;
@@ -251,9 +251,9 @@ real sum_ekin(const t_grpopts* opts, gmx_ekindata_t* ekind, real* dekindlambda, 
             else
             {
                 /* Calculate the full step Ekin as the average of the half steps */
-                for (j = 0; (j < DIM); j++)
+                for (j = 0; (j < gmx::c_dim); j++)
                 {
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         tcstat->ekinf[j][m] = 0.5
                                               * (tcstat->ekinh[j][m] * tcstat->ekinscaleh_nhc

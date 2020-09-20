@@ -261,9 +261,9 @@
 #        endif
 #    endif
 #    if UNROLLJ == STRIDE
-    ajx = aj * DIM;
+    ajx = aj * gmx::c_dim;
 #    else
-    ajx = (cj >> 1) * DIM * STRIDE + (cj & 1) * UNROLLJ;
+    ajx = (cj >> 1) * gmx::c_dim * STRIDE + (cj & 1) * UNROLLJ;
 #    endif
     ajy = ajx + STRIDE;
     ajz = ajy + STRIDE;

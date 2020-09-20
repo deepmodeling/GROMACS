@@ -200,7 +200,7 @@ static void predict_shells(FILE*                   fplog,
         {
             case 1:
                 n1 = shell.nucl1;
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     x[s1][m] += xOrV[n1][m] * dt_1;
                 }
@@ -220,7 +220,7 @@ static void predict_shells(FILE*                   fplog,
                     m2 = mtopGetAtomMass(mtop, n2, &molb);
                 }
                 tm = dt_1 / (m1 + m2);
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     x[s1][m] += (m1 * xOrV[n1][m] + m2 * xOrV[n2][m]) * tm;
                 }
@@ -243,7 +243,7 @@ static void predict_shells(FILE*                   fplog,
                     m3 = mtopGetAtomMass(mtop, n3, &molb);
                 }
                 tm = dt_1 / (m1 + m2 + m3);
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     x[s1][m] += (m1 * xOrV[n1][m] + m2 * xOrV[n2][m] + m3 * xOrV[n3][m]) * tm;
                 }
@@ -668,7 +668,7 @@ static void shell_pos_sd(ArrayRef<const RVec> xcur,
         const int ind = shell.shellIndex;
         if (count == 1)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 shell.step[d] = shell.k_1;
 #ifdef PRINT_STEP
@@ -679,7 +679,7 @@ static void shell_pos_sd(ArrayRef<const RVec> xcur,
         }
         else
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 dx = xcur[ind][d] - shell.xold[d];
                 df = f[ind][d] - shell.fold[d];
@@ -725,10 +725,10 @@ static void shell_pos_sd(ArrayRef<const RVec> xcur,
         if (gmx_debug_at)
         {
             fprintf(debug, "shell = %d\n", ind);
-            pr_rvec(debug, 0, "fshell", f[ind], DIM, TRUE);
-            pr_rvec(debug, 0, "xold", xcur[ind], DIM, TRUE);
-            pr_rvec(debug, 0, "step", shell.step, DIM, TRUE);
-            pr_rvec(debug, 0, "xnew", xnew[ind], DIM, TRUE);
+            pr_rvec(debug, 0, "fshell", f[ind], gmx::c_dim, TRUE);
+            pr_rvec(debug, 0, "xold", xcur[ind], gmx::c_dim, TRUE);
+            pr_rvec(debug, 0, "step", shell.step, gmx::c_dim, TRUE);
+            pr_rvec(debug, 0, "xnew", xnew[ind], gmx::c_dim, TRUE);
         }
     }
 #ifdef PRINT_STEP
@@ -855,7 +855,7 @@ static void init_adir(gmx_shellfc_t*            shfc,
     {
         w_dt = md->invmass[n] * dt;
 
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             if ((ptype[n] != eptVSite) && (ptype[n] != eptShell))
             {
@@ -883,7 +883,7 @@ static void init_adir(gmx_shellfc_t*            shfc,
 
     for (n = 0; n < end; n++)
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             xnew[n][d] = -(2 * x[n][d] - xnold[n][d] - xnew[n][d]) / gmx::square(dt)
                          - f[n][d] * md->invmass[n];
@@ -999,7 +999,7 @@ void relax_shell_flexcon(FILE*                         fplog,
         ArrayRef<RVec> x_old = shfc->x_old.arrayRefWithPadding().unpaddedArrayRef();
         for (i = 0; i < homenr; i++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 x_old[i][d] = x[i][d] - v[i][d] * inputrec->delta_t;
             }
@@ -1172,7 +1172,7 @@ void relax_shell_flexcon(FILE*                         fplog,
                 invdt = 1 / inputrec->delta_t;
                 for (i = 0; i < end; i++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         v[i][d] += (pos[Try][i][d] - pos[Min][i][d]) * invdt;
                     }

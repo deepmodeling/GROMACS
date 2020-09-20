@@ -306,7 +306,7 @@ int gmx_vanhove(int argc, char* argv[])
                 if (f > 0)
                 {
                     /* Correct for periodic jumps */
-                    for (m = DIM - 1; m >= 0; m--)
+                    for (m = gmx::c_dim - 1; m >= 0; m--)
                     {
                         while (sx[f][i][m] - sx[f - 1][i][m] > 0.5 * avbox[m][m])
                         {

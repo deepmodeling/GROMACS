@@ -217,7 +217,7 @@ set_dd_cell_sizes_slb(gmx_domdec_t* dd, const gmx_ddbox_t* ddbox, int setmode, i
     }
 
     rvec cellsize_min;
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         cellsize_min[d] = ddbox->box_size[d] * ddbox->skew_fac[d];
         npulse[d]       = 1;
@@ -858,7 +858,7 @@ static void set_dd_cell_sizes_dlb(gmx_domdec_t*      dd,
     }
 
     /* Set the dimensions for which no DD is used */
-    for (dim = 0; dim < DIM; dim++)
+    for (dim = 0; dim < gmx::c_dim; dim++)
     {
         if (dd->numCells[dim] == 1)
         {
@@ -923,7 +923,7 @@ void set_dd_cell_sizes(gmx_domdec_t*      dd,
 
     if (debug)
     {
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             fprintf(debug, "cell_x[%d] %f - %f skew_fac %f\n", d, comm->cell_x0[d],
                     comm->cell_x1[d], ddbox->skew_fac[d]);

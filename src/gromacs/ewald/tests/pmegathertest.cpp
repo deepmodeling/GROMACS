@@ -90,7 +90,7 @@ std::vector<IVec> const c_sampleGridLineIndicesFull{
 // Spline values/derivatives below are also generated randomly, so they are bogus,
 // but that should not affect the reproducibility, which we're after
 
-//! A lot of bogus input spline values - should have at list (max PME order = 5) * (DIM = 3) * (total unique atom number in all test cases = 16) values
+//! A lot of bogus input spline values - should have at list (max PME order = 5) * (c_dim = 3) * (total unique atom number in all test cases = 16) values
 std::vector<real> const c_sampleSplineValuesFull{
     0.12F, 0.81F, 0.29F, 0.22F, 0.13F, 0.19F, 0.12F, 0.8F,  0.44F, 0.38F, 0.32F, 0.36F, 0.27F,
     0.11F, 0.17F, 0.94F, 0.07F, 0.9F,  0.98F, 0.96F, 0.07F, 0.94F, 0.77F, 0.24F, 0.84F, 0.16F,
@@ -118,7 +118,7 @@ std::vector<real> const c_sampleSplineValuesFull{
     0.3F,  0.0F,  0.6F,  0.99F, 0.69F,
 };
 
-//! A lot of bogus input spline derivatives - should have at list (max PME order = 5) * (DIM = 3) * (total unique atom number in all test cases = 16) values
+//! A lot of bogus input spline derivatives - should have at list (max PME order = 5) * (c_dim = 3) * (total unique atom number in all test cases = 16) values
 std::vector<real> const c_sampleSplineDerivativesFull{
     0.82F, 0.88F, 0.83F, 0.11F, 0.93F, 0.32F, 0.71F, 0.37F, 0.69F, 0.88F, 0.11F, 0.38F, 0.25F,
     0.5F,  0.36F, 0.81F, 0.78F, 0.31F, 0.66F, 0.32F, 0.27F, 0.35F, 0.53F, 0.83F, 0.08F, 0.08F,
@@ -243,7 +243,7 @@ public:
             {
                 AtomAndPmeOrderSizedData splineData;
                 const size_t             dimSize = atomCount * pmeOrder;
-                for (int dimIndex = 0; dimIndex < DIM; dimIndex++)
+                for (int dimIndex = 0; dimIndex < c_dim; dimIndex++)
                 {
                     splineData.splineValues[dimIndex] =
                             SplineParamsDimVector(c_sampleSplineValuesFull).subArray(dimIndex * dimSize, dimSize);
@@ -318,7 +318,7 @@ public:
             /* Setting some more inputs */
             pmeSetRealGrid(pmeSafe.get(), codePath, nonZeroGridValues);
             pmeSetGridLineIndices(pmeSafe.get(), codePath, inputAtomData.gridLineIndices);
-            for (int dimIndex = 0; dimIndex < DIM; dimIndex++)
+            for (int dimIndex = 0; dimIndex < c_dim; dimIndex++)
             {
                 pmeSetSplineData(pmeSafe.get(), codePath, inputAtomSplineData.splineValues[dimIndex],
                                  PmeSplineDataType::Values, dimIndex);

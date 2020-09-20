@@ -323,7 +323,7 @@ gmx_repl_ex_t init_replica_exchange(FILE*                            fplog,
         {
             pres = 0;
             j    = 0;
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (ir->compress[i][i] != 0)
                 {
@@ -594,14 +594,14 @@ static void exchange_state(const gmx_multisim_t* ms, int b, t_state* state)
     int ngtc, nnhpres;
     ngtc    = state->ngtc * state->nhchainlength;
     nnhpres = state->nnhpres * state->nhchainlength;
-    exchange_rvecs(ms, b, state->box, DIM);
-    exchange_rvecs(ms, b, state->box_rel, DIM);
-    exchange_rvecs(ms, b, state->boxv, DIM);
+    exchange_rvecs(ms, b, state->box, gmx::c_dim);
+    exchange_rvecs(ms, b, state->box_rel, gmx::c_dim);
+    exchange_rvecs(ms, b, state->boxv, gmx::c_dim);
     exchange_reals(ms, b, &(state->veta), 1);
     exchange_reals(ms, b, &(state->vol0), 1);
-    exchange_rvecs(ms, b, state->svir_prev, DIM);
-    exchange_rvecs(ms, b, state->fvir_prev, DIM);
-    exchange_rvecs(ms, b, state->pres_prev, DIM);
+    exchange_rvecs(ms, b, state->svir_prev, gmx::c_dim);
+    exchange_rvecs(ms, b, state->fvir_prev, gmx::c_dim);
+    exchange_rvecs(ms, b, state->pres_prev, gmx::c_dim);
     exchange_doubles(ms, b, state->nosehoover_xi.data(), ngtc);
     exchange_doubles(ms, b, state->nosehoover_vxi.data(), ngtc);
     exchange_doubles(ms, b, state->nhpres_xi.data(), nnhpres);

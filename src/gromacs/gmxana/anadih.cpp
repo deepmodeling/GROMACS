@@ -705,8 +705,8 @@ static void calc_angles(struct t_pbc* pbc, int n3, int index[], real ang[], rvec
     {
         fprintf(debug, "Angle[0]=%g, costh=%g, index0 = %d, %d, %d\n", ang[0], costh, index[0],
                 index[1], index[2]);
-        pr_rvec(debug, 0, "rij", r_ij, DIM, TRUE);
-        pr_rvec(debug, 0, "rkj", r_kj, DIM, TRUE);
+        pr_rvec(debug, 0, "rij", r_ij, gmx::c_dim, TRUE);
+        pr_rvec(debug, 0, "rkj", r_kj, gmx::c_dim, TRUE);
     }
 }
 

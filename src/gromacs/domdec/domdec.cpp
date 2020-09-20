@@ -298,7 +298,7 @@ void dd_move_x(gmx_domdec_t* dd, const matrix box, gmx::ArrayRef<gmx::RVec> x, g
                 for (int j : ind.index)
                 {
                     /* We need to shift the coordinates */
-                    for (int d = 0; d < DIM; d++)
+                    for (int d = 0; d < gmx::c_dim; d++)
                     {
                         sendBuffer[n][d] = x[j][d] + shift[d];
                     }
@@ -416,7 +416,7 @@ void dd_move_f(gmx_domdec_t* dd, gmx::ForceWithShiftForces* forceWithShiftForces
             {
                 for (int j : ind.index)
                 {
-                    for (int d = 0; d < DIM; d++)
+                    for (int d = 0; d < gmx::c_dim; d++)
                     {
                         f[j][d] += receiveBuffer[n][d];
                     }
@@ -427,12 +427,12 @@ void dd_move_f(gmx_domdec_t* dd, gmx::ForceWithShiftForces* forceWithShiftForces
             {
                 for (int j : ind.index)
                 {
-                    for (int d = 0; d < DIM; d++)
+                    for (int d = 0; d < gmx::c_dim; d++)
                     {
                         f[j][d] += receiveBuffer[n][d];
                     }
                     /* Add this force to the shift force */
-                    for (int d = 0; d < DIM; d++)
+                    for (int d = 0; d < gmx::c_dim; d++)
                     {
                         fshift[is][d] += receiveBuffer[n][d];
                     }
@@ -450,7 +450,7 @@ void dd_move_f(gmx_domdec_t* dd, gmx::ForceWithShiftForces* forceWithShiftForces
                     if (shiftForcesNeedPbc)
                     {
                         /* Add this force to the shift force */
-                        for (int d = 0; d < DIM; d++)
+                        for (int d = 0; d < gmx::c_dim; d++)
                         {
                             fshift[is][d] += receiveBuffer[n][d];
                         }
@@ -748,7 +748,7 @@ static int dd_simnode2pmenode(const DDRankSetup&        ddRankSetup,
     {
 #if GMX_MPI
         ivec coord, coord_pme;
-        MPI_Cart_coords(cr->mpi_comm_mysim, sim_nodeid, DIM, coord);
+        MPI_Cart_coords(cr->mpi_comm_mysim, sim_nodeid, gmx::c_dim, coord);
         if (coord[cartSetup.cartpmedim] < ddRankSetup.numPPCells[cartSetup.cartpmedim])
         {
             /* This is a PP rank */
@@ -859,7 +859,7 @@ static gmx_bool receive_vir_ener(const gmx_domdec_t* dd, gmx::ArrayRef<const int
 #if GMX_MPI
             int  pmenode = dd_simnode2pmenode(ddRankSetup, cartSetup, pmeRanks, cr, cr->sim_nodeid);
             ivec coords;
-            MPI_Cart_coords(cr->mpi_comm_mysim, cr->sim_nodeid, DIM, coords);
+            MPI_Cart_coords(cr->mpi_comm_mysim, cr->sim_nodeid, gmx::c_dim, coords);
             coords[cartSetup.cartpmedim]++;
             if (coords[cartSetup.cartpmedim] < dd->numCells[cartSetup.cartpmedim])
             {
@@ -1202,7 +1202,7 @@ static void setup_neighbor_relations(gmx_domdec_t* dd)
     int                 d, dim, m;
     ivec                tmp, s;
     gmx_domdec_zones_t* zones;
-    GMX_ASSERT((dd->ndim >= 0) && (dd->ndim <= DIM), "Must have valid number of dimensions for DD");
+    GMX_ASSERT((dd->ndim >= 0) && (dd->ndim <= gmx::c_dim), "Must have valid number of dimensions for DD");
 
     for (d = 0; d < dd->ndim; d++)
     {
@@ -1239,7 +1239,7 @@ static void setup_neighbor_relations(gmx_domdec_t* dd)
     zones->n = nzone;
     for (int i = 0; i < nzone; i++)
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             s[d] = dd->ci[d] - zones->shift[i][d];
             if (s[d] < 0)
@@ -1265,7 +1265,7 @@ static void setup_neighbor_relations(gmx_domdec_t* dd)
          */
         iZone.jZoneRange = gmx::Range<int>(std::min(ddNonbondedZonePairRanges[iZoneIndex][1], nzone),
                                            std::min(ddNonbondedZonePairRanges[iZoneIndex][2], nzone));
-        for (dim = 0; dim < DIM; dim++)
+        for (dim = 0; dim < gmx::c_dim; dim++)
         {
             if (dd->numCells[dim] == 1)
             {
@@ -1324,12 +1324,12 @@ static void make_pp_communicator(const gmx::MDLogger& mdlog,
                                      dd->numCells[XX], dd->numCells[YY], dd->numCells[ZZ]);
 
         ivec periods;
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             periods[i] = TRUE;
         }
         MPI_Comm comm_cart;
-        MPI_Cart_create(cr->mpi_comm_mygroup, DIM, dd->numCells, periods, static_cast<int>(reorder),
+        MPI_Cart_create(cr->mpi_comm_mygroup, gmx::c_dim, dd->numCells, periods, static_cast<int>(reorder),
                         &comm_cart);
         /* We overwrite the old communicator with the new cartesian one */
         cr->mpi_comm_mygroup = comm_cart;
@@ -1371,7 +1371,7 @@ static void make_pp_communicator(const gmx::MDLogger& mdlog,
         }
         cr->nodeid = dd->rank;
 
-        MPI_Cart_coords(dd->mpi_comm_all, dd->rank, DIM, dd->ci);
+        MPI_Cart_coords(dd->mpi_comm_all, dd->rank, gmx::c_dim, dd->ci);
 
         /* We need to make an index to go from the coordinates
          * to the nodeid of this simulation.
@@ -1466,8 +1466,8 @@ static CartesianRankSetup split_communicator(const gmx::MDLogger& mdlog,
     if (cartSetup.bCartesianPP)
     {
         const int numDDCellsTot = ddRankSetup.numPPRanks;
-        bool      bDiv[DIM];
-        for (int i = 1; i < DIM; i++)
+        bool      bDiv[gmx::c_dim];
+        for (int i = 1; i < gmx::c_dim; i++)
         {
             bDiv[i] = ((ddRankSetup.numRanksDoingPme * numDDCells[i]) % numDDCellsTot == 0);
         }
@@ -1516,12 +1516,12 @@ static CartesianRankSetup split_communicator(const gmx::MDLogger& mdlog,
                         "Will use a Cartesian communicator for PP <-> PME: %d x %d x %d",
                         cartSetup.ntot[XX], cartSetup.ntot[YY], cartSetup.ntot[ZZ]);
 
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             periods[i] = TRUE;
         }
         MPI_Comm comm_cart;
-        MPI_Cart_create(cr->mpi_comm_mysim, DIM, cartSetup.ntot, periods, static_cast<int>(reorder),
+        MPI_Cart_create(cr->mpi_comm_mysim, gmx::c_dim, cartSetup.ntot, periods, static_cast<int>(reorder),
                         &comm_cart);
         MPI_Comm_rank(comm_cart, &rank);
         if (MASTER(cr) && rank != 0)
@@ -1535,7 +1535,7 @@ static CartesianRankSetup split_communicator(const gmx::MDLogger& mdlog,
         cr->mpi_comm_mysim = comm_cart;
         cr->sim_nodeid     = rank;
 
-        MPI_Cart_coords(cr->mpi_comm_mysim, cr->sim_nodeid, DIM, ddCellIndex);
+        MPI_Cart_coords(cr->mpi_comm_mysim, cr->sim_nodeid, gmx::c_dim, ddCellIndex);
 
         GMX_LOG(mdlog.info)
                 .appendTextFormatted("Cartesian rank %d, coordinates %d %d %d\n", cr->sim_nodeid,
@@ -1794,7 +1794,7 @@ static void check_dd_restrictions(const gmx_domdec_t* dd, const t_inputrec* ir, 
 static real average_cellsize_min(const gmx_ddbox_t& ddbox, const ivec numDomains)
 {
     real r = ddbox.box_size[XX];
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         if (numDomains[d] > 1)
         {
@@ -2011,7 +2011,7 @@ static void setupUpdateGroups(const gmx::MDLogger& mdlog,
 UnitCellInfo::UnitCellInfo(const t_inputrec& ir) :
     npbcdim(numPbcDimensions(ir.pbcType)),
     numBoundedDimensions(inputrec2nboundeddim(&ir)),
-    ddBoxIsDynamic(numBoundedDimensions < DIM || inputrecDynamicBox(&ir)),
+    ddBoxIsDynamic(numBoundedDimensions < gmx::c_dim || inputrecDynamicBox(&ir)),
     haveScrewPBC(ir.pbcType == PbcType::Screw)
 {
 }
@@ -2434,7 +2434,7 @@ static void set_dd_limits(const gmx::MDLogger& mdlog,
 
     dd->nnodes = dd->numCells[XX] * dd->numCells[YY] * dd->numCells[ZZ];
 
-    snew(comm->slb_frac, DIM);
+    snew(comm->slb_frac, gmx::c_dim);
     if (isDlbDisabled(comm))
     {
         comm->slb_frac[XX] = get_slb_frac(mdlog, "x", dd->numCells[XX], options.cellSizeX);
@@ -2552,7 +2552,7 @@ static void writeSettings(gmx::TextWriter*   log,
                                 comm->cellsize_limit);
         log->writeLineFormatted("The requested allowed shrink of DD cells (option -dds) is: %.2f", dlb_scale);
         log->writeString("The allowed shrink of domain decomposition cells is:");
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             if (dd->numCells[d] > 1)
             {
@@ -2580,7 +2580,7 @@ static void writeSettings(gmx::TextWriter*   log,
         }
         log->ensureLineBreak();
         log->writeString("The initial domain decomposition cell size is:");
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             if (dd->numCells[d] > 1)
             {
@@ -2625,7 +2625,7 @@ static void writeSettings(gmx::TextWriter*   log,
                         "deformation)");
             }
             limit = dd->comm->cellsize_min[XX];
-            for (d = 1; d < DIM; d++)
+            for (d = 1; d < gmx::c_dim; d++)
             {
                 limit = std::min(limit, dd->comm->cellsize_min[d]);
             }

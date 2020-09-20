@@ -75,7 +75,7 @@ static void calc_pos_av_stddev(gmx::ArrayRef<const gmx::RVec> x, rvec av, rvec s
 
     for (const gmx::RVec& coord : x)
     {
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             s1[d] += coord[d];
             s2[d] += coord[d] * coord[d];
@@ -91,19 +91,19 @@ static void calc_pos_av_stddev(gmx::ArrayRef<const gmx::RVec> x, rvec av, rvec s
         double        sendBuffer[c_bufSize];
         double        receiveBuffer[c_bufSize];
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             sendBuffer[d]       = s1[d];
-            sendBuffer[DIM + d] = s2[d];
+            sendBuffer[gmx::c_dim + d] = s2[d];
         }
         sendBuffer[6] = numAtoms;
 
         MPI_Allreduce(sendBuffer, receiveBuffer, c_bufSize, MPI_DOUBLE, MPI_SUM, *mpiCommunicator);
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             s1[d] = receiveBuffer[d];
-            s2[d] = receiveBuffer[DIM + d];
+            s2[d] = receiveBuffer[gmx::c_dim + d];
         }
         numAtoms = gmx::roundToInt(receiveBuffer[6]);
     }
@@ -114,7 +114,7 @@ static void calc_pos_av_stddev(gmx::ArrayRef<const gmx::RVec> x, rvec av, rvec s
     dsvmul(1.0 / numAtoms, s1, s1);
     dsvmul(1.0 / numAtoms, s2, s2);
 
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         av[d]     = s1[d];
         stddev[d] = std::sqrt(s2[d] - s1[d] * s1[d]);
@@ -130,7 +130,7 @@ static void set_tric_dir(const ivec* dd_nc, gmx_ddbox_t* ddbox, const matrix box
 
     npbcdim = ddbox->npbcdim;
     normal  = ddbox->normal;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         ddbox->tric_dir[d] = 0;
         for (j = d + 1; j < npbcdim; j++)
@@ -178,7 +178,7 @@ static void set_tric_dir(const ivec* dd_nc, gmx_ddbox_t* ddbox, const matrix box
                     svmul(1 / box[d + 2][d + 2], box[d + 2], v[d + 2]);
                     /* Set v[d+2][d+1] to zero by shifting along v[d+1] */
                     dep = v[d + 2][d + 1] / v[d + 1][d + 1];
-                    for (i = 0; i < DIM; i++)
+                    for (i = 0; i < gmx::c_dim; i++)
                     {
                         v[d + 2][i] -= dep * v[d + 1][i];
                     }
@@ -196,7 +196,7 @@ static void set_tric_dir(const ivec* dd_nc, gmx_ddbox_t* ddbox, const matrix box
                 if (debug)
                 {
                     fprintf(debug, "box[%d]  %.3f %.3f %.3f\n", d, box[d][XX], box[d][YY], box[d][ZZ]);
-                    for (i = d + 1; i < DIM; i++)
+                    for (i = d + 1; i < gmx::c_dim; i++)
                     {
                         fprintf(debug, "  v[%d]  %.3f %.3f %.3f\n", i, v[i][XX], v[i][YY], v[i][ZZ]);
                     }
@@ -218,7 +218,7 @@ static void set_tric_dir(const ivec* dd_nc, gmx_ddbox_t* ddbox, const matrix box
         {
             ddbox->skew_fac[d] = 1;
 
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 clear_rvec(ddbox->v[d][i]);
                 ddbox->v[d][i][i] = 1;
@@ -252,7 +252,7 @@ static void low_set_ddbox(int                            numPbcDimensions,
         ddbox->box_size[d] = box[d][d];
     }
 
-    if (ddbox->nboundeddim < DIM && calculateUnboundedSize)
+    if (ddbox->nboundeddim < gmx::c_dim && calculateUnboundedSize)
     {
         calc_pos_av_stddev(x, av, stddev, mpiCommunicator);
 
@@ -260,7 +260,7 @@ static void low_set_ddbox(int                            numPbcDimensions,
          * gives a uniform load for a rectangular block of cg's.
          * For a sphere it is not a bad approximation for 4x1x1 up to 4x2x2.
          */
-        for (d = ddbox->nboundeddim; d < DIM; d++)
+        for (d = ddbox->nboundeddim; d < gmx::c_dim; d++)
         {
             b0 = av[d] - GRID_STDDEV_FAC * stddev[d];
             b1 = av[d] + GRID_STDDEV_FAC * stddev[d];

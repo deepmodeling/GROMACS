@@ -918,12 +918,12 @@ static void read_posres(gmx_mtop_t*                              mtop,
     }
 
     npbcdim = numPbcDimensions(pbcType);
-    GMX_RELEASE_ASSERT(npbcdim <= DIM, "Invalid npbcdim");
+    GMX_RELEASE_ASSERT(npbcdim <= gmx::c_dim, "Invalid npbcdim");
     clear_rvec(com);
     if (rc_scaling != erscNO)
     {
         copy_mat(box, invbox);
-        for (int j = npbcdim; j < DIM; j++)
+        for (int j = npbcdim; j < gmx::c_dim; j++)
         {
             clear_rvec(invbox[j]);
             invbox[j][j] = 1;
@@ -1024,7 +1024,7 @@ static void read_posres(gmx_mtop_t*                              mtop,
 
     if (rc_scaling != erscNO)
     {
-        GMX_ASSERT(npbcdim <= DIM, "Only DIM dimensions can have PBC");
+        GMX_ASSERT(npbcdim <= gmx::c_dim, "Only c_dim dimensions can have PBC");
 
         for (gmx_molblock_t& molb : mtop->molblock)
         {

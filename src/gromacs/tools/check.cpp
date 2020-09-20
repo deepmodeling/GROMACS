@@ -185,7 +185,7 @@ static void chk_coords(int frame, int natoms, rvec* x, matrix box, real fac, rea
 
     for (i = 0; (i < natoms); i++)
     {
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             if ((vol > 0) && (fabs(x[i][j]) > fac * box[j][j]))
             {
@@ -209,7 +209,7 @@ static void chk_vels(int frame, int natoms, rvec* v)
 
     for (i = 0; (i < natoms); i++)
     {
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             if (fabs(v[i][j]) > 500)
             {
@@ -225,7 +225,7 @@ static void chk_forces(int frame, int natoms, rvec* f)
 
     for (i = 0; (i < natoms); i++)
     {
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             if (fabs(f[i][j]) > 10000)
             {
@@ -455,16 +455,16 @@ static void chk_tps(const char* fn, real vdw_fac, real bon_lo, real bon_hi)
     bX = FALSE;
     for (i = 0; (i < natom) && !(bV && bX); i++)
     {
-        for (j = 0; (j < DIM) && !(bV && bX); j++)
+        for (j = 0; (j < gmx::c_dim) && !(bV && bX); j++)
         {
             bV = bV || (v[i][j] != 0);
             bX = bX || (x[i][j] != 0);
         }
     }
     bB = FALSE;
-    for (i = 0; (i < DIM) && !bB; i++)
+    for (i = 0; (i < gmx::c_dim) && !bB; i++)
     {
-        for (j = 0; (j < DIM) && !bB; j++)
+        for (j = 0; (j < gmx::c_dim) && !bB; j++)
         {
             bB = bB || (box[i][j] != 0);
         }
@@ -481,20 +481,20 @@ static void chk_tps(const char* fn, real vdw_fac, real bon_lo, real bon_hi)
         ekin = 0.0;
         for (i = 0; (i < natom); i++)
         {
-            for (j = 0; (j < DIM); j++)
+            for (j = 0; (j < gmx::c_dim); j++)
             {
                 ekin += 0.5 * atoms->atom[i].m * v[i][j] * v[i][j];
             }
         }
-        temp1 = (2.0 * ekin) / (natom * DIM * BOLTZ);
-        temp2 = (2.0 * ekin) / (natom * (DIM - 1) * BOLTZ);
+        temp1 = (2.0 * ekin) / (natom * gmx::c_dim * BOLTZ);
+        temp2 = (2.0 * ekin) / (natom * (gmx::c_dim - 1) * BOLTZ);
         fprintf(stderr, "Kinetic energy: %g (kJ/mol)\n", ekin);
         fprintf(stderr,
                 "Assuming the number of degrees of freedom to be "
                 "Natoms * %d or Natoms * %d,\n"
                 "the velocities correspond to a temperature of the system\n"
                 "of %g K or %g K respectively.\n\n",
-                DIM, DIM - 1, temp1, temp2);
+                gmx::c_dim, gmx::c_dim - 1, temp1, temp2);
     }
 
     /* check coordinates */
@@ -575,7 +575,7 @@ static void chk_tps(const char* fn, real vdw_fac, real bon_lo, real bon_hi)
             for (i = 0; (i < natom) && (k < 10); i++)
             {
                 bOut = FALSE;
-                for (j = 0; (j < DIM) && !bOut; j++)
+                for (j = 0; (j < gmx::c_dim) && !bOut; j++)
                 {
                     bOut = bOut || (x[i][j] < 0) || (x[i][j] > box[j][j]);
                 }
@@ -585,7 +585,7 @@ static void chk_tps(const char* fn, real vdw_fac, real bon_lo, real bon_hi)
                     if (bFirst)
                     {
                         fprintf(stderr, "Atoms outside box ( ");
-                        for (j = 0; (j < DIM); j++)
+                        for (j = 0; (j < gmx::c_dim); j++)
                         {
                             fprintf(stderr, "%g ", box[j][j]);
                         }
@@ -599,7 +599,7 @@ static void chk_tps(const char* fn, real vdw_fac, real bon_lo, real bon_hi)
                     fprintf(stderr, "%5d %4s %4s%4d %-5.3g", i, *(atoms->atomname[i]),
                             *(atoms->resinfo[atoms->atom[i].resind].name),
                             atoms->resinfo[atoms->atom[i].resind].nr, atom_vdw[i]);
-                    for (j = 0; (j < DIM); j++)
+                    for (j = 0; (j < gmx::c_dim); j++)
                     {
                         fprintf(stderr, " %6.3g", x[i][j]);
                     }

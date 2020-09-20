@@ -77,7 +77,7 @@ protected:
         // PBC stuff
         set_pbc(&pbc, pbcType, box);
 
-        GMX_ASSERT(pbc.ndim_ePBC >= 1 && pbc.ndim_ePBC <= DIM,
+        GMX_ASSERT(pbc.ndim_ePBC >= 1 && pbc.ndim_ePBC <= c_dim,
                    "Tests only support PBC along at least x and at most x, y, and z");
 
         real boxSizeZSquared;
@@ -148,7 +148,7 @@ protected:
             pcrd.spatialData.vec[XX] = 1;
 
             real minDist2 = square(box[XX][XX]);
-            for (int d = XX + 1; d < DIM; d++)
+            for (int d = XX + 1; d < c_dim; d++)
             {
                 minDist2 -= square(box[d][XX]);
             }

@@ -732,10 +732,10 @@ static void do_lincsp(ArrayRefWithPadding<const RVec> xPadded,
         for (int b = b0; b < b1; b++)
         {
             const real mvb = lincsd->bllen[b] * sol[b];
-            for (int i = 0; i < DIM; i++)
+            for (int i = 0; i < c_dim; i++)
             {
                 const real tmp1 = mvb * r[b][i];
-                for (int j = 0; j < DIM; j++)
+                for (int j = 0; j < c_dim; j++)
                 {
                     rmdf[i][j] += tmp1 * r[b][j];
                 }
@@ -1190,10 +1190,10 @@ static void do_lincs(ArrayRefWithPadding<const RVec> xPadded,
         for (int b = b0; b < b1; b++)
         {
             real tmp0 = -bllen[b] * mlambda[b];
-            for (int i = 0; i < DIM; i++)
+            for (int i = 0; i < c_dim; i++)
             {
                 real tmp1 = tmp0 * r[b][i];
-                for (int j = 0; j < DIM; j++)
+                for (int j = 0; j < c_dim; j++)
                 {
                     vir_r_m_dr[i][j] -= tmp1 * r[b][j];
                 }

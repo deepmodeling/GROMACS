@@ -387,7 +387,7 @@ static inline real cos_angle(const rvec a, const rvec b)
     double aa, bb, ip, ipa, ipb, ipab; /* For accuracy these must be double! */
 
     ip = ipa = ipb = 0.0;
-    for (m = 0; (m < DIM); m++) /* 18 */
+    for (m = 0; (m < gmx::c_dim); m++) /* 18 */
     {
         aa = a[m];
         bb = b[m];

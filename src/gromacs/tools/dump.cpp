@@ -142,12 +142,12 @@ void list_tpr(const char* fn,
                 pr_top(stdout, indent, "topology", &(top), bShowNumbers, bShowParameters);
             }
 
-            pr_rvecs(stdout, indent, "box", tpx.bBox ? state.box : nullptr, DIM);
-            pr_rvecs(stdout, indent, "box_rel", tpx.bBox ? state.box_rel : nullptr, DIM);
-            pr_rvecs(stdout, indent, "boxv", tpx.bBox ? state.boxv : nullptr, DIM);
-            pr_rvecs(stdout, indent, "pres_prev", tpx.bBox ? state.pres_prev : nullptr, DIM);
-            pr_rvecs(stdout, indent, "svir_prev", tpx.bBox ? state.svir_prev : nullptr, DIM);
-            pr_rvecs(stdout, indent, "fvir_prev", tpx.bBox ? state.fvir_prev : nullptr, DIM);
+            pr_rvecs(stdout, indent, "box", tpx.bBox ? state.box : nullptr, c_dim);
+            pr_rvecs(stdout, indent, "box_rel", tpx.bBox ? state.box_rel : nullptr, c_dim);
+            pr_rvecs(stdout, indent, "boxv", tpx.bBox ? state.boxv : nullptr, c_dim);
+            pr_rvecs(stdout, indent, "pres_prev", tpx.bBox ? state.pres_prev : nullptr, c_dim);
+            pr_rvecs(stdout, indent, "svir_prev", tpx.bBox ? state.svir_prev : nullptr, c_dim);
+            pr_rvecs(stdout, indent, "fvir_prev", tpx.bBox ? state.fvir_prev : nullptr, c_dim);
             /* leave nosehoover_xi in for now to match the tpr version */
             pr_doubles(stdout, indent, "nosehoover_xi", state.nosehoover_xi.data(), state.ngtc);
             /*pr_doubles(stdout,indent,"nosehoover_vxi",state.nosehoover_vxi,state.ngtc);*/
@@ -254,7 +254,7 @@ void list_trr(const char* fn)
                     trrheader.natoms, trrheader.step, trrheader.t, trrheader.lambda);
             if (trrheader.box_size)
             {
-                pr_rvecs(stdout, indent, "box", box, DIM);
+                pr_rvecs(stdout, indent, "box", box, c_dim);
             }
             if (trrheader.x_size)
             {
@@ -311,7 +311,7 @@ void list_xtc(const char* fn)
         pr_indent(stdout, indent);
         fprintf(stdout, "natoms=%10d  step=%10" PRId64 "  time=%12.7e  prec=%10g\n", natoms, step,
                 time, prec);
-        pr_rvecs(stdout, indent, "box", box, DIM);
+        pr_rvecs(stdout, indent, "box", box, c_dim);
         pr_rvecs(stdout, indent, "x", x, natoms);
         nframe++;
     } while (read_next_xtc(xd, natoms, &step, &time, box, x, &prec, &bOK) != 0);

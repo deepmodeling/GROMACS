@@ -143,15 +143,15 @@ static void nma_full_hessian(real*                    hess,
         for (int i = 0; (i < atom_index.ssize()); i++)
         {
             size_t ai = atom_index[i];
-            for (size_t j = 0; (j < DIM); j++)
+            for (size_t j = 0; (j < gmx::c_dim); j++)
             {
                 for (int k = 0; (k < atom_index.ssize()); k++)
                 {
                     size_t ak = atom_index[k];
                     mass_fac  = gmx::invsqrt(top->atoms.atom[ai].m * top->atoms.atom[ak].m);
-                    for (size_t l = 0; (l < DIM); l++)
+                    for (size_t l = 0; (l < gmx::c_dim); l++)
                     {
-                        hess[(i * DIM + j) * ndim + k * DIM + l] *= mass_fac;
+                        hess[(i * gmx::c_dim + j) * ndim + k * gmx::c_dim + l] *= mass_fac;
                     }
                 }
             }
@@ -174,9 +174,9 @@ static void nma_full_hessian(real*                    hess,
             {
                 size_t aj = atom_index[j];
                 mass_fac  = gmx::invsqrt(top->atoms.atom[aj].m);
-                for (size_t k = 0; (k < DIM); k++)
+                for (size_t k = 0; (k < gmx::c_dim); k++)
                 {
-                    eigenvectors[i * ndim + j * DIM + k] *= mass_fac;
+                    eigenvectors[i * ndim + j * gmx::c_dim + k] *= mass_fac;
                 }
             }
         }
@@ -198,7 +198,7 @@ static void nma_sparse_hessian(gmx_sparsematrix_t*      sparse_hessian,
     int    katom;
     size_t ndim;
 
-    ndim = DIM * atom_index.size();
+    ndim = gmx::c_dim * atom_index.size();
 
     /* Cannot check symmetry since we only store half matrix */
     /* divide elements hess[i][j] by sqrt(mas[i])*sqrt(mas[j]) when required */
@@ -211,9 +211,9 @@ static void nma_sparse_hessian(gmx_sparsematrix_t*      sparse_hessian,
         for (int iatom = 0; (iatom < atom_index.ssize()); iatom++)
         {
             size_t ai = atom_index[iatom];
-            for (size_t j = 0; (j < DIM); j++)
+            for (size_t j = 0; (j < gmx::c_dim); j++)
             {
-                row = DIM * iatom + j;
+                row = gmx::c_dim * iatom + j;
                 for (k = 0; k < sparse_hessian->ndata[row]; k++)
                 {
                     col       = sparse_hessian->data[row][k].col;
@@ -239,9 +239,9 @@ static void nma_sparse_hessian(gmx_sparsematrix_t*      sparse_hessian,
             {
                 size_t aj = atom_index[j];
                 mass_fac  = gmx::invsqrt(top->atoms.atom[aj].m);
-                for (k = 0; (k < DIM); k++)
+                for (k = 0; (k < gmx::c_dim); k++)
                 {
-                    eigenvectors[i * ndim + j * DIM + k] *= mass_fac;
+                    eigenvectors[i * ndim + j * gmx::c_dim + k] *= mass_fac;
                 }
             }
         }
@@ -371,19 +371,19 @@ static void analyzeThermochemistry(FILE*                    fp,
     }
     else
     {
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             theta[m] = rot_const / inertia[m];
         }
     }
     if (debug)
     {
-        pr_rvec(debug, 0, "inertia", inertia, DIM, TRUE);
-        pr_rvec(debug, 0, "theta", theta, DIM, TRUE);
-        pr_rvecs(debug, 0, "trans", trans, DIM);
+        pr_rvec(debug, 0, "inertia", inertia, gmx::c_dim, TRUE);
+        pr_rvec(debug, 0, "theta", theta, gmx::c_dim, TRUE);
+        pr_rvecs(debug, 0, "trans", trans, gmx::c_dim);
         fprintf(debug, "linear molecule = %s\n", linear ? "true" : "no");
     }
-    size_t nFreq = index.size() * DIM;
+    size_t nFreq = index.size() * gmx::c_dim;
     auto   eFreq = gmx::arrayRefFromArray(eigfreq, nFreq);
     double Svib  = calcQuasiHarmonicEntropy(eFreq, T, linear, scale_factor);
 
@@ -547,7 +547,7 @@ int gmx_nmeig(int argc, char* argv[])
     top = gmx_mtop_t_to_t_topology(&mtop, true);
 
     bM       = TRUE;
-    int ndim = DIM * atom_index.size();
+    int ndim = gmx::c_dim * atom_index.size();
 
     if (opt2bSet("-qc", NFILE, fnm))
     {

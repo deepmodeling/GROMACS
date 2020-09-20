@@ -616,7 +616,7 @@ real ta_disres(int             nfa,
 
             fk_scal = f_scal * weight_rt_1;
 
-            for (int m = 0; m < DIM; m++)
+            for (int m = 0; m < gmx::c_dim; m++)
             {
                 fij = fk_scal * dx[m];
 

@@ -491,7 +491,7 @@ void gmx::LegacySimulator::do_md()
                 }
                 else if (mdatoms->cFREEZE)
                 {
-                    for (m = 0; m < DIM; m++)
+                    for (m = 0; m < c_dim; m++)
                     {
                         if (ir->opts.nFreeze[mdatoms->cFREEZE[i]][m])
                         {

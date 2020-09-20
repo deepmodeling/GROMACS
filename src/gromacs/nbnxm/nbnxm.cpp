@@ -82,7 +82,7 @@ void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*              nbv,
     for (int zone = 1; zone < zones->n; zone++)
     {
         rvec c0, c1;
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             c0[d] = zones->size[zone].bb_x0[d];
             c1[d] = zones->size[zone].bb_x1[d];

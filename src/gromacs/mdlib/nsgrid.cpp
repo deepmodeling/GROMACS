@@ -81,7 +81,7 @@ static void calc_x_av_stddev(int n, rvec* x, rvec av, rvec stddev)
 
     for (i = 0; i < n; i++)
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             s1[d] += x[i][d];
             s2[d] += x[i][d] * x[i][d];
@@ -91,7 +91,7 @@ static void calc_x_av_stddev(int n, rvec* x, rvec av, rvec stddev)
     dsvmul(1.0 / n, s1, s1);
     dsvmul(1.0 / n, s2, s2);
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         av[d]     = s1[d];
         stddev[d] = std::sqrt(s2[d] - s1[d] * s1[d]);
@@ -142,13 +142,13 @@ void get_nsgrid_boundaries(int           nboundeddim,
     real vol, bdens0, bdens1;
     int  d;
 
-    if (nboundeddim < DIM)
+    if (nboundeddim < gmx::c_dim)
     {
         calc_x_av_stddev(ncg, cgcm, av, stddev);
     }
 
     vol = 1;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (d < nboundeddim)
         {
@@ -211,7 +211,7 @@ static void set_grid_sizes(matrix              box,
     rvec     izones_size;
     real     inv_r_ideal, size, add_tric, radd;
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         if (debug)
         {
@@ -233,7 +233,7 @@ static void set_grid_sizes(matrix              box,
     }
 
     clear_rvec(grid->cell_offset);
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         /* Initial settings, for DD might change below */
         grid->cell_offset[i] = izones_x0[i];
@@ -276,9 +276,9 @@ static void set_grid_sizes(matrix              box,
              * perpendicular to the Cartesian axis.
              * Since grid->npbcdim isan integer that in principle can take
              * any value, we help the compiler avoid warnings and potentially
-             * optimize by ensuring that j < DIM here.
+             * optimize by ensuring that j < c_dim here.
              */
-            for (j = i + 1; j < grid->npbcdim && j < DIM; j++)
+            for (j = i + 1; j < grid->npbcdim && j < gmx::c_dim; j++)
             {
                 if (box[j][i] != 0)
                 {
@@ -668,7 +668,7 @@ void fill_grid(gmx_domdec_zones_t* dd_zones, t_grid* grid, int ncg_tot, int cg0,
     /* Initiate cell borders */
     nry = grid->n[YY];
     nrz = grid->n[ZZ];
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (grid->cell_size[d] > 0)
         {
@@ -690,7 +690,7 @@ void fill_grid(gmx_domdec_zones_t* dd_zones, t_grid* grid, int ncg_tot, int cg0,
     {
         for (cg = cg0; cg < cg1; cg++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 ind[d] = static_cast<int>((cg_cm[cg][d] - offset[d]) * n_box[d]);
                 /* With pbc we should be done here.
@@ -721,7 +721,7 @@ void fill_grid(gmx_domdec_zones_t* dd_zones, t_grid* grid, int ncg_tot, int cg0,
             }
 
             /* Determine the ns grid cell limits for this DD zone */
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 shift0[d] = dd_zones->shift[zone][d];
                 useall[d] = static_cast<int>(shift0[d] == 0 || d >= grid->npbcdim);
@@ -765,7 +765,7 @@ void fill_grid(gmx_domdec_zones_t* dd_zones, t_grid* grid, int ncg_tot, int cg0,
                 }
 
                 bUse = TRUE;
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     ind[d] = static_cast<int>((cg_cm[cg][d] - offset[d]) * n_box[d]);
                     /* Here we have to correct for rounding problems,

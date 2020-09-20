@@ -119,7 +119,7 @@ OutputRequirements OutputRequirementOptionDirector::process() const
     {
         requirements.box = ChangeFrameInfoType::Always;
         clear_mat(requirements.newBox);
-        for (int i = 0; i < DIM; ++i)
+        for (int i = 0; i < c_dim; ++i)
         {
             requirements.newBox[i][i] = newBoxVector_[i];
         }

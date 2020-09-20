@@ -91,7 +91,7 @@ static void copyMovedAtomsToBufferPerAtom(gmx::ArrayRef<const int> move,
                                           rvec*                    src,
                                           gmx_domdec_comm_t*       comm)
 {
-    int pos_vec[DIM * 2] = { 0 };
+    int pos_vec[gmx::c_dim * 2] = { 0 };
 
     for (gmx::index i = 0; i < move.ssize(); i++)
     {
@@ -112,7 +112,7 @@ static void copyMovedUpdateGroupCogs(gmx::ArrayRef<const int>       move,
                                      gmx::ArrayRef<const gmx::RVec> coordinates,
                                      gmx_domdec_comm_t*             comm)
 {
-    int pos_vec[DIM * 2] = { 0 };
+    int pos_vec[gmx::c_dim * 2] = { 0 };
 
     for (gmx::index g = 0; g < move.ssize(); g++)
     {
@@ -344,7 +344,7 @@ static void calc_cg_move(FILE*              fplog,
 
         ivec dev = { 0 };
         /* Do pbc and check DD cell boundary crossings */
-        for (int d = DIM - 1; d >= 0; d--)
+        for (int d = gmx::c_dim - 1; d >= 0; d--)
         {
             if (dd->numCells[d] > 1)
             {
@@ -353,7 +353,7 @@ static void calc_cg_move(FILE*              fplog,
                 real pos_d = cm_new[d];
                 if (tric_dir[d])
                 {
-                    for (int d2 = d + 1; d2 < DIM; d2++)
+                    for (int d2 = d + 1; d2 < gmx::c_dim; d2++)
                     {
                         pos_d += cm_new[d2] * tcm[d2][d];
                     }
@@ -468,7 +468,7 @@ static void calcGroupMove(FILE*                     fplog,
 
         ivec dev = { 0 };
         /* Do pbc and check DD cell boundary crossings */
-        for (int d = DIM - 1; d >= 0; d--)
+        for (int d = gmx::c_dim - 1; d >= 0; d--)
         {
             if (dd->numCells[d] > 1)
             {
@@ -476,7 +476,7 @@ static void calcGroupMove(FILE*                     fplog,
                 real pos_d = cog[d];
                 if (tric_dir[d])
                 {
-                    for (int d2 = d + 1; d2 < DIM; d2++)
+                    for (int d2 = d + 1; d2 < gmx::c_dim; d2++)
                     {
                         pos_d += cog[d2] * tcm[d2][d];
                     }
@@ -574,7 +574,7 @@ void dd_redistribute_cg(FILE*         fplog,
 
     rvec       cell_x0, cell_x1;
     MoveLimits moveLimits;
-    for (int d = 0; (d < DIM); d++)
+    for (int d = 0; (d < gmx::c_dim); d++)
     {
         moveLimits.distance[d] = dd->comm->cellsize_min[d];
         if (d >= npbcdim && dd->ci[d] == 0)
@@ -649,8 +649,8 @@ void dd_redistribute_cg(FILE*         fplog,
         GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
 
-    int ncg[DIM * 2] = { 0 };
-    int nat[DIM * 2] = { 0 };
+    int ncg[gmx::c_dim * 2] = { 0 };
+    int nat[gmx::c_dim * 2] = { 0 };
     for (int cg = 0; cg < dd->ncg_home; cg++)
     {
         if (move[cg] >= 0)
@@ -831,13 +831,13 @@ void dd_redistribute_cg(FILE*         fplog,
                             real pos_d = cog[dim2];
                             if (tric_dir[dim2])
                             {
-                                for (int d3 = dim2 + 1; d3 < DIM; d3++)
+                                for (int d3 = dim2 + 1; d3 < gmx::c_dim; d3++)
                                 {
                                     pos_d += cog[d3] * tcm[d3][dim2];
                                 }
                             }
 
-                            GMX_ASSERT(dim2 >= 0 && dim2 < DIM, "Keep the static analyzer happy");
+                            GMX_ASSERT(dim2 >= 0 && dim2 < gmx::c_dim, "Keep the static analyzer happy");
 
                             /* Check if we need to move this group
                              * to an adjacent cell because of the

@@ -445,13 +445,13 @@ void AnalysisDataVectorPlotModule::setWriteZ(bool bWrite)
 
 void AnalysisDataVectorPlotModule::setWriteNorm(bool bWrite)
 {
-    bWrite_[DIM] = bWrite;
+    bWrite_[c_dim] = bWrite;
 }
 
 
-void AnalysisDataVectorPlotModule::setWriteMask(const bool bWrite[DIM + 1])
+void AnalysisDataVectorPlotModule::setWriteMask(const bool bWrite[c_dim + 1])
 {
-    for (int i = 0; i < DIM + 1; ++i)
+    for (int i = 0; i < c_dim + 1; ++i)
     {
         bWrite_[i] = bWrite[i];
     }
@@ -460,7 +460,7 @@ void AnalysisDataVectorPlotModule::setWriteMask(const bool bWrite[DIM + 1])
 
 void AnalysisDataVectorPlotModule::pointsAdded(const AnalysisDataPointSetRef& points)
 {
-    if (points.firstColumn() % DIM != 0 || points.columnCount() % DIM != 0)
+    if (points.firstColumn() % c_dim != 0 || points.columnCount() % c_dim != 0)
     {
         GMX_THROW(APIError("Partial data points"));
     }
@@ -470,14 +470,14 @@ void AnalysisDataVectorPlotModule::pointsAdded(const AnalysisDataPointSetRef& po
     }
     for (int i = 0; i < points.columnCount(); i += 3)
     {
-        for (int d = 0; d < DIM; ++d)
+        for (int d = 0; d < c_dim; ++d)
         {
             if (bWrite_[d])
             {
                 writeValue(points.values()[i + d]);
             }
         }
-        if (bWrite_[DIM])
+        if (bWrite_[c_dim])
         {
             const rvec        y = { points.y(i), points.y(i + 1), points.y(i + 2) };
             AnalysisDataValue value(norm(y));

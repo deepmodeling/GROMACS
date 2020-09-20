@@ -66,12 +66,12 @@ static void handleClfftError(clfftStatus status, const char* msg)
 GpuParallel3dFft::GpuParallel3dFft(const PmeGpu* pmeGpu, const int gridIndex)
 {
     // Extracting all the data from PME GPU
-    std::array<size_t, DIM> realGridSize, realGridSizePadded, complexGridSizePadded;
+    std::array<size_t, gmx::c_dim> realGridSize, realGridSizePadded, complexGridSizePadded;
 
     GMX_RELEASE_ASSERT(!pme_gpu_settings(pmeGpu).useDecomposition,
                        "FFT decomposition not implemented");
     PmeGpuKernelParamsBase* kernelParamsPtr = pmeGpu->kernelParams.get();
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         realGridSize[i]          = kernelParamsPtr->grid.realGridSize[i];
         realGridSizePadded[i]    = kernelParamsPtr->grid.realGridSizePadded[i];
@@ -88,10 +88,10 @@ GpuParallel3dFft::GpuParallel3dFft(const PmeGpu* pmeGpu, const int gridIndex)
 
 
     // clFFT expects row-major, so dimensions/strides are reversed (ZYX instead of XYZ)
-    std::array<size_t, DIM> realGridDimensions = { realGridSize[ZZ], realGridSize[YY], realGridSize[XX] };
-    std::array<size_t, DIM> realGridStrides    = { 1, realGridSizePadded[ZZ],
+    std::array<size_t, gmx::c_dim> realGridDimensions = { realGridSize[ZZ], realGridSize[YY], realGridSize[XX] };
+    std::array<size_t, gmx::c_dim> realGridStrides    = { 1, realGridSizePadded[ZZ],
                                                 realGridSizePadded[YY] * realGridSizePadded[ZZ] };
-    std::array<size_t, DIM> complexGridStrides = { 1, complexGridSizePadded[ZZ],
+    std::array<size_t, gmx::c_dim> complexGridStrides = { 1, complexGridSizePadded[ZZ],
                                                    complexGridSizePadded[YY] * complexGridSizePadded[ZZ] };
 
     constexpr clfftDim dims = CLFFT_3D;

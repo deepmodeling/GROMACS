@@ -1018,9 +1018,9 @@ static void spread_vsite2FD(const t_iatom        ia[],
 
         pbc_rvec_sub(pbc, x[av], x[ai], xiv);
 
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 /* As xix is a linear combination of j and k, use that here */
                 dxdf[i][j] += -xiv[i] * fv[j] + xij[i] * fj[j];
@@ -1186,9 +1186,9 @@ static void spread_vsite3FD(const t_iatom        ia[],
 
         pbc_rvec_sub(pbc, x[av], x[ai], xiv);
 
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 /* As xix is a linear combination of j and k, use that here */
                 dxdf[i][j] += -xiv[i] * fv[j] + xix[i] * temp[j];
@@ -1247,7 +1247,7 @@ static void spread_vsite3FAD(const t_iatom        ia[],
 
     rvec_sub(fv, Fpij, f1); /* f1 = f - Fpij */
     rvec_sub(f1, Fppp, f2); /* f2 = f - Fpij - Fppp */
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < c_dim; d++)
     {
         f1[d] *= a1;
         f2[d] *= b1;
@@ -1299,9 +1299,9 @@ static void spread_vsite3FAD(const t_iatom        ia[],
         rvec xiv;
         pbc_rvec_sub(pbc, x[av], x[ai], xiv);
 
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 /* Note that xik=xij+xjk, so we have to add xij*f2 */
                 dxdf[i][j] += -xiv[i] * fv[j] + xij[i] * (f1[j] + (1 - c2) * f2[j] - f3[j])
@@ -1390,9 +1390,9 @@ static void spread_vsite3OUT(const t_iatom        ia[],
 
         pbc_rvec_sub(pbc, x[av], x[ai], xiv);
 
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 dxdf[i][j] += -xiv[i] * fv[j] + xij[i] * fj[j] + xik[i] * fk[j];
             }
@@ -1430,7 +1430,7 @@ static void spread_vsite4FD(const t_iatom        ia[],
     /* 9 flops */
 
     /* xix goes from i to point x on the plane jkl */
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < c_dim; m++)
     {
         xix[m] = xij[m] + a * xjk[m] + b * xjl[m];
     }
@@ -1444,7 +1444,7 @@ static void spread_vsite4FD(const t_iatom        ia[],
 
     fproj = iprod(xix, fv) * invDistance * invDistance; /* = (xix . f)/(xix . xix) */
 
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < c_dim; m++)
     {
         temp[m] = d * (fv[m] - fproj * xix[m]);
     }
@@ -1454,7 +1454,7 @@ static void spread_vsite4FD(const t_iatom        ia[],
        storing c somewhere will save 35 flops!     */
 
     a1 = 1 - a - b;
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < c_dim; m++)
     {
         f[ai][m] += fv[m] - temp[m];
         f[aj][m] += a1 * temp[m];
@@ -1478,7 +1478,7 @@ static void spread_vsite4FD(const t_iatom        ia[],
         if (svi != CENTRAL || sji != CENTRAL || skj != CENTRAL || slj != CENTRAL)
         {
             rvec_dec(fshift[svi], fv);
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < c_dim; m++)
             {
                 fshift[CENTRAL][m] += fv[m] - (1 + a + b) * temp[m];
                 fshift[sji][m] += temp[m];
@@ -1495,9 +1495,9 @@ static void spread_vsite4FD(const t_iatom        ia[],
 
         pbc_rvec_sub(pbc, x[av], x[ai], xiv);
 
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < c_dim; i++)
         {
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < c_dim; j++)
             {
                 dxdf[i][j] += -xiv[i] * fv[j] + xix[i] * temp[j];
             }
@@ -1653,9 +1653,9 @@ static void spread_vsite4FDN(const t_iatom        ia[],
 
         pbc_rvec_sub(pbc, x[av], x[ai], xiv);
 
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < c_dim; i++)
         {
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < c_dim; j++)
             {
                 dxdf[i][j] += -xiv[i] * fv[j] + xij[i] * fj[j] + xik[i] * fk[j] + xil[i] * fl[j];
             }
@@ -1907,9 +1907,9 @@ void VirtualSitesHandler::Impl::spreadForces(ArrayRef<const RVec> x,
 
         if (virialHandling == VirialHandling::NonLinear)
         {
-            for (int i = 0; i < DIM; i++)
+            for (int i = 0; i < c_dim; i++)
             {
-                for (int j = 0; j < DIM; j++)
+                for (int j = 0; j < c_dim; j++)
                 {
                     virial[i][j] += -0.5 * dxdf[i][j];
                 }
@@ -2027,9 +2027,9 @@ void VirtualSitesHandler::Impl::spreadForces(ArrayRef<const RVec> x,
                 /* MSVC doesn't like matrix references, so we use a pointer */
                 const matrix& dxdf = threadingInfo_.threadData(th).dxdf;
 
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < c_dim; i++)
                 {
-                    for (int j = 0; j < DIM; j++)
+                    for (int j = 0; j < c_dim; j++)
                     {
                         virial[i][j] += -0.5 * dxdf[i][j];
                     }

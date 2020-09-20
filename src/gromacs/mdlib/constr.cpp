@@ -655,9 +655,9 @@ bool Constraints::Impl::apply(bool                      bLog,
         {
             vir_fac *= 2; /* only constraining over half the distance here */
         }
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 constraintsVirial[i][j] *= vir_fac;
             }
@@ -709,7 +709,7 @@ bool Constraints::Impl::apply(bool                      bLog,
         {
             int freezeGroup = cFREEZE_[i];
 
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 if (ir.opts.nFreeze[freezeGroup][d])
                 {
@@ -1211,7 +1211,7 @@ void do_constrain_first(FILE*                     fplog,
         auto subV = v.paddedArrayRef().subArray(start, end);
         for (i = start; (i < end); i++)
         {
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < c_dim); m++)
             {
                 /* Reverse the velocity */
                 subV[i][m] = -subV[i][m];
@@ -1234,7 +1234,7 @@ void do_constrain_first(FILE*                     fplog,
 
         for (i = start; i < end; i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < c_dim; m++)
             {
                 /* Re-reverse the velocities */
                 subV[i][m] = -subV[i][m];

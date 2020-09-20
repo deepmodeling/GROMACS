@@ -2165,7 +2165,7 @@ static real do_flex2_lowlevel(gmx_enfrotgrp* erg,
                 svmul(slab_sum4part, erg->vec, slab_sum4vec);
 
                 /* The force on atom ii from slab n only: */
-                for (int m = 0; m < DIM; m++)
+                for (int m = 0; m < gmx::c_dim; m++)
                 {
                     slab_force[m] = erg->rotg->k
                                     * (-slab_sum1vec[m] + slab_sum2vec[m] - slab_sum3vec[m]
@@ -2184,7 +2184,7 @@ static real do_flex2_lowlevel(gmx_enfrotgrp* erg,
 
         /* Store the additional force so that it can be added to the force
          * array after the normal forces have been evaluated */
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             erg->f_rot_loc[j][m] =
                     erg->rotg->k * (-sum1vec[m] + sum2vec[m] - sum3vec[m] + 0.5 * sum4vec[m]);
@@ -2399,7 +2399,7 @@ static real do_flex_lowlevel(gmx_enfrotgrp* erg,
 
         /* Store the additional force so that it can be added to the force
          * array after the normal forces have been evaluated */
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             erg->f_rot_loc[j][m] = erg->rotg->k * tmp_f[m];
         }
@@ -2714,7 +2714,7 @@ static void do_fixed(gmx_enfrotgrp* erg,
         /* Store the additional force so that it can be added to the force
          * array after the normal forces have been evaluated */
         k_wi = erg->rotg->k * wi;
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             tmp_f[m]             = k_wi * dr[m];
             erg->f_rot_loc[j][m] = tmp_f[m];
@@ -2763,8 +2763,8 @@ static void do_fixed(gmx_enfrotgrp* erg,
             if (MASTER(cr))
             {
                Add the rotation contribution to the virial
-              for(j=0; j<DIM; j++)
-                for(m=0;m<DIM;m++)
+              for(j=0; j<c_dim; j++)
+                for(m=0;m<c_dim;m++)
                   vir[j][m] += 0.5*f[ii][j]*dr[m];
             }
          */
@@ -3346,7 +3346,7 @@ static inline void copy_correct_pbc_image(const rvec xcurr, /* copy vector xcurr
     {
         while (dx[m] < -0.5 * box[m][m])
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 dx[d] += box[m][d];
             }
@@ -3354,7 +3354,7 @@ static inline void copy_correct_pbc_image(const rvec xcurr, /* copy vector xcurr
         }
         while (dx[m] >= 0.5 * box[m][m])
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 dx[d] -= box[m][d];
             }

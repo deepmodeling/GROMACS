@@ -92,9 +92,9 @@ static void compareBox(const TrajectoryFrame&              reference,
     }
 
     // Do the comparing.
-    for (int d = 0; d < DIM; ++d)
+    for (int d = 0; d < c_dim; ++d)
     {
-        for (int dd = 0; dd < DIM; ++dd)
+        for (int dd = 0; dd < c_dim; ++dd)
         {
             EXPECT_REAL_EQ_TOL(reference.box()[d][dd], test.box()[d][dd], tolerance);
         }
@@ -108,9 +108,9 @@ static std::vector<RVec> putAtomsInBox(const TrajectoryFrame& frame)
 {
     std::vector<RVec> x(frame.x().begin(), frame.x().end());
     matrix            box;
-    for (int d = 0; d < DIM; ++d)
+    for (int d = 0; d < c_dim; ++d)
     {
-        for (int dd = 0; dd < DIM; ++dd)
+        for (int dd = 0; dd < c_dim; ++dd)
         {
             box[d][dd] = frame.box()[d][dd];
         }

@@ -59,7 +59,7 @@
 static void
 rand_rot(int natoms, rvec x[], rvec v[], vec4 xrot[], vec4 vrot[], gmx::DefaultRandomEngine* rng, const rvec max_rot)
 {
-    mat4                               mt1, mt2, mr[DIM], mtemp1, mtemp2, mtemp3, mxtot, mvtot;
+    mat4                               mt1, mt2, mr[gmx::c_dim], mtemp1, mtemp2, mtemp3, mxtot, mvtot;
     rvec                               xcm;
     real                               phi;
     int                                i, m;
@@ -68,7 +68,7 @@ rand_rot(int natoms, rvec x[], rvec v[], vec4 xrot[], vec4 vrot[], gmx::DefaultR
     clear_rvec(xcm);
     for (i = 0; (i < natoms); i++)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             xcm[m] += x[i][m] / natoms; /* get center of mass of one molecule  */
         }
@@ -77,7 +77,7 @@ rand_rot(int natoms, rvec x[], rvec v[], vec4 xrot[], vec4 vrot[], gmx::DefaultR
 
     /* move c.o.ma to origin */
     gmx_mat4_init_translation(-xcm[XX], -xcm[YY], -xcm[ZZ], mt1);
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         phi = M_PI * max_rot[m] * dist(*rng) / 180;
         gmx_mat4_init_rotation(m, phi, mr[m]);
@@ -229,7 +229,7 @@ int gmx_genconf(int argc, char* argv[])
 
                 for (l = 0; (l < natoms); l++)
                 {
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         if (bRandom)
                         {
@@ -251,7 +251,7 @@ int gmx_genconf(int argc, char* argv[])
                             v[ndx + l][m] = -v[ndx + l][m];
                         }
                     }
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         x[ndx + l][m] += shift[m];
                     }
@@ -283,7 +283,7 @@ int gmx_genconf(int argc, char* argv[])
     }
 
     /* make box bigger */
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         box[m][m] += dist[m];
     }

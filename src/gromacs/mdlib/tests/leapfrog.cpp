@@ -173,7 +173,7 @@ public:
         {
             rvec xAnalytical;
             rvec vAnalytical;
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 // Analytical solution for constant-force particle movement
                 real x0 = testData.x0_[i][d];

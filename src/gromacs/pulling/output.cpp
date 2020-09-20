@@ -85,7 +85,7 @@ static void addToPullxHistory(pull_t* pull)
         pcrdHistory.value += pcrd.spatialData.value;
         pcrdHistory.valueRef += pcrd.value_ref;
 
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             pcrdHistory.dr01[m] += pcrd.spatialData.dr01[m];
             pcrdHistory.dr23[m] += pcrd.spatialData.dr23[m];
@@ -93,7 +93,7 @@ static void addToPullxHistory(pull_t* pull)
         }
         if (pcrd.params.eGeom == epullgCYL)
         {
-            for (int m = 0; m < DIM; m++)
+            for (int m = 0; m < gmx::c_dim; m++)
             {
                 pcrdHistory.dynaX[m] += pull->dyna[c].x[m];
             }
@@ -102,7 +102,7 @@ static void addToPullxHistory(pull_t* pull)
     for (size_t g = 0; g < pull->group.size(); g++)
     {
         PullGroupHistory& pgrpHistory = pull->coordForceHistory->pullGroupSums[g];
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             pgrpHistory.x[m] += pull->group[g].x[m];
         }
@@ -157,7 +157,7 @@ static void pullResetHistory(PullHistory* history, bool resetXHistory, bool rese
 
 static void pull_print_coord_dr_components(FILE* out, const ivec dim, const dvec dr, const int numValuesInSum)
 {
-    for (int m = 0; m < DIM; m++)
+    for (int m = 0; m < gmx::c_dim; m++)
     {
         if (dim[m])
         {
@@ -225,7 +225,7 @@ static void pull_print_x(FILE* out, pull_t* pull, double t)
         {
             if (pcrd.params.eGeom == epullgCYL)
             {
-                for (int m = 0; m < DIM; m++)
+                for (int m = 0; m < gmx::c_dim; m++)
                 {
                     if (pcrd.params.dim[m])
                     {
@@ -243,7 +243,7 @@ static void pull_print_x(FILE* out, pull_t* pull, double t)
             }
             else
             {
-                for (int m = 0; m < DIM; m++)
+                for (int m = 0; m < gmx::c_dim; m++)
                 {
                     if (pcrd.params.dim[m])
                     {
@@ -262,7 +262,7 @@ static void pull_print_x(FILE* out, pull_t* pull, double t)
             }
             for (int g = 1; g < pcrd.params.ngroup; g++)
             {
-                for (int m = 0; m < DIM; m++)
+                for (int m = 0; m < gmx::c_dim; m++)
                 {
                     if (pcrd.params.dim[m])
                     {
@@ -366,7 +366,7 @@ static void set_legend_for_coord_components(const pull_coord_work_t* pcrd,
     for (int g = 0; g < pcrd->params.ngroup; g += 2)
     {
         /* Loop over the components */
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             if (pcrd->params.dim[m])
             {
@@ -435,11 +435,11 @@ static FILE* open_pull_out(const char*             fn,
 
         /* With default mdp options only the actual coordinate value is printed (1),
          * but optionally the reference value (+ 1),
-         * the group COMs for all the groups (+ ngroups_max*DIM)
-         * and the components of the distance vectors can be printed (+ (ngroups_max/2)*DIM).
+         * the group COMs for all the groups (+ ngroups_max*c_dim)
+         * and the components of the distance vectors can be printed (+ (ngroups_max/2)*c_dim).
          */
         snew(setname, pull->coord.size()
-                              * (1 + 1 + c_pullCoordNgroupMax * DIM + c_pullCoordNgroupMax / 2 * DIM));
+                              * (1 + 1 + c_pullCoordNgroupMax * gmx::c_dim + c_pullCoordNgroupMax / 2 * gmx::c_dim));
 
         nsets = 0;
         for (size_t c = 0; c < pull->coord.size(); c++)
@@ -470,7 +470,7 @@ static FILE* open_pull_out(const char*             fn,
                     for (int g = 0; g < pull->coord[c].params.ngroup; g++)
                     {
                         /* Legend for reference group position */
-                        for (m = 0; m < DIM; m++)
+                        for (m = 0; m < gmx::c_dim; m++)
                         {
                             if (pull->coord[c].params.dim[m])
                             {

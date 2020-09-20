@@ -114,7 +114,7 @@ std::vector<real> computeDistancesSquared(ArrayRef<const RVec> displacements)
     for (int i = 0; i != numDistancesSquared; ++i)
     {
         distanceSquared.push_back(0.0);
-        for (int d = 0; d != DIM; ++d)
+        for (int d = 0; d != c_dim; ++d)
         {
             real displacement = displacements[i][d];
             distanceSquared.back() += displacement * displacement;
@@ -182,7 +182,7 @@ public:
 
             for (size_t j = 1; j < constraintStride; j++)
             {
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < c_dim; d++)
                 {
                     coordMax = std::max(coordMax, std::abs(positions[iatom[i * constraintStride + j]][d]));
                 }

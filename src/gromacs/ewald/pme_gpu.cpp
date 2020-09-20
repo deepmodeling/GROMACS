@@ -161,7 +161,7 @@ void pme_gpu_prepare_computation(gmx_pme_t*               pme,
     pmeGpu->settings.useGpuForceReduction = stepWork.useGpuPmeFReduction;
 
     bool shouldUpdateBox = false;
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < gmx::c_dim; ++i)
     {
         for (int j = 0; j <= i; ++j)
         {

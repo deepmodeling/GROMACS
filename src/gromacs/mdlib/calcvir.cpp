@@ -74,9 +74,9 @@ static void calc_x_times_f(int nxf, const rvec x[], const rvec f[], gmx_bool bSc
 
     for (int i = 0; i < nxf; i++)
     {
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
-            for (int n = 0; n < DIM; n++)
+            for (int n = 0; n < gmx::c_dim; n++)
             {
                 x_times_f[d][n] += x[i][d] * f[i][n];
             }
@@ -88,9 +88,9 @@ static void calc_x_times_f(int nxf, const rvec x[], const rvec f[], gmx_bool bSc
             /* We should correct all odd x-shifts, but the range of isx is -2 to 2 */
             if (isx == 1 || isx == -1)
             {
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
-                    for (int n = 0; n < DIM; n++)
+                    for (int n = 0; n < gmx::c_dim; n++)
                     {
                         x_times_f[d][n] += box[d][d] * f[i][n];
                     }
@@ -136,7 +136,7 @@ void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPB
         }
     }
 
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         upd_vir(vir[d], x_times_f[d][XX], x_times_f[d][YY], x_times_f[d][ZZ]);
     }

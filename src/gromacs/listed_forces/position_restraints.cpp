@@ -90,7 +90,7 @@ void posres_dx(const rvec   x,
 
     L1 = 1.0 - lambda;
 
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < gmx::c_dim; m++)
     {
         posA = pos0A[m];
         posB = pos0B[m];
@@ -107,8 +107,8 @@ void posres_dx(const rvec   x,
                     /* Box relative coordinates are stored for dimensions with pbc */
                     posA *= pbc->box[m][m];
                     posB *= pbc->box[m][m];
-                    assert(npbcdim <= DIM);
-                    for (d = m + 1; d < npbcdim && d < DIM; d++)
+                    assert(npbcdim <= gmx::c_dim);
+                    for (d = m + 1; d < npbcdim && d < gmx::c_dim; d++)
                     {
                         posA += pos0A[d] * pbc->box[d][m];
                         posB += pos0B[d] * pbc->box[d][m];
@@ -159,7 +159,7 @@ real do_fbposres_cylinder(int fbdim, rvec fm, rvec dx, real rfb, real kk, gmx_bo
     rfb2 = gmx::square(rfb);
     v    = 0.0;
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (d != fbdim)
         {
@@ -172,7 +172,7 @@ real do_fbposres_cylinder(int fbdim, rvec fm, rvec dx, real rfb, real kk, gmx_bo
         dr    = std::sqrt(dr2);
         invdr = 1. / dr;
         v     = 0.5 * kk * gmx::square(dr - rfb);
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             if (d != fbdim)
             {
@@ -213,7 +213,7 @@ real fbposres(int                   nbonds,
         clear_rvec(com_sc);
         for (m = 0; m < npbcdim; m++)
         {
-            assert(npbcdim <= DIM);
+            assert(npbcdim <= gmx::c_dim);
             for (d = m; d < npbcdim; d++)
             {
                 com_sc[m] += com[d] * pbc->box[d][m];
@@ -300,7 +300,7 @@ real fbposres(int                   nbonds,
 
         vtot += v;
 
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             f[ai][m] += fm[m];
             /* Here we correct for the pbc_dx which included rdist */
@@ -345,7 +345,7 @@ real posres(int                   nbonds,
         clear_rvec(comB_sc);
         for (m = 0; m < npbcdim; m++)
         {
-            assert(npbcdim <= DIM);
+            assert(npbcdim <= gmx::c_dim);
             for (d = m; d < npbcdim; d++)
             {
                 comA_sc[m] += comA[d] * pbc->box[d][m];
@@ -375,7 +375,7 @@ real posres(int                   nbonds,
         posres_dx(x[ai], forceparams[type].posres.pos0A, forceparams[type].posres.pos0B, comA_sc,
                   comB_sc, lambda, pbc, refcoord_scaling, npbcdim, dx, rdist, dpdl);
 
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             kk = L1 * pr->posres.fcA[m] + lambda * pr->posres.fcB[m];
             fm = -kk * dx[m];

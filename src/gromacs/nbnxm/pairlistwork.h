@@ -62,8 +62,8 @@ struct NbnxnPairlistCpuWork
     {
         IClusterData() :
             bb(1),
-            x(c_nbnxnCpuIClusterSize * DIM),
-            xSimd(c_nbnxnCpuIClusterSize * DIM * GMX_REAL_MAX_SIMD_WIDTH)
+            x(c_nbnxnCpuIClusterSize * gmx::c_dim),
+            xSimd(c_nbnxnCpuIClusterSize * gmx::c_dim * GMX_REAL_MAX_SIMD_WIDTH)
         {
         }
 
@@ -71,7 +71,7 @@ struct NbnxnPairlistCpuWork
         AlignedVector<Nbnxm::BoundingBox> bb;
         //! The coordinates, pbc shifted, for each atom
         std::vector<real> x;
-        //! Aligned list for storing 4*DIM*GMX_SIMD_REAL_WIDTH reals
+        //! Aligned list for storing 4*c_dim*GMX_SIMD_REAL_WIDTH reals
         AlignedVector<real> xSimd;
     };
 
@@ -104,8 +104,8 @@ struct NbnxnPairlistGpuWork
 #if NBNXN_SEARCH_BB_SIMD4
             bbPacked(c_gpuNumClusterPerCell / c_packedBoundingBoxesDimSize * c_packedBoundingBoxesSize),
 #endif
-            x(c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize * DIM),
-            xSimd(c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize * DIM)
+            x(c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize * gmx::c_dim),
+            xSimd(c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize * gmx::c_dim)
         {
         }
 
@@ -115,7 +115,7 @@ struct NbnxnPairlistGpuWork
         AlignedVector<float> bbPacked;
         //! The coordinates, pbc shifted, for each atom
         AlignedVector<real> x;
-        //! Aligned coordinate list used for 4*DIM*GMX_SIMD_REAL_WIDTH floats
+        //! Aligned coordinate list used for 4*c_dim*GMX_SIMD_REAL_WIDTH floats
         AlignedVector<real> xSimd;
     };
 

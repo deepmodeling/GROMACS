@@ -109,9 +109,9 @@ __device__ __forceinline__ void spread_charges(const PmeGpuCudaKernelParams kern
         // Spline Z coordinates
         const int ithz = threadIdx.x;
 
-        const int ixBase = sm_gridlineIndices[atomIndexLocal * DIM + XX] - offx;
-        const int iyBase = sm_gridlineIndices[atomIndexLocal * DIM + YY] - offy;
-        int       iz     = sm_gridlineIndices[atomIndexLocal * DIM + ZZ] - offz + ithz;
+        const int ixBase = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + XX] - offx;
+        const int iyBase = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + YY] - offy;
+        int       iz     = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + ZZ] - offz + ithz;
         if (iz >= nz)
         {
             iz -= nz;
@@ -189,11 +189,11 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
     // Number of atoms processed by a single warp in spread and gather
     const int atomsPerWarp = warp_size / threadsPerAtomValue;
     // Gridline indices, ivec
-    __shared__ int sm_gridlineIndices[atomsPerBlock * DIM];
+    __shared__ int sm_gridlineIndices[atomsPerBlock * gmx::c_dim];
     // Charges
     __shared__ float sm_coefficients[atomsPerBlock];
     // Spline values
-    __shared__ float sm_theta[atomsPerBlock * DIM * order];
+    __shared__ float sm_theta[atomsPerBlock * gmx::c_dim * order];
     float            dtheta;
 
     float3 atomX;
@@ -263,9 +263,9 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
          * as in after running the spline kernel)
          */
         /* Spline data - only thetas (dthetas will only be needed in gather) */
-        pme_gpu_stage_atom_data<float, atomsPerBlock, DIM * order>(sm_theta, kernelParams.atoms.d_theta);
+        pme_gpu_stage_atom_data<float, atomsPerBlock, gmx::c_dim * order>(sm_theta, kernelParams.atoms.d_theta);
         /* Gridline indices */
-        pme_gpu_stage_atom_data<int, atomsPerBlock, DIM>(sm_gridlineIndices,
+        pme_gpu_stage_atom_data<int, atomsPerBlock, gmx::c_dim>(sm_gridlineIndices,
                                                          kernelParams.atoms.d_gridlineIndices);
 
         __syncthreads();

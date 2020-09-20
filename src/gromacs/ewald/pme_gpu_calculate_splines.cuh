@@ -71,13 +71,13 @@ int __device__ __forceinline__ getSplineParamIndexBase(int warpIndex, int atomWa
     const int dimIndex    = 0;
     const int splineIndex = 0;
     // The zeroes are here to preserve the full index formula for reference
-    return (((splineIndex + order * warpIndex) * DIM + dimIndex) * atomsPerWarp + atomWarpIndex);
+    return (((splineIndex + order * warpIndex) * gmx::c_dim + dimIndex) * atomsPerWarp + atomWarpIndex);
 }
 
 /*! \internal \brief
  * Gets a unique index to an element in a spline parameter buffer (theta/dtheta),
  * which is laid out for GPU spread/gather kernels. The index is wrt to the execution block,
- * in range(0, atomsPerBlock * order * DIM).
+ * in range(0, atomsPerBlock * order * c_dim).
  * This function consumes result of getSplineParamIndexBase() and adjusts it for \p dimIndex and \p splineIndex.
  *
  * \tparam order               PME order
@@ -91,9 +91,9 @@ int __device__ __forceinline__ getSplineParamIndexBase(int warpIndex, int atomWa
 template<int order, int atomsPerWarp>
 int __device__ __forceinline__ getSplineParamIndex(int paramIndexBase, int dimIndex, int splineIndex)
 {
-    assert((dimIndex >= XX) && (dimIndex < DIM));
+    assert((dimIndex >= XX) && (dimIndex < gmx::c_dim));
     assert((splineIndex >= 0) && (splineIndex < order));
-    return (paramIndexBase + (splineIndex * DIM + dimIndex) * atomsPerWarp);
+    return (paramIndexBase + (splineIndex * gmx::c_dim + dimIndex) * atomsPerWarp);
 }
 
 /*! \internal \brief
@@ -143,7 +143,7 @@ __device__ inline void assertIsFinite(T arg)
  * \tparam[in] T                  Data type (float/int/...)
  * \tparam[in] atomsPerBlock      Number of atoms processed by a block - should be accounted for in
  * the size of the shared memory array.
- * \tparam[in] dataCountPerAtom   Number of data elements per single atom (e.g. DIM for an rvec
+ * \tparam[in] dataCountPerAtom   Number of data elements per single atom (e.g. c_dim for an rvec
  * coordinates array).
  * \param[out] sm_destination     Shared memory array for output.
  * \param[in]  gm_source          Global memory array for input.
@@ -199,7 +199,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
     int* __restrict__ gm_gridlineIndices = kernelParams.atoms.d_gridlineIndices;
 
     /* Fractional coordinates */
-    __shared__ float sm_fractCoords[atomsPerBlock * DIM];
+    __shared__ float sm_fractCoords[atomsPerBlock * gmx::c_dim];
 
     /* Thread index w.r.t. block */
     const int threadLocalId =
@@ -213,16 +213,16 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
 
     /* Spline contribution index in one dimension */
     const int threadLocalIdXY = (threadIdx.y * blockDim.x) + threadIdx.x;
-    const int orderIndex      = threadLocalIdXY / DIM;
+    const int orderIndex      = threadLocalIdXY / gmx::c_dim;
     /* Dimension index */
-    const int dimIndex = threadLocalIdXY % DIM;
+    const int dimIndex = threadLocalIdXY % gmx::c_dim;
 
     /* Multi-purpose index of rvec/ivec atom data */
-    const int sharedMemoryIndex = atomIndexLocal * DIM + dimIndex;
+    const int sharedMemoryIndex = atomIndexLocal * gmx::c_dim + dimIndex;
 
     float splineData[order];
 
-    const int localCheck = (dimIndex < DIM) && (orderIndex < 1);
+    const int localCheck = (dimIndex < gmx::c_dim) && (orderIndex < 1);
 
     /* we have 4 threads per atom, but can only use 3 here for the dimensions */
     if (localCheck)
@@ -233,7 +233,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
         {
             int   tableIndex, tInt;
             float n, t;
-            assert(atomIndexLocal < DIM * atomsPerBlock);
+            assert(atomIndexLocal < gmx::c_dim * atomsPerBlock);
             /* Accessing fields in fshOffset/nXYZ/recipbox/... with dimIndex offset
              * puts them into local memory(!) instead of accessing the constant memory directly.
              * That's the reason for the switch, to unroll explicitly.
@@ -269,7 +269,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
             /* Fractional coordinates along box vectors, adding a positive shift to ensure t is positive for triclinic boxes */
             t    = (t + shift) * n;
             tInt = (int)t;
-            assert(sharedMemoryIndex < atomsPerBlock * DIM);
+            assert(sharedMemoryIndex < atomsPerBlock * gmx::c_dim);
             sm_fractCoords[sharedMemoryIndex] = t - tInt;
             tableIndex += tInt;
             assert(tInt >= 0);
@@ -285,7 +285,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
                                               kernelParams.gridlineIndicesTableTexture, tableIndex);
             if (writeGlobal)
             {
-                gm_gridlineIndices[atomIndexOffset * DIM + sharedMemoryIndex] =
+                gm_gridlineIndices[atomIndexOffset * gmx::c_dim + sharedMemoryIndex] =
                         sm_gridlineIndices[sharedMemoryIndex];
             }
         }
@@ -322,7 +322,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
 
             const int thetaIndexBase =
                     getSplineParamIndexBase<order, atomsPerWarp>(warpIndex, atomWarpIndex);
-            const int thetaGlobalOffsetBase = atomIndexOffset * DIM * order;
+            const int thetaGlobalOffsetBase = atomIndexOffset * gmx::c_dim * order;
             /* only calculate dtheta if we are saving it to shared or global memory */
             if (writeSmDtheta || writeGlobal)
             {
@@ -335,7 +335,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
 
                     const float dtheta = ((o > 0) ? splineData[o - 1] : 0.0f) - splineData[o];
                     assert(isfinite(dtheta));
-                    assert(thetaIndex < order * DIM * atomsPerBlock);
+                    assert(thetaIndex < order * gmx::c_dim * atomsPerBlock);
                     if (writeSmDtheta)
                     {
                         sm_dtheta[thetaIndex] = dtheta;
@@ -365,7 +365,7 @@ __device__ __forceinline__ void calculate_splines(const PmeGpuCudaKernelParams k
             {
                 const int thetaIndex =
                         getSplineParamIndex<order, atomsPerWarp>(thetaIndexBase, dimIndex, o);
-                assert(thetaIndex < order * DIM * atomsPerBlock);
+                assert(thetaIndex < order * gmx::c_dim * atomsPerBlock);
                 sm_theta[thetaIndex] = splineData[o];
                 assert(isfinite(sm_theta[thetaIndex]));
                 if (writeGlobal)

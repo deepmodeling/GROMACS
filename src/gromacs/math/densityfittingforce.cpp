@@ -72,7 +72,7 @@ public:
     //! The spread range in lattice points
     IVec latticeSpreadRange_;
     //! The three one-dimensional Gaussians that are used in the force calculation
-    std::array<GaussianOn1DLattice, DIM> gauss1d_;
+    std::array<GaussianOn1DLattice, c_dim> gauss1d_;
     //! The outer product of a Gaussian along the z and y dimension
     OuterProductEvaluator outerProductZY_;
 };

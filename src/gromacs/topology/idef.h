@@ -157,11 +157,11 @@ typedef union t_iparams {
     } morse;
     struct
     {
-        real pos0A[DIM], fcA[DIM], pos0B[DIM], fcB[DIM];
+        real pos0A[gmx::c_dim], fcA[gmx::c_dim], pos0B[gmx::c_dim], fcB[gmx::c_dim];
     } posres;
     struct
     {
-        real pos0[DIM], r, k;
+        real pos0[gmx::c_dim], r, k;
         int  geom;
     } fbposres;
     struct

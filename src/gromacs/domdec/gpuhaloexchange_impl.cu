@@ -407,7 +407,7 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
     // send data to neighbor, if any data exists to send
     if (sendSize > 0)
     {
-        stat = cudaMemcpyAsync(remotePtr, sendPtr, sendSize * DIM * sizeof(float),
+        stat = cudaMemcpyAsync(remotePtr, sendPtr, sendSize * c_dim * sizeof(float),
                                cudaMemcpyDeviceToDevice, nonLocalStream_.stream());
 
         CU_RET_ERR(stat, "cudaMemcpyAsync on GPU Domdec CUDA direct data transfer failed");

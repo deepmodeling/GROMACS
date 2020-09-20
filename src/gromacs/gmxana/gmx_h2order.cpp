@@ -150,7 +150,7 @@ static void calc_h2order(const char*             fn,
         for (i = 0; i < ngx / 3; i++)
         {
             /* put all waters in box */
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 if (x0[index[3 * i]][j] < 0)
                 {
@@ -166,7 +166,7 @@ static void calc_h2order(const char*             fn,
                 }
             }
 
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 dipole[j] = x0[index[3 * i]][j] * top->atoms.atom[index[3 * i]].q
                             + x0[index[3 * i + 1]][j] * top->atoms.atom[index[3 * i + 1]].q

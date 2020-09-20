@@ -279,24 +279,24 @@ real comm_box_frac(const gmx::IVec& dd_nc, real cutoff, const gmx_ddbox_t& ddbox
     rvec nw;
     real comm_vol;
 
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         real bt = ddbox.box_size[i] * ddbox.skew_fac[i];
         nw[i]   = dd_nc[i] * cutoff / bt;
     }
 
     comm_vol = 0;
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         if (dd_nc[i] > 1)
         {
             comm_vol += nw[i];
-            for (j = i + 1; j < DIM; j++)
+            for (j = i + 1; j < gmx::c_dim; j++)
             {
                 if (dd_nc[j] > 1)
                 {
                     comm_vol += nw[i] * nw[j] * M_PI / 4;
-                    for (k = j + 1; k < DIM; k++)
+                    for (k = j + 1; k < gmx::c_dim; k++)
                     {
                         if (dd_nc[k] > 1)
                         {
@@ -375,10 +375,10 @@ static float comm_cost_est(real               limit,
         return -1;
     }
 
-    assert(ddbox.npbcdim <= DIM);
+    assert(ddbox.npbcdim <= gmx::c_dim);
 
     /* Check if the triclinic requirements are met */
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         for (j = i + 1; j < ddbox.npbcdim; j++)
         {
@@ -392,7 +392,7 @@ static float comm_cost_est(real               limit,
         }
     }
 
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         bt[i] = ddbox.box_size[i] * ddbox.skew_fac[i];
 
@@ -457,9 +457,9 @@ static float comm_cost_est(real               limit,
      * for the smallest index, so the decomposition does not
      * depend sensitively on the rounding of the box elements.
      */
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
-        for (j = i + 1; j < DIM; j++)
+        for (j = i + 1; j < gmx::c_dim; j++)
         {
             /* Check if the box size is nearly identical,
              * in that case we prefer nx > ny  and ny > nz.
@@ -688,7 +688,7 @@ static gmx::IVec optimizeDDCells(const gmx::MDLogger& mdlog,
     if (cellSizeLimit > 0)
     {
         std::string maximumCells = "The maximum allowed number of cells is:";
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             int nmax = static_cast<int>(ddbox.box_size[d] * ddbox.skew_fac[d] / cellSizeLimit);
             if (d >= ddbox.npbcdim && nmax < 2)
@@ -869,7 +869,7 @@ static int set_dd_dim(const gmx::IVec& numDDCells, const DDSettings& ddSettings,
     if (ddSettings.useDDOrderZYX)
     {
         /* Decomposition order z,y,x */
-        for (int dim = DIM - 1; dim >= 0; dim--)
+        for (int dim = gmx::c_dim - 1; dim >= 0; dim--)
         {
             if (numDDCells[dim] > 1)
             {
@@ -880,7 +880,7 @@ static int set_dd_dim(const gmx::IVec& numDDCells, const DDSettings& ddSettings,
     else
     {
         /* Decomposition order x,y,z */
-        for (int dim = 0; dim < DIM; dim++)
+        for (int dim = 0; dim < gmx::c_dim; dim++)
         {
             if (numDDCells[dim] > 1)
             {

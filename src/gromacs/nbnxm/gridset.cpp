@@ -86,7 +86,7 @@ GridSet::DomainSetup::DomainSetup(const PbcType             pbcType,
     haveMultipleDomains(numDDCells != nullptr),
     zones(ddZones)
 {
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         haveMultipleDomainsPerDim[d] = (numDDCells != nullptr && (*numDDCells)[d] > 1);
     }

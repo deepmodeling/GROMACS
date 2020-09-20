@@ -1649,7 +1649,7 @@ static void convertRvecs(warninp_t wi, gmx::ArrayRef<const std::string> inputs, 
             warning_error(wi, message);
         }
         ++d;
-        if (d == DIM)
+        if (d == gmx::c_dim)
         {
             d = 0;
             ++i;
@@ -2380,7 +2380,7 @@ void get_ir(const char*     mdparin,
     /* Process options if necessary */
     for (m = 0; m < 2; m++)
     {
-        for (i = 0; i < 2 * DIM; i++)
+        for (i = 0; i < 2 * gmx::c_dim; i++)
         {
             dumdub[m][i] = 0.0;
         }
@@ -2425,7 +2425,7 @@ void get_ir(const char*     mdparin,
     }
     clear_mat(ir->ref_p);
     clear_mat(ir->compress);
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         ir->ref_p[i][i]    = dumdub[1][i];
         ir->compress[i][i] = dumdub[0][i];
@@ -2444,7 +2444,7 @@ void get_ir(const char*     mdparin,
         ir->compress[XX][YY] = dumdub[0][3];
         ir->compress[XX][ZZ] = dumdub[0][4];
         ir->compress[YY][ZZ] = dumdub[0][5];
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             for (m = 0; m < i; m++)
             {
@@ -2606,7 +2606,7 @@ void get_ir(const char*     mdparin,
             {
                 if (ir->deform[i][j] != 0)
                 {
-                    for (m = j; m < DIM; m++)
+                    for (m = j; m < gmx::c_dim; m++)
                     {
                         if (ir->compress[m][j] != 0)
                         {
@@ -2852,7 +2852,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
         if (local.ptype == eptAtom || local.ptype == eptNucleus)
         {
             int g = getGroupType(groups, SimulationAtomGroupType::Freeze, i);
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < gmx::c_dim; d++)
             {
                 if (opts->nFreeze[g][d] == 0)
                 {
@@ -3223,7 +3223,7 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
     {
         const int freezeGroup   = getGroupType(*groups, SimulationAtomGroupType::Freeze, a);
         int       numFrozenDims = 0;
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             numFrozenDims += opts.nFreeze[freezeGroup][d];
         }
@@ -3231,7 +3231,7 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
         const int vcmGroup = getGroupType(*groups, SimulationAtomGroupType::MassCenterVelocityRemoval, a);
         if (vcmGroup < vcmRestGroup)
         {
-            if (numFrozenDims == DIM)
+            if (numFrozenDims == gmx::c_dim)
             {
                 /* Do not remove COM motion for this fully frozen atom */
                 if (groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
@@ -3246,7 +3246,7 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
                 numPartiallyFrozenVcmAtoms++;
             }
         }
-        else if (numFrozenDims < DIM)
+        else if (numFrozenDims < gmx::c_dim)
         {
             numNonVcmAtoms++;
         }
@@ -3267,7 +3267,7 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
                 "removal group(s), due to limitations in the code these still contribute to the "
                 "mass of the COM along frozen dimensions and therefore the COMM correction will be "
                 "too small.",
-                numPartiallyFrozenVcmAtoms, DIM);
+                numPartiallyFrozenVcmAtoms, gmx::c_dim);
         warning(wi, warningText.c_str());
     }
     if (numNonVcmAtoms > 0)
@@ -3664,7 +3664,7 @@ void do_index(const char*                   mdparin,
 
     auto accelerations          = gmx::splitString(inputrecStrings->acc);
     auto accelerationGroupNames = gmx::splitString(inputrecStrings->accgrps);
-    if (accelerationGroupNames.size() * DIM != accelerations.size())
+    if (accelerationGroupNames.size() * gmx::c_dim != accelerations.size())
     {
         gmx_fatal(FARGS, "Invalid Acceleration input: %zu groups and %zu acc. values",
                   accelerationGroupNames.size(), accelerations.size());
@@ -3679,7 +3679,7 @@ void do_index(const char*                   mdparin,
 
     auto freezeDims       = gmx::splitString(inputrecStrings->frdim);
     auto freezeGroupNames = gmx::splitString(inputrecStrings->freeze);
-    if (freezeDims.size() != DIM * freezeGroupNames.size())
+    if (freezeDims.size() != gmx::c_dim * freezeGroupNames.size())
     {
         gmx_fatal(FARGS, "Invalid Freezing input: %zu groups and %zu freeze values",
                   freezeGroupNames.size(), freezeDims.size());
@@ -3691,7 +3691,7 @@ void do_index(const char*                   mdparin,
     snew(ir->opts.nFreeze, nr);
     for (i = k = 0; (size_t(i) < freezeGroupNames.size()); i++)
     {
-        for (j = 0; (j < DIM); j++, k++)
+        for (j = 0; (j < gmx::c_dim); j++, k++)
         {
             ir->opts.nFreeze[i][j] = static_cast<int>(gmx::equalCaseInsensitive(freezeDims[k], "Y", 1));
             if (!ir->opts.nFreeze[i][j])
@@ -3709,7 +3709,7 @@ void do_index(const char*                   mdparin,
     }
     for (; (i < nr); i++)
     {
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             ir->opts.nFreeze[i][j] = 0;
         }
@@ -3861,14 +3861,14 @@ static bool absolute_reference(const t_inputrec* ir, const gmx_mtop_t* sys, cons
     if (!posres_only)
     {
         /* Check the COM */
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             AbsRef[d] = (d < ndof_com(ir) ? 0 : 1);
         }
         /* Check for freeze groups */
         for (g = 0; g < ir->opts.ngfrz; g++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 if (ir->opts.nFreeze[g][d] != 0)
                 {
@@ -3887,7 +3887,7 @@ static bool absolute_reference(const t_inputrec* ir, const gmx_mtop_t* sys, cons
             for (i = 0; i < (*ilist)[F_POSRES].size(); i += 2)
             {
                 pr = &sys->ffparams.iparams[(*ilist)[F_POSRES].iatoms[i]];
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     if (pr->posres.fcA[d] != 0)
                     {
@@ -4188,7 +4188,7 @@ void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_
     {
         absolute_reference(ir, sys, TRUE, AbsRef);
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 if (AbsRef[m] && norm2(ir->compress[m]) > 0)
                 {
@@ -4254,7 +4254,7 @@ void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_
     bAcc = FALSE;
     for (int i = 0; (i < gmx::ssize(sys->groups.groups[SimulationAtomGroupType::Acceleration])); i++)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             if (fabs(ir->opts.acc[i][m]) > 1e-6)
             {
@@ -4275,17 +4275,17 @@ void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_
         mt = 0.0;
         for (i = 0; (i < gmx::ssize(sys->groups.groups[SimulationAtomGroupType::Acceleration])); i++)
         {
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 acc[m] += ir->opts.acc[i][m] * mgrp[i];
             }
             mt += mgrp[i];
         }
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             if (fabs(acc[m]) > 1e-6)
             {
-                const char* dim[DIM] = { "X", "Y", "Z" };
+                const char* dim[gmx::c_dim] = { "X", "Y", "Z" };
                 fprintf(stderr, "Net Acceleration in %s direction, will %s be corrected\n", dim[m],
                         ir->nstcomm != 0 ? "" : "not");
                 if (ir->nstcomm != 0 && m < ndof_com(ir))
@@ -4318,7 +4318,7 @@ void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_
             if (ir->pull->coord[i].group[0] == 0 || ir->pull->coord[i].group[1] == 0)
             {
                 absolute_reference(ir, sys, FALSE, AbsRef);
-                for (m = 0; m < DIM; m++)
+                for (m = 0; m < gmx::c_dim; m++)
                 {
                     if (ir->pull->coord[i].dim[m] && !AbsRef[m])
                     {

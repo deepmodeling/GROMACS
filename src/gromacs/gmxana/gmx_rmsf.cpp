@@ -156,36 +156,36 @@ static void average_residues(double         f[],
 
 static void print_dir(FILE* fp, real* Uaver)
 {
-    real eigvec[DIM * DIM];
-    real tmp[DIM * DIM];
+    real eigvec[gmx::c_dim * gmx::c_dim];
+    real tmp[gmx::c_dim * gmx::c_dim];
     rvec eigval;
     int  d, m;
 
     fprintf(fp, "MSF     X         Y         Z\n");
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         fprintf(fp, " %c ", 'X' + d - XX);
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             fprintf(fp, " %9.2e", Uaver[3 * m + d]);
         }
-        fprintf(fp, "%s\n", m == DIM ? " (nm^2)" : "");
+        fprintf(fp, "%s\n", m == gmx::c_dim ? " (nm^2)" : "");
     }
 
-    for (m = 0; m < DIM * DIM; m++)
+    for (m = 0; m < gmx::c_dim * gmx::c_dim; m++)
     {
         tmp[m] = Uaver[m];
     }
 
 
-    eigensolver(tmp, DIM, 0, DIM, eigval, eigvec);
+    eigensolver(tmp, gmx::c_dim, 0, gmx::c_dim, eigval, eigvec);
 
     fprintf(fp, "\n             Eigenvectors\n\n");
     fprintf(fp, "Eigv  %-8.2e %-8.2e %-8.2e (nm^2)\n\n", eigval[2], eigval[1], eigval[0]);
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         fprintf(fp, "  %c   ", 'X' + d - XX);
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             fprintf(fp, "%7.4f  ", eigvec[3 * m + d]);
         }
@@ -302,11 +302,11 @@ int gmx_rmsf(int argc, char* argv[])
     }
 
     /* Malloc the rmsf arrays */
-    snew(xav, isize * DIM);
+    snew(xav, isize * gmx::c_dim);
     snew(U, isize);
     for (i = 0; i < isize; i++)
     {
-        snew(U[i], DIM * DIM);
+        snew(U[i], gmx::c_dim * gmx::c_dim);
     }
     snew(rmsf, isize);
     if (devfn)
@@ -372,12 +372,12 @@ int gmx_rmsf(int argc, char* argv[])
         for (i = 0; i < isize; i++)
         {
             aid = index[i];
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                xav[i * DIM + d] += x[aid][d];
-                for (m = 0; m < DIM; m++)
+                xav[i * gmx::c_dim + d] += x[aid][d];
+                for (m = 0; m < gmx::c_dim; m++)
                 {
-                    U[i][d * DIM + m] += x[aid][d] * x[aid][m];
+                    U[i][d * gmx::c_dim + m] += x[aid][d] * x[aid][m];
                 }
             }
         }
@@ -388,7 +388,7 @@ int gmx_rmsf(int argc, char* argv[])
             for (i = 0; (i < isize); i++)
             {
                 aid = index[i];
-                for (d = 0; (d < DIM); d++)
+                for (d = 0; (d < gmx::c_dim); d++)
                 {
                     rmsd_x[i][d] += gmx::square(x[aid][d] - xref[aid][d]);
                 }
@@ -406,32 +406,32 @@ int gmx_rmsf(int argc, char* argv[])
 
 
     invcount = 1.0 / count;
-    snew(Uaver, DIM * DIM);
+    snew(Uaver, gmx::c_dim * gmx::c_dim);
     totmass = 0;
     for (i = 0; i < isize; i++)
     {
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
-            xav[i * DIM + d] *= invcount;
+            xav[i * gmx::c_dim + d] *= invcount;
         }
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
-                U[i][d * DIM + m] = U[i][d * DIM + m] * invcount - xav[i * DIM + d] * xav[i * DIM + m];
-                Uaver[3 * d + m] += top.atoms.atom[index[i]].m * U[i][d * DIM + m];
+                U[i][d * gmx::c_dim + m] = U[i][d * gmx::c_dim + m] * invcount - xav[i * gmx::c_dim + d] * xav[i * gmx::c_dim + m];
+                Uaver[3 * d + m] += top.atoms.atom[index[i]].m * U[i][d * gmx::c_dim + m];
             }
         }
         totmass += top.atoms.atom[index[i]].m;
     }
-    for (d = 0; d < DIM * DIM; d++)
+    for (d = 0; d < gmx::c_dim * gmx::c_dim; d++)
     {
         Uaver[d] /= totmass;
     }
 
     if (bRes)
     {
-        for (d = 0; d < DIM * DIM; d++)
+        for (d = 0; d < gmx::c_dim * gmx::c_dim; d++)
         {
             average_residues(nullptr, U, d, isize, index, w_rls, &top.atoms);
         }
@@ -443,12 +443,12 @@ int gmx_rmsf(int argc, char* argv[])
         {
             aid                                 = index[i];
             pdbatoms->pdbinfo[aid].bAnisotropic = TRUE;
-            pdbatoms->pdbinfo[aid].uij[U11]     = static_cast<int>(1e6 * U[i][XX * DIM + XX]);
-            pdbatoms->pdbinfo[aid].uij[U22]     = static_cast<int>(1e6 * U[i][YY * DIM + YY]);
-            pdbatoms->pdbinfo[aid].uij[U33]     = static_cast<int>(1e6 * U[i][ZZ * DIM + ZZ]);
-            pdbatoms->pdbinfo[aid].uij[U12]     = static_cast<int>(1e6 * U[i][XX * DIM + YY]);
-            pdbatoms->pdbinfo[aid].uij[U13]     = static_cast<int>(1e6 * U[i][XX * DIM + ZZ]);
-            pdbatoms->pdbinfo[aid].uij[U23]     = static_cast<int>(1e6 * U[i][YY * DIM + ZZ]);
+            pdbatoms->pdbinfo[aid].uij[U11]     = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + XX]);
+            pdbatoms->pdbinfo[aid].uij[U22]     = static_cast<int>(1e6 * U[i][YY * gmx::c_dim + YY]);
+            pdbatoms->pdbinfo[aid].uij[U33]     = static_cast<int>(1e6 * U[i][ZZ * gmx::c_dim + ZZ]);
+            pdbatoms->pdbinfo[aid].uij[U12]     = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + YY]);
+            pdbatoms->pdbinfo[aid].uij[U13]     = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + ZZ]);
+            pdbatoms->pdbinfo[aid].uij[U23]     = static_cast<int>(1e6 * U[i][YY * gmx::c_dim + ZZ]);
         }
     }
     if (bRes)
@@ -462,7 +462,7 @@ int gmx_rmsf(int argc, char* argv[])
 
     for (i = 0; i < isize; i++)
     {
-        rmsf[i] = U[i][XX * DIM + XX] + U[i][YY * DIM + YY] + U[i][ZZ * DIM + ZZ];
+        rmsf[i] = U[i][XX * gmx::c_dim + XX] + U[i][YY * gmx::c_dim + YY] + U[i][ZZ * gmx::c_dim + ZZ];
     }
 
     if (dirfn)
@@ -564,9 +564,9 @@ int gmx_rmsf(int argc, char* argv[])
         snew(bFactorX, top.atoms.nr);
         for (i = 0; i < isize; i++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                bFactorX[index[i]][d] = xcm[d] + xav[i * DIM + d];
+                bFactorX[index[i]][d] = xcm[d] + xav[i * gmx::c_dim + d];
             }
         }
         /* Write a .pdb file with B-factors and optionally anisou records */

@@ -136,10 +136,10 @@ static void get_refx(gmx_output_env_t* oenv,
             msd = 0;
             for (a = 0; a < gnx; a++)
             {
-                for (r = 0; r < DIM; r++)
+                for (r = 0; r < gmx::c_dim; r++)
                 {
                     xf = 0;
-                    for (c = 0; c < DIM; c++)
+                    for (c = 0; c < gmx::c_dim; c++)
                     {
                         xf += R[r][c] * xi[j][a][c];
                     }
@@ -300,7 +300,7 @@ int gmx_rotmat(int argc, char* argv[])
             do_fit_ndim(2, natoms, w_rls, x_ref, x);
         }
 
-        calc_fit_R(DIM, natoms, w_rls, x_ref, x, R);
+        calc_fit_R(gmx::c_dim, natoms, w_rls, x_ref, x, R);
 
         fprintf(out, "%7g %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f %7.4f\n", t, R[XX][XX],
                 R[XX][YY], R[XX][ZZ], R[YY][XX], R[YY][YY], R[YY][ZZ], R[ZZ][XX], R[ZZ][YY], R[ZZ][ZZ]);

@@ -194,7 +194,7 @@ void global_stat(const gmx_global_stat*  gs,
        This is just the constraint virial.*/
     if (bConstrVir)
     {
-        isv = add_binr(rb, DIM * DIM, svir[0]);
+        isv = add_binr(rb, gmx::c_dim * gmx::c_dim, svir[0]);
     }
 
     /* We need the force virial and the kinetic energy for the first time through with velocity verlet */
@@ -206,15 +206,15 @@ void global_stat(const gmx_global_stat*  gs,
             {
                 if (bSumEkinhOld)
                 {
-                    itc0[j] = add_binr(rb, DIM * DIM, ekind->tcstat[j].ekinh_old[0]);
+                    itc0[j] = add_binr(rb, gmx::c_dim * gmx::c_dim, ekind->tcstat[j].ekinh_old[0]);
                 }
                 if (bEkinAveVel && !bReadEkin)
                 {
-                    itc1[j] = add_binr(rb, DIM * DIM, ekind->tcstat[j].ekinf[0]);
+                    itc1[j] = add_binr(rb, gmx::c_dim * gmx::c_dim, ekind->tcstat[j].ekinf[0]);
                 }
                 else if (!bReadEkin)
                 {
-                    itc1[j] = add_binr(rb, DIM * DIM, ekind->tcstat[j].ekinh[0]);
+                    itc1[j] = add_binr(rb, gmx::c_dim * gmx::c_dim, ekind->tcstat[j].ekinh[0]);
                 }
             }
             /* these probably need to be put into one of these categories */
@@ -232,7 +232,7 @@ void global_stat(const gmx_global_stat*  gs,
 
     if (bPres)
     {
-        ifv = add_binr(rb, DIM * DIM, fvir[0]);
+        ifv = add_binr(rb, gmx::c_dim * gmx::c_dim, fvir[0]);
     }
 
     gmx::ArrayRef<real> rmsdData;
@@ -266,13 +266,13 @@ void global_stat(const gmx_global_stat*  gs,
 
     if (vcm)
     {
-        icm   = add_binr(rb, DIM * vcm->nr, vcm->group_p[0]);
+        icm   = add_binr(rb, gmx::c_dim * vcm->nr, vcm->group_p[0]);
         imass = add_binr(rb, vcm->nr, vcm->group_mass.data());
         if (vcm->mode == ecmANGULAR)
         {
-            icj = add_binr(rb, DIM * vcm->nr, vcm->group_j[0]);
-            icx = add_binr(rb, DIM * vcm->nr, vcm->group_x[0]);
-            ici = add_binr(rb, DIM * DIM * vcm->nr, vcm->group_i[0][0]);
+            icj = add_binr(rb, gmx::c_dim * vcm->nr, vcm->group_j[0]);
+            icx = add_binr(rb, gmx::c_dim * vcm->nr, vcm->group_x[0]);
+            ici = add_binr(rb, gmx::c_dim * gmx::c_dim * vcm->nr, vcm->group_i[0][0]);
         }
     }
 
@@ -297,7 +297,7 @@ void global_stat(const gmx_global_stat*  gs,
 
     if (bConstrVir)
     {
-        extract_binr(rb, isv, DIM * DIM, svir[0]);
+        extract_binr(rb, isv, gmx::c_dim * gmx::c_dim, svir[0]);
     }
 
     /* We need the force virial and the kinetic energy for the first time through with velocity verlet */
@@ -309,15 +309,15 @@ void global_stat(const gmx_global_stat*  gs,
             {
                 if (bSumEkinhOld)
                 {
-                    extract_binr(rb, itc0[j], DIM * DIM, ekind->tcstat[j].ekinh_old[0]);
+                    extract_binr(rb, itc0[j], gmx::c_dim * gmx::c_dim, ekind->tcstat[j].ekinh_old[0]);
                 }
                 if (bEkinAveVel && !bReadEkin)
                 {
-                    extract_binr(rb, itc1[j], DIM * DIM, ekind->tcstat[j].ekinf[0]);
+                    extract_binr(rb, itc1[j], gmx::c_dim * gmx::c_dim, ekind->tcstat[j].ekinf[0]);
                 }
                 else if (!bReadEkin)
                 {
-                    extract_binr(rb, itc1[j], DIM * DIM, ekind->tcstat[j].ekinh[0]);
+                    extract_binr(rb, itc1[j], gmx::c_dim * gmx::c_dim, ekind->tcstat[j].ekinh[0]);
                 }
             }
             extract_binr(rb, idedl, 1, &(ekind->dekindl));
@@ -333,7 +333,7 @@ void global_stat(const gmx_global_stat*  gs,
     }
     if (bPres)
     {
-        extract_binr(rb, ifv, DIM * DIM, fvir[0]);
+        extract_binr(rb, ifv, gmx::c_dim * gmx::c_dim, fvir[0]);
     }
 
     if (bEner)
@@ -364,13 +364,13 @@ void global_stat(const gmx_global_stat*  gs,
 
     if (vcm)
     {
-        extract_binr(rb, icm, DIM * vcm->nr, vcm->group_p[0]);
+        extract_binr(rb, icm, gmx::c_dim * vcm->nr, vcm->group_p[0]);
         extract_binr(rb, imass, vcm->nr, vcm->group_mass.data());
         if (vcm->mode == ecmANGULAR)
         {
-            extract_binr(rb, icj, DIM * vcm->nr, vcm->group_j[0]);
-            extract_binr(rb, icx, DIM * vcm->nr, vcm->group_x[0]);
-            extract_binr(rb, ici, DIM * DIM * vcm->nr, vcm->group_i[0][0]);
+            extract_binr(rb, icj, gmx::c_dim * vcm->nr, vcm->group_j[0]);
+            extract_binr(rb, icx, gmx::c_dim * vcm->nr, vcm->group_x[0]);
+            extract_binr(rb, ici, gmx::c_dim * gmx::c_dim * vcm->nr, vcm->group_i[0][0]);
         }
     }
 

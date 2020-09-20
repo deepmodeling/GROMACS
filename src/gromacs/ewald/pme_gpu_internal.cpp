@@ -174,7 +174,7 @@ void pme_gpu_realloc_and_copy_bspline_values(PmeGpu* pmeGpu, const int gridIndex
     GMX_ASSERT(gridIndex < pmeGpu->common->ngrids,
                "Invalid combination of gridIndex and number of grids");
 
-    const int splineValuesOffset[DIM] = { 0, pmeGpu->kernelParams->grid.realGridSize[XX],
+    const int splineValuesOffset[gmx::c_dim] = { 0, pmeGpu->kernelParams->grid.realGridSize[XX],
                                           pmeGpu->kernelParams->grid.realGridSize[XX]
                                                   + pmeGpu->kernelParams->grid.realGridSize[YY] };
     memcpy(&pmeGpu->kernelParams->grid.splineValuesOffset, &splineValuesOffset, sizeof(splineValuesOffset));
@@ -194,7 +194,7 @@ void pme_gpu_realloc_and_copy_bspline_values(PmeGpu* pmeGpu, const int gridIndex
         pmalloc(reinterpret_cast<void**>(&pmeGpu->staging.h_splineModuli[gridIndex]),
                 newSplineValuesSize * sizeof(float));
     }
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         memcpy(pmeGpu->staging.h_splineModuli[gridIndex] + splineValuesOffset[i],
                pmeGpu->common->bsp_mod[i].data(), pmeGpu->common->bsp_mod[i].size() * sizeof(float));
@@ -216,7 +216,7 @@ void pme_gpu_free_bspline_values(const PmeGpu* pmeGpu)
 
 void pme_gpu_realloc_forces(PmeGpu* pmeGpu)
 {
-    const size_t newForcesSize = pmeGpu->nAtomsAlloc * DIM;
+    const size_t newForcesSize = pmeGpu->nAtomsAlloc * gmx::c_dim;
     GMX_ASSERT(newForcesSize > 0, "Bad number of atoms in PME GPU");
     reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_forces, newForcesSize,
                            &pmeGpu->archSpecific->forcesSize, &pmeGpu->archSpecific->forcesSizeAlloc,
@@ -235,7 +235,7 @@ void pme_gpu_copy_input_forces(PmeGpu* pmeGpu)
     GMX_ASSERT(pmeGpu->kernelParams->atoms.nAtoms > 0, "Bad number of atoms in PME GPU");
     float* h_forcesFloat = reinterpret_cast<float*>(pmeGpu->staging.h_forces.data());
     copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_forces, h_forcesFloat, 0,
-                       DIM * pmeGpu->kernelParams->atoms.nAtoms, pmeGpu->archSpecific->pmeStream_,
+                       gmx::c_dim * pmeGpu->kernelParams->atoms.nAtoms, pmeGpu->archSpecific->pmeStream_,
                        pmeGpu->settings.transferKind, nullptr);
 }
 
@@ -244,7 +244,7 @@ void pme_gpu_copy_output_forces(PmeGpu* pmeGpu)
     GMX_ASSERT(pmeGpu->kernelParams->atoms.nAtoms > 0, "Bad number of atoms in PME GPU");
     float* h_forcesFloat = reinterpret_cast<float*>(pmeGpu->staging.h_forces.data());
     copyFromDeviceBuffer(h_forcesFloat, &pmeGpu->kernelParams->atoms.d_forces, 0,
-                         DIM * pmeGpu->kernelParams->atoms.nAtoms, pmeGpu->archSpecific->pmeStream_,
+                         gmx::c_dim * pmeGpu->kernelParams->atoms.nAtoms, pmeGpu->archSpecific->pmeStream_,
                          pmeGpu->settings.transferKind, nullptr);
 }
 
@@ -283,7 +283,7 @@ void pme_gpu_free_coefficients(const PmeGpu* pmeGpu)
 void pme_gpu_realloc_spline_data(PmeGpu* pmeGpu)
 {
     const int order             = pmeGpu->common->pme_order;
-    const int newSplineDataSize = DIM * order * pmeGpu->nAtomsAlloc;
+    const int newSplineDataSize = gmx::c_dim * order * pmeGpu->nAtomsAlloc;
     GMX_ASSERT(newSplineDataSize > 0, "Bad number of atoms in PME GPU");
     /* Two arrays of the same size */
     const bool shouldRealloc        = (newSplineDataSize > pmeGpu->archSpecific->splineDataSize);
@@ -315,7 +315,7 @@ void pme_gpu_free_spline_data(const PmeGpu* pmeGpu)
 
 void pme_gpu_realloc_grid_indices(PmeGpu* pmeGpu)
 {
-    const size_t newIndicesSize = DIM * pmeGpu->nAtomsAlloc;
+    const size_t newIndicesSize = gmx::c_dim * pmeGpu->nAtomsAlloc;
     GMX_ASSERT(newIndicesSize > 0, "Bad number of atoms in PME GPU");
     reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_gridlineIndices, newIndicesSize,
                            &pmeGpu->archSpecific->gridlineIndicesSize,
@@ -404,7 +404,7 @@ void pme_gpu_realloc_and_copy_fract_shifts(PmeGpu* pmeGpu)
     const int ny                  = kernelParamsPtr->grid.realGridSize[YY];
     const int nz                  = kernelParamsPtr->grid.realGridSize[ZZ];
     const int cellCount           = c_pmeNeighborUnitcellCount;
-    const int gridDataOffset[DIM] = { 0, cellCount * nx, cellCount * (nx + ny) };
+    const int gridDataOffset[gmx::c_dim] = { 0, cellCount * nx, cellCount * (nx + ny) };
 
     memcpy(kernelParamsPtr->grid.tablesOffsets, &gridDataOffset, sizeof(gridDataOffset));
 
@@ -455,30 +455,30 @@ void pme_gpu_copy_output_spread_grid(const PmeGpu* pmeGpu, float* h_grid, const 
 
 void pme_gpu_copy_output_spread_atom_data(const PmeGpu* pmeGpu)
 {
-    const size_t splinesCount    = DIM * pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order;
+    const size_t splinesCount    = gmx::c_dim * pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order;
     auto*        kernelParamsPtr = pmeGpu->kernelParams.get();
     copyFromDeviceBuffer(pmeGpu->staging.h_dtheta, &kernelParamsPtr->atoms.d_dtheta, 0, splinesCount,
                          pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
     copyFromDeviceBuffer(pmeGpu->staging.h_theta, &kernelParamsPtr->atoms.d_theta, 0, splinesCount,
                          pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
     copyFromDeviceBuffer(pmeGpu->staging.h_gridlineIndices, &kernelParamsPtr->atoms.d_gridlineIndices,
-                         0, kernelParamsPtr->atoms.nAtoms * DIM, pmeGpu->archSpecific->pmeStream_,
+                         0, kernelParamsPtr->atoms.nAtoms * gmx::c_dim, pmeGpu->archSpecific->pmeStream_,
                          pmeGpu->settings.transferKind, nullptr);
 }
 
 void pme_gpu_copy_input_gather_atom_data(const PmeGpu* pmeGpu)
 {
-    const size_t splinesCount    = DIM * pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order;
+    const size_t splinesCount    = gmx::c_dim * pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order;
     auto*        kernelParamsPtr = pmeGpu->kernelParams.get();
 
     // TODO: could clear only the padding and not the whole thing, but this is a test-exclusive code anyway
-    clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_gridlineIndices, 0, pmeGpu->nAtomsAlloc * DIM,
+    clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_gridlineIndices, 0, pmeGpu->nAtomsAlloc * gmx::c_dim,
                            pmeGpu->archSpecific->pmeStream_);
     clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_dtheta, 0,
-                           pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order * DIM,
+                           pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order * gmx::c_dim,
                            pmeGpu->archSpecific->pmeStream_);
     clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_theta, 0,
-                           pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order * DIM,
+                           pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order * gmx::c_dim,
                            pmeGpu->archSpecific->pmeStream_);
 
     copyToDeviceBuffer(&kernelParamsPtr->atoms.d_dtheta, pmeGpu->staging.h_dtheta, 0, splinesCount,
@@ -486,7 +486,7 @@ void pme_gpu_copy_input_gather_atom_data(const PmeGpu* pmeGpu)
     copyToDeviceBuffer(&kernelParamsPtr->atoms.d_theta, pmeGpu->staging.h_theta, 0, splinesCount,
                        pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
     copyToDeviceBuffer(&kernelParamsPtr->atoms.d_gridlineIndices, pmeGpu->staging.h_gridlineIndices,
-                       0, kernelParamsPtr->atoms.nAtoms * DIM, pmeGpu->archSpecific->pmeStream_,
+                       0, kernelParamsPtr->atoms.nAtoms * gmx::c_dim, pmeGpu->archSpecific->pmeStream_,
                        pmeGpu->settings.transferKind, nullptr);
 }
 
@@ -554,9 +554,9 @@ void pme_gpu_getEnergyAndVirial(const gmx_pme_t& pme, const float lambda, PmeOut
                        "PME GPU produces incorrect energy/virial.");
         }
     }
-    for (int dim1 = 0; dim1 < DIM; dim1++)
+    for (int dim1 = 0; dim1 < gmx::c_dim; dim1++)
     {
-        for (int dim2 = 0; dim2 < DIM; dim2++)
+        for (int dim2 = 0; dim2 < gmx::c_dim; dim2++)
         {
             output->coulombVirial_[dim1][dim2] = 0;
         }
@@ -650,7 +650,7 @@ void pme_gpu_update_input_box(PmeGpu gmx_unused* pmeGpu, const matrix gmx_unused
      * Spread uses matrix columns (while solve and gather use rows).
      * There is no particular reason for this; it might be further rethought/optimized for better access patterns.
      */
-    const real newRecipBox[DIM][DIM] = { { recipBox[XX][XX], recipBox[YY][XX], recipBox[ZZ][XX] },
+    const real newRecipBox[gmx::c_dim][gmx::c_dim] = { { recipBox[XX][XX], recipBox[YY][XX], recipBox[ZZ][XX] },
                                          { 0.0, recipBox[YY][YY], recipBox[ZZ][YY] },
                                          { 0.0, 0.0, recipBox[ZZ][ZZ] } };
     memcpy(kernelParamsPtr->current.recipBox, newRecipBox, sizeof(matrix));
@@ -673,7 +673,7 @@ static void pme_gpu_reinit_grids(PmeGpu* pmeGpu)
     kernelParamsPtr->grid.ewaldFactor =
             (M_PI * M_PI) / (pmeGpu->common->ewaldcoeff_q * pmeGpu->common->ewaldcoeff_q);
     /* The grid size variants */
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         kernelParamsPtr->grid.realGridSize[i] = pmeGpu->common->nk[i];
         kernelParamsPtr->grid.realGridSizeFP[i] =
@@ -734,7 +734,7 @@ static void pme_gpu_copy_common_data_from(const gmx_pme_t* pme)
     {
         GMX_THROW(gmx::NotImplementedError("pme_order != 4 is not implemented!"));
     }
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         pmeGpu->common->bsp_mod[i].assign(pme->bsp_mod[i], pme->bsp_mod[i] + pmeGpu->common->nk[i]);
     }
@@ -823,7 +823,7 @@ void pme_gpu_get_real_grid_sizes(const PmeGpu* pmeGpu, gmx::IVec* gridSize, gmx:
     GMX_ASSERT(paddedGridSize != nullptr, "");
     GMX_ASSERT(pmeGpu != nullptr, "");
     auto* kernelParamsPtr = pme_gpu_get_kernel_params_base_ptr(pmeGpu);
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         (*gridSize)[i]       = kernelParamsPtr->grid.realGridSize[i];
         (*paddedGridSize)[i] = kernelParamsPtr->grid.realGridSizePadded[i];

@@ -361,7 +361,7 @@ void compute_factors_cbtdihs(int             type,
     factor_phi_al_post = -ratio_phi_post * c_self_crnt;
 
     /* Computation of forces due to the derivatives of dihedral angle phi*/
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         f_phi_ai[d] = prefactor_phi
                       * (factor_phi_ai_ante * delta_ante[d] + factor_phi_ai_crnt * delta_crnt[d]
@@ -396,7 +396,7 @@ void compute_factors_cbtdihs(int             type,
 
 
     /*      Computation of forces due to the derivatives of bending angle theta_ante */
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         f_theta_ante_ai[d] =
                 prefactor_theta_ante * (ratio_theta_ante_ante * delta_ante[d] - delta_crnt[d]);
@@ -427,7 +427,7 @@ void compute_factors_cbtdihs(int             type,
 
 
     /*      Computation of forces due to the derivatives of bending angle Theta_Post */
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         f_theta_post_aj[d] =
                 prefactor_theta_post * (ratio_theta_post_crnt * delta_crnt[d] - delta_post[d]);

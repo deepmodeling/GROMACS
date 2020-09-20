@@ -748,7 +748,7 @@ static void comm_dd_ns_cell_sizes(gmx_domdec_t* dd, gmx_ddbox_t* ddbox, rvec cel
         }
     }
 
-    if ((isDlbOn(dd->comm) && dd->ndim > 1) || ddbox->nboundeddim < DIM)
+    if ((isDlbOn(dd->comm) && dd->ndim > 1) || ddbox->nboundeddim < gmx::c_dim)
     {
         /* Communicate the boundaries and update cell_ns_x0/1 */
         dd_move_cellx(dd, ddbox, cell_ns_x0, cell_ns_x1);
@@ -1428,13 +1428,13 @@ static gmx_bool missing_link(const t_blocka& link, const int globalAtomIndex, co
 typedef struct
 {
     //! The corners for the non-bonded communication.
-    real c[DIM][4];
+    real c[gmx::c_dim][4];
     //! Corner for rounding.
     real cr0;
     //! Corners for rounding.
     real cr1[4];
     //! Corners for bounded communication.
-    real bc[DIM];
+    real bc[gmx::c_dim];
     //! Corner for rounding for bonded communication.
     real bcr1;
 } dd_corners_t;
@@ -1651,7 +1651,7 @@ static void get_zone_pulse_cgs(gmx_domdec_t*            dd,
             if (dim_ind >= 1 && (zonei == 1 || zonei == 2))
             {
                 rn[dim0] = cg_cm[cg][dim0] - c->cr0;
-                for (i = dim0 + 1; i < DIM; i++)
+                for (i = dim0 + 1; i < gmx::c_dim; i++)
                 {
                     rn[dim0] -= cg_cm[cg][i] * v_0[i][dim0];
                 }
@@ -1679,10 +1679,10 @@ static void get_zone_pulse_cgs(gmx_domdec_t*            dd,
             }
             if (dim_ind == 2 && (zonei == 2 || zonei == 3))
             {
-                GMX_ASSERT(dim1 >= 0 && dim1 < DIM, "Must have a valid dimension index");
+                GMX_ASSERT(dim1 >= 0 && dim1 < gmx::c_dim, "Must have a valid dimension index");
                 rn[dim1] += cg_cm[cg][dim1] - c->cr1[zone];
                 tric_sh = 0;
-                for (i = dim1 + 1; i < DIM; i++)
+                for (i = dim1 + 1; i < gmx::c_dim; i++)
                 {
                     tric_sh -= cg_cm[cg][i] * v_1[i][dim1];
                 }
@@ -1725,7 +1725,7 @@ static void get_zone_pulse_cgs(gmx_domdec_t*            dd,
             /* The distance along the communication direction */
             rn[dim] += cg_cm[cg][dim] - c->c[dim_ind][zone];
             tric_sh = 0;
-            for (i = dim + 1; i < DIM; i++)
+            for (i = dim + 1; i < gmx::c_dim; i++)
             {
                 tric_sh -= cg_cm[cg][i] * v_d[i][dim];
             }
@@ -1744,7 +1744,7 @@ static void get_zone_pulse_cgs(gmx_domdec_t*            dd,
             if (bDistMB_pulse)
             {
                 clear_rvec(rb);
-                GMX_ASSERT(dim >= 0 && dim < DIM, "Must have a valid dimension index");
+                GMX_ASSERT(dim >= 0 && dim < gmx::c_dim, "Must have a valid dimension index");
                 rb[dim] += cg_cm[cg][dim] - c->bc[dim_ind] + tric_sh;
                 if (rb[dim] > 0)
                 {
@@ -1955,7 +1955,7 @@ static void setup_dd_communication(gmx_domdec_t* dd, matrix box, gmx_ddbox_t* dd
                         sf2_round[dimd] = 1;
                         if (ddbox->tric_dir[dimd])
                         {
-                            for (int i = dd->dim[dimd] + 1; i < DIM; i++)
+                            for (int i = dd->dim[dimd] + 1; i < gmx::c_dim; i++)
                             {
                                 /* If we are shifted in dimension i
                                  * and the cell plane is tilted forward
@@ -2380,7 +2380,7 @@ static void set_zones_size(gmx_domdec_t*      dd,
                 corner[d] -= corner[ZZ] * box[ZZ][d] / box[ZZ][ZZ];
             }
             /* Apply the triclinic couplings */
-            for (i = YY; i < ddbox->npbcdim && i < DIM; i++)
+            for (i = YY; i < ddbox->npbcdim && i < gmx::c_dim; i++)
             {
                 for (j = XX; j < i; j++)
                 {
@@ -2394,7 +2394,7 @@ static void set_zones_size(gmx_domdec_t*      dd,
             }
             else
             {
-                for (i = 0; i < DIM; i++)
+                for (i = 0; i < gmx::c_dim; i++)
                 {
                     corner_min[i] = std::min(corner_min[i], corner[i]);
                     corner_max[i] = std::max(corner_max[i], corner[i]);
@@ -2402,7 +2402,7 @@ static void set_zones_size(gmx_domdec_t*      dd,
             }
         }
         /* Copy the extreme cornes without offset along x */
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             zones->size[z].bb_x0[i] = corner_min[i];
             zones->size[z].bb_x1[i] = corner_max[i];
@@ -2415,7 +2415,7 @@ static void set_zones_size(gmx_domdec_t*      dd,
     if (zone_start == 0)
     {
         vol = 1;
-        for (dim = 0; dim < DIM; dim++)
+        for (dim = 0; dim < gmx::c_dim; dim++)
         {
             vol *= zones->size[0].x1[dim] - zones->size[0].x0[dim];
         }

@@ -103,7 +103,7 @@ public:
         //! Are there multiple domains?
         bool haveMultipleDomains;
         //! Are there multiple domains along each dimension?
-        std::array<bool, DIM> haveMultipleDomainsPerDim;
+        std::array<bool, gmx::c_dim> haveMultipleDomainsPerDim;
         //! The domain decomposition zone setup
         const gmx_domdec_zones_t* zones;
     };

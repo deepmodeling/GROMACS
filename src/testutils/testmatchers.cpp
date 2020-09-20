@@ -133,7 +133,7 @@ public:
         const VectorType&           rhs = std::get<1>(arg);
         FloatTypeMatcher<FloatType> floatTypeMatcher(tolerance_);
         bool                        matches = true;
-        for (int d = 0; d < DIM; ++d)
+        for (int d = 0; d < c_dim; ++d)
         {
             auto floatTuple = std::make_tuple<FloatType, FloatType>(lhs[d], rhs[d]);
             matches         = matches && floatTypeMatcher.MatchAndExplain(floatTuple, listener);

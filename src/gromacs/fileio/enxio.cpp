@@ -1258,8 +1258,8 @@ static real ener_tensor_diag(int          n,
     int    nfound;
     size_t len;
 
-    d1 = tensi[i] / DIM;
-    d2 = tensi[i] - d1 * DIM;
+    d1 = tensi[i] / gmx::c_dim;
+    d2 = tensi[i] - d1 * gmx::c_dim;
 
     /* Find the diagonal elements d1 and d2 */
     len    = std::strlen(enm1[ind1[i]].name);
@@ -1270,7 +1270,7 @@ static real ener_tensor_diag(int          n,
     {
         if (tensi[j] >= 0 && std::strlen(enm1[ind1[j]].name) == len
             && std::strncmp(enm1[ind1[i]].name, enm1[ind1[j]].name, len - 2) == 0
-            && (tensi[j] == d1 * DIM + d1 || tensi[j] == d2 * DIM + d2))
+            && (tensi[j] == d1 * gmx::c_dim + d1 || tensi[j] == d2 * gmx::c_dim + d2))
         {
             prod1 *= fabs(e1[ind1[j]].e);
             prod2 *= fabs(e2[ind2[j]].e);
@@ -1336,9 +1336,9 @@ static void cmp_energies(FILE*        fp,
         {
             d1 = enm1[ii].name[len - 2] - 'X';
             d2 = enm1[ii].name[len - 1] - 'X';
-            if (d1 >= 0 && d1 < DIM && d2 >= 0 && d2 < DIM)
+            if (d1 >= 0 && d1 < gmx::c_dim && d2 >= 0 && d2 < gmx::c_dim)
             {
-                tensi[i] = d1 * DIM + d2;
+                tensi[i] = d1 * gmx::c_dim + d2;
             }
         }
     }

@@ -111,7 +111,7 @@ static void calc_axes(rvec x[], t_atom atom[], const int gnx[], int* index[], gm
         for (i = 0; i < gnx[end]; i++)
         {
             m = atom[index[end][i]].m;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 bun->end[end][i / div][d] += m * x[index[end][i]][d];
             }

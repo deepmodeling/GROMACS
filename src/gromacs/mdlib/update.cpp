@@ -321,7 +321,7 @@ static void updateMDLeapfrogSimple(int         start,
             lambdaGroup = tcstat[cTC[a]].lambda;
         }
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             /* Note that using rvec invMassPerDim results in more efficient
              * SIMD code, but this increases the cache pressure.
@@ -565,7 +565,7 @@ static void updateMDLeapfrogGeneral(int                   start,
             factorNH = 0.5 * nsttcouple * dt * nh_vxi[gt];
         }
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             real vNew = (lg * vRel[d]
                          + (f[n][d] * invMassPerDim[n][d] * dt - factorNH * vRel[d]
@@ -693,7 +693,7 @@ static void do_update_md(int         start,
                        "matrices");
 
             rvec diagM;
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 diagM[d] = M[d][d];
             }
@@ -786,7 +786,7 @@ static void do_update_vv_vel(int                  start,
             ga = cACC[n];
         }
 
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < c_dim; d++)
         {
             if ((ptype[n] != eptVSite) && (ptype[n] != eptShell) && !nFreeze[gf][d])
             {
@@ -837,7 +837,7 @@ static void do_update_vv_pos(int                  start,
             gf = cFREEZE[n];
         }
 
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < c_dim; d++)
         {
             if ((ptype[n] != eptVSite) && (ptype[n] != eptShell) && !nFreeze[gf][d])
             {
@@ -1024,7 +1024,7 @@ static void doSDUpdateGeneral(const gmx_stochd_t&  sd,
         int accelerationGroup = cACC ? cACC[n] : 0;
         int temperatureGroup  = cTC ? cTC[n] : 0;
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             if ((ptype[n] != eptVSite) && (ptype[n] != eptShell) && !nFreeze[freezeGroup][d])
             {
@@ -1154,7 +1154,7 @@ static void do_update_bd(int         start,
         {
             gt = cTC[n];
         }
-        for (d = 0; (d < DIM); d++)
+        for (d = 0; (d < c_dim); d++)
         {
             if ((ptype[n] != eptVSite) && (ptype[n] != eptShell) && !nFreeze[gf][d])
             {
@@ -1242,11 +1242,11 @@ void restore_ekinstate_from_state(const t_commrec* cr, gmx_ekindata_t* ekind, co
         gmx_bcast(sizeof(n), &n, cr->mpi_comm_mygroup);
         for (i = 0; i < n; i++)
         {
-            gmx_bcast(DIM * DIM * sizeof(ekind->tcstat[i].ekinh[0][0]), ekind->tcstat[i].ekinh[0],
+            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinh[0][0]), ekind->tcstat[i].ekinh[0],
                       cr->mpi_comm_mygroup);
-            gmx_bcast(DIM * DIM * sizeof(ekind->tcstat[i].ekinf[0][0]), ekind->tcstat[i].ekinf[0],
+            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinf[0][0]), ekind->tcstat[i].ekinf[0],
                       cr->mpi_comm_mygroup);
-            gmx_bcast(DIM * DIM * sizeof(ekind->tcstat[i].ekinh_old[0][0]),
+            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinh_old[0][0]),
                       ekind->tcstat[i].ekinh_old[0], cr->mpi_comm_mygroup);
 
             gmx_bcast(sizeof(ekind->tcstat[i].ekinscalef_nhc), &(ekind->tcstat[i].ekinscalef_nhc),
@@ -1256,7 +1256,7 @@ void restore_ekinstate_from_state(const t_commrec* cr, gmx_ekindata_t* ekind, co
             gmx_bcast(sizeof(ekind->tcstat[i].vscale_nhc), &(ekind->tcstat[i].vscale_nhc),
                       cr->mpi_comm_mygroup);
         }
-        gmx_bcast(DIM * DIM * sizeof(ekind->ekin[0][0]), ekind->ekin[0], cr->mpi_comm_mygroup);
+        gmx_bcast(c_dim * c_dim * sizeof(ekind->ekin[0][0]), ekind->ekin[0], cr->mpi_comm_mygroup);
 
         gmx_bcast(sizeof(ekind->dekindl), &ekind->dekindl, cr->mpi_comm_mygroup);
         gmx_bcast(sizeof(ekind->cosacc.mvcos), &ekind->cosacc.mvcos, cr->mpi_comm_mygroup);
@@ -1369,7 +1369,7 @@ void Update::Impl::finish_update(const t_inputrec& inputRecord,
         {
             const int g = md->cFREEZE[i];
 
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < c_dim; d++)
             {
                 if (nFreeze[g][d] == 0)
                 {
@@ -1471,7 +1471,7 @@ void Update::Impl::update_coords(const t_inputrec&                              
                                           || inputRecord.epc == epcMTTK);
 
                     /* assuming barostat coupled to group 0 */
-                    real alpha = 1.0 + DIM / static_cast<real>(inputRecord.opts.nrdf[0]);
+                    real alpha = 1.0 + c_dim / static_cast<real>(inputRecord.opts.nrdf[0]);
                     switch (updatePart)
                     {
                         case etrtVELOCITY1:

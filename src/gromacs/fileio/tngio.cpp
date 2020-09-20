@@ -1386,18 +1386,19 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
                     case TNG_DOUBLE_DATA: size = sizeof(double); break;
                     default: gmx_incons("Illegal datatype of box shape values!");
                 }
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < gmx::c_dim; i++)
                 {
-                    convert_array_to_real_array(reinterpret_cast<char*>(values) + size * i * DIM,
+                    convert_array_to_real_array(reinterpret_cast<char*>(values) + size * i * gmx::c_dim,
                                                 reinterpret_cast<real*>(fr->box[i]),
-                                                getDistanceScaleFactor(gmx_tng_input), 1, DIM, datatype);
+                                                getDistanceScaleFactor(gmx_tng_input), 1, gmx::c_dim, datatype);
                 }
                 fr->bBox = TRUE;
                 break;
             case TNG_TRAJ_POSITIONS:
                 srenew(fr->x, fr->natoms);
                 convert_array_to_real_array(values, reinterpret_cast<real*>(fr->x),
-                                            getDistanceScaleFactor(gmx_tng_input), fr->natoms, DIM,
+                                            getDistanceScaleFactor(gmx_tng_input), fr->natoms,
+                                            gmx::c_dim,
                                             datatype);
                 fr->bX = TRUE;
                 tng_util_frame_current_compression_get(input, blockId, &codecId, &prec);
@@ -1411,7 +1412,8 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
             case TNG_TRAJ_VELOCITIES:
                 srenew(fr->v, fr->natoms);
                 convert_array_to_real_array(values, reinterpret_cast<real*>(fr->v),
-                                            getDistanceScaleFactor(gmx_tng_input), fr->natoms, DIM,
+                                            getDistanceScaleFactor(gmx_tng_input), fr->natoms,
+                                            gmx::c_dim,
                                             datatype);
                 fr->bV = TRUE;
                 tng_util_frame_current_compression_get(input, blockId, &codecId, &prec);
@@ -1425,7 +1427,8 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
             case TNG_TRAJ_FORCES:
                 srenew(fr->f, fr->natoms);
                 convert_array_to_real_array(values, reinterpret_cast<real*>(fr->f),
-                                            getDistanceScaleFactor(gmx_tng_input), fr->natoms, DIM,
+                                            getDistanceScaleFactor(gmx_tng_input), fr->natoms,
+                                            gmx::c_dim,
                                             datatype);
                 fr->bF = TRUE;
                 break;

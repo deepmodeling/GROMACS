@@ -153,12 +153,12 @@ static void do_ac_core(int nframes, int nout, real corr[], real c1[], int nresta
     /* Loop over starting points. */
     for (j = 0; (j < nframes); j += nrestart)
     {
-        j3 = DIM * j;
+        j3 = gmx::c_dim * j;
 
         /* Loop over the correlation length for this starting point */
         for (k = 0; (k < nout) && (j + k < nframes); k++)
         {
-            jk3 = DIM * (j + k);
+            jk3 = gmx::c_dim * (j + k);
 
             /* Switch over possible ACF types.
              * It might be more efficient to put the loops inside the switch,
@@ -182,7 +182,7 @@ static void do_ac_core(int nframes, int nout, real corr[], real c1[], int nresta
             {
                 unsigned int mmm;
 
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     xj[m] = c1[j3 + m];
                     xk[m] = c1[jk3 + m];
@@ -208,7 +208,7 @@ static void do_ac_core(int nframes, int nout, real corr[], real c1[], int nresta
             else if (MODE(eacRcross))
             {
                 rvec xj, xk, rr;
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     xj[m] = c1[j3 + m];
                     xk[m] = c1[jk3 + m];
@@ -219,7 +219,7 @@ static void do_ac_core(int nframes, int nout, real corr[], real c1[], int nresta
             }
             else if (MODE(eacVector))
             {
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     xj[m] = c1[j3 + m];
                     xk[m] = c1[jk3 + m];
@@ -313,9 +313,9 @@ static void norm_and_scale_vectors(int nframes, real c1[], real scale)
 
     for (j = 0; (j < nframes); j++)
     {
-        rij = &(c1[j * DIM]);
+        rij = &(c1[j * gmx::c_dim]);
         unitv(rij, rij);
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             rij[m] *= scale;
         }
@@ -428,12 +428,12 @@ static void do_four_core(unsigned long mode, int nframes, real c1[], real csum[]
         }
 
         /***** DIAGONAL ELEMENTS ************/
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             /* Copy the vector data in a linear array */
             for (j = 0; (j < nframes); j++)
             {
-                ctmp[j] = gmx::square(c1[DIM * j + m]);
+                ctmp[j] = gmx::square(c1[gmx::c_dim * j + m]);
             }
             if (debug)
             {
@@ -455,13 +455,13 @@ static void do_four_core(unsigned long mode, int nframes, real c1[], real csum[]
             }
         }
         /******* OFF-DIAGONAL ELEMENTS **********/
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             /* Copy the vector data in a linear array */
-            m1 = (m + 1) % DIM;
+            m1 = (m + 1) % gmx::c_dim;
             for (j = 0; (j < nframes); j++)
             {
-                ctmp[j] = c1[DIM * j + m] * c1[DIM * j + m1];
+                ctmp[j] = c1[gmx::c_dim * j + m] * c1[gmx::c_dim * j + m1];
             }
 
             if (debug)
@@ -501,12 +501,12 @@ static void do_four_core(unsigned long mode, int nframes, real c1[], real csum[]
         {
             csum[j] = 0.0;
         }
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             /* Copy the vector data in a linear array */
             for (j = 0; (j < nframes); j++)
             {
-                ctmp[j] = c1[DIM * j + m];
+                ctmp[j] = c1[gmx::c_dim * j + m];
             }
             low_do_four_core(nframes, ctmp, cfour, enNorm);
             for (j = 0; (j < nframes); j++)

@@ -592,7 +592,7 @@ static void do_pairs_simple(int              nbonds,
         }
 
         /* Load the coordinates */
-        T xi[DIM], xj[DIM];
+        T xi[c_dim], xj[c_dim];
         gatherLoadUTranspose<3>(reinterpret_cast<const real*>(x), ai, &xi[XX], &xi[YY], &xi[ZZ]);
         gatherLoadUTranspose<3>(reinterpret_cast<const real*>(x), aj, &xj[XX], &xj[YY], &xj[ZZ]);
 
@@ -604,7 +604,7 @@ static void do_pairs_simple(int              nbonds,
         c6  = six * c6;
         c12 = twelve * c12;
 
-        T dr[DIM];
+        T dr[c_dim];
         pbc_dx_aiuc(pbc, xi, xj, dr);
 
         T rsq   = dr[XX] * dr[XX] + dr[YY] * dr[YY] + dr[ZZ] * dr[ZZ];

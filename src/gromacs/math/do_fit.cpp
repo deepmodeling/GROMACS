@@ -69,7 +69,7 @@ real calc_similar_ind(gmx_bool bRho, int nind, const int* index, const real mass
         }
         m = mass[i];
         tm += m;
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             xd = x[i][d] - xp[i][d];
             rd += m * gmx::square(xd);
@@ -114,7 +114,7 @@ void calc_fit_R(int ndim, int natoms, const real* w_rls, const rvec* xp, rvec* x
 {
     int      c, r, n, j, i, irot, s;
     double **omega, **om;
-    double   d[2 * DIM], xnr, xpc;
+    double   d[2 * gmx::c_dim], xnr, xpc;
     matrix   vh, vk, u;
     real     mn;
     int      index;
@@ -245,7 +245,7 @@ void calc_fit_R(int ndim, int natoms, const real* w_rls, const rvec* xp, rvec* x
             }
         }
     }
-    for (r = ndim; r < DIM; r++)
+    for (r = ndim; r < gmx::c_dim; r++)
     {
         R[r][r] = 1;
     }
@@ -271,14 +271,14 @@ void do_fit_ndim(int ndim, int natoms, real* w_rls, const rvec* xp, rvec* x)
     /*rotate X*/
     for (j = 0; j < natoms; j++)
     {
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             x_old[m] = x[j][m];
         }
-        for (r = 0; r < DIM; r++)
+        for (r = 0; r < gmx::c_dim; r++)
         {
             x[j][r] = 0;
-            for (c = 0; c < DIM; c++)
+            for (c = 0; c < gmx::c_dim; c++)
             {
                 x[j][r] += R[r][c] * x_old[c];
             }
@@ -297,7 +297,7 @@ void reset_x_ndim(int ndim, int ncm, const int* ind_cm, int nreset, const int* i
     rvec xcm;
     real tm, mm;
 
-    if (ndim > DIM)
+    if (ndim > gmx::c_dim)
     {
         gmx_incons("More than 3 dimensions not supported.");
     }

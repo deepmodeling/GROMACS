@@ -91,10 +91,10 @@ void nbnxn_kernel_prune_ref(NbnxnPairlistCpu*       nbl,
         real xi[c_iUnroll * c_xiStride];
         for (int i = 0; i < c_iUnroll; i++)
         {
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < gmx::c_dim; d++)
             {
                 xi[i * c_xiStride + d] =
-                        x[(ci * c_iUnroll + i) * c_xStride + d] + shiftvec[ish * DIM + d];
+                        x[(ci * c_iUnroll + i) * c_xStride + d] + shiftvec[ish * gmx::c_dim + d];
             }
         }
 

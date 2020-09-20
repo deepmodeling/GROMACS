@@ -189,7 +189,7 @@ public:
 private:
     static int dotComparer(const void* a, const void* b)
     {
-        for (int d = DIM - 1; d >= 0; --d)
+        for (int d = gmx::c_dim - 1; d >= 0; --d)
         {
             const real ad = reinterpret_cast<const real*>(a)[d];
             const real bd = reinterpret_cast<const real*>(b)[d];

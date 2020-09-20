@@ -749,7 +749,7 @@ void ImdSession::Impl::copyToMDForces()
 /*! \brief Returns true if any component of the two rvecs differs. */
 static inline bool rvecs_differ(const rvec v1, const rvec v2)
 {
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
         if (v1[i] != v2[i])
         {

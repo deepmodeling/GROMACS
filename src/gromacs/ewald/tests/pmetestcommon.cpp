@@ -125,11 +125,11 @@ PmeSafePointer pmeInitWrapper(const t_inputrec*    inputRec,
 
     // TODO get rid of this with proper matrix type
     matrix boxTemp;
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < c_dim; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < c_dim; j++)
         {
-            boxTemp[i][j] = box[i * DIM + j];
+            boxTemp[i][j] = box[i * c_dim + j];
         }
     }
     const char* boxError = check_box(PbcType::Unset, boxTemp);
@@ -334,7 +334,7 @@ void pmePerformSplineAndSpread(gmx_pme_t* pme,
 //! Getting the internal spline data buffer pointer
 static real* pmeGetSplineDataInternal(const gmx_pme_t* pme, PmeSplineDataType type, int dimIndex)
 {
-    GMX_ASSERT((0 <= dimIndex) && (dimIndex < DIM), "Invalid dimension index");
+    GMX_ASSERT((0 <= dimIndex) && (dimIndex < c_dim), "Invalid dimension index");
     const PmeAtomComm* atc          = &(pme->atc[0]);
     const size_t       threadIndex  = 0;
     real*              splineBuffer = nullptr;
@@ -473,7 +473,7 @@ enum class PmeLayoutTransform
  *
  * These theta/dtheta buffers are laid out for GPU spread/gather
  * kernels. The index is wrt the execution block, in range(0,
- * atomsPerBlock * order * DIM).
+ * atomsPerBlock * order * c_dim).
  *
  * This is a wrapper, only used in unit tests.
  * \param[in] order            PME order
@@ -647,7 +647,7 @@ void pmeSetGridLineIndices(gmx_pme_t* pme, CodePath mode, const GridLineIndicesV
 
     for (const auto& index : gridLineIndices)
     {
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
             GMX_RELEASE_ASSERT((0 <= index[i]) && (index[i] < gridSize[i]),
                                "Invalid gridline index");
@@ -707,7 +707,7 @@ static void pmeSetGridInternal(const gmx_pme_t*                        pme,
                         paddedGridSize[XX] * paddedGridSize[YY] * paddedGridSize[ZZ] * sizeof(ValueType));
             for (const auto& gridValue : gridValues)
             {
-                for (int i = 0; i < DIM; i++)
+                for (int i = 0; i < c_dim; i++)
                 {
                     GMX_RELEASE_ASSERT((0 <= gridValue.first[i]) && (gridValue.first[i] < gridSize[i]),
                                        "Invalid grid value index");

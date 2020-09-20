@@ -1010,7 +1010,7 @@ static void do_legacy_efield(gmx::ISerializer* serializer, gmx::KeyValueTreeObje
     // The content of the tpr file for this feature has
     // been the same since gromacs 4.0 that was used for
     // developing.
-    for (int j = 0; j < DIM; ++j)
+    for (int j = 0; j < gmx::c_dim; ++j)
     {
         int n, nt;
         serializer->doInt(&n);
@@ -1390,7 +1390,7 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
         ir->ld_seed = idum;
     }
 
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         serializer->doRvec(&ir->deform[i]);
     }
@@ -2786,21 +2786,21 @@ static void do_tpx_state_first(gmx::ISerializer* serializer, TpxFileHeader* tpx,
     do_test(serializer, tpx->bBox, state->box);
     if (tpx->bBox)
     {
-        serializer->doRvecArray(state->box, DIM);
+        serializer->doRvecArray(state->box, gmx::c_dim);
         if (tpx->fileVersion >= 51)
         {
-            serializer->doRvecArray(state->box_rel, DIM);
+            serializer->doRvecArray(state->box_rel, gmx::c_dim);
         }
         else
         {
             /* We initialize box_rel after reading the inputrec */
             clear_mat(state->box_rel);
         }
-        serializer->doRvecArray(state->boxv, DIM);
+        serializer->doRvecArray(state->boxv, gmx::c_dim);
         if (tpx->fileVersion < 56)
         {
             matrix mdum;
-            serializer->doRvecArray(mdum, DIM);
+            serializer->doRvecArray(mdum, gmx::c_dim);
         }
     }
 

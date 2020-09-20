@@ -283,7 +283,7 @@ static void get_f_norm_max(const t_commrec*               cr,
         {
             gf  = mdatoms->cFREEZE[i];
             fam = 0;
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 if (!opts->nFreeze[gf][m])
                 {
@@ -636,7 +636,7 @@ static bool do_em_step(const t_commrec*                          cr,
                 {
                     gf = md->cFREEZE[i];
                 }
-                for (int m = 0; m < DIM; m++)
+                for (int m = 0; m < gmx::c_dim; m++)
                 {
                     if (ir->opts.nFreeze[gf][m])
                     {
@@ -965,7 +965,7 @@ static double reorder_partsum(const t_commrec*  cr,
         {
             gf = grpnrFREEZE[i];
         }
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             if (!opts->nFreeze[gf][m])
             {
@@ -1011,7 +1011,7 @@ static real pr_beta(const t_commrec*  cr,
             {
                 gf = mdatoms->cFREEZE[i];
             }
-            for (int m = 0; m < DIM; m++)
+            for (int m = 0; m < gmx::c_dim; m++)
             {
                 if (!opts->nFreeze[gf][m])
                 {
@@ -1172,7 +1172,7 @@ void LegacySimulator::do_cg()
             {
                 gf = mdatoms->cFREEZE[i];
             }
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 if (!inputrec->opts.nFreeze[gf][m])
                 {
@@ -1222,7 +1222,7 @@ void LegacySimulator::do_cg()
         auto s_min_x = makeArrayRef(s_min->s.x);
         for (int i = 0; i < mdatoms->homenr; i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 tmp = fabs(s_min_x[i][m]);
                 if (tmp < 1.0)
@@ -1295,7 +1295,7 @@ void LegacySimulator::do_cg()
         double                         gpc = 0;
         for (int i = 0; i < mdatoms->homenr; i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 gpc -= pc[i][m] * sfc[i][m]; /* f is negative gradient, thus the sign */
             }
@@ -1399,7 +1399,7 @@ void LegacySimulator::do_cg()
                 gpb                                = 0;
                 for (int i = 0; i < mdatoms->homenr; i++)
                 {
-                    for (m = 0; m < DIM; m++)
+                    for (m = 0; m < gmx::c_dim; m++)
                     {
                         gpb -= pb[i][m] * sfb[i][m]; /* f is negative gradient, thus the sign */
                     }
@@ -1742,7 +1742,7 @@ void LegacySimulator::do_lbfgs()
         {
             gf = mdatoms->cFREEZE[i];
         }
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             frozen[3 * i + m] = (inputrec->opts.nFreeze[gf][m] != 0);
         }
@@ -2676,7 +2676,7 @@ void LegacySimulator::do_nm()
     }
 
     /* Number of dimensions, based on real atoms, that is not vsites or shell */
-    sz = DIM * atom_index.size();
+    sz = gmx::c_dim * atom_index.size();
 
     fprintf(stderr, "Allocating Hessian memory...\n\n");
 
@@ -2742,7 +2742,7 @@ void LegacySimulator::do_nm()
     for (index aid = cr->nodeid; aid < ssize(atom_index); aid += nnodes)
     {
         size_t atom = atom_index[aid];
-        for (size_t d = 0; d < DIM; d++)
+        for (size_t d = 0; d < gmx::c_dim; d++)
         {
             int64_t step        = 0;
             int     force_flags = GMX_FORCE_STATECHANGED | GMX_FORCE_ALLFORCES;
@@ -2795,7 +2795,7 @@ void LegacySimulator::do_nm()
 
             for (size_t j = 0; j < atom_index.size(); j++)
             {
-                for (size_t k = 0; (k < DIM); k++)
+                for (size_t k = 0; (k < gmx::c_dim); k++)
                 {
                     dfdx[j][k] = -(state_work_f[atom_index[j]][k] - fneg[j][k]) / (2 * der_range);
                 }
@@ -2805,7 +2805,7 @@ void LegacySimulator::do_nm()
             {
 #if GMX_MPI
 #    define mpi_type GMX_MPI_REAL
-                MPI_Send(dfdx[0], atom_index.size() * DIM, mpi_type, MASTER(cr), cr->nodeid,
+                MPI_Send(dfdx[0], atom_index.size() * gmx::c_dim, mpi_type, MASTER(cr), cr->nodeid,
                          cr->mpi_comm_mygroup);
 #endif
             }
@@ -2817,19 +2817,19 @@ void LegacySimulator::do_nm()
                     {
 #if GMX_MPI
                         MPI_Status stat;
-                        MPI_Recv(dfdx[0], atom_index.size() * DIM, mpi_type, node, node,
+                        MPI_Recv(dfdx[0], atom_index.size() * gmx::c_dim, mpi_type, node, node,
                                  cr->mpi_comm_mygroup, &stat);
 #    undef mpi_type
 #endif
                     }
 
-                    row = (aid + node) * DIM + d;
+                    row = (aid + node) * gmx::c_dim + d;
 
                     for (size_t j = 0; j < atom_index.size(); j++)
                     {
-                        for (size_t k = 0; k < DIM; k++)
+                        for (size_t k = 0; k < gmx::c_dim; k++)
                         {
-                            col = j * DIM + k;
+                            col = j * gmx::c_dim + k;
 
                             if (bSparse)
                             {

@@ -105,9 +105,9 @@ ConstraintsTestData::ConstraintsTestData(const std::string&       title,
     computeVirial_ = computeVirial;
     if (computeVirial)
     {
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 virialScaled_[i][j]    = 0;
                 virialScaledRef_[i][j] = virialScaledRef[i][j];
@@ -215,9 +215,9 @@ void ConstraintsTestData::reset()
 
     if (computeVirial_)
     {
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < c_dim; j++)
             {
                 virialScaled_[i][j] = 0;
             }

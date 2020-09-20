@@ -195,7 +195,7 @@ void calc_vcm_grp(const t_mdatoms&               md,
                 /* Calculate linear momentum */
                 vcm_t->mass += m0;
                 int m;
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     vcm_t->p[m] += m0 * v[i][m];
                 }
@@ -206,7 +206,7 @@ void calc_vcm_grp(const t_mdatoms&               md,
                     rvec j0;
                     cprod(x[i], v[i], j0);
 
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         vcm_t->j[m] += m0 * j0[m];
                         vcm_t->x[m] += m0 * x[i][m];
@@ -448,17 +448,17 @@ static void get_minv(tensor A, tensor B)
         gmx_fatal(FARGS, "Can not stop center of mass: maybe 2dimensional system");
     }
     fac = 1.0 / rfac;
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
-        for (n = 0; (n < DIM); n++)
+        for (n = 0; (n < gmx::c_dim); n++)
         {
             tmp[m][n] *= fac;
         }
     }
     gmx::invertMatrix(tmp, B);
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
-        for (n = 0; (n < DIM); n++)
+        for (n = 0; (n < gmx::c_dim); n++)
         {
             B[m][n] *= fac;
         }
@@ -496,7 +496,7 @@ static void process_and_check_cm_grp(FILE* fp, t_vcm* vcm, real Temp_Max)
                     tm_1 = 1.0 / tm;
 
                     /* Compute center of mass for this group */
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         vcm->group_x[g][m] *= tm_1;
                     }
@@ -505,7 +505,7 @@ static void process_and_check_cm_grp(FILE* fp, t_vcm* vcm, real Temp_Max)
                      * angular momentum
                      */
                     cprod(vcm->group_x[g], vcm->group_v[g], jcm);
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         vcm->group_j[g][m] -= tm * jcm[m];
                     }
@@ -569,7 +569,7 @@ static void process_and_check_cm_grp(FILE* fp, t_vcm* vcm, real Temp_Max)
                             vcm->group_j[g][YY], vcm->group_j[g][ZZ]);
                     fprintf(fp, "  w:   %12.5f  %12.5f  %12.5f\n", vcm->group_w[g][XX],
                             vcm->group_w[g][YY], vcm->group_w[g][ZZ]);
-                    pr_rvecs(fp, 0, "Inertia tensor", vcm->group_i[g], DIM);
+                    pr_rvecs(fp, 0, "Inertia tensor", vcm->group_i[g], gmx::c_dim);
                 }
             }
         }

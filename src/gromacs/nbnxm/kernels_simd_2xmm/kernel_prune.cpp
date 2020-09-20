@@ -94,9 +94,9 @@ void nbnxn_kernel_prune_2xnn(NbnxnPairlistCpu*       nbl,
         SimdReal shZ_S = SimdReal(shiftvec[ish3 + 2]);
 
 #    if UNROLLJ <= 4
-        int scix = ci * STRIDE * DIM;
+        int scix = ci * STRIDE * gmx::c_dim;
 #    else
-        int scix = (ci >> 1) * STRIDE * DIM + (ci & 1) * (STRIDE >> 1);
+        int scix = (ci >> 1) * STRIDE * gmx::c_dim + (ci & 1) * (STRIDE >> 1);
 #    endif
 
         /* Load i atom data */
@@ -117,9 +117,9 @@ void nbnxn_kernel_prune_2xnn(NbnxnPairlistCpu*       nbl,
             /* Atom indices (of the first atom in the cluster) */
 #    if UNROLLJ == STRIDE
             int aj  = cj * UNROLLJ;
-            int ajx = aj * DIM;
+            int ajx = aj * gmx::c_dim;
 #    else
-            int ajx = (cj >> 1) * DIM * STRIDE + (cj & 1) * UNROLLJ;
+            int ajx = (cj >> 1) * gmx::c_dim * STRIDE + (cj & 1) * UNROLLJ;
 #    endif
             int ajy = ajx + STRIDE;
             int ajz = ajy + STRIDE;

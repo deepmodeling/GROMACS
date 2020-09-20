@@ -95,8 +95,8 @@ namespace gmx
 
 /*!\brief A 3x3 matrix data type useful for simulation boxes
  *
- * \todo Implement a full replacement for C-style real[DIM][DIM] */
-using BoxMatrix = std::array<std::array<real, DIM>, DIM>;
+ * \todo Implement a full replacement for C-style real[c_dim][c_dim] */
+using BoxMatrix = std::array<std::array<real, c_dim>, c_dim>;
 
 /*! \internal
  * \brief Contains a valid trajectory frame.
@@ -107,7 +107,7 @@ using BoxMatrix = std::array<std::array<real, DIM>, DIM>;
  * \todo Eventually t_trxframe should be replaced by a class such as
  * this. Currently we need to introduce BoxMatrix so that we can have
  * a normal C++ getter that returns the contents of a box matrix,
- * since you cannot use a real[DIM][DIM] as a function return type.
+ * since you cannot use a real[c_dim][c_dim] as a function return type.
  *
  * \todo Consider a std::optional work-alike type for expressing that
  * a field may or may not have content. */

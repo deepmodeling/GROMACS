@@ -326,7 +326,7 @@ public:
     //! The outer product of a Gaussian along the z and y dimension
     OuterProductEvaluator outerProductZY_;
     //! The three one-dimensional Gaussians, whose outer product is added to the Gauss transform
-    std::array<GaussianOn1DLattice, DIM> gauss1d_;
+    std::array<GaussianOn1DLattice, c_dim> gauss1d_;
 };
 
 GaussTransform3D::Impl::Impl(const dynamicExtents3D&                      extent,

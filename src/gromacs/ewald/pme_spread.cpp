@@ -219,7 +219,7 @@ static void make_thread_local_ind(const PmeAtomComm* atc, int thread, splinedata
  */
 #define CALC_SPLINE(order)                                                                               \
     {                                                                                                    \
-        for (int j = 0; (j < DIM); j++)                                                                  \
+        for (int j = 0; (j < gmx::c_dim); j++)                                                                  \
         {                                                                                                \
             real dr, div;                                                                                \
             real data[PME_ORDER_MAX];                                                                    \
@@ -427,7 +427,7 @@ static void copy_local_grid(const gmx_pme_t* pme, const pmegrids_t* pmegrids, in
     nsy = pmegrid->s[YY];
     nsz = pmegrid->s[ZZ];
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         nf[d] = std::min(pmegrid->n[d] - (pmegrid->order - 1), local_fft_ndata[d] - pmegrid->offset[d]);
     }
@@ -499,7 +499,7 @@ static void reduce_threadgrid_overlap(const gmx_pme_t*  pme,
      */
     pmegrid = &pmegrids->grid_th[thread];
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         /* Determine up to where our thread needs to copy from the
          * thread-local charge spreading grid to the rank-local FFT grid.

@@ -134,8 +134,8 @@ do_xdr(t_fileio* fio, void* item, std::size_t nitem, int eio, const char* desc, 
     unsigned char  ucdum, *ucptr;
     char           cdum, *cptr;
     bool_t         res = 0;
-    float          fvec[DIM];
-    double         dvec[DIM];
+    float          fvec[gmx::c_dim];
+    double         dvec[gmx::c_dim];
     int            m, *iptr, idum;
     int32_t        s32dum;
     int64_t        s64dum;
@@ -283,17 +283,17 @@ do_xdr(t_fileio* fio, void* item, std::size_t nitem, int eio, const char* desc, 
             {
                 if (item && !fio->bRead)
                 {
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         dvec[m] = (static_cast<real*>(item))[m];
                     }
                 }
-                res = xdr_vector(fio->xdr, reinterpret_cast<char*>(dvec), DIM,
+                res = xdr_vector(fio->xdr, reinterpret_cast<char*>(dvec), gmx::c_dim,
                                  static_cast<unsigned int>(sizeof(double)),
                                  reinterpret_cast<xdrproc_t>(xdr_double));
                 if (item)
                 {
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         (static_cast<real*>(item))[m] = dvec[m];
                     }
@@ -303,17 +303,17 @@ do_xdr(t_fileio* fio, void* item, std::size_t nitem, int eio, const char* desc, 
             {
                 if (item && !fio->bRead)
                 {
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         fvec[m] = (static_cast<real*>(item))[m];
                     }
                 }
-                res = xdr_vector(fio->xdr, reinterpret_cast<char*>(fvec), DIM,
+                res = xdr_vector(fio->xdr, reinterpret_cast<char*>(fvec), gmx::c_dim,
                                  static_cast<unsigned int>(sizeof(float)),
                                  reinterpret_cast<xdrproc_t>(xdr_float));
                 if (item)
                 {
-                    for (m = 0; (m < DIM); m++)
+                    for (m = 0; (m < gmx::c_dim); m++)
                     {
                         (static_cast<real*>(item))[m] = fvec[m];
                     }
@@ -335,7 +335,7 @@ do_xdr(t_fileio* fio, void* item, std::size_t nitem, int eio, const char* desc, 
         case eioIVEC:
             iptr = static_cast<int*>(item);
             res  = 1;
-            for (m = 0; (m < DIM) && res; m++)
+            for (m = 0; (m < gmx::c_dim) && res; m++)
             {
                 if (item && !fio->bRead)
                 {

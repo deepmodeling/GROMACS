@@ -156,13 +156,13 @@ static void calc_ke_part_normal(gmx::ArrayRef<const gmx::RVec> v,
             }
             hm = 0.5 * md->massT[n];
 
-            for (d = 0; (d < DIM); d++)
+            for (d = 0; (d < gmx::c_dim); d++)
             {
                 v_corrt[d] = v[n][d] - grpstat[ga].u[d];
             }
-            for (d = 0; (d < DIM); d++)
+            for (d = 0; (d < gmx::c_dim); d++)
             {
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     /* if we're computing a full step velocity, v_corrt[d] has v(t).  Otherwise, v(t+dt/2) */
                     ekin_sum[gt][m][d] += hm * v_corrt[m] * v_corrt[d];
@@ -242,9 +242,9 @@ static void calc_ke_part_visc(const matrix                   box,
         copy_rvec(v[n], v_corrt);
         /* Subtract the profile for the kinetic energy */
         v_corrt[XX] -= cosz * cosacc->vcos;
-        for (d = 0; (d < DIM); d++)
+        for (d = 0; (d < gmx::c_dim); d++)
         {
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 /* if we're computing a full step velocity, v_corrt[d] has v(t).  Otherwise, v(t+dt/2) */
                 if (bEkinAveVel)

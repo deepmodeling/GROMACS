@@ -626,7 +626,7 @@ void LegacySimulator::do_tpi()
                 if (bNS)
                 {
                     /* Generate a random position in the box */
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < c_dim; d++)
                     {
                         x_init[d] = dist(rng) * state_global->box[d][d];
                     }
@@ -651,14 +651,14 @@ void LegacySimulator::do_tpi()
                         mass_tot = 0;
                         for (i = 0; i < nat_cavity; i++)
                         {
-                            for (d = 0; d < DIM; d++)
+                            for (d = 0; d < c_dim; d++)
                             {
                                 x_init[d] += mass_cavity[i]
                                              * rerun_fr.x[rerun_fr.natoms - nat_cavity + i][d];
                             }
                             mass_tot += mass_cavity[i];
                         }
-                        for (d = 0; d < DIM; d++)
+                        for (d = 0; d < c_dim; d++)
                         {
                             x_init[d] /= mass_tot;
                         }
@@ -697,7 +697,7 @@ void LegacySimulator::do_tpi()
                 /* Generate coordinates within |dx|=drmax of x_init */
                 do
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < c_dim; d++)
                     {
                         dx[d] = (2 * dist(rng) - 1) * drmax;
                     }

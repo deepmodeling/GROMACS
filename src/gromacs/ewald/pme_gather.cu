@@ -131,7 +131,7 @@ __device__ __forceinline__ void reduce_atom_forces(float3* __restrict__ sm_force
         }
 
         const int dimIndex = splineIndex;
-        if (dimIndex < DIM)
+        if (dimIndex < gmx::c_dim)
         {
             const float n = read_grid_size(realGridSizeFP, dimIndex);
             *((float*)(&sm_forces[atomIndexLocal]) + dimIndex) = fx * n;
@@ -142,16 +142,16 @@ __device__ __forceinline__ void reduce_atom_forces(float3* __restrict__ sm_force
         // We use blockSize shared memory elements to read fx, or fy, or fz, and then reduce them to
         // fit into smemPerDim elements which are stored separately (first 2 dimensions only)
         const int         smemPerDim   = warp_size;
-        const int         smemReserved = (DIM)*smemPerDim;
+        const int         smemReserved = (gmx::c_dim)*smemPerDim;
         __shared__ float  sm_forceReduction[smemReserved + blockSize];
-        __shared__ float* sm_forceTemp[DIM];
+        __shared__ float* sm_forceTemp[gmx::c_dim];
 
         const int numWarps = blockSize / smemPerDim;
         const int minStride =
                 max(1, atomDataSize / numWarps); // order 4: 128 threads => 4, 256 threads => 2, etc
 
 #pragma unroll
-        for (int dimIndex = 0; dimIndex < DIM; dimIndex++)
+        for (int dimIndex = 0; dimIndex < gmx::c_dim; dimIndex++)
         {
             int elementIndex = smemReserved + lineIndex;
             // Store input force contributions
@@ -180,14 +180,14 @@ __device__ __forceinline__ void reduce_atom_forces(float3* __restrict__ sm_force
             __syncthreads();
         }
 
-        assert((blockSize / warp_size) >= DIM);
+        assert((blockSize / warp_size) >= gmx::c_dim);
         // assert (atomsPerBlock <= warp_size);
 
         const int warpIndex = lineIndex / warp_size;
         const int dimIndex  = warpIndex;
 
         // First 3 warps can now process 1 dimension each
-        if (dimIndex < DIM)
+        if (dimIndex < gmx::c_dim)
         {
             int sourceIndex = lineIndex % warp_size;
 #pragma unroll
@@ -264,7 +264,7 @@ __device__ __forceinline__ void sumForceComponents(float* __restrict__ fx,
         const int splineIndexY = getSplineParamIndex<order, atomsPerWarp>(splineIndexBase, YY, ithy);
         const float2 tdy       = make_float2(sm_theta[splineIndexY], sm_dtheta[splineIndexY]);
 
-        int iy = sm_gridlineIndices[atomIndexLocal * DIM + YY] + ithy;
+        int iy = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + YY] + ithy;
         if (wrapY & (iy >= ny))
         {
             iy -= ny;
@@ -311,7 +311,7 @@ __device__ __forceinline__ void sumForceComponents(float* __restrict__ fx,
 __device__ __forceinline__ void calculateAndStoreGridForces(float3* __restrict__ sm_forces,
                                                             const int   forceIndexLocal,
                                                             const int   forceIndexGlobal,
-                                                            const float recipBox[DIM][DIM],
+                                                            const float recipBox[gmx::c_dim][gmx::c_dim],
                                                             const float scale,
                                                             const float* __restrict__ gm_coefficients)
 {
@@ -385,8 +385,8 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
         return;
     }
     // 4 warps per block, 8 atoms per warp *3 *4
-    const int        splineParamsSize    = atomsPerBlock * DIM * order;
-    const int        gridlineIndicesSize = atomsPerBlock * DIM;
+    const int        splineParamsSize    = atomsPerBlock * gmx::c_dim * order;
+    const int        gridlineIndicesSize = atomsPerBlock * gmx::c_dim;
     __shared__ int   sm_gridlineIndices[gridlineIndicesSize];
     __shared__ float sm_theta[splineParamsSize];
     __shared__ float sm_dtheta[splineParamsSize];
@@ -482,8 +482,8 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     const int    splineIndexZ = getSplineParamIndex<order, atomsPerWarp>(splineIndexBase, ZZ, ithz);
     const float2 tdz          = make_float2(sm_theta[splineIndexZ], sm_dtheta[splineIndexZ]);
 
-    int       iz     = sm_gridlineIndices[atomIndexLocal * DIM + ZZ] + ithz;
-    const int ixBase = sm_gridlineIndices[atomIndexLocal * DIM + XX];
+    int       iz     = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + ZZ] + ithz;
+    const int ixBase = sm_gridlineIndices[atomIndexLocal * gmx::c_dim + XX];
 
     if (iz >= nz)
     {
@@ -518,7 +518,7 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     assert(atomsPerBlock <= warp_size);
 
     /* Writing or adding the final forces component-wise, single warp */
-    const int blockForcesSize = atomsPerBlock * DIM;
+    const int blockForcesSize = atomsPerBlock * gmx::c_dim;
     const int numIter         = (blockForcesSize + warp_size - 1) / warp_size;
     const int iterThreads     = blockForcesSize / numIter;
     if (threadLocalId < iterThreads)

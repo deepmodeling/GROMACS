@@ -373,7 +373,7 @@ static void calc_all_pos(const t_atoms*                            pdba,
                 {
                     for (int m = 0; (m < MAXH); m++)
                     {
-                        for (int d = 0; d < DIM; d++)
+                        for (int d = 0; d < gmx::c_dim; d++)
                         {
                             if (m < patch->nr)
                             {

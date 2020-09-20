@@ -107,7 +107,7 @@ void ewald_LRcorrection(const int         numAtomsLocal,
     /* Note that we have to transform back to gromacs units, since
      * mu_tot contains the dipole in debye units (for output).
      */
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         mutot[0][i] = mu_tot[0][i] * DEBYE2ENM;
         mutot[1][i] = mu_tot[1][i] * DEBYE2ENM;
@@ -124,7 +124,7 @@ void ewald_LRcorrection(const int         numAtomsLocal,
             {
                 dipole_coeff = 2 * M_PI * ONE_4PI_EPS0
                                / ((2 * ir.epsilon_surface + fr.ic->epsilon_r) * boxVolume);
-                for (i = 0; (i < DIM); i++)
+                for (i = 0; (i < gmx::c_dim); i++)
                 {
                     dipcorrA[i] = 2 * dipole_coeff * mutot[0][i];
                     dipcorrB[i] = 2 * dipole_coeff * mutot[1][i];
@@ -156,7 +156,7 @@ void ewald_LRcorrection(const int         numAtomsLocal,
     {
         for (i = start; (i < end); i++)
         {
-            for (j = 0; (j < DIM); j++)
+            for (j = 0; (j < gmx::c_dim); j++)
             {
                 f[i][j] -= dipcorrA[j] * chargeA[i];
             }
@@ -170,7 +170,7 @@ void ewald_LRcorrection(const int         numAtomsLocal,
     {
         for (i = start; (i < end); i++)
         {
-            for (j = 0; (j < DIM); j++)
+            for (j = 0; (j < gmx::c_dim); j++)
             {
                 f[i][j] -= L1_q * dipcorrA[j] * chargeA[i] + lambda_q * dipcorrB[j] * chargeB[i];
             }

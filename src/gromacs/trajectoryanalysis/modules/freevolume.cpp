@@ -324,7 +324,7 @@ void FreeVolume::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, Trajec
     {
         rvec rand, ins, dx;
 
-        for (int m = 0; (m < DIM); m++)
+        for (int m = 0; (m < c_dim); m++)
         {
             // Generate random number between 0 and 1
             rand[m] = dist(rng_);

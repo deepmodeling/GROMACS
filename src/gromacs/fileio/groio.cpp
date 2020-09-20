@@ -217,7 +217,7 @@ static gmx_bool get_w_conf(FILE*       in,
         /* coordinates (start after residue data) */
         ptr = line + 20;
         /* Read fixed format */
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             for (c = 0; (c < ddist && ptr[0]); c++)
             {
@@ -242,7 +242,7 @@ static gmx_bool get_w_conf(FILE*       in,
         if (v)
         {
             /* Read fixed format */
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 for (c = 0; (c < ddist && ptr[0]); c++)
                 {
@@ -271,26 +271,26 @@ static gmx_bool get_w_conf(FILE*       in,
         gmx_warning("Bad box in file %s", infile);
 
         /* Generate a cubic box */
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             xmin[m] = xmax[m] = x[0][m];
         }
         for (i = 1; (i < atoms->nr); i++)
         {
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 xmin[m] = std::min(xmin[m], x[i][m]);
                 xmax[m] = std::max(xmax[m], x[i][m]);
             }
         }
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 box[i][m] = 0.0;
             }
         }
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             box[m][m] = (xmax[m] - xmin[m]);
         }

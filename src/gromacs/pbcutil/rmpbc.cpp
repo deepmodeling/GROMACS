@@ -255,7 +255,7 @@ void rm_gropbc(const t_atoms* atoms, rvec x[], const matrix box)
     /* check periodic boundary */
     for (n = 1; (n < atoms->nr); n++)
     {
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             dist = x[n][m] - x[n - 1][m];
             if (std::abs(dist) > 0.9 * box[m][m])

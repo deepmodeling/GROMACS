@@ -62,7 +62,7 @@ const int grid_base[g_baseNR] = { 45, 48, 50, 52, 54, 56, 60, 64, 70, 72, 75, 80
 
 real calcFftGrid(FILE* fp, const matrix box, real gridSpacing, int minGridPointsPerDim, int* nx, int* ny, int* nz)
 {
-    int  d, n[DIM];
+    int  d, n[gmx::c_dim];
     int  i;
     rvec box_size;
     int  nmin, fac2, attempt;
@@ -91,10 +91,10 @@ real calcFftGrid(FILE* fp, const matrix box, real gridSpacing, int minGridPoints
      *
      * /Erik Lindahl, 20060402.
      */
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         box_size[d] = 0;
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             box_size[d] += box[d][i] * box[d][i];
         }
@@ -115,7 +115,7 @@ real calcFftGrid(FILE* fp, const matrix box, real gridSpacing, int minGridPoints
     }
 
     max_spacing = 0;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         if (n[d] <= 0)
         {

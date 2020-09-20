@@ -94,7 +94,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
         x_[i][YY] = 6.5 + (i % 13) * (-1.0);
         x_[i][ZZ] = (i % 32) * (0.0);
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             xPrime_[i][d] = 0.0;
             // Thermal velocity is ~1 nm/ps (|v0| = 1-2 nm/ps)
@@ -107,7 +107,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
         }
         // Atom masses are ~1-100 g/mol
         inverseMasses_[i] = 1.0 / (1.0 + i % 100);
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             inverseMassesPerDim_[i][d] = inverseMasses_[i];
         }

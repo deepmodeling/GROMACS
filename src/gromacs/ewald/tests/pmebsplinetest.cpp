@@ -112,7 +112,7 @@ public:
 
         /* Perform a correctness check */
         const char* dimString[] = { "X", "Y", "Z" };
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < c_dim; i++)
         {
             checker.checkSequenceArray(gridSize[i], pme->bsp_mod[i], dimString[i]);
         }

@@ -1203,7 +1203,7 @@ static inline void check_assign_interactions_atom(int                       i,
                         int d;
 
                         tiatoms[k] = entry->la;
-                        for (d = 0; d < DIM; d++)
+                        for (d = 0; d < gmx::c_dim; d++)
                         {
                             if (zones->shift[entry->cell][d] == 0)
                             {
@@ -1221,7 +1221,7 @@ static inline void check_assign_interactions_atom(int                       i,
                 {
                     int d;
 
-                    for (d = 0; (d < DIM && bUse); d++)
+                    for (d = 0; (d < gmx::c_dim && bUse); d++)
                     {
                         /* Check if the cg_cm distance falls within
                          * the cut-off to avoid possible multiple
@@ -1551,7 +1551,7 @@ void dd_make_local_top(gmx_domdec_t*       dd,
         }
 
         /* Should we check cg_cm distances when assigning bonded interactions? */
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             rcheck[d] = FALSE;
             /* Only need to check for dimensions where the part of the box

@@ -43,7 +43,7 @@
 #ifndef GMX_EWALD_PME_CUH
 #define GMX_EWALD_PME_CUH
 
-#include "gromacs/math/vectypes.h" // for DIM
+#include "gromacs/math/vectypes.h" // for c_dim
 
 #include "pme_gpu_constants.h"
 #include "pme_gpu_internal.h" // for GridOrdering

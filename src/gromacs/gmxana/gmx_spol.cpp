@@ -74,7 +74,7 @@ static void calc_com_pbc(int nrefat, const t_topology* top, rvec x[], t_pbc* pbc
     {
         ai   = index[m];
         mass = top->atoms.atom[ai].m;
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             xref[j] += mass * x[ai][j];
         }
@@ -94,7 +94,7 @@ static void calc_com_pbc(int nrefat, const t_topology* top, rvec x[], t_pbc* pbc
                 mass = top->atoms.atom[ai].m / mtot;
                 pbc_dx(pbc, x[ai], xref, dx);
                 rvec_add(xref, dx, xtest);
-                for (j = 0; (j < DIM); j++)
+                for (j = 0; (j < gmx::c_dim); j++)
                 {
                     if (std::abs(xtest[j] - x[ai][j]) > tol)
                     {
@@ -315,18 +315,18 @@ int gmx_spol(int argc, char* argv[])
                 for (a = a0; a < a1; a++)
                 {
                     q = atom[a].q - qav;
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         dip[d] += q * x[a][d];
                     }
                 }
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     dir[d] = -x[a0][d];
                 }
                 for (a = a0 + 1; a < a0 + 3; a++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         dir[d] += 0.5 * x[a][d];
                     }
@@ -337,7 +337,7 @@ int gmx_spol(int argc, char* argv[])
                 dip2 = norm2(dip);
                 sdip += std::sqrt(dip2);
                 sdip2 += dip2;
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     sinp += dx[d] * dip[d];
                     sdinp += dx[d] * (dip[d] - refdip * dir[d]);

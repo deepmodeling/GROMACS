@@ -108,7 +108,7 @@ RVec calculateCOM(ArrayRef<const RVec> x, const gmx_moltype_t& moltype, const in
     for (const auto& coord : x)
     {
         real mass = moltype.atoms.atom[currentAtom].m;
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < c_dim; d++)
         {
             com[d] += mass * coord[d];
         }

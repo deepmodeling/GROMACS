@@ -75,7 +75,7 @@ static void calc_rm_cm(int isize, const int index[], const t_atoms* atoms, rvec 
     for (i = 0; i < isize; i++)
     {
         m = atoms->atom[index[i]].m;
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             xcm[d] += m * x[index[i]][d];
         }
@@ -683,7 +683,7 @@ int gmx_confrms(int argc, char* argv[])
     for (at = 0; at < isize1; at++)
     {
         mass = atoms1->atom[index1[at]].m;
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             msd = gmx::square(x1[index1[at]][m] - x2[index2[at]][m]);
             rms += msd * mass;
@@ -706,14 +706,14 @@ int gmx_confrms(int argc, char* argv[])
         /* reset coordinates of reference and fitted structure */
         for (i = 0; i < atoms1->nr; i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 x1[i][m] += xcm1[m];
             }
         }
         for (i = 0; i < atoms2->nr; i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 x2[i][m] += xcm1[m];
             }

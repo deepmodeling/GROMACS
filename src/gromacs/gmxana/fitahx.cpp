@@ -56,7 +56,7 @@ static void my_calc_xcm(int nbb, const int bbind[], rvec x[], rvec xcm)
         ai = bbind[i];
         rvec_inc(xcm, x[ai]);
     }
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         xcm[m] /= (nbb);
     }

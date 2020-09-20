@@ -90,14 +90,14 @@ void make_new_box(int natoms, rvec* x, matrix box, const rvec box_space, gmx_boo
     int  i, m;
     rvec xmin, xmax;
 
-    /*calculate minimum and maximum x[0..DIM-1]*/
-    for (m = 0; (m < DIM); m++)
+    /*calculate minimum and maximum x[0..c_dim-1]*/
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         xmin[m] = xmax[m] = x[0][m];
     }
     for (i = 1; (i < natoms); i++)
     {
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             xmin[m] = std::min(xmin[m], x[i][m]);
             xmax[m] = std::max(xmax[m], x[i][m]);
@@ -105,7 +105,7 @@ void make_new_box(int natoms, rvec* x, matrix box, const rvec box_space, gmx_boo
     }
 
     /*calculate the new box sizes for cubic and octahedral ...*/
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         box[m][m] = xmax[m] - xmin[m] + 2 * box_space[m];
     }
@@ -115,7 +115,7 @@ void make_new_box(int natoms, rvec* x, matrix box, const rvec box_space, gmx_boo
     {
         for (i = 0; (i < natoms); i++)
         {
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 x[i][m] += 0.5 * (box[m][m] - xmin[m] - xmax[m]);
             }

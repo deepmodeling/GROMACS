@@ -174,7 +174,7 @@ static void calc_virial(int                              start,
 
     if (debug)
     {
-        pr_rvecs(debug, 0, "vir_part", vir_part, DIM);
+        pr_rvecs(debug, 0, "vir_part", vir_part, gmx::c_dim);
     }
 }
 
@@ -367,7 +367,7 @@ static void postProcessForces(const t_commrec*          cr,
 
             if (debug)
             {
-                pr_rvecs(debug, 0, "vir_force", vir_force, DIM);
+                pr_rvecs(debug, 0, "vir_force", vir_force, gmx::c_dim);
             }
         }
     }
@@ -981,12 +981,12 @@ static void reduceAndUpdateMuTot(DipoleData*                   dipoleData,
 {
     if (PAR(cr))
     {
-        gmx_sumd(2 * DIM, dipoleData->muStaging[0], cr);
+        gmx_sumd(2 * gmx::c_dim, dipoleData->muStaging[0], cr);
         ddBalanceRegionHandler.reopenRegionCpu();
     }
     for (int i = 0; i < 2; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < gmx::c_dim; j++)
         {
             dipoleData->muStateAB[i][j] = dipoleData->muStaging[i][j];
         }
@@ -998,7 +998,7 @@ static void reduceAndUpdateMuTot(DipoleData*                   dipoleData,
     }
     else
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < gmx::c_dim; j++)
         {
             muTotal[j] = (1.0 - lambda[efptCOUL]) * dipoleData->muStateAB[0][j]
                          + lambda[efptCOUL] * dipoleData->muStateAB[1][j];

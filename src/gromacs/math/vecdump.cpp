@@ -118,12 +118,12 @@ void pr_ivecs(FILE* fp, int indent, const char* title, const ivec vec[], int n, 
 
     if (available(fp, vec, indent, title))
     {
-        indent = pr_title_nxn(fp, indent, title, n, DIM);
+        indent = pr_title_nxn(fp, indent, title, n, gmx::c_dim);
         for (i = 0; i < n; i++)
         {
             pr_indent(fp, indent);
             fprintf(fp, "%s[%d]={", title, bShowNumbers ? i : -1);
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 if (j != 0)
                 {
@@ -172,12 +172,12 @@ void pr_rvecs_len(FILE* fp, int indent, const char* title, const rvec vec[], int
 
     if (available(fp, vec, indent, title))
     {
-        indent = pr_title_nxn(fp, indent, title, n, DIM);
+        indent = pr_title_nxn(fp, indent, title, n, gmx::c_dim);
         for (i = 0; i < n; i++)
         {
             pr_indent(fp, indent);
             fprintf(fp, "%s[%5d]={", title, i);
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 if (j != 0)
                 {
@@ -208,12 +208,12 @@ void pr_rvecs(FILE* fp, int indent, const char* title, const rvec vec[], int n)
 
     if (available(fp, vec, indent, title))
     {
-        indent = pr_title_nxn(fp, indent, title, n, DIM);
+        indent = pr_title_nxn(fp, indent, title, n, gmx::c_dim);
         for (i = 0; i < n; i++)
         {
             pr_indent(fp, indent);
             fprintf(fp, "%s[%5d]={", title, i);
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
                 if (j != 0)
                 {

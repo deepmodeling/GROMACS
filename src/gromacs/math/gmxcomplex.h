@@ -47,7 +47,7 @@ struct t_complex
     real re, im;
 };
 
-typedef t_complex cvec[DIM];
+typedef t_complex cvec[gmx::c_dim];
 
 static t_complex rcmul(real r, t_complex c)
 {

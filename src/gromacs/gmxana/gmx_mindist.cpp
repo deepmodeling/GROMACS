@@ -96,7 +96,7 @@ periodic_dist(PbcType pbcType, matrix box, rvec x[], int n, const int index[], r
             {
                 if (sx != 0 || sy != 0 || sz != 0)
                 {
-                    for (i = 0; i < DIM; i++)
+                    for (i = 0; i < gmx::c_dim; i++)
                     {
                         shift[nshift][i] = sx * box[XX][i] + sy * box[YY][i] + sz * box[ZZ][i];
                     }

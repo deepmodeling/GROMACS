@@ -268,7 +268,7 @@ void pme_loadbal_init(pme_load_balancing_t**     pme_lb_p,
     }
 
     spm = 0;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         sp = norm(pme_lb->box_start[d]) / pme_lb->setup[0].grid[d];
         if (sp > spm)
@@ -424,7 +424,7 @@ static gmx_bool pme_loadbal_increase_cutoff(pme_load_balancing_t* pme_lb, int pm
     set.spacing = sp;
     /* The grid efficiency is the size wrt a grid with uniform x/y/z spacing */
     set.grid_efficiency = 1;
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         set.grid_efficiency *= (set.grid[d] * sp) / norm(pme_lb->box_start[d]);
     }

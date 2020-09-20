@@ -115,7 +115,7 @@ void Grid::setDimensions(const int          ddZone,
      * margin for computing and using the atom number density.
      */
     constexpr real c_minimumGridSize = 1e-10;
-    for (int d = 0; d < DIM; d++)
+    for (int d = 0; d < gmx::c_dim; d++)
     {
         GMX_ASSERT(upperCorner[d] >= lowerCorner[d],
                    "Upper corner should be larger than the lower corner");
@@ -180,7 +180,7 @@ void Grid::setDimensions(const int          ddZone,
         dimensions_.numCells[YY] = 1;
     }
 
-    for (int d = 0; d < DIM - 1; d++)
+    for (int d = 0; d < gmx::c_dim - 1; d++)
     {
         dimensions_.cellSize[d]    = size[d] / dimensions_.numCells[d];
         dimensions_.invCellSize[d] = 1 / dimensions_.cellSize[d];
@@ -741,9 +741,9 @@ static void print_bbsizes_supersub(FILE* fp, const Grid& grid)
                     cs_w * c_packedBoundingBoxesSize, c_packedBoundingBoxesSize);
             for (int i = 0; i < c_packedBoundingBoxesDimSize; i++)
             {
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
-                    ba[d] += boundingBoxes[(DIM + d) * c_packedBoundingBoxesDimSize + i]
+                    ba[d] += boundingBoxes[(gmx::c_dim + d) * c_packedBoundingBoxesDimSize + i]
                              - boundingBoxes[(0 + d) * c_packedBoundingBoxesDimSize + i];
                 }
             }

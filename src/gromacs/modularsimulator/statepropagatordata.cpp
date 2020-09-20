@@ -153,7 +153,7 @@ StatePropagatorData::StatePropagatorData(int                numAtoms,
                 }
                 else if (mdatoms->cFREEZE)
                 {
-                    for (int m = 0; m < DIM; m++)
+                    for (int m = 0; m < c_dim; m++)
                     {
                         if (inputrec->opts.nFreeze[mdatoms->cFREEZE[i]][m])
                         {

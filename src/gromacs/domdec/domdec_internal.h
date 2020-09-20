@@ -629,7 +629,7 @@ struct gmx_domdec_comm_t // NOLINT (clang-analyzer-optin.performance.Padding)
     gmx_ddzone_t zone_d2[2][2];
 
     /** The coordinate/force communication setup and indices */
-    gmx_domdec_comm_dim_t cd[DIM];
+    gmx_domdec_comm_dim_t cd[gmx::c_dim];
     /** Restricts the maximum number of cells to communicate with in one dimension
      *
      * Dynamic load balancing is not permitted to change sizes if it
@@ -666,9 +666,9 @@ struct gmx_domdec_comm_t // NOLINT (clang-analyzer-optin.performance.Padding)
 
     /* Communication buffers for local redistribution */
     /**< Charge group flag comm. buffers */
-    std::array<std::vector<int>, DIM * 2> cggl_flag;
+    std::array<std::vector<int>, gmx::c_dim * 2> cggl_flag;
     /**< Charge group center comm. buffers */
-    std::array<std::vector<gmx::RVec>, DIM * 2> cgcm_state;
+    std::array<std::vector<gmx::RVec>, gmx::c_dim * 2> cgcm_state;
 
     /* Cell sizes for dynamic load balancing */
     std::vector<DDCellsizesWithDlb> cellsizesWithDlb;

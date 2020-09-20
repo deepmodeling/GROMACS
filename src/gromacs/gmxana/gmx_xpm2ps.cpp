@@ -1515,7 +1515,7 @@ int gmx_xpm2ps(int argc, char* argv[])
     erainbow = nenum(rainbow);
     ecombine = nenum(combine);
     bGrad    = opt2parg_bSet("-gradient", NPA, pa);
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
         if (grad[i] < 0 || grad[i] > 1)
         {

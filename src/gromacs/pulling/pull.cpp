@@ -191,7 +191,7 @@ static void apply_forces_grp_part(const pull_group_work_t* pgrp,
             wmass *= pgrp->localWeights[i];
         }
 
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             f[ii][d] += sign * wmass * f_pull[d] * inv_wm;
         }
@@ -214,7 +214,7 @@ static void apply_forces_grp(const pull_group_work_t* pgrp,
          * the mass weighting, which means that this code also works
          * for mass=0, e.g. with a virtual site.
          */
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             f[localAtomIndices[0]][d] += sign * f_pull[d];
         }
@@ -276,7 +276,7 @@ static void apply_forces_cyl_grp(const pull_group_work_t* pgrp,
          * but also a radial component, due to the dependence of the weights
          * on the radial distance.
          */
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             f[ii][m] += sign * inv_wm * (mass * weight * f_pull[m] + pgrp->mdw[i][m] * dv_com * f_scal);
         }
@@ -297,7 +297,7 @@ static void apply_forces_vec_torque(const struct pull_t*     pull,
      * way. Here we account for the component perpendicular to vec.
      */
     double inpr = 0;
-    for (int m = 0; m < DIM; m++)
+    for (int m = 0; m < gmx::c_dim; m++)
     {
         inpr += spatialData.dr01[m] * spatialData.vec[m];
     }
@@ -308,7 +308,7 @@ static void apply_forces_vec_torque(const struct pull_t*     pull,
      * groups and the distance between the two groups that define the vector.
      */
     dvec f_perp;
-    for (int m = 0; m < DIM; m++)
+    for (int m = 0; m < gmx::c_dim; m++)
     {
         f_perp[m] = (spatialData.dr01[m] - inpr * spatialData.vec[m]) / spatialData.vec_len * pcrd->scalarForce;
     }
@@ -340,7 +340,7 @@ static void apply_forces_coord(struct pull_t*               pull,
 
         /* Sum the force along the vector and the radial force */
         dvec f_tot;
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             f_tot[m] = forces.force01[m] + pcrd.scalarForce * pcrd.spatialData.ffrad[m];
         }
@@ -399,12 +399,12 @@ real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc)
          * are larger than half the distance between unit cell faces
          * along dimensions involved in pcrd->vec.
          */
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             if (m < pbc->ndim_ePBC && pcrd->spatialData.vec[m] != 0)
             {
                 real imageDistance2 = gmx::square(pbc->box[m][m]);
-                for (int d = m + 1; d < DIM; d++)
+                for (int d = m + 1; d < gmx::c_dim; d++)
                 {
                     imageDistance2 -= gmx::square(pbc->box[d][m]);
                 }
@@ -423,7 +423,7 @@ real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc)
          * depending on the details of the setup, we avoid further
          * code complications.
          */
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             if (m < pbc->ndim_ePBC && pcrd->params.dim[m] != 0)
             {
@@ -459,7 +459,7 @@ static void low_get_pull_coord_dr(const struct pull_t*     pull,
     /* Only the first group can be an absolute reference, in that case nat=0 */
     if (pgrp0->params.nat == 0)
     {
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             xref[m] = pcrd->params.origin[m];
         }
@@ -471,7 +471,7 @@ static void low_get_pull_coord_dr(const struct pull_t*     pull,
     dvec dref = { 0, 0, 0 };
     if (pcrd->params.eGeom == epullgDIRPBC)
     {
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             dref[m] = pcrd->value_ref * pcrd->spatialData.vec[m];
         }
@@ -483,7 +483,7 @@ static void low_get_pull_coord_dr(const struct pull_t*     pull,
 
     bool   directional = pull_coordinate_is_directional(&pcrd->params);
     double dr2         = 0;
-    for (int m = 0; m < DIM; m++)
+    for (int m = 0; m < gmx::c_dim; m++)
     {
         dr[m] *= pcrd->params.dim[m];
         if (pcrd->params.dim[m] && !(directional && pcrd->spatialData.vec[m] == 0))
@@ -545,12 +545,12 @@ static void get_pull_coord_dr(struct pull_t* pull, int coord_ind, const t_pbc* p
 
         pbc_dx_d(pbc, pgrp3.x, pgrp2.x, vec);
 
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             vec[m] *= pcrd->params.dim[m];
         }
         spatialData.vec_len = dnorm(vec);
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             spatialData.vec[m] = vec[m] / spatialData.vec_len;
         }
@@ -696,7 +696,7 @@ static void get_pull_coord_distance(struct pull_t* pull, int coord_ind, const t_
         case epullgCYL:
             /* Pull along vec */
             spatialData.value = 0;
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 spatialData.value += spatialData.vec[m] * spatialData.dr01[m];
             }
@@ -831,11 +831,11 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
         {
             /* Select the component along vec */
             a = 0;
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 a += spatialData.vec[m] * spatialData.dr01[m];
             }
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 r_ij[c][m] = a * spatialData.vec[m];
             }
@@ -935,7 +935,7 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
                 case epullgCYL:
                     /* A 1-dimensional constraint along a vector */
                     a = 0;
-                    for (m = 0; m < DIM; m++)
+                    for (m = 0; m < gmx::c_dim; m++)
                     {
                         vec[m] = pcrd->spatialData.vec[m];
                         a += unc_ij[m] * vec[m];
@@ -997,7 +997,7 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
                 case epullgDIR:
                 case epullgDIRPBC:
                 case epullgCYL:
-                    for (m = 0; m < DIM; m++)
+                    for (m = 0; m < gmx::c_dim; m++)
                     {
                         vec[m] = coord.spatialData.vec[m];
                     }
@@ -1065,13 +1065,13 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
             {
                 dsvmul(pgrp->wscale * pgrp->localWeights[j], dr, tmp);
             }
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 x[ii][m] += tmp[m];
             }
             if (v)
             {
-                for (m = 0; m < DIM; m++)
+                for (m = 0; m < gmx::c_dim; m++)
                 {
                     v[ii][m] += invdt * tmp[m];
                 }
@@ -1106,9 +1106,9 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
             /* We have already checked above that r_ij[c] != 0 */
             f_invr = pcrd->scalarForce / dnorm(r_ij[c]);
 
-            for (j = 0; j < DIM; j++)
+            for (j = 0; j < gmx::c_dim; j++)
             {
-                for (m = 0; m < DIM; m++)
+                for (m = 0; m < gmx::c_dim; m++)
                 {
                     vir[j][m] -= 0.5 * f_invr * r_ij[c][j] * r_ij[c][m];
                 }
@@ -1124,9 +1124,9 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
 
 static void add_virial_coord_dr(tensor vir, const dvec dr, const dvec f)
 {
-    for (int j = 0; j < DIM; j++)
+    for (int j = 0; j < gmx::c_dim; j++)
     {
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             vir[j][m] -= 0.5 * f[j] * dr[m];
         }
@@ -1205,7 +1205,7 @@ static PullCoordVectorForces calculateVectorForces(const pull_coord_work_t& pcrd
     if (params.eGeom == epullgDIST)
     {
         double invdr01 = spatialData.value > 0 ? 1. / spatialData.value : 0.;
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             forces.force01[m] = pcrd.scalarForce * spatialData.dr01[m] * invdr01;
         }
@@ -1238,7 +1238,7 @@ static PullCoordVectorForces calculateVectorForces(const pull_coord_work_t& pcrd
             dsvmul(invdr01, spatialData.dr01, normalized_dr01);
             dsvmul(invdr23, spatialData.dr23, normalized_dr23);
 
-            for (int m = 0; m < DIM; m++)
+            for (int m = 0; m < gmx::c_dim; m++)
             {
                 /* Here, f_scal is -dV/dtheta */
                 forces.force01[m] =
@@ -1274,7 +1274,7 @@ static PullCoordVectorForces calculateVectorForces(const pull_coord_work_t& pcrd
             a = -gmx::invsqrt(1 - cos_theta2); /* comes from d/dx acos(x) */
             b = a * cos_theta;
 
-            for (int m = 0; m < DIM; m++)
+            for (int m = 0; m < gmx::c_dim; m++)
             {
                 forces.force01[m] =
                         pcrd.scalarForce * invdr01 * (a * spatialData.vec[m] - b * normalized_dr01[m]);
@@ -1336,7 +1336,7 @@ static PullCoordVectorForces calculateVectorForces(const pull_coord_work_t& pcrd
     }
     else
     {
-        for (int m = 0; m < DIM; m++)
+        for (int m = 0; m < gmx::c_dim; m++)
         {
             forces.force01[m] = pcrd.scalarForce * spatialData.vec[m];
         }
@@ -1764,7 +1764,7 @@ static void init_pull_group_index(FILE*              fplog,
         int ii = pg->params.ind[i];
         if (bConstraint && ir->opts.nFreeze)
         {
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < gmx::c_dim; d++)
             {
                 if (pulldim_con[d] == 1
                     && ir->opts.nFreeze[getGroupType(groups, SimulationAtomGroupType::Freeze, ii)][d])
@@ -1867,7 +1867,7 @@ static void init_pull_group_index(FILE*              fplog,
     else
     {
         int ndim = 0;
-        for (int d = 0; d < DIM; d++)
+        for (int d = 0; d < gmx::c_dim; d++)
         {
             ndim += pulldim_con[d] * pg->params.nat;
         }
@@ -2155,7 +2155,7 @@ struct pull_t* init_pull(FILE*                     fplog,
 
                 if (bGroupUsed)
                 {
-                    for (int m = 0; m < DIM; m++)
+                    for (int m = 0; m < gmx::c_dim; m++)
                     {
                         if (coord.params.dim[m] == 1)
                         {
@@ -2184,7 +2184,7 @@ struct pull_t* init_pull(FILE*                     fplog,
                                   "Pull groups can not have relative weights and cosine weighting "
                                   "at same time");
                     }
-                    for (int m = 0; m < DIM; m++)
+                    for (int m = 0; m < gmx::c_dim; m++)
                     {
                         if (m < pull->npbcdim && pulldim[m] == 1)
                         {

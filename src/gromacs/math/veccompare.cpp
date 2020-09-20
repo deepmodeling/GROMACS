@@ -90,12 +90,12 @@ static void cmp_rvecs_rmstol(FILE* fp, const char* title, int n, const rvec x1[]
     rms = 0.0;
     for (i = 0; (i < n); i++)
     {
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             rms += x1[i][m] * x1[i][m] + x2[i][m] * x2[i][m];
         }
     }
-    rms = sqrt(rms / (2 * n * DIM));
+    rms = sqrt(rms / (2 * n * gmx::c_dim));
 
     /* Convert the relative tolerance into an absolute tolerance */
     if (ftol * rms < abstol)
@@ -120,7 +120,7 @@ void cmp_rvecs(FILE* fp, const char* title, int n, const rvec x1[], const rvec x
         ssd = 0;
         for (i = 0; (i < n); i++)
         {
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
                 d = x1[i][m] - x2[i][m];
                 ssd += d * d;

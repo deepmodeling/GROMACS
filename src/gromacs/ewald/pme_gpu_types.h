@@ -118,20 +118,20 @@ struct PmeGpuGridParams
 
     /* Grid sizes */
     /*! \brief Real-space grid data dimensions. */
-    int realGridSize[DIM];
+    int realGridSize[gmx::c_dim];
     /*! \brief Real-space grid dimensions, only converted to floating point. */
-    float realGridSizeFP[DIM];
+    float realGridSizeFP[gmx::c_dim];
     /*! \brief Real-space grid dimensions (padded). The padding as compared to realGridSize includes the (order - 1) overlap. */
-    int realGridSizePadded[DIM]; /* Is major dimension of this ever used in kernels? */
+    int realGridSizePadded[gmx::c_dim]; /* Is major dimension of this ever used in kernels? */
     /*! \brief Fourier grid dimensions. This counts the complex numbers! */
-    int complexGridSize[DIM];
+    int complexGridSize[gmx::c_dim];
     /*! \brief Fourier grid dimensions (padded). This counts the complex numbers! */
-    int complexGridSizePadded[DIM];
+    int complexGridSizePadded[gmx::c_dim];
 
     /*! \brief Offsets for X/Y/Z components of d_splineModuli */
-    int splineValuesOffset[DIM];
+    int splineValuesOffset[gmx::c_dim];
     /*! \brief Offsets for X/Y/Z components of d_fractShiftsTable and d_gridlineIndicesTable */
-    int tablesOffsets[DIM];
+    int tablesOffsets[gmx::c_dim];
 
     /* Grid arrays */
     /*! \brief Real space grid. */
@@ -198,7 +198,7 @@ struct PmeGpuDynamicParams
      * Basically, spread uses matrix columns (while solve and gather use rows).
      * This storage format might be not the most optimal since the box is always triangular so there are zeroes.
      */
-    float recipBox[DIM][DIM];
+    float recipBox[gmx::c_dim][gmx::c_dim];
     /*! \brief The unit cell volume for solving. */
     float boxVolume;
 

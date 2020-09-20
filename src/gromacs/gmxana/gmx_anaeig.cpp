@@ -603,7 +603,7 @@ static void project(const char*             trajfile,
                 {
                     for (i = 0; i < natoms; i++)
                     {
-                        for (d = 0; d < DIM; d++)
+                        for (d = 0; d < gmx::c_dim; d++)
                         {
                             /* misuse xread for output */
                             xread[index[i]][d] = xav[i][d];
@@ -836,7 +836,7 @@ static void project(const char*             trajfile,
                 }
                 for (i = 0; i < natoms; i++)
                 {
-                    for (d = 0; d < DIM; d++)
+                    for (d = 0; d < gmx::c_dim; d++)
                     {
                         xread[index[i]][d] =
                                 (xav[i][d]
@@ -1151,8 +1151,8 @@ int gmx_anaeig(int argc, char* argv[])
 
     read_eigenvectors(VecFile, &natoms, &bFit1, &xref1, &bDMR1, &xav1, &bDMA1, &nvec1, &eignr1,
                       &eigvec1, &eigval1);
-    neig1 = std::min(nvec1, DIM * natoms);
-    if (nvec1 != DIM * natoms)
+    neig1 = std::min(nvec1, gmx::c_dim * natoms);
+    if (nvec1 != gmx::c_dim * natoms)
     {
         fprintf(stderr,
                 "Warning: number of eigenvectors %d does not match three times\n"
@@ -1214,7 +1214,7 @@ int gmx_anaeig(int argc, char* argv[])
         read_eigenvectors(Vec2File, &natoms2, &bFit2, &xref2, &bDMR2, &xav2, &bDMA2, &nvec2,
                           &eignr2, &eigvec2, &eigval2);
 
-        neig2 = std::min(nvec2, DIM * natoms2);
+        neig2 = std::min(nvec2, gmx::c_dim * natoms2);
         if (neig2 != neig1)
         {
             gmx_fatal(FARGS, "Dimensions in the eigenvector files don't match");
@@ -1356,7 +1356,7 @@ int gmx_anaeig(int argc, char* argv[])
         totmass = 0;
         for (i = 0; (i < natoms); i++)
         {
-            for (d = 0; (d < DIM); d++)
+            for (d = 0; (d < gmx::c_dim); d++)
             {
                 t += gmx::square((xav1[i][d] - xav2[i][d]) * sqrtm[i]);
                 totmass += gmx::square(sqrtm[i]);
@@ -1370,7 +1370,7 @@ int gmx_anaeig(int argc, char* argv[])
 
     if (last == -1)
     {
-        last = natoms * DIM;
+        last = natoms * gmx::c_dim;
     }
     if (first > -1)
     {

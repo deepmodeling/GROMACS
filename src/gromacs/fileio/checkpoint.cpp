@@ -522,7 +522,7 @@ static void do_cpt_n_rvecs_err(XDR* xd, const char* desc, int n, rvec f[], FILE*
 {
     for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < DIM; j++)
+        for (int j = 0; j < gmx::c_dim; j++)
         {
             do_cpt_real_err(xd, &f[i][j]);
         }
@@ -854,7 +854,7 @@ static int doRealArrayRef(XDR* xd, StatePart part, int ecpt, int sflags, gmx::Ar
 //! Convert from view of RVec to view of real.
 static gmx::ArrayRef<real> realArrayRefFromRVecArrayRef(gmx::ArrayRef<gmx::RVec> ofRVecs)
 {
-    return gmx::arrayRefFromArray<real>(reinterpret_cast<real*>(ofRVecs.data()), ofRVecs.size() * DIM);
+    return gmx::arrayRefFromArray<real>(reinterpret_cast<real*>(ofRVecs.data()), ofRVecs.size() * gmx::c_dim);
 }
 
 //! \brief Read/Write a PaddedVector whose value_type is RVec.
@@ -862,7 +862,7 @@ template<typename PaddedVectorOfRVecType>
 static int
 doRvecVector(XDR* xd, StatePart part, int ecpt, int sflags, PaddedVectorOfRVecType* v, int numAtoms, FILE* list)
 {
-    const int numReals = numAtoms * DIM;
+    const int numReals = numAtoms * gmx::c_dim;
 
     if (list == nullptr)
     {
@@ -946,12 +946,12 @@ static int do_cpte_matrix(XDR* xd, StatePart part, int ecpt, int sflags, matrix 
     int   ret;
 
     vr  = &(v[0][0]);
-    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, DIM * DIM, nullptr, &vr,
+    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, gmx::c_dim * gmx::c_dim, nullptr, &vr,
                                                   nullptr, nullptr, CptElementType::matrix3x3);
 
     if (list && ret == 0)
     {
-        pr_rvecs(list, 0, entryName(part, ecpt), v, DIM);
+        pr_rvecs(list, 0, entryName(part, ecpt), v, gmx::c_dim);
     }
 
     return ret;
@@ -1018,26 +1018,26 @@ static int do_cpte_matrices(XDR* xd, StatePart part, int ecpt, int sflags, int n
         }
         vp = *v;
     }
-    snew(vr, nf * DIM * DIM);
+    snew(vr, nf * gmx::c_dim * gmx::c_dim);
     for (i = 0; i < nf; i++)
     {
-        for (j = 0; j < DIM; j++)
+        for (j = 0; j < gmx::c_dim; j++)
         {
-            for (k = 0; k < DIM; k++)
+            for (k = 0; k < gmx::c_dim; k++)
             {
-                vr[(i * DIM + j) * DIM + k] = vp[i][j][k];
+                vr[(i * gmx::c_dim + j) * gmx::c_dim + k] = vp[i][j][k];
             }
         }
     }
-    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, nf * DIM * DIM, nullptr,
+    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, nf * gmx::c_dim * gmx::c_dim, nullptr,
                                                   &vr, nullptr, nullptr, CptElementType::matrix3x3);
     for (i = 0; i < nf; i++)
     {
-        for (j = 0; j < DIM; j++)
+        for (j = 0; j < gmx::c_dim; j++)
         {
-            for (k = 0; k < DIM; k++)
+            for (k = 0; k < gmx::c_dim; k++)
             {
-                vp[i][j][k] = vr[(i * DIM + j) * DIM + k];
+                vp[i][j][k] = vr[(i * gmx::c_dim + j) * gmx::c_dim + k];
             }
         }
     }
@@ -1047,7 +1047,7 @@ static int do_cpte_matrices(XDR* xd, StatePart part, int ecpt, int sflags, int n
     {
         for (i = 0; i < nf; i++)
         {
-            pr_rvecs(list, 0, entryName(part, ecpt), vp[i], DIM);
+            pr_rvecs(list, 0, entryName(part, ecpt), vp[i], gmx::c_dim);
         }
     }
     if (va)
@@ -1700,19 +1700,19 @@ static int doCptPullCoordHist(XDR* xd, PullCoordinateHistory* pullCoordHist, con
                 ret = do_cpte_double(xd, part, i, flags, &(pullCoordHist->value), list);
                 break;
             case epullcoordh_DR01_SUM:
-                for (int j = 0; j < DIM && ret == 0; j++)
+                for (int j = 0; j < gmx::c_dim && ret == 0; j++)
                 {
                     ret = do_cpte_double(xd, part, i, flags, &(pullCoordHist->dr01[j]), list);
                 }
                 break;
             case epullcoordh_DR23_SUM:
-                for (int j = 0; j < DIM && ret == 0; j++)
+                for (int j = 0; j < gmx::c_dim && ret == 0; j++)
                 {
                     ret = do_cpte_double(xd, part, i, flags, &(pullCoordHist->dr23[j]), list);
                 }
                 break;
             case epullcoordh_DR45_SUM:
-                for (int j = 0; j < DIM && ret == 0; j++)
+                for (int j = 0; j < gmx::c_dim && ret == 0; j++)
                 {
                     ret = do_cpte_double(xd, part, i, flags, &(pullCoordHist->dr45[j]), list);
                 }
@@ -1721,7 +1721,7 @@ static int doCptPullCoordHist(XDR* xd, PullCoordinateHistory* pullCoordHist, con
                 ret = do_cpte_double(xd, part, i, flags, &(pullCoordHist->scalarForce), list);
                 break;
             case epullcoordh_DYNAX_SUM:
-                for (int j = 0; j < DIM && ret == 0; j++)
+                for (int j = 0; j < gmx::c_dim && ret == 0; j++)
                 {
                     ret = do_cpte_double(xd, part, i, flags, &(pullCoordHist->dynaX[j]), list);
                 }
@@ -1744,7 +1744,7 @@ static int doCptPullGroupHist(XDR* xd, PullGroupHistory* pullGroupHist, const St
         switch (i)
         {
             case epullgrouph_X_SUM:
-                for (int j = 0; j < DIM && ret == 0; j++)
+                for (int j = 0; j < gmx::c_dim && ret == 0; j++)
                 {
                     ret = do_cpte_double(xd, part, i, flags, &(pullGroupHist->x[j]), list);
                 }

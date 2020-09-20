@@ -988,7 +988,7 @@ static void setStateDependentAwhPullDimParams(AwhDimParams*        dimParams,
         && !(pullCoordParams.eGeom == epullgANGLE || pullCoordParams.eGeom == epullgDIHEDRAL))
     {
         bool coordIsScaled = false;
-        for (int d2 = 0; d2 < DIM; d2++)
+        for (int d2 = 0; d2 < c_dim; d2++)
         {
             if (pullCoordParams.vec[d2] != 0 && norm2(compressibility[d2]) != 0)
             {

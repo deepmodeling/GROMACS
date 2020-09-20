@@ -132,9 +132,9 @@ public:
         force_(force),
         computeVirial_(computeVirial)
     {
-        for (int dim1 = 0; dim1 < DIM; dim1++)
+        for (int dim1 = 0; dim1 < c_dim; dim1++)
         {
-            for (int dim2 = 0; dim2 < DIM; dim2++)
+            for (int dim2 = 0; dim2 < c_dim; dim2++)
             {
                 virial_[dim1][dim2] = 0;
             }
@@ -154,9 +154,9 @@ public:
     {
         if (computeVirial_)
         {
-            for (int dim1 = 0; dim1 < DIM; dim1++)
+            for (int dim1 = 0; dim1 < c_dim; dim1++)
             {
-                for (int dim2 = 0; dim2 < DIM; dim2++)
+                for (int dim2 = 0; dim2 < c_dim; dim2++)
                 {
                     virial_[dim1][dim2] += virial[dim1][dim2];
                 }
@@ -177,7 +177,7 @@ public:
     {
         if (computeVirial_)
         {
-            for (int dim = 0; dim < DIM; dim++)
+            for (int dim = 0; dim < c_dim; dim++)
             {
                 virial_[dim][dim] += virial[dim];
             }

@@ -91,7 +91,7 @@ static constexpr int c_packedBoundingBoxesDimSize = GMX_SIMD4_WIDTH;
 
 //! Total number of corners (floats) in a pack of bounding boxes
 static constexpr int c_packedBoundingBoxesSize =
-        c_packedBoundingBoxesDimSize * DIM * Nbnxm::c_numBoundingBoxBounds1D;
+        c_packedBoundingBoxesDimSize * gmx::c_dim * Nbnxm::c_numBoundingBoxBounds1D;
 
 //! Returns the starting index of the bounding box pack that contains the given cluster
 static constexpr inline int packedBoundingBoxesIndex(int clusterIndex)

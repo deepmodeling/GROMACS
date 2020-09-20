@@ -64,7 +64,7 @@ GpuParallel3dFft::GpuParallel3dFft(const PmeGpu* pmeGpu, const int gridIndex)
 {
     const PmeGpuCudaKernelParams* kernelParamsPtr = pmeGpu->kernelParams.get();
     ivec                          realGridSize, realGridSizePadded, complexGridSizePadded;
-    for (int i = 0; i < DIM; i++)
+    for (int i = 0; i < gmx::c_dim; i++)
     {
         realGridSize[i]          = kernelParamsPtr->grid.realGridSize[i];
         realGridSizePadded[i]    = kernelParamsPtr->grid.realGridSizePadded[i];

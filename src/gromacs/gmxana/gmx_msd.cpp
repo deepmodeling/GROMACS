@@ -299,7 +299,7 @@ calc1_norm(t_corr* curr, int nx, const int index[], int nx0, rvec xc[], const rv
         switch (curr->type)
         {
             case NORMAL:
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     rv[m] = xc[ix][m] - curr->x0[nx0][ix][m] - dcom[m];
                     r2 += rv[m] * rv[m];
@@ -319,7 +319,7 @@ calc1_norm(t_corr* curr, int nx, const int index[], int nx0, rvec xc[], const rv
                 r2 += r * r;
                 break;
             case LATERAL:
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
                     if (m != curr->axis)
                     {
@@ -354,7 +354,7 @@ calc_mol_com(int nmol, const int* molindex, const t_block* mols, const t_atoms* 
         for (i = mols->index[mol]; i < mols->index[mol + 1]; i++)
         {
             mass = atoms->atom[i].m;
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 xm[d] += mass * x[i][d];
             }
@@ -380,7 +380,7 @@ static real calc_one_mw(t_corr* curr, int ix, int nx0, rvec xc[], real* tm, cons
     switch (curr->type)
     {
         case NORMAL:
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 rv[m] = xc[ix][m] - curr->x0[nx0][ix][m] - dcom[m];
                 r2 += mm * rv[m] * rv[m];
@@ -400,7 +400,7 @@ static real calc_one_mw(t_corr* curr, int ix, int nx0, rvec xc[], real* tm, cons
             r2 = mm * r * r;
             break;
         case LATERAL:
-            for (m = 0; (m < DIM); m++)
+            for (m = 0; (m < gmx::c_dim); m++)
             {
                 if (m != curr->axis)
                 {
@@ -448,7 +448,7 @@ static void prep_data(gmx_bool bMol, int gnx, const int index[], rvec xcur[], rv
     rvec hbox;
 
     /* Remove periodicity */
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         hbox[m] = 0.5 * box[m][m];
     }
@@ -464,7 +464,7 @@ static void prep_data(gmx_bool bMol, int gnx, const int index[], rvec xcur[], rv
             ind = index[i];
         }
 
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             if (hbox[m] == 0)
             {
@@ -515,13 +515,13 @@ calc_com(gmx_bool bMol, int gnx, int index[], rvec xcur[], rvec xprev[], matrix 
 
 
         mass = atoms->atom[ind].m;
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             sx[m] += mass * xcur[ind][m];
         }
         tmass += mass;
     }
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < gmx::c_dim; m++)
     {
         com[m] = sx[m] / tmass;
     }

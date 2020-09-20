@@ -167,7 +167,7 @@ void write_eigenvectors(const char* trrname,
     matrix           zerobox;
     rvec*            x;
 
-    ndim = natoms * DIM;
+    ndim = natoms * gmx::c_dim;
     clear_mat(zerobox);
     snew(x, natoms);
 
@@ -203,9 +203,9 @@ void write_eigenvectors(const char* trrname,
 
         for (j = 0; j < natoms; j++)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
-                x[j][d] = mat[vec * ndim + DIM * j + d];
+                x[j][d] = mat[vec * ndim + gmx::c_dim * j + d];
             }
         }
 

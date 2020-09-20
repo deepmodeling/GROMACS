@@ -252,7 +252,7 @@ void init_orires(FILE*                 fplog,
             if (isMasterSim(ms))
             {
                 copy_rvec(x[i], od->xref[j]);
-                for (int d = 0; d < DIM; d++)
+                for (int d = 0; d < gmx::c_dim; d++)
                 {
                     com[d] += od->mref[j] * x[i][d];
                 }
@@ -289,7 +289,7 @@ void init_orires(FILE*                 fplog,
         check_multi_int(fplog, ms, od->nref, "the number of fit atoms for orientation restraining", FALSE);
         check_multi_int(fplog, ms, ir->nsteps, "nsteps", FALSE);
         /* Copy the reference coordinates from the master to the other nodes */
-        gmx_sum_sim(DIM * od->nref, od->xref[0], ms);
+        gmx_sum_sim(gmx::c_dim * od->nref, od->xref[0], ms);
     }
 
     please_cite(fplog, "Hess2003");
@@ -299,16 +299,16 @@ void diagonalize_orires_tensors(t_oriresdata* od)
 {
     if (od->M == nullptr)
     {
-        snew(od->M, DIM);
-        for (int i = 0; i < DIM; i++)
+        snew(od->M, gmx::c_dim);
+        for (int i = 0; i < gmx::c_dim; i++)
         {
-            snew(od->M[i], DIM);
+            snew(od->M[i], gmx::c_dim);
         }
-        snew(od->eig_diag, DIM);
-        snew(od->v, DIM);
-        for (int i = 0; i < DIM; i++)
+        snew(od->eig_diag, gmx::c_dim);
+        snew(od->v, gmx::c_dim);
+        for (int i = 0; i < gmx::c_dim; i++)
         {
-            snew(od->v[i], DIM);
+            snew(od->v[i], gmx::c_dim);
         }
     }
 
@@ -318,25 +318,25 @@ void diagonalize_orires_tensors(t_oriresdata* od)
         matrix S, TMP;
         mmul(od->R, od->S[ex], TMP);
         mtmul(TMP, od->R, S);
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < gmx::c_dim; j++)
             {
                 od->M[i][j] = S[i][j];
             }
         }
 
         int nrot;
-        jacobi(od->M, DIM, od->eig_diag, od->v, &nrot);
+        jacobi(od->M, gmx::c_dim, od->eig_diag, od->v, &nrot);
 
-        int ord[DIM];
-        for (int i = 0; i < DIM; i++)
+        int ord[gmx::c_dim];
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             ord[i] = i;
         }
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
-            for (int j = i + 1; j < DIM; j++)
+            for (int j = i + 1; j < gmx::c_dim; j++)
             {
                 if (gmx::square(od->eig_diag[ord[j]]) > gmx::square(od->eig_diag[ord[i]]))
                 {
@@ -347,13 +347,13 @@ void diagonalize_orires_tensors(t_oriresdata* od)
             }
         }
 
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             od->eig[ex * 12 + i] = od->eig_diag[ord[i]];
         }
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
-            for (int j = 0; j < DIM; j++)
+            for (int j = 0; j < gmx::c_dim; j++)
             {
                 od->eig[ex * 12 + 3 + 3 * i + j] = od->v[j][ord[i]];
             }
@@ -372,10 +372,10 @@ void print_orires_log(FILE* log, t_oriresdata* od)
         eig = od->eig + ex * 12;
         fprintf(log, "  Orientation experiment %d:\n", ex + 1);
         fprintf(log, "    order parameter: %g\n", eig[0]);
-        for (int i = 0; i < DIM; i++)
+        for (int i = 0; i < gmx::c_dim; i++)
         {
             fprintf(log, "    eig: %6.3f   %6.3f %6.3f %6.3f\n", (eig[0] != 0) ? eig[i] / eig[0] : eig[i],
-                    eig[DIM + i * DIM + XX], eig[DIM + i * DIM + YY], eig[DIM + i * DIM + ZZ]);
+                    eig[gmx::c_dim + i * gmx::c_dim + XX], eig[gmx::c_dim + i * gmx::c_dim + YY], eig[gmx::c_dim + i * gmx::c_dim + ZZ]);
         }
         fprintf(log, "\n");
     }
@@ -449,7 +449,7 @@ real calc_orires_dev(const gmx_multisim_t* ms,
         {
             copy_rvec(xWholeMolecules[i], xtmp[j]);
             mref[j] = md->massT[i];
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < gmx::c_dim; d++)
             {
                 com[d] += mref[j] * xtmp[j][d];
             }
@@ -463,7 +463,7 @@ real calc_orires_dev(const gmx_multisim_t* ms,
         rvec_dec(xtmp[j], com);
     }
     /* Calculate the rotation matrix to rotate x to the reference orientation */
-    calc_fit_R(DIM, nref, mref, xref, xtmp, od->R);
+    calc_fit_R(gmx::c_dim, nref, mref, xref, xtmp, od->R);
 
     for (int fa = 0; fa < nfa; fa += 3)
     {
@@ -728,12 +728,12 @@ real orires(int             nfa,
                 pfac *= invr;
             }
             mvmul(od->S[ex], r, Sr);
-            for (int i = 0; i < DIM; i++)
+            for (int i = 0; i < gmx::c_dim; i++)
             {
                 fij[i] = -pfac * dev * (4 * Sr[i] - 2 * (2 + power) * invr2 * iprod(Sr, r) * r[i]);
             }
 
-            for (int i = 0; i < DIM; i++)
+            for (int i = 0; i < gmx::c_dim; i++)
             {
                 f[ai][i] += fij[i];
                 f[aj][i] -= fij[i];

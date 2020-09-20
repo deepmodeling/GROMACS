@@ -207,7 +207,7 @@ public:
                             rootChecker.checkCompound("Splines", "Values"));
                     splineValuesChecker.setDefaultTolerance(
                             relativeToleranceAsUlp(1.0, ulpToleranceSplineValues));
-                    for (int i = 0; i < DIM; i++)
+                    for (int i = 0; i < c_dim; i++)
                     {
                         auto splineValuesDim =
                                 pmeGetSplineData(pmeSafe.get(), codePath, PmeSplineDataType::Values, i);
@@ -224,7 +224,7 @@ public:
                             rootChecker.checkCompound("Splines", "Derivatives"));
                     splineDerivativesChecker.setDefaultTolerance(
                             relativeToleranceAsUlp(1.0, ulpToleranceSplineDerivatives));
-                    for (int i = 0; i < DIM; i++)
+                    for (int i = 0; i < c_dim; i++)
                     {
                         auto splineDerivativesDim = pmeGetSplineData(
                                 pmeSafe.get(), codePath, PmeSplineDataType::Derivatives, i);

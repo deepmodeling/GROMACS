@@ -149,7 +149,7 @@ void Trajectory::initOptions(IOptionsContainer* options, TrajectoryAnalysisSetti
     options->addOption(
             BooleanOption("z").store(&dimMask_[ZZ]).storeIsSet(&maskSet_[ZZ]).description("Plot Z component"));
     options->addOption(
-            BooleanOption("len").store(&dimMask_[DIM]).storeIsSet(&maskSet_[DIM]).description("Plot vector length"));
+            BooleanOption("len").store(&dimMask_[c_dim]).storeIsSet(&maskSet_[c_dim]).description("Plot vector length"));
 }
 
 
@@ -167,7 +167,7 @@ void Trajectory::optionsFinished(TrajectoryAnalysisSettings* settings)
     settings->setFrameFlags(frameFlags);
     if (std::count(std::begin(maskSet_), std::end(maskSet_), true) > 0)
     {
-        for (int i = 0; i <= DIM; ++i)
+        for (int i = 0; i <= c_dim; ++i)
         {
             if (!maskSet_[i])
             {

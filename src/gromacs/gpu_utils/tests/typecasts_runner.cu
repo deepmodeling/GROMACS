@@ -122,7 +122,7 @@ void convertRVecToFloat3OnDevice(std::vector<gmx::RVec>&       h_rVecOutput,
                        GpuApiCallBehavior::Sync, nullptr);
 
     DeviceBuffer<float3> d_float3Output;
-    allocateDeviceBuffer(&d_float3Output, numElements * DIM, deviceContext);
+    allocateDeviceBuffer(&d_float3Output, numElements * c_dim, deviceContext);
 
     std::vector<float3> h_float3Output(numElements);
 

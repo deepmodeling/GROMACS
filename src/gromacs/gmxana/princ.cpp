@@ -56,7 +56,7 @@ static void m_op(matrix mat, rvec x)
     rvec xp;
     int  m;
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < c_dim); m++)
     {
         xp[m] = mat[m][XX] * x[XX] + mat[m][YY] * x[YY] + mat[m][ZZ] * x[ZZ];
     }
@@ -85,7 +85,7 @@ void t_trans(matrix trans, real d[], real** ev)
 {
     rvec x;
     int  j;
-    for (j = 0; (j < DIM); j++)
+    for (j = 0; (j < c_dim); j++)
     {
         x[XX] = ev[1][j + 1];
         x[YY] = ev[2][j + 1];
@@ -146,9 +146,9 @@ void principal_comp(int n, const int index[], t_atom atom[], rvec x[], matrix tr
     ptrans("initial", inten, dd, e);
 #endif
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             trans[i][m] = inten[i][m];
         }
@@ -188,10 +188,10 @@ void principal_comp(int n, const int index[], t_atom atom[], rvec x[], matrix tr
     t_trans(trans, dd, ev);
 #endif
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         d[i] = dd[i];
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             trans[i][m] = ev[m][i];
         }
@@ -249,12 +249,12 @@ real calc_xcm(const rvec x[], int gnx, const int* index, const t_atom* atom, rve
             m0 = 1;
         }
         tm += m0;
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             xcm[m] += m0 * x[ii][m];
         }
     }
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         xcm[m] /= tm;
     }
@@ -307,7 +307,7 @@ void orient_princ(const t_atoms* atoms, int isize, const int* index, int natoms,
     /* Check whether this trans matrix mirrors the molecule */
     if (det(trans) < 0)
     {
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             trans[ZZ][m] = -trans[ZZ][m];
         }

@@ -213,7 +213,7 @@ static void rm_res_pbc(const t_atoms* atoms, std::vector<RVec>* x, matrix box)
                 copy_rvec((*x)[n], xcg);
             }
             svmul(1.0 / nat, xcg, xcg);
-            for (int d = 0; d < DIM; d++)
+            for (int d = 0; d < gmx::c_dim; d++)
             {
                 while (xcg[d] < 0)
                 {
@@ -268,7 +268,7 @@ static void replicateSolventBox(t_atoms*           atoms,
     // Calculate the box multiplication factors.
     ivec n_box;
     int  nmol = 1;
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < gmx::c_dim; ++i)
     {
         n_box[i] = 1;
         while (n_box[i] * box[i][i] < boxTarget[i][i])
@@ -293,7 +293,7 @@ static void replicateSolventBox(t_atoms*           atoms,
 
     const real maxRadius = *std::max_element(r->begin(), r->end());
     rvec       boxWithMargin;
-    for (int i = 0; i < DIM; ++i)
+    for (int i = 0; i < gmx::c_dim; ++i)
     {
         // The code below is only interested about the box diagonal.
         boxWithMargin[i] = boxTarget[i][i] + 3 * maxRadius;
@@ -314,7 +314,7 @@ static void replicateSolventBox(t_atoms*           atoms,
                 {
                     const int newIndex  = builder.currentAtomCount();
                     bool      bKeepAtom = true;
-                    for (int m = 0; m < DIM; ++m)
+                    for (int m = 0; m < gmx::c_dim; ++m)
                     {
                         const real newCoord = delta[m] + (*x)[i][m];
                         bKeepAtom           = bKeepAtom && (newCoord < boxWithMargin[m]);
@@ -422,7 +422,7 @@ static void removeSolventBoxOverlap(t_atoms*           atoms,
             rvec_sub((*x)[i2], (*x)[i1], dx);
             bool bCandidate1 = false, bCandidate2 = false;
             // To satisfy Clang static analyzer.
-            GMX_ASSERT(pbc.ndim_ePBC <= DIM, "Too many periodic dimensions");
+            GMX_ASSERT(pbc.ndim_ePBC <= gmx::c_dim, "Too many periodic dimensions");
             for (int d = 0; d < pbc.ndim_ePBC; ++d)
             {
                 // If the distance in some dimension is larger than the

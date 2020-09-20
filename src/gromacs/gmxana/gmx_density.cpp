@@ -149,12 +149,12 @@ static void center_coords(t_atoms* atoms, const int* index_center, int ncenter, 
         }
         mm = atoms->atom[i].m;
         tmass += mm;
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             com[m] += mm * x0[i][m];
         }
     }
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         com[m] /= tmass;
     }
@@ -201,7 +201,7 @@ static void calc_electron_density(const char*             fn,
 
     real t, z;
 
-    if (axis < 0 || axis >= DIM)
+    if (axis < 0 || axis >= gmx::c_dim)
     {
         gmx_fatal(FARGS, "Invalid axes. Terminating\n");
     }
@@ -362,7 +362,7 @@ static void calc_density(const char*             fn,
     real*       den_val; /* values from which the density is calculated */
     gmx_rmpbc_t gpbc = nullptr;
 
-    if (axis < 0 || axis >= DIM)
+    if (axis < 0 || axis >= gmx::c_dim)
     {
         gmx_fatal(FARGS, "Invalid axes. Terminating\n");
     }

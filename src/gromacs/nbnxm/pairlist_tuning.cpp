@@ -290,7 +290,7 @@ void increaseNstlist(FILE*               fp,
              * always be false here. See #3334.
              */
             /* Check if rlist fits in the domain decomposition */
-            if (inputrec2nboundeddim(ir) < DIM)
+            if (inputrec2nboundeddim(ir) < gmx::c_dim)
             {
                 gmx_incons(
                         "Changing nstlist with domain decomposition and unbounded dimensions is "

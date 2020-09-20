@@ -541,7 +541,7 @@ static void mk_1shift_screw(const matrix box, const rvec hbox, const rvec xi, co
         dx[YY] = xi[YY] - (box[YY][YY] + box[ZZ][YY] - xj[YY]);
         dx[ZZ] = xi[ZZ] - (box[ZZ][ZZ] - xj[ZZ]);
     }
-    for (m = 1; (m < DIM); m++)
+    for (m = 1; (m < gmx::c_dim); m++)
     {
         /* The signs are taken such that we can first shift x and rotate
          * and then shift y and z.
@@ -575,7 +575,7 @@ static int mk_grey(ArrayRef<egCol> edgeColor,
     ivec     is_aj;
     t_pbc    pbc;
 
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         hbox[m] = box[m][m] * 0.5;
     }

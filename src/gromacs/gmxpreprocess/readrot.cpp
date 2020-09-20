@@ -133,7 +133,7 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
         }
         fprintf(stderr, "%s Group %d (%s) normalized rot. vector: %f %f %f\n", RotStr, g,
                 erotg_names[rotg->eType], vec[0], vec[1], vec[2]);
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             rotg->inputVec[m] = vec[m];
         }
@@ -147,7 +147,7 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
         {
             string2dvec(s_vec, vec);
         }
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             rotg->pivot[m] = vec[m];
         }
@@ -228,9 +228,9 @@ static void check_box_unchanged(matrix f_box, matrix box, const char fn[], warni
     char warn_buf[STRLEN];
 
 
-    for (i = 0; i < DIM; i++)
+    for (i = 0; i < gmx::c_dim; i++)
     {
-        for (ii = 0; ii < DIM; ii++)
+        for (ii = 0; ii < gmx::c_dim; ii++)
         {
             if (f_box[i][ii] != box[i][ii])
             {

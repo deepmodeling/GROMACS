@@ -83,14 +83,14 @@ low_print_data(FILE* fp, real time, rvec x[], int n, const int* index, const gmx
         {
             ii = i;
         }
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             if (bDim[d])
             {
                 fprintf(fp, sffmt, x[ii][d]);
             }
         }
-        if (bDim[DIM])
+        if (bDim[gmx::c_dim])
         {
             fprintf(fp, sffmt, norm(x[ii]));
         }
@@ -103,7 +103,7 @@ static void average_data(rvec x[], rvec xav[], const real* mass, int ngrps, cons
     int    g, i, ind, d;
     real   m;
     rvec   tmp;
-    double sum[DIM], mtot;
+    double sum[gmx::c_dim], mtot;
 
     for (g = 0; g < ngrps; g++)
     {
@@ -117,7 +117,7 @@ static void average_data(rvec x[], rvec xav[], const real* mass, int ngrps, cons
             {
                 m = mass[ind];
                 svmul(m, x[ind], tmp);
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     sum[d] += tmp[d];
                 }
@@ -125,7 +125,7 @@ static void average_data(rvec x[], rvec xav[], const real* mass, int ngrps, cons
             }
             else
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     sum[d] += x[ind][d];
                 }
@@ -133,7 +133,7 @@ static void average_data(rvec x[], rvec xav[], const real* mass, int ngrps, cons
         }
         if (mass != nullptr)
         {
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 xav[g][d] = sum[d] / mtot;
             }
@@ -141,7 +141,7 @@ static void average_data(rvec x[], rvec xav[], const real* mass, int ngrps, cons
         else
         {
             /* mass=NULL, so these are forces: sum only (do not average) */
-            for (d = 0; d < DIM; d++)
+            for (d = 0; d < gmx::c_dim; d++)
             {
                 xav[g][d] = sum[d];
             }
@@ -248,7 +248,7 @@ static void make_legend(FILE*                   fp,
     j = 0;
     for (i = 0; i < n; i++)
     {
-        for (d = 0; d <= DIM; d++)
+        for (d = 0; d <= gmx::c_dim; d++)
         {
             if (bDim[d])
             {
@@ -297,7 +297,7 @@ static real ekrot(rvec x[], rvec v[], const real mass[], int isize, const int in
         m0 = mass[j];
         tm += m0;
         cprod(x[j], v[j], a0);
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             xcm[m] += m0 * x[j][m]; /* c.o.m. position */
             vcm[m] += m0 * v[j][m]; /* c.o.m. velocity */
@@ -305,7 +305,7 @@ static real ekrot(rvec x[], rvec v[], const real mass[], int isize, const int in
         }
     }
     dcprod(xcm, vcm, b0);
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         xcm[m] /= tm;
         vcm[m] /= tm;
@@ -317,7 +317,7 @@ static real ekrot(rvec x[], rvec v[], const real mass[], int isize, const int in
     {
         j  = index[i];
         m0 = mass[j];
-        for (m = 0; m < DIM; m++)
+        for (m = 0; m < gmx::c_dim; m++)
         {
             dx[m] = x[j][m] - xcm[m];
         }
@@ -339,14 +339,14 @@ static real ekrot(rvec x[], rvec v[], const real mass[], int isize, const int in
     L[YY][ZZ] = -lyz;
     L[ZZ][ZZ] = lxx + lyy;
 
-    m_inv_gen(&L[0][0], DIM, &TCM[0][0]);
+    m_inv_gen(&L[0][0], gmx::c_dim, &TCM[0][0]);
 
     /* Compute omega (hoeksnelheid) */
     clear_rvec(ocm);
     ekrot = 0;
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < gmx::c_dim; m++)
     {
-        for (n = 0; n < DIM; n++)
+        for (n = 0; n < gmx::c_dim; n++)
         {
             ocm[m] += TCM[m][n] * acm[n];
         }
@@ -367,7 +367,7 @@ static real ektrans(rvec v[], const real mass[], int isize, const int index[])
     for (i = 0; i < isize; i++)
     {
         j = index[i];
-        for (d = 0; d < DIM; d++)
+        for (d = 0; d < gmx::c_dim; d++)
         {
             mvcom[d] += mass[j] * v[j][d];
         }
@@ -397,13 +397,13 @@ static void remove_jump(matrix box, int natoms, rvec xp[], rvec x[])
     rvec hbox;
     int  d, i, m;
 
-    for (d = 0; d < DIM; d++)
+    for (d = 0; d < gmx::c_dim; d++)
     {
         hbox[d] = 0.5 * box[d][d];
     }
     for (i = 0; i < natoms; i++)
     {
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             while (x[i][m] - xp[i][m] <= -hbox[m])
             {
@@ -453,10 +453,10 @@ static void write_pdb_bfac(const char*             fname,
         fprintf(stderr, "Used %d frames for %s\n", nfr_x, "coordinates");
         fprintf(stderr, "Used %d frames for %s\n", nfr_v, title);
         onedim = -1;
-        if (!bDim[DIM])
+        if (!bDim[gmx::c_dim])
         {
             m = 0;
-            for (i = 0; i < DIM; i++)
+            for (i = 0; i < gmx::c_dim; i++)
             {
                 if (bDim[i])
                 {
@@ -487,9 +487,9 @@ static void write_pdb_bfac(const char*             fname,
         for (i = 0; i < isize; i++)
         {
             len2 = 0;
-            for (m = 0; m < DIM; m++)
+            for (m = 0; m < gmx::c_dim; m++)
             {
-                if (bDim[m] || bDim[DIM])
+                if (bDim[m] || bDim[gmx::c_dim])
                 {
                     len2 += gmx::square(sum[index[i]][m]);
                 }
@@ -531,9 +531,9 @@ static void write_pdb_bfac(const char*             fname,
             for (i = 0; i < isize; i++)
             {
                 len2 = 0;
-                for (m = 0; m < DIM; m++)
+                for (m = 0; m < gmx::c_dim; m++)
                 {
-                    if (bDim[m] || bDim[DIM])
+                    if (bDim[m] || bDim[gmx::c_dim])
                     {
                         len2 += gmx::square(sum[index[i]][m]);
                     }
@@ -739,7 +739,7 @@ int gmx_traj(int argc, char* argv[])
     bDim[XX]  = bX;
     bDim[YY]  = bY;
     bDim[ZZ]  = bZ;
-    bDim[DIM] = bNorm;
+    bDim[gmx::c_dim] = bNorm;
 
     if (bFP)
     {
@@ -856,7 +856,7 @@ int gmx_traj(int argc, char* argv[])
         bDum[XX]  = FALSE;
         bDum[YY]  = FALSE;
         bDum[ZZ]  = FALSE;
-        bDum[DIM] = TRUE;
+        bDum[gmx::c_dim] = TRUE;
         flags     = flags | TRX_READ_V;
         outt      = xvgropen(opt2fn("-ot", NFILE, fnm), "Temperature", label, "(K)", oenv);
         make_legend(outt, ngroups, isize[0], index[0], grpname, bCom, bMol, bDum, oenv);
@@ -866,7 +866,7 @@ int gmx_traj(int argc, char* argv[])
         bDum[XX]  = FALSE;
         bDum[YY]  = FALSE;
         bDum[ZZ]  = FALSE;
-        bDum[DIM] = TRUE;
+        bDum[gmx::c_dim] = TRUE;
         flags     = flags | TRX_READ_V;
         outekt    = xvgropen(opt2fn("-ekt", NFILE, fnm), "Center of mass translation", label,
                           "Energy (kJ mol\\S-1\\N)", oenv);
@@ -877,7 +877,7 @@ int gmx_traj(int argc, char* argv[])
         bDum[XX]  = FALSE;
         bDum[YY]  = FALSE;
         bDum[ZZ]  = FALSE;
-        bDum[DIM] = TRUE;
+        bDum[gmx::c_dim] = TRUE;
         flags     = flags | TRX_READ_X | TRX_READ_V;
         outekr    = xvgropen(opt2fn("-ekr", NFILE, fnm), "Center of mass rotation", label,
                           "Energy (kJ mol\\S-1\\N)", oenv);

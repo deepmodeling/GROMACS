@@ -86,12 +86,12 @@ static void center_coords(const t_atoms* atoms, matrix box, rvec x0[], int axis)
     {
         mm = atoms->atom[i].m;
         tmass += mm;
-        for (m = 0; (m < DIM); m++)
+        for (m = 0; (m < gmx::c_dim); m++)
         {
             com[m] += mm * x0[i][m];
         }
     }
-    for (m = 0; (m < DIM); m++)
+    for (m = 0; (m < gmx::c_dim); m++)
     {
         com[m] /= tmass;
     }

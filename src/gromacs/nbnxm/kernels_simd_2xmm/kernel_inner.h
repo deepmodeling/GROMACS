@@ -214,7 +214,7 @@
 #if defined CALC_LJ && (defined LJ_COMB_GEOM || defined LJ_COMB_LB || defined LJ_EWALD_GEOM)
     aj2 = aj * 2;
 #endif
-    ajx = aj * DIM;
+    ajx = aj * gmx::c_dim;
     ajy = ajx + STRIDE;
     ajz = ajy + STRIDE;
 

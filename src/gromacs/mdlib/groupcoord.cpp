@@ -129,7 +129,7 @@ static void get_shifts_group(int          npbcdim,
         {
             while (dx[m] < -0.5 * box[m][m])
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     dx[d] += box[m][d];
                 }
@@ -137,7 +137,7 @@ static void get_shifts_group(int          npbcdim,
             }
             while (dx[m] >= 0.5 * box[m][m])
             {
-                for (d = 0; d < DIM; d++)
+                for (d = 0; d < gmx::c_dim; d++)
                 {
                     dx[d] -= box[m][d];
                 }

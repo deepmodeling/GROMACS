@@ -168,7 +168,7 @@ int gmx_rotacf(int argc, char* argv[])
             n_alloc += 100;
             for (i = 0; (i < nvec); i++)
             {
-                srenew(c1[i], DIM * n_alloc);
+                srenew(c1[i], gmx::c_dim * n_alloc);
             }
         }
         t1 = t;
@@ -189,9 +189,9 @@ int gmx_rotacf(int argc, char* argv[])
                 rvec_sub(x_s[ai], x_s[aj], xij);
                 rvec_sub(x_s[aj], x_s[ak], xjk);
                 cprod(xij, xjk, n);
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
-                    c1[i][DIM * teller + m] = n[m];
+                    c1[i][gmx::c_dim * teller + m] = n[m];
                 }
             }
         }
@@ -202,9 +202,9 @@ int gmx_rotacf(int argc, char* argv[])
                 ai = index[2 * i];
                 aj = index[2 * i + 1];
                 rvec_sub(x_s[ai], x_s[aj], n);
-                for (m = 0; (m < DIM); m++)
+                for (m = 0; (m < gmx::c_dim); m++)
                 {
-                    c1[i][DIM * teller + m] = n[m];
+                    c1[i][gmx::c_dim * teller + m] = n[m];
                 }
             }
         }

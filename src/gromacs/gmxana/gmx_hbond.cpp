@@ -885,7 +885,7 @@ static t_gridcell*** init_grid(gmx_bool bBox, rvec box[], real rcut, ivec ngrid)
 
     if (bBox)
     {
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             ngrid[i] = static_cast<int>(box[i][i] / (1.2 * rcut));
         }
@@ -893,7 +893,7 @@ static t_gridcell*** init_grid(gmx_bool bBox, rvec box[], real rcut, ivec ngrid)
 
     if (!bBox || (ngrid[XX] < 3) || (ngrid[YY] < 3) || (ngrid[ZZ] < 3))
     {
-        for (i = 0; i < DIM; i++)
+        for (i = 0; i < gmx::c_dim; i++)
         {
             ngrid[i] = 1;
         }
@@ -970,7 +970,7 @@ static void build_grid(t_hbdata*     hb,
     if (debug && bDebug) \
     fprintf(debug, "build_grid, line %d, %s = %d\n", __LINE__, #x, x)
     DBB(dum);
-    for (m = 0; m < DIM; m++)
+    for (m = 0; m < gmx::c_dim; m++)
     {
         hbox[m] = box[m][m] * 0.5;
         if (bBox)
@@ -1038,7 +1038,7 @@ static void build_grid(t_hbdata*     hb,
                         while (!bDone)
                         {
                             bDone = TRUE;
-                            for (m = DIM - 1; m >= 0 && bInShell; m--)
+                            for (m = gmx::c_dim - 1; m >= 0 && bInShell; m--)
                             {
                                 if (dshell[m] < -hbox[m])
                                 {
@@ -1052,7 +1052,7 @@ static void build_grid(t_hbdata*     hb,
                                 }
                             }
                         }
-                        for (m = DIM - 1; m >= 0 && bInShell; m--)
+                        for (m = gmx::c_dim - 1; m >= 0 && bInShell; m--)
                         {
                             /* if we're outside the cube, we're outside the sphere also! */
                             if ((dshell[m] > rshell) || (-dshell[m] > rshell))
@@ -1074,7 +1074,7 @@ static void build_grid(t_hbdata*     hb,
                     {
                         pbc_in_gridbox(x[ad[i]], box);
 
-                        for (m = DIM - 1; m >= 0; m--)
+                        for (m = gmx::c_dim - 1; m >= 0; m--)
                         { /* determine grid index of atom */
                             grididx[m] = static_cast<int>(x[ad[i]][m] * invdelta[m]);
                             grididx[m] = (grididx[m] + ngrid[m]) % ngrid[m];
@@ -1227,7 +1227,7 @@ static void pbc_correct_gem(rvec dx, matrix box, const rvec hbox)
     while (!bDone)
     {
         bDone = TRUE;
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             if (dx[m] < -hbox[m])
             {
@@ -1250,7 +1250,7 @@ static void pbc_in_gridbox(rvec dx, matrix box)
     while (!bDone)
     {
         bDone = TRUE;
-        for (m = DIM - 1; m >= 0; m--)
+        for (m = gmx::c_dim - 1; m >= 0; m--)
         {
             if (dx[m] < 0)
             {
