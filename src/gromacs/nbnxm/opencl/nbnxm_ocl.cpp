@@ -898,8 +898,9 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* DtoH f */
     GMX_ASSERT(sizeof(*nbatom->out[0].f.data()) == sizeof(float),
                "The host force buffer should be in single precision to match device data size.");
-    copyFromDeviceBuffer(&nbatom->out[0].f.data()[adat_begin * gmx::c_dim], &adat->f, adat_begin * gmx::c_dim,
-                         adat_len * gmx::c_dim, deviceStream, GpuApiCallBehavior::Async,
+    copyFromDeviceBuffer(&nbatom->out[0].f.data()[adat_begin * gmx::c_dim], &adat->f,
+                         adat_begin * gmx::c_dim, adat_len * gmx::c_dim, deviceStream,
+                         GpuApiCallBehavior::Async,
                          bDoTime ? t->xf[aloc].nb_d2h.fetchNextEvent() : nullptr);
 
     /* kick off work */

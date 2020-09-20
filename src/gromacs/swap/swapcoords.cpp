@@ -84,8 +84,9 @@ static const char* SwS      = { "SWAP:" }; /**< For output that comes from the s
 static const char* SwSEmpty = { "     " }; /**< Placeholder for multi-line output */
 static const char* CompStr[eCompNR]          = { "A", "B" }; /**< Compartment name */
 static const char* SwapStr[eSwapTypesNR + 1] = { "", "X-", "Y-", "Z-",
-                                                 nullptr };      /**< Name for the swap types. */
-static const char* DimStr[gmx::c_dim + 1] = { "X", "Y", "Z", nullptr }; /**< Name for the swap dimension. */
+                                                 nullptr }; /**< Name for the swap types. */
+static const char* DimStr[gmx::c_dim + 1]    = { "X", "Y", "Z",
+                                              nullptr }; /**< Name for the swap dimension. */
 
 /** Keep track of through which channel the ions have passed */
 enum eChannelHistory

@@ -418,7 +418,8 @@ int gmx_rmsf(int argc, char* argv[])
         {
             for (m = 0; m < gmx::c_dim; m++)
             {
-                U[i][d * gmx::c_dim + m] = U[i][d * gmx::c_dim + m] * invcount - xav[i * gmx::c_dim + d] * xav[i * gmx::c_dim + m];
+                U[i][d * gmx::c_dim + m] = U[i][d * gmx::c_dim + m] * invcount
+                                           - xav[i * gmx::c_dim + d] * xav[i * gmx::c_dim + m];
                 Uaver[3 * d + m] += top.atoms.atom[index[i]].m * U[i][d * gmx::c_dim + m];
             }
         }
@@ -443,12 +444,12 @@ int gmx_rmsf(int argc, char* argv[])
         {
             aid                                 = index[i];
             pdbatoms->pdbinfo[aid].bAnisotropic = TRUE;
-            pdbatoms->pdbinfo[aid].uij[U11]     = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + XX]);
-            pdbatoms->pdbinfo[aid].uij[U22]     = static_cast<int>(1e6 * U[i][YY * gmx::c_dim + YY]);
-            pdbatoms->pdbinfo[aid].uij[U33]     = static_cast<int>(1e6 * U[i][ZZ * gmx::c_dim + ZZ]);
-            pdbatoms->pdbinfo[aid].uij[U12]     = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + YY]);
-            pdbatoms->pdbinfo[aid].uij[U13]     = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + ZZ]);
-            pdbatoms->pdbinfo[aid].uij[U23]     = static_cast<int>(1e6 * U[i][YY * gmx::c_dim + ZZ]);
+            pdbatoms->pdbinfo[aid].uij[U11] = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + XX]);
+            pdbatoms->pdbinfo[aid].uij[U22] = static_cast<int>(1e6 * U[i][YY * gmx::c_dim + YY]);
+            pdbatoms->pdbinfo[aid].uij[U33] = static_cast<int>(1e6 * U[i][ZZ * gmx::c_dim + ZZ]);
+            pdbatoms->pdbinfo[aid].uij[U12] = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + YY]);
+            pdbatoms->pdbinfo[aid].uij[U13] = static_cast<int>(1e6 * U[i][XX * gmx::c_dim + ZZ]);
+            pdbatoms->pdbinfo[aid].uij[U23] = static_cast<int>(1e6 * U[i][YY * gmx::c_dim + ZZ]);
         }
     }
     if (bRes)

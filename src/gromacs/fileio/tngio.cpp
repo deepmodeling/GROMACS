@@ -1390,7 +1390,8 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
                 {
                     convert_array_to_real_array(reinterpret_cast<char*>(values) + size * i * gmx::c_dim,
                                                 reinterpret_cast<real*>(fr->box[i]),
-                                                getDistanceScaleFactor(gmx_tng_input), 1, gmx::c_dim, datatype);
+                                                getDistanceScaleFactor(gmx_tng_input), 1,
+                                                gmx::c_dim, datatype);
                 }
                 fr->bBox = TRUE;
                 break;
@@ -1398,8 +1399,7 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
                 srenew(fr->x, fr->natoms);
                 convert_array_to_real_array(values, reinterpret_cast<real*>(fr->x),
                                             getDistanceScaleFactor(gmx_tng_input), fr->natoms,
-                                            gmx::c_dim,
-                                            datatype);
+                                            gmx::c_dim, datatype);
                 fr->bX = TRUE;
                 tng_util_frame_current_compression_get(input, blockId, &codecId, &prec);
                 /* This must be updated if/when more lossy compression methods are added */
@@ -1413,8 +1413,7 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
                 srenew(fr->v, fr->natoms);
                 convert_array_to_real_array(values, reinterpret_cast<real*>(fr->v),
                                             getDistanceScaleFactor(gmx_tng_input), fr->natoms,
-                                            gmx::c_dim,
-                                            datatype);
+                                            gmx::c_dim, datatype);
                 fr->bV = TRUE;
                 tng_util_frame_current_compression_get(input, blockId, &codecId, &prec);
                 /* This must be updated if/when more lossy compression methods are added */
@@ -1428,8 +1427,7 @@ gmx_bool gmx_read_next_tng_frame(gmx_tng_trajectory_t gmx_tng_input,
                 srenew(fr->f, fr->natoms);
                 convert_array_to_real_array(values, reinterpret_cast<real*>(fr->f),
                                             getDistanceScaleFactor(gmx_tng_input), fr->natoms,
-                                            gmx::c_dim,
-                                            datatype);
+                                            gmx::c_dim, datatype);
                 fr->bF = TRUE;
                 break;
             case TNG_GMX_LAMBDA:

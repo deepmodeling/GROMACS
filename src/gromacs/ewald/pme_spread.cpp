@@ -219,7 +219,7 @@ static void make_thread_local_ind(const PmeAtomComm* atc, int thread, splinedata
  */
 #define CALC_SPLINE(order)                                                                               \
     {                                                                                                    \
-        for (int j = 0; (j < gmx::c_dim); j++)                                                                  \
+        for (int j = 0; (j < gmx::c_dim); j++)                                                           \
         {                                                                                                \
             real dr, div;                                                                                \
             real data[PME_ORDER_MAX];                                                                    \

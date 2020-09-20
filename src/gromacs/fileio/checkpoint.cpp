@@ -854,7 +854,8 @@ static int doRealArrayRef(XDR* xd, StatePart part, int ecpt, int sflags, gmx::Ar
 //! Convert from view of RVec to view of real.
 static gmx::ArrayRef<real> realArrayRefFromRVecArrayRef(gmx::ArrayRef<gmx::RVec> ofRVecs)
 {
-    return gmx::arrayRefFromArray<real>(reinterpret_cast<real*>(ofRVecs.data()), ofRVecs.size() * gmx::c_dim);
+    return gmx::arrayRefFromArray<real>(reinterpret_cast<real*>(ofRVecs.data()),
+                                        ofRVecs.size() * gmx::c_dim);
 }
 
 //! \brief Read/Write a PaddedVector whose value_type is RVec.
@@ -945,9 +946,9 @@ static int do_cpte_matrix(XDR* xd, StatePart part, int ecpt, int sflags, matrix 
     real* vr;
     int   ret;
 
-    vr  = &(v[0][0]);
-    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, gmx::c_dim * gmx::c_dim, nullptr, &vr,
-                                                  nullptr, nullptr, CptElementType::matrix3x3);
+    vr = &(v[0][0]);
+    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, gmx::c_dim * gmx::c_dim, nullptr,
+                                                  &vr, nullptr, nullptr, CptElementType::matrix3x3);
 
     if (list && ret == 0)
     {
@@ -1029,8 +1030,9 @@ static int do_cpte_matrices(XDR* xd, StatePart part, int ecpt, int sflags, int n
             }
         }
     }
-    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags, nf * gmx::c_dim * gmx::c_dim, nullptr,
-                                                  &vr, nullptr, nullptr, CptElementType::matrix3x3);
+    ret = doVectorLow<real, std::allocator<real>>(xd, part, ecpt, sflags,
+                                                  nf * gmx::c_dim * gmx::c_dim, nullptr, &vr,
+                                                  nullptr, nullptr, CptElementType::matrix3x3);
     for (i = 0; i < nf; i++)
     {
         for (j = 0; j < gmx::c_dim; j++)

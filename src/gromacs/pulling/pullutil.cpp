@@ -1003,7 +1003,7 @@ void updatePrevStepPullCom(struct pull_t* pull, t_state* state)
         {
             for (int j = 0; j < gmx::c_dim; j++)
             {
-                pull->group[g].x_prev_step[j]          = pull->group[g].x[j];
+                pull->group[g].x_prev_step[j]                 = pull->group[g].x[j];
                 state->pull_com_prev_step[g * gmx::c_dim + j] = pull->group[g].x[j];
             }
         }
@@ -1114,7 +1114,8 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
         }
     }
 
-    pullAllReduce(cr, comm, ngroup * c_comBufferStride * gmx::c_dim, static_cast<double*>(comm->comBuffer[0]));
+    pullAllReduce(cr, comm, ngroup * c_comBufferStride * gmx::c_dim,
+                  static_cast<double*>(comm->comBuffer[0]));
 
     for (size_t g = 0; g < ngroup; g++)
     {

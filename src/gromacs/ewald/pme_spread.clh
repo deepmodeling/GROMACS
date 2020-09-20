@@ -173,7 +173,8 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
 #    define SPLINE_DATA_PTR(i) (splineDataPtr + ((i)*splineDataStride + splineDataIndex))
 #    define SPLINE_DATA(i) (*SPLINE_DATA_PTR(i))
 
-    const int localCheck = (dimIndex < gmx::c_dim) && (orderIndex < (PME_GPU_PARALLEL_SPLINE ? order : 1));
+    const int localCheck =
+            (dimIndex < gmx::c_dim) && (orderIndex < (PME_GPU_PARALLEL_SPLINE ? order : 1));
 
     if (localCheck)
     {

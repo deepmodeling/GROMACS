@@ -736,9 +736,9 @@ int gmx_traj(int argc, char* argv[])
         bCom = TRUE;
     }
 
-    bDim[XX]  = bX;
-    bDim[YY]  = bY;
-    bDim[ZZ]  = bZ;
+    bDim[XX]         = bX;
+    bDim[YY]         = bY;
+    bDim[ZZ]         = bZ;
     bDim[gmx::c_dim] = bNorm;
 
     if (bFP)
@@ -853,33 +853,33 @@ int gmx_traj(int argc, char* argv[])
     }
     if (bOT)
     {
-        bDum[XX]  = FALSE;
-        bDum[YY]  = FALSE;
-        bDum[ZZ]  = FALSE;
+        bDum[XX]         = FALSE;
+        bDum[YY]         = FALSE;
+        bDum[ZZ]         = FALSE;
         bDum[gmx::c_dim] = TRUE;
-        flags     = flags | TRX_READ_V;
-        outt      = xvgropen(opt2fn("-ot", NFILE, fnm), "Temperature", label, "(K)", oenv);
+        flags            = flags | TRX_READ_V;
+        outt             = xvgropen(opt2fn("-ot", NFILE, fnm), "Temperature", label, "(K)", oenv);
         make_legend(outt, ngroups, isize[0], index[0], grpname, bCom, bMol, bDum, oenv);
     }
     if (bEKT)
     {
-        bDum[XX]  = FALSE;
-        bDum[YY]  = FALSE;
-        bDum[ZZ]  = FALSE;
+        bDum[XX]         = FALSE;
+        bDum[YY]         = FALSE;
+        bDum[ZZ]         = FALSE;
         bDum[gmx::c_dim] = TRUE;
-        flags     = flags | TRX_READ_V;
-        outekt    = xvgropen(opt2fn("-ekt", NFILE, fnm), "Center of mass translation", label,
+        flags            = flags | TRX_READ_V;
+        outekt           = xvgropen(opt2fn("-ekt", NFILE, fnm), "Center of mass translation", label,
                           "Energy (kJ mol\\S-1\\N)", oenv);
         make_legend(outekt, ngroups, isize[0], index[0], grpname, bCom, bMol, bDum, oenv);
     }
     if (bEKR)
     {
-        bDum[XX]  = FALSE;
-        bDum[YY]  = FALSE;
-        bDum[ZZ]  = FALSE;
+        bDum[XX]         = FALSE;
+        bDum[YY]         = FALSE;
+        bDum[ZZ]         = FALSE;
         bDum[gmx::c_dim] = TRUE;
-        flags     = flags | TRX_READ_X | TRX_READ_V;
-        outekr    = xvgropen(opt2fn("-ekr", NFILE, fnm), "Center of mass rotation", label,
+        flags            = flags | TRX_READ_X | TRX_READ_V;
+        outekr           = xvgropen(opt2fn("-ekr", NFILE, fnm), "Center of mass rotation", label,
                           "Energy (kJ mol\\S-1\\N)", oenv);
         make_legend(outekr, ngroups, isize[0], index[0], grpname, bCom, bMol, bDum, oenv);
     }

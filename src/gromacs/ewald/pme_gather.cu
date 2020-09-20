@@ -309,8 +309,8 @@ __device__ __forceinline__ void sumForceComponents(float* __restrict__ fx,
  * Should be nullptr if two separate grids are used.
  */
 __device__ __forceinline__ void calculateAndStoreGridForces(float3* __restrict__ sm_forces,
-                                                            const int   forceIndexLocal,
-                                                            const int   forceIndexGlobal,
+                                                            const int forceIndexLocal,
+                                                            const int forceIndexGlobal,
                                                             const float recipBox[gmx::c_dim][gmx::c_dim],
                                                             const float scale,
                                                             const float* __restrict__ gm_coefficients)

@@ -837,7 +837,8 @@ void dd_redistribute_cg(FILE*         fplog,
                                 }
                             }
 
-                            GMX_ASSERT(dim2 >= 0 && dim2 < gmx::c_dim, "Keep the static analyzer happy");
+                            GMX_ASSERT(dim2 >= 0 && dim2 < gmx::c_dim,
+                                       "Keep the static analyzer happy");
 
                             /* Check if we need to move this group
                              * to an adjacent cell because of the

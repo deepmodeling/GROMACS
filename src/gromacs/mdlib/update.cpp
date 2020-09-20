@@ -1242,10 +1242,10 @@ void restore_ekinstate_from_state(const t_commrec* cr, gmx_ekindata_t* ekind, co
         gmx_bcast(sizeof(n), &n, cr->mpi_comm_mygroup);
         for (i = 0; i < n; i++)
         {
-            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinh[0][0]), ekind->tcstat[i].ekinh[0],
-                      cr->mpi_comm_mygroup);
-            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinf[0][0]), ekind->tcstat[i].ekinf[0],
-                      cr->mpi_comm_mygroup);
+            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinh[0][0]),
+                      ekind->tcstat[i].ekinh[0], cr->mpi_comm_mygroup);
+            gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinf[0][0]),
+                      ekind->tcstat[i].ekinf[0], cr->mpi_comm_mygroup);
             gmx_bcast(c_dim * c_dim * sizeof(ekind->tcstat[i].ekinh_old[0][0]),
                       ekind->tcstat[i].ekinh_old[0], cr->mpi_comm_mygroup);
 

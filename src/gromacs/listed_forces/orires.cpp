@@ -374,8 +374,9 @@ void print_orires_log(FILE* log, t_oriresdata* od)
         fprintf(log, "    order parameter: %g\n", eig[0]);
         for (int i = 0; i < gmx::c_dim; i++)
         {
-            fprintf(log, "    eig: %6.3f   %6.3f %6.3f %6.3f\n", (eig[0] != 0) ? eig[i] / eig[0] : eig[i],
-                    eig[gmx::c_dim + i * gmx::c_dim + XX], eig[gmx::c_dim + i * gmx::c_dim + YY], eig[gmx::c_dim + i * gmx::c_dim + ZZ]);
+            fprintf(log, "    eig: %6.3f   %6.3f %6.3f %6.3f\n",
+                    (eig[0] != 0) ? eig[i] / eig[0] : eig[i], eig[gmx::c_dim + i * gmx::c_dim + XX],
+                    eig[gmx::c_dim + i * gmx::c_dim + YY], eig[gmx::c_dim + i * gmx::c_dim + ZZ]);
         }
         fprintf(log, "\n");
     }

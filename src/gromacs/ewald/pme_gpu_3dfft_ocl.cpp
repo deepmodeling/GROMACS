@@ -88,11 +88,13 @@ GpuParallel3dFft::GpuParallel3dFft(const PmeGpu* pmeGpu, const int gridIndex)
 
 
     // clFFT expects row-major, so dimensions/strides are reversed (ZYX instead of XYZ)
-    std::array<size_t, gmx::c_dim> realGridDimensions = { realGridSize[ZZ], realGridSize[YY], realGridSize[XX] };
+    std::array<size_t, gmx::c_dim> realGridDimensions = { realGridSize[ZZ], realGridSize[YY],
+                                                          realGridSize[XX] };
     std::array<size_t, gmx::c_dim> realGridStrides    = { 1, realGridSizePadded[ZZ],
-                                                realGridSizePadded[YY] * realGridSizePadded[ZZ] };
-    std::array<size_t, gmx::c_dim> complexGridStrides = { 1, complexGridSizePadded[ZZ],
-                                                   complexGridSizePadded[YY] * complexGridSizePadded[ZZ] };
+                                                       realGridSizePadded[YY] * realGridSizePadded[ZZ] };
+    std::array<size_t, gmx::c_dim> complexGridStrides = {
+        1, complexGridSizePadded[ZZ], complexGridSizePadded[YY] * complexGridSizePadded[ZZ]
+    };
 
     constexpr clfftDim dims = CLFFT_3D;
     handleClfftError(clfftCreateDefaultPlan(&planR2C_, context, dims, realGridDimensions.data()),

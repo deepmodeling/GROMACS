@@ -1202,7 +1202,8 @@ static void setup_neighbor_relations(gmx_domdec_t* dd)
     int                 d, dim, m;
     ivec                tmp, s;
     gmx_domdec_zones_t* zones;
-    GMX_ASSERT((dd->ndim >= 0) && (dd->ndim <= gmx::c_dim), "Must have valid number of dimensions for DD");
+    GMX_ASSERT((dd->ndim >= 0) && (dd->ndim <= gmx::c_dim),
+               "Must have valid number of dimensions for DD");
 
     for (d = 0; d < dd->ndim; d++)
     {
@@ -1329,8 +1330,8 @@ static void make_pp_communicator(const gmx::MDLogger& mdlog,
             periods[i] = TRUE;
         }
         MPI_Comm comm_cart;
-        MPI_Cart_create(cr->mpi_comm_mygroup, gmx::c_dim, dd->numCells, periods, static_cast<int>(reorder),
-                        &comm_cart);
+        MPI_Cart_create(cr->mpi_comm_mygroup, gmx::c_dim, dd->numCells, periods,
+                        static_cast<int>(reorder), &comm_cart);
         /* We overwrite the old communicator with the new cartesian one */
         cr->mpi_comm_mygroup = comm_cart;
     }
@@ -1521,8 +1522,8 @@ static CartesianRankSetup split_communicator(const gmx::MDLogger& mdlog,
             periods[i] = TRUE;
         }
         MPI_Comm comm_cart;
-        MPI_Cart_create(cr->mpi_comm_mysim, gmx::c_dim, cartSetup.ntot, periods, static_cast<int>(reorder),
-                        &comm_cart);
+        MPI_Cart_create(cr->mpi_comm_mysim, gmx::c_dim, cartSetup.ntot, periods,
+                        static_cast<int>(reorder), &comm_cart);
         MPI_Comm_rank(comm_cart, &rank);
         if (MASTER(cr) && rank != 0)
         {

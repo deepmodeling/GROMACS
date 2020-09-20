@@ -93,7 +93,7 @@ static void calc_pos_av_stddev(gmx::ArrayRef<const gmx::RVec> x, rvec av, rvec s
 
         for (int d = 0; d < gmx::c_dim; d++)
         {
-            sendBuffer[d]       = s1[d];
+            sendBuffer[d]              = s1[d];
             sendBuffer[gmx::c_dim + d] = s2[d];
         }
         sendBuffer[6] = numAtoms;

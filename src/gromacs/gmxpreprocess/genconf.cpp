@@ -59,10 +59,10 @@
 static void
 rand_rot(int natoms, rvec x[], rvec v[], vec4 xrot[], vec4 vrot[], gmx::DefaultRandomEngine* rng, const rvec max_rot)
 {
-    mat4                               mt1, mt2, mr[gmx::c_dim], mtemp1, mtemp2, mtemp3, mxtot, mvtot;
-    rvec                               xcm;
-    real                               phi;
-    int                                i, m;
+    mat4 mt1, mt2, mr[gmx::c_dim], mtemp1, mtemp2, mtemp3, mxtot, mvtot;
+    rvec xcm;
+    real phi;
+    int  i, m;
     gmx::UniformRealDistribution<real> dist(-1.0, 1.0);
 
     clear_rvec(xcm);

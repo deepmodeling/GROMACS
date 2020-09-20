@@ -517,7 +517,8 @@ static void boxv_trotter(const t_inputrec*     ir,
     pscal = calc_pres(ir->pbcType, nwall, box, ekinmod, vir, localpres) + pcorr;
 
     vol = det(box);
-    GW  = (vol * (MassQ->Winv / PRESFAC)) * (gmx::c_dim * pscal - trace(ir->ref_p)); /* W is in ps^2 * bar * nm^3 */
+    GW  = (vol * (MassQ->Winv / PRESFAC))
+         * (gmx::c_dim * pscal - trace(ir->ref_p)); /* W is in ps^2 * bar * nm^3 */
 
     *veta += 0.5 * dt * GW;
 }
@@ -844,7 +845,8 @@ void berendsen_pcoupl(FILE*             fplog,
             {
                 for (n = 0; n < gmx::c_dim; n++)
                 {
-                    mu[d][n] = (d == n ? 1.0 : 0.0) - factor(d, n) * (ir->ref_p[d][n] - pres[d][n]) / gmx::c_dim;
+                    mu[d][n] = (d == n ? 1.0 : 0.0)
+                               - factor(d, n) * (ir->ref_p[d][n] - pres[d][n]) / gmx::c_dim;
                 }
             }
             break;
@@ -1480,7 +1482,8 @@ init_npt_vars(const t_inputrec* ir, t_state* state, t_extmass* MassQ, gmx_bool b
     switch (ir->epct)
     {
         case epctISOTROPIC:
-        default: bmass = gmx::c_dim * gmx::c_dim; /* recommended mass parameters for isotropic barostat */
+        default:
+            bmass = gmx::c_dim * gmx::c_dim; /* recommended mass parameters for isotropic barostat */
     }
 
     MassQ->QPinv.resize(nnhpres * opts->nhchainlength);

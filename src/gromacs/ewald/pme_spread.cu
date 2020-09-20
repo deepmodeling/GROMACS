@@ -263,10 +263,11 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
          * as in after running the spline kernel)
          */
         /* Spline data - only thetas (dthetas will only be needed in gather) */
-        pme_gpu_stage_atom_data<float, atomsPerBlock, gmx::c_dim * order>(sm_theta, kernelParams.atoms.d_theta);
+        pme_gpu_stage_atom_data<float, atomsPerBlock, gmx::c_dim * order>(
+                sm_theta, kernelParams.atoms.d_theta);
         /* Gridline indices */
-        pme_gpu_stage_atom_data<int, atomsPerBlock, gmx::c_dim>(sm_gridlineIndices,
-                                                         kernelParams.atoms.d_gridlineIndices);
+        pme_gpu_stage_atom_data<int, atomsPerBlock, gmx::c_dim>(
+                sm_gridlineIndices, kernelParams.atoms.d_gridlineIndices);
 
         __syncthreads();
     }

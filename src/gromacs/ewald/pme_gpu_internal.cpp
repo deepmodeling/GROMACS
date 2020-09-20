@@ -175,8 +175,8 @@ void pme_gpu_realloc_and_copy_bspline_values(PmeGpu* pmeGpu, const int gridIndex
                "Invalid combination of gridIndex and number of grids");
 
     const int splineValuesOffset[gmx::c_dim] = { 0, pmeGpu->kernelParams->grid.realGridSize[XX],
-                                          pmeGpu->kernelParams->grid.realGridSize[XX]
-                                                  + pmeGpu->kernelParams->grid.realGridSize[YY] };
+                                                 pmeGpu->kernelParams->grid.realGridSize[XX]
+                                                         + pmeGpu->kernelParams->grid.realGridSize[YY] };
     memcpy(&pmeGpu->kernelParams->grid.splineValuesOffset, &splineValuesOffset, sizeof(splineValuesOffset));
 
     const int newSplineValuesSize = pmeGpu->kernelParams->grid.realGridSize[XX]
@@ -235,8 +235,8 @@ void pme_gpu_copy_input_forces(PmeGpu* pmeGpu)
     GMX_ASSERT(pmeGpu->kernelParams->atoms.nAtoms > 0, "Bad number of atoms in PME GPU");
     float* h_forcesFloat = reinterpret_cast<float*>(pmeGpu->staging.h_forces.data());
     copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_forces, h_forcesFloat, 0,
-                       gmx::c_dim * pmeGpu->kernelParams->atoms.nAtoms, pmeGpu->archSpecific->pmeStream_,
-                       pmeGpu->settings.transferKind, nullptr);
+                       gmx::c_dim * pmeGpu->kernelParams->atoms.nAtoms,
+                       pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
 }
 
 void pme_gpu_copy_output_forces(PmeGpu* pmeGpu)
@@ -244,8 +244,8 @@ void pme_gpu_copy_output_forces(PmeGpu* pmeGpu)
     GMX_ASSERT(pmeGpu->kernelParams->atoms.nAtoms > 0, "Bad number of atoms in PME GPU");
     float* h_forcesFloat = reinterpret_cast<float*>(pmeGpu->staging.h_forces.data());
     copyFromDeviceBuffer(h_forcesFloat, &pmeGpu->kernelParams->atoms.d_forces, 0,
-                         gmx::c_dim * pmeGpu->kernelParams->atoms.nAtoms, pmeGpu->archSpecific->pmeStream_,
-                         pmeGpu->settings.transferKind, nullptr);
+                         gmx::c_dim * pmeGpu->kernelParams->atoms.nAtoms,
+                         pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
 }
 
 void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu,
@@ -400,10 +400,10 @@ void pme_gpu_realloc_and_copy_fract_shifts(PmeGpu* pmeGpu)
 
     auto* kernelParamsPtr = pmeGpu->kernelParams.get();
 
-    const int nx                  = kernelParamsPtr->grid.realGridSize[XX];
-    const int ny                  = kernelParamsPtr->grid.realGridSize[YY];
-    const int nz                  = kernelParamsPtr->grid.realGridSize[ZZ];
-    const int cellCount           = c_pmeNeighborUnitcellCount;
+    const int nx                         = kernelParamsPtr->grid.realGridSize[XX];
+    const int ny                         = kernelParamsPtr->grid.realGridSize[YY];
+    const int nz                         = kernelParamsPtr->grid.realGridSize[ZZ];
+    const int cellCount                  = c_pmeNeighborUnitcellCount;
     const int gridDataOffset[gmx::c_dim] = { 0, cellCount * nx, cellCount * (nx + ny) };
 
     memcpy(kernelParamsPtr->grid.tablesOffsets, &gridDataOffset, sizeof(gridDataOffset));
@@ -462,8 +462,8 @@ void pme_gpu_copy_output_spread_atom_data(const PmeGpu* pmeGpu)
     copyFromDeviceBuffer(pmeGpu->staging.h_theta, &kernelParamsPtr->atoms.d_theta, 0, splinesCount,
                          pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
     copyFromDeviceBuffer(pmeGpu->staging.h_gridlineIndices, &kernelParamsPtr->atoms.d_gridlineIndices,
-                         0, kernelParamsPtr->atoms.nAtoms * gmx::c_dim, pmeGpu->archSpecific->pmeStream_,
-                         pmeGpu->settings.transferKind, nullptr);
+                         0, kernelParamsPtr->atoms.nAtoms * gmx::c_dim,
+                         pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
 }
 
 void pme_gpu_copy_input_gather_atom_data(const PmeGpu* pmeGpu)
@@ -472,8 +472,8 @@ void pme_gpu_copy_input_gather_atom_data(const PmeGpu* pmeGpu)
     auto*        kernelParamsPtr = pmeGpu->kernelParams.get();
 
     // TODO: could clear only the padding and not the whole thing, but this is a test-exclusive code anyway
-    clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_gridlineIndices, 0, pmeGpu->nAtomsAlloc * gmx::c_dim,
-                           pmeGpu->archSpecific->pmeStream_);
+    clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_gridlineIndices, 0,
+                           pmeGpu->nAtomsAlloc * gmx::c_dim, pmeGpu->archSpecific->pmeStream_);
     clearDeviceBufferAsync(&kernelParamsPtr->atoms.d_dtheta, 0,
                            pmeGpu->nAtomsAlloc * pmeGpu->common->pme_order * gmx::c_dim,
                            pmeGpu->archSpecific->pmeStream_);
@@ -486,8 +486,8 @@ void pme_gpu_copy_input_gather_atom_data(const PmeGpu* pmeGpu)
     copyToDeviceBuffer(&kernelParamsPtr->atoms.d_theta, pmeGpu->staging.h_theta, 0, splinesCount,
                        pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
     copyToDeviceBuffer(&kernelParamsPtr->atoms.d_gridlineIndices, pmeGpu->staging.h_gridlineIndices,
-                       0, kernelParamsPtr->atoms.nAtoms * gmx::c_dim, pmeGpu->archSpecific->pmeStream_,
-                       pmeGpu->settings.transferKind, nullptr);
+                       0, kernelParamsPtr->atoms.nAtoms * gmx::c_dim,
+                       pmeGpu->archSpecific->pmeStream_, pmeGpu->settings.transferKind, nullptr);
 }
 
 void pme_gpu_sync_spread_grid(const PmeGpu* pmeGpu)
@@ -650,9 +650,10 @@ void pme_gpu_update_input_box(PmeGpu gmx_unused* pmeGpu, const matrix gmx_unused
      * Spread uses matrix columns (while solve and gather use rows).
      * There is no particular reason for this; it might be further rethought/optimized for better access patterns.
      */
-    const real newRecipBox[gmx::c_dim][gmx::c_dim] = { { recipBox[XX][XX], recipBox[YY][XX], recipBox[ZZ][XX] },
-                                         { 0.0, recipBox[YY][YY], recipBox[ZZ][YY] },
-                                         { 0.0, 0.0, recipBox[ZZ][ZZ] } };
+    const real newRecipBox[gmx::c_dim][gmx::c_dim] = { { recipBox[XX][XX], recipBox[YY][XX],
+                                                         recipBox[ZZ][XX] },
+                                                       { 0.0, recipBox[YY][YY], recipBox[ZZ][YY] },
+                                                       { 0.0, 0.0, recipBox[ZZ][ZZ] } };
     memcpy(kernelParamsPtr->current.recipBox, newRecipBox, sizeof(matrix));
 #endif
 }

@@ -288,13 +288,13 @@ struct pmegrid_t
 /*! \brief Data structures for PME grids */
 struct pmegrids_t
 {
-    pmegrid_t  grid;         /* The full node grid (non thread-local)            */
-    int        nthread;      /* The number of threads operating on this grid     */
-    ivec       nc;           /* The local spatial decomposition over the threads */
-    pmegrid_t* grid_th;      /* Array of grids for each thread                   */
-    real*      grid_all;     /* Allocated array for the grids in *grid_th        */
-    int*       g2t[gmx::c_dim];     /* The grid to thread index                         */
-    ivec       nthread_comm; /* The number of threads to communicate with        */
+    pmegrid_t  grid;            /* The full node grid (non thread-local)            */
+    int        nthread;         /* The number of threads operating on this grid     */
+    ivec       nc;              /* The local spatial decomposition over the threads */
+    pmegrid_t* grid_th;         /* Array of grids for each thread                   */
+    real*      grid_all;        /* Allocated array for the grids in *grid_th        */
+    int*       g2t[gmx::c_dim]; /* The grid to thread index                         */
+    ivec       nthread_comm;    /* The number of threads to communicate with        */
 };
 
 /*! \brief Data structure for spline-interpolation working buffers */
