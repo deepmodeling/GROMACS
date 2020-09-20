@@ -64,7 +64,7 @@ int xdr3drcoord(XDR* xdrs, real* fp, int* size, real* precision)
     float  fprec;
     int    i, ret, isize;
 
-    isize = *size * c_dim;
+    isize = *size * gmx::c_dim;
     if (isize <= 0)
     {
         gmx_fatal(FARGS, "Don't know what to malloc for ffp, isize = %d", isize);

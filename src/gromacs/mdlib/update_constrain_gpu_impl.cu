@@ -92,7 +92,7 @@ __launch_bounds__(c_maxThreadsPerBlock) __global__
                                             float3* __restrict__ gm_x,
                                             const ScalingMatrix scalingMatrix)
 {
-    int threadIndex = blockIdx.x * blockc_dim.x + threadIdx.x;
+    int threadIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if (threadIndex < numAtoms)
     {
         float3 x = gm_x[threadIndex];
