@@ -73,7 +73,7 @@ class FreeEnergyReferenceTest :
     public ::testing::WithParamInterface<FreeEnergyReferenceTestParams>
 {
 public:
-    struct PrintToStringParamName
+    struct PrintParametersToString
     {
         template<class ParamType>
         std::string operator()(const testing::TestParamInfo<ParamType>& parameter) const
@@ -139,8 +139,7 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     // Check that the energies agree with the refdata within tolerance.
     checkEnergiesAgainstReferenceData(simulationEdrFileName, energyTermsToCompare, &rootChecker);
     // Check that the trajectories agree with the refdata within tolerance (only first frame).
-    checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison,
-                                        &rootChecker, MaxNumTrajectoryFrames(1));
+    checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison, &rootChecker);
 }
 
 // TODO: The time for OpenCL kernel compilation means these tests time
@@ -163,7 +162,7 @@ INSTANTIATE_TEST_CASE_P(
                 FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0), GMX_DOUBLE },
                 FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0), GMX_DOUBLE },
                 FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0), GMX_DOUBLE }),
-        FreeEnergyReferenceTest::PrintToStringParamName());
+        FreeEnergyReferenceTest::PrintParametersToString());
 #else
 INSTANTIATE_TEST_CASE_P(
         DISABLED_FreeEnergyCalculationsAreEquivalentToReference,
