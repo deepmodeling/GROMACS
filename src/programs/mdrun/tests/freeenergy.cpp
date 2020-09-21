@@ -139,7 +139,16 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     // Check that the energies agree with the refdata within tolerance.
     checkEnergiesAgainstReferenceData(simulationEdrFileName, energyTermsToCompare, &rootChecker);
     // Check that the trajectories agree with the refdata within tolerance.
-    checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison, &rootChecker);
+    if constexpr (GMX_DOUBLE)
+    {
+        checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison, &rootChecker);
+    }
+    else
+    {
+        // Test only first frame in single precision
+        checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison,
+                                            &rootChecker, MaxNumTrajectoryFrames(1));
+    }
 }
 
 // TODO: The time for OpenCL kernel compilation means these tests time

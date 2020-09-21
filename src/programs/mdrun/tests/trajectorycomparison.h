@@ -147,16 +147,35 @@ public:
     TrajectoryTolerances tolerances_;
 };
 
+//! Named struct indicating the max number of frames to be compared
+struct MaxNumTrajectoryFrames
+{
+    //! Explicit constructor
+    explicit MaxNumTrajectoryFrames(unsigned int maxFrame) : maxFrame_(maxFrame) {}
+
+    //! Implicit conversion to int - struct can be used like underlying type
+    operator unsigned int() const { return maxFrame_; }
+
+private:
+    //! Internal value
+    const unsigned int maxFrame_;
+};
+
 /*! \internal
  * \brief Helper function comparing a trajectory to reference.
  *
  * This opens a trajectory file, loops over its frames, and uses the
  * \c trajectoryComparison and \c checker arguments to check each frame
  * to reference data.
+ *
+ * Optionally, the max number of trajectory frames to be compared can
+ * be specified to allow to only test the first few frames of a
+ * simulation, e.g. to avoid failures due to numerical divergence.
  */
 void checkTrajectoryAgainstReferenceData(const std::string&          trajectoryFilename,
                                          const TrajectoryComparison& trajectoryComparison,
-                                         TestReferenceChecker*       checker);
+                                         TestReferenceChecker*       checker,
+                                         std::optional<MaxNumTrajectoryFrames> maxNumTrajectoryFrames = std::nullopt);
 
 } // namespace test
 } // namespace gmx
