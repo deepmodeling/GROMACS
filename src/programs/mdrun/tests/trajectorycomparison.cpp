@@ -403,26 +403,16 @@ void TrajectoryComparison::operator()(const TrajectoryFrame& frame, TestReferenc
     checkForcesAgainstReference(frame, matchSettings_, tolerances_, checker);
 }
 
-void checkTrajectoryAgainstReferenceData(const std::string&                    trajectoryFilename,
-                                         const TrajectoryComparison&           trajectoryComparison,
-                                         TestReferenceChecker*                 checker,
-                                         std::optional<MaxNumTrajectoryFrames> maxNumTrajectoryFrames)
+void checkTrajectoryAgainstReferenceData(const std::string&          trajectoryFilename,
+                                         const TrajectoryComparison& trajectoryComparison,
+                                         TestReferenceChecker*       checker)
 {
-    // If max number of frames defined, use it. Otherwise, take a very large number.
-    const int maxFrames = maxNumTrajectoryFrames ? maxNumTrajectoryFrames.value() : UINT32_MAX;
-    if (maxFrames <= 0)
-    {
-        return;
-    }
-
     TrajectoryFrameReader reader(trajectoryFilename);
-    int                   counter = 0;
     do
     {
         auto frame = reader.frame();
         trajectoryComparison(frame, checker);
-        counter++;
-    } while (reader.readNextFrame() && counter < maxFrames);
+    } while (reader.readNextFrame());
 }
 
 } // namespace test

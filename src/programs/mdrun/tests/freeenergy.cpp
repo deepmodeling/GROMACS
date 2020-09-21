@@ -138,7 +138,7 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     TestReferenceChecker rootChecker(refData.rootChecker());
     // Check that the energies agree with the refdata within tolerance.
     checkEnergiesAgainstReferenceData(simulationEdrFileName, energyTermsToCompare, &rootChecker);
-    // Check that the trajectories agree with the refdata within tolerance (only first frame).
+    // Check that the trajectories agree with the refdata within tolerance.
     checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison, &rootChecker);
 }
 
