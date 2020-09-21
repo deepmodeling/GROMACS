@@ -97,12 +97,13 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
 
     // TODO: These are the legacy regression test tolerances. Think about them and justify them!
     const auto defaultRegressionEnergyTolerance = relativeToleranceAsFloatingPoint(50.0, 0.001);
-    const auto gmx_unused defaultRegressionVirialTolerance = relativeToleranceAsFloatingPoint(10.0, 0.01);
+    const auto defaultRegressionVirialTolerance = relativeToleranceAsFloatingPoint(10.0, 0.01);
 
     // TODO: Regression tests only test Epot. Add other energy terms to be tested here.
-    EnergyTermsToCompare energyTermsToCompare{ {
-            { interaction_function[F_EPOT].longname, defaultRegressionEnergyTolerance },
-    } };
+    EnergyTermsToCompare energyTermsToCompare{
+        { { interaction_function[F_EPOT].longname, defaultRegressionEnergyTolerance },
+          { interaction_function[F_PRES].longname, defaultRegressionVirialTolerance } }
+    };
 
     // TODO: Regression tests only tests forces. Add checks for rest of trajectory here.
     // Specify how trajectory frame matching must work.
