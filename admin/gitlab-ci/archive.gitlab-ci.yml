@@ -263,10 +263,13 @@ archive:nightly-webpage:
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
     - ssh-keyscan www.gromacs.org > ~/.ssh/known_hosts # Force overwrite the known hosts so we only have that one key in it.
+    - ssh-keyscan ftp.gromacs.org >> ~/.ssh/known_hosts
     - chmod 644 ~/.ssh/known_hosts
   script:
     - tar czf webpage.tar.gz $BUILD_DIR/docs/html/
     - rsync -avP --chmod=u+rwX,g+rwX,o+rX -av $BUILD_DIR/docs/html/* $BUILD_DIR/docs/html/.[a-z]* pbauer@www.gromacs.org:/var/www/manual/nightly/
+    - rsync -avP --chmod=u+rwX,g+rwX,o+rX -a gromacs-*tar.gz pbauer@ftp.gromacs.org:/srv/ftp/gromacs/
+    - rsync -avP --chmod=u+rwX,g+rwX,o+rX -a regressiontests-*tar.gz pbauer@ftp.gromacs.org:/srv/ftp/regressiontests/
 
   artifacts:
     when: always
