@@ -207,7 +207,7 @@ Awh::Awh(FILE*                 fplog,
                                   "biases is only supported between simulations"));
     }
 
-    if (awhParams.shareBiasMultisim)
+    if (awhParams.shareBiasMultisim && multiSimRecord != nullptr)
     {
         GMX_RELEASE_ASSERT(commRecord, "Need a valid commRecord");
         biasSharing_ = std::make_unique<BiasSharing>(awhParams, *commRecord, multiSimRecord->mastersComm_);
