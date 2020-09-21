@@ -67,11 +67,23 @@ namespace
  * have been verified manually to ensure physical correctness.
  */
 using MaxNumWarnings                = int;
-using FreeEnergyReferenceTestParams = std::tuple<std::string, MaxNumWarnings>;
+using FreeEnergyReferenceTestParams = std::tuple<std::string, MaxNumWarnings, bool>;
 class FreeEnergyReferenceTest :
     public MdrunTestFixture,
     public ::testing::WithParamInterface<FreeEnergyReferenceTestParams>
 {
+public:
+    struct PrintToStringParamName
+    {
+        template<class ParamType>
+        std::string operator()(const testing::TestParamInfo<ParamType>& parameter) const
+        {
+            auto simulationName = std::get<0>(parameter.param);
+            std::replace(simulationName.begin(), simulationName.end(), '-', '_');
+            const auto isDouble = std::get<2>(parameter.param);
+            return simulationName + (isDouble ? "_d" : "_s");
+        }
+    };
 };
 
 TEST_P(FreeEnergyReferenceTest, WithinTolerances)
@@ -139,35 +151,36 @@ INSTANTIATE_TEST_CASE_P(
         FreeEnergyCalculationsAreEquivalentToReference,
         FreeEnergyReferenceTest,
         ::testing::Values(
-                FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(0), GMX_DOUBLE },
                 // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
-                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(10) },
+                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(10), GMX_DOUBLE },
                 // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
-                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(10) },
-                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0) }));
+                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(10), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0), GMX_DOUBLE }),
+        FreeEnergyReferenceTest::PrintToStringParamName());
 #else
 INSTANTIATE_TEST_CASE_P(
         DISABLED_FreeEnergyCalculationsAreEquivalentToReference,
         FreeEnergyReferenceTest,
         ::testing::Values(
-                FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(0) },
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_coul", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "coulandvdwsequential_vdw", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "coulandvdwtogether", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "expanded", MaxNumWarnings(0), GMX_DOUBLE },
                 // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
-                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(10) },
+                FreeEnergyReferenceTestParams{ "relative", MaxNumWarnings(10), GMX_DOUBLE },
                 // Tolerated warnings: No default bonded interaction types for perturbed atoms (10x)
-                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(10) },
-                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0) },
-                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0) }));
+                FreeEnergyReferenceTestParams{ "relative-position-restraints", MaxNumWarnings(10), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0), GMX_DOUBLE },
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0), GMX_DOUBLE }));
 #endif
 
 } // namespace
