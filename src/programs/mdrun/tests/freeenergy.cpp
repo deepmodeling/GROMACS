@@ -97,7 +97,9 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
 
     // TODO: These are the legacy regression test tolerances. Think about them and justify them!
     const auto defaultRegressionEnergyTolerance = relativeToleranceAsFloatingPoint(50.0, 0.001);
-    const auto defaultRegressionVirialTolerance = relativeToleranceAsFloatingPoint(10.0, 0.01);
+    const auto defaultRegressionVirialTolerance =
+            GMX_DOUBLE ? relativeToleranceAsFloatingPoint(10.0, 0.01)
+                       : relativeToleranceAsFloatingPoint(10.0, 0.02);
 
     // TODO: Regression tests only test Epot. Add other energy terms to be tested here.
     EnergyTermsToCompare energyTermsToCompare{
@@ -133,19 +135,27 @@ TEST_P(FreeEnergyReferenceTest, WithinTolerances)
     runner_.edrFileName_                     = simulationEdrFileName;
     runMdrun(&runner_);
 
+    // Currently used tests write trajectory (x/v/f) frames every 20 steps.
+    // Testing more than the first force frame is only feasible in double precision
+    // using a single rank.
+    // Note that this only concerns trajectory frames, energy frames are checked
+    // in all cases.
+    const bool testAllTrajectoryFrames   = (GMX_DOUBLE && (getNumberOfTestMpiRanks() == 1));
+    const bool ignoreUnusedReferenceData = (GMX_DOUBLE && !testAllTrajectoryFrames);
+
     // Compare simulation results
-    TestReferenceData    refData;
+    TestReferenceData    refData(ignoreUnusedReferenceData ? IgnoreUnusedReferenceData::Yes
+                                                        : IgnoreUnusedReferenceData::No);
     TestReferenceChecker rootChecker(refData.rootChecker());
     // Check that the energies agree with the refdata within tolerance.
     checkEnergiesAgainstReferenceData(simulationEdrFileName, energyTermsToCompare, &rootChecker);
     // Check that the trajectories agree with the refdata within tolerance.
-    if constexpr (GMX_DOUBLE)
+    if (testAllTrajectoryFrames)
     {
         checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison, &rootChecker);
     }
     else
     {
-        // Test only first frame in single precision
         checkTrajectoryAgainstReferenceData(simulationTrajectoryFileName, trajectoryComparison,
                                             &rootChecker, MaxNumTrajectoryFrames(1));
     }

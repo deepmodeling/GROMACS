@@ -91,7 +91,9 @@ class TestReferenceDataImpl
 {
 public:
     //! Initializes a checker in the given mode.
-    TestReferenceDataImpl(ReferenceDataMode mode, bool bSelfTestMode);
+    TestReferenceDataImpl(ReferenceDataMode         mode,
+                          bool                      bSelfTestMode,
+                          IgnoreUnusedReferenceData ignoreUnusedReferenceData);
 
     //! Performs final reference data processing when test ends.
     void onTestEnd(bool testPassed);
@@ -130,6 +132,8 @@ public:
      * Whether any reference checkers have been created for this data.
      */
     bool bInUse_;
+    //! Whether unused reference data results in test failure.
+    const bool ignoreUnusedReferenceData_;
 };
 
 } // namespace internal
@@ -163,10 +167,11 @@ ReferenceDataMode getReferenceDataMode()
 }
 
 //! Returns a reference to the global reference data object.
-TestReferenceDataImplPointer initReferenceDataInstance()
+TestReferenceDataImplPointer initReferenceDataInstance(IgnoreUnusedReferenceData ignoreUnusedReferenceData)
 {
     GMX_RELEASE_ASSERT(!g_referenceData, "Test cannot create multiple TestReferenceData instances");
-    g_referenceData.reset(new internal::TestReferenceDataImpl(getReferenceDataMode(), false));
+    g_referenceData.reset(new internal::TestReferenceDataImpl(getReferenceDataMode(), false,
+                                                              ignoreUnusedReferenceData));
     return g_referenceData;
 }
 
@@ -180,7 +185,7 @@ TestReferenceDataImplPointer initReferenceDataInstanceForSelfTest(ReferenceDataM
         g_referenceData->onTestEnd(true);
         g_referenceData.reset();
     }
-    g_referenceData.reset(new internal::TestReferenceDataImpl(mode, true));
+    g_referenceData.reset(new internal::TestReferenceDataImpl(mode, true, IgnoreUnusedReferenceData::No));
     return g_referenceData;
 }
 
@@ -285,10 +290,13 @@ void initReferenceData(IOptionsContainer* options)
 namespace internal
 {
 
-TestReferenceDataImpl::TestReferenceDataImpl(ReferenceDataMode mode, bool bSelfTestMode) :
+TestReferenceDataImpl::TestReferenceDataImpl(ReferenceDataMode         mode,
+                                             bool                      bSelfTestMode,
+                                             IgnoreUnusedReferenceData ignoreUnusedReferenceData) :
     updateMismatchingEntries_(false),
     bSelfTestMode_(bSelfTestMode),
-    bInUse_(false)
+    bInUse_(false),
+    ignoreUnusedReferenceData_(ignoreUnusedReferenceData == IgnoreUnusedReferenceData::Yes)
 {
     const std::string dirname = bSelfTestMode ? TestFileManager::getGlobalOutputTempDirectory()
                                               : TestFileManager::getInputDataDirectory();
@@ -356,7 +364,7 @@ void TestReferenceDataImpl::onTestEnd(bool testPassed)
             writeReferenceDataFile(fullFilename_, *outputRootEntry_);
         }
     }
-    else if (compareRootEntry_)
+    else if (compareRootEntry_ && !ignoreUnusedReferenceData_)
     {
         checkUnusedEntries(*compareRootEntry_, "");
     }
@@ -678,7 +686,10 @@ ReferenceDataEntry* TestReferenceChecker::Impl::findOrCreateEntry(const char* ty
  * TestReferenceData
  */
 
-TestReferenceData::TestReferenceData() : impl_(initReferenceDataInstance()) {}
+TestReferenceData::TestReferenceData(IgnoreUnusedReferenceData ignoreUnusedReferenceData) :
+    impl_(initReferenceDataInstance(ignoreUnusedReferenceData))
+{
+}
 
 
 TestReferenceData::TestReferenceData(ReferenceDataMode mode) :

@@ -108,6 +108,20 @@ enum class ReferenceDataMode : int
     Count
 };
 
+/*! \libinternal
+ * \brief Whether unused reference data results in test failure.
+ *
+ * If IgnoreUnusedReferenceData::Yes, don't consider additional reference
+ * data as a test failure. This is useful to allow comparison of only the
+ * first part of a longer reference simulation.
+ */
+enum class IgnoreUnusedReferenceData : int
+{
+    No,   //!< Consider additional reference data a test failure
+    Yes,  //!< Don't consider additional reference data a test failure
+    Count //!< The number of enum entries
+};
+
 /*! \libinternal \brief
  * Initializes reference data handling.
  *
@@ -190,7 +204,7 @@ public:
     /*! \brief
      * Initializes the reference data in the global mode.
      */
-    TestReferenceData();
+    explicit TestReferenceData(IgnoreUnusedReferenceData ignoreUnusedReferenceData = IgnoreUnusedReferenceData::No);
     /*! \brief
      * Initializes the reference data in a specific mode.
      *
