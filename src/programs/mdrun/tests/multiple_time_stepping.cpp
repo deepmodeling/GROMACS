@@ -65,23 +65,33 @@ namespace
  * scheems (called via different mdp options) yield near identical energies,
  * forces and virial at step 0 and similar energies and virial after 4 steps.
  */
-using MtsComparisonTestParams = std::tuple<std::string, std::string, int>;
+using MtsComparisonTestParams = std::tuple<std::string, std::string>;
 class MtsComparisonTest : public MdrunTestFixture, public ::testing::WithParamInterface<MtsComparisonTestParams>
 {
 };
+
+//! Returns set of energy terms to compare with associated tolerances
+EnergyTermsToCompare energyTermsToCompare(const real energyTol, const real virialTol)
+{
+    return EnergyTermsToCompare{ { { interaction_function[F_EPOT].longname,
+                                     relativeToleranceAsFloatingPoint(100.0, energyTol) },
+                                   { "Vir-XX", relativeToleranceAsFloatingPoint(30.0, virialTol) },
+                                   { "Vir-YY", relativeToleranceAsFloatingPoint(30.0, virialTol) },
+                                   { "Vir-ZZ", relativeToleranceAsFloatingPoint(30.0, virialTol) } } };
+}
 
 TEST_P(MtsComparisonTest, WithinTolerances)
 {
     auto params         = GetParam();
     auto simulationName = std::get<0>(params);
     auto mtsScheme      = std::get<1>(params);
-    auto numSteps       = std::get<2>(params);
 
     // Note that there should be no relevant limitation on MPI ranks and OpenMP threads
     SCOPED_TRACE(formatString("Comparing for '%s' no MTS with MTS scheme '%s'",
                               simulationName.c_str(), mtsScheme.c_str()));
 
-    auto sharedMdpOptions = gmx::formatString(
+    const int numSteps         = 4;
+    auto      sharedMdpOptions = gmx::formatString(
             "integrator   = md\n"
             "dt           = 0.001\n"
             "nsteps       = %d\n"
@@ -94,16 +104,17 @@ TEST_P(MtsComparisonTest, WithinTolerances)
             "constraints  = h-bonds\n",
             numSteps);
 
-    const int nstfout       = (numSteps == 0 ? 4 : 0);
+    // set nstfout to > numSteps so we only write forces at step 0
+    const int nstfout       = 2 * numSteps;
     auto      refMdpOptions = sharedMdpOptions
                          + gmx::formatString(
                                    "mts       = no\n"
-                                   "nstcalcenergy = 4\n"
-                                   "nstenergy = 4\n"
+                                   "nstcalcenergy = %d\n"
+                                   "nstenergy = %d\n"
                                    "nstxout   = 0\n"
                                    "nstvout   = 0\n"
                                    "nstfout   = %d\n",
-                                   nstfout);
+                                   numSteps, numSteps, nstfout);
 
     auto mtsMdpOptions = sharedMdpOptions
                          + gmx::formatString(
@@ -111,22 +122,17 @@ TEST_P(MtsComparisonTest, WithinTolerances)
                                    "mts-levels = 2\n"
                                    "mts-level2-forces = %s\n"
                                    "mts-level2-factor = 2\n"
-                                   "nstcalcenergy = 4\n"
-                                   "nstenergy  = 4\n"
+                                   "nstcalcenergy = %d\n"
+                                   "nstenergy  = %d\n"
                                    "nstxout    = 0\n"
                                    "nstvout    = 0\n"
                                    "nstfout    = %d\n",
-                                   mtsScheme.c_str(), nstfout);
+                                   mtsScheme.c_str(), numSteps, numSteps, nstfout);
 
-    // With numSteps=0 the energy and virial should only differ due to rounding errors
-    const real           energyTol = (numSteps == 0 ? 0.001 : (mtsScheme == "pme" ? 0.015 : 0.04));
-    const real           virialTol = (numSteps == 0 ? 0.01 : (mtsScheme == "pme" ? 0.1 : 0.2));
-    EnergyTermsToCompare energyTermsToCompare{
-        { { interaction_function[F_EPOT].longname, relativeToleranceAsFloatingPoint(100.0, energyTol) },
-          { "Vir-XX", relativeToleranceAsFloatingPoint(30.0, virialTol) },
-          { "Vir-YY", relativeToleranceAsFloatingPoint(30.0, virialTol) },
-          { "Vir-ZZ", relativeToleranceAsFloatingPoint(30.0, virialTol) } }
-    };
+    // At step 0 the energy and virial should only differ due to rounding errors
+    EnergyTermsToCompare energyTermsToCompareStep0 = energyTermsToCompare(0.001, 0.01);
+    EnergyTermsToCompare energyTermsToCompareAllSteps =
+            energyTermsToCompare(mtsScheme == "pme" ? 0.015 : 0.04, mtsScheme == "pme" ? 0.1 : 0.2);
 
     // Specify how trajectory frame matching must work.
     TrajectoryFrameMatchSettings trajectoryMatchSettings{ true,
@@ -166,12 +172,14 @@ TEST_P(MtsComparisonTest, WithinTolerances)
     runner_.edrFileName_                     = simulator2EdrFileName;
     runMdrun(&runner_);
 
-    // Compare simulation results
-    compareEnergies(simulator1EdrFileName, simulator2EdrFileName, energyTermsToCompare);
-    if (numSteps == 0)
-    {
-        compareTrajectories(simulator1TrajectoryFileName, simulator2TrajectoryFileName, trajectoryComparison);
-    }
+    // Compare simulation results at step 0, which should be indentical
+    compareEnergies(simulator1EdrFileName, simulator2EdrFileName, energyTermsToCompareStep0,
+                    FramesToCompare::OnlyFirstFrame);
+    compareTrajectories(simulator1TrajectoryFileName, simulator2TrajectoryFileName, trajectoryComparison);
+
+    // Compare energies at the last step (and step 0 again) with lower tolerance
+    compareEnergies(simulator1EdrFileName, simulator2EdrFileName, energyTermsToCompareAllSteps,
+                    FramesToCompare::AllFrames);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -179,8 +187,7 @@ INSTANTIATE_TEST_CASE_P(
         MtsComparisonTest,
         ::testing::Combine(::testing::Values("ala"),
                            ::testing::Values("longrange-nonbonded",
-                                             "longrange-nonbonded nonbonded pair dihedral"),
-                           ::testing::Values(0, 4)));
+                                             "longrange-nonbonded nonbonded pair dihedral")));
 
 } // namespace
 } // namespace test

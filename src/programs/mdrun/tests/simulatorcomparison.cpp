@@ -86,11 +86,12 @@ void runMdrun(SimulationRunner* runner, const std::vector<SimulationOptionTuple>
 
 void compareEnergies(const std::string&          edr1Name,
                      const std::string&          edr2Name,
-                     const EnergyTermsToCompare& energyTermsToCompare)
+                     const EnergyTermsToCompare& energyTermsToCompare,
+                     const FramesToCompare       framesToCompare)
 {
     // Build the functor that will compare energy frames on the chosen
     // energy terms.
-    EnergyComparison energyComparison(energyTermsToCompare, FramesToCompare::AllFrames);
+    EnergyComparison energyComparison(energyTermsToCompare, framesToCompare);
 
     // Build the manager that will present matching pairs of frames to compare.
     //

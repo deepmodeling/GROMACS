@@ -67,7 +67,8 @@ void runMdrun(SimulationRunner*                         runner,
 
 void compareEnergies(const std::string&          edr1Name,
                      const std::string&          edr2Name,
-                     const EnergyTermsToCompare& energyTermsToCompare);
+                     const EnergyTermsToCompare& energyTermsToCompare,
+                     FramesToCompare             framesToCompare = FramesToCompare::AllFrames);
 
 void compareTrajectories(const std::string&          trajectory1Name,
                          const std::string&          trajectory2Name,
