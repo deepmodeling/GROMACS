@@ -65,7 +65,7 @@ set(TESTUTILS_SOURCES
     )
 
 if(NOT HAVE_TINYXML2)
-    list(APPEND TESTUTILS_SOURCES ../external/tinyxml2/tinyxml2.cpp)
+    list(APPEND TESTUTILS_SOURCES ${PROJECT_SOURCE_DIR}/src/external/tinyxml2/tinyxml2.cpp)
 endif()
 
 if (GMX_GPU_CUDA)
@@ -91,8 +91,12 @@ if(HAVE_TINYXML2)
     include_directories(SYSTEM ${TinyXML2_INCLUDE_DIR})
     target_link_libraries(testutils PRIVATE ${TinyXML2_LIBRARIES})
 else()
-    include_directories(BEFORE SYSTEM "../external/tinyxml2")
+    include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/src/external/tinyxml2)
 endif()
+
+### if (HAVE_MUPARSER)
+###     include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/src/external/muparser")
+### endif()
 
 # TODO Use gmx_add_missing_tests_notice() instead of the messages below.
 set(GMX_CAN_RUN_MPI_TESTS 1)

@@ -693,7 +693,8 @@ enum
     epullgANGLE,
     epullgDIHEDRAL,
     epullgANGLEAXIS,
-    epullgNR
+    epullgTRANSFORMATION,
+    epullgNR,
 };
 //! String for pull groups
 extern const char* epullg_names[epullgNR + 1];

@@ -162,9 +162,10 @@ const char* epull_names[epullNR + 1] = { "umbrella",    "constraint",       "con
                                          "flat-bottom", "flat-bottom-high", "external-potential",
                                          nullptr };
 
-const char* epullg_names[epullgNR + 1] = { "distance",           "direction",          "cylinder",
-                                           "direction-periodic", "direction-relative", "angle",
-                                           "dihedral",           "angle-axis",         nullptr };
+const char* epullg_names[epullgNR + 1] = {
+    "distance", "direction", "cylinder",   "direction-periodic", "direction-relative",
+    "angle",    "dihedral",  "angle-axis", "transformation",     nullptr
+};
 
 const char* erotg_names[erotgNR + 1] = { "iso",   "iso-pf",  "pm",     "pm-pf", "rm",
                                          "rm-pf", "rm2",     "rm2-pf", "flex",  "flex-t",

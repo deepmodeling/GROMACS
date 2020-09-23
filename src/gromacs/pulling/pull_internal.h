@@ -54,6 +54,10 @@
 #include <memory>
 #include <vector>
 
+#if HAVE_MUPARSER
+#    include <muParser.h>
+#endif
+
 #include "gromacs/domdec/localatomset.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/utility/gmxmpi.h"
@@ -134,6 +138,57 @@ struct PullCoordSpatialData
     double value; /* The current value of the coordinate, units of nm or rad */
 };
 
+#if HAVE_MUPARSER
+/*! \brief Struct with a mathematical expression and parser */
+struct PullCoordExpressionParser
+{
+    mu::Parser          parser;
+    std::string         expression;
+    std::vector<double> variableValues;
+    bool                initialized;
+    /* Constructor */
+    PullCoordExpressionParser(const char* expressionChar) :
+
+        variableValues(0),
+        initialized(false)
+    {
+        if (expressionChar == nullptr)
+        {
+            expression = std::string("");
+        }
+        else
+        {
+            expression = std::string(expressionChar);
+        }
+    }
+
+    bool isInitialized() { return initialized; }
+
+    void initialize(int n_variables)
+    {
+        parser.SetExpr(expression);
+        variableValues.resize(n_variables);
+        for (int n = 0; n < n_variables; n++)
+        {
+            variableValues[n] = 0;
+            std::string name  = "x" + std::to_string(n + 1);
+            parser.DefineVar(name, &variableValues[n]);
+        }
+        initialized = true;
+    }
+
+    void setVariable(int variableIdx, double value) { variableValues[variableIdx] = value; }
+
+    double eval() { return parser.Eval(); }
+};
+#else
+/*! \brief Struct with a mathematical expression and parser, dummied out */
+struct PullCoordExpressionParser
+{
+    PullCoordExpressionParser(const char* /* expressionChar */) {}
+};
+#endif
+
 /* Struct with parameters and force evaluation local data for a pull coordinate */
 struct pull_coord_work_t
 {
@@ -143,7 +198,8 @@ struct pull_coord_work_t
         value_ref(0),
         spatialData(),
         scalarForce(0),
-        bExternalPotentialProviderHasBeenRegistered(false)
+        bExternalPotentialProviderHasBeenRegistered(false),
+        expressionParser(params.expression)
     {
     }
 
@@ -157,6 +213,8 @@ struct pull_coord_work_t
 
     /* For external-potential coordinates only, for checking if a provider has been registered */
     bool bExternalPotentialProviderHasBeenRegistered;
+
+    PullCoordExpressionParser expressionParser;
 };
 
 /* Struct for storing vectorial forces for a pull coordinate */
