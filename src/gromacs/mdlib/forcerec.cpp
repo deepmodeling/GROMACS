@@ -1126,11 +1126,15 @@ void init_forcerec(FILE*                            fp,
                 fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_LENNARDJONES;
             }
             break;
-        case VdwInteractionType::evdwPME: fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_LJEWALD; break;
+        case VdwInteractionType::evdwPME:
+            fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_LJEWALD;
+            break;
 
         case VdwInteractionType::evdwSWITCH:
         case VdwInteractionType::evdwSHIFT:
-        case VdwInteractionType::evdwUSER: fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_CUBICSPLINETABLE; break;
+        case VdwInteractionType::evdwUSER:
+            fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_CUBICSPLINETABLE;
+            break;
 
         default: gmx_fatal(FARGS, "Unsupported vdw interaction: %s", evdwNames(ic->vdwtype));
     }
@@ -1179,7 +1183,8 @@ void init_forcerec(FILE*                            fp,
     fr->egp_flags = ir->opts.egp_flags;
 
     /* Van der Waals stuff */
-    if ((ic->vdwtype != VdwInteractionType::evdwCUT) && (ic->vdwtype != VdwInteractionType::evdwUSER) && !fr->bBHAM)
+    if ((ic->vdwtype != VdwInteractionType::evdwCUT)
+        && (ic->vdwtype != VdwInteractionType::evdwUSER) && !fr->bBHAM)
     {
         if (ic->rvdw_switch >= ic->rvdw)
         {
@@ -1197,7 +1202,8 @@ void init_forcerec(FILE*                            fp,
         gmx_fatal(FARGS, "LJ PME not supported with Buckingham");
     }
 
-    if (fr->bBHAM && (ic->vdwtype == VdwInteractionType::evdwSHIFT || ic->vdwtype == VdwInteractionType::evdwSWITCH))
+    if (fr->bBHAM
+        && (ic->vdwtype == VdwInteractionType::evdwSHIFT || ic->vdwtype == VdwInteractionType::evdwSWITCH))
     {
         gmx_fatal(FARGS, "Switch/shift interaction not supported with Buckingham");
     }

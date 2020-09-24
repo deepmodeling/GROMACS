@@ -46,9 +46,6 @@
 #ifndef GMX_MDTYPES_MD_ENUMS_H
 #define GMX_MDTYPES_MD_ENUMS_H
 
-#include <vector>
-#include <array>
-
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/enumerationhelpers.h"
 
@@ -295,12 +292,13 @@ enum class VdwInteractionType : int
 //! Whether we use LJPME
 auto EVDW_PME(VdwInteractionType vdwInteractionType) -> bool;
 
-const gmx::EnumerationArray<VdwInteractionType, const char*> c_vdwInteractionTypeNames = { { "Cut-off", "Switch", "Shift", "User", "Encad-shift (unused)",
-                                                                                                   "PME",     "None" } };
+const gmx::EnumerationArray<VdwInteractionType, const char*> c_vdwInteractionTypeNames = {
+    { "Cut-off", "Switch", "Shift", "User", "Encad-shift (unused)", "PME", "None" }
+};
 //! Function for selecting correct string for VdW treatment
 auto EVDWTYPE(VdwInteractionType vdwInteractionType) -> std::string;
 //! String corresponding to Van der Waals treatment
-auto evdwNames(VdwInteractionType vdwInteractionType) -> const char*;
+auto               evdwNames(VdwInteractionType vdwInteractionType) -> const char*;
 extern const char* evdw_names[static_cast<int>(VdwInteractionType::Count)];
 
 //! Type of long-range VdW treatment of combination rules

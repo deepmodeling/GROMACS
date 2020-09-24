@@ -1116,7 +1116,7 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
 
 static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool b14only)
 {
-    int eltype;
+    int                eltype;
     VdwInteractionType vdwtype;
 
     /* Set the different table indices.

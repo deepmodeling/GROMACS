@@ -127,7 +127,7 @@ struct interaction_const_t
     };
 
     /* VdW */
-    VdwInteractionType                    vdwtype          = VdwInteractionType::evdwCUT;
+    VdwInteractionType     vdwtype          = VdwInteractionType::evdwCUT;
     int                    vdw_modifier     = eintmodNONE;
     double                 reppow           = 12;
     real                   rvdw             = 1;

@@ -482,7 +482,8 @@ void DispersionCorrection::setInteractionParameters(InteractionParams*         i
          */
         addCorrectionBeyondCutoff(&energy, &virial, r0);
     }
-    else if (ic.vdwtype == VdwInteractionType::evdwCUT || EVDW_PME(ic.vdwtype) || ic.vdwtype == VdwInteractionType::evdwUSER)
+    else if (ic.vdwtype == VdwInteractionType::evdwCUT || EVDW_PME(ic.vdwtype)
+             || ic.vdwtype == VdwInteractionType::evdwUSER)
     {
         /* Note that with LJ-PME, the dispersion correction is multiplied
          * by the difference between the actual C6 and the value of C6

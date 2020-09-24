@@ -304,8 +304,9 @@ void check_ir(const char*                   mdparin,
         {
             // Since we have PME coulomb + LJ cut-off kernels with rcoulomb>rvdw
             // for PME load balancing, we can support this exception.
-            bool bUsesPmeTwinRangeKernel = (EEL_PME_EWALD(ir->coulombtype) && ir->vdwtype == VdwInteractionType::evdwCUT
-                                            && ir->rcoulomb > ir->rvdw);
+            bool bUsesPmeTwinRangeKernel =
+                    (EEL_PME_EWALD(ir->coulombtype) && ir->vdwtype == VdwInteractionType::evdwCUT
+                     && ir->rcoulomb > ir->rvdw);
             if (!bUsesPmeTwinRangeKernel)
             {
                 warning_error(wi,
@@ -318,12 +319,14 @@ void check_ir(const char*                   mdparin,
         {
             if (ir->vdw_modifier == eintmodNONE || ir->vdw_modifier == eintmodPOTSHIFT)
             {
-                ir->vdw_modifier = (ir->vdwtype == VdwInteractionType::evdwSHIFT ? eintmodFORCESWITCH : eintmodPOTSWITCH);
+                ir->vdw_modifier = (ir->vdwtype == VdwInteractionType::evdwSHIFT ? eintmodFORCESWITCH
+                                                                                 : eintmodPOTSWITCH);
 
                 sprintf(warn_buf,
                         "Replacing vdwtype=%s by the equivalent combination of vdwtype=%s and "
                         "vdw_modifier=%s",
-                        evdwNames(ir->vdwtype), evdwNames(VdwInteractionType::evdwCUT), eintmod_names[ir->vdw_modifier]);
+                        evdwNames(ir->vdwtype), evdwNames(VdwInteractionType::evdwCUT),
+                        eintmod_names[ir->vdw_modifier]);
                 warning_note(wi, warn_buf);
 
                 ir->vdwtype = VdwInteractionType::evdwCUT;
@@ -1246,8 +1249,8 @@ void check_ir(const char*                   mdparin,
         CHECK(ir->vdw_modifier != eintmodNONE);
     }
 
-    if (ir->coulombtype == eelSWITCH || ir->coulombtype == eelSHIFT || ir->vdwtype == VdwInteractionType::evdwSWITCH
-        || ir->vdwtype == VdwInteractionType::evdwSHIFT)
+    if (ir->coulombtype == eelSWITCH || ir->coulombtype == eelSHIFT
+        || ir->vdwtype == VdwInteractionType::evdwSWITCH || ir->vdwtype == VdwInteractionType::evdwSHIFT)
     {
         sprintf(warn_buf,
                 "The switch/shift interaction settings are just for compatibility; you will get "
@@ -1374,7 +1377,8 @@ void check_ir(const char*                   mdparin,
                      "really want dispersion correction to -C6/r^6.");
     }
 
-    if (ir->eI == eiLBFGS && (ir->coulombtype == eelCUT || ir->vdwtype == VdwInteractionType::evdwCUT) && ir->rvdw != 0)
+    if (ir->eI == eiLBFGS
+        && (ir->coulombtype == eelCUT || ir->vdwtype == VdwInteractionType::evdwCUT) && ir->rvdw != 0)
     {
         warning(wi, "For efficient BFGS minimization, use switch/shift/pme instead of cut-off.");
     }
@@ -1967,7 +1971,7 @@ void get_ir(const char*     mdparin,
     ir->epsilon_r  = get_ereal(&inp, "epsilon-r", 1.0, wi);
     ir->epsilon_rf = get_ereal(&inp, "epsilon-rf", 0.0, wi);
     printStringNoNewline(&inp, "Method for doing Van der Waals");
-    ir->vdwtype      = static_cast<VdwInteractionType>(get_eeenum(&inp, "vdw-type", evdw_names, wi));
+    ir->vdwtype = static_cast<VdwInteractionType>(get_eeenum(&inp, "vdw-type", evdw_names, wi));
     ir->vdw_modifier = get_eeenum(&inp, "vdw-modifier", eintmod_names, wi);
     printStringNoNewline(&inp, "cut-off lengths");
     ir->rvdw_switch = get_ereal(&inp, "rvdw-switch", 0.0, wi);
