@@ -422,7 +422,7 @@ static void prepare_verlet_scheme(FILE*               fplog,
 {
     // We checked the cut-offs in grompp, but double-check here.
     // We have PME+LJcutoff kernels for rcoulomb>rvdw.
-    if (EEL_PME_EWALD(ir->coulombtype) && ir->vdwtype == eelCUT)
+    if (EEL_PME_EWALD(ir->coulombtype) && ir->vdwtype == VdwInteractionType::evdwCUT)
     {
         GMX_RELEASE_ASSERT(ir->rcoulomb >= ir->rvdw,
                            "With Verlet lists and PME we should have rcoulomb>=rvdw");

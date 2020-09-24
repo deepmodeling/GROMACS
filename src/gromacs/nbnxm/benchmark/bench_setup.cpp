@@ -141,7 +141,7 @@ static interaction_const_t setupInteractionConst(const KernelBenchOptions& optio
 {
     interaction_const_t ic;
 
-    ic.vdwtype      = evdwCUT;
+    ic.vdwtype      = VdwInteractionType::evdwCUT;
     ic.vdw_modifier = eintmodPOTSHIFT;
     ic.rvdw         = options.pairlistCutoff;
 

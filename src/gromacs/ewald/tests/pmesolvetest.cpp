@@ -104,7 +104,7 @@ public:
         {
             case PmeSolveAlgorithm::Coulomb: break;
 
-            case PmeSolveAlgorithm::LennardJones: inputRec.vdwtype = evdwPME; break;
+            case PmeSolveAlgorithm::LennardJones: inputRec.vdwtype = VdwInteractionType::evdwPME; break;
 
             default: GMX_THROW(InternalError("Unknown PME solver"));
         }

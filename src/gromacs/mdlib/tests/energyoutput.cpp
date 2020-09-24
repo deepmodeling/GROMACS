@@ -207,7 +207,7 @@ public:
         // F_COUL_RECIP
         inputrec_.coulombtype = eelPME;
         // F_LJ_RECIP
-        inputrec_.vdwtype = evdwPME;
+        inputrec_.vdwtype = VdwInteractionType::evdwPME;
 
         // F_DVDL_COUL, F_DVDL_VDW, F_DVDL_BONDED, F_DVDL_RESTRAINT, F_DKDL and F_DVDL
         inputrec_.efep                                  = efepYES;

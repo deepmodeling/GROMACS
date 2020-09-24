@@ -1000,7 +1000,7 @@ char** do_top(bool                                  bVerbose,
                        opts, fudgeQQ, molblock, ffParametrizedWithHBondConstraints,
                        ir->efep != efepNO, bZero, EEL_FULL(ir->coulombtype), wi, logger);
 
-    if ((*combination_rule != eCOMB_GEOMETRIC) && (ir->vdwtype == evdwUSER))
+    if ((*combination_rule != eCOMB_GEOMETRIC) && (ir->vdwtype == VdwInteractionType::evdwUSER))
     {
         warning(wi,
                 "Using sigma/epsilon based combination rules with"

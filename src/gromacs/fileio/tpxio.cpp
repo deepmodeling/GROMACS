@@ -1192,7 +1192,8 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
     }
     serializer->doReal(&ir->rcoulomb_switch);
     serializer->doReal(&ir->rcoulomb);
-    serializer->doInt(&ir->vdwtype);
+    int vdwType = static_cast<int>(ir->vdwtype);
+    serializer->doInt(&vdwType);
     if (file_version >= 81)
     {
         serializer->doInt(&ir->vdw_modifier);

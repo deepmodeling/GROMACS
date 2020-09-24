@@ -85,7 +85,7 @@ enum class NonbondedResource : int
  */
 static gmx_bool nbnxn_simd_supported(const gmx::MDLogger& mdlog, const t_inputrec* ir)
 {
-    if (ir->vdwtype == evdwPME && ir->ljpme_combination_rule == eljpmeLB)
+    if (ir->vdwtype == VdwInteractionType::evdwPME && ir->ljpme_combination_rule == eljpmeLB)
     {
         /* LJ PME with LB combination rule does 7 mesh operations.
          * This so slow that we don't compile SIMD non-bonded kernels
@@ -389,14 +389,14 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
     setupDynamicPairlistPruning(mdlog, ir, mtop, box, fr->ic, &pairlistParams);
 
     int enbnxninitcombrule;
-    if (fr->ic->vdwtype == evdwCUT
+    if (fr->ic->vdwtype == VdwInteractionType::evdwCUT
         && (fr->ic->vdw_modifier == eintmodNONE || fr->ic->vdw_modifier == eintmodPOTSHIFT)
         && getenv("GMX_NO_LJ_COMB_RULE") == nullptr)
     {
         /* Plain LJ cut-off: we can optimize with combination rules */
         enbnxninitcombrule = enbnxninitcombruleDETECT;
     }
-    else if (fr->ic->vdwtype == evdwPME)
+    else if (fr->ic->vdwtype == VdwInteractionType::evdwPME)
     {
         /* LJ-PME: we need to use a combination rule for the grid */
         if (fr->ljpme_combination_rule == eljpmeGEOM)

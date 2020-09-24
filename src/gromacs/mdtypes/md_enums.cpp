@@ -85,8 +85,7 @@ const char* eewg_names[eewgNR + 1] = { "3d", "3dc", nullptr };
 
 const char* eljpme_names[eljpmeNR + 1] = { "Geometric", "Lorentz-Berthelot", nullptr };
 
-const char* evdw_names[evdwNR + 1] = { "Cut-off", "Switch", "Shift", "User", "Encad-shift (unused)",
-                                       "PME",     nullptr };
+const char* evdw_names[static_cast<int>(VdwInteractionType::Count)] = { "Cut-off", "Switch", "Shift", "User", "Encad-shift (unused)", "PME", nullptr };
 
 const char* econstr_names[econtNR + 1] = { "Lincs", "Shake", nullptr };
 
@@ -191,3 +190,9 @@ const char* gmx_nbkernel_elec_names[GMX_NBKERNEL_ELEC_NR + 1] = {
 const char* gmx_nbkernel_vdw_names[GMX_NBKERNEL_VDW_NR + 1] = { "None",       "Lennard-Jones",
                                                                 "Buckingham", "Cubic-Spline-Table",
                                                                 "LJEwald",    nullptr };
+
+auto EVDW_PME(VdwInteractionType vdwInteractionType) -> bool { return vdwInteractionType == VdwInteractionType::evdwPME; }
+
+auto EVDWTYPE(VdwInteractionType vdwInteractionType) -> std::string { return c_vdwInteractionTypeNames[vdwInteractionType]; }
+
+auto evdwNames(VdwInteractionType vdwInteractionType) -> const char* { return EVDWTYPE(vdwInteractionType).c_str();  }

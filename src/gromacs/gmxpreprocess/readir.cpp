@@ -304,7 +304,7 @@ void check_ir(const char*                   mdparin,
         {
             // Since we have PME coulomb + LJ cut-off kernels with rcoulomb>rvdw
             // for PME load balancing, we can support this exception.
-            bool bUsesPmeTwinRangeKernel = (EEL_PME_EWALD(ir->coulombtype) && ir->vdwtype == evdwCUT
+            bool bUsesPmeTwinRangeKernel = (EEL_PME_EWALD(ir->coulombtype) && ir->vdwtype == VdwInteractionType::evdwCUT
                                             && ir->rcoulomb > ir->rvdw);
             if (!bUsesPmeTwinRangeKernel)
             {
@@ -314,29 +314,29 @@ void check_ir(const char*                   mdparin,
             }
         }
 
-        if (ir->vdwtype == evdwSHIFT || ir->vdwtype == evdwSWITCH)
+        if (ir->vdwtype == VdwInteractionType::evdwSHIFT || ir->vdwtype == VdwInteractionType::evdwSWITCH)
         {
             if (ir->vdw_modifier == eintmodNONE || ir->vdw_modifier == eintmodPOTSHIFT)
             {
-                ir->vdw_modifier = (ir->vdwtype == evdwSHIFT ? eintmodFORCESWITCH : eintmodPOTSWITCH);
+                ir->vdw_modifier = (ir->vdwtype == VdwInteractionType::evdwSHIFT ? eintmodFORCESWITCH : eintmodPOTSWITCH);
 
                 sprintf(warn_buf,
                         "Replacing vdwtype=%s by the equivalent combination of vdwtype=%s and "
                         "vdw_modifier=%s",
-                        evdw_names[ir->vdwtype], evdw_names[evdwCUT], eintmod_names[ir->vdw_modifier]);
+                        evdwNames(ir->vdwtype), evdwNames(VdwInteractionType::evdwCUT), eintmod_names[ir->vdw_modifier]);
                 warning_note(wi, warn_buf);
 
-                ir->vdwtype = evdwCUT;
+                ir->vdwtype = VdwInteractionType::evdwCUT;
             }
             else
             {
                 sprintf(warn_buf, "Unsupported combination of vdwtype=%s and vdw_modifier=%s",
-                        evdw_names[ir->vdwtype], eintmod_names[ir->vdw_modifier]);
+                        evdwNames(ir->vdwtype), eintmod_names[ir->vdw_modifier]);
                 warning_error(wi, warn_buf);
             }
         }
 
-        if (!(ir->vdwtype == evdwCUT || ir->vdwtype == evdwPME))
+        if (!(ir->vdwtype == VdwInteractionType::evdwCUT || ir->vdwtype == VdwInteractionType::evdwPME))
         {
             warning_error(wi,
                           "With Verlet lists only cut-off and PME LJ interactions are supported");
@@ -1238,7 +1238,7 @@ void check_ir(const char*                   mdparin,
                 "secondary coulomb-modifier.");
         CHECK(ir->coulomb_modifier != eintmodNONE);
     }
-    if (ir->vdwtype == evdwSWITCH || ir->vdwtype == evdwSHIFT)
+    if (ir->vdwtype == VdwInteractionType::evdwSWITCH || ir->vdwtype == VdwInteractionType::evdwSHIFT)
     {
         sprintf(err_buf,
                 "Explicit switch/shift vdw interactions cannot be used in combination with a "
@@ -1246,8 +1246,8 @@ void check_ir(const char*                   mdparin,
         CHECK(ir->vdw_modifier != eintmodNONE);
     }
 
-    if (ir->coulombtype == eelSWITCH || ir->coulombtype == eelSHIFT || ir->vdwtype == evdwSWITCH
-        || ir->vdwtype == evdwSHIFT)
+    if (ir->coulombtype == eelSWITCH || ir->coulombtype == eelSHIFT || ir->vdwtype == VdwInteractionType::evdwSWITCH
+        || ir->vdwtype == VdwInteractionType::evdwSHIFT)
     {
         sprintf(warn_buf,
                 "The switch/shift interaction settings are just for compatibility; you will get "
@@ -1270,7 +1270,7 @@ void check_ir(const char*                   mdparin,
         }
     }
 
-    if (ir->vdwtype == evdwSWITCH || ir->vdw_modifier == eintmodPOTSWITCH)
+    if (ir->vdwtype == VdwInteractionType::evdwSWITCH || ir->vdw_modifier == eintmodPOTSWITCH)
     {
         if (ir->rvdw_switch == 0)
         {
@@ -1355,17 +1355,17 @@ void check_ir(const char*                   mdparin,
         }
     }
 
-    if (ir->vdwtype == evdwPME)
+    if (ir->vdwtype == VdwInteractionType::evdwPME)
     {
         if (!(ir->vdw_modifier == eintmodNONE || ir->vdw_modifier == eintmodPOTSHIFT))
         {
             sprintf(err_buf, "With vdwtype = %s, the only supported modifiers are %s and %s",
-                    evdw_names[ir->vdwtype], eintmod_names[eintmodPOTSHIFT], eintmod_names[eintmodNONE]);
+                    evdwNames(ir->vdwtype), eintmod_names[eintmodPOTSHIFT], eintmod_names[eintmodNONE]);
             warning_error(wi, err_buf);
         }
     }
 
-    if (ir->vdwtype == evdwUSER && ir->eDispCorr != edispcNO)
+    if (ir->vdwtype == VdwInteractionType::evdwUSER && ir->eDispCorr != edispcNO)
     {
         warning_note(wi,
                      "You have selected user tables with dispersion correction, the dispersion "
@@ -1374,7 +1374,7 @@ void check_ir(const char*                   mdparin,
                      "really want dispersion correction to -C6/r^6.");
     }
 
-    if (ir->eI == eiLBFGS && (ir->coulombtype == eelCUT || ir->vdwtype == evdwCUT) && ir->rvdw != 0)
+    if (ir->eI == eiLBFGS && (ir->coulombtype == eelCUT || ir->vdwtype == VdwInteractionType::evdwCUT) && ir->rvdw != 0)
     {
         warning(wi, "For efficient BFGS minimization, use switch/shift/pme instead of cut-off.");
     }
@@ -1967,7 +1967,7 @@ void get_ir(const char*     mdparin,
     ir->epsilon_r  = get_ereal(&inp, "epsilon-r", 1.0, wi);
     ir->epsilon_rf = get_ereal(&inp, "epsilon-rf", 0.0, wi);
     printStringNoNewline(&inp, "Method for doing Van der Waals");
-    ir->vdwtype      = get_eeenum(&inp, "vdw-type", evdw_names, wi);
+    ir->vdwtype      = static_cast<VdwInteractionType>(get_eeenum(&inp, "vdw-type", evdw_names, wi));
     ir->vdw_modifier = get_eeenum(&inp, "vdw-modifier", eintmod_names, wi);
     printStringNoNewline(&inp, "cut-off lengths");
     ir->rvdw_switch = get_ereal(&inp, "rvdw-switch", 0.0, wi);
@@ -3787,7 +3787,7 @@ void do_index(const char*                   mdparin,
     }
 
     bTable = do_egp_flag(ir, groups, "energygrp-table", inputrecStrings->egptable, EGP_TABLE);
-    if (bTable && !(ir->vdwtype == evdwUSER) && !(ir->coulombtype == eelUSER)
+    if (bTable && !(ir->vdwtype == VdwInteractionType::evdwUSER) && !(ir->coulombtype == eelUSER)
         && !(ir->coulombtype == eelPMEUSER) && !(ir->coulombtype == eelPMEUSERSWITCH))
     {
         gmx_fatal(FARGS,

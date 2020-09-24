@@ -1116,7 +1116,7 @@ void init_forcerec(FILE*                            fp,
     /* Vdw: Translate from mdp settings to kernel format */
     switch (ic->vdwtype)
     {
-        case evdwCUT:
+        case VdwInteractionType::evdwCUT:
             if (fr->bBHAM)
             {
                 fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_BUCKINGHAM;
@@ -1126,13 +1126,13 @@ void init_forcerec(FILE*                            fp,
                 fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_LENNARDJONES;
             }
             break;
-        case evdwPME: fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_LJEWALD; break;
+        case VdwInteractionType::evdwPME: fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_LJEWALD; break;
 
-        case evdwSWITCH:
-        case evdwSHIFT:
-        case evdwUSER: fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_CUBICSPLINETABLE; break;
+        case VdwInteractionType::evdwSWITCH:
+        case VdwInteractionType::evdwSHIFT:
+        case VdwInteractionType::evdwUSER: fr->nbkernel_vdw_interaction = GMX_NBKERNEL_VDW_CUBICSPLINETABLE; break;
 
-        default: gmx_fatal(FARGS, "Unsupported vdw interaction: %s", evdw_names[ic->vdwtype]);
+        default: gmx_fatal(FARGS, "Unsupported vdw interaction: %s", evdwNames(ic->vdwtype));
     }
     fr->nbkernel_vdw_modifier = ic->vdw_modifier;
 
@@ -1179,7 +1179,7 @@ void init_forcerec(FILE*                            fp,
     fr->egp_flags = ir->opts.egp_flags;
 
     /* Van der Waals stuff */
-    if ((ic->vdwtype != evdwCUT) && (ic->vdwtype != evdwUSER) && !fr->bBHAM)
+    if ((ic->vdwtype != VdwInteractionType::evdwCUT) && (ic->vdwtype != VdwInteractionType::evdwUSER) && !fr->bBHAM)
     {
         if (ic->rvdw_switch >= ic->rvdw)
         {
@@ -1197,7 +1197,7 @@ void init_forcerec(FILE*                            fp,
         gmx_fatal(FARGS, "LJ PME not supported with Buckingham");
     }
 
-    if (fr->bBHAM && (ic->vdwtype == evdwSHIFT || ic->vdwtype == evdwSWITCH))
+    if (fr->bBHAM && (ic->vdwtype == VdwInteractionType::evdwSHIFT || ic->vdwtype == VdwInteractionType::evdwSWITCH))
     {
         gmx_fatal(FARGS, "Switch/shift interaction not supported with Buckingham");
     }

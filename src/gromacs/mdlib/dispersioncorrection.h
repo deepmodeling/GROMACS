@@ -48,6 +48,8 @@ struct t_forcerec;
 struct t_forcetable;
 struct t_inputrec;
 
+enum class VdwInteractionType;
+
 namespace gmx
 {
 template<typename>
@@ -179,7 +181,7 @@ private:
     //! Type of dispersion correction
     int eDispCorr_;
     //! Type of Van der Waals interaction
-    int vdwType_;
+    VdwInteractionType vdwType_;
     //! Free-energy perturbation
     int eFep_;
     //! Topology parameters

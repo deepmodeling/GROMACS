@@ -241,7 +241,7 @@ gmx_bool ir_coulomb_might_be_zero_at_cutoff(const t_inputrec* ir)
 
 gmx_bool ir_vdw_switched(const t_inputrec* ir)
 {
-    return (ir->vdwtype == evdwSWITCH || ir->vdwtype == evdwSHIFT
+    return (ir->vdwtype == VdwInteractionType::evdwSWITCH || ir->vdwtype == VdwInteractionType::evdwSHIFT
             || ir->vdw_modifier == eintmodPOTSWITCH || ir->vdw_modifier == eintmodFORCESWITCH);
 }
 
@@ -252,7 +252,7 @@ gmx_bool ir_vdw_is_zero_at_cutoff(const t_inputrec* ir)
 
 gmx_bool ir_vdw_might_be_zero_at_cutoff(const t_inputrec* ir)
 {
-    return (ir_vdw_is_zero_at_cutoff(ir) || ir->vdwtype == evdwUSER);
+    return (ir_vdw_is_zero_at_cutoff(ir) || ir->vdwtype == VdwInteractionType::evdwUSER);
 }
 
 static void done_pull_group(t_pull_group* pgrp)
@@ -875,7 +875,7 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
         {
             PS("epsilon-rf", infbuf);
         }
-        PS("vdw-type", EVDWTYPE(ir->vdwtype));
+        PS("vdw-type", EVDWTYPE(ir->vdwtype).c_str());
         PS("vdw-modifier", INTMODIFIER(ir->vdw_modifier));
         PR("rvdw-switch", ir->rvdw_switch);
         PR("rvdw", ir->rvdw);
@@ -1337,7 +1337,7 @@ void cmp_inputrec(FILE* fp, const t_inputrec* ir1, const t_inputrec* ir2, real f
     cmp_int(fp, "inputrec->coulomb_modifier", -1, ir1->coulomb_modifier, ir2->coulomb_modifier);
     cmp_real(fp, "inputrec->rcoulomb_switch", -1, ir1->rcoulomb_switch, ir2->rcoulomb_switch, ftol, abstol);
     cmp_real(fp, "inputrec->rcoulomb", -1, ir1->rcoulomb, ir2->rcoulomb, ftol, abstol);
-    cmp_int(fp, "inputrec->vdwtype", -1, ir1->vdwtype, ir2->vdwtype);
+    cmp_int(fp, "inputrec->vdwtype", -1, static_cast<int>(ir1->vdwtype), static_cast<int>(ir2->vdwtype));
     cmp_int(fp, "inputrec->vdw_modifier", -1, ir1->vdw_modifier, ir2->vdw_modifier);
     cmp_real(fp, "inputrec->rvdw_switch", -1, ir1->rvdw_switch, ir2->rvdw_switch, ftol, abstol);
     cmp_real(fp, "inputrec->rvdw", -1, ir1->rvdw, ir2->rvdw, ftol, abstol);

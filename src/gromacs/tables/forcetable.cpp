@@ -1116,7 +1116,8 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
 
 static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool b14only)
 {
-    int eltype, vdwtype;
+    int eltype;
+    VdwInteractionType vdwtype;
 
     /* Set the different table indices.
      * Coulomb first.
@@ -1173,9 +1174,9 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
     }
     else
     {
-        if (b14only && ic->vdwtype != evdwUSER)
+        if (b14only && ic->vdwtype != VdwInteractionType::evdwUSER)
         {
-            vdwtype = evdwCUT;
+            vdwtype = VdwInteractionType::evdwCUT;
         }
         else
         {
@@ -1184,23 +1185,23 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
 
         switch (vdwtype)
         {
-            case evdwSWITCH:
+            case VdwInteractionType::evdwSWITCH:
                 tabsel[etiLJ6]  = etabLJ6Switch;
                 tabsel[etiLJ12] = etabLJ12Switch;
                 break;
-            case evdwSHIFT:
+            case VdwInteractionType::evdwSHIFT:
                 tabsel[etiLJ6]  = etabLJ6Shift;
                 tabsel[etiLJ12] = etabLJ12Shift;
                 break;
-            case evdwUSER:
+            case VdwInteractionType::evdwUSER:
                 tabsel[etiLJ6]  = etabUSER;
                 tabsel[etiLJ12] = etabUSER;
                 break;
-            case evdwCUT:
+            case VdwInteractionType::evdwCUT:
                 tabsel[etiLJ6]  = etabLJ6;
                 tabsel[etiLJ12] = etabLJ12;
                 break;
-            case evdwPME:
+            case VdwInteractionType::evdwPME:
                 tabsel[etiLJ6]  = etabLJ6Ewald;
                 tabsel[etiLJ12] = etabLJ12;
                 break;
@@ -1210,7 +1211,7 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
 
         if (!b14only && ic->vdw_modifier != eintmodNONE)
         {
-            if (ic->vdw_modifier != eintmodPOTSHIFT && ic->vdwtype != evdwCUT)
+            if (ic->vdw_modifier != eintmodPOTSHIFT && ic->vdwtype != VdwInteractionType::evdwCUT)
             {
                 gmx_incons(
                         "Potential modifiers other than potential-shift are only implemented for "
@@ -1220,7 +1221,7 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
             /* LJ-PME and other (shift-only) modifiers are handled by applying the modifiers
              * to the original interaction forms when we fill the table, so we only check cutoffs here.
              */
-            if (ic->vdwtype == evdwCUT)
+            if (ic->vdwtype == VdwInteractionType::evdwCUT)
             {
                 switch (ic->vdw_modifier)
                 {
@@ -1406,7 +1407,7 @@ bondedtable_t make_bonded_table(FILE* fplog, const char* fn, int angle)
 std::unique_ptr<t_forcetable>
 makeDispersionCorrectionTable(FILE* fp, const interaction_const_t* ic, real rtab, const char* tabfn)
 {
-    GMX_RELEASE_ASSERT(ic->vdwtype != evdwUSER || tabfn,
+    GMX_RELEASE_ASSERT(ic->vdwtype != VdwInteractionType::evdwUSER || tabfn,
                        "With VdW user tables we need a table file name");
 
     if (tabfn == nullptr)

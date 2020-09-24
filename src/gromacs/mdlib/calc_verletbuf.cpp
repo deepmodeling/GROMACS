@@ -919,7 +919,7 @@ real calcVerletBufferSize(const gmx_mtop_t&         mtop,
     pot_derivatives_t ljRep  = { 0, 0, 0 };
     real              repPow = mtop.ffparams.reppow;
 
-    if (ir.vdwtype == evdwCUT)
+    if (ir.vdwtype == VdwInteractionType::evdwCUT)
     {
         real sw_range, md3_pswf;
 

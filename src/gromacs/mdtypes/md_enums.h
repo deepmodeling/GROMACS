@@ -46,7 +46,11 @@
 #ifndef GMX_MDTYPES_MD_ENUMS_H
 #define GMX_MDTYPES_MD_ENUMS_H
 
+#include <vector>
+#include <array>
+
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/enumerationhelpers.h"
 
 /*! \brief Return a string from a list of strings
  *
@@ -276,7 +280,7 @@ extern const char* eewg_names[eewgNR + 1];
 #define EEL_USER(e) ((e) == eelUSER || (e) == eelPMEUSER || (e) == (eelPMEUSERSWITCH))
 
 //! Van der Waals interaction treatment
-enum
+enum class VdwInteractionType : int
 {
     evdwCUT,
     evdwSWITCH,
@@ -284,12 +288,20 @@ enum
     evdwUSER,
     evdwENCADSHIFT_UNUSED,
     evdwPME,
-    evdwNR
+    evdwNR,
+    Count
 };
+
+//! Whether we use LJPME
+auto EVDW_PME(VdwInteractionType vdwInteractionType) -> bool;
+
+const gmx::EnumerationArray<VdwInteractionType, const char*> c_vdwInteractionTypeNames = { { "Cut-off", "Switch", "Shift", "User", "Encad-shift (unused)",
+                                                                                                   "PME",     "None" } };
+//! Function for selecting correct string for VdW treatment
+auto EVDWTYPE(VdwInteractionType vdwInteractionType) -> std::string;
 //! String corresponding to Van der Waals treatment
-extern const char* evdw_names[evdwNR + 1];
-//! Macro for selecting correct string for VdW treatment
-#define EVDWTYPE(e) enum_name(e, evdwNR, evdw_names)
+auto evdwNames(VdwInteractionType vdwInteractionType) -> const char*;
+extern const char* evdw_names[static_cast<int>(VdwInteractionType::Count)];
 
 //! Type of long-range VdW treatment of combination rules
 enum
@@ -302,9 +314,6 @@ enum
 extern const char* eljpme_names[eljpmeNR + 1];
 //! Macro for correct LJPME comb rule name
 #define ELJPMECOMBNAMES(e) enum_name(e, eljpmeNR, eljpme_names)
-
-//! Macro to tell us whether we use LJPME
-#define EVDW_PME(e) ((e) == evdwPME)
 
 /*! \brief Integrator algorithm
  *

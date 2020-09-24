@@ -385,17 +385,17 @@ void DispersionCorrection::setInteractionParameters(InteractionParams*         i
     InteractionCorrection virial;
 
     if ((ic.vdw_modifier == eintmodPOTSHIFT) || (ic.vdw_modifier == eintmodPOTSWITCH)
-        || (ic.vdw_modifier == eintmodFORCESWITCH) || (ic.vdwtype == evdwSHIFT)
-        || (ic.vdwtype == evdwSWITCH))
+        || (ic.vdw_modifier == eintmodFORCESWITCH) || (ic.vdwtype == VdwInteractionType::evdwSHIFT)
+        || (ic.vdwtype == VdwInteractionType::evdwSWITCH))
     {
         if (((ic.vdw_modifier == eintmodPOTSWITCH) || (ic.vdw_modifier == eintmodFORCESWITCH)
-             || (ic.vdwtype == evdwSWITCH))
+             || (ic.vdwtype == VdwInteractionType::evdwSWITCH))
             && ic.rvdw_switch == 0)
         {
             gmx_fatal(FARGS,
                       "With dispersion correction rvdw-switch can not be zero "
                       "for vdw-type = %s",
-                      evdw_names[ic.vdwtype]);
+                      evdwNames(ic.vdwtype));
         }
 
         GMX_ASSERT(iParams->dispersionCorrectionTable_, "We need an initialized table");
@@ -435,7 +435,7 @@ void DispersionCorrection::setInteractionParameters(InteractionParams*         i
         const double rc3 = r0 * r0 * r0;
         const double rc9 = rc3 * rc3 * rc3;
 
-        if ((ic.vdw_modifier == eintmodFORCESWITCH) || (ic.vdwtype == evdwSHIFT))
+        if ((ic.vdw_modifier == eintmodFORCESWITCH) || (ic.vdwtype == VdwInteractionType::evdwSHIFT))
         {
             /* Determine the constant energy shift below rvdw_switch.
              * Table has a scale factor since we have scaled it down to compensate
@@ -482,7 +482,7 @@ void DispersionCorrection::setInteractionParameters(InteractionParams*         i
          */
         addCorrectionBeyondCutoff(&energy, &virial, r0);
     }
-    else if (ic.vdwtype == evdwCUT || EVDW_PME(ic.vdwtype) || ic.vdwtype == evdwUSER)
+    else if (ic.vdwtype == VdwInteractionType::evdwCUT || EVDW_PME(ic.vdwtype) || ic.vdwtype == VdwInteractionType::evdwUSER)
     {
         /* Note that with LJ-PME, the dispersion correction is multiplied
          * by the difference between the actual C6 and the value of C6
@@ -505,7 +505,7 @@ void DispersionCorrection::setInteractionParameters(InteractionParams*         i
     else
     {
         gmx_fatal(FARGS, "Dispersion correction is not implemented for vdw-type = %s",
-                  evdw_names[ic.vdwtype]);
+                  evdwNames(ic.vdwtype));
     }
 
     iParams->enerdiffsix_    = energy.dispersion;
@@ -548,7 +548,7 @@ void DispersionCorrection::print(const gmx::MDLogger& mdlog) const
                 .asParagraph()
                 .appendText("WARNING: There are no atom pairs for dispersion correction");
     }
-    else if (vdwType_ == evdwUSER)
+    else if (vdwType_ == VdwInteractionType::evdwUSER)
     {
         GMX_LOG(mdlog.warning)
                 .asParagraph()

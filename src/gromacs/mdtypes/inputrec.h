@@ -423,7 +423,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Always false (no longer supported)
     bool implicit_solvent;
     //! Type of Van der Waals treatment
-    int vdwtype;
+    VdwInteractionType vdwtype;
     //! Modify the Van der Waals interaction
     int vdw_modifier;
     //! Van der Waals switch range start (nm)

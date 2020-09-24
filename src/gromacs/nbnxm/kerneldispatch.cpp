@@ -197,7 +197,7 @@ static void nbnxn_kernel_cpu(const PairlistSet&         pairlistSet,
     const nbnxn_atomdata_t::Params& nbatParams = nbat->params();
 
     int vdwkt = 0;
-    if (ic.vdwtype == evdwCUT)
+    if (ic.vdwtype == VdwInteractionType::evdwCUT)
     {
         switch (ic.vdw_modifier)
         {
@@ -216,7 +216,7 @@ static void nbnxn_kernel_cpu(const PairlistSet&         pairlistSet,
             default: GMX_RELEASE_ASSERT(false, "Unsupported VdW interaction modifier");
         }
     }
-    else if (ic.vdwtype == evdwPME)
+    else if (ic.vdwtype == VdwInteractionType::evdwPME)
     {
         if (ic.ljpme_comb_rule == eljpmeGEOM)
         {
@@ -409,7 +409,7 @@ static void accountFlops(t_nrnb*                    nrnb,
         inc_nrnb(nrnb, eNR_NBNXN_ADD_LJ_PSW + (stepWork.computeEnergy ? 1 : 0),
                  pairlistSet.natpair_ljq_ + pairlistSet.natpair_lj_);
     }
-    if (ic.vdwtype == evdwPME)
+    if (ic.vdwtype == VdwInteractionType::evdwPME)
     {
         /* We add up the LJ Ewald cost separately */
         inc_nrnb(nrnb, eNR_NBNXN_ADD_LJ_EWALD + (stepWork.computeEnergy ? 1 : 0),

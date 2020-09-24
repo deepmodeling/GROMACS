@@ -858,9 +858,9 @@ static void modify_PMEsettings(int64_t     simsteps,    /* Set this value as num
     write_tpx_state(fn_sim_tpr, ir, &state, &mtop);
 }
 
-static gmx_bool can_scale_rvdw(int vdwtype)
+static gmx_bool can_scale_rvdw(VdwInteractionType vdwtype)
 {
-    return (evdwCUT == vdwtype || evdwPME == vdwtype);
+    return (VdwInteractionType::evdwCUT == vdwtype || VdwInteractionType::evdwPME == vdwtype);
 }
 
 #define EPME_SWITCHED(e) ((e) == eelPMESWITCH || (e) == eelPMEUSERSWITCH)
@@ -990,7 +990,7 @@ static void make_benchmark_tprs(const char* fn_sim_tpr,  /* READ : User-provided
     fprintf(fp, "   Coulomb type         : %s\n", EELTYPE(ir->coulombtype));
     fprintf(fp, "   Grid spacing x y z   : %f %f %f\n", box_size[XX] / ir->nkx,
             box_size[YY] / ir->nky, box_size[ZZ] / ir->nkz);
-    fprintf(fp, "   Van der Waals type   : %s\n", EVDWTYPE(ir->vdwtype));
+    fprintf(fp, "   Van der Waals type   : %s\n", EVDWTYPE(ir->vdwtype).c_str());
     if (ir_vdw_switched(ir))
     {
         fprintf(fp, "   rvdw_switch          : %f nm\n", ir->rvdw_switch);
@@ -1061,7 +1061,7 @@ static void make_benchmark_tprs(const char* fn_sim_tpr,  /* READ : User-provided
 
             if (bScaleRvdw && can_scale_rvdw(ir->vdwtype))
             {
-                if (ecutsVERLET == ir->cutoff_scheme || evdwPME == ir->vdwtype)
+                if (ecutsVERLET == ir->cutoff_scheme || VdwInteractionType::evdwPME == ir->vdwtype)
                 {
                     /* With either the Verlet cutoff-scheme or LJ-PME,
                        the van der Waals radius must always equal the
