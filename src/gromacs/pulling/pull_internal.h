@@ -77,6 +77,8 @@ static const int c_pullMaxNumLocalAtomsSingleThreaded = 1;
 class PullHistory;
 enum class PbcType : int;
 
+class t_state;
+
 enum
 {
     epgrppbcNONE,
@@ -140,53 +142,53 @@ struct PullCoordSpatialData
 
 #if HAVE_MUPARSER
 /*! \brief Struct with a mathematical expression and parser */
-struct PullCoordExpressionParser
+class PullCoordExpressionParser
 {
-    mu::Parser          parser;
-    std::string         expression;
-    std::vector<double> variableValues;
-    bool                initialized;
+public:
     /* Constructor */
-    PullCoordExpressionParser(const char* expressionChar) :
-
-        variableValues(0),
-        initialized(false)
+    PullCoordExpressionParser(const char* expressionChar) : initialized_(false)
     {
         if (expressionChar == nullptr)
         {
-            expression = std::string("");
+            expression_ = std::string("");
         }
         else
         {
-            expression = std::string(expressionChar);
+            expression_ = std::string(expressionChar);
         }
     }
 
-    bool isInitialized() { return initialized; }
+    bool isInitialized() { return initialized_; }
 
     void initialize(int n_variables)
     {
-        parser.SetExpr(expression);
-        variableValues.resize(n_variables);
-        for (int n = 0; n < n_variables; n++)
+        if (!expression_.empty())
         {
-            variableValues[n] = 0;
-            std::string name  = "x" + std::to_string(n + 1);
-            parser.DefineVar(name, &variableValues[n]);
+            parser_.SetExpr(expression_);
+            variableValues_.resize(n_variables);
+            for (int n = 0; n < n_variables; n++)
+            {
+                variableValues_[n] = 0;
+                std::string name   = "x" + std::to_string(n + 1);
+                parser_.DefineVar(name, &variableValues_[n]);
+            }
+            initialized_ = true;
         }
-        initialized = true;
     }
 
-    void setVariable(int variableIdx, double value) { variableValues[variableIdx] = value; }
+    void setVariable(int variableIdx, double value) { variableValues_[variableIdx] = value; }
 
-    double eval() { return parser.Eval(); }
+    double eval() { return parser_.Eval(); }
+
+private:
+    mu::Parser          parser_;
+    std::string         expression_;
+    std::vector<double> variableValues_;
+    bool                initialized_;
 };
 #else
 /*! \brief Struct with a mathematical expression and parser, dummied out */
-struct PullCoordExpressionParser
-{
-    PullCoordExpressionParser(const char* /* expressionChar */) {}
-};
+{ PullCoordExpressionParser(const char* /* expressionChar */){} };
 #endif
 
 /* Struct with parameters and force evaluation local data for a pull coordinate */
@@ -199,7 +201,7 @@ struct pull_coord_work_t
         spatialData(),
         scalarForce(0),
         bExternalPotentialProviderHasBeenRegistered(false),
-        expressionParser(params.expression)
+        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : nullptr)
     {
     }
 

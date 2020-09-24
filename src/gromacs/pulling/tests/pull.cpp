@@ -163,24 +163,25 @@ protected:
             pull_coord_work_t x1_pcrd(params);
             // Create transformation pull coordinate
             params.eGeom           = epullgTRANSFORMATION;
-            const char* expression = "x1^2 + 3";
-            params.expression      = expression;
+            std::string expression = "x1^2 + 3";
+            params.expression      = expression.c_str();
             pull_coord_work_t transformation_pcrd(params);
             transformation_pcrd.expressionParser.initialize(1);
 
             pull_t pull;
-            pull.coord = std::vector<pull_coord_work_t>({ x1_pcrd, transformation_pcrd });
+            pull.coord.emplace_back(x1_pcrd);
+            pull.coord.emplace_back(transformation_pcrd);
             for (double v = 0; v < 10; v++)
             {
                 // transformation pull coord value
-                x1_pcrd.spatialData.value = v;
+                pull.coord[0].spatialData.value = v;
                 get_pull_coord_value(&pull, 1, &pbc);
-                EXPECT_DOUBLE_EQ(v * v + 3, transformation_pcrd.spatialData.value) << true;
+                EXPECT_DOUBLE_EQ(v * v + 3, pull.coord[1].spatialData.value) << true;
 
                 // force and derivative
-                double transformation_force     = v + 0.5;
-                transformation_pcrd.scalarForce = transformation_force;
-                double x1_force = compute_force_from_transformation_coord(&pull, 1, 0);
+                double transformation_force = v + 0.5;
+                pull.coord[1].scalarForce   = transformation_force;
+                double x1_force             = compute_force_from_transformation_coord(&pull, 1, 0);
                 EXPECT_DOUBLE_EQ(2 * v * transformation_force, x1_force) << true;
             }
         }

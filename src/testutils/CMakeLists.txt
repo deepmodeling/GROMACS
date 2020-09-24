@@ -94,10 +94,6 @@ else()
     include_directories(BEFORE SYSTEM ${PROJECT_SOURCE_DIR}/src/external/tinyxml2)
 endif()
 
-### if (HAVE_MUPARSER)
-###     include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/src/external/muparser")
-### endif()
-
 # TODO Use gmx_add_missing_tests_notice() instead of the messages below.
 set(GMX_CAN_RUN_MPI_TESTS 1)
 if (GMX_MPI)
