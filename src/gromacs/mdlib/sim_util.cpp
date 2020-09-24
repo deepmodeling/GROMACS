@@ -1462,7 +1462,7 @@ void do_force(FILE*                               fplog,
         }
     }
 
-    if (simulationWork.useGpuNonbonded)
+    if (simulationWork.useGpuNonbonded && stepWork.computeNonbondedForces)
     {
         /* launch D2H copy-back F */
         wallcycle_start_nocount(wcycle, ewcLAUNCH_GPU);
