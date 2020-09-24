@@ -155,7 +155,7 @@ void increaseNstlist(FILE*               fp,
 
     /* When most of the computation, and in particular the non-bondeds is only
      * performed every ir->mtsFactor steps due to multiple time stepping,
-     * we scaling all nstlist values by this factor.
+     * we scale all nstlist values by this factor.
      */
     const int mtsFactor = gmx::nonbondedMtsFactor(*ir);
 

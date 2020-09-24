@@ -558,8 +558,6 @@ void check_ir(const char*                   mdparin,
     }
     if (!EI_DYNAMICS(ir->eI))
     {
-        ir->useMts = false;
-
         if (ir->epc != epcNO)
         {
             sprintf(warn_buf,
@@ -571,11 +569,6 @@ void check_ir(const char*                   mdparin,
     }
     if (EI_DYNAMICS(ir->eI))
     {
-        if (ir->useMts)
-        {
-            setupMtsLevels(ir->mtsLevels, *ir, *opts, wi);
-        }
-
         if (ir->nstcalcenergy < 0)
         {
             ir->nstcalcenergy = ir_optimal_nstcalcenergy(ir);
@@ -1986,6 +1979,13 @@ void get_ir(const char*     mdparin,
         setStringEntry(&inp, "mts-level2-forces", opts->mtsLevel2Forces,
                        "longrange-nonbonded nonbonded pair dihedral");
         mtsLevel.stepFactor = get_eint(&inp, "mts-level2-factor", 2, wi);
+
+        // We clear after reading without dynamics to not force the user to remove MTS mdp options
+        if (!EI_DYNAMICS(ir->eI))
+        {
+            ir->useMts = false;
+            ir->mtsLevels.clear();
+        }
     }
     printStringNoNewline(&inp, "mode for center of mass motion removal");
     ir->comm_mode = get_eeenum(&inp, "comm-mode", ecm_names, wi);
@@ -2755,6 +2755,12 @@ void get_ir(const char*     mdparin,
         {
             warning_error(wi, "Ion count threshold must be at least 1.\n");
         }
+    }
+
+    /* Set up MTS levels, this needs to happen before checking AWH parameters */
+    if (ir->useMts)
+    {
+        setupMtsLevels(ir->mtsLevels, *ir, *opts, wi);
     }
 
     if (ir->bDoAwh)

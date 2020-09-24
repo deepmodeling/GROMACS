@@ -240,7 +240,8 @@ Run control
    .. mdp-value:: yes
 
       Use a multiple timing-stepping integrator to evaluate some forces, as specified
-      by :mdp:`mts-level2-forces` every :mdp:`mts-level2-factor` integration steps.
+      by :mdp:`mts-level2-forces` every :mdp:`mts-level2-factor` integration
+      steps. All other forces are evaluated at every step.
 
 .. mdp:: mts-levels
 
