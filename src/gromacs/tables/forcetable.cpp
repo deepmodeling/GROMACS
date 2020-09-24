@@ -766,33 +766,9 @@ static void done_tabledata(t_tabledata* td)
     sfree(td->f);
 }
 
-static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, gmx_bool b14only)
+static std::tuple<bool, bool, bool> setSomeTableBools(bool b14only,int tp, int coulomb_modifier, int vdw_modifier)
 {
-    /* Fill the table according to the formulas in the manual.
-     * In principle, we only need the potential and the second
-     * derivative, but then we would have to do lots of calculations
-     * in the inner loop. By precalculating some terms (see manual)
-     * we get better eventual performance, despite a larger table.
-     *
-     * Since some of these higher-order terms are very small,
-     * we always use double precision to calculate them here, in order
-     * to avoid unnecessary loss of precision.
-     */
-    int    i;
-    double reppow, p;
-    double r1, rc, r12, r13;
-    double r, r2, r6, rc2;
-    double expr, Vtab, Ftab;
-    /* Parameters for David's function */
-    double A = 0, B = 0, C = 0, A_3 = 0, B_4 = 0;
-    /* Parameters for the switching function */
-    double ksw, swi, swi1;
-    /* Temporary parameters */
-    gmx_bool bPotentialSwitch, bForceSwitch, bPotentialShift;
-    double   ewc   = ic->ewaldcoeff_q;
-    double   ewclj = ic->ewaldcoeff_lj;
-    double   Vcut  = 0;
-
+    bool bPotentialSwitch, bForceSwitch, bPotentialShift;
     if (b14only)
     {
         bPotentialSwitch = FALSE;
@@ -803,35 +779,55 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
     {
         bPotentialSwitch = ((tp == etabLJ6Switch) || (tp == etabLJ12Switch) || (tp == etabCOULSwitch)
                             || (tp == etabEwaldSwitch) || (tp == etabEwaldUserSwitch)
-                            || (tprops[tp].bCoulomb && (ic->coulomb_modifier == eintmodPOTSWITCH))
-                            || (!tprops[tp].bCoulomb && (ic->vdw_modifier == eintmodPOTSWITCH)));
+                            || (tprops[tp].bCoulomb && (coulomb_modifier == eintmodPOTSWITCH))
+                            || (!tprops[tp].bCoulomb && (vdw_modifier == eintmodPOTSWITCH)));
         bForceSwitch     = ((tp == etabLJ6Shift) || (tp == etabLJ12Shift) || (tp == etabShift)
-                        || (tprops[tp].bCoulomb && (ic->coulomb_modifier == eintmodFORCESWITCH))
-                        || (!tprops[tp].bCoulomb && (ic->vdw_modifier == eintmodFORCESWITCH)));
-        bPotentialShift  = ((tprops[tp].bCoulomb && (ic->coulomb_modifier == eintmodPOTSHIFT))
-                           || (!tprops[tp].bCoulomb && (ic->vdw_modifier == eintmodPOTSHIFT)));
+                            || (tprops[tp].bCoulomb && (coulomb_modifier == eintmodFORCESWITCH))
+                            || (!tprops[tp].bCoulomb && (vdw_modifier == eintmodFORCESWITCH)));
+        bPotentialShift  = ((tprops[tp].bCoulomb && (coulomb_modifier == eintmodPOTSHIFT))
+                            || (!tprops[tp].bCoulomb && (vdw_modifier == eintmodPOTSHIFT)));
     }
+    return {bPotentialSwitch, bForceSwitch, bPotentialShift};
+}
 
-    reppow = ic->reppow;
-
-    if (tprops[tp].bCoulomb)
+static std::tuple<double, double> setR1AndRc(bool bCoulomb,
+                                      real rcoulomb_switch,
+                                      real rcoulomb,
+                                      real rvdw_switch,
+                                      real rvdw)
+{
+    double r1, rc;
+    if (bCoulomb)
     {
-        r1 = ic->rcoulomb_switch;
-        rc = ic->rcoulomb;
+        r1 = rcoulomb_switch;
+        rc = rcoulomb;
     }
     else
     {
-        r1 = ic->rvdw_switch;
-        rc = ic->rvdw;
+        r1 = rvdw_switch;
+        rc = rvdw;
     }
+    return {r1, rc};
+}
+
+static double setKsw(bool bPotentialSwitch, double rc, double r1)
+{
     if (bPotentialSwitch)
     {
-        ksw = 1.0 / (gmx::power5(rc - r1));
+        return 1.0 / (gmx::power5(rc - r1));
     }
     else
     {
-        ksw = 0.0;
+        return 0.0;
     }
+}
+
+static std::tuple<double, double, double, double, double>
+        setDavidsParams(bool bForceSwitch, int tp, double reppow, real r1, real rc)
+{
+    double p;
+    /* Parameters for David's function */
+    double A = 0, B = 0, C = 0, A_3 = 0, B_4 = 0;
     if (bForceSwitch)
     {
         if (tp == etabShift)
@@ -859,25 +855,96 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
         A_3 = A / 3.0;
         B_4 = B / 4.0;
     }
-    if (debug)
-    {
-        fprintf(debug, "Setting up tables\n");
-        fflush(debug);
-    }
+    return {A, B, C, A_3, B_4};
+}
 
-    if (bPotentialShift)
+static std::tuple<double, double> setSwiAndSwi1(bool bPotentialSwitch, double r, real r1, real rc)
+{
+    /* Parameters for the switching function */
+    double swi, swi1;
+
+    if (bPotentialSwitch)
     {
-        rc2        = rc * rc;
-        double rc6 = 1.0 / (rc2 * rc2 * rc2);
-        double rc12;
-        if (gmx_within_tol(reppow, 12.0, 10 * GMX_DOUBLE_EPS))
+        /* swi is function, swi1 1st derivative and swi2 2nd derivative */
+        /* The switch function is 1 for r<r1, 0 for r>rc, and smooth for
+         * r1<=r<=rc. The 1st and 2nd derivatives are both zero at
+         * r1 and rc.
+         * ksw is just the constant 1/(rc-r1)^5, to save some calculations...
+         */
+        if (r <= r1)
         {
-            rc12 = rc6 * rc6;
+            swi  = 1.0;
+            swi1 = 0.0;
+        }
+        else if (r >= rc)
+        {
+            swi  = 0.0;
+            swi1 = 0.0;
         }
         else
         {
-            rc12 = std::pow(rc, -reppow);
+            double ksw = setKsw(bPotentialSwitch, rc, r1);
+            swi = 1 - 10 * gmx::power3(r - r1) * ksw * gmx::square(rc - r1)
+                  + 15 * gmx::power4(r - r1) * ksw * (rc - r1) - 6 * gmx::power5(r - r1) * ksw;
+            swi1 = -30 * gmx::square(r - r1) * ksw * gmx::square(rc - r1)
+                   + 60 * gmx::power3(r - r1) * ksw * (rc - r1) - 30 * gmx::power4(r - r1) * ksw;
         }
+    }
+    else /* not really needed, but avoids compiler warnings... */
+    {
+        swi  = 1.0;
+        swi1 = 0.0;
+    }
+    return {swi, swi1};
+}
+
+static double set12thPowerR(double reppow, double rc, double rc6)
+{
+    if (gmx_within_tol(reppow, 12.0, 10 * GMX_DOUBLE_EPS))
+    {
+        return rc6 * rc6;
+    }
+    else
+    {
+        return std::pow(rc, -reppow);
+    }
+}
+
+static void fill_table(t_tabledata* td, int tp,
+                       bool bPotentialSwitch,
+                       bool bForceSwitch,
+                       bool bPotentialShift,
+                       double ewaldcoeff_q,
+                       double ewaldcoeff_lj,
+                       double reppow,
+                       real k_rf,
+                       real c_rf,
+                       real r1,
+                       real rc)
+{
+    /* Fill the table according to the formulas in the manual.
+     * In principle, we only need the potential and the second
+     * derivative, but then we would have to do lots of calculations
+     * in the inner loop. By precalculating some terms (see manual)
+     * we get better eventual performance, despite a larger table.
+     *
+     * Since some of these higher-order terms are very small,
+     * we always use double precision to calculate them here, in order
+     * to avoid unnecessary loss of precision.
+     */
+    int    i;
+    double r13;
+    double expr, Vtab, Ftab;
+    /* Temporary parameters */
+    double   ewc   = ewaldcoeff_q;
+    double   ewclj = ewaldcoeff_lj;
+    double   Vcut  = 0;
+
+    if (bPotentialShift)
+    {
+        double rc2        = rc * rc;
+        double rc6 = 1.0 / (rc2 * rc2 * rc2);
+        double rc12 = set12thPowerR(reppow, rc, rc6);
 
         switch (tp)
         {
@@ -920,50 +987,12 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
     }
     for (i = td->nx0; (i < td->nx); i++)
     {
-        r  = td->x[i];
-        r2 = r * r;
-        r6 = 1.0 / (r2 * r2 * r2);
-        if (gmx_within_tol(reppow, 12.0, 10 * GMX_DOUBLE_EPS))
-        {
-            r12 = r6 * r6;
-        }
-        else
-        {
-            r12 = std::pow(r, -reppow);
-        }
+        double r  = td->x[i];
+        double r2 = r * r;
+        double r6 = 1.0 / (r2 * r2 * r2);
+        double r12 = set12thPowerR(reppow, rc, r6);
         Vtab = 0.0;
         Ftab = 0.0;
-        if (bPotentialSwitch)
-        {
-            /* swi is function, swi1 1st derivative and swi2 2nd derivative */
-            /* The switch function is 1 for r<r1, 0 for r>rc, and smooth for
-             * r1<=r<=rc. The 1st and 2nd derivatives are both zero at
-             * r1 and rc.
-             * ksw is just the constant 1/(rc-r1)^5, to save some calculations...
-             */
-            if (r <= r1)
-            {
-                swi  = 1.0;
-                swi1 = 0.0;
-            }
-            else if (r >= rc)
-            {
-                swi  = 0.0;
-                swi1 = 0.0;
-            }
-            else
-            {
-                swi = 1 - 10 * gmx::power3(r - r1) * ksw * gmx::square(rc - r1)
-                      + 15 * gmx::power4(r - r1) * ksw * (rc - r1) - 6 * gmx::power5(r - r1) * ksw;
-                swi1 = -30 * gmx::square(r - r1) * ksw * gmx::square(rc - r1)
-                       + 60 * gmx::power3(r - r1) * ksw * (rc - r1) - 30 * gmx::power4(r - r1) * ksw;
-            }
-        }
-        else /* not really needed, but avoids compiler warnings... */
-        {
-            swi  = 1.0;
-            swi1 = 0.0;
-        }
 
         switch (tp)
         {
@@ -1027,8 +1056,8 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
                 break;
             case etabRF:
             case etabRF_ZERO:
-                Vtab = 1.0 / r + ic->k_rf * r2 - ic->c_rf;
-                Ftab = 1.0 / r2 - 2 * ic->k_rf * r;
+                Vtab = 1.0 / r + k_rf * r2 - c_rf;
+                Ftab = 1.0 / r2 - 2 * k_rf * r;
                 if (tp == etabRF_ZERO && r >= rc)
                 {
                     Vtab = 0;
@@ -1048,6 +1077,7 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
             /* Normal coulomb with cut-off correction for potential */
             if (r < rc)
             {
+                auto [A, B, C, A_3, B_4] = setDavidsParams(bForceSwitch, tp, reppow, r1, rc);
                 Vtab -= C;
                 /* If in Shifting range add something to it */
                 if (r > r1)
@@ -1095,6 +1125,7 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
             }
             else if (r > r1)
             {
+                auto [swi, swi1] = setSwiAndSwi1(bPotentialSwitch, r, r1, rc);
                 Ftab = Ftab * swi - Vtab * swi1;
                 Vtab = Vtab * swi;
             }
@@ -1114,9 +1145,11 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
     }
 }
 
-static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool b14only)
+static void set_table_type(int tabsel[], bool b14only, bool useBuckingham,
+                           int eeltype, real rcoulomb_switch, real rcoulomb,
+                           int vdwtype, int vdw_modifier)
 {
-    int eltype, vdwtype;
+    int eltype, vdwtypeLocal;
 
     /* Set the different table indices.
      * Coulomb first.
@@ -1125,7 +1158,7 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
 
     if (b14only)
     {
-        switch (ic->eeltype)
+        switch (eeltype)
         {
             case eelUSER:
             case eelPMEUSER:
@@ -1135,7 +1168,7 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
     }
     else
     {
-        eltype = ic->eeltype;
+        eltype = eeltype;
     }
 
     switch (eltype)
@@ -1143,7 +1176,7 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
         case eelCUT: tabsel[etiCOUL] = etabCOUL; break;
         case eelPOISSON: tabsel[etiCOUL] = etabShift; break;
         case eelSHIFT:
-            if (ic->rcoulomb > ic->rcoulomb_switch)
+            if (rcoulomb > rcoulomb_switch)
             {
                 tabsel[etiCOUL] = etabShift;
             }
@@ -1166,23 +1199,23 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
     }
 
     /* Van der Waals time */
-    if (ic->useBuckingham && !b14only)
+    if (useBuckingham && !b14only)
     {
         tabsel[etiLJ6]  = etabLJ6;
         tabsel[etiLJ12] = etabEXPMIN;
     }
     else
     {
-        if (b14only && ic->vdwtype != evdwUSER)
+        if (b14only && vdwtype != evdwUSER)
         {
-            vdwtype = evdwCUT;
+            vdwtypeLocal = evdwCUT;
         }
         else
         {
-            vdwtype = ic->vdwtype;
+            vdwtypeLocal = vdwtype;
         }
 
-        switch (vdwtype)
+        switch (vdwtypeLocal)
         {
             case evdwSWITCH:
                 tabsel[etiLJ6]  = etabLJ6Switch;
@@ -1205,12 +1238,12 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
                 tabsel[etiLJ12] = etabLJ12;
                 break;
             default:
-                gmx_fatal(FARGS, "Invalid vdwtype %d in %s line %d", vdwtype, __FILE__, __LINE__);
+                gmx_fatal(FARGS, "Invalid vdwtype %d in %s line %d", vdwtypeLocal, __FILE__, __LINE__);
         }
 
-        if (!b14only && ic->vdw_modifier != eintmodNONE)
+        if (!b14only && vdw_modifier != eintmodNONE)
         {
-            if (ic->vdw_modifier != eintmodPOTSHIFT && ic->vdwtype != evdwCUT)
+            if (vdw_modifier != eintmodPOTSHIFT && vdwtype != evdwCUT)
             {
                 gmx_incons(
                         "Potential modifiers other than potential-shift are only implemented for "
@@ -1220,9 +1253,9 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
             /* LJ-PME and other (shift-only) modifiers are handled by applying the modifiers
              * to the original interaction forms when we fill the table, so we only check cutoffs here.
              */
-            if (ic->vdwtype == evdwCUT)
+            if (vdwtype == evdwCUT)
             {
-                switch (ic->vdw_modifier)
+                switch (vdw_modifier)
                 {
                     case eintmodNONE:
                     case eintmodPOTSHIFT:
@@ -1244,29 +1277,105 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
     }
 }
 
-t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* fn, real rtab, int flags)
+static real setScaleFactor(int k, bool whichTab)
 {
-    t_tabledata* td;
-    gmx_bool     b14only, useUserTable;
-    int          nx0, tabsel[etiNR];
-    real         scalefactor;
+    if (k == etiLJ6)
+    {
+        return 1.0 / 6.0;
+    }
+    else if (k == etiLJ12 && whichTab)
+    {
+        return  1.0 / 12.0;
+    }
+    else
+    {
+        return 1.0;
+    }
+}
 
-    t_forcetable* table = new t_forcetable(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP,
-                                           GMX_TABLE_FORMAT_CUBICSPLINE_YFGH);
+static void initializeAndSetupTable(int tabsel[etiNR], t_forcetable* table,
+                      const interaction_const_t* ic,
+                      bool useBuckingham, real buckinghamBMax,
+                      int nx0,
+                      bool useUserTable, t_tabledata* td, bool b14only,
+                      FILE* out)
+{
+    for (int k = 0; (k < etiNR); k++)
+    {
+        /* Now fill data for tables that have not been read
+         * or add the Ewald long-range correction for Ewald user tables.
+         */
+        if (tabsel[k] != etabUSER)
+        {
+            real scale = table->scale;
+            if (useBuckingham && (buckinghamBMax != 0) && tabsel[k] == etabEXPMIN)
+            {
+                scale /= buckinghamBMax;
+            }
+            init_table(table->n, nx0, scale, &(td[k]), !useUserTable);
 
-    b14only = ((flags & GMX_MAKETABLES_14ONLY) != 0);
+            auto [r1, rc] =
+            setR1AndRc(tprops[tabsel[k]].bCoulomb, ic->rcoulomb_switch, ic->rcoulomb,
+                               ic->rvdw_switch, ic->rvdw);
 
-    if (flags & GMX_MAKETABLES_FORCEUSER)
+            auto [bPotentialSwitch, bForceSwitch, bPotentialShift] =
+            setSomeTableBools(b14only, tabsel[k], ic->coulomb_modifier, ic->vdw_modifier);
+
+            fill_table(&(td[k]), tabsel[k], bPotentialSwitch, bForceSwitch, bPotentialShift, ic->ewaldcoeff_q,
+                       ic->ewaldcoeff_lj, ic->reppow, ic->k_rf, ic->c_rf, r1, rc);
+
+            if (out)
+            {
+                fprintf(out,
+                        "Generated table with %d data points for %s%s.\n"
+                        "Tabscale = %g points/nm\n",
+                        td[k].nx, b14only ? "1-4 " : "", tprops[tabsel[k]].name, td[k].tabscale);
+            }
+        }
+
+        /* Set scalefactor for c6/c12 tables. This is because we save flops in the non-table kernels
+         * by including the derivative constants (6.0 or 12.0) in the parameters, since
+         * we no longer calculate force in most steps. This means the c6/c12 parameters
+         * have been scaled up, so we need to scale down the table interactions too.
+         * It comes here since we need to scale user tables too.
+         */
+
+        real scaleFactor = setScaleFactor(k, tabsel[k] != etabEXPMIN);
+
+        copy2table(table->n, k * table->formatsize, table->stride, td[k].x, td[k].v, td[k].f,
+                   scaleFactor, table->data.data());
+
+        done_tabledata(&(td[k]));
+    }
+    sfree(td);
+}
+
+/* Check whether we have to read or generate */
+static bool canUseUserTable(int tabsel[etiNR])
+{
+    for (unsigned int i = 0; (i < etiNR); i++)
+    {
+        if (ETAB_USER(tabsel[i]))
+        {
+            return TRUE;
+        }
+    }
+    return false;
+}
+
+static void setupUserTable(int tabsel[etiNR])
+{
     {
         tabsel[etiCOUL] = etabUSER;
         tabsel[etiLJ6]  = etabUSER;
         tabsel[etiLJ12] = etabUSER;
     }
-    else
-    {
-        set_table_type(tabsel, ic, b14only);
-    }
-    snew(td, etiNR);
+}
+
+static t_forcetable* setSomeTableData(real rtab)
+{
+    t_forcetable* table = new t_forcetable(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP,
+                                           GMX_TABLE_FORMAT_CUBICSPLINE_YFGH);
     table->r     = rtab;
     table->scale = 0;
     table->n     = 0;
@@ -1274,34 +1383,57 @@ t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* 
     table->formatsize    = 4;
     table->ninteractions = etiNR;
     table->stride        = table->formatsize * table->ninteractions;
+    return table;
+}
 
-    /* Check whether we have to read or generate */
-    useUserTable = FALSE;
-    for (unsigned int i = 0; (i < etiNR); i++)
+static int setTableNum(real rtab, int flags, t_tabledata* td, const char* fn)
+{
+    if (rtab == 0 || (flags & GMX_MAKETABLES_14ONLY))
     {
-        if (ETAB_USER(tabsel[i]))
-        {
-            useUserTable = TRUE;
-        }
+        return td[0].nx;
     }
+    else
+    {
+        if (td[0].x[td[0].nx - 1] < rtab)
+        {
+            gmx_fatal(FARGS,
+                      "Tables in file %s not long enough for cut-off:\n"
+                      "\tshould be at least %f nm\n",
+                      fn, rtab);
+        }
+        return gmx::roundToInt(rtab * td[0].tabscale);
+    }
+}
+
+t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* fn, real rtab, int flags)
+{
+    int          nx0;
+
+    bool b14only = ((flags & GMX_MAKETABLES_14ONLY) != 0);
+
+    int tabsel[etiNR];
+    if (flags & GMX_MAKETABLES_FORCEUSER)
+    {
+        setupUserTable(tabsel);
+    }
+    else
+    {
+        set_table_type(tabsel, b14only, ic->useBuckingham, ic->eeltype,
+                       ic->rcoulomb_switch, ic->rcoulomb, ic->vdwtype, ic->vdw_modifier);
+    }
+
+    t_tabledata* td;
+    snew(td, etiNR);
+
+    t_forcetable* table = setSomeTableData(rtab);
+
+    bool useUserTable = canUseUserTable(tabsel);
+
     if (useUserTable)
     {
         read_tables(out, fn, etiNR, 0, td);
-        if (rtab == 0 || (flags & GMX_MAKETABLES_14ONLY))
-        {
-            table->n = td[0].nx;
-        }
-        else
-        {
-            if (td[0].x[td[0].nx - 1] < rtab)
-            {
-                gmx_fatal(FARGS,
-                          "Tables in file %s not long enough for cut-off:\n"
-                          "\tshould be at least %f nm\n",
-                          fn, rtab);
-            }
-            table->n = gmx::roundToInt(rtab * td[0].tabscale);
-        }
+
+        table->n = setTableNum(rtab, flags, td, fn);
         table->scale = td[0].tabscale;
         nx0          = td[0].nx0;
     }
@@ -1323,55 +1455,7 @@ t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* 
      */
     table->data.resize(table->stride * (table->n + 1) * sizeof(real));
 
-    for (int k = 0; (k < etiNR); k++)
-    {
-        /* Now fill data for tables that have not been read
-         * or add the Ewald long-range correction for Ewald user tables.
-         */
-        if (tabsel[k] != etabUSER)
-        {
-            real scale = table->scale;
-            if (ic->useBuckingham && (ic->buckinghamBMax != 0) && tabsel[k] == etabEXPMIN)
-            {
-                scale /= ic->buckinghamBMax;
-            }
-            init_table(table->n, nx0, scale, &(td[k]), !useUserTable);
-
-            fill_table(&(td[k]), tabsel[k], ic, b14only);
-            if (out)
-            {
-                fprintf(out,
-                        "Generated table with %d data points for %s%s.\n"
-                        "Tabscale = %g points/nm\n",
-                        td[k].nx, b14only ? "1-4 " : "", tprops[tabsel[k]].name, td[k].tabscale);
-            }
-        }
-
-        /* Set scalefactor for c6/c12 tables. This is because we save flops in the non-table kernels
-         * by including the derivative constants (6.0 or 12.0) in the parameters, since
-         * we no longer calculate force in most steps. This means the c6/c12 parameters
-         * have been scaled up, so we need to scale down the table interactions too.
-         * It comes here since we need to scale user tables too.
-         */
-        if (k == etiLJ6)
-        {
-            scalefactor = 1.0 / 6.0;
-        }
-        else if (k == etiLJ12 && tabsel[k] != etabEXPMIN)
-        {
-            scalefactor = 1.0 / 12.0;
-        }
-        else
-        {
-            scalefactor = 1.0;
-        }
-
-        copy2table(table->n, k * table->formatsize, table->stride, td[k].x, td[k].v, td[k].f,
-                   scalefactor, table->data.data());
-
-        done_tabledata(&(td[k]));
-    }
-    sfree(td);
+    initializeAndSetupTable(tabsel, table, ic, ic->useBuckingham, ic->buckinghamBMax, nx0, useUserTable, td, b14only, out);
 
     return table;
 }
