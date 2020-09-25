@@ -84,8 +84,8 @@ TEST(NBlibTest, CubicBoxWorks)
     Box::LegacyMatrix ref    = { { length, 0, 0 }, { 0, length, 0 }, { 0, 0, length } };
     Box               test   = Box(length);
 
-    for (int i = 0; i < DIM; ++i)
-        for (int j = 0; j < DIM; ++j)
+    for (int i = 0; i < dimSize; ++i)
+        for (int j = 0; j < dimSize; ++j)
             EXPECT_REAL_EQ_TOL(ref[i][j], test.legacyMatrix()[i][j], defaultRealTolerance());
 }
 

@@ -77,6 +77,12 @@ string(REPLACE " " ";" IGNORED_CLANG_ALL_WARNINGS "${IGNORED_CLANG_ALL_WARNINGS}
 set(TESTUTILS_DIR ${PROJECT_SOURCE_DIR}/src/testutils)
 include(${PROJECT_SOURCE_DIR}/src/testutils/TestMacros.cmake)
 
+# this allows all nblib tests to be run with "make check-nblib"
+add_custom_target(check-nblib
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -R NbLib
+        COMMENT "Running nblib tests"
+        USES_TERMINAL VERBATIM)
+
 add_library(nblib SHARED "")
 
 target_sources(nblib
