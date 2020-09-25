@@ -45,8 +45,8 @@
  * \inpublicapi
  * \ingroup nblib
  */
-#ifndef GMX_NBLIB_MOLECULES_H
-#define GMX_NBLIB_MOLECULES_H
+#ifndef NBLIB_MOLECULES_H
+#define NBLIB_MOLECULES_H
 
 #include <string>
 #include <tuple>
@@ -57,33 +57,36 @@
 
 namespace nblib
 {
-class TopologyBuilder;
+//! Named type for unique identifier for a particle in a molecule
+using ParticleName = StrongType<std::string, struct ParticleNameParameter>;
 
-//! Alias for unique identifier for a particle in a molecule
-using ParticleName = std::string;
-//! Alias for charges on a particle within a molecule
-using Charge = real;
-//! Alias for residue name used to diffentiate between sections of a molecule
-using ResidueName = std::string;
+//! Named type for charges on a particle within a molecule
+using Charge = StrongType<real, struct ChargeParameter>;
 
+//! Named type for residue name used to diffentiate between sections of a molecule
+using ResidueName = StrongType<std::string, struct ResidueNameParameter>;
 
-class Molecule
+//! Named type for the name of a molecule
+using MoleculeName = StrongType<std::string, struct MoleculeNameParameter>;
+
+struct ParticleData
+{
+    std::string particleName_;
+    std::string residueName_;
+    std::string particleTypeName_;
+    real        charge_;
+};
+
+class Molecule final
 {
 public:
-    Molecule(std::string moleculeName);
+    explicit Molecule(MoleculeName moleculeName);
 
     //! Add a particle to the molecule with full specification of parameters.
     Molecule& addParticle(const ParticleName& particleName,
                           const ResidueName&  residueName,
                           const Charge&       charge,
                           ParticleType const& particleType);
-
-    //! Force explicit use of correct types
-    template<typename T, typename U, typename V>
-    Molecule& addParticle(const T&            particleName,
-                          const U&            residueName,
-                          const V&            charge,
-                          ParticleType const& particleType) = delete;
 
     //! Add a particle to the molecule with implicit charge of 0
     Molecule& addParticle(const ParticleName& particleName,
@@ -93,16 +96,8 @@ public:
     //! Add a particle to the molecule with residueName set using particleName
     Molecule& addParticle(const ParticleName& particleName, const Charge& charge, ParticleType const& particleType);
 
-    //! Force explicit use of correct types, covers both implicit charge and residueName
-    template<typename T, typename U>
-    Molecule& addParticle(const T& particleName, const U& charge, ParticleType const& particleType) = delete;
-
     //! Add a particle to the molecule with residueName set using particleName with implicit charge of 0
     Molecule& addParticle(const ParticleName& particleName, ParticleType const& particleType);
-
-    //! Force explicit use of correct types
-    template<typename T>
-    Molecule& addParticle(const T& particleName, ParticleType const& particleType) = delete;
 
     // TODO: add exclusions based on the unique ID given to the particle of the molecule
     void addExclusion(int particleIndex, int particleIndexToExclude);
@@ -124,31 +119,24 @@ public:
     //! returns a sorted vector containing no duplicates of particles to exclude by indices
     std::vector<std::tuple<int, int>> getExclusions() const;
 
-    //! Return all interactions stored in Molecule
-    const InteractionTuple& interactionData() const;
-
     //! Return name of ith particle
-    const ParticleName& particleName(int i) const;
+    ParticleName particleName(int i) const;
 
     //! Return name of ith residue
-    const ResidueName& residueName(int i) const;
+    ResidueName residueName(int i) const;
+
+    //! Return array of data structs on particle types
+    std::vector<ParticleData> particleData() const;
+
+    //! Return map of particle types and their names
+    std::unordered_map<std::string, ParticleType> particleTypesMap() const;
 
     //! The molecule name
-    std::string name() const;
-
-    friend class TopologyBuilder;
+    MoleculeName name() const;
 
 private:
     //! Name of the molecule
-    std::string name_;
-
-    struct ParticleData
-    {
-        std::string particleName_;
-        std::string residueName_;
-        std::string particleTypeName_;
-        real        charge_;
-    };
+    MoleculeName name_;
 
     //! one entry per particle in molecule
     std::vector<ParticleData> particles_;

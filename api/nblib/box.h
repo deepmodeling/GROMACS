@@ -41,23 +41,34 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
-#ifndef GROMACS_BOX_H
-#define GROMACS_BOX_H
+#ifndef NBLIB_BOX_H
+#define NBLIB_BOX_H
 
-#include "nblib/basicdefinitions.h"
+#include "basicdefinitions.h"
 
 namespace nblib
 {
 
-class Box
+/*! \brief Box specifies the size of periodic simulation systems
+ *
+ * \inpublicapi
+ * \ingroup nblib
+ *
+ * Currently only cubic and rectangular boxes are supported.
+ *
+ */
+class Box final
 {
 public:
     using LegacyMatrix = matrix;
 
-    Box(real l);
+    //! Construct a cubic box.
+    explicit Box(real l);
 
+    //! Construct a rectangular box.
     Box(real x, real y, real z);
 
+    //! Return the full matrix that specifies the box. Used for gromacs setup code.
     [[nodiscard]] LegacyMatrix const& legacyMatrix() const { return legacyMatrix_; }
 
 private:
@@ -65,4 +76,4 @@ private:
 };
 
 } // namespace nblib
-#endif // GROMACS_BOX_H
+#endif // NBLIB_BOX_H

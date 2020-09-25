@@ -43,8 +43,8 @@
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
 
-#ifndef NBLIB_USERUTILS_H
-#define NBLIB_USERUTILS_H
+#ifndef NBLIB_UTIL_USER_H
+#define NBLIB_UTIL_USER_H
 
 #include <functional>
 #include <iostream>
@@ -78,14 +78,75 @@ inline void ignore_unused(T& x, Ts&... xs)
     ignore_unused(xs...);
 }
 
-template<class T>
+/*! \brief A template to create structs as a type-safe alternative to using declarations
+ *
+ * \inpublicapi
+ * \ingroup nblib
+ *
+ * Used in public API functions where a distinction between different
+ * arguments of the same underlying type is desired. This provides a type-safe
+ * version to using declarations. Instead of naming a type alias, the name
+ * is used to define a struct that inherits from StrongType<T>, where T is
+ * the underlying type. For example:
+ *
+ * struct C6 : StrongType<real>
+ * {
+ *     using StrongType::StrongType;
+ *     using StrongType::operator=;
+ * };
+ *
+ * Due to the T() conversion and assignment from T,
+ * an instance of the resulting C6 struct behaves essentially like a real, while construction
+ * from real is disabled. This makes it impossible to pass a real as a function parameter
+ * of type C6.
+ */
+template<class T, class Phantom>
 struct StrongType
 {
-    explicit StrongType(T v) : value(v) {}
-    operator T() const { return value; }
+    //! default ctor
+    StrongType() : value_{} {}
+    //! construction from the underlying type T, implicit conversions disabled
+    explicit StrongType(T v) : value_(std::move(v)) {}
 
-    T value;
+    //! assignment from T
+    StrongType& operator=(T v)
+    {
+        value_ = std::move(v);
+        return *this;
+    }
+
+    //! conversion to T
+    operator T() const { return value_; }
+
+    //! access the underlying value
+    T value() const { return value_; }
+
+private:
+    T value_;
 };
+
+//! Equality comparison. For the case where a comparison between StrongTypes with matching T, but differing Phantom
+//! parameters is desired, the underlying value attribute should be compared instead
+template<class T, class Phantom>
+[[maybe_unused]] inline bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return lhs.value() == rhs.value();
+}
+
+//! comparison function <
+template<class T, class Phantom>
+inline bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return lhs.value() < rhs.value();
+}
+
+//! comparison function >
+template<class T, class Phantom>
+inline bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return lhs.value() > rhs.value();
+}
+
 
 //! Base template for a holder of entries of different data types
 template<class... Ts>
@@ -135,4 +196,4 @@ using Reduce = typename Reduce_<P, L>::type;
 
 } // namespace nblib
 
-#endif // NBLIB_USERUTILS_H
+#endif // NBLIB_UTIL_USER_H

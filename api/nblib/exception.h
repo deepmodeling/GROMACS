@@ -50,17 +50,34 @@
 namespace nblib
 {
 
-class InputException : public std::exception
+/*! \brief Base nblib exception class
+ *
+ * All nblib exceptions derive from this class and simply forward their message. This allows exceptions
+ * to be handled uniformly across different exception types.
+ */
+class NbLibException : public std::exception
 {
 public:
-    explicit InputException(std::string reason) : message_("Input Exception: " + reason) {}
+    [[maybe_unused]] explicit NbLibException(const std::string& message) : message_("NbLib Exception: " + message) {}
 
-    const char* what() const noexcept override { return message_.c_str(); }
+    //! Overrides the what() in std::exception
+    [[nodiscard]] const char* what() const noexcept override { return message_.c_str(); }
 
-    const std::string& reason() const { return message_; }
+    //! Convenience call in case a string is wanted instead of a const char*
+    [[nodiscard]] const std::string& reason() const & { return message_; }
 
 private:
     std::string message_;
+};
+
+/*! \brief The exception type for user input errors
+ *
+ * The message should give users some hint as to how to remedy the error.
+ */
+class InputException final : NbLibException
+{
+public:
+    using NbLibException::NbLibException;
 };
 
 } // namespace nblib

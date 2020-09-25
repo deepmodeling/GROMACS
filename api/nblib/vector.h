@@ -45,7 +45,7 @@
 #define NBLIB_BASICVECTOR_H
 
 #include "gromacs/math/vectypes.h"
-#include "nblib/basicdefinitions.h"
+#include "basicdefinitions.h"
 
 namespace nblib
 {

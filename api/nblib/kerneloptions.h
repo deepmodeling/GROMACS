@@ -42,15 +42,12 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
-#ifndef GROMACS_SETUP_H
-#define GROMACS_SETUP_H
+#ifndef NBLIB_KERNELOPTIONS_H
+#define NBLIB_KERNELOPTIONS_H
 
 #include <memory>
 
-#include "nblib/basicdefinitions.h"
-
-struct interaction_const_t;
-struct nonbonded_verlet_t;
+#include "basicdefinitions.h"
 
 namespace nblib
 {
@@ -86,12 +83,12 @@ enum class CoulombType : int
 /*! \internal \brief
  * The options for the nonbonded kernel caller
  */
-struct NBKernelOptions
+struct NBKernelOptions final
 {
     //! Whether to use a GPU, currently GPUs are not supported
     bool useGpu = false;
     //! The number of OpenMP threads to use
-    int numThreads = 1;
+    int numOpenMPThreads = 1;
     //! The SIMD type for the kernel
     SimdKernels nbnxmSimd = SimdKernels::SimdAuto;
     //! The LJ combination rule
@@ -116,4 +113,4 @@ struct NBKernelOptions
 
 } // namespace nblib
 
-#endif // GROMACS_SETUP_H
+#endif // NBLIB_KERNELOPTIONS_H

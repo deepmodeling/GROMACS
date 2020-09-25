@@ -41,39 +41,67 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
-#ifndef GMX_NBLIB_FORCECALCULATOR_H
-#define GMX_NBLIB_FORCECALCULATOR_H
+#ifndef NBLIB_FORCECALCULATOR_H
+#define NBLIB_FORCECALCULATOR_H
 
 #include "nblib/interactions.h"
 #include "nblib/kerneloptions.h"
 #include "nblib/simulationstate.h"
+
+namespace gmx
+{
+template<typename T>
+class ArrayRef;
+} // namespace gmx
 
 namespace nblib
 {
 class NbvSetupUtil;
 class GmxForceCalculator;
 
-class ForceCalculator
+/*! \brief Setups up and computes forces using gromacs backend.
+ *
+ * The ForceCalculator uses the data in the SimulationState and NBKernelOptions to opaquely
+ * construct all gromacs data structures needed to perform nonbonded force calculations. It is
+ * costly to create this object since much of the SimulationState and NBKernelOptions has to be
+ * passed to the gromacs backend. However, once constructed, compute can be called repeatedly only
+ * paying the cost of the actual nonbonded force calculation. Repeated calls to compute on the same
+ * coordinated will always return the same forces (within precision), so the user must update the
+ * positions using the forces generated here to advance a simulation. If the coordinates move
+ * sufficiently far from their positions at construction time, the efficiency of the calculation
+ * will suffer. To alleviate this, the user can call updatePairList.
+ *
+ */
+class ForceCalculator final
 {
 public:
-    /*! \brief Constructor
-     *
-     * \todo: Depend on simulationState
-     */
     ForceCalculator(const SimulationState& system, const NBKernelOptions& options);
 
     ~ForceCalculator();
 
-    /*! \brief Sets up and runs the kernel calls
+    /*! \brief Dispatch the nonbonded force kernels and reduce the forces
+     *
+     * This function zeroes out all values in the passed in forces buffer, so it can be regarded as
+     * an output only param.
      *
      * \param[in] coordinates to be used for the force calculation
      * \param[out] forces buffer to store the output forces
      */
     void compute(gmx::ArrayRef<const Vec3> coordinates, gmx::ArrayRef<Vec3> forces);
 
-    void updatePairList(const std::vector<int>& particleInfoAllVdW,
-                        gmx::ArrayRef<Vec3>     coordinates,
-                        const Box&              box);
+    /*! \brief Puts particles on a grid based on bounds specified by the box
+     *
+     * As compute is called repeatedly, the particles drift apart and the force computation becomes
+     * progressively less efficient. Calling this function recomputes the particle-particle pair
+     * lists so that computation can proceed efficiently. Should be called around every 100 steps.
+     *
+     * \param particleInfoAllVdW The types of the particles to be placed on grids
+     * \param coordinates The coordinates to be placed on grids
+     * \param[in] box The system simulation box
+     */
+    void updatePairList(gmx::ArrayRef<const int> particleInfoAllVdW,
+                        gmx::ArrayRef<Vec3>      coordinates,
+                        const Box&               box);
 
 private:
     //! GROMACS force calculator to compute forces
@@ -82,4 +110,4 @@ private:
 
 } // namespace nblib
 
-#endif // GMX_NBLIB_FORCECALCULATOR_H
+#endif // NBLIB_FORCECALCULATOR_H

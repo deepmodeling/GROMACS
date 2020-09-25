@@ -45,28 +45,28 @@
  * \inpublicapi
  * \ingroup nblib
  */
-#ifndef GMX_NBLIB_PARTICLETYPE_H
-#define GMX_NBLIB_PARTICLETYPE_H
+#ifndef NBLIB_PARTICLETYPE_H
+#define NBLIB_PARTICLETYPE_H
 
 #include <string>
 
-#include "nblib/basicdefinitions.h"
+#include "nblib/util/user.h"
 
 namespace nblib
 {
 class TopologyBuilder;
 
-//! Alias for particle type name
-using ParticleTypeName = std::string;
-//! Alias for particle mass
-using Mass = real;
+//! Named type for particle type name
+using ParticleTypeName = StrongType<std::string, struct ParticleTypeNameParameter>;
+//! Named type for particle mass
+using Mass = StrongType<real, struct MassParameter>;
 
 /*! \brief Class that represents the particle type.
  *
  * The particle type is used in lookup tables for masses, non-bonded parameters, etc.
  * Every particle has to assigned an atom type.
  */
-class ParticleType
+class ParticleType final
 {
 public:
     /*! \brief Constructor with explicit name and mass specification.
@@ -102,4 +102,4 @@ private:
 bool operator==(const ParticleType& a, const ParticleType& b);
 
 } // namespace nblib
-#endif // GMX_NBLIB_PARTICLETYPE_H
+#endif // NBLIB_PARTICLETYPE_H

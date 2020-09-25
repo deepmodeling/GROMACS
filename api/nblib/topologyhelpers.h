@@ -42,8 +42,8 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GMX_NBLIB_TOPOLOGY_HELPERS_H
-#define GMX_NBLIB_TOPOLOGY_HELPERS_H
+#ifndef NBLIB_TOPOLOGY_HELPERS_H
+#define NBLIB_TOPOLOGY_HELPERS_H
 
 #include <tuple>
 #include <unordered_map>

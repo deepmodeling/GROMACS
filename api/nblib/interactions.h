@@ -42,8 +42,8 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GMX_NBLIB_INTERACTIONS_H
-#define GMX_NBLIB_INTERACTIONS_H
+#ifndef NBLIB_INTERACTIONS_H
+#define NBLIB_INTERACTIONS_H
 
 #include <map>
 #include <tuple>
@@ -51,34 +51,39 @@
 
 #include "nblib/kerneloptions.h"
 #include "nblib/particletype.h"
+#include "nblib/util/user.h"
 
 namespace nblib
 {
 
-//! Alias for specifying particle type name
-using ParticleTypeName = std::string;
 //! Shorthand for a map used for looking up non-bonded parameters using particle types
-//! Alias for the C6 parameter in the Lennard-Jones potential
-using C6 = real;
-//! Alias for the C12 parameter in the Lennard-Jones potential
-using C12 = real;
+//! Named type for the C6 parameter in the Lennard-Jones potential
+using C6 = StrongType<real, struct C6Parameter>;
+//! Named type for the C12 parameter in the Lennard-Jones potential
+using C12 = StrongType<real, struct C12Parameter>;
+
 using NonBondedInteractionMapImpl =
         std::map<std::tuple<ParticleTypeName, ParticleTypeName>, std::tuple<C6, C12>>;
 
-class NonBondedInteractionMap : public NonBondedInteractionMapImpl
+//! Map used for looking up non-bonded parameters using particle types
+class NonBondedInteractionMap final
 {
+private:
+    using NamePairTuple   = std::tuple<ParticleTypeName, ParticleTypeName>;
+    using ComboParameters = std::tuple<C6, C12>;
+    using InteractionMap  = std::map<NamePairTuple, ComboParameters>;
+    InteractionMap interactionMap_;
+
 public:
-    C6  getC6(const ParticleTypeName&, const ParticleTypeName&) const;
-    C12 getC12(const ParticleTypeName&, const ParticleTypeName&) const;
+    void   setInteractions(const ParticleTypeName&, const ParticleTypeName&, const C6, const C12);
+    size_t count(const NamePairTuple&);
+
+    [[nodiscard]] C6  getC6(const ParticleTypeName&, const ParticleTypeName&) const;
+    [[nodiscard]] C12 getC12(const ParticleTypeName&, const ParticleTypeName&) const;
+
+    InteractionMap::iterator begin() { return interactionMap_.begin(); }
+    InteractionMap::iterator end() { return interactionMap_.end(); }
 };
-
-namespace detail
-{
-
-//! Combines the non-bonded parameters from two particles for pairwise interactions
-real combineNonbondedParameters(real v, real w, CombinationRule combinationRule);
-
-} // namespace detail
 
 /*! \brief Non-Bonded Interactions between Particle Types
  *
@@ -92,23 +97,26 @@ real combineNonbondedParameters(real v, real w, CombinationRule combinationRule)
  * a specific pair.
  *
  */
-class ParticleTypesInteractions
+class ParticleTypesInteractions final
 {
 public:
     //! Initialized with the default geometric combination rule
     explicit ParticleTypesInteractions(CombinationRule = CombinationRule::Geometric);
 
     //! Specify non-bonded params of a particle type
-    void add(const ParticleTypeName& particleTypeName, C6 c6, C12 c12);
+    ParticleTypesInteractions& add(const ParticleTypeName& particleTypeName, C6 c6, C12 c12);
 
     //! Specify the non-bonded params of a specific pair of particle types
-    void add(const ParticleTypeName& particleTypeName1, const ParticleTypeName& particleTypeName2, C6 c6, C12 c12);
+    ParticleTypesInteractions& add(const ParticleTypeName& particleTypeName1,
+                                   const ParticleTypeName& particleTypeName2,
+                                   C6                      c6,
+                                   C12                     c12);
 
     //! Generate table based on the parameters stored
-    NonBondedInteractionMap generateTable();
+    [[nodiscard]] NonBondedInteractionMap generateTable() const;
 
     //! Get combination rule enabled in this object
-    CombinationRule getCombinationRule() const;
+    [[nodiscard]] CombinationRule getCombinationRule() const;
 
     //! Merge with the information stored in another ParticleTypesInteractions object
     void merge(const ParticleTypesInteractions&);
@@ -116,9 +124,9 @@ public:
 private:
     CombinationRule combinationRule_;
 
-    std::unordered_map<ParticleTypeName, std::tuple<C6, C12>> singleParticleInteractionsMap_;
+    std::map<ParticleTypeName, std::tuple<C6, C12>> singleParticleInteractionsMap_;
     std::map<std::tuple<ParticleTypeName, ParticleTypeName>, std::tuple<C6, C12>> twoParticlesInteractionsMap_;
 };
 
 } // namespace nblib
-#endif // GMX_NBLIB_INTERACTIONS_H
+#endif // NBLIB_INTERACTIONS_H

@@ -42,30 +42,37 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GROMACS_INTEGRATOR_H
-#define GROMACS_INTEGRATOR_H
+#ifndef NBLIB_INTEGRATOR_H
+#define NBLIB_INTEGRATOR_H
 
 #include <vector>
 
 #include "nblib/box.h"
 #include "nblib/vector.h"
 
+namespace gmx
+{
+template<typename T>
+class ArrayRef;
+} // namespace gmx
+
 namespace nblib
 {
 
 class Topology;
 
-class LeapFrog
+/*! \brief Simple integrator
+ *
+ */
+class LeapFrog final
 {
 public:
     /*! \brief Constructor.
      *
-     * \todo Change the argument to
-     *
      * \param[in] topology  Topology object to build list of inverse masses.
      * \param[in] box       Box object for ensuring that coordinates remain within bounds
      */
-    LeapFrog(const Topology& topology, const Box box);
+    LeapFrog(const Topology& topology, const Box& box);
 
     /*! \brief Integrate
      *
@@ -75,13 +82,13 @@ public:
      * \param[in]  dt          Timestep.
      * \param[out] coordinates Coordinate array that would be modified in-place.
      * \param[out] velocities  Velocity array that would be modified in-place.
-     * \param[in]  forces      Force array to be read from reference.
+     * \param[in]  forces      Force array to be read.
      *
      */
-    void integrate(real                     dt,
-                   std::vector<Vec3>&       coordinates,
-                   std::vector<Vec3>&       velocities,
-                   const std::vector<Vec3>& forces);
+    void integrate(real                      dt,
+                   gmx::ArrayRef<Vec3>       coordinates,
+                   gmx::ArrayRef<Vec3>       velocities,
+                   gmx::ArrayRef<const Vec3> forces);
 
 private:
     //! 1/mass for all atoms
@@ -92,4 +99,4 @@ private:
 
 } // namespace nblib
 
-#endif // GROMACS_INTEGRATOR_H
+#endif // NBLIB_INTEGRATOR_H

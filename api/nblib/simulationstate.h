@@ -43,14 +43,14 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GMX_NBLIB_SIMULATIONSTATE_H
-#define GMX_NBLIB_SIMULATIONSTATE_H
+#ifndef NBLIB_SIMULATIONSTATE_H
+#define NBLIB_SIMULATIONSTATE_H
 
 #include <memory>
 #include <vector>
 
-#include "nblib/box.h"
-#include "nblib/topology.h"
+#include "box.h"
+#include "topology.h"
 
 namespace nblib
 {
@@ -63,7 +63,7 @@ namespace nblib
  * being analysed. Needed to init an MD program. Allows hot-starting simulations.
  */
 
-class SimulationState
+class SimulationState final
 {
 public:
     //! Constructor
@@ -77,18 +77,18 @@ public:
     const Topology& topology() const;
 
     //! Returns the box
-    const Box box() const;
+    Box box() const;
 
-    //! Returns a vector of particle coordinates
+    //! Returns a reference to a (modifiable) vector of particle coordinates
     std::vector<Vec3>& coordinates();
 
     //! Returns a read-only vector of particle coordinates
     const std::vector<Vec3>& coordinates() const;
 
-    //! Returns a vector of particle velocities
+    //! Returns a reference to a (modifiable) vector of particle velocities
     std::vector<Vec3>& velocities();
 
-    //! Returns a vector of forces
+    //! Returns a reference to a (modifiable) vector of forces
     std::vector<Vec3>& forces();
 
 private:
@@ -98,4 +98,4 @@ private:
 
 } // namespace nblib
 
-#endif // GMX_NBLIB_SIMULATIONSTATE_H
+#endif // NBLIB_SIMULATIONSTATE_H

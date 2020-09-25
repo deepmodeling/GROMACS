@@ -42,8 +42,8 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GMX_NBLIB_BASICDEFINITIONS_H
-#define GMX_NBLIB_BASICDEFINITIONS_H
+#ifndef NBLIB_BASICDEFINITIONS_H
+#define NBLIB_BASICDEFINITIONS_H
 
 #include <cmath>
 
@@ -60,37 +60,52 @@ typedef float real;
 #    endif
 #endif /* GMX_DOUBLE */
 
+namespace nblib
+{
+
+namespace detail
+{
 // from math/units.h
-#define KILO (1e3)                     /* Thousand	*/
-#define NANO (1e-9)                    /* A Number	*/
-#define E_CHARGE (1.602176634e-19)     /* Exact definition, Coulomb NIST 2018 CODATA */
-#define BOLTZMANN (1.380649e-23)       /* (J/K, Exact definition, NIST 2018 CODATA */
-#define AVOGADRO (6.02214076e23)       /* 1/mol, Exact definition, NIST 2018 CODATA */
-#define RGAS (BOLTZMANN * AVOGADRO)    /* (J/(mol K))  */
-#define BOLTZ (RGAS / KILO)            /* (kJ/(mol K)) */
-#define EPSILON0_SI (8.8541878128e-12) /* F/m,  NIST 2018 CODATA */
-#define EPSILON0 ((EPSILON0_SI * NANO * KILO) / (E_CHARGE * E_CHARGE * AVOGADRO))
-#define ONE_4PI_EPS0 (1.0 / (4.0 * M_PI * EPSILON0))
-#define DEG2RAD (M_PI / 180.0)
+constexpr const float  KILO      = 1e3;             /* Thousand	*/
+constexpr const double NANO      = 1e-9;            /* A Number	*/
+constexpr const double E_CHARGE  = 1.602176634e-19; /* Exact definition, Coulomb NIST 2018 CODATA */
+constexpr const double BOLTZMANN = 1.380649e-23;    /* (J/K, Exact definition, NIST 2018 CODATA */
+constexpr const double AVOGADRO  = 6.02214076e23;   /* 1/mol, Exact definition, NIST 2018 CODATA */
+constexpr const double RGAS      = (BOLTZMANN * AVOGADRO); /* (J/(mol K))  */
+constexpr const double EPSILON0_SI = 8.8541878128e-12;     /* F/m,  NIST 2018 CODATA */
+constexpr const double EPSILON0 = ((EPSILON0_SI * NANO * KILO) / (E_CHARGE * E_CHARGE * AVOGADRO));
 
 // from pbc/ishift.h
-#define D_BOX_Z 1
-#define D_BOX_Y 1
-#define D_BOX_X 2
-#define N_BOX_Z (2 * D_BOX_Z + 1)
-#define N_BOX_Y (2 * D_BOX_Y + 1)
-#define N_BOX_X (2 * D_BOX_X + 1)
-#define N_IVEC (N_BOX_Z * N_BOX_Y * N_BOX_X)
-#define CENTRAL (N_IVEC / 2)
-#define SHIFTS N_IVEC
+constexpr const int D_BOX_Z = 1;
+constexpr const int D_BOX_Y = 1;
+constexpr const int D_BOX_X = 2;
+constexpr const int N_BOX_Z = (2 * D_BOX_Z + 1);
+constexpr const int N_BOX_Y = (2 * D_BOX_Y + 1);
+constexpr const int N_BOX_X = (2 * D_BOX_X + 1);
+constexpr const int N_IVEC  = (N_BOX_Z * N_BOX_Y * N_BOX_X);
+} // namespace detail
+
+//! Needed for generating Bolzmann velocity distribution (kJ/(mol K))
+constexpr const real BOLTZ = (detail::RGAS / detail::KILO); /*  */
+
+//! Charge multiplication factor for Coulomb interactions
+constexpr const real ONE_4PI_EPS0 = (1.0 / (4.0 * M_PI * detail::EPSILON0));
+
+//! Conversion factor from degrees to radians
+constexpr const real DEG2RAD = M_PI / 180.0;
+
+//! The number of shift vectors needed for pbc
+constexpr const int numShiftVectors = detail::N_IVEC;
 
 // from math/vectypes.h
-#define XX 0 /* Defines for indexing in vectors */
-#define YY 1
-#define ZZ 2
-#define DIM 3 /* Dimension of vectors    */
-typedef real   rvec[DIM];
-typedef double dvec[DIM];
-typedef real   matrix[DIM][DIM];
+constexpr const int dimX = 0; /* Defines for indexing in vectors */
+constexpr const int dimY = 1;
+constexpr const int dimZ = 2;
 
-#endif // GMX_NBLIB_BASICDEFINITIONS_H
+constexpr const int dimSize = 3;
+typedef real        rvec[dimSize];
+typedef real        matrix[dimSize][dimSize];
+} // namespace nblib
+
+
+#endif // NBLIB_BASICDEFINITIONS_H

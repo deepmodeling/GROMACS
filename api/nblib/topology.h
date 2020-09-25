@@ -42,15 +42,20 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GMX_NBLIB_TOPOLOGY_H
-#define GMX_NBLIB_TOPOLOGY_H
+#ifndef NBLIB_TOPOLOGY_H
+#define NBLIB_TOPOLOGY_H
 
 #include <vector>
 
-#include "gromacs/utility/listoflists.h"
 #include "nblib/interactions.h"
 #include "nblib/molecules.h"
 #include "nblib/topologyhelpers.h"
+
+namespace gmx
+{
+template<typename>
+class ListOfLists;
+} // namespace gmx
 
 namespace nblib
 {
@@ -64,30 +69,30 @@ namespace nblib
  * exists in a scope in a valid state after it has been built using a
  * Topology Builder.
  */
-class Topology
+class Topology final
 {
 
 public:
     //! Returns the total number of particles in the system
-    const int& numParticles() const;
+    int numParticles() const;
 
     //! Returns a vector of particle types
-    const std::vector<ParticleType>& getParticleTypes() const;
+    std::vector<ParticleType> getParticleTypes() const;
 
     //! Return the ParticleType ID of all particles
-    const std::vector<int>& getParticleTypeIdOfAllParticles() const;
+    std::vector<int> getParticleTypeIdOfAllParticles() const;
 
     //! Returns a vector of particles partial charges
-    const std::vector<real>& getCharges() const;
+    std::vector<real> getCharges() const;
 
     //! Returns exclusions in proper, performant, GROMACS layout
-    const gmx::ListOfLists<int>& getGmxExclusions() const { return exclusions_; }
+    gmx::ListOfLists<int> getGmxExclusions() const;
 
     //! Returns the unique ID of a specific particle belonging to a molecule in the global space
-    int sequenceID(std::string moleculeName, int moleculeNr, ResidueName residueName, ParticleName particleName);
+    int sequenceID(MoleculeName moleculeName, int moleculeNr, ResidueName residueName, ParticleName particleName) const;
 
     //! Returns a map of non-bonded force parameters indexed by ParticleType names
-    const NonBondedInteractionMap& getNonBondedInteractionMap() const;
+    NonBondedInteractionMap getNonBondedInteractionMap() const;
 
     //! Returns the combination rule used to generate the NonBondedInteractionMap
     CombinationRule getCombinationRule() const;
@@ -125,7 +130,7 @@ private:
  * simulation program.
  *
  */
-class TopologyBuilder
+class TopologyBuilder final
 {
 public:
     //! Constructor
