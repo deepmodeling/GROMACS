@@ -125,6 +125,12 @@ Debugging
         arrive first. Setting this variable switches to the generic path with fixed waiting
         order.
 
+``GMX_TEST_REQUIRED_NUMBER_OF_DEVICES``
+        sets the number of GPUs required by the test suite. By default, the test suite would
+        fall-back to using CPU if GPUs could not be detected. Set it to a positive integer value
+        to ensure that at least this at least this number of usable GPUs are detected. Default:
+        0 (not testing GPU availability).
+
 There are a number of extra environment variables like these
 that are used in debugging - check the code!
 
@@ -246,6 +252,10 @@ Performance and Run Control
         of GPU tasks to GPU device IDs to be different on different ranks, if e.g. the MPI
         runtime permits this variable to be different for different ranks. Cannot be used
         in conjunction with ``mdrun -gputasks``. Has all the same requirements as ``mdrun -gputasks``.
+
+``GMX_GPU_DISABLE_COMPATIBILITY_CHECK``
+        Disables the hardware compatibility check in OpenCL and SYCL. Useful for developers
+        and allows testing the OpenCL/SYCL kernels on non-supported platforms without source code modification.
 
 ``GMX_IGNORE_FSYNC_FAILURE_ENV``
         allow :ref:`gmx mdrun` to continue even if
@@ -468,11 +478,6 @@ compilation of OpenCL kernels, but they are also used in device selection.
         kernels from a custom location. Use it only if you want to
         override |Gromacs| default behavior, or if you want to test
         your own kernels.
-
-``GMX_OCL_DISABLE_COMPATIBILITY_CHECK``
-        Disables the hardware compatibility check. Useful for developers
-        and allows testing the OpenCL kernels on non-supported platforms
-        (like Intel iGPUs) without source code modification.
 
 ``GMX_OCL_SHOW_DIAGNOSTICS``
         Use Intel OpenCL extension to show additional runtime performance

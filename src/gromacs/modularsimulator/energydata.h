@@ -69,7 +69,7 @@ class MDAtoms;
 class ModularSimulatorAlgorithmBuilderHelper;
 class ParrinelloRahmanBarostat;
 class StatePropagatorData;
-class VRescaleThermostat;
+class VelocityScalingTemperatureCoupling;
 struct MdModulesNotifier;
 
 /*! \internal
@@ -187,13 +187,13 @@ public:
      */
     [[nodiscard]] bool hasReadEkinFromCheckpoint() const;
 
-    /*! \brief set vrescale thermostat
+    /*! \brief Set velocity scaling temperature coupling
      *
-     * This allows to set a pointer to the vrescale thermostat used to
-     * print the thermostat integral.
+     * This allows to set a pointer to a velocity scaling temperature coupling
+     * element used to obtain contributions to the conserved energy.
      * TODO: This should be made obsolete my a more modular energy element
      */
-    void setVRescaleThermostat(const VRescaleThermostat* vRescaleThermostat);
+    void setVelocityScalingTemperatureCoupling(const VelocityScalingTemperatureCoupling* velocityScalingTemperatureCoupling);
 
     /*! \brief set Parrinello-Rahman barostat
      *
@@ -290,7 +290,7 @@ private:
     //! Pointer to the free energy perturbation data
     FreeEnergyPerturbationData* freeEnergyPerturbationData_;
     //! Pointer to the vrescale thermostat
-    const VRescaleThermostat* vRescaleThermostat_;
+    const VelocityScalingTemperatureCoupling* velocityScalingTemperatureCoupling_;
     //! Pointer to the Parrinello-Rahman barostat
     const ParrinelloRahmanBarostat* parrinelloRahmanBarostat_;
     //! Contains user input mdp options.
@@ -364,9 +364,9 @@ public:
     void elementTeardown() override {}
 
     //! ICheckpointHelperClient write checkpoint implementation
-    void writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr) override;
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
     //! ICheckpointHelperClient read checkpoint implementation
-    void readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr) override;
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
     //! ICheckpointHelperClient key implementation
     const std::string& clientID() override;
 
@@ -415,7 +415,7 @@ private:
     const std::string identifier_ = "EnergyElement";
     //! Helper function to read from / write to CheckpointData
     template<CheckpointDataOperation operation>
-    void doCheckpointData(CheckpointData<operation>* checkpointData, const t_commrec* cr);
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 
     //! Whether this is the master rank
     const bool isMasterRank_;

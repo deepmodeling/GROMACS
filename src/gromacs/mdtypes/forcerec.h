@@ -242,9 +242,6 @@ struct t_forcerec
 
     std::unique_ptr<gmx::WholeMoleculeTransform> wholeMoleculeTransform;
 
-    int      cutoff_scheme = 0;     /* group- or Verlet-style cutoff */
-    gmx_bool bNonbonded    = FALSE; /* true if nonbonded calculations are *not* turned off */
-
     /* The Nbnxm Verlet non-bonded machinery */
     std::unique_ptr<nonbonded_verlet_t> nbv;
 

@@ -303,7 +303,7 @@ void runTest(TestFileManager*            fileManager,
 
     // Build the functor that will compare energy frames on the chosen
     // energy terms.
-    EnergyComparison energyComparison(energyTermsToCompare);
+    EnergyComparison energyComparison(energyTermsToCompare, FramesToCompare::AllFrames);
 
     // Build the manager that will present matching pairs of frames to compare.
     //
@@ -359,7 +359,8 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     // TODO: Update this as modular simulator gains functionality
     const bool isModularSimulatorExplicitlyDisabled = (getenv("GMX_DISABLE_MODULAR_SIMULATOR") != nullptr);
     const bool isTCouplingCompatibleWithModularSimulator =
-            (temperatureCoupling == "no" || temperatureCoupling == "v-rescale");
+            (temperatureCoupling == "no" || temperatureCoupling == "v-rescale"
+             || temperatureCoupling == "berendsen");
     if (integrator == "md-vv" && pressureCoupling == "parrinello-rahman"
         && (isModularSimulatorExplicitlyDisabled || !isTCouplingCompatibleWithModularSimulator))
     {

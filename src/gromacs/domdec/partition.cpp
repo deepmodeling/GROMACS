@@ -3052,11 +3052,8 @@ void dd_partition_system(FILE*                     fplog,
     /* Set the charge group boundaries for neighbor searching */
     set_cg_boundaries(&comm->zones);
 
-    if (fr->cutoff_scheme == ecutsVERLET)
-    {
-        /* When bSortCG=true, we have already set the size for zone 0 */
-        set_zones_size(dd, state_local->box, &ddbox, bSortCG ? 1 : 0, comm->zones.n, 0);
-    }
+    /* When bSortCG=true, we have already set the size for zone 0 */
+    set_zones_size(dd, state_local->box, &ddbox, bSortCG ? 1 : 0, comm->zones.n, 0);
 
     wallcycle_sub_stop(wcycle, ewcsDD_SETUPCOMM);
 
@@ -3117,27 +3114,20 @@ void dd_partition_system(FILE*                     fplog,
 
     state_change_natoms(state_local, state_local->natoms);
 
-    if (fr->forceHelperBuffers->haveDirectVirialContributions())
+    if (vsite && vsite->numInterUpdategroupVirtualSites())
     {
-        if (vsite && vsite->numInterUpdategroupVirtualSites())
-        {
-            nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
-        }
-        else
-        {
-            if (EEL_FULL(ir->coulombtype) && dd->haveExclusions)
-            {
-                nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Zones);
-            }
-            else
-            {
-                nat_f_novirsum = comm->atomRanges.numHomeAtoms();
-            }
-        }
+        nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
     }
     else
     {
-        nat_f_novirsum = 0;
+        if (EEL_FULL(ir->coulombtype) && dd->haveExclusions)
+        {
+            nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Zones);
+        }
+        else
+        {
+            nat_f_novirsum = comm->atomRanges.numHomeAtoms();
+        }
     }
 
     /* Set the number of atoms required for the force calculation.

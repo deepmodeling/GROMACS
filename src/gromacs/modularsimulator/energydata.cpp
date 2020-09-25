@@ -69,7 +69,7 @@
 #include "parrinellorahmanbarostat.h"
 #include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
-#include "vrescalethermostat.h"
+#include "velocityscalingtemperaturecoupling.h"
 
 struct pull_t;
 class t_state;
@@ -103,7 +103,7 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
     startingBehavior_(startingBehavior),
     statePropagatorData_(statePropagatorData),
     freeEnergyPerturbationData_(freeEnergyPerturbationData),
-    vRescaleThermostat_(nullptr),
+    velocityScalingTemperatureCoupling_(nullptr),
     parrinelloRahmanBarostat_(nullptr),
     inputrec_(inputrec),
     top_global_(globalTopology),
@@ -242,7 +242,9 @@ void EnergyData::doStep(Time time, bool isEnergyCalculationStep, bool isFreeEner
     {
         enerd_->term[F_ECONSERVED] =
                 enerd_->term[F_ETOT]
-                + (vRescaleThermostat_ ? vRescaleThermostat_->conservedEnergyContribution() : 0)
+                + (velocityScalingTemperatureCoupling_
+                           ? velocityScalingTemperatureCoupling_->conservedEnergyContribution()
+                           : 0)
                 + (parrinelloRahmanBarostat_ ? parrinelloRahmanBarostat_->conservedEnergyContribution() : 0);
     }
     matrix nullMatrix = {};
@@ -384,20 +386,17 @@ constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count
 } // namespace
 
 template<CheckpointDataOperation operation>
-void EnergyData::Element::doCheckpointData(CheckpointData<operation>* checkpointData, const t_commrec* cr)
+void EnergyData::Element::doCheckpointData(CheckpointData<operation>* checkpointData)
 {
-    if (MASTER(cr))
-    {
-        checkpointVersion(checkpointData, "EnergyData version", c_currentVersion);
+    checkpointVersion(checkpointData, "EnergyData version", c_currentVersion);
 
-        energyData_->observablesHistory_->energyHistory->doCheckpoint<operation>(
-                checkpointData->subCheckpointData("energy history"));
-        energyData_->ekinstate_.doCheckpoint<operation>(
-                checkpointData->subCheckpointData("ekinstate"));
-    }
+    energyData_->observablesHistory_->energyHistory->doCheckpoint<operation>(
+            checkpointData->subCheckpointData("energy history"));
+    energyData_->ekinstate_.doCheckpoint<operation>(checkpointData->subCheckpointData("ekinstate"));
 }
 
-void EnergyData::Element::writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr)
+void EnergyData::Element::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                              const t_commrec*                   cr)
 {
     if (MASTER(cr))
     {
@@ -412,13 +411,17 @@ void EnergyData::Element::writeCheckpoint(WriteCheckpointData checkpointData, co
         }
         energyData_->energyOutput_->fillEnergyHistory(
                 energyData_->observablesHistory_->energyHistory.get());
+        doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
     }
-    doCheckpointData<CheckpointDataOperation::Write>(&checkpointData, cr);
 }
 
-void EnergyData::Element::readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr)
+void EnergyData::Element::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                 const t_commrec*                  cr)
 {
-    doCheckpointData<CheckpointDataOperation::Read>(&checkpointData, cr);
+    if (MASTER(cr))
+    {
+        doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
     energyData_->hasReadEkinFromCheckpoint_ = MASTER(cr) ? energyData_->ekinstate_.bUpToDate : false;
     if (PAR(cr))
     {
@@ -481,9 +484,9 @@ void EnergyData::initializeEnergyHistory(StartingBehavior    startingBehavior,
     energyOutput->fillEnergyHistory(observablesHistory->energyHistory.get());
 }
 
-void EnergyData::setVRescaleThermostat(const gmx::VRescaleThermostat* vRescaleThermostat)
+void EnergyData::setVelocityScalingTemperatureCoupling(const VelocityScalingTemperatureCoupling* velocityScalingTemperatureCoupling)
 {
-    vRescaleThermostat_ = vRescaleThermostat;
+    velocityScalingTemperatureCoupling_ = velocityScalingTemperatureCoupling;
 }
 
 void EnergyData::setParrinelloRahamnBarostat(const gmx::ParrinelloRahmanBarostat* parrinelloRahmanBarostat)

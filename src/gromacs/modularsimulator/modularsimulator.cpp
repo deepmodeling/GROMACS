@@ -79,7 +79,7 @@
 #include "parrinellorahmanbarostat.h"
 #include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
-#include "vrescalethermostat.h"
+#include "velocityscalingtemperaturecoupling.h"
 
 namespace gmx
 {
@@ -108,9 +108,11 @@ void ModularSimulator::addIntegrationElements(ModularSimulatorAlgorithmBuilder* 
         // The leap frog integration algorithm
         builder->add<ForceElement>();
         builder->add<StatePropagatorData::Element>();
-        if (legacySimulatorData_->inputrec->etc == etcVRESCALE)
+        if (legacySimulatorData_->inputrec->etc == etcVRESCALE
+            || legacySimulatorData_->inputrec->etc == etcBERENDSEN)
         {
-            builder->add<VRescaleThermostat>(-1, UseFullStepKE::No, ReportPreviousStepConservedEnergy::No);
+            builder->add<VelocityScalingTemperatureCoupling>(-1, UseFullStepKE::No,
+                                                             ReportPreviousStepConservedEnergy::No);
         }
         builder->add<Propagator<IntegrationStep::LeapFrog>>(legacySimulatorData_->inputrec->delta_t,
                                                             RegisterWithThermostat::True,
@@ -139,9 +141,11 @@ void ModularSimulator::addIntegrationElements(ModularSimulatorAlgorithmBuilder* 
         }
         builder->add<ComputeGlobalsElement<ComputeGlobalsAlgorithm::VelocityVerlet>>();
         builder->add<StatePropagatorData::Element>();
-        if (legacySimulatorData_->inputrec->etc == etcVRESCALE)
+        if (legacySimulatorData_->inputrec->etc == etcVRESCALE
+            || legacySimulatorData_->inputrec->etc == etcBERENDSEN)
         {
-            builder->add<VRescaleThermostat>(0, UseFullStepKE::Yes, ReportPreviousStepConservedEnergy::Yes);
+            builder->add<VelocityScalingTemperatureCoupling>(
+                    0, UseFullStepKE::Yes, ReportPreviousStepConservedEnergy::Yes);
         }
         builder->add<Propagator<IntegrationStep::VelocityVerletPositionsAndVelocities>>(
                 legacySimulatorData_->inputrec->delta_t, RegisterWithThermostat::True,
@@ -217,11 +221,11 @@ bool ModularSimulator::isInputCompatible(bool                             exitOn
     isInputCompatible =
             isInputCompatible
             && conditionalAssert(!doRerun, "Rerun is not supported by the modular simulator.");
-    isInputCompatible =
-            isInputCompatible
-            && conditionalAssert(
-                       inputrec->etc == etcNO || inputrec->etc == etcVRESCALE,
-                       "Only v-rescale thermostat is supported by the modular simulator.");
+    isInputCompatible = isInputCompatible
+                        && conditionalAssert(inputrec->etc == etcNO || inputrec->etc == etcVRESCALE
+                                                     || inputrec->etc == etcBERENDSEN,
+                                             "Only v-rescale and Berendsen thermostat are "
+                                             "supported by the modular simulator.");
     isInputCompatible =
             isInputCompatible
             && conditionalAssert(
