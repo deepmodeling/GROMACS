@@ -291,8 +291,10 @@ bool detectProcCpuInfoSecondAvx512FMA(const std::string& brand, int model)
     {
         return false;
     }
-    // This is the right default...
-    return true;
+    // This is the right default for some probably-older model of
+    // client. Newer models need to be actively listed in this
+    // function.
+    return false;
 }
 
 /*! \brief Simple utility function to set/clear feature in a set
