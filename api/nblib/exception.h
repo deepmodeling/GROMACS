@@ -52,19 +52,22 @@ namespace nblib
 
 /*! \brief Base nblib exception class
  *
- * All nblib exceptions derive from this class and simply forward their message. This allows exceptions
- * to be handled uniformly across different exception types.
+ * All nblib exceptions derive from this class and simply forward their message. This allows
+ * exceptions to be handled uniformly across different exception types.
  */
 class NbLibException : public std::exception
 {
 public:
-    [[maybe_unused]] explicit NbLibException(const std::string& message) : message_("NbLib Exception: " + message) {}
+    [[maybe_unused]] explicit NbLibException(const std::string& message) :
+        message_("NbLib Exception: " + message)
+    {
+    }
 
     //! Overrides the what() in std::exception
     [[nodiscard]] const char* what() const noexcept override { return message_.c_str(); }
 
     //! Convenience call in case a string is wanted instead of a const char*
-    [[nodiscard]] const std::string& reason() const & { return message_; }
+    [[nodiscard]] const std::string& reason() const& { return message_; }
 
 private:
     std::string message_;
