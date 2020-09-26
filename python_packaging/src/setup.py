@@ -146,8 +146,6 @@ if gmxapi_DIR != os.path.commonpath([gmxapi_DIR, gmx_toolchain]):
     ))
 
 cmake_platform_hints = '-DCMAKE_TOOLCHAIN_FILE={}'.format(gmx_toolchain)
-# Note that <package>_ROOT is not standard until CMake 3.12
-# Reference https://cmake.org/cmake/help/latest/policy/CMP0074.html#policy:CMP0074
 cmake_gmxapi_hint = '-Dgmxapi_ROOT={}'.format(gmxapi_DIR)
 cmake_args = [cmake_platform_hints, cmake_gmxapi_hint]
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -57,7 +57,7 @@ using gmxapi::MDArgs;
  * \brief Wrapper for gmxapi::Context
  *
  * Proxies gmxapi::Context methods and includes additions not yet provided by
- * by upstream library.
+ * upstream library.
  */
 class PyContext
 {
@@ -65,7 +65,8 @@ public:
     PyContext();
     void                             setMDArgs(const MDArgs& mdArgs);
     std::shared_ptr<gmxapi::Session> launch(const gmxapi::Workflow& work);
-    std::shared_ptr<gmxapi::Context> get() const;
+    // TODO: Remove unnecessary shared_ptr wrapper.
+    [[nodiscard]] std::shared_ptr<gmxapi::Context> get() const;
 
     void addMDModule(pybind11::object forceProvider);
 
@@ -77,9 +78,10 @@ public:
      * \return handle to be passed to gmxapi::MDHolder
      *
      */
-    std::shared_ptr<gmxapi::MDWorkSpec> getSpec() const;
+    [[nodiscard]] std::shared_ptr<gmxapi::MDWorkSpec> getSpec() const;
 
 private:
+    // TODO: Remove unnecessary shared_ptr handle.
     std::shared_ptr<gmxapi::Context>    context_;
     std::shared_ptr<gmxapi::MDWorkSpec> workNodes_;
 };
