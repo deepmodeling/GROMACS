@@ -49,7 +49,19 @@ gmx_add_gtest_executable(
         CPP_SOURCE_FILES
         # files with code for tests
         bondtypes.cpp
+        helpers.cpp
+        kernels.cpp
+        typetests.cpp
+        calculator.cpp
+        conversions.cpp
+        transformations.cpp
 )
 target_link_libraries(${exename} PRIVATE nblib_test_infrastructure nblib)
 gmx_register_gtest_test(${testname} ${exename} INTEGRATION_TEST)
 add_dependencies(check-nblib ${exename})
+
+# separate compile target, makes it easy to choose compiler optimization and flags
+# and avoid dependencies on testing frameworks
+add_executable(listedperformance ../../topologyhelpers.cpp ../gmxcalculator.cpp performance.cpp)
+target_link_libraries(listedperformance libgromacs nblib)
+target_include_directories(listedperformance SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
