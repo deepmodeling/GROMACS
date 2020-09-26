@@ -39,6 +39,24 @@
  *
  * \author M. Eric Irrgang <ericirrgang@gmail.com>
  * \ingroup gmxapi
+ *
+ * # Notes on scope
+ *
+ * Client owns Context and MultiProcessingResources, which exist entirely in client scope.
+ *
+ * Note that MpiContextManager and Session live in library scope.
+ *
+ * # MPI-enabled clients
+ *
+ * When an MPI toolchain is compatible with the GROMACS build
+ * (see [#3672](https://gitlab.com/gromacs/gromacs/-/issues/3672)),
+ * multi-process clients may determine how processes are allocated to GROMACS
+ * simulations by providing Contexts with specific MPI Communicators to
+ * createContext(const MultiProcessingResources& resources)
+ *
+ * MultiProcessingResources is an opaque type of library-internal resources.
+ * Clients acquire such resources with the lendCommunicator() template helper.
+ * See gmxapi_mpi.h
  */
 
 #include <memory>
@@ -167,6 +185,38 @@ private:
      */
     std::shared_ptr<ContextImpl> impl_;
 };
+
+// Forward declaration for interoperation with the library.
+// Client code implements MultiProcessingResources indirectly by instantiating
+// lendCommunicator() through the gmxapi_mpi.h template header.
+class MultiProcessingResources;
+
+//! \see lendCommunicator() in the template header gmxapi_mpi.h
+template<typename CommT>
+std::unique_ptr<MultiProcessingResources> lendCommunicator(CommT communicator);
+
+/*!
+ * \brief Initialize a new API Context to manage resources and software environment.
+ *
+ * The client is responsible for keeping the Context instance alive for at least
+ * as long as any API objects it is used to create. We allow this responsibility
+ * to be placed on the client (rather than using a global Singleton) because the
+ * library is theoretically reentrant, and multiple Context objects may exist.
+ *
+ * \return Initialized Context instance.
+ *
+ * \internal
+ * Use cases:
+ *
+ * 1. tMPI and client-provided comm: provide a place for safety checks, then construct a suitable
+ * dummy MpiContextManager.
+ * 2. tMPI and no client-provided comm: construct suitable dummy MpiContextManager
+ * 3. MPI and client-provided comm: use compatible comm. error if COMM_NULL
+ * 4. MPI and no client-provided comm: generate MpiContextManager with COMM_WORLD
+ *
+ */
+Context createContext();
+Context createContext(const MultiProcessingResources& resources);
 
 } // end namespace gmxapi
 
