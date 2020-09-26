@@ -42,6 +42,7 @@ if(GMX_INSTALL_NBLIB_API)
     install(FILES
             bondtypes.h
             definitions.h
+            traits.h
             DESTINATION include/nblib)
 endif()
 
