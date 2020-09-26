@@ -153,6 +153,7 @@ struct t_lambda
     //! The last lambda +1 to calculate energies for
     int lambda_stop_n;
     //! Free energy soft-core parameter
+    bool sc_gapsys;
     real sc_alpha;
     real sc_beta;
     //! Lambda power for soft-core interactions
