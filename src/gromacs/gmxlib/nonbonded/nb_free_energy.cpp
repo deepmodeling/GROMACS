@@ -56,9 +56,10 @@
 //! Enum for templating the soft-core treatment in the kernel
 enum class SoftCoreTreatment
 {
-    None,    //!< No soft-core
-    RPower6, //!< Soft-core with r-power = 6
-    RPower48 //!< Soft-core with r-power = 48
+    None,     //!< No soft-core
+    RPower6,  //!< Soft-core with r-power = 6
+    RPower48, //!< Soft-core with r-power = 48
+    Gapsys    //!< Gapsys' soft-core
 };
 
 //! Most treatments are fine with float in mixed-precision mode.
@@ -103,6 +104,25 @@ inline void pthRoot<SoftCoreTreatment::RPower48>(const double r, real* pthRoot, 
     *pthRoot    = std::pow(r, 1.0 / 48.0);
     *invPthRoot = 1 / (*pthRoot);
 }
+
+//! Computes r^(1/p) and 1/r^(1/p) for the standard coulomb n=2
+template<SoftCoreTreatment softCoreTreatment>
+static inline void sqRoot(const real r, real* pthRoot, real* invPthRoot)
+{
+    *invPthRoot = gmx::invsqrt(r);
+    *pthRoot    = 1 / (*invPthRoot);
+}
+
+// We need a double version to make the specialization below work
+#if !GMX_DOUBLE
+//! Computes r^(1/p) and 1/r^(1/p) for the standard coulomb n=2
+template<SoftCoreTreatment softCoreTreatment>
+static inline void sqRoot(const double r, real* pthRoot, double* invPthRoot)
+{
+    *invPthRoot = gmx::invsqrt(r);
+    *pthRoot    = 1 / (*invPthRoot);
+}
+#endif
 
 template<SoftCoreTreatment softCoreTreatment>
 static inline real calculateSigmaPow(const real sigma6)
@@ -233,7 +253,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 {
     using SCReal = typename SoftCoreReal<softCoreTreatment>::Real;
 
-    constexpr bool useSoftCore = (softCoreTreatment != SoftCoreTreatment::None);
+    constexpr bool gapsys = softCoreTreatment == SoftCoreTreatment::Gapsys;
+    constexpr bool useSoftCore = softCoreTreatment != SoftCoreTreatment::None;
 
 #define STATE_A 0
 #define STATE_B 1
@@ -430,7 +451,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             const int  jnr = jjnr[k];
             const int  j3  = 3 * jnr;
             real       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
-            real       r, rinv, rp, rpm2;
+            real       r, rinv, rp, rpm2, rpc, rpcm2;
             real       alpha_vdw_eff, alpha_coul_eff, sigma_pow[NSTATES];
             const real dx  = ix - x[j3];
             const real dy  = iy - x[j3 + 1];
@@ -470,7 +491,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 r    = 0;
             }
 
-            if (softCoreTreatment == SoftCoreTreatment::None)
+            if (softCoreTreatment == SoftCoreTreatment::None or gapsys)
             {
                 /* The soft-core power p will not affect the results
                  * with not using soft-core, so we use power of 0 which gives
@@ -478,11 +499,15 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  */
                 rpm2 = rinv * rinv;
                 rp   = 1;
+                rpc  = rp;
+                rpcm2= rpm2;
             }
             if (softCoreTreatment == SoftCoreTreatment::RPower6)
             {
                 rpm2 = rsq * rsq;  /* r4 */
                 rp   = rpm2 * rsq; /* r6 */
+                rpc  = rsq;
+                rpcm2= rsq / rsq;
             }
             if (softCoreTreatment == SoftCoreTreatment::RPower48)
             {
@@ -491,6 +516,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 rp   = rp * rp;         /* r24 */
                 rp   = rp * rp;         /* r48 */
                 rpm2 = rp / rsq;        /* r46 */
+                rpc  = rp;
+                rpcm2= rpm2;
             }
 
             real Fscal = 0;
@@ -509,7 +536,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 for (int i = 0; i < NSTATES; i++)
                 {
                     c12[i] = nbfp[tj[i] + 1];
-                    if (useSoftCore)
+                    if (useSoftCore and not gapsys)
                     {
                         real sigma6[NSTATES];
                         if ((c6[i] > 0) && (c12[i] > 0))
@@ -558,10 +585,10 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     if ((qq[i] != 0) || (c6[i] != 0) || (c12[i] != 0))
                     {
                         /* this section has to be inside the loop because of the dependence on sigma_pow */
-                        if (useSoftCore)
+                        if (useSoftCore and not gapsys)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rp);
-                            pthRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
+                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
+                            sqRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
                             if (scLambdasOrAlphasDiffer)
                             {
                                 rpinvV = one / (alpha_vdw_eff * lfac_vdw[i] * sigma_pow[i] + rp);
@@ -586,6 +613,30 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             rV     = r;
                         }
 
+                        real rcutC;
+                        real rcutV;
+                        real rcutinvC;
+                        real rcutinvV;
+                        real ratioC;
+                        real ratioV;
+                        real rcutinv6;
+                        real Vvdw6cut;
+                        real Vvdw12cut;
+                        if (gapsys)
+                        {
+                            real sigmaC = std::pow(sigma6_def, 1.0/6.0);
+                            rcutC = (1 + sigmaC * abs(qq[i])) * alpha_coul_eff * std::pow(LFC[i], 1.0/6.0);
+                            real sigmaV = 13.0 / 7.0 * c12[i] / c6[i];
+                            rcutV = std::pow(sigmaV * LFV[i], 1.0/6.0) * alpha_vdw_eff;
+                            rcutinvC = 1.0 / rcutC;
+                            rcutinvV = 1.0 / rcutV;
+                            ratioC = rC / rcutC;
+                            ratioV = rV / rcutV;
+                            rcutinv6 = calculateRinv6<softCoreTreatment>(rcutinvV);
+                            Vvdw6cut = calculateVdw6(c6[i], rcutinv6);
+                            Vvdw12cut = calculateVdw12(c12[i], rcutinv6);
+                        }
+
                         /* Only process the coulomb interactions if we have charges,
                          * and if we either include all entries in the list (no cutoff
                          * used in the kernel), or if we are within the cutoff.
@@ -597,13 +648,29 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         {
                             if (elecInteractionTypeIsEwald)
                             {
-                                Vcoul[i]  = ewaldPotential(qq[i], rinvC, sh_ewald);
-                                FscalC[i] = ewaldScalarForce(qq[i], rinvC);
+                                if (gapsys and rC < rcutC)
+                                {
+                                    Vcoul[i]  = qq[i] * (rcutinvC * (ratioC*ratioC - 3*ratioC + 3) - sh_ewald);
+                                    FscalC[i] = qq[i] * rcutinvC * (3 - 2*ratioC) * ratioC;
+                                }
+                                else
+                                {
+                                    Vcoul[i]  = ewaldPotential(qq[i], rinvC, sh_ewald);
+                                    FscalC[i] = ewaldScalarForce(qq[i], rinvC);
+                                }
                             }
                             else
                             {
-                                Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
-                                FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
+                                if (gapsys and rC < rcutC)
+                                {
+                                    Vcoul[i]  = qq[i] * (rinv * (ratioC*ratioC - 3*ratioC + 3) + krf * rC * rC - crf);
+                                    FscalC[i] = qq[i] * (rcutinvC * (3 - 2*ratioC) * ratioC - two * krf * rC * rC);
+                                }
+                                else
+                                {
+                                    Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
+                                    FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
+                                }
                             }
                         }
 
@@ -616,20 +683,35 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                                      || (!vdwInteractionTypeIsEwald && rV < rvdw);
                         if ((c6[i] != 0 || c12[i] != 0) && computeVdwInteraction)
                         {
-                            real rinv6;
-                            if (softCoreTreatment == SoftCoreTreatment::RPower6)
+                            real Vvdw6;
+                            real Vvdw12;
+                            if (gapsys and rV < rcutV)
                             {
-                                rinv6 = calculateRinv6<softCoreTreatment>(rpinvV);
+                                Vvdw6  = Vvdw6cut * (78*ratioV*ratioV - 168*ratioV + 91);
+                                Vvdw12 = Vvdw12cut * (21*ratioV*ratioV - 48*ratioV + 28);
                             }
                             else
                             {
-                                rinv6 = calculateRinv6<softCoreTreatment>(rinvV);
+                                real rinv6;
+                                if (softCoreTreatment == SoftCoreTreatment::RPower6)
+                                {
+                                    rinv6 = calculateRinv6<softCoreTreatment>(rpinvV);
+                                }
+                                else
+                                {
+                                    rinv6 = calculateRinv6<softCoreTreatment>(rinvV);
+                                }
+                                Vvdw6  = calculateVdw6(c6[i], rinv6);
+                                Vvdw12 = calculateVdw12(c12[i], rinv6);
                             }
-                            real Vvdw6  = calculateVdw6(c6[i], rinv6);
-                            real Vvdw12 = calculateVdw12(c12[i], rinv6);
 
                             Vvdw[i] = lennardJonesPotential(Vvdw6, Vvdw12, c6[i], c12[i], repulsionShift,
                                                             dispersionShift, onesixth, onetwelfth);
+                            if (gapsys and rV < rcutV)
+                            {
+                                Vvdw6  = Vvdw6cut * (14 - 13*ratioV) * ratioV;
+                                Vvdw12 = Vvdw12cut * (8 - 7*ratioV) * ratioV;
+                            }
                             FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
 
                             if (vdwInteractionTypeIsEwald)
@@ -669,10 +751,10 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     vctot += LFC[i] * Vcoul[i];
                     vvtot += LFV[i] * Vvdw[i];
 
-                    Fscal += LFC[i] * FscalC[i] * rpm2;
+                    Fscal += LFC[i] * FscalC[i] * rpcm2;
                     Fscal += LFV[i] * FscalV[i] * rpm2;
 
-                    if (useSoftCore)
+                    if (useSoftCore and not gapsys)
                     {
                         dvdl_coul +=
                                 Vcoul[i] * DLF[i]
@@ -952,6 +1034,12 @@ static KernelFunction dispatchKernel(const bool        scLambdasOrAlphasDiffer,
     if (fr->sc_alphacoul == 0 && fr->sc_alphavdw == 0)
     {
         return (dispatchKernelOnScLambdasOrAlphasDifference<SoftCoreTreatment::None>(
+                scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
+                vdwModifierIsPotSwitch));
+    }
+    else if (fr->sc_gapsys)
+    {
+        return (dispatchKernelOnScLambdasOrAlphasDifference<SoftCoreTreatment::Gapsys>(
                 scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
                 vdwModifierIsPotSwitch));
     }
