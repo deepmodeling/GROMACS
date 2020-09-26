@@ -37,26 +37,29 @@
 /*! \file
  * \brief Declares classes representing execution context.
  *
- * \author M. Eric Irrgang <ericirrgang@gmail.com>
- * \ingroup gmxapi
- *
- * # Notes on scope
- *
  * Client owns Context and MultiProcessingResources, which exist entirely in client scope.
  *
- * Note that MpiContextManager and Session live in library scope.
+ * MpiContextManager and Session live in library scope.
  *
- * # MPI-enabled clients
+ * ContextImpl?
  *
- * When an MPI toolchain is compatible with the GROMACS build
- * (see [#3672](https://gitlab.com/gromacs/gromacs/-/issues/3672)),
- * multi-process clients may determine how processes are allocated to GROMACS
- * simulations by providing Contexts with specific MPI Communicators to
- * createContext(const MultiProcessingResources& resources)
+ * SessionImpl?
  *
- * MultiProcessingResources is an opaque type of library-internal resources.
- * Clients acquire such resources with the lendCommunicator() template helper.
- * See gmxapi_mpi.h
+ * MultiProcessingResourcesImpl?
+ *
+ * Client compiles a version of lendCommunicator() suitable for the library build and the client
+ * build environment.
+ * First draft: If library uses tMPI, MultiProcessingResources::impl_ == null.
+ *
+ * client -> lendCommunicator : get MultiprocessingResources
+ * client -> createContext : provide MultiprocessingResources
+ * # Note: keep MultiprocessingResources details out of context.cpp
+ *   createContext -> MpiContextManager : via MultiprocessingResources
+ * client -> Context::launch
+ *   ContextImpl -> Session : MpiContextManager
+ *
+ * \author M. Eric Irrgang <ericirrgang@gmail.com>
+ * \ingroup gmxapi
  */
 
 #include <memory>

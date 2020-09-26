@@ -93,9 +93,7 @@ public:
     /*!
      * \brief Borrow a communicator and ensure that MPI is initialized, if applicable.
      *
-     * \param communicator Optional communicator representing a client-managed MPI environment.
-     *
-     *
+     * \param communicator
      *
      * Note that the communicator must be MPI_COMM_NULL if and only if GROMACS was built without an
      * external MPI library.
@@ -130,7 +128,7 @@ public:
      * \return Communicator with an appropriate initialized state for the current library
      * configuration.
      *
-     * \throws gmxapi::UsageError if MpiContextManager is in an invalid state, such as after
+     * \throws std::bad_optional_access if MpiContextManager is in an invalid state, such as after
      *  being moved from.
      */
     [[nodiscard]] MPI_Comm communicator() const;
