@@ -189,6 +189,7 @@ struct t_forcerec
     real sc_alphacoul  = 0;
     int  sc_power      = 0;
     real sc_r_power    = 0;
+    real sc_r_power_coul= 0;
     real sc_sigma6_def = 0;
     real sc_sigma6_min = 0;
 

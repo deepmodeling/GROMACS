@@ -2221,6 +2221,7 @@ void get_ir(const char*     mdparin,
     fep->sc_beta            = get_ereal(&inp, "sc-beta", 0.0, wi);
     fep->sc_power           = get_eint(&inp, "sc-power", 1, wi);
     fep->sc_r_power         = get_ereal(&inp, "sc-r-power", 6.0, wi);
+    fep->sc_r_power_coul    = get_ereal(&inp, "sc-r-power-coul", 6.0, wi);
     fep->sc_sigma           = get_ereal(&inp, "sc-sigma", 0.3, wi);
     fep->bScCoul            = (get_eeenum(&inp, "sc-coul", yesno_names, wi) != 0);
     fep->dh_hist_size       = get_eint(&inp, "dh_hist_size", 0, wi);

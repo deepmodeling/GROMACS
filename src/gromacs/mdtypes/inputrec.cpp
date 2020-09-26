@@ -604,6 +604,7 @@ static void pr_fepvals(FILE* fp, int indent, const t_lambda* fep, gmx_bool bMDPf
     PR("sc-beta", fep->sc_beta);
     PI("sc-power", fep->sc_power);
     PR("sc-r-power", fep->sc_r_power);
+    PR("sc-r-power-coul", fep->sc_r_power_coul);
     PR("sc-sigma", fep->sc_sigma);
     PR("sc-sigma-min", fep->sc_sigma_min);
     PS("sc-coul", EBOOL(fep->bScCoul));
@@ -1271,6 +1272,7 @@ static void cmp_fepvals(FILE* fp, const t_lambda* fep1, const t_lambda* fep2, re
     cmp_real(fp, "inputrec->fepvals->sc_beta", -1, fep1->sc_beta, fep2->sc_beta, ftol, abstol);
     cmp_int(fp, "inputrec->fepvals->sc_power", -1, fep1->sc_power, fep2->sc_power);
     cmp_real(fp, "inputrec->fepvals->sc_r_power", -1, fep1->sc_r_power, fep2->sc_r_power, ftol, abstol);
+    cmp_real(fp, "inputrec->fepvals->sc_r_power_coul", -1, fep1->sc_r_power_coul, fep2->sc_r_power_coul, ftol, abstol);
     cmp_real(fp, "inputrec->fepvals->sc_sigma", -1, fep1->sc_sigma, fep2->sc_sigma, ftol, abstol);
     cmp_int(fp, "inputrec->fepvals->edHdLPrintEnergy", -1, fep1->edHdLPrintEnergy, fep1->edHdLPrintEnergy);
     cmp_bool(fp, "inputrec->fepvals->bScCoul", -1, fep1->bScCoul, fep1->bScCoul);
