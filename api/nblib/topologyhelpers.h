@@ -73,8 +73,9 @@ std::vector<gmx::ExclusionBlock> offsetGmxBlock(std::vector<gmx::ExclusionBlock>
 class ParticleSequencer
 {
     //! Alias for storing by (molecule name, molecule nr, residue name, particle name)
-    using DataType =
-            std::unordered_map<std::string, std::unordered_map<int, std::unordered_map<std::string, std::unordered_map<std::string, int>>>>;
+    using DataType = std::unordered_map<
+            std::string,
+            std::unordered_map<int, std::unordered_map<std::string, std::unordered_map<std::string, int>>>>;
 
 public:
     //! Build sequence from a list of molecules
