@@ -41,8 +41,8 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
-#ifndef GROMACS_TESTHELPERS_H
-#define GROMACS_TESTHELPERS_H
+#ifndef NBLIB_TESTS_TESTHELPERS_H
+#define NBLIB_TESTS_TESTHELPERS_H
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
@@ -104,4 +104,4 @@ private:
 
 } // namespace test
 } // namespace nblib
-#endif // GROMACS_TESTHELPERS_H
+#endif // NBLIB_TESTS_TESTHELPERS_H

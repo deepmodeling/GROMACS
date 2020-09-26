@@ -74,14 +74,14 @@ class ParticleSequencer
 {
     //! Alias for storing by (molecule name, molecule nr, residue name, particle name)
     using DataType =
-            std::unordered_map<std::string, std::unordered_map<int, std::unordered_map<ResidueName, std::unordered_map<ParticleName, int>>>>;
+            std::unordered_map<std::string, std::unordered_map<int, std::unordered_map<std::string, std::unordered_map<std::string, int>>>>;
 
 public:
     //! Build sequence from a list of molecules
     void build(const std::vector<std::tuple<Molecule, int>>& moleculesList);
 
     //! Access ID by (molecule name, molecule nr, residue name, particle name)
-    int operator()(const std::string&, int, const ResidueName&, const ParticleName&) const;
+    int operator()(const MoleculeName&, int, const ResidueName&, const ParticleName&) const;
 
 private:
     DataType data_;
@@ -91,4 +91,4 @@ private:
 
 } // namespace nblib
 
-#endif // GMX_NBLIB_TOPOLOGY_HELPERS_H
+#endif // NBLIB_TOPOLOGY_HELPERS_H

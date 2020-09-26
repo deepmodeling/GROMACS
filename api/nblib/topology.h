@@ -177,4 +177,4 @@ private:
 
 } // namespace nblib
 
-#endif // GMX_NBLIB_TOPOLOGY_H
+#endif // NBLIB_TOPOLOGY_H

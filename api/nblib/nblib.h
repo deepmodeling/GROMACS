@@ -42,8 +42,8 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
-#ifndef GROMACS_NBLIB_HEADERS_H
-#define GROMACS_NBLIB_HEADERS_H
+#ifndef NBLIB_HEADERS_H
+#define NBLIB_HEADERS_H
 
 #include "nblib/basicdefinitions.h"
 #include "nblib/box.h"
@@ -58,4 +58,4 @@
 #include "nblib/topologyhelpers.h"
 #include "nblib/util/user.h"
 
-#endif // GROMACS_NBLIB_HEADERS_H
+#endif // NBLIB_HEADERS_H

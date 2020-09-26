@@ -153,4 +153,4 @@ private:
 };
 
 } // namespace nblib
-#endif // GMX_NBLIB_MOLECULES_H
+#endif // NBLIB_MOLECULES_H
