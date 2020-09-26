@@ -160,6 +160,8 @@ struct t_lambda
     int sc_power;
     //! R power for soft-core interactions
     real sc_r_power;
+    //! R power for soft-core coulomb interactions
+    real sc_r_power_coul;
     //! Free energy soft-core sigma when c6 or c12=0
     real sc_sigma;
     //! Free energy soft-core sigma for ?????

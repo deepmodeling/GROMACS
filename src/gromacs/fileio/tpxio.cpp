@@ -558,10 +558,12 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
     if (file_version >= 79)
     {
         serializer->doReal(&fepvals->sc_r_power);
+        serializer->doReal(&fepvals->sc_r_power_coul);
     }
     else
     {
         fepvals->sc_r_power = 6.0;
+        fepvals->sc_r_power_coul = 6.0;
     }
     serializer->doReal(&fepvals->sc_sigma);
     if (serializer->reading())

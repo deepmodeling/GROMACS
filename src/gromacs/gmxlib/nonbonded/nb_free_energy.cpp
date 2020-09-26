@@ -59,6 +59,7 @@ enum class SoftCoreTreatment
     None,     //!< No soft-core
     RPower6,  //!< Soft-core with r-power = 6
     RPower48, //!< Soft-core with r-power = 48
+    RPower6_2,//!< Soft-core with r-power = 6 and r-power-coul = 2
     Gapsys    //!< Gapsys' soft-core
 };
 
@@ -407,6 +408,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
     real           lfac_coul[NSTATES], dlfac_coul[NSTATES], lfac_vdw[NSTATES], dlfac_vdw[NSTATES];
     constexpr real sc_r_power = (softCoreTreatment == SoftCoreTreatment::RPower48 ? 48.0_real : 6.0_real);
+    constexpr real sc_r_power_coul = (softCoreTreatment == SoftCoreTreatment::RPower6_2 ? 2.0_real : (softCoreTreatment == SoftCoreTreatment::RPower48 ? 48.0_real : 6.0_real));
     for (int i = 0; i < NSTATES; i++)
     {
         lfac_coul[i]  = (lam_power == 2 ? (1 - LFC[i]) * (1 - LFC[i]) : (1 - LFC[i]));
@@ -587,8 +589,17 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma_pow */
                         if (useSoftCore and not gapsys)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
-                            sqRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
+                            if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
+                            {
+                                rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
+                                sqRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
+                            }
+                            else
+                            {
+                                rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rp);
+                                pthRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
+                            }
+                            
                             if (scLambdasOrAlphasDiffer)
                             {
                                 rpinvV = one / (alpha_vdw_eff * lfac_vdw[i] * sigma_pow[i] + rp);
@@ -693,7 +704,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             else
                             {
                                 real rinv6;
-                                if (softCoreTreatment == SoftCoreTreatment::RPower6)
+                                if (softCoreTreatment == SoftCoreTreatment::RPower6 || softCoreTreatment == SoftCoreTreatment::RPower6_2)
                                 {
                                     rinv6 = calculateRinv6<softCoreTreatment>(rpinvV);
                                 }
@@ -751,7 +762,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     vctot += LFC[i] * Vcoul[i];
                     vvtot += LFV[i] * Vvdw[i];
 
-                    Fscal += LFC[i] * FscalC[i] * rpcm2;
+                    if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
+                    {
+                        Fscal += LFC[i] * FscalC[i] * rpcm2;
+                    }
+                    else
+                    {
+                        Fscal += LFC[i] * FscalC[i] * rpm2;
+                    }
                     Fscal += LFV[i] * FscalV[i] * rpm2;
 
                     if (useSoftCore and not gapsys)
@@ -1045,9 +1063,18 @@ static KernelFunction dispatchKernel(const bool        scLambdasOrAlphasDiffer,
     }
     else if (fr->sc_r_power == 6.0_real)
     {
-        return (dispatchKernelOnScLambdasOrAlphasDifference<SoftCoreTreatment::RPower6>(
-                scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                vdwModifierIsPotSwitch));
+        if (fr->sc_r_power_coul == 2.0_real)
+        {
+            return (dispatchKernelOnScLambdasOrAlphasDifference<SoftCoreTreatment::RPower6_2>(
+                    scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
+                    vdwModifierIsPotSwitch));
+        }
+        else
+        {
+            return (dispatchKernelOnScLambdasOrAlphasDifference<SoftCoreTreatment::RPower6>(
+                    scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
+                    vdwModifierIsPotSwitch));
+        }
     }
     else
     {

@@ -1091,6 +1091,7 @@ void init_forcerec(FILE*                            fp,
     }
     fr->sc_power      = ir->fepvals->sc_power;
     fr->sc_r_power    = ir->fepvals->sc_r_power;
+    fr->sc_r_power_coul= ir->fepvals->sc_r_power_coul;
     fr->sc_sigma6_def = gmx::power6(ir->fepvals->sc_sigma);
 
     env = getenv("GMX_SCSIGMA_MIN");
