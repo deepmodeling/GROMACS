@@ -1077,6 +1077,7 @@ void init_forcerec(FILE*                            fp,
 
     /* Free energy */
     fr->efep        = ir->efep;
+    fr->sc_gapsys = ir->fepvals->sc_gapsys;
     fr->sc_alphavdw = ir->fepvals->sc_alpha;
     if (ir->fepvals->bScCoul)
     {
