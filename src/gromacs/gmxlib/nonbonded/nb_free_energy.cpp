@@ -508,8 +508,15 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             {
                 rpm2 = rsq * rsq;  /* r4 */
                 rp   = rpm2 * rsq; /* r6 */
+                rpc  = rp;
+                rpcm2= rpm2;
+            }
+            if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
+            {
+                rpm2 = rsq * rsq;  /* r4 */
+                rp   = rpm2 * rsq; /* r6 */
                 rpc  = rsq;
-                rpcm2= rsq / rsq;
+                rpcm2= 1.0;
             }
             if (softCoreTreatment == SoftCoreTreatment::RPower48)
             {
