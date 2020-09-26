@@ -692,15 +692,11 @@ static double get_transformation_pull_value(pull_t* pull, int coord_ind)
     pull_coord_work_t* coord  = &pull->coord[coord_ind];
     try
     {
-        if (!coord->expressionParser.isInitialized())
-        {
-            coord->expressionParser.initialize(coord_ind);
-        }
         for (int previous_coord_ind = 0; previous_coord_ind < coord_ind; previous_coord_ind++)
         {
             pull_coord_work_t*    pre_pcrd        = &pull->coord[previous_coord_ind];
             PullCoordSpatialData& pre_spatialData = pre_pcrd->spatialData;
-            coord->expressionParser.setVariable(previous_coord_ind, pre_spatialData.value);
+            coord->expressionParser.setVariable(previous_coord_ind, pre_spatialData.value, coord_ind);
         }
         result = coord->expressionParser.eval();
     }
@@ -2128,6 +2124,7 @@ struct pull_t* init_pull(FILE*                     fplog,
             case epullgDIR:
             case epullgDIRPBC:
             case epullgCYL:
+            case epullgTRANSFORMATION:
             case epullgANGLEAXIS:
                 copy_rvec_to_dvec(pull_params->coord[c].vec, pcrd->spatialData.vec);
                 break;

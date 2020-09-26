@@ -146,7 +146,7 @@ class PullCoordExpressionParser
 {
 public:
     /* Constructor */
-    PullCoordExpressionParser(const char* expressionChar) : initialized_(false)
+    PullCoordExpressionParser(const char* expressionChar)
     {
         if (expressionChar == nullptr)
         {
@@ -158,33 +158,50 @@ public:
         }
     }
 
-    bool isInitialized() { return initialized_; }
-
-    void initialize(int n_variables)
-    {
-        if (!expression_.empty())
+    void setVariable(int variableIdx, double value, int nVariables) {
+        if (!parser_)
         {
-            parser_.SetExpr(expression_);
-            variableValues_.resize(n_variables);
-            for (int n = 0; n < n_variables; n++)
-            {
-                variableValues_[n] = 0;
-                std::string name   = "x" + std::to_string(n + 1);
-                parser_.DefineVar(name, &variableValues_[n]);
-            }
-            initialized_ = true;
+            initializeParser(nVariables);
         }
+        if ((int) variableValues_.size() <= variableIdx)
+        {
+            gmx_fatal(FARGS, "Variable index %d out of range for an expression"
+                      " initialized with %d variables\n",
+                      variableIdx, variableValues_.size());
+        }
+        variableValues_[variableIdx] = value;
     }
 
-    void setVariable(int variableIdx, double value) { variableValues_[variableIdx] = value; }
-
-    double eval() { return parser_.Eval(); }
+    double eval() {
+        if (!parser_)
+        {
+            gmx_fatal(FARGS, "Tried to evaluate an uninitialized expression.");
+        }
+        return parser_->Eval();
+    }
 
 private:
-    mu::Parser          parser_;
-    std::string         expression_;
-    std::vector<double> variableValues_;
-    bool                initialized_;
+    std::unique_ptr<mu::Parser>          parser_;
+    std::string                          expression_;
+    std::vector<double>                  variableValues_;
+
+    /**
+     * prepares the expressionparser to bind muParser to n_variables.
+     * There's a performance gain by doing it this way since muParser will convert the expression
+     * to bytecode the first time it's initialized. Then the subsequent evaluations are much faster.
+     */
+    void initializeParser(int nVariables)
+    {
+        parser_ = std::unique_ptr<mu::Parser>(new mu::Parser());
+        parser_->SetExpr(expression_);
+        variableValues_.resize(nVariables);
+        for (int n = 0; n < nVariables; n++)
+        {
+            variableValues_[n] = 0;
+            std::string name   = "x" + std::to_string(n + 1);
+            parser_->DefineVar(name, &variableValues_[n]);
+        }
+    }
 };
 #else
 /*! \brief Struct with a mathematical expression and parser, dummied out */
