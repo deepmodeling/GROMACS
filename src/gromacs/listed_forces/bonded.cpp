@@ -93,7 +93,7 @@ using BondedFunction = real (*)(int              nbonds,
                                 rvec             fshift[],
                                 const t_pbc*     pbc,
                                 const t_graph*   g,
-                                const real       sb_alpha,
+                                real             sb_alpha,
                                 real             lambda,
                                 real*            dvdlambda,
                                 const t_mdatoms* md,
@@ -2450,7 +2450,7 @@ real angres(int             nbonds,
             t_fcdata gmx_unused* fcd,
             int gmx_unused* global_atom_index)
 {
-    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, g, lambda,
+    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, g, sb_alpha, lambda,
                               dvdlambda, FALSE);
 }
 
@@ -2470,7 +2470,7 @@ real angresz(int             nbonds,
              t_fcdata gmx_unused* fcd,
              int gmx_unused* global_atom_index)
 {
-    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, g, lambda,
+    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, g, sb_alpha, lambda,
                               dvdlambda, TRUE);
 }
 
@@ -4190,7 +4190,7 @@ real calculateSimpleBond(const int            ftype,
                          rvec                 fshift[],
                          const struct t_pbc*  pbc,
                          const struct t_graph gmx_unused* g,
-                         const real                       sb_alpha,
+                         real                             sb_alpha,
                          const real                       lambda,
                          real*                            dvdlambda,
                          const t_mdatoms*                 md,

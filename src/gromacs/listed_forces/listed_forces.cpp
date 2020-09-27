@@ -319,6 +319,7 @@ real calc_one_bond(int                      thread,
 
     const bool havePerturbedInteractions =
             (idef->ilsort == ilsortFE_SORTED && idef->il[ftype].nr_nonperturbed < idef->il[ftype].nr);
+    const real sb_alpha = fr->sb_alpha;
     BondedKernelFlavor flavor =
             selectBondedKernelFlavor(stepWork, fr->use_simd_kernels, havePerturbedInteractions);
     int efptFTYPE;
@@ -350,7 +351,7 @@ real calc_one_bond(int                      thread,
                nice to account to its own subtimer, but first
                wallcycle needs to be extended to support calling from
                multiple threads. */
-            v = cmap_dihs(nbn, iatoms + nb0, idef->iparams, idef->cmap_grid, x, f, fshift, pbc, g,
+            v = cmap_dihs(nbn, iatoms + nb0, idef->iparams, idef->cmap_grid, x, f, fshift, pbc, g, sb_alpha,
                           lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd, global_atom_index);
         }
         else
