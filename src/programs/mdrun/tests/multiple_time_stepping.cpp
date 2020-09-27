@@ -174,12 +174,12 @@ TEST_P(MtsComparisonTest, WithinTolerances)
 
     // Compare simulation results at step 0, which should be indentical
     compareEnergies(simulator1EdrFileName, simulator2EdrFileName, energyTermsToCompareStep0,
-                    FramesToCompare::OnlyFirstFrame);
+                    MaxNumFrames(1));
     compareTrajectories(simulator1TrajectoryFileName, simulator2TrajectoryFileName, trajectoryComparison);
 
     // Compare energies at the last step (and step 0 again) with lower tolerance
     compareEnergies(simulator1EdrFileName, simulator2EdrFileName, energyTermsToCompareAllSteps,
-                    FramesToCompare::AllFrames);
+                    MaxNumFrames::compareAllFrames());
 }
 
 INSTANTIATE_TEST_CASE_P(

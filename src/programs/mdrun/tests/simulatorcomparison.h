@@ -48,6 +48,7 @@
 
 #include <string>
 
+#include "comparison_helpers.h"
 #include "energycomparison.h"
 #include "trajectorycomparison.h"
 
@@ -68,7 +69,7 @@ void runMdrun(SimulationRunner*                         runner,
 void compareEnergies(const std::string&          edr1Name,
                      const std::string&          edr2Name,
                      const EnergyTermsToCompare& energyTermsToCompare,
-                     FramesToCompare             framesToCompare = FramesToCompare::AllFrames);
+                     MaxNumFrames                maxNumFrams = MaxNumFrames::compareAllFrames());
 
 void compareTrajectories(const std::string&          trajectory1Name,
                          const std::string&          trajectory2Name,
