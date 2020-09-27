@@ -211,17 +211,21 @@ Awh::Awh(FILE*                 fplog,
     {
         GMX_RELEASE_ASSERT(commRecord, "Need a valid commRecord");
         biasSharing_ = std::make_unique<BiasSharing>(awhParams, *commRecord, multiSimRecord->mastersComm_);
-        for (int k = 0; k < awhParams.numBias; k++)
+        if (fplog)
         {
-            const int shareGroup = awhParams.awhBiasParams[k].shareGroup;
-            if (shareGroup > 0)
+            for (int k = 0; k < awhParams.numBias; k++)
             {
-                fprintf(fplog, "awh%d: bias with share group %d is shared between %d simulations\n",
-                        1 + k, shareGroup, biasSharing_->numSharingSimulations(k));
-            }
-            else
-            {
-                fprintf(fplog, "awh%d: bias is not shared between simulations\n", 1 + k);
+                const int shareGroup = awhParams.awhBiasParams[k].shareGroup;
+                if (shareGroup > 0)
+                {
+                    fprintf(fplog,
+                            "awh%d: bias with share group %d is shared between %d simulations\n",
+                            1 + k, shareGroup, biasSharing_->numSharingSimulations(k));
+                }
+                else
+                {
+                    fprintf(fplog, "awh%d: bias is not shared between simulations\n", 1 + k);
+                }
             }
         }
     }

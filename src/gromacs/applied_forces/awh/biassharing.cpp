@@ -244,7 +244,7 @@ std::enable_if_t<std::is_same_v<T, double>, MPI_Datatype> mpiType()
  *
  * \param[in,out] data          The data to sum.
  * \param[in]     commRecord    Struct for intra-simulation communication.
- * \param[in]     multiSimComm  Communicator for the master rank of sharing simulations.
+ * \param[in]     multiSimComm  Communicator for the master ranks of sharing simulations.
  */
 template<typename T>
 void sumOverSimulations(ArrayRef<T> data, const t_commrec& commRecord, const MPI_Comm multiSimComm)
@@ -319,7 +319,12 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
     {
         if (awhParams.awhBiasParams[b].shareGroup > 0)
         {
-            const int        numSim   = biasSharing.numSharingSimulations(b);
+            const int numSim = biasSharing.numSharingSimulations(b);
+            if (numSim == 1)
+            {
+                // This bias is not acutally shared
+                continue;
+            }
             const int        simIndex = biasSharing.sharingSimulationIndex(b);
             std::vector<int> intervals(numSim * 2);
             intervals[numSim * 0 + simIndex] = awhParams.nstSampleCoord;
