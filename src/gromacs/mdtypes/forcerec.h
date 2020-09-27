@@ -184,7 +184,8 @@ struct t_forcerec
 
     /* Free energy */
     int  efep          = 0;
-    bool sc_gapsys  = false;
+    bool sc_gapsys     = false;
+    real sb_alpha      = 0;
     real sc_alphavdw   = 0;
     real sc_alphacoul  = 0;
     int  sc_power      = 0;

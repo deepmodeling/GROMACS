@@ -552,6 +552,7 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
             fepvals->separate_dvdl[efptFEP] = TRUE;
         }
     }
+    serializer->doReal(&fepvals->sb_alpha);
     serializer->doBool(&fepvals->sc_gapsys);
     serializer->doReal(&fepvals->sc_alpha);
     serializer->doReal(&fepvals->sc_beta);
