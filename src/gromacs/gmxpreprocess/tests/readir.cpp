@@ -99,12 +99,12 @@ public:
     void runTest(const std::string& inputMdpFileContents,
                  const TestBehavior testBehavior = TestBehavior::NoErrorAndCompareOutput)
     {
-        const bool expectError  = testBehavior != TestBehavior::NoErrorAndCompareOutput;
-        const bool compareOuput = testBehavior != TestBehavior::ErrorAndDoNotCompareOutput;
+        const bool expectError   = testBehavior != TestBehavior::NoErrorAndCompareOutput;
+        const bool compareOutput = testBehavior != TestBehavior::ErrorAndDoNotCompareOutput;
 
         std::string inputMdpFilename = fileManager_.getTemporaryFilePath("input.mdp");
         std::string outputMdpFilename;
-        if (compareOuput)
+        if (compareOutput)
         {
             outputMdpFilename = fileManager_.getTemporaryFilePath("output.mdp");
         }
@@ -119,7 +119,7 @@ public:
         bool failure = warning_errors_exist(wi_);
         EXPECT_EQ(failure, expectError);
 
-        if (compareOuput)
+        if (compareOutput)
         {
             TestReferenceData    data;
             TestReferenceChecker checker(data.rootChecker());
