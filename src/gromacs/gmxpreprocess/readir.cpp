@@ -1980,7 +1980,7 @@ void get_ir(const char*     mdparin,
         opts->numMtsLevels = get_eint(&inp, "mts-levels", 2, wi);
         ir->mtsLevels.resize(2);
         gmx::MtsLevel& mtsLevel = ir->mtsLevels[1];
-        setStringEntry(&inp, "mts-level2-forces", opts->mtsLevel2Forces,
+        setStringEntry(&inp, "mts-level2-forces", &opts->mtsLevel2Forces,
                        "longrange-nonbonded nonbonded pair dihedral");
         mtsLevel.stepFactor = get_eint(&inp, "mts-level2-factor", 2, wi);
 

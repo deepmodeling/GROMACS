@@ -554,8 +554,23 @@ void printStringNoNewline(std::vector<t_inpfile>* inp, const char* line)
     tmp.append(line);
     get_estr(inp, tmp.c_str(), nullptr);
 }
+
+void setStringEntry(std::vector<t_inpfile>* inp, const char* name, std::string* newName, const char* def)
+{
+    GMX_RELEASE_ASSERT(newName != nullptr, "Need a valid string");
+
+    const char* found = nullptr;
+    found             = get_estr(inp, name, def);
+    if (found != nullptr)
+    {
+        *newName = found;
+    }
+}
+
 void setStringEntry(std::vector<t_inpfile>* inp, const char* name, char* newName, const char* def)
 {
+    GMX_RELEASE_ASSERT(newName != nullptr, "Need a valid char buffer");
+
     const char* found = nullptr;
     found             = get_estr(inp, name, def);
     if (found != nullptr)
