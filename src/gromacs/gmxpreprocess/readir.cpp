@@ -303,6 +303,10 @@ static void setupMtsLevels(gmx::ArrayRef<gmx::MtsLevel> mtsLevels,
                           "has to be part of the mts-level2-forces");
         }
 
+        if (ir.nstcalcenergy > 0)
+        {
+            checkMtsRequirement(ir, "nstcalcenergy", ir.nstcalcenergy, wi);
+        }
         checkMtsRequirement(ir, "nstenergy", ir.nstenergy, wi);
         checkMtsRequirement(ir, "nstlog", ir.nstlog, wi);
         if (ir.efep != efepNO)
