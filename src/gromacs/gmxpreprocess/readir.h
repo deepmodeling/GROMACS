@@ -84,14 +84,12 @@ enum
 
 struct t_gromppopts
 {
-    int   warnings = 0;
-    int   nshake   = 0;
-    char* include  = nullptr;
-    char* define   = nullptr;
-    bool  bGenVel  = false;
-    ;
-    bool bGenPairs = false;
-    ;
+    int         warnings     = 0;
+    int         nshake       = 0;
+    char*       include      = nullptr;
+    char*       define       = nullptr;
+    bool        bGenVel      = false;
+    bool        bGenPairs    = false;
     real        tempi        = 0;
     int         seed         = 0;
     int         numMtsLevels = 0;
