@@ -593,6 +593,8 @@ if(WIN32)
     # This makes windows.h not declare min/max as macros that would break
     # C++ code using std::min/std::max.
     add_definitions(-DNOMINMAX)
+    # Since MSVC 2019 we need to add this as well.
+    add_definitions(-D_HAS_TR1_NAMESPACE)
 endif()
 
 option(GMX_BUILD_UNITTESTS "Build unit tests with BUILD_TESTING" ON)
