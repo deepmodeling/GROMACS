@@ -50,6 +50,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "gromacs/awh/awh.h"
 #include "gromacs/commandline/filenm.h"
@@ -892,6 +895,8 @@ void gmx::LegacySimulator::do_md()
             stateGpu->waitCoordinatesReadyOnHost(AtomLocality::Local);
         }
 
+        nvtxRangePushA("DomDec");
+
         if (bNS && !(bFirstStep && ir->bContinuation))
         {
             bMasterState = FALSE;
@@ -960,6 +965,8 @@ void gmx::LegacySimulator::do_md()
                                             &shouldCheckNumberOfBondedInteractions);
         }
         clear_mat(force_vir);
+
+        nvtxRangePop();
 
         /* PLUMED HREX */
         gmx_bool bHREX = bDoReplEx && plumed_hrex;
