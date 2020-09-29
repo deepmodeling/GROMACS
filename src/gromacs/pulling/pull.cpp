@@ -679,9 +679,9 @@ static double get_dihedral_angle_coord(PullCoordSpatialData* spatialData)
     return sign * phi;
 }
 
-#if HAVE_MUPARSER
 double getTransformationPullCoordinateValue(struct pull_t* pull, int transformationPullCoordinateIndex)
 {
+#if HAVE_MUPARSER
     double             result = 0;
     pull_coord_work_t* coord  = &pull->coord[transformationPullCoordinateIndex];
     int                variablePcrdIndex;
@@ -710,14 +710,12 @@ double getTransformationPullCoordinateValue(struct pull_t* pull, int transformat
                   transformationPullCoordinateIndex + 1, variablePcrdIndex + 1, e.what());
     }
     return result;
-}
 #else
-double getTransformationPullCoordinateValue(struct pull_t* pull /* pull */,
-                                            int /* transformationPullCoordinateIndex */ transformationPullCoordinateIndex)
-{
-    GMX_RELEASE_ASSERT(false, "Calling function not available without muparser.");
-}
+    GMX_UNUSED_VALUE(pull);
+    GMX_UNUSED_VALUE(transformationPullCoordinateIndex);
+    return 0;
 #endif
+}
 
 /* Calculates pull->coord[coord_ind].value.
  * This function also updates pull->coord[coord_ind].dr.
@@ -1494,9 +1492,7 @@ static void check_external_potential_registration(const struct pull_t* pull)
     }
 }
 
-double computeForceFromTransformationPullCoord(struct pull_t* pull,
-                                                      int            transformationPcrdIndex,
-                                                      int            variablePcrdIndex)
+double computeForceFromTransformationPullCoord(struct pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex)
 {
     const pull_coord_work_t& transformationPcrd = pull->coord[transformationPcrdIndex];
     // epsilon for numerical differentiation.
@@ -1594,8 +1590,8 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
             }
             double variablePcrdForce = computeForceFromTransformationPullCoord(
                     pull, transformationCoordIndex, variableCoordIndex);
-            applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce,
-                                              masses, forceWithVirial);
+            applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce, masses,
+                                              forceWithVirial);
         }
     }
     else
