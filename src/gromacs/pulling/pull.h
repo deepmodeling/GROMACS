@@ -104,6 +104,15 @@ double pull_conversion_factor_userinput2internal(const t_pull_coord* pcrd);
  */
 double pull_conversion_factor_internal2userinput(const t_pull_coord* pcrd);
 
+/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
+ *
+ * This requires the values of the pull coordinates of lower indices to be set
+ * \param[in] pull
+ * \param[in] coord_ind
+ * \returns Transformation value for pull coordinate.
+ */
+double getTransformationPullCoordinateValue(struct pull_t* pull, int transformationPullCoordinateIndex);
+
 /*! \brief Get the value for pull coord coord_ind.
  *
  * \param[in,out] pull      The pull struct.
@@ -112,15 +121,6 @@ double pull_conversion_factor_internal2userinput(const t_pull_coord* pcrd);
  * \returns the value of the pull coordinate.
  */
 double get_pull_coord_value(struct pull_t* pull, int coord_ind, const t_pbc* pbc);
-
-/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
- *
- * This requires the values of the pull coordinates of lower indices to be set
- * \param[in] pull
- * \param[in] coord_ind
- * \returns Transformation value for pull coordinate.
- */
-double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
 
 /*! \brief Registers the provider of an external potential for a coordinate.
  *
@@ -366,13 +366,15 @@ bool pull_have_constraint(const pull_params_t* pullParameters);
  */
 real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc);
 
-/*! \brief Computes the force from a transformation coordinate to another coordinate
- * \param pull
- * \param transformation_coord_ind
- * \param coord_ind
- * \return the force
+/*! \brief
+ * Calculates force for pull coordinate.
+ * \param[in] pull Pulling information.
+ * \param[in] transformationPcrdIndex Index for transformation coordinate.
+ * \param[in] variablePcrdIndex Pull coordinate index of a variable.
  */
-double compute_force_from_transformation_coord(struct pull_t* pull, int transformation_coord_ind, int coord_ind);
+double computeForceFromTransformationPullCoord(struct pull_t* pull,
+                                               int            transformationPcrdIndex,
+                                               int            variablePcrdIndex);
 
 /*! \brief Sets the previous step COM in pull to the current COM and updates the pull_com_prev_step in the state
  *

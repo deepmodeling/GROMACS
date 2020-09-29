@@ -175,13 +175,18 @@ protected:
                 // transformation pull coord value
                 pull.coord[0].spatialData.value = v;
                 pull.coord[1].spatialData.value = getTransformationPullCoordinateValue(&pull, 1);
-                EXPECT_DOUBLE_EQ(v * v + 3, pull.coord[1].spatialData.value) << true;
+                // Since we perform numerical differentiation and floating point operations
+                // we only expect the results below to be approximately equal
+                double expected  = v * v + 3;
+                double tolerance = 0.001; // Numerical tolerance for two results to be equal
+                EXPECT_TRUE(std::abs(expected - pull.coord[1].spatialData.value) < tolerance) << true;
 
                 // force and derivative
-                double transformationForce  = v + 0.5;
-                pull.coord[1].scalarForce   = transformationForce;
-                double x1_force             = computeForceFromTransformationPullCoord(&pull, 1, 0);
-                EXPECT_DOUBLE_EQ(2 * v * transformationForce, x1Force) << true;
+                double transformationForce = v + 0.5;
+                pull.coord[1].scalarForce  = transformationForce;
+                double variableForce       = computeForceFromTransformationPullCoord(&pull, 1, 0);
+                expected                   = 2 * v * transformationForce;
+                EXPECT_TRUE(std::abs(expected - variableForce) < tolerance) << true;
             }
         }
 #endif
