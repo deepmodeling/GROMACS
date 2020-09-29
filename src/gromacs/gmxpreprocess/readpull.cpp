@@ -292,10 +292,10 @@ static void init_pull_coord(pull_params_t* pull,
                       coordNum);
         }
         /* make sure that the kappa of all previous pull coords is 0*/
-        for (int previous_coord_index = 0; previous_coord_index < coordNum - 1; previous_coord_index++)
+        for (int previousCoordIndex = 0; previousCoordIndex < coordNum - 1; previousCoordIndex++)
         {
-            t_pull_coord* previous_pcrd = &pull->coord[previous_coord_index];
-            if (previous_pcrd->k > 0)
+            t_pull_coord* previousPcrd = &pull->coord[previousCoordIndex];
+            if (previousPcrd->k > 0)
             {
                 gmx_fatal(FARGS,
                           "pull-coord%d-k not must be set to zero "
@@ -303,7 +303,7 @@ static void init_pull_coord(pull_params_t* pull,
                           "Transformation coordinates and their variables must occur first. "
                           "Change the order of the pull coordinates if "
                           "pull-coord%d does not depend on pull-coord%d",
-                          previous_coord_index + 1, coordNum, previous_coord_index + 1, coordNum);
+                          previousCoordIndex + 1, coordNum, previousCoordIndex + 1, coordNum);
             }
         }
     }

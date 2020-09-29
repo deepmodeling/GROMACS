@@ -183,9 +183,7 @@ public:
         }
         if ((int) variableValues_.size() <= variableIdx)
         {
-            gmx_fatal(FARGS, "Variable index %d out of range for an expression"
-                      " initialized with %d variables\n",
-                      variableIdx, variableValues_.size());
+            throw std::invalid_argument("Variable index out of range for the expression");
         }
         variableValues_[variableIdx] = value;
     }
@@ -198,7 +196,7 @@ public:
     double eval() {
         if (!parser_)
         {
-            gmx_fatal(FARGS, "Tried to evaluate an uninitialized expression.");
+            throw std::runtime_error("Tried to evaluate an uninitialized expression.");
         }
         return parser_->Eval();
     }

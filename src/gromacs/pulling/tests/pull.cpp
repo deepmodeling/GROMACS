@@ -157,32 +157,31 @@ protected:
 #if HAVE_MUPARSER
         {
             // transformation pull coordinate test
+            pull_t pull;
+
             // Create standard pull coordinate
             t_pull_coord params;
             params.eGeom = epullgDIST;
-            pull_coord_work_t x1_pcrd(params);
+            pull.coord.emplace_back(params);
+
             // Create transformation pull coordinate
             params.eGeom           = epullgTRANSFORMATION;
             std::string expression = "x1^2 + 3";
             params.expression      = expression.c_str();
-            pull_coord_work_t transformation_pcrd(params);
-            transformation_pcrd.expressionParser.initialize(1);
+            pull.coord.emplace_back(params);
 
-            pull_t pull;
-            pull.coord.emplace_back(x1_pcrd);
-            pull.coord.emplace_back(transformation_pcrd);
             for (double v = 0; v < 10; v++)
             {
                 // transformation pull coord value
                 pull.coord[0].spatialData.value = v;
-                get_pull_coord_value(&pull, 1, &pbc);
+                pull.coord[1].spatialData.value = getTransformationPullCoordinateValue(&pull, 1);
                 EXPECT_DOUBLE_EQ(v * v + 3, pull.coord[1].spatialData.value) << true;
 
                 // force and derivative
-                double transformation_force = v + 0.5;
-                pull.coord[1].scalarForce   = transformation_force;
-                double x1_force             = compute_force_from_transformation_coord(&pull, 1, 0);
-                EXPECT_DOUBLE_EQ(2 * v * transformation_force, x1_force) << true;
+                double transformationForce  = v + 0.5;
+                pull.coord[1].scalarForce   = transformationForce;
+                double x1_force             = computeForceFromTransformationPullCoord(&pull, 1, 0);
+                EXPECT_DOUBLE_EQ(2 * v * transformationForce, x1Force) << true;
             }
         }
 #endif

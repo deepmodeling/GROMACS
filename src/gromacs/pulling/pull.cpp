@@ -679,41 +679,39 @@ static double get_dihedral_angle_coord(PullCoordSpatialData* spatialData)
     return sign * phi;
 }
 #if HAVE_MUPARSER
-/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
- *
- * This requires the values of the pull coordinates of lower indices to be set
- * \param[in] pull
- * \param[in] coord_ind
- * \returns Transformation value for pull coordinate.
- */
-static double get_transformation_pull_value(pull_t* pull, int coord_ind)
+double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex)
 {
     double             result = 0;
-    pull_coord_work_t* coord  = &pull->coord[coord_ind];
+    pull_coord_work_t* coord  = &pull->coord[transformationPullCoordinateIndex];
+    int                variablePcrdIndex;
     try
     {
-        for (int previous_coord_ind = 0; previous_coord_ind < coord_ind; previous_coord_ind++)
+        for (variablePcrdIndex = 0; variablePcrdIndex < coord_ind; variablePcrdIndex++)
         {
-            pull_coord_work_t*    pre_pcrd        = &pull->coord[previous_coord_ind];
-            PullCoordSpatialData& pre_spatialData = pre_pcrd->spatialData;
-            coord->expressionParser.setVariable(previous_coord_ind, pre_spatialData.value, coord_ind);
+            pull_coord_work_t* variablePcrd = &pull->coord[variablePcrdIndex];
+            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd->spatialData.value,
+                                                transformationPullCoordinateIndex);
         }
         result = coord->expressionParser.eval();
     }
     catch (mu::Parser::exception_type& e)
     {
         gmx_fatal(FARGS, "failed to evaluate expression for transformation pull-coord%d: %s\n",
-                  coord_ind + 1, e.GetMsg().c_str());
+                  transformationPullCoordinateIndex + 1, e.GetMsg().c_str());
     }
-    if (debug)
+    catch (std::exception& e)
     {
-        fprintf(debug, "Computed transformation pull coordinate %d and got value %4.6f\n",
-                coord_ind + 1, result);
+        gmx_fatal(FARGS,
+                  "failed to evaluate expression for transformation pull-coord%d.\n"
+                  "Last variable pull-coord-index: %d.\n"
+                  "Message:  %s\n",
+                  transformationPullCoordinateIndex + 1, variablePcrdIndex + 1, e.what());
     }
     return result;
 }
 #else
-static double get_transformation_pull_value(pull_t* /* pull */, int /* coord_ind */)
+double getTransformationPullCoordinateValue(pull_t* pull /* pull */,
+                                            int /* transformationPullCoordinateIndex */ transformationPullCoordinateIndex)
 {
     GMX_RELEASE_ASSERT(false, "Calling function not available without muparser.");
 }
@@ -757,7 +755,7 @@ static void get_pull_coord_distance(struct pull_t* pull, int coord_ind, const t_
             spatialData.value = gmx_angle_between_dvecs(spatialData.dr01, spatialData.vec);
             break;
         case epullgTRANSFORMATION:
-            spatialData.value = get_transformation_pull_value(pull, coord_ind);
+            spatialData.value = getTransformationPullCoordinateValue(pull, coord_ind);
             break;
         default: gmx_incons("Unsupported pull type in get_pull_coord_distance");
     }
@@ -1493,44 +1491,36 @@ static void check_external_potential_registration(const struct pull_t* pull)
     }
 }
 
-#if HAVE_MUPARSER
 /*! \brief
  * Calculates force for pull coordinate.
  * \param[in] pull Pulling information.
- * \param[in] transformation_coord_ind Index for transformation coordinate.
- * \param[in] coord_ind Main pull coordinate index.
+ * \param[in] transformationPcrdIndex Index for transformation coordinate.
+ * \param[in] variablePcrdIndex Pull coordinate index of a variable.
  */
-double compute_force_from_transformation_coord(struct pull_t* pull, int transformation_coord_ind, int coord_ind)
+double computeForceFromTransformationPullCoord(struct pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex)
 {
-    const pull_coord_work_t& transformation_pcrd = pull->coord[transformation_coord_ind];
+    const pull_coord_work_t& transformationPcrd = pull->coord[transformationPcrdIndex];
     // epsilon for numerical differentiation.
-    const double       epsilon              = 1e-9;
-    const double       transformation_value = transformation_pcrd.spatialData.value;
-    pull_coord_work_t& pre_pcrd             = pull->coord[coord_ind];
+    const double       epsilon                 = 1e-9;
+    const double       transformationPcrdValue = transformationPcrd.spatialData.value;
+    pull_coord_work_t& prePcrd                 = pull->coord[variablePcrdIndex];
     // Perform numerical differentiation of 1st order
-    pre_pcrd.spatialData.value += epsilon;
-    double transformation_value_eps = get_transformation_pull_value(pull, transformation_coord_ind);
-    double derivative               = (transformation_value_eps - transformation_value) / epsilon;
-    pre_pcrd.spatialData.value -= epsilon; // reset pull coordinate value
-    double result = transformation_pcrd.scalarForce * derivative;
+    prePcrd.spatialData.value += epsilon;
+    double transformationPcrdValueEps =
+            getTransformationPullCoordinateValue(pull, transformationPcrdIndex);
+    double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
+    prePcrd.spatialData.value -= epsilon; // reset pull coordinate value
+    double result = transformationPcrd.scalarForce * derivative;
     if (debug)
     {
         fprintf(debug,
                 "Distributing force %4.4f for transformation coordinate %d to coordinate %d with "
                 "force "
                 "%4.4f\n",
-                transformation_pcrd.scalarForce, transformation_coord_ind, coord_ind, result);
+                transformationPcrd.scalarForce, transformationPcrdIndex, variablePcrdIndex, result);
     }
     return result;
 }
-#else
-double compute_force_from_transformation_coord(struct pull_t* /* pull */,
-                                               int /* transformation_coord_ind */,
-                                               int /* coord_ind */)
-{
-    GMX_RELEASE_ASSERT(false, "Can't use functionality without muparser.");
-}
-#endif
 
 /*! \brief
  * Applies a force of any non-transformation pull coordinate
@@ -1568,31 +1558,31 @@ static void apply_default_pull_coord_force(struct pull_t*        pull,
  * Applies a force of a transformation pull coordinate and distributes it to pull coordinates of lower rank
  *
  * \param[in] pull
- * \param[in] coord_index
- * \param[in] coord_force
+ * \param[in] transformationCoordIndex
+ * \param[in] transformationCoordForce
  * \param[in] masses
  * \param[in] forceWithVirial
  */
-static void apply_transformation_pull_coord_force(struct pull_t*        pull,
-                                                  int                   coord_index,
-                                                  double                coord_force,
-                                                  const real*           masses,
-                                                  gmx::ForceWithVirial* forceWithVirial)
+static void applyTransformationPullCoordForce(struct pull_t*        pull,
+                                              int                   transformationCoordIndex,
+                                              double                transformationCoordForce,
+                                              const real*           masses,
+                                              gmx::ForceWithVirial* forceWithVirial)
 {
-    if (coord_force < 1e-9)
+    if (transformationCoordForce < 1e-9)
     {
         // the force is effectively 0. Don't proceed and distribute it recursively
         return;
     }
     pull_coord_work_t* pcrd;
-    pcrd = &pull->coord[coord_index];
+    pcrd = &pull->coord[transformationCoordIndex];
     if (pcrd->params.eGeom == epullgTRANSFORMATION)
     {
-        pcrd->scalarForce = coord_force;
-        for (int previous_coord_index = 0; previous_coord_index < coord_index; previous_coord_index++)
+        pcrd->scalarForce = transformationCoordForce;
+        for (int variableCoordIndex = 0; variableCoordIndex < transformationCoordIndex; variableCoordIndex++)
         {
-            pull_coord_work_t* previous_pcrd = &pull->coord[previous_coord_index];
-            if (previous_pcrd->params.eGeom == epullgTRANSFORMATION)
+            pull_coord_work_t* variablePCrd = &pull->coord[variableCoordIndex];
+            if (variablePCrd->params.eGeom == epullgTRANSFORMATION)
             {
                 /*
                  * We can have a transformation pull coordinate depend on another sub-transformation pull coordinate
@@ -1603,15 +1593,16 @@ static void apply_transformation_pull_coord_force(struct pull_t*        pull,
                  */
                 return;
             }
-            double previous_coord_force =
-                    compute_force_from_transformation_coord(pull, coord_index, previous_coord_index);
-            apply_transformation_pull_coord_force(pull, previous_coord_index, previous_coord_force,
-                                                  masses, forceWithVirial);
+            double previous_coord_force = computeForceFromTransformationPullCoord(
+                    pull, transformationCoordIndex, variableCoordIndex);
+            applyTransformationPullCoordForce(pull, variableCoordIndex, previous_coord_force,
+                                              masses, forceWithVirial);
         }
     }
     else
     {
-        apply_default_pull_coord_force(pull, coord_index, coord_force, masses, forceWithVirial);
+        apply_default_pull_coord_force(pull, transformationCoordIndex, transformationCoordForce,
+                                       masses, forceWithVirial);
     }
 }
 
@@ -1644,7 +1635,7 @@ void apply_external_pull_coord_force(struct pull_t*        pull,
 
         if (pcrd->params.eGeom == epullgTRANSFORMATION)
         {
-            apply_transformation_pull_coord_force(pull, coord_index, coord_force, masses, forceWithVirial);
+            applyTransformationPullCoordForce(pull, coord_index, coord_force, masses, forceWithVirial);
         }
         else
         {
@@ -1724,7 +1715,7 @@ real pull_potential(struct pull_t*        pull,
                     pull, coord_index, pbc, t, lambda, &V, computeVirial ? virial : nullptr, &dVdl);
             if (pcrd->params.eGeom == epullgTRANSFORMATION)
             {
-                apply_transformation_pull_coord_force(pull, coord_index, pcrd->scalarForce, masses, force);
+                applyTransformationPullCoordForce(pull, coord_index, pcrd->scalarForce, masses, force);
             }
             else
             {

@@ -113,6 +113,15 @@ double pull_conversion_factor_internal2userinput(const t_pull_coord* pcrd);
  */
 double get_pull_coord_value(struct pull_t* pull, int coord_ind, const t_pbc* pbc);
 
+/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
+ *
+ * This requires the values of the pull coordinates of lower indices to be set
+ * \param[in] pull
+ * \param[in] coord_ind
+ * \returns Transformation value for pull coordinate.
+ */
+double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
+
 /*! \brief Registers the provider of an external potential for a coordinate.
  *
  * This function is only used for checking the consistency of the pull setup.
