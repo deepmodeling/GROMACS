@@ -49,6 +49,9 @@
 
 #include <cassert>
 #include <cstdio>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include <algorithm>
 
@@ -2664,6 +2667,7 @@ void dd_partition_system(FILE*                        fplog,
     char               sbuf[22];
 
     wallcycle_start(wcycle, ewcDOMDEC);
+    nvtxRangePush(__FUNCTION__);
 
     dd   = cr->dd;
     comm = dd->comm;
@@ -3224,6 +3228,7 @@ void dd_partition_system(FILE*                        fplog,
     }
 
     wallcycle_stop(wcycle, ewcDOMDEC);
+    nvtxRangePop();
 }
 
 /*! \brief Check whether bonded interactions are missing, if appropriate */
