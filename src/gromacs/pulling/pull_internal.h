@@ -141,11 +141,22 @@ struct PullCoordSpatialData
 };
 
 #if HAVE_MUPARSER
-/*! \brief Struct with a mathematical expression and parser */
+/*! \brief Class with a mathematical expression and parser.
+ *
+ * The class handles parser instantiation from an mathematical expression, e.g. 'x1*x2',
+ * and evaluates the expression given the variables' numerical values.
+ *
+ * Note that for performance reasons you should not create a new PullCoordExpressionParser
+ * for every evaluation.
+ * Instead, instantiate one PullCoordExpressionParser per expression,
+ * then update the variables before the next evaluation.
+ * */
 class PullCoordExpressionParser
 {
 public:
-    /* Constructor */
+    /* Constructor which takes a mathematical expreesion as argument.
+     * null values are equivalent to a blank expression.
+     * */
     PullCoordExpressionParser(const char* expressionChar)
     {
         if (expressionChar == nullptr)
@@ -158,6 +169,13 @@ public:
         }
     }
 
+    /*! \brief Initializes the parser and binds a numerical value to a variable in the expression
+     *
+     * \param[in]   variableIdx The variable index in the expression.
+     * Index 0 corresponds to the variable 'x1' etc.
+     * \param[in]   value  The variable's numerical value to be passed on for evaluation
+     * \param[in]   nVariables  The total number of variables to bind
+     */
     void setVariable(int variableIdx, double value, int nVariables) {
         if (!parser_)
         {
@@ -172,6 +190,11 @@ public:
         variableValues_[variableIdx] = value;
     }
 
+    /*! \brief Evaluates the expression with the numerical values passed to
+     * the function setVariable().
+     * This method will raise an std::exception if setVariable was not called before evaluation.
+     *
+     */
     double eval() {
         if (!parser_)
         {
@@ -181,8 +204,15 @@ public:
     }
 
 private:
+    /*! \brief The parser_ which compiles and evaluates the mathematical expression */
     std::unique_ptr<mu::Parser>          parser_;
+    /*! \brief The mathematical expression, e.g. 'x1*x2' */
     std::string                          expression_;
+    /*! \brief A vector containing the numerical values of the variables before parser evaluation.
+     *
+     * muParser compiles the expression to bytecode, then binds to the memory address
+     * of these vector elements, making the evaluations fast and memory efficient.
+     * */
     std::vector<double>                  variableValues_;
 
     /**

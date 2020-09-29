@@ -1504,7 +1504,6 @@ double compute_force_from_transformation_coord(struct pull_t* pull, int transfor
 {
     const pull_coord_work_t& transformation_pcrd = pull->coord[transformation_coord_ind];
     // epsilon for numerical differentiation.
-    // TODO make it possible to override epsilon with mdp option or environment variable etc.
     const double       epsilon              = 1e-9;
     const double       transformation_value = transformation_pcrd.spatialData.value;
     pull_coord_work_t& pre_pcrd             = pull->coord[coord_ind];
