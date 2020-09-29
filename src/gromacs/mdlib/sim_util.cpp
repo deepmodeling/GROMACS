@@ -42,6 +42,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include <array>
 
@@ -928,6 +931,7 @@ void do_force(FILE*                               fplog,
     nonbonded_verlet_t*          nbv      = fr->nbv.get();
     interaction_const_t*         ic       = fr->ic;
     gmx::StatePropagatorDataGpu* stateGpu = fr->stateGpu;
+    nvtxRangePush(__FUNCTION__);
 
     // TODO remove the code below when the legacy flags are not in use anymore
     /* modify force flag if not doing nonbonded */
@@ -1862,4 +1866,5 @@ void do_force(FILE*                               fplog,
      * the balance timing, which is ok as most tasks do communication.
      */
     ddBalanceRegionHandler.openBeforeForceComputationCpu(DdAllowBalanceRegionReopen::no);
+    nvtxRangePop();
 }

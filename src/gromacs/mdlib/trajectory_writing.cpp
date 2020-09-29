@@ -33,6 +33,9 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 #include "gmxpre.h"
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "trajectory_writing.h"
 
@@ -78,6 +81,7 @@ void do_md_trajectory_writing(FILE*                    fplog,
 {
     int   mdof_flags;
     rvec* x_for_confout = nullptr;
+    nvtxRangePush(__FUNCTION__);
 
     mdof_flags = 0;
     if (do_per_step(step, ir->nstxout))
@@ -204,4 +208,5 @@ void do_md_trajectory_writing(FILE*                    fplog,
         }
         wallcycle_stop(mdoutf_get_wcycle(outf), ewcTRAJ);
     }
+    nvtxRangePop();
 }

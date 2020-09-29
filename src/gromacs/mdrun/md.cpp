@@ -972,6 +972,7 @@ void gmx::LegacySimulator::do_md()
         gmx_bool bHREX = bDoReplEx && plumed_hrex;
 
         if (plumedswitch && bHREX) {
+            nvtxRangePushA("HREX calc");
           // gmx_enerdata_t *hrex_enerd;
           int nlambda = enerd->enerpart_lambda.end() - enerd->enerpart_lambda.begin();
           gmx_enerdata_t hrex_enerd(enerd->grpp.nener, nlambda == 0 ? 0 : nlambda - 1);
@@ -1054,6 +1055,7 @@ void gmx::LegacySimulator::do_md()
             }
           }
           bNS=true;
+          nvtxRangePop();
         }
         /* END PLUMED HREX */
 
@@ -1166,6 +1168,8 @@ void gmx::LegacySimulator::do_md()
             }
             /* END PLUMED */
         }
+
+        nvtxRangePushA("update");
 
         // VV integrators do not need the following velocity half step
         // if it is the first step after starting from a checkpoint.
@@ -1370,6 +1374,7 @@ void gmx::LegacySimulator::do_md()
             stateGpu->copyForcesFromGpu(ArrayRef<RVec>(f), AtomLocality::Local);
             stateGpu->waitForcesReadyOnHost(AtomLocality::Local);
         }
+
         /* Now we have the energies and forces corresponding to the
          * coordinates at time t. We must output all of this before
          * the update.
@@ -1688,6 +1693,7 @@ void gmx::LegacySimulator::do_md()
 
         /* ################# END UPDATE STEP 2 ################# */
         /* #### We now have r(t+dt) and v(t+dt/2)  ############# */
+        nvtxRangePop();
 
         /* The coordinates (x) were unshifted in update */
         if (!bGStat)

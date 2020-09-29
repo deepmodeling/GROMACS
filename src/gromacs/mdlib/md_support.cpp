@@ -41,6 +41,9 @@
 
 #include <climits>
 #include <cmath>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include <algorithm>
 
@@ -182,6 +185,7 @@ void compute_globals(gmx_global_stat*          gstat,
     gmx_bool bStopCM, bGStat, bReadEkin, bEkinAveVel, bScaleEkin, bConstrain;
     gmx_bool bCheckNumberOfBondedInteractions;
     real     dvdl_ekin;
+    nvtxRangePush(__FUNCTION__);
 
     /* translate CGLO flags to gmx_booleans */
     bStopCM                          = ((flags & CGLO_STOPCM) != 0);
@@ -310,6 +314,7 @@ void compute_globals(gmx_global_stat*          gstat,
             enerd->term[F_PRES] += correction.pressure;
         }
     }
+    nvtxRangePop();
 }
 
 void setCurrentLambdasRerun(int64_t           step,

@@ -123,17 +123,21 @@ set(INSTALLED_HEADER_DEFINITIONS "")
 # Global non-cache variables for implementing the build system
 ########################################################################
 
+#link_directories("/data2/plublicsoft/cuda10.0/lib64")
 # These variables collect libraries that GROMACS requires for
 # linking. They should be appended to with list(APPEND ${name}
 # new-library) calls. They are:
 #  - Libraries that are required for libgromacs (only)
-set(GMX_EXTRA_LIBRARIES "")
+set(GMX_EXTRA_LIBRARIES "/data2/publicsoft/cuda10.0/lib64/libnvToolsExt.so")
 #  - Libraries that are required for all code in the repository
-set(GMX_COMMON_LIBRARIES "")
+set(GMX_COMMON_LIBRARIES "/data2/publicsoft/cuda10.0/lib64/libnvToolsExt.so")
 #  - Libraries that all code linked against libgromacs needs
 #    (i.e., something that is exposed in installed headers).
-set(GMX_PUBLIC_LIBRARIES "")
+set(GMX_PUBLIC_LIBRARIES "/data2/publicsoft/cuda10.0/lib64/libnvToolsExt.so")
 
+#set(GMX_PUBLIC_LIBRARIES "")
+#set(GMX_COMMON_LIBRARIES "")
+#set(GMX_EXTRA_LIBRARIES "")
 ########################################################################
 # Check and warn if cache generated on a different host is being reused
 ########################################################################
@@ -579,6 +583,7 @@ if(GMX_GPU)
         list(APPEND GMX_EXTRA_LIBRARIES ${GMX_CUDA_CLANG_LINK_LIBS})
         link_directories("${GMX_CUDA_CLANG_LINK_DIRS}")
     endif()
+    link_directories("$ENV{CUDA_HOME}/lib64")
 endif()
 
 if(CYGWIN)
