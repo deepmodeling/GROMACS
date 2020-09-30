@@ -61,7 +61,7 @@ namespace gmx
 template<typename T>
 class ArrayRef;
 struct UserVdwTableCollection;
-struct UserVdwTable;
+class UserVdwTable;
 
 int checkDistancesAndReturnNumPoints(ArrayRef<const double> distances,
                                      real                   vdwCutoffDistance,
