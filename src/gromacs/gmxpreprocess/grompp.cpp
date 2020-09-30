@@ -2212,10 +2212,12 @@ int gmx_grompp(int argc, char* argv[])
 
     if (ir->vdwtype == evdwUSER)
     {
-        std::string baseFilename            = opt2fn("-nbtable", NFILE, fnm);
-        baseFilename                        = baseFilename.substr(0, baseFilename.rfind("."));
-        sys.ffparams.userVdwTableCollection = std::make_unique<gmx::UserVdwTableCollection>(
-                gmx::readUserVdwTables(*ir, baseFilename, sys.groups));
+        std::string baseFilename = opt2fn("-nbtable", NFILE, fnm);
+        baseFilename             = baseFilename.substr(0, baseFilename.rfind("."));
+        auto userVdwTableCollectionBuilder =
+                gmx::UserVdwTableCollectionBuilder(*ir, baseFilename, sys.groups);
+        sys.ffparams.userVdwTableCollection =
+                std::make_unique<gmx::UserVdwTableCollection>(userVdwTableCollectionBuilder.build());
     }
 
     if (ir->eI == eiMimic)

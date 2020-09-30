@@ -48,9 +48,6 @@
 namespace gmx
 {
 
-namespace
-{
-
 int checkDistancesAndReturnNumPoints(ArrayRef<const double> distances,
                                      const real             vdwCutoffDistance,
                                      const std::string&     filename)
@@ -122,43 +119,19 @@ UserVdwTable readUserVdwTable(const std::string& filename, const double vdwCutof
                         constArrayRefFromArray(columns[6].data(), numPoints));
 }
 
-} // namespace
-
-UserVdwTableCollection readUserVdwTables(const t_inputrec&       ir,
-                                         const std::string&      tableBaseFilename,
-                                         const SimulationGroups& groups)
+std::vector<std::tuple<int, int, std::string>>
+getEnergyGroupPairTablesFilenames(int                     numNonbondedEnergyGroupPairs,
+                                  int*                    energyGroupPairFlags,
+                                  int                     numEnergyGroups,
+                                  const SimulationGroups& groups,
+                                  const std::string&      tableBaseFilename)
 {
-    const real vdwCutoffDistance            = ir.rvdw;
-    const int  numNonbondedEnergyGroupPairs = ir.opts.ngener - ir.nwall;
-
-    int numEnergyGroupPairTables = 0;
+    std::vector<std::tuple<int, int, std::string>> energyGroupPairTablesData;
     for (int egi = 0; egi < numNonbondedEnergyGroupPairs; egi++)
     {
         for (int egj = egi; egj < numNonbondedEnergyGroupPairs; egj++)
         {
-            const int egpFlags = ir.opts.egp_flags[GID(egi, egj, ir.opts.ngener)];
-            if (egpFlags & EGP_TABLE)
-            {
-                numEnergyGroupPairTables++;
-            }
-        }
-    }
-
-    UserVdwTableCollection tableCollection;
-
-    // If not all energy group pairs use a table, we need the default table
-    if (numEnergyGroupPairTables < ((numNonbondedEnergyGroupPairs + 1) * numNonbondedEnergyGroupPairs) / 2)
-    {
-        const std::string filename = tableBaseFilename + "." + ftp2ext(efXVG);
-        tableCollection.defaultTable =
-                std::make_unique<UserVdwTable>(readUserVdwTable(filename, vdwCutoffDistance));
-    }
-
-    for (int egi = 0; egi < numNonbondedEnergyGroupPairs; egi++)
-    {
-        for (int egj = egi; egj < numNonbondedEnergyGroupPairs; egj++)
-        {
-            const int egpFlags = ir.opts.egp_flags[GID(egi, egj, ir.opts.ngener)];
+            const int egpFlags = energyGroupPairFlags[GID(egi, egj, numEnergyGroups)];
             if (egpFlags & EGP_TABLE)
             {
                 const std::string filename =
@@ -166,12 +139,41 @@ UserVdwTableCollection readUserVdwTables(const t_inputrec&       ir,
                         + *groups.groupNames[groups.groupNumbers[SimulationAtomGroupType::EnergyOutput][egi]]
                         + "_"
                         + *groups.groupNames[groups.groupNumbers[SimulationAtomGroupType::EnergyOutput][egj]];
-                tableCollection.energyGroupPairTables.push_back(
-                        { egi, egj, readUserVdwTable(filename, vdwCutoffDistance) });
+                energyGroupPairTablesData.push_back(std::make_tuple(egi, egj, filename));
             }
         }
     }
+    return energyGroupPairTablesData;
+}
 
+UserVdwTableCollectionBuilder::UserVdwTableCollectionBuilder(const t_inputrec&  ir,
+                                                             const std::string& tableBaseFilename,
+                                                             const SimulationGroups& groups) :
+    vdwCutoffDistance_(ir.rvdw),
+    numNonbondedEnergyGroupPairs_(ir.opts.ngener - ir.nwall)
+{
+    energyGroupPairTablesData_ = getEnergyGroupPairTablesFilenames(
+            numNonbondedEnergyGroupPairs_, ir.opts.egp_flags, ir.opts.ngener, groups, tableBaseFilename);
+    defaultTableFilename_ = tableBaseFilename + "." + ftp2ext(efXVG);
+}
+
+UserVdwTableCollection UserVdwTableCollectionBuilder::build()
+{
+    UserVdwTableCollection tableCollection;
+    // If not all energy group pairs use a table, we need the default table
+    if (int(energyGroupPairTablesData_.size())
+        < ((numNonbondedEnergyGroupPairs_ + 1) * numNonbondedEnergyGroupPairs_) / 2)
+    {
+        tableCollection.defaultTable = std::make_unique<UserVdwTable>(
+                readUserVdwTable(defaultTableFilename_, vdwCutoffDistance_));
+    }
+
+    for (const auto& tablesData : energyGroupPairTablesData_)
+    {
+        tableCollection.energyGroupPairTables.push_back(
+                { std::get<0>(tablesData), std::get<1>(tablesData),
+                  readUserVdwTable(std::get<2>(tablesData), vdwCutoffDistance_) });
+    }
     return tableCollection;
 }
 

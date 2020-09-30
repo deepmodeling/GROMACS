@@ -48,6 +48,9 @@
 #define GMX_GMXPREPROCESS_USERTABLEREADING_H
 
 #include <string>
+#include <vector>
+
+#include "gromacs/utility/real.h"
 
 struct SimulationGroups;
 struct t_inputrec;
@@ -55,11 +58,39 @@ struct t_inputrec;
 namespace gmx
 {
 
+template<typename T>
+class ArrayRef;
 struct UserVdwTableCollection;
+struct UserVdwTable;
 
-UserVdwTableCollection readUserVdwTables(const t_inputrec&       ir,
-                                         const std::string&      tableBaseFilename,
-                                         const SimulationGroups& groups);
+int checkDistancesAndReturnNumPoints(ArrayRef<const double> distances,
+                                     real                   vdwCutoffDistance,
+                                     const std::string&     filename);
+
+UserVdwTable readUserVdwTable(const std::string& filename, double vdwCutoffDistance);
+
+std::vector<std::tuple<int, int, std::string>>
+getEnergyGroupPairTablesFilenames(int                     numNonbondedEnergyGroupPairs,
+                                  int*                    energyGroupPairFlags,
+                                  int                     numEnergyGroups,
+                                  const SimulationGroups& groups,
+                                  const std::string&      tableBaseFilename);
+
+class UserVdwTableCollectionBuilder
+{
+public:
+    UserVdwTableCollectionBuilder(const t_inputrec&       ir,
+                                  const std::string&      tableBaseFilename,
+                                  const SimulationGroups& groups);
+
+    UserVdwTableCollection build();
+
+private:
+    real                                           vdwCutoffDistance_;
+    int                                            numNonbondedEnergyGroupPairs_;
+    std::string                                    defaultTableFilename_;
+    std::vector<std::tuple<int, int, std::string>> energyGroupPairTablesData_;
+};
 
 } // namespace gmx
 
