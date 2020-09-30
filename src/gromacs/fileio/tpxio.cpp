@@ -342,7 +342,6 @@ static void do_pull_coord(gmx::ISerializer* serializer,
             pcrd->ngroup = 0;
         }
         serializer->doIvec(&pcrd->dim);
-        serializer->doInt(&pcrd->eType);
         if (file_version >= tpxv_TransformationPullCoord)
         {
             std::string buf;
@@ -353,7 +352,7 @@ static void do_pull_coord(gmx::ISerializer* serializer,
             }
             else
             {
-                buf = pcrd->expression;
+                buf = pcrd->expression ? pcrd->expression : "";
                 serializer->doString(&buf);
             }
         }
