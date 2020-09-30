@@ -43,7 +43,8 @@ file(GLOB MDTYPES_SOURCES
     interaction_const.cpp
     md_enums.cpp
     observableshistory.cpp
-    state.cpp)
+    state.cpp
+    uservdwtables.cpp)
 
 if(GMX_GPU)
     gmx_add_libgromacs_sources(

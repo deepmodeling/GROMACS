@@ -39,7 +39,9 @@
 
 #include "forcefieldparameters.h"
 
+#include "gromacs/mdtypes/uservdwtables.h"
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/stringutil.h"
 #include "gromacs/utility/txtdump.h"
 
 static void pr_cmap(FILE* fp, int indent, const char* title, const gmx_cmap_t* cmap_grid, gmx_bool bShowNumbers)
@@ -86,6 +88,37 @@ static void pr_cmap(FILE* fp, int indent, const char* title, const gmx_cmap_t* c
     }
 }
 
+static void pr_userVdwTable(FILE* fp, int indent, const gmx::UserVdwTable& t)
+{
+    pr_indent(fp, indent);
+    fprintf(fp, "spacing %lf\n", t.spacing);
+    pr_doubles(stdout, indent, "dispersionPotential", t.dispersionPotential.data(),
+               t.dispersionPotential.size());
+    pr_doubles(stdout, indent, "dispersionDerivative", t.dispersionDerivative.data(),
+               t.dispersionDerivative.size());
+    pr_doubles(stdout, indent, "repulsionPotential", t.repulsionPotential.data(),
+               t.repulsionPotential.size());
+    pr_doubles(stdout, indent, "repulsionDerivative", t.repulsionDerivative.data(),
+               t.repulsionDerivative.size());
+}
+
+static void pr_userVdwTableCollection(FILE* fp, int indent, const gmx::UserVdwTableCollection& userVdwTableCollection)
+{
+    pr_title(fp, indent, "userVdwTableCollection");
+    if (userVdwTableCollection.defaultTable)
+    {
+        pr_title(fp, indent, "defaultTable");
+        pr_userVdwTable(fp, indent, *userVdwTableCollection.defaultTable);
+    }
+    for (const auto& egpTable : userVdwTableCollection.energyGroupPairTables)
+    {
+        std::string title = gmx::formatString("energyGroupTable %d %d\n", egpTable.energyGroupI,
+                                              egpTable.energyGroupJ);
+        pr_title(fp, indent, title.c_str());
+        pr_userVdwTable(fp, indent, egpTable.table);
+    }
+}
+
 void pr_ffparams(FILE* fp, int indent, const char* title, const gmx_ffparams_t* ffparams, gmx_bool bShowNumbers)
 {
     int i;
@@ -105,4 +138,8 @@ void pr_ffparams(FILE* fp, int indent, const char* title, const gmx_ffparams_t* 
     pr_double(fp, indent, "reppow", ffparams->reppow);
     pr_real(fp, indent, "fudgeQQ", ffparams->fudgeQQ);
     pr_cmap(fp, indent, "cmap", &ffparams->cmap_grid, bShowNumbers);
+    if (ffparams->userVdwTableCollection)
+    {
+        pr_userVdwTableCollection(fp, indent, *ffparams->userVdwTableCollection);
+    }
 }

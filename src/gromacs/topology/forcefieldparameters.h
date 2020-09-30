@@ -40,12 +40,18 @@
 
 #include <cstdio>
 
+#include <memory>
 #include <vector>
 
 #include "gromacs/topology/idef.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/real.h"
+
+namespace gmx
+{
+struct UserVdwTableCollection;
+} // namespace gmx
 
 /*! \brief Struct that holds all force field parameters for the simulated system */
 struct gmx_ffparams_t
@@ -67,6 +73,8 @@ struct gmx_ffparams_t
     double                  reppow  = 0; /**< The repulsion power for VdW: C12*r^-reppow   */
     real                    fudgeQQ = 0; /**< The scaling factor for Coulomb 1-4: f*q1*q2  */
     gmx_cmap_t              cmap_grid;   /**< The dihedral correction maps                 */
+    //! Collection of VdW user tables, only present when required
+    std::unique_ptr<gmx::UserVdwTableCollection> userVdwTableCollection;
 };
 
 void pr_ffparams(FILE* fp, int indent, const char* title, const gmx_ffparams_t* ffparams, gmx_bool bShowNumbers);

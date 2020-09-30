@@ -86,6 +86,7 @@
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/mdtypes/nblist.h"
 #include "gromacs/mdtypes/state.h"
+#include "gromacs/mdtypes/uservdwtables.h"
 #include "gromacs/pbcutil/boxutilities.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/pulling/pull.h"
@@ -109,6 +110,8 @@
 #include "gromacs/utility/mdmodulenotification.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/snprintf.h"
+
+#include "usertablereading.h"
 
 /* TODO The implementation details should move to their own source file. */
 InteractionOfType::InteractionOfType(gmx::ArrayRef<const int>  atoms,
@@ -1780,6 +1783,7 @@ int gmx_grompp(int argc, char* argv[])
                        { efSTX, "-r", "restraint", ffOPTRD },
                        { efSTX, "-rb", "restraint", ffOPTRD },
                        { efNDX, nullptr, nullptr, ffOPTRD },
+                       { efXVG, "-nbtable", "table", ffOPTRD },
                        { efTOP, nullptr, nullptr, ffREAD },
                        { efTOP, "-pp", "processed", ffOPTWR },
                        { efTPR, "-o", nullptr, ffWRITE },
@@ -2204,6 +2208,14 @@ int gmx_grompp(int argc, char* argv[])
     if (debug)
     {
         pr_symtab(debug, 0, "After close", &sys.symtab);
+    }
+
+    if (ir->vdwtype == evdwUSER)
+    {
+        std::string baseFilename            = opt2fn("-nbtable", NFILE, fnm);
+        baseFilename                        = baseFilename.substr(0, baseFilename.rfind("."));
+        sys.ffparams.userVdwTableCollection = std::make_unique<gmx::UserVdwTableCollection>(
+                gmx::readUserVdwTables(*ir, baseFilename, sys.groups));
     }
 
     if (ir->eI == eiMimic)

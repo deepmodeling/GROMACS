@@ -60,6 +60,7 @@
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/mdtypes/state.h"
+#include "gromacs/mdtypes/uservdwtables.h"
 #include "gromacs/pbcutil/boxutilities.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/topology/block.h"
@@ -132,7 +133,8 @@ enum tpxv
     tpxv_AddSizeField, /**< Added field with information about the size of the serialized tpr file in bytes, excluding the header */
     tpxv_StoreNonBondedInteractionExclusionGroup, /**< Store the non bonded interaction exclusion group in the topology */
     tpxv_VSite1,                                  /**< Added 1 type virtual site */
-    tpxv_Count                                    /**< the total number of tpxv versions */
+    tpxv_UserVdwTableCollection, /**< Added UserVdwTableCollection */
+    tpxv_Count                   /**< the total number of tpxv versions */
 };
 
 /*! \brief Version number of the file format written to run input
@@ -2050,6 +2052,20 @@ static void do_ffparams(gmx::ISerializer* serializer, gmx_ffparams_t* ffparams, 
         }
 
         do_iparams(serializer, ffparams->functype[i], &ffparams->iparams[i], file_version);
+    }
+
+    if (file_version >= tpxv_UserVdwTableCollection)
+    {
+        bool haveUserVdwTableCollection = (ffparams->userVdwTableCollection != nullptr);
+        serializer->doBool(&haveUserVdwTableCollection);
+        if (haveUserVdwTableCollection)
+        {
+            if (serializer->reading())
+            {
+                ffparams->userVdwTableCollection = std::make_unique<gmx::UserVdwTableCollection>();
+            }
+            gmx::serializeUserVdwTableCollection(serializer, ffparams->userVdwTableCollection.get());
+        }
     }
 }
 

@@ -44,6 +44,7 @@
 #include <algorithm>
 
 #include "gromacs/math/vecdump.h"
+#include "gromacs/mdtypes/uservdwtables.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/topology/idef.h"
 #include "gromacs/topology/ifunc.h"

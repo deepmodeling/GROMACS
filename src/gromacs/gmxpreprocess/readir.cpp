@@ -336,10 +336,11 @@ void check_ir(const char*                   mdparin,
             }
         }
 
-        if (!(ir->vdwtype == evdwCUT || ir->vdwtype == evdwPME))
+        if (!(ir->vdwtype == evdwCUT || ir->vdwtype == evdwPME || ir->vdwtype == evdwUSER))
         {
             warning_error(wi,
-                          "With Verlet lists only cut-off and PME LJ interactions are supported");
+                          "For Van der Waals interactions only cut-off, PME and user types are "
+                          "supported");
         }
         if (!(ir->coulombtype == eelCUT || EEL_RF(ir->coulombtype) || EEL_PME(ir->coulombtype)
               || ir->coulombtype == eelEWALD))
