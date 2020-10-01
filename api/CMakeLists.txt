@@ -46,3 +46,21 @@ option(GMXAPI "Install GROMACS API." ${_GMXAPI_DEFAULT})
 if (GMXAPI)
     add_subdirectory(gmxapi)
 endif()
+
+# Activate targets NBLIB
+if(GMX_NATIVE_WINDOWS OR GMX_BUILD_MDRUN_ONLY)
+    # NBLIB has not been tested in Microsoft environments.
+    # NBLIB relies on libgromacs and is incompatible with an `mdrun`-only build.
+    # NBLIB requires position-independent code
+    set(_NBLIB_DEFAULT OFF)
+else()
+    set(_NBLIB_DEFAULT ON)
+endif()
+option(GMX_INSTALL_NBLIB_API "Install nblib headers" ${_NBLIB_DEFAULT})
+if (GMX_INSTALL_NBLIB_API)
+    if(NOT ${BUILD_SHARED_LIBS})
+        message(FATAL_ERROR "NBLIB requires position-independent code. Set -GMX_INSTALL_NBLIB_API=OFF or -DBUILD_SHARED_LIBS=ON.")
+    else()
+        add_subdirectory(nblib)
+    endif()
+endif()

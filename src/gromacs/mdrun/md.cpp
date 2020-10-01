@@ -73,6 +73,7 @@
 #include "gromacs/imd/imd.h"
 #include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/math/functions.h"
+#include "gromacs/math/invertmatrix.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/checkpointhandler.h"
@@ -380,9 +381,11 @@ void gmx::LegacySimulator::do_md()
         GMX_RELEASE_ASSERT(
                 ir->etc != etcNOSEHOOVER,
                 "Nose-Hoover temperature coupling is not supported with the GPU update.\n");
-        GMX_RELEASE_ASSERT(ir->epc == epcNO || ir->epc == epcPARRINELLORAHMAN || ir->epc == epcBERENDSEN,
-                           "Only Parrinello-Rahman and Berendsen pressure coupling are supported "
-                           "with the GPU update.\n");
+        GMX_RELEASE_ASSERT(
+                ir->epc == epcNO || ir->epc == epcPARRINELLORAHMAN || ir->epc == epcBERENDSEN
+                        || ir->epc == epcCRESCALE,
+                "Only Parrinello-Rahman, Berendsen, and C-rescale pressure coupling are supported "
+                "with the GPU update.\n");
         GMX_RELEASE_ASSERT(!mdatoms->haveVsites,
                            "Virtual sites are not supported with the GPU update.\n");
         GMX_RELEASE_ASSERT(ed == nullptr,
@@ -847,13 +850,11 @@ void gmx::LegacySimulator::do_md()
         }
 
         // Allocate or re-size GPU halo exchange object, if necessary
-        if (bNS && havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange
-            && useGpuForNonbonded && is1D(*cr->dd))
+        if (bNS && havePPDomainDecomposition(cr) && simulationWork.useGpuHaloExchange && useGpuForNonbonded)
         {
             GMX_RELEASE_ASSERT(fr->deviceStreamManager != nullptr,
                                "GPU device manager has to be initialized to use GPU "
                                "version of halo exchange.");
-            // TODO remove need to pass local stream into GPU halo exchange - Issue #3093
             constructGpuHaloExchange(mdlog, *cr, *fr->deviceStreamManager, wcycle);
         }
 
@@ -1306,7 +1307,7 @@ void gmx::LegacySimulator::do_md()
         {
             /* With multiple time stepping we need to do an additional normal
              * update step to obtain the virial, as the actual MTS integration
-             * using an acceleration where the slow forces a multiplied by mtsFactor.
+             * using an acceleration where the slow forces are multiplied by mtsFactor.
              * Using that acceleration would result in a virial with the slow
              * force contribution would be a factor mtsFactor too large.
              */
@@ -1478,9 +1479,18 @@ void gmx::LegacySimulator::do_md()
 
         const bool doBerendsenPressureCoupling =
                 (inputrec->epc == epcBERENDSEN && do_per_step(step, inputrec->nstpcouple));
-        if (useGpuForUpdate && (doBerendsenPressureCoupling || doParrinelloRahman))
+        const bool doCRescalePressureCoupling =
+                (inputrec->epc == epcCRESCALE && do_per_step(step, inputrec->nstpcouple));
+        if (useGpuForUpdate
+            && (doBerendsenPressureCoupling || doCRescalePressureCoupling || doParrinelloRahman))
         {
             integrator->scaleCoordinates(pressureCouplingMu);
+            if (doCRescalePressureCoupling)
+            {
+                matrix pressureCouplingInvMu;
+                gmx::invertBoxMatrix(pressureCouplingMu, pressureCouplingInvMu);
+                integrator->scaleVelocities(pressureCouplingInvMu);
+            }
             integrator->setPbc(PbcType::Xyz, state->box);
         }
 

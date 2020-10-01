@@ -99,6 +99,8 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/strconvert.h"
 
+#include "gpuforcereduction.h"
+
 ForceHelperBuffers::ForceHelperBuffers(bool haveDirectVirialContributions) :
     haveDirectVirialContributions_(haveDirectVirialContributions)
 {
@@ -1281,7 +1283,7 @@ void init_forcerec(FILE*                            fp,
     /* Initialize the thread working data for bonded interactions */
     if (fr->useMts)
     {
-        // Add one ListedForces object for reach MTS level
+        // Add one ListedForces object for each MTS level
         bool isFirstLevel = true;
         for (const auto& mtsLevel : ir->mtsLevels)
         {

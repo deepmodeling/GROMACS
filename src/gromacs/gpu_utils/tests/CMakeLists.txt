@@ -47,6 +47,9 @@ gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test HARDWARE_DETECTION
         hostallocator.cpp
         pinnedmemorychecker.cpp
         typecasts.cpp
+        
+    GPU_CPP_SOURCE_FILES
+        device_buffer.cpp
 
     CUDA_CU_SOURCE_FILES
         devicetransfers.cu
@@ -55,9 +58,9 @@ gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test HARDWARE_DETECTION
     OPENCL_CPP_SOURCE_FILES
         devicetransfers_ocl.cpp
 
-    NON_GPU_CPP_SOURCE_FILES
-        devicetransfers.cpp
+    SYCL_CPP_SOURCE_FILES
+        devicetransfers_sycl.cpp
 
-    SYCL_CPP_SOURCE_FILES  # SYCL-TODO: proper test
+    NON_GPU_CPP_SOURCE_FILES
         devicetransfers.cpp
     )

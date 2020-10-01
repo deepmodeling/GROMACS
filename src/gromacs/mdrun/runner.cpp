@@ -73,7 +73,6 @@
 #include "gromacs/fileio/tpxio.h"
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
-#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/detecthardware.h"
@@ -95,6 +94,7 @@
 #include "gromacs/mdlib/force.h"
 #include "gromacs/mdlib/forcerec.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/mdlib/makeconstraints.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/mdatoms.h"
@@ -1157,7 +1157,6 @@ int Mdrunner::mdrunner()
                           useGpuForNonbonded || (emulateGpuNonbonded == EmulateGpuNonbonded::Yes),
                           *hwinfo->cpuInfo);
 
-    const bool prefer1DAnd1PulseDD = (devFlags.enableGpuHaloExchange && useGpuForNonbonded);
     // This builder is necessary while we have multi-part construction
     // of DD. Before DD is constructed, we use the existence of
     // the builder object to indicate that further construction of DD
@@ -1166,7 +1165,7 @@ int Mdrunner::mdrunner()
     if (useDomainDecomposition)
     {
         ddBuilder = std::make_unique<DomainDecompositionBuilder>(
-                mdlog, cr, domdecOptions, mdrunOptions, prefer1DAnd1PulseDD, mtop, *inputrec, box,
+                mdlog, cr, domdecOptions, mdrunOptions, mtop, *inputrec, box,
                 positionsFromStatePointer(globalState.get()));
     }
     else
@@ -1671,6 +1670,16 @@ int Mdrunner::mdrunner()
              */
             dd_init_bondeds(fplog, cr->dd, mtop, vsite.get(), inputrec.get(),
                             domdecOptions.checkBondedInteractions, fr->cginfo_mb);
+        }
+
+        if (runScheduleWork.simulationWork.useGpuBufferOps)
+        {
+            fr->gpuForceReduction[gmx::AtomLocality::Local] = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedLocal));
+            fr->gpuForceReduction[gmx::AtomLocality::NonLocal] = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedNonLocal));
         }
 
         std::unique_ptr<gmx::StatePropagatorDataGpu> stateGpu;

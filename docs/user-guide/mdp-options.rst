@@ -260,6 +260,9 @@ Run control
    All other forces, including all restraints, are evaluated and
    integrated every step. When PME or Ewald is used for electrostatics
    and/or LJ interactions, ``longrange-nonbonded`` has to be entered here.
+   The default value should work well for most standard atomistic simulations
+   and in particular for replacing virtual site treatment for increasing
+   the time step.
 
 .. mdp:: mts-level2-factor
 
@@ -1071,6 +1074,13 @@ Pressure coupling
       argued that this does not yield a correct thermodynamic
       ensemble, but it is the most efficient way to scale a box at the
       beginning of a run.
+
+   .. mdp-value:: C-rescale
+
+      Exponential relaxation pressure coupling with time constant
+      :mdp:`tau-p`, including a stochastic term to enforce correct
+      volume fluctuations.  The box is scaled every :mdp:`nstpcouple`
+      steps. It can be used for both equilibration and production.
 
    .. mdp-value:: Parrinello-Rahman
 
