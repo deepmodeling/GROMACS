@@ -53,6 +53,7 @@
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/pulling/pull.h"
+#include "gromacs/pulling/pull_internal.h"
 #include "gromacs/topology/topology.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/cstringutil.h"
@@ -305,6 +306,20 @@ static void init_pull_coord(pull_params_t* pull,
                           "pull-coord%d does not depend on pull-coord%d",
                           previousCoordIndex + 1, coordNum, previousCoordIndex + 1, coordNum);
             }
+        }
+        PullCoordExpressionParser parser(pcrd->expression);
+        try
+        {
+            parser.setVariable(coordNum, 0, coordNum);
+            parser.eval();
+        }
+        catch (...)
+        {
+            warning_error(wi,
+                          gmx::formatString("You used an expression that can't be parser by"
+                                            "muparser. Please check your expression you supplied"
+                                            "for pull-coord%d-expression",
+                                            coordNum));
         }
     }
 
