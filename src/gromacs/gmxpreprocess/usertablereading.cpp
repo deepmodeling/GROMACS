@@ -119,14 +119,13 @@ UserVdwTable readUserVdwTable(const std::string& filename, const double vdwCutof
                         constArrayRefFromArray(columns[6].data(), numPoints));
 }
 
-std::vector<std::tuple<int, int, std::string>>
-getEnergyGroupPairTablesFilenames(int                     numNonbondedEnergyGroupPairs,
-                                  int*                    energyGroupPairFlags,
-                                  int                     numEnergyGroups,
-                                  const SimulationGroups& groups,
-                                  const std::string&      tableBaseFilename)
+std::vector<EnergyGroupPairTablesData> getEnergyGroupPairTablesFilenames(int numNonbondedEnergyGroupPairs,
+                                                                         int* energyGroupPairFlags,
+                                                                         int  numEnergyGroups,
+                                                                         const SimulationGroups& groups,
+                                                                         const std::string& tableBaseFilename)
 {
-    std::vector<std::tuple<int, int, std::string>> energyGroupPairTablesData;
+    std::vector<EnergyGroupPairTablesData> energyGroupPairTablesData;
     for (int egi = 0; egi < numNonbondedEnergyGroupPairs; egi++)
     {
         for (int egj = egi; egj < numNonbondedEnergyGroupPairs; egj++)
@@ -139,7 +138,7 @@ getEnergyGroupPairTablesFilenames(int                     numNonbondedEnergyGrou
                         + *groups.groupNames[groups.groupNumbers[SimulationAtomGroupType::EnergyOutput][egi]]
                         + "_"
                         + *groups.groupNames[groups.groupNumbers[SimulationAtomGroupType::EnergyOutput][egj]];
-                energyGroupPairTablesData.push_back(std::make_tuple(egi, egj, filename));
+                energyGroupPairTablesData.push_back(EnergyGroupPairTablesData{ egi, egj, filename });
             }
         }
     }
@@ -150,11 +149,11 @@ UserVdwTableCollectionBuilder::UserVdwTableCollectionBuilder(const t_inputrec&  
                                                              const std::string& tableBaseFilename,
                                                              const SimulationGroups& groups) :
     vdwCutoffDistance_(ir.rvdw),
-    numNonbondedEnergyGroupPairs_(ir.opts.ngener - ir.nwall)
+    numNonbondedEnergyGroupPairs_(ir.opts.ngener - ir.nwall),
+    defaultTableFilename_(tableBaseFilename + "." + ftp2ext(efXVG))
 {
     energyGroupPairTablesData_ = getEnergyGroupPairTablesFilenames(
             numNonbondedEnergyGroupPairs_, ir.opts.egp_flags, ir.opts.ngener, groups, tableBaseFilename);
-    defaultTableFilename_ = tableBaseFilename + "." + ftp2ext(efXVG);
 }
 
 UserVdwTableCollection UserVdwTableCollectionBuilder::build()
@@ -171,8 +170,8 @@ UserVdwTableCollection UserVdwTableCollectionBuilder::build()
     for (const auto& tablesData : energyGroupPairTablesData_)
     {
         tableCollection.energyGroupPairTables.push_back(
-                { std::get<0>(tablesData), std::get<1>(tablesData),
-                  readUserVdwTable(std::get<2>(tablesData), vdwCutoffDistance_) });
+                { tablesData.EnergyGroupPairsI, tablesData.EnergyGroupPairsJ,
+                  readUserVdwTable(tablesData.EnergyGroupPairsFilename, vdwCutoffDistance_) });
     }
     return tableCollection;
 }

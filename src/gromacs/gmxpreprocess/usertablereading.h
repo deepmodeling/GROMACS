@@ -69,12 +69,18 @@ int checkDistancesAndReturnNumPoints(ArrayRef<const double> distances,
 
 UserVdwTable readUserVdwTable(const std::string& filename, double vdwCutoffDistance);
 
-std::vector<std::tuple<int, int, std::string>>
-getEnergyGroupPairTablesFilenames(int                     numNonbondedEnergyGroupPairs,
-                                  int*                    energyGroupPairFlags,
-                                  int                     numEnergyGroups,
-                                  const SimulationGroups& groups,
-                                  const std::string&      tableBaseFilename);
+struct EnergyGroupPairTablesData
+{
+    int         EnergyGroupPairsI;
+    int         EnergyGroupPairsJ;
+    std::string EnergyGroupPairsFilename;
+};
+
+std::vector<EnergyGroupPairTablesData> getEnergyGroupPairTablesFilenames(int numNonbondedEnergyGroupPairs,
+                                                                         int* energyGroupPairFlags,
+                                                                         int  numEnergyGroups,
+                                                                         const SimulationGroups& groups,
+                                                                         const std::string& tableBaseFilename);
 
 class UserVdwTableCollectionBuilder
 {
@@ -86,10 +92,10 @@ public:
     UserVdwTableCollection build();
 
 private:
-    real                                           vdwCutoffDistance_;
-    int                                            numNonbondedEnergyGroupPairs_;
-    std::string                                    defaultTableFilename_;
-    std::vector<std::tuple<int, int, std::string>> energyGroupPairTablesData_;
+    real                                   vdwCutoffDistance_;
+    int                                    numNonbondedEnergyGroupPairs_;
+    std::string                            defaultTableFilename_;
+    std::vector<EnergyGroupPairTablesData> energyGroupPairTablesData_;
 };
 
 } // namespace gmx
