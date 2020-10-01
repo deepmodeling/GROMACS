@@ -316,8 +316,8 @@ static void init_pull_coord(pull_params_t* pull,
         catch (...)
         {
             warning_error(wi,
-                          gmx::formatString("You used an expression that can't be parser by"
-                                            "muparser. Please check your expression you supplied"
+                          gmx::formatString("You used an expression that can't be parsed by"
+                                            "muparser. Please the expression you supplied"
                                             "for pull-coord%d-expression",
                                             coordNum));
         }
