@@ -77,7 +77,7 @@ gmx_add_gtest_executable(
         nbnxnsetup.cpp
         simstate.cpp
     )
-target_link_libraries(${exename} PRIVATE nblib_test_infrastructure nblib)
+target_link_libraries(${exename} PRIVATE nblib_test_infrastructure nblib libgromacs)
 target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/api)
 gmx_register_gtest_test(${testname} ${exename} INTEGRATION_TEST)
 add_dependencies(check-nblib ${exename})

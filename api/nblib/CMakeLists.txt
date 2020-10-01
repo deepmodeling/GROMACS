@@ -83,7 +83,7 @@ add_custom_target(check-nblib
         COMMENT "Running nblib tests"
         USES_TERMINAL VERBATIM)
 
-add_library(nblib SHARED "")
+add_library(nblib SHARED)
 
 target_sources(nblib
         PRIVATE

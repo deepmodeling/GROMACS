@@ -38,12 +38,7 @@
 # \author Sebastian Keller <keller@cscs.ch>
 #
 
-add_executable(argon-forces-integration "")
-
-target_sources(argon-forces-integration
-        PRIVATE
-        argon-forces-integration.cpp
-        )
+add_executable(argon-forces-integration argon-forces-integration.cpp)
 
 target_link_libraries(argon-forces-integration PRIVATE nblib)
 install(
