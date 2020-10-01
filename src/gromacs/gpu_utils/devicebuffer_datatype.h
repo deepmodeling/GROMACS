@@ -115,6 +115,9 @@ struct DeviceBuffer
 
     //! Allow implicit conversion to bool to check buffer status for compatibility with other implementations.
     operator bool() const { return buffer_.get() != nullptr; }
+
+    //! An assignment operator to allow resetting buffer by assigning nullptr to it. Necessery for compilation.
+    DeviceBuffer& operator=(std::nullptr_t nullPtr);
 };
 
 // Must explicitly instantiate for some types.
