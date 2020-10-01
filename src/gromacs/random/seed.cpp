@@ -38,6 +38,7 @@
 #include "seed.h"
 
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/fatalerror.h"
 
 namespace gmx
 {
@@ -45,15 +46,28 @@ namespace gmx
 uint64_t makeRandomSeed()
 {
     std::random_device rd;
-    uint64_t           result;
     std::size_t        deviceBits = std::numeric_limits<std::random_device::result_type>::digits;
     std::size_t        resultBits = std::numeric_limits<uint64_t>::digits;
 
-    result = static_cast<uint64_t>(rd());
+    uint64_t randomNumber1 = static_cast<uint64_t>(rd());
+    uint64_t randomNumber2 = static_cast<uint64_t>(rd());
 
+    // Due to a bug in AMD Ryzen microcode, RDRAND may always return -1 (0xFFFFFFFF).
+    // To avoid that, fall back to using PRNG instead of RDRAND if this happens.
+    if (randomNumber1 == 0xFFFFFFFF && randomNumber2 == 0xFFFFFFFF)
+    {
+        gmx_warning(
+                "Hardware random number generator (RDRAND) returned -1 (0xFFFFFFFF) twice in a\n"
+                "row. This may be due to a known bug in AND Ryzen microcode. Will use\n"
+                "pseudo-random numbers generator (PRNG) instead.");
+        randomNumber1 = static_cast<uint64_t>(rand());
+        randomNumber2 = static_cast<uint64_t>(rand());
+    }
+
+    uint64_t result = randomNumber1;
     for (std::size_t bits = deviceBits; bits < resultBits; bits += deviceBits)
     {
-        result = (result << deviceBits) | static_cast<uint64_t>(rd());
+        result = (result << deviceBits) | randomNumber2;
     }
 
     return result;
