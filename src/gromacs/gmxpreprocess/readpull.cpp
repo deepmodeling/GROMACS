@@ -310,7 +310,7 @@ static void init_pull_coord(pull_params_t* pull,
         PullCoordExpressionParser parser(pcrd->expression);
         try
         {
-            parser.setVariable(coordNum, 0, coordNum);
+            parser.setVariable(0, 0, coordNum);
             parser.eval();
         }
         catch (...)
