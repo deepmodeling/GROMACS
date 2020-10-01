@@ -238,16 +238,20 @@ std::enable_if_t<std::is_same_v<T, double>, MPI_Datatype> mpiType()
 } // namespace
 
 /*! \brief
- * Sum an array over all simulations on all ranks of each simulation.
+ * Sum an array over all simulations on master ranks or all ranks of each simulation.
  *
  * This assumes the data is identical on all ranks within each simulation.
  *
  * \param[in,out] data          The data to sum.
- * \param[in]     commRecord    Struct for intra-simulation communication.
  * \param[in]     multiSimComm  Communicator for the master ranks of sharing simulations.
+ * \param[in]     broadcastWithinSimulation  Broadcast the result to all ranks within the simulation
+ * \param[in]     commRecord    Struct for intra-simulation communication.
  */
 template<typename T>
-void sumOverSimulations(ArrayRef<T> data, const t_commrec& commRecord, const MPI_Comm multiSimComm)
+void sumOverSimulations(ArrayRef<T>      data,
+                        const MPI_Comm   multiSimComm,
+                        const bool       broadcastWithinSimulation,
+                        const t_commrec& commRecord)
 {
 #if GMX_MPI
     if (MASTER(&commRecord))
@@ -260,7 +264,7 @@ void sumOverSimulations(ArrayRef<T> data, const t_commrec& commRecord, const MPI
         std::copy(buffer.begin(), buffer.end(), data.begin());
 #    endif
     }
-    if (commRecord.nnodes > 1)
+    if (broadcastWithinSimulation && commRecord.nnodes > 1)
     {
         gmx_bcast(data.size() * sizeof(T), data.data(), commRecord.mpi_comm_mygroup);
     }
@@ -271,19 +275,24 @@ void sumOverSimulations(ArrayRef<T> data, const t_commrec& commRecord, const MPI
 #endif // GMX_MPI
 }
 
-void BiasSharing::sum(ArrayRef<int> data, const int biasIndex) const
+void BiasSharing::sumOverMasterRanks(ArrayRef<int> data, const int biasIndex) const
 {
-    sumOverSimulations(data, commRecord_, multiSimCommPerBias_[biasIndex]);
+    sumOverSimulations(data, multiSimCommPerBias_[biasIndex], false, commRecord_);
 }
 
-void BiasSharing::sum(ArrayRef<long> data, const int biasIndex) const
+void BiasSharing::sumOverMasterRanks(ArrayRef<long> data, const int biasIndex) const
 {
-    sumOverSimulations(data, commRecord_, multiSimCommPerBias_[biasIndex]);
+    sumOverSimulations(data, multiSimCommPerBias_[biasIndex], false, commRecord_);
+}
+
+void BiasSharing::sum(ArrayRef<int> data, const int biasIndex) const
+{
+    sumOverSimulations(data, multiSimCommPerBias_[biasIndex], true, commRecord_);
 }
 
 void BiasSharing::sum(ArrayRef<double> data, const int biasIndex) const
 {
-    sumOverSimulations(data, commRecord_, multiSimCommPerBias_[biasIndex]);
+    sumOverSimulations(data, multiSimCommPerBias_[biasIndex], true, commRecord_);
 }
 
 bool haveBiasSharingWithinSimulation(const AwhParams& awhParams)
@@ -329,7 +338,7 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
             std::vector<int> intervals(numSim * 2);
             intervals[numSim * 0 + simIndex] = awhParams.nstSampleCoord;
             intervals[numSim * 1 + simIndex] = awhParams.numSamplesUpdateFreeEnergy;
-            biasSharing.sum(intervals, b);
+            biasSharing.sumOverMasterRanks(intervals, b);
             for (int sim = 1; sim < numSim; sim++)
             {
                 if (intervals[sim] != intervals[0])
@@ -347,7 +356,7 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
 
             std::vector<long> pointSizes(numSim);
             pointSizes[simIndex] = pointSize[b];
-            biasSharing.sum(pointSizes, b);
+            biasSharing.sumOverMasterRanks(pointSizes, b);
             for (int sim = 1; sim < numSim; sim++)
             {
                 if (pointSizes[sim] != pointSizes[0])

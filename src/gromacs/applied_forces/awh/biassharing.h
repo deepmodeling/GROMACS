@@ -83,13 +83,16 @@ public:
     //! Returns the index of our simulation in the simulations sharing bias \p biasIndex
     int sharingSimulationIndex(int biasIndex) const { return sharingSimulationIndices_[biasIndex]; }
 
-    //! Sums data over all simulations sharing bias \p biasIndex
+    //! Sums data over the master ranks of all simulations sharing bias \p biasIndex
+    void sumOverMasterRanks(ArrayRef<int> data, int biasIndex) const;
+
+    //! Sums data over the master ranks of all simulations sharing bias \p biasIndex
+    void sumOverMasterRanks(ArrayRef<long> data, int biasIndex) const;
+
+    //! Sums data over all simulations sharing bias \p biasIndex and broadcasts to all ranks within the simulation
     void sum(ArrayRef<int> data, int biasIndex) const;
 
-    //! Sums data over all simulations sharing bias \p biasIndex
-    void sum(ArrayRef<long> data, int biasIndex) const;
-
-    //! Sums data over all simulations sharing bias \p biasIndex
+    //! Sums data over all simulations sharing bias \p biasIndex and broadcasts to all ranks within the simulation
     void sum(ArrayRef<double> data, int biasIndex) const;
 
 private:
