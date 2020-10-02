@@ -75,6 +75,9 @@
 #    include "pme.cuh"
 #elif GMX_GPU_OPENCL
 #    include "gromacs/gpu_utils/gmxopencl.h"
+#elif GMX_GPU_SYCL
+#    include "gromacs/gpu_utils/gmxsycl.h"
+#    include "gromacs/gpu_utils/syclutils.h"
 #endif
 
 #include "gromacs/ewald/pme.h"

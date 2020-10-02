@@ -55,6 +55,10 @@
 #    include "opencl/nbnxm_ocl_types.h"
 #endif
 
+#if GMX_GPU_SYCL
+#    include "sycl/nbnxm_sycl_types.h"
+#endif
+
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/listed_forces/gpubonded.h"
 #include "gromacs/math/vec.h"

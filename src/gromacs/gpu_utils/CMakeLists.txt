@@ -66,6 +66,7 @@ elseif(GMX_GPU_SYCL)
         devicebuffer_sycl.cpp
         device_context_sycl.cpp
         device_stream_sycl.cpp
+        syclutils.cpp
         )
     _gmx_add_files_to_property(SYCL_SOURCES
         devicebuffer_sycl.cpp
@@ -73,6 +74,7 @@ elseif(GMX_GPU_SYCL)
         device_context_sycl.cpp
         device_stream_manager.cpp
         device_stream_sycl.cpp
+        syclutils.cpp
         )
 else()
     gmx_add_libgromacs_sources(

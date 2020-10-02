@@ -44,6 +44,7 @@
 
 #include "config.h"
 
+#include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/locality.h"
 #include "gromacs/utility/enumerationhelpers.h"
 
@@ -55,6 +56,10 @@
 
 #if GMX_GPU_CUDA
 #    include "gromacs/gpu_utils/gpuregiontimer.cuh"
+#endif
+
+#if GMX_GPU_SYCL
+#    include "gromacs/gpu_utils/gpuregiontimer_sycl.h"
 #endif
 
 /** \internal

@@ -44,6 +44,8 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 
+class DeviceStream;
+
 #ifndef DOXYGEN
 /*! \libinternal \brief
  * A class which allows for CPU thread to mark and wait for certain GPU stream execution point.
