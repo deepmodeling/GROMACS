@@ -160,6 +160,7 @@ std::vector<int> getCompatibleDeviceIds(const std::vector<std::unique_ptr<Device
  * GPUs, based on the previously run compatibility tests.
  *
  * \param[in] deviceInfoList An information on available devices.
+ * \param[in] deviceIId      An id of device to check.
  *
  * \throws RangeError If \c deviceId does not match the id of any device in \c deviceInfoList
  *
