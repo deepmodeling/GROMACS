@@ -40,14 +40,13 @@
  *
  * \ingroup module_ewald
  */
-
 #include "gmxpre.h"
 
 #include "gromacs/ewald/ewald_utils.h"
 
+#include "pme_gpu_3dfft.h"
 #include "pme_gpu_internal.h"
 #include "pme_gpu_program_impl.h"
-#include "pme_gpu_3dfft.h"
 
 PmeGpuProgramImpl::PmeGpuProgramImpl(const DeviceContext& deviceContext) :
     deviceContext_(deviceContext),

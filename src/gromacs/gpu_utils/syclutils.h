@@ -66,6 +66,8 @@ struct gmx_device_runtime_data_t
 {
 };
 
+#ifndef DOXYGEN
+
 /*! \brief Allocate host memory in malloc style */
 void pmalloc(void** h_ptr, size_t nbytes);
 
@@ -115,5 +117,7 @@ static inline bool haveStreamTasksCompleted(const DeviceStream& /* deviceStream 
 {
     GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
 }
+
+#endif // !DOXYGEN
 
 #endif

@@ -39,6 +39,7 @@
  *
  *  \ingroup module_nbnxm
  */
+#include "gmxpre.h"
 
 #include "gromacs/nbnxm/gpu_common.h"
 #include "gromacs/utility/exceptions.h"

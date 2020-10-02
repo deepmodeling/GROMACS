@@ -39,6 +39,7 @@
  *
  *  \ingroup module_nbnxm
  */
+#include "gmxpre.h"
 
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
