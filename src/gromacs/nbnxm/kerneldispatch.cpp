@@ -33,6 +33,9 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #include "gmxpre.h"
 
 #include "gromacs/gmxlib/nrnb.h"
@@ -158,7 +161,7 @@ static void nbnxn_kernel_cpu(const PairlistSet&         pairlistSet,
                              real*                      vVdw,
                              gmx_wallcycle*             wcycle)
 {
-
+    nvtxRangePush(__FUNCTION__);
     int coulkt;
     if (EEL_RF(ic.eeltype) || ic.eeltype == eelCUT)
     {
@@ -356,6 +359,7 @@ static void nbnxn_kernel_cpu(const PairlistSet&         pairlistSet,
     {
         reduce_energies_over_lists(nbat, pairlists.ssize(), vVdw, vCoulomb);
     }
+    nvtxRangePop();
 }
 
 static void accountFlops(t_nrnb*                    nrnb,
@@ -421,6 +425,7 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
                                                  gmx_enerdata_t*            enerd,
                                                  t_nrnb*                    nrnb)
 {
+    nvtxRangePush(__FUNCTION__);
     const PairlistSet& pairlistSet = pairlistSets().pairlistSet(iLocality);
 
     switch (kernelSetup().kernelType)
@@ -449,6 +454,7 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
     }
 
     accountFlops(nrnb, pairlistSet, *this, ic, stepWork);
+    nvtxRangePop();
 }
 
 void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLocality,
@@ -462,6 +468,7 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
                                                   const gmx::StepWorkload&   stepWork,
                                                   t_nrnb*                    nrnb)
 {
+    nvtxRangePush(__FUNCTION__);
     const auto nbl_fep = pairlistSets().pairlistSet(iLocality).fepLists();
 
     /* When the first list is empty, all are empty and there is nothing to do */
@@ -558,4 +565,5 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
         }
     }
     wallcycle_sub_stop(wcycle_, ewcsNONBONDED_FEP);
+    nvtxRangePop();
 }
