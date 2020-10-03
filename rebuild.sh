@@ -13,8 +13,16 @@ export CMAKE_PREFIX_PATH="/data2/publicsoft/fftw/3.3.8-f"
 export CC=/data2/publicsoft/gcc/5.4.0/bin/gcc
 export CXX=/data2/publicsoft/gcc/5.4.0/bin/g++
 
+if [ -e Plumed.h ];then
+plumed patch -r << EOF
+2
+EOF
+fi;
 
-rm -rf build;
-mkdir build;
+plumed patch -p << EOF
+2
+EOF
+
 cd build; 
-cmake .. -DGMX_MPI=ON -DGMX_GPU=ON -DCUDA_TOOLKIT_ROOT_DIR=/data2/publicsoft/cuda10.0 -DCMAKE_INSTALL_PREFIX=/data1/anguse/zijian/gromacs-2020.2-nvtest && make -j16 && make install
+
+make -j16 && make install
