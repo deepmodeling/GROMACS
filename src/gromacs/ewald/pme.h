@@ -288,7 +288,7 @@ void gmx_pme_receive_f(gmx::PmePpCommGpu*    pmePpCommGpu,
  * \param[in]     numAtoms   The number of particles.
  * \param[in]     charges    The pointer to the array of particle charges.
  */
-void gmx_pme_reinit_atoms(gmx_pme_t* pme, int numAtoms, const real* charges);
+void gmx_pme_reinit_atoms(gmx_pme_t* pme, int numAtoms, const real* charges, const real* chargeBs);
 
 /* A block of PME GPU functions */
 

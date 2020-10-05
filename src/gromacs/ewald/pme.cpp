@@ -885,8 +885,9 @@ gmx_pme_t* gmx_pme_init(const t_commrec*         cr,
                 GMX_THROW(gmx::NotImplementedError(errorString));
             }
         }
-
-        pme_gpu_reinit(pme.get(), gpuInfo, pmeGpuProgram);
+        printf("\nlambda_q: %.4f\n", ir->fepvals->init_lambda[efptCOUL]);
+        printf(ir->efep != efepNO);
+        pme_gpu_reinit(pme.get(), gpuInfo, pmeGpuProgram, ir->efep != efepNO, ir->fepvals->init_lambda[efptCOUL]);
     }
 
     pme_init_all_work(&pme->solve_work, pme->nthread, pme->nkx);
@@ -1723,11 +1724,11 @@ void gmx_pme_destroy(gmx_pme_t* pme)
     delete pme;
 }
 
-void gmx_pme_reinit_atoms(gmx_pme_t* pme, const int numAtoms, const real* charges)
+void gmx_pme_reinit_atoms(gmx_pme_t* pme, const int numAtoms, const real* charges, const real* chargeBs)
 {
     if (pme_gpu_active(pme))
     {
-        pme_gpu_reinit_atoms(pme->gpu, numAtoms, charges);
+        pme_gpu_reinit_atoms(pme->gpu, numAtoms, charges, chargeBs);
     }
     else
     {
