@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "future": "cpp",
-        "*.cuh": "cpp"
+        "*.cuh": "cpp",
+        "cstring": "cpp"
     }
 }

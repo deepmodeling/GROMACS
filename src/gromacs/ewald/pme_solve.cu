@@ -136,10 +136,6 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
         /* The offset should be equal to the global thread index for coalesced access */
         const int gridIndex = (indexMajor * localSizeMiddle + indexMiddle) * localSizeMinor + indexMinor;
         float2* __restrict__ gm_gridCell = gm_grid + gridIndex;
-        if (bFEP)
-        {
-            float2* __restrict__ gm_gridBCell = gm_gridB + gridIndex;
-        }
 
         const int kMajor = indexMajor + localOffsetMajor;
         /* Checking either X in XYZ, or Y in YZX cases */
@@ -249,6 +245,7 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
 
             if (bFEP)
             {
+                float2* __restrict__ gm_gridBCell = gm_gridB + gridIndex;
                 float2       gridBValue    = *gm_gridBCell;
                 const float2 oldGridBValue = gridBValue;
                 const float  lambda        = kernelParams.current.lambda_q;
