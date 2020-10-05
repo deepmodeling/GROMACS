@@ -229,8 +229,8 @@ const char* lookup_kernel_name(const KernelType kernelType)
             returnvalue = "not available";
 #endif // GMX_SIMD
             break;
-        case KernelType::Gpu8x8x8: returnvalue = "GPU 8 width"; break;
-        case KernelType::Gpu4x4x8: returnvalue = "GPU 4 width"; break;
+        case KernelType::Gpu8x8x8: returnvalue = "GPU, 8 wide"; break;
+        case KernelType::Gpu4x4x8: returnvalue = "GPU, 4 wide"; break;
         case KernelType::Cpu8x8x8_PlainC: returnvalue = "plain C 8x8"; break;
         case KernelType::Cpu4x4x8_PlainC: returnvalue = "plain C 4x4"; break;
 

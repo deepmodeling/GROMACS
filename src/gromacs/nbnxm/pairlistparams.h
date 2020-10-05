@@ -63,7 +63,7 @@ enum class PairlistType : int
     Simple4x4,       //!< cpu pair list
     Simple4x8,       //!< cpu pair list
     Hierarchical8x8, //!< this is the 8x8x8 gpu pair list with superclusters
-    Hierarchical4x4, //!< smaller list with 4x4x8 gpu pair list with superclusters
+    Hierarchical4x4, //!< other 4x4x8 gpu pair list with superclusters
     Count
 };
 
