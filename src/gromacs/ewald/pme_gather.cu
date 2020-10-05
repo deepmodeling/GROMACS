@@ -230,7 +230,6 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     /* Global memory pointers */
     const float* __restrict__ gm_coefficients = kernelParams.atoms.d_coefficients;
     const float* __restrict__ gm_grid         = kernelParams.grid.d_realGrid;
-    const float* __restrict__ gm_coefficientsB= kernelParams.atoms.d_coefficientsB;
     const float* __restrict__ gm_gridB        = kernelParams.grid.d_realGridB;
     float* __restrict__ gm_forces             = kernelParams.atoms.d_forces;
 
@@ -240,7 +239,7 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     const int* __restrict__ gm_gridlineIndices = kernelParams.atoms.d_gridlineIndices;
 
     float3 atomX;
-    float  atomCharge, atomChargeB;
+    float  atomCharge;
 
     /* Some sizes */
     const int atomsPerBlock =
@@ -411,11 +410,8 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
                 }
                 const int gridIndexGlobal = ix * pny * pnz + constOffset;
                 assert(gridIndexGlobal >= 0);
-                if (!bFEP)
-                {
-                    const float gridValue = gm_grid[gridIndexGlobal];
-                }
-                else
+                const float gridValue = gm_grid[gridIndexGlobal];
+                if (bFEP)
                 {
                     const float gridValue = (1 - lambda) * gm_grid[gridIndexGlobal] + lambda * gm_gridB[gridIndexGlobal];
                 }

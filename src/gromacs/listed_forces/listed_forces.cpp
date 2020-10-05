@@ -49,6 +49,9 @@
 
 #include <algorithm>
 #include <array>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
@@ -659,6 +662,7 @@ void do_force_listed(struct gmx_wallcycle*    wcycle,
                      int*                     global_atom_index,
                      const gmx::StepWorkload& stepWork)
 {
+    nvtxRangePush(__FUNCTION__);
     t_pbc pbc_full; /* Full PBC is needed for position restraints */
 
     if (!stepWork.computeListedForces)
@@ -705,4 +709,5 @@ void do_force_listed(struct gmx_wallcycle*    wcycle,
             wallcycle_sub_stop(wcycle, ewcsLISTED_FEP);
         }
     }
+    nvtxRangePop();
 }

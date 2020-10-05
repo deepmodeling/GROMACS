@@ -421,7 +421,7 @@ void pme_gpu_free_grids(const PmeGpu* pmeGpu)
     freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_realGrid);
     if (bFEP)
     {
-        freeDeviceBuffer(&pmeGpu->kernelParams->atoms.d_realGridB);
+        freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_realGridB);
     }
 }
 
@@ -1109,7 +1109,7 @@ void pme_gpu_3dfft(const PmeGpu* pmeGpu, gmx_fft_direction dir, int grid_index)
     pmeGpu->archSpecific->fftSetup[grid_index]->perform3dFft(
             dir, pme_gpu_fetch_timing_event(pmeGpu, timerId));
     
-    if (pmeGpu->kernelParams.constants.bFEP)
+    if (&pmeGpu->kernelParams->constants.bFEP)
     {
         pmeGpu->archSpecific->fftSetup[grid_index]->perform3dFftB(
                 dir, pme_gpu_fetch_timing_event(pmeGpu, timerId));
