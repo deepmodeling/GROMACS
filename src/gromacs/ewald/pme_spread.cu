@@ -96,7 +96,6 @@ __device__ __forceinline__ void spread_charges(const PmeGpuCudaKernelParams kern
     const int atomIndexGlobal = atomIndexOffset + atomIndexLocal;
 
     const bool bFEP = kernelParams.constants.bFEP;
-    printf("bFEP in spread: %d", bFEP);
     const int globalCheck = pme_gpu_check_atom_data_index(atomIndexGlobal, kernelParams.atoms.nAtoms);
     const int chargeCheck = pme_gpu_check_atom_charge(*atomCharge);
     if (chargeCheck & globalCheck)
@@ -254,7 +253,6 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
             atomChargeB = sm_coefficientsB[atomIndexLocal];
         }
     }
-    printf("chargeB in spread: %.4f", atomChargeB);
 
     if (computeSplines)
     {
