@@ -95,6 +95,8 @@ static_assert(sizeof(DeviceBuffer<int>) == 8,
  */
 struct PmeGpuConstParams
 {
+    /*! \brief Whether doing charge FEP */
+    bool bFEP;
     /*! \brief Electrostatics coefficient = ONE_4PI_EPS0 / pme->epsilon_r */
     float elFactor;
     /*! \brief Virial and energy GPU array. Size is PME_GPU_ENERGY_AND_VIRIAL_COUNT (7) floats.
@@ -134,6 +136,11 @@ struct PmeGpuGridParams
     /*! \brief Complex grid - used in FFT/solve. If inplace cu/clFFT is used, then it is the same handle as realGrid. */
     HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_fourierGrid;
 
+    /*! \brief Real space grid. */
+    HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_realGridB;
+    /*! \brief Complex grid - used in FFT/solve. If inplace cu/clFFT is used, then it is the same handle as realGrid. */
+    HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_fourierGridB;
+
     /*! \brief Grid spline values as in pme->bsp_mod
      * (laid out sequentially (XXX....XYYY......YZZZ.....Z))
      */
@@ -162,11 +169,19 @@ struct PmeGpuAtomParams
      * The charges only need to be reallocated and copied to the GPU at DD step.
      */
     HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_coefficients;
+    /*! \brief input atom charges of B state. Reallocated and copied to the GPU at DD step.
+     */
+    HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_coefficientsB;
     /*! \brief Global GPU memory array handle with input/output rvec atom forces.
      * The forces change and need to be copied from (and possibly to) the GPU for every PME
      * computation, but reallocation happens only at DD.
      */
     HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_forces;
+    /*! \brief input/output rvec atom forces of B state.
+     * The forces change and need to be copied from (and possibly to) the GPU for every PME
+     * computation, but reallocation happens only at DD.
+     */
+    HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_forcesB;
     /*! \brief Global GPU memory array handle with ivec atom gridline indices.
      * Computed on GPU in the spline calculation part.
      */
@@ -196,6 +211,8 @@ struct PmeGpuDynamicParams
     float recipBox[DIM][DIM];
     /*! \brief The unit cell volume for solving. */
     float boxVolume;
+    /*! \brief Free energy λ for charge perturbation */
+    float lambda_q;
 };
 
 /*! \internal \brief

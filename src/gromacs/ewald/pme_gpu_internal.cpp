@@ -255,10 +255,11 @@ void pme_gpu_free_coordinates(const PmeGpu* pmeGpu)
     freeDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coordinates);
 }
 
-void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu, const float* h_coefficients)
+void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu, const float* h_coefficients, const float* h_coefficientsB)
 {
     GMX_ASSERT(h_coefficients, "Bad host-side charge buffer in PME GPU");
     const size_t newCoefficientsSize = pmeGpu->nAtomsAlloc;
+    const bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
     GMX_ASSERT(newCoefficientsSize > 0, "Bad number of atoms in PME GPU");
     reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients, newCoefficientsSize,
                            &pmeGpu->archSpecific->coefficientsSize,
@@ -266,6 +267,15 @@ void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu, const flo
     copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients,
                        const_cast<float*>(h_coefficients), 0, pmeGpu->kernelParams->atoms.nAtoms,
                        pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
+    if (bFEP)
+    {
+        reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficientsB, newCoefficientsSize,
+                               &pmeGpu->archSpecific->coefficientsSize,
+                               &pmeGpu->archSpecific->coefficientsSizeAlloc, pmeGpu->archSpecific->context);
+        copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficientsB,
+                           const_cast<float*>(h_coefficientsB), 0, pmeGpu->kernelParams->atoms.nAtoms,
+                           pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
+    }
     if (c_usePadding)
     {
         const size_t paddingIndex = pmeGpu->kernelParams->atoms.nAtoms;
@@ -274,6 +284,11 @@ void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu, const flo
         {
             clearDeviceBufferAsync(&pmeGpu->kernelParams->atoms.d_coefficients, paddingIndex,
                                    paddingCount, pmeGpu->archSpecific->pmeStream);
+            if (bFEP)
+            {
+                clearDeviceBufferAsync(&pmeGpu->kernelParams->atoms.d_coefficientsB, paddingIndex,
+                                       paddingCount, pmeGpu->archSpecific->pmeStream);
+            }
         }
     }
 }
@@ -281,6 +296,11 @@ void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu, const flo
 void pme_gpu_free_coefficients(const PmeGpu* pmeGpu)
 {
     freeDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients);
+    bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
+    if (bFEP)
+    {
+        freeDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficientsB);
+    }
 }
 
 void pme_gpu_realloc_spline_data(PmeGpu* pmeGpu)
@@ -338,6 +358,7 @@ void pme_gpu_free_grid_indices(const PmeGpu* pmeGpu)
 void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
 {
     auto*     kernelParamsPtr = pmeGpu->kernelParams.get();
+    bool bFEP = kernelParamsPtr->constants.bFEP;
     const int newRealGridSize = kernelParamsPtr->grid.realGridSizePadded[XX]
                                 * kernelParamsPtr->grid.realGridSizePadded[YY]
                                 * kernelParamsPtr->grid.realGridSizePadded[ZZ];
@@ -354,6 +375,16 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
         reallocateDeviceBuffer(&kernelParamsPtr->grid.d_realGrid, newRealGridSize,
                                &pmeGpu->archSpecific->realGridSize,
                                &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
+        if (bFEP)
+        {
+            /* 2 separate grids */
+            reallocateDeviceBuffer(&kernelParamsPtr->grid.d_fourierGridB, newComplexGridSize,
+                                   &pmeGpu->archSpecific->complexGridSize,
+                                   &pmeGpu->archSpecific->complexGridSizeAlloc, pmeGpu->archSpecific->context);
+            reallocateDeviceBuffer(&kernelParamsPtr->grid.d_realGridB, newRealGridSize,
+                                   &pmeGpu->archSpecific->realGridSize,
+                                   &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
+        }
     }
     else
     {
@@ -363,6 +394,14 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
                 &kernelParamsPtr->grid.d_realGrid, newGridsSize, &pmeGpu->archSpecific->realGridSize,
                 &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
         kernelParamsPtr->grid.d_fourierGrid   = kernelParamsPtr->grid.d_realGrid;
+        if (bFEP)
+        {
+            reallocateDeviceBuffer(
+                    &kernelParamsPtr->grid.d_realGridB, newGridsSize, &pmeGpu->archSpecific->realGridSize,
+                    &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
+            kernelParamsPtr->grid.d_fourierGridB   = kernelParamsPtr->grid.d_realGridB;
+        }
+
         pmeGpu->archSpecific->complexGridSize = pmeGpu->archSpecific->realGridSize;
         // the size might get used later for copying the grid
     }
@@ -370,17 +409,32 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
 
 void pme_gpu_free_grids(const PmeGpu* pmeGpu)
 {
+    bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
     if (pmeGpu->archSpecific->performOutOfPlaceFFT)
     {
         freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_fourierGrid);
+        if (bFEP)
+        {
+            freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_fourierGridB);
+        }
     }
     freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_realGrid);
+    if (bFEP)
+    {
+        freeDeviceBuffer(&pmeGpu->kernelParams->atoms.d_realGridB);
+    }
 }
 
 void pme_gpu_clear_grids(const PmeGpu* pmeGpu)
 {
     clearDeviceBufferAsync(&pmeGpu->kernelParams->grid.d_realGrid, 0,
                            pmeGpu->archSpecific->realGridSize, pmeGpu->archSpecific->pmeStream);
+    bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
+    if (bFEP)
+    {
+        clearDeviceBufferAsync(&pmeGpu->kernelParams->grid.d_realGridB, 0,
+                               pmeGpu->archSpecific->realGridSize, pmeGpu->archSpecific->pmeStream);
+    }
 }
 
 void pme_gpu_realloc_and_copy_fract_shifts(PmeGpu* pmeGpu)
@@ -444,6 +498,12 @@ void pme_gpu_copy_input_gather_grid(const PmeGpu* pmeGpu, float* h_grid)
 {
     copyToDeviceBuffer(&pmeGpu->kernelParams->grid.d_realGrid, h_grid, 0, pmeGpu->archSpecific->realGridSize,
                        pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
+    bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
+    if (bFEP)
+    {
+        copyToDeviceBuffer(&pmeGpu->kernelParams->grid.d_realGridB, h_grid, 0, pmeGpu->archSpecific->realGridSize,
+                           pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
+    }
 }
 
 void pme_gpu_copy_output_spread_grid(const PmeGpu* pmeGpu, float* h_grid)
@@ -846,7 +906,8 @@ static void pme_gpu_select_best_performing_pme_spreadgather_kernels(PmeGpu* pmeG
  * \param[in,out] gpuInfo        The GPU information structure.
  * \param[in]     pmeGpuProgram  The handle to the program/kernel data created outside (e.g. in unit tests/runner)
  */
-static void pme_gpu_init(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProgramHandle pmeGpuProgram)
+static void pme_gpu_init(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProgramHandle pmeGpuProgram,
+                         const bool bFEP, const float lambda)
 {
     pme->gpu       = new PmeGpu();
     PmeGpu* pmeGpu = pme->gpu;
@@ -878,6 +939,8 @@ static void pme_gpu_init(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGp
 
     auto* kernelParamsPtr               = pme_gpu_get_kernel_params_base_ptr(pmeGpu);
     kernelParamsPtr->constants.elFactor = ONE_4PI_EPS0 / pmeGpu->common->epsilon_r;
+    kernelParamsPtr->constants.bFEP     = bFEP;
+    kernelParamsPtr->current.lambda_q   = lambda;
 }
 
 void pme_gpu_transform_spline_atom_data(const PmeGpu*      pmeGpu,
@@ -954,7 +1017,8 @@ void pme_gpu_get_real_grid_sizes(const PmeGpu* pmeGpu, gmx::IVec* gridSize, gmx:
     }
 }
 
-void pme_gpu_reinit(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProgramHandle pmeGpuProgram)
+void pme_gpu_reinit(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProgramHandle pmeGpuProgram,
+                    const bool bFEP, const float lambda)
 {
     if (!pme_gpu_active(pme))
     {
@@ -964,7 +1028,7 @@ void pme_gpu_reinit(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProg
     if (!pme->gpu)
     {
         /* First-time initialization */
-        pme_gpu_init(pme, gpuInfo, pmeGpuProgram);
+        pme_gpu_init(pme, gpuInfo, pmeGpuProgram, bFEP, lambda);
     }
     else
     {
@@ -1009,7 +1073,7 @@ void pme_gpu_destroy(PmeGpu* pmeGpu)
     delete pmeGpu;
 }
 
-void pme_gpu_reinit_atoms(PmeGpu* pmeGpu, const int nAtoms, const real* charges)
+void pme_gpu_reinit_atoms(PmeGpu* pmeGpu, const int nAtoms, const real* charges, const real* chargeBs)
 {
     auto* kernelParamsPtr         = pme_gpu_get_kernel_params_base_ptr(pmeGpu);
     kernelParamsPtr->atoms.nAtoms = nAtoms;
@@ -1024,7 +1088,7 @@ void pme_gpu_reinit_atoms(PmeGpu* pmeGpu, const int nAtoms, const real* charges)
     GMX_RELEASE_ASSERT(false, "Only single precision supported");
     GMX_UNUSED_VALUE(charges);
 #else
-    pme_gpu_realloc_and_copy_input_coefficients(pmeGpu, reinterpret_cast<const float*>(charges));
+    pme_gpu_realloc_and_copy_input_coefficients(pmeGpu, reinterpret_cast<const float*>(charges), reinterpret_cast<const float*>(chargeBs));
     /* Could also be checked for haveToRealloc, but the copy always needs to be performed */
 #endif
 
@@ -1044,6 +1108,13 @@ void pme_gpu_3dfft(const PmeGpu* pmeGpu, gmx_fft_direction dir, int grid_index)
     pme_gpu_start_timing(pmeGpu, timerId);
     pmeGpu->archSpecific->fftSetup[grid_index]->perform3dFft(
             dir, pme_gpu_fetch_timing_event(pmeGpu, timerId));
+    
+    if (pmeGpu->kernelParams.constants.bFEP)
+    {
+        pmeGpu->archSpecific->fftSetup[grid_index]->perform3dFftB(
+                dir, pme_gpu_fetch_timing_event(pmeGpu, timerId));
+    }
+
     pme_gpu_stop_timing(pmeGpu, timerId);
 }
 

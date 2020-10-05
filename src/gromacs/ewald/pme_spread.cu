@@ -72,11 +72,13 @@ template<const int order, const bool wrapX, const bool wrapY, const bool useOrde
 __device__ __forceinline__ void spread_charges(const PmeGpuCudaKernelParams kernelParams,
                                                int                          atomIndexOffset,
                                                const float*                 atomCharge,
+                                               const float*                 atomChargeB,
                                                const int* __restrict__ sm_gridlineIndices,
                                                const float* __restrict__ sm_theta)
 {
     /* Global memory pointer to the output grid */
     float* __restrict__ gm_grid = kernelParams.grid.d_realGrid;
+    float* __restrict__ gm_gridB = kernelParams.grid.d_realGridB;
 
 
     const int atomsPerWarp = useOrderThreads ? c_pmeSpreadGatherAtomsPerWarp4ThPerAtom
@@ -93,6 +95,7 @@ __device__ __forceinline__ void spread_charges(const PmeGpuCudaKernelParams kern
     const int atomIndexLocal  = threadIdx.z;
     const int atomIndexGlobal = atomIndexOffset + atomIndexLocal;
 
+    const bool bFEP = kernelParams.constants.bFEP;
     const int globalCheck = pme_gpu_check_atom_data_index(atomIndexGlobal, kernelParams.atoms.nAtoms);
     const int chargeCheck = pme_gpu_check_atom_charge(*atomCharge);
     if (chargeCheck & globalCheck)
@@ -131,6 +134,11 @@ __device__ __forceinline__ void spread_charges(const PmeGpuCudaKernelParams kern
             float       thetaY = sm_theta[splineIndexY];
             const float Val    = thetaZ * thetaY * (*atomCharge);
             assert(isfinite(Val));
+            if (bFEP)
+            {
+                const float ValB    = thetaZ * thetaY * (*atomChargeB);
+                assert(isfinite(ValB));
+            }
             const int offset = iy * pnz + iz;
 
 #pragma unroll
@@ -148,6 +156,10 @@ __device__ __forceinline__ void spread_charges(const PmeGpuCudaKernelParams kern
                 assert(isfinite(thetaX));
                 assert(isfinite(gm_grid[gridIndexGlobal]));
                 atomicAdd(gm_grid + gridIndexGlobal, thetaX * Val);
+                if (bFEP)
+                {
+                    atomicAdd(gm_gridB + gridIndexGlobal, thetaX * ValB);
+                }
             }
         }
     }
@@ -187,7 +199,7 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
                                              : c_pmeSpreadGatherAtomsPerWarp;
 
     float3 atomX;
-    float  atomCharge;
+    float  atomCharge, atomChargeB;
 
     const int blockIndex      = blockIdx.y * gridDim.x + blockIdx.x;
     const int atomIndexOffset = blockIndex * atomsPerBlock;
@@ -204,6 +216,7 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
     const int atomIndexLocal = warpIndex * atomsPerWarp + atomWarpIndex;
     /* Atom index w.r.t. global memory */
     const int atomIndexGlobal = atomIndexOffset + atomIndexLocal;
+    const bool bFEP = kernelParams.constants.bFEP;
 
     /* Early return for fully empty blocks at the end
      * (should only happen for billions of input atoms)
@@ -224,6 +237,19 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
     else
     {
         atomCharge = kernelParams.atoms.d_coefficients[atomIndexGlobal];
+    }
+    /* ChargeBs, required for spread when FEP*/
+    atomChargeB = kernelParams.atoms.d_coefficientsB[atomIndexGlobal];
+    if (bFEP)
+    {
+        if (c_useAtomDataPrefetch)
+        {
+            __shared__ float sm_coefficientsB[atomsPerBlock];
+            pme_gpu_stage_atom_data<float, atomsPerBlock, 1>(kernelParams, sm_coefficientsB,
+                                                             kernelParams.atoms.d_coefficientsB);
+            __syncthreads();
+            atomChargeB = sm_coefficientsB[atomIndexLocal];
+        }
     }
 
     if (computeSplines)
@@ -271,7 +297,7 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
     if (spreadCharges)
     {
         spread_charges<order, wrapX, wrapY, useOrderThreads>(
-                kernelParams, atomIndexOffset, &atomCharge, sm_gridlineIndices, sm_theta);
+                kernelParams, atomIndexOffset, &atomCharge, &atomChargeB, sm_gridlineIndices, sm_theta);
     }
 }
 

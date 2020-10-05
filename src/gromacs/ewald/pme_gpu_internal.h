@@ -661,7 +661,8 @@ GPU_FUNC_QUALIFIER void pme_gpu_get_real_grid_sizes(const PmeGpu* GPU_FUNC_ARGUM
  */
 GPU_FUNC_QUALIFIER void pme_gpu_reinit(gmx_pme_t*               GPU_FUNC_ARGUMENT(pme),
                                        const gmx_device_info_t* GPU_FUNC_ARGUMENT(gpuInfo),
-                                       PmeGpuProgramHandle GPU_FUNC_ARGUMENT(pmeGpuProgram)) GPU_FUNC_TERM;
+                                       PmeGpuProgramHandle GPU_FUNC_ARGUMENT(pmeGpuProgram),
+                                       const bool bFEP, const float lambda) GPU_FUNC_TERM;
 
 /*! \libinternal \brief
  * Destroys the PME GPU data at the end of the run.
@@ -682,7 +683,8 @@ GPU_FUNC_QUALIFIER void pme_gpu_destroy(PmeGpu* GPU_FUNC_ARGUMENT(pmeGpu)) GPU_F
  */
 GPU_FUNC_QUALIFIER void pme_gpu_reinit_atoms(PmeGpu*     GPU_FUNC_ARGUMENT(pmeGpu),
                                              int         GPU_FUNC_ARGUMENT(nAtoms),
-                                             const real* GPU_FUNC_ARGUMENT(charges)) GPU_FUNC_TERM;
+                                             const real* GPU_FUNC_ARGUMENT(charges),
+                                             const real* GPU_FUNC_ARGUMENT(chargeBs)) GPU_FUNC_TERM;
 
 /*! \brief \libinternal
  * The PME GPU reinitialization function that is called both at the end of any PME computation and on any load balancing.

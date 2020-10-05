@@ -63,6 +63,7 @@ static void handleCufftError(cufftResult_t status, const char* msg)
 GpuParallel3dFft::GpuParallel3dFft(const PmeGpu* pmeGpu)
 {
     const PmeGpuCudaKernelParams* kernelParamsPtr = pmeGpu->kernelParams.get();
+    const bool bFEP = kernelParamsPtr->constants.bFEP;
     ivec                          realGridSize, realGridSizePadded, complexGridSizePadded;
     for (int i = 0; i < DIM; i++)
     {
@@ -111,6 +112,29 @@ GpuParallel3dFft::GpuParallel3dFft(const PmeGpu* pmeGpu)
 
     result = cufftSetStream(planC2R_, stream);
     handleCufftError(result, "cufftSetStream C2R failure");
+
+    if (bFEP)
+    {
+        realGridB_ = (cufftReal*)kernelParamsPtr->grid.d_realGridB;
+        GMX_RELEASE_ASSERT(realGridB_, "Bad (null) input real-space gridB");
+        complexGridB_ = (cufftComplex*)kernelParamsPtr->grid.d_fourierGridB;
+        GMX_RELEASE_ASSERT(complexGridB_, "Bad (null) input complex gridB");
+
+        result = cufftPlanMany(&planBR2C_, rank, realGridSize, realGridSizePadded, 1, realGridSizePaddedTotal,
+                               complexGridSizePadded, 1, complexGridSizePaddedTotal, CUFFT_R2C, batch);
+        handleCufftError(result, "cufftPlanMany R2C plan failure for state B");
+
+        result = cufftPlanMany(&planBC2R_, rank, realGridSize, complexGridSizePadded, 1,
+                               complexGridSizePaddedTotal, realGridSizePadded, 1,
+                               realGridSizePaddedTotal, CUFFT_C2R, batch);
+        handleCufftError(result, "cufftPlanMany C2R plan failure for state B");
+
+        result = cufftSetStream(planBR2C_, stream);
+        handleCufftError(result, "cufftSetStream R2C failure for state B");
+
+        result = cufftSetStream(planBC2R_, stream);
+        handleCufftError(result, "cufftSetStream C2R failure for state B");
+    }
 }
 
 GpuParallel3dFft::~GpuParallel3dFft()
@@ -120,6 +144,10 @@ GpuParallel3dFft::~GpuParallel3dFft()
     handleCufftError(result, "cufftDestroy R2C failure");
     result = cufftDestroy(planC2R_);
     handleCufftError(result, "cufftDestroy C2R failure");
+    result = cufftDestroy(planBR2C_);
+    handleCufftError(result, "cufftDestroy R2C failure for state B");
+    result = cufftDestroy(planBC2R_);
+    handleCufftError(result, "cufftDestroy C2R failure for state B");
 }
 
 void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, CommandEvent* /*timingEvent*/)
@@ -134,5 +162,20 @@ void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, CommandEvent* /*timin
     {
         result = cufftExecC2R(planC2R_, complexGrid_, realGrid_);
         handleCufftError(result, "cuFFT C2R execution failure");
+    }
+}
+
+void GpuParallel3dFft::perform3dFftB(gmx_fft_direction dir, CommandEvent* /*timingEvent*/)
+{
+    cufftResult_t result;
+    if (dir == GMX_FFT_REAL_TO_COMPLEX)
+    {
+        result = cufftExecR2C(planBR2C_, realGridB_, complexGridB_);
+        handleCufftError(result, "cuFFT R2C execution failure for state B");
+    }
+    else
+    {
+        result = cufftExecC2R(planBC2R_, complexGridB_, realGridB_);
+        handleCufftError(result, "cuFFT C2R execution failure for state B");
     }
 }

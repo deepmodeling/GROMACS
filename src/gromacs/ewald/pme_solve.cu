@@ -79,6 +79,8 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
         default: assert(false);
     }
 
+    const bool bFEP = kernelParams.constants.bFEP;
+
     /* Global memory pointers */
     const float* __restrict__ gm_splineValueMajor =
             kernelParams.grid.d_splineModuli + kernelParams.grid.splineValuesOffset[majorDim];
@@ -88,6 +90,7 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
             kernelParams.grid.d_splineModuli + kernelParams.grid.splineValuesOffset[minorDim];
     float* __restrict__ gm_virialAndEnergy = kernelParams.constants.d_virialAndEnergy;
     float2* __restrict__ gm_grid           = (float2*)kernelParams.grid.d_fourierGrid;
+    float2* __restrict__ gm_gridB          = (float2*)kernelParams.grid.d_fourierGridB;
 
     /* Various grid sizes and indices */
     const int localOffsetMinor = 0, localOffsetMajor = 0, localOffsetMiddle = 0; // unused
@@ -133,6 +136,10 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
         /* The offset should be equal to the global thread index for coalesced access */
         const int gridIndex = (indexMajor * localSizeMiddle + indexMiddle) * localSizeMinor + indexMinor;
         float2* __restrict__ gm_gridCell = gm_grid + gridIndex;
+        if (bFEP)
+        {
+            float2* __restrict__ gm_gridBCell = gm_gridB + gridIndex;
+        }
 
         const int kMajor = indexMajor + localOffsetMajor;
         /* Checking either X in XYZ, or Y in YZX cases */
@@ -238,6 +245,36 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
                 viryy = ets2vf * mhyk * mhyk - ets2;
                 viryz = ets2vf * mhyk * mhzk;
                 virzz = ets2vf * mhzk * mhzk - ets2;
+            }
+
+            if (bFEP)
+            {
+                float2       gridBValue    = *gm_gridBCell;
+                const float2 oldGridBValue = gridBValue;
+                const float  lambda        = kernelParams.current.lambda_q;
+                gridBValue.x *= etermk;
+                gridBValue.y *= etermk;
+                *gm_gridBCell = gridBValue;
+
+                if (computeEnergyAndVirial)
+                {
+                    const float tmp1k =
+                            2.0f * (1 - lambda) * (gridValue.x * oldGridValue.x + gridValue.y * oldGridValue.y)
+                            + 2.0f * lambda * (gridBValue.x * oldGridBValue.x + gridBValue.y * oldGridBValue.y);
+    
+                    float vfactor = (kernelParams.grid.ewaldFactor + 1.0f / m2k) * 2.0f;
+                    float ets2    = corner_fac * tmp1k;
+                    energy        = ets2;
+    
+                    float ets2vf = ets2 * vfactor;
+    
+                    virxx = ets2vf * mhxk * mhxk - ets2;
+                    virxy = ets2vf * mhxk * mhyk;
+                    virxz = ets2vf * mhxk * mhzk;
+                    viryy = ets2vf * mhyk * mhyk - ets2;
+                    viryz = ets2vf * mhyk * mhzk;
+                    virzz = ets2vf * mhzk * mhzk - ets2;
+                }
             }
         }
     }

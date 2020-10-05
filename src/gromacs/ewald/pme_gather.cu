@@ -224,9 +224,14 @@ template<const int order, const bool overwriteForces, const bool wrapX, const bo
 __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
         void pme_gather_kernel(const PmeGpuCudaKernelParams kernelParams)
 {
+    const bool bFEP = kernelParams.constants.bFEP;
+    const float lambda = kernelParams.current.lambda_q;
+
     /* Global memory pointers */
     const float* __restrict__ gm_coefficients = kernelParams.atoms.d_coefficients;
     const float* __restrict__ gm_grid         = kernelParams.grid.d_realGrid;
+    const float* __restrict__ gm_coefficientsB= kernelParams.atoms.d_coefficientsB;
+    const float* __restrict__ gm_gridB        = kernelParams.grid.d_realGridB;
     float* __restrict__ gm_forces             = kernelParams.atoms.d_forces;
 
     /* Global memory pointers for readGlobal */
@@ -235,7 +240,7 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     const int* __restrict__ gm_gridlineIndices = kernelParams.atoms.d_gridlineIndices;
 
     float3 atomX;
-    float  atomCharge;
+    float  atomCharge, atomChargeB;
 
     /* Some sizes */
     const int atomsPerBlock =
@@ -331,7 +336,6 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
             /* Staging coefficients/charges */
             pme_gpu_stage_atom_data<float, atomsPerBlock, 1>(kernelParams, sm_coefficients,
                                                              kernelParams.atoms.d_coefficients);
-
             /* Staging coordinates */
             pme_gpu_stage_atom_data<float, atomsPerBlock, DIM>(kernelParams, sm_coordinates,
                                                                kernelParams.atoms.d_coordinates);
@@ -407,7 +411,15 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
                 }
                 const int gridIndexGlobal = ix * pny * pnz + constOffset;
                 assert(gridIndexGlobal >= 0);
-                const float gridValue = gm_grid[gridIndexGlobal];
+                if (!bFEP)
+                {
+                    const float gridValue = gm_grid[gridIndexGlobal];
+                }
+                else
+                {
+                    const float gridValue = (1 - lambda) * gm_grid[gridIndexGlobal] + lambda * gm_gridB[gridIndexGlobal];
+                }
+                
                 assert(isfinite(gridValue));
                 const int splineIndexX =
                         getSplineParamIndex<order, atomsPerWarp>(splineIndexBase, XX, ithx);

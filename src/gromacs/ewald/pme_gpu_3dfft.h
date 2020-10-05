@@ -83,13 +83,18 @@ public:
      * \param[out] timingEvent   pointer to the timing event where timing data is recorded
      */
     void perform3dFft(gmx_fft_direction dir, CommandEvent* timingEvent);
+    void perform3dFftB(gmx_fft_direction dir, CommandEvent* timingEvent);
 
 private:
 #if GMX_GPU == GMX_GPU_CUDA
     cufftHandle   planR2C_;
     cufftHandle   planC2R_;
+    cufftHandle   planBR2C_;
+    cufftHandle   planBC2R_;
     cufftReal*    realGrid_;
     cufftComplex* complexGrid_;
+    cufftReal*    realGridB_;
+    cufftComplex* complexGridB_;
 #elif GMX_GPU == GMX_GPU_OPENCL
     clfftPlanHandle               planR2C_;
     clfftPlanHandle               planC2R_;
