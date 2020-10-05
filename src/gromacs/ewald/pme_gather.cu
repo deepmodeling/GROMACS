@@ -335,6 +335,7 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
             /* Staging coefficients/charges */
             pme_gpu_stage_atom_data<float, atomsPerBlock, 1>(kernelParams, sm_coefficients,
                                                              kernelParams.atoms.d_coefficients);
+                                                             
             /* Staging coordinates */
             pme_gpu_stage_atom_data<float, atomsPerBlock, DIM>(kernelParams, sm_coordinates,
                                                                kernelParams.atoms.d_coordinates);
