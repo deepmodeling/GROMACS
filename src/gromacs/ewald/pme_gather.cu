@@ -410,10 +410,10 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
                 }
                 const int gridIndexGlobal = ix * pny * pnz + constOffset;
                 assert(gridIndexGlobal >= 0);
-                const float gridValue = gm_grid[gridIndexGlobal];
+                float gridValue = gm_grid[gridIndexGlobal];
                 if (bFEP)
                 {
-                    const float gridValue = (1 - lambda) * gm_grid[gridIndexGlobal] + lambda * gm_gridB[gridIndexGlobal];
+                    gridValue = (1 - lambda) * gm_grid[gridIndexGlobal] + lambda * gm_gridB[gridIndexGlobal];
                 }
                 
                 assert(isfinite(gridValue));
