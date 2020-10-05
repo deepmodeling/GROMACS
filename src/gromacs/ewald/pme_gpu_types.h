@@ -177,11 +177,6 @@ struct PmeGpuAtomParams
      * computation, but reallocation happens only at DD.
      */
     HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_forces;
-    /*! \brief input/output rvec atom forces of B state.
-     * The forces change and need to be copied from (and possibly to) the GPU for every PME
-     * computation, but reallocation happens only at DD.
-     */
-    HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_forcesB;
     /*! \brief Global GPU memory array handle with ivec atom gridline indices.
      * Computed on GPU in the spline calculation part.
      */
