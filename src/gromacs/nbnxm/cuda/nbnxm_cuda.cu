@@ -1171,25 +1171,23 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
     nbnxnInsertNonlocalGpuDependency(nb, interactionLoc);
 }
 
-template void
-nbnxn_gpu_x_to_nbat_x<PairlistType::Hierarchical8x8>(const Nbnxm::Grid& grid,
-                                                     bool setFillerCoords,
-                                                     NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
-                                                     DeviceBuffer<gmx::RVec> d_x,
-                                                     GpuEventSynchronizer* xReadyOnDevice,
-                                                     const Nbnxm::AtomLocality locality,
-                                                     int                       gridId,
-                                                     int numColumnsMax);
+template void nbnxn_gpu_x_to_nbat_x<PairlistType::Hierarchical8x8>(const Nbnxm::Grid& grid,
+                                                                   bool setFillerCoords,
+                                                                   NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                   DeviceBuffer<gmx::RVec> d_x,
+                                                                   GpuEventSynchronizer* xReadyOnDevice,
+                                                                   const Nbnxm::AtomLocality locality,
+                                                                   int                       gridId,
+                                                                   int numColumnsMax);
 
-template void
-nbnxn_gpu_x_to_nbat_x<PairlistType::Hierarchical4x4>(const Nbnxm::Grid& grid,
-                                                     bool setFillerCoords,
-                                                     NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
-                                                     DeviceBuffer<gmx::RVec> d_x,
-                                                     GpuEventSynchronizer* xReadyOnDevice,
-                                                     const Nbnxm::AtomLocality locality,
-                                                     int                       gridId,
-                                                     int numColumnsMax);
+template void nbnxn_gpu_x_to_nbat_x<PairlistType::Hierarchical4x4>(const Nbnxm::Grid& grid,
+                                                                   bool setFillerCoords,
+                                                                   NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                   DeviceBuffer<gmx::RVec> d_x,
+                                                                   GpuEventSynchronizer* xReadyOnDevice,
+                                                                   const Nbnxm::AtomLocality locality,
+                                                                   int                       gridId,
+                                                                   int numColumnsMax);
 
 template<PairlistType type>
 void* getGpuForces(NbnxmGpu<type>* nb)
@@ -1197,10 +1195,8 @@ void* getGpuForces(NbnxmGpu<type>* nb)
     return nb->atdat->f;
 }
 
-template
-void* getGpuForces<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+template void* getGpuForces<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
 
-template
-void* getGpuForces<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+template void* getGpuForces<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
 
 } // namespace Nbnxm

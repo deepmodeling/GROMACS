@@ -357,7 +357,8 @@ CUDA_FUNC_QUALIFIER void nbnxn_wait_x_on_device(NbnxmGpu<type> gmx_unused* nb) C
  * \returns       A pointer to the force buffer in GPU memory
  */
 template<PairlistType type>
-CUDA_FUNC_QUALIFIER void* getGpuForces(NbnxmGpu<type> gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
+CUDA_FUNC_QUALIFIER void* getGpuForces(NbnxmGpu<type> gmx_unused* nb)
+        CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 } // namespace Nbnxm
 #endif

@@ -758,16 +758,16 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
             if (nbv->useGpu8x8())
             {
                 isNbGpuDone = Nbnxm::gpu_try_finish_task(
-                    nbv->gpu_nbv8x8, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                    enerd->grpp.ener[egCOULSR].data(), forceBuffersNonbonded.shiftForces(),
-                    completionType, wcycle);
+                        nbv->gpu_nbv8x8, stepWork, AtomLocality::Local,
+                        enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                        forceBuffersNonbonded.shiftForces(), completionType, wcycle);
             }
             else if (nbv->useGpu4x4())
             {
                 isNbGpuDone = Nbnxm::gpu_try_finish_task(
-                      nbv->gpu_nbv4x4, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                      enerd->grpp.ener[egCOULSR].data(), forceBuffersNonbonded.shiftForces(),
-                      completionType, wcycle);
+                        nbv->gpu_nbv4x4, stepWork, AtomLocality::Local,
+                        enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                        forceBuffersNonbonded.shiftForces(), completionType, wcycle);
             }
             else
             {
@@ -2049,15 +2049,16 @@ void do_force(FILE*                               fplog,
          * of the step time.
          */
         const float gpuWaitApiOverheadMargin = 2e6F; /* cycles */
-        const float waitCycles               = nbv->useGpu8x8() ?
-        Nbnxm::gpu_wait_finish_task(
-                nbv->gpu_nbv8x8, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                enerd->grpp.ener[egCOULSR].data(),
-                forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle)
-        : Nbnxm::gpu_wait_finish_task(
-                nbv->gpu_nbv4x4, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                  enerd->grpp.ener[egCOULSR].data(),
-                forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle);
+        const float waitCycles =
+                nbv->useGpu8x8()
+                        ? Nbnxm::gpu_wait_finish_task(
+                                  nbv->gpu_nbv8x8, stepWork, AtomLocality::Local,
+                                  enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                                  forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle)
+                        : Nbnxm::gpu_wait_finish_task(
+                                  nbv->gpu_nbv4x4, stepWork, AtomLocality::Local,
+                                  enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                                  forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle);
 
         if (ddBalanceRegionHandler.useBalancingRegion())
         {
