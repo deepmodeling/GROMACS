@@ -261,21 +261,29 @@ void pme_gpu_realloc_and_copy_input_coefficients(const PmeGpu* pmeGpu, const flo
     const size_t newCoefficientsSize = pmeGpu->nAtomsAlloc;
     const bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
     GMX_ASSERT(newCoefficientsSize > 0, "Bad number of atoms in PME GPU");
-    reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients, newCoefficientsSize,
-                           &pmeGpu->archSpecific->coefficientsSize,
-                           &pmeGpu->archSpecific->coefficientsSizeAlloc, pmeGpu->archSpecific->context);
-    copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients,
-                       const_cast<float*>(h_coefficients), 0, pmeGpu->kernelParams->atoms.nAtoms,
-                       pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
+
     if (bFEP)
     {
-        reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficientsB, newCoefficientsSize,
-                               &pmeGpu->archSpecific->coefficientsSize,
-                               &pmeGpu->archSpecific->coefficientsSizeAlloc, pmeGpu->archSpecific->context);
+        reallocateDeviceBufferDouble(&pmeGpu->kernelParams->atoms.d_coefficients, &pmeGpu->kernelParams->atoms.d_coefficientsB, newCoefficientsSize,
+                                     &pmeGpu->archSpecific->coefficientsSize,
+                                     &pmeGpu->archSpecific->coefficientsSizeAlloc, pmeGpu->archSpecific->context);
+        copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients,
+                           const_cast<float*>(h_coefficients), 0, pmeGpu->kernelParams->atoms.nAtoms,
+                           pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
         copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficientsB,
                            const_cast<float*>(h_coefficientsB), 0, pmeGpu->kernelParams->atoms.nAtoms,
                            pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
     }
+    else
+    {
+        reallocateDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients, newCoefficientsSize,
+                               &pmeGpu->archSpecific->coefficientsSize,
+                               &pmeGpu->archSpecific->coefficientsSizeAlloc, pmeGpu->archSpecific->context);
+        copyToDeviceBuffer(&pmeGpu->kernelParams->atoms.d_coefficients,
+                           const_cast<float*>(h_coefficients), 0, pmeGpu->kernelParams->atoms.nAtoms,
+                           pmeGpu->archSpecific->pmeStream, pmeGpu->settings.transferKind, nullptr);
+    }
+    
     if (c_usePadding)
     {
         const size_t paddingIndex = pmeGpu->kernelParams->atoms.nAtoms;
@@ -359,7 +367,6 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
 {
     auto*     kernelParamsPtr = pmeGpu->kernelParams.get();
     bool bFEP = kernelParamsPtr->constants.bFEP;
-    printf("bFEP in pme_gpu_realloc_grids(): %d\n", bFEP);
     const int newRealGridSize = kernelParamsPtr->grid.realGridSizePadded[XX]
                                 * kernelParamsPtr->grid.realGridSizePadded[YY]
                                 * kernelParamsPtr->grid.realGridSizePadded[ZZ];
@@ -369,45 +376,50 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
     // Multiplied by 2 because we count complex grid size for complex numbers, but all allocations/pointers are float
     if (pmeGpu->archSpecific->performOutOfPlaceFFT)
     {
-        /* 2 separate grids */
+        if (bFEP)
+        {
+            /* 2 separate grids */
+            reallocateDeviceBufferDouble(&kernelParamsPtr->grid.d_fourierGrid, &kernelParamsPtr->grid.d_fourierGridB, newComplexGridSize,
+                                         &pmeGpu->archSpecific->complexGridSize,
+                                         &pmeGpu->archSpecific->complexGridSizeAlloc, pmeGpu->archSpecific->context);
+            reallocateDeviceBufferDouble(&kernelParamsPtr->grid.d_realGrid, &kernelParamsPtr->grid.d_realGridB, newRealGridSize,
+                                         &pmeGpu->archSpecific->realGridSize,
+                                         &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
+        }
+        else
+        {
+            /* 2 separate grids */
         reallocateDeviceBuffer(&kernelParamsPtr->grid.d_fourierGrid, newComplexGridSize,
                                &pmeGpu->archSpecific->complexGridSize,
                                &pmeGpu->archSpecific->complexGridSizeAlloc, pmeGpu->archSpecific->context);
         reallocateDeviceBuffer(&kernelParamsPtr->grid.d_realGrid, newRealGridSize,
                                &pmeGpu->archSpecific->realGridSize,
                                &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
-        if (bFEP)
-        {
-            /* 2 separate grids */
-            reallocateDeviceBuffer(&kernelParamsPtr->grid.d_fourierGridB, newComplexGridSize,
-                                   &pmeGpu->archSpecific->complexGridSize,
-                                   &pmeGpu->archSpecific->complexGridSizeAlloc, pmeGpu->archSpecific->context);
-            reallocateDeviceBuffer(&kernelParamsPtr->grid.d_realGridB, newRealGridSize,
-                                   &pmeGpu->archSpecific->realGridSize,
-                                   &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
         }
     }
     else
     {
         /* A single buffer so that any grid will fit */
         const int newGridsSize = std::max(newRealGridSize, newComplexGridSize);
-        reallocateDeviceBuffer(
-                &kernelParamsPtr->grid.d_realGrid, newGridsSize, &pmeGpu->archSpecific->realGridSize,
-                &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
-        kernelParamsPtr->grid.d_fourierGrid   = kernelParamsPtr->grid.d_realGrid;
+        
         if (bFEP)
         {
-            reallocateDeviceBuffer(
-                    &kernelParamsPtr->grid.d_realGridB, newGridsSize, &pmeGpu->archSpecific->realGridSize,
+            reallocateDeviceBufferDouble(
+                    &kernelParamsPtr->grid.d_realGrid, &kernelParamsPtr->grid.d_realGridB, newGridsSize, &pmeGpu->archSpecific->realGridSize,
                     &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
+            kernelParamsPtr->grid.d_fourierGrid    = kernelParamsPtr->grid.d_realGrid;
             kernelParamsPtr->grid.d_fourierGridB   = kernelParamsPtr->grid.d_realGridB;
         }
-
+        else
+        {
+            reallocateDeviceBuffer(
+                    &kernelParamsPtr->grid.d_realGrid, newGridsSize, &pmeGpu->archSpecific->realGridSize,
+                    &pmeGpu->archSpecific->realGridSizeAlloc, pmeGpu->archSpecific->context);
+            kernelParamsPtr->grid.d_fourierGrid   = kernelParamsPtr->grid.d_realGrid;
+        }
         pmeGpu->archSpecific->complexGridSize = pmeGpu->archSpecific->realGridSize;
         // the size might get used later for copying the grid
     }
-    printf("gridA[0]: %.4f, gridB[0]: %.4f\n", &kernelParamsPtr->grid.d_realGrid[0], &kernelParamsPtr->grid.d_realGridB[0]);
-    printf("gridA[0]: %p, gridB[0]: %p\n", &kernelParamsPtr->grid.d_realGrid, &kernelParamsPtr->grid.d_realGridB);
 }
 
 void pme_gpu_free_grids(const PmeGpu* pmeGpu)
@@ -839,11 +851,8 @@ static void pme_gpu_reinit_grids(PmeGpu* pmeGpu)
 
     pme_gpu_realloc_and_copy_fract_shifts(pmeGpu);
     pme_gpu_realloc_and_copy_bspline_values(pmeGpu);
-    printf("pme_gpu_realloc_grids...\n");
     pme_gpu_realloc_grids(pmeGpu);
-    printf("pme_gpu_reinit_3dfft...\n");
     pme_gpu_reinit_3dfft(pmeGpu);
-    printf("pme_gpu_reinit_3dfft finish!\n");
 }
 
 /* Several GPU functions that refer to the CPU PME data live here.
@@ -954,7 +963,6 @@ static void pme_gpu_init(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGp
     kernelParamsPtr->constants.elFactor = ONE_4PI_EPS0 / pmeGpu->common->epsilon_r;
     kernelParamsPtr->constants.bFEP     = bFEP;
     kernelParamsPtr->current.lambda_q   = lambda;
-    printf("bFEP in initialize: %d, lambda in initialize: %.4f", bFEP, lambda);
 }
 
 void pme_gpu_transform_spline_atom_data(const PmeGpu*      pmeGpu,
@@ -1057,11 +1065,9 @@ void pme_gpu_reinit(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProg
     /* Reinit active timers */
     pme_gpu_reinit_timings(pme->gpu);
 
-    printf("pme_gpu_reinit_grids...\n");
     pme_gpu_reinit_grids(pme->gpu);
     // Note: if timing the reinit launch overhead becomes more relevant
     // (e.g. with regulat PP-PME re-balancing), we should pass wcycle here.
-    printf("pme_gpu_reinit_computation...\n");
     pme_gpu_reinit_computation(pme, nullptr);
     /* Clear the previous box - doesn't hurt, and forces the PME CPU recipbox
      * update for mixed mode on grid switch. TODO: use shared recipbox field.
@@ -1335,7 +1341,6 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
                                           writeGlobal || (!recalculateSplines));
     }
 
-
     pme_gpu_start_timing(pmeGpu, timingId);
     auto* timingEvent = pme_gpu_fetch_timing_event(pmeGpu, timingId);
 #if c_canEmbedBuffers
@@ -1348,7 +1353,6 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
             &kernelParamsPtr->grid.d_gridlineIndicesTable, &kernelParamsPtr->atoms.d_coefficients,
             &kernelParamsPtr->atoms.d_coordinates);
 #endif
-    printf("chargeB in spread initialize: %.4f\n", kernelParamsPtr->atoms.d_coefficientsB[0]);
     launchGpuKernel(kernelPtr, config, timingEvent, "PME spline/spread", kernelArgs);
     pme_gpu_stop_timing(pmeGpu, timingId);
 

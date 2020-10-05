@@ -89,13 +89,48 @@ void reallocateDeviceBuffer(DeviceBuffer<ValueType>* buffer,
     /* reallocate only if the data does not fit */
     if (static_cast<int>(numValues) > *currentMaxNumValues)
     {
+        printf("\ncurrentMaxNumValues 1: %d\n", *currentMaxNumValues);
         if (*currentMaxNumValues >= 0)
         {
             freeDeviceBuffer(buffer);
         }
+        printf("\ncurrentMaxNumValues 2: %d\n", *currentMaxNumValues);
 
         *currentMaxNumValues = over_alloc_large(numValues);
         allocateDeviceBuffer(buffer, *currentMaxNumValues, deviceContext);
+        printf("\nbuffer size: %d, numValues: %d\n", *currentMaxNumValues, numValues);
+    }
+    /* size could have changed without actual reallocation */
+    *currentNumValues = numValues;
+}
+
+template<typename ValueType>
+void reallocateDeviceBufferDouble(DeviceBuffer<ValueType>* bufferA,
+                                  DeviceBuffer<ValueType>* bufferB,
+                                  size_t                   numValues,
+                                  int*                     currentNumValues,
+                                  int*                     currentMaxNumValues,
+                                  DeviceContext            deviceContext)
+{
+    GMX_ASSERT(buffer, "needs a buffer pointer");
+    GMX_ASSERT(currentNumValues, "needs a size pointer");
+    GMX_ASSERT(currentMaxNumValues, "needs a capacity pointer");
+
+    /* reallocate only if the data does not fit */
+    if (static_cast<int>(numValues) > *currentMaxNumValues)
+    {
+        printf("\ncurrentMaxNumValues 1: %d\n", *currentMaxNumValues);
+        if (*currentMaxNumValues >= 0)
+        {
+            freeDeviceBuffer(bufferA);
+            freeDeviceBuffer(bufferB);
+        }
+        printf("\ncurrentMaxNumValues 2: %d\n", *currentMaxNumValues);
+
+        *currentMaxNumValues = over_alloc_large(numValues);
+        allocateDeviceBuffer(bufferA, *currentMaxNumValues, deviceContext);
+        allocateDeviceBuffer(bufferB, *currentMaxNumValues, deviceContext);
+        printf("\nbuffer size: %d, numValues: %d\n", *currentMaxNumValues, numValues);
     }
     /* size could have changed without actual reallocation */
     *currentNumValues = numValues;
