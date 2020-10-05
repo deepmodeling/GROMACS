@@ -59,7 +59,7 @@ void pmalloc(void** h_ptr, size_t nbytes)
     /* Need a temporary type whose size is 1 byte, so that the
      * implementation of snew_aligned can cope without issuing
      * warnings. */
-    char** temporary = reinterpret_cast<char**>(h_ptr);
+    auto** temporary = reinterpret_cast<std::byte**>(h_ptr);
 
     /* 16-byte alignment is required by the neighbour-searching code,
      * because it uses four-wide SIMD for bounding-box calculation.
