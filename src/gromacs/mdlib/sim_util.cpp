@@ -42,6 +42,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include <array>
 
@@ -331,6 +334,7 @@ static void do_nb_verlet(t_forcerec*                fr,
                          t_nrnb*                    nrnb,
                          gmx_wallcycle_t            wcycle)
 {
+    nvtxRangePush(__FUNCTION__);
     if (!stepWork.computeNonbondedForces)
     {
         /* skip non-bonded calculation */
@@ -362,6 +366,7 @@ static void do_nb_verlet(t_forcerec*                fr,
     }
 
     nbv->dispatchNonbondedKernel(ilocality, *ic, stepWork, clearF, *fr, enerd, nrnb);
+    nvtxRangePop();
 }
 
 static inline void clear_rvecs_omp(int n, rvec v[])
@@ -928,6 +933,7 @@ void do_force(FILE*                               fplog,
     nonbonded_verlet_t*          nbv      = fr->nbv.get();
     interaction_const_t*         ic       = fr->ic;
     gmx::StatePropagatorDataGpu* stateGpu = fr->stateGpu;
+    nvtxRangePush(__FUNCTION__);
 
     // TODO remove the code below when the legacy flags are not in use anymore
     /* modify force flag if not doing nonbonded */
@@ -1862,4 +1868,5 @@ void do_force(FILE*                               fplog,
      * the balance timing, which is ok as most tasks do communication.
      */
     ddBalanceRegionHandler.openBeforeForceComputationCpu(DdAllowBalanceRegionReopen::no);
+    nvtxRangePop();
 }
