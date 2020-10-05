@@ -71,9 +71,9 @@ enum class PairlistType : int
 //! The i-cluster size for CPU kernels, always 4 atoms
 static constexpr int c_nbnxnCpuIClusterSize = 4;
 
-//! The i- and j-cluster size for GPU lists, 8 atoms for CUDA, set at compile time for OpenCL
+//! The i- and j-cluster size for GPU lists, for 8x8 layout used in CUDA and AMD OpenCL.
 static constexpr int c_nbnxnGpuClusterSize8 = 8;
-//!  The i- and j-cluster size for GPU lists, 8 atoms for CUDA, set at compile time for OpenCL
+//!  The i- and j-cluster size for GPU lists, for 4x4 layout, used in Intel OpenCL.
 static constexpr int c_nbnxnGpuClusterSize4 = 4;
 //! Log2 of cluster size 8
 static constexpr int c_nbnxnGpuClusterSize8Log2 = 3;
@@ -84,6 +84,7 @@ static constexpr int c_nbnxnGpuWarpSize8Log2 = 5;
 //! Log2 of warp size for cluster size 4
 static constexpr int c_nbnxnGpuWarpSize4Log2 = 3;
 
+//! Returns correct cluster size for a given Pairlist.
 template<PairlistType type>
 constexpr int nbnxnGpuClusterSize()
 {
@@ -92,6 +93,7 @@ constexpr int nbnxnGpuClusterSize()
     return type == PairlistType::Hierarchical8x8 ? c_nbnxnGpuClusterSize8 : c_nbnxnGpuClusterSize4;
 }
 
+//! Return log2 of cluster size for a given Pairlist.
 template<PairlistType type>
 constexpr int nbnxnGpuClusterSizeLog2()
 {

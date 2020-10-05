@@ -72,10 +72,16 @@
 #endif
 /*! \brief Default for the prune kernel's j4 processing concurrency.
  *
- *  Initialized using the #GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro which allows compile-time override.
+ *  Initialized using the GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro which allows compile-time
+ * override. Variant for 8x8x8 cluster pairlist size, using lower concurrency.
  */
 constexpr int c_cudaPruneKernelJ4Concurrency8x8 = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY8x8;
 
+/*! \brief Default for the prune kernel's j4 processing concurrency.
+ *
+ *  Initialized using the GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro which allows compile-time
+ * override. Variant for 4x4x8 cluster pairlist size, using higher concurrency.
+ */
 constexpr int c_cudaPruneKernelJ4Concurrency4x4 = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY4x4;
 
 /* TODO: consider moving this to kernel_utils */
@@ -84,6 +90,7 @@ constexpr int c_cudaPruneKernelJ4Concurrency4x4 = GMX_NBNXN_PRUNE_KERNEL_J4_CONC
 template<PairlistType type>
 static constexpr int c_clSize = nbnxnGpuClusterSize<type>();
 
+//! Get correct concurrency depending on cluster layout.
 template<PairlistType type>
 constexpr int c_cudaPruneKernelJ4ConcurrencyTypeDependentSafe()
 {
@@ -93,6 +100,7 @@ constexpr int c_cudaPruneKernelJ4ConcurrencyTypeDependentSafe()
                                                  : c_cudaPruneKernelJ4Concurrency4x4;
 }
 
+//! Template variable holding pairlist dependent default concurrency.
 template<PairlistType type>
 static constexpr int c_cudaPruneKernelJ4ConcurrencyTypeDependent =
         c_cudaPruneKernelJ4ConcurrencyTypeDependentSafe<type>();
