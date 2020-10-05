@@ -359,6 +359,7 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
 {
     auto*     kernelParamsPtr = pmeGpu->kernelParams.get();
     bool bFEP = kernelParamsPtr->constants.bFEP;
+    printf("bFEP in pme_gpu_realloc_grids(): %d\n", bFEP);
     const int newRealGridSize = kernelParamsPtr->grid.realGridSizePadded[XX]
                                 * kernelParamsPtr->grid.realGridSizePadded[YY]
                                 * kernelParamsPtr->grid.realGridSizePadded[ZZ];
@@ -405,6 +406,8 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
         pmeGpu->archSpecific->complexGridSize = pmeGpu->archSpecific->realGridSize;
         // the size might get used later for copying the grid
     }
+    printf("gridA[0]: %.4f, gridB[0]: %.4f\n", &kernelParamsPtr->grid.d_realGrid[0], &kernelParamsPtr->grid.d_realGridB[0]);
+    printf("gridA[0]: %p, gridB[0]: %p\n", &kernelParamsPtr->grid.d_realGrid, &kernelParamsPtr->grid.d_realGridB);
 }
 
 void pme_gpu_free_grids(const PmeGpu* pmeGpu)
@@ -511,6 +514,13 @@ void pme_gpu_copy_output_spread_grid(const PmeGpu* pmeGpu, float* h_grid)
     copyFromDeviceBuffer(h_grid, &pmeGpu->kernelParams->grid.d_realGrid, 0,
                          pmeGpu->archSpecific->realGridSize, pmeGpu->archSpecific->pmeStream,
                          pmeGpu->settings.transferKind, nullptr);
+    bool bFEP = &pmeGpu->kernelParams->constants.bFEP;
+    if (bFEP)
+    {
+        copyFromDeviceBuffer(h_grid, &pmeGpu->kernelParams->grid.d_realGridB, 0,
+                             pmeGpu->archSpecific->realGridSize, pmeGpu->archSpecific->pmeStream,
+                             pmeGpu->settings.transferKind, nullptr);
+    }
     pmeGpu->archSpecific->syncSpreadGridD2H.markEvent(pmeGpu->archSpecific->pmeStream);
 }
 
@@ -829,8 +839,11 @@ static void pme_gpu_reinit_grids(PmeGpu* pmeGpu)
 
     pme_gpu_realloc_and_copy_fract_shifts(pmeGpu);
     pme_gpu_realloc_and_copy_bspline_values(pmeGpu);
+    printf("pme_gpu_realloc_grids...\n");
     pme_gpu_realloc_grids(pmeGpu);
+    printf("pme_gpu_reinit_3dfft...\n");
     pme_gpu_reinit_3dfft(pmeGpu);
+    printf("pme_gpu_reinit_3dfft finish!\n");
 }
 
 /* Several GPU functions that refer to the CPU PME data live here.
@@ -941,6 +954,7 @@ static void pme_gpu_init(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGp
     kernelParamsPtr->constants.elFactor = ONE_4PI_EPS0 / pmeGpu->common->epsilon_r;
     kernelParamsPtr->constants.bFEP     = bFEP;
     kernelParamsPtr->current.lambda_q   = lambda;
+    printf("bFEP in initialize: %d, lambda in initialize: %.4f", bFEP, lambda);
 }
 
 void pme_gpu_transform_spline_atom_data(const PmeGpu*      pmeGpu,
@@ -1043,9 +1057,11 @@ void pme_gpu_reinit(gmx_pme_t* pme, const gmx_device_info_t* gpuInfo, PmeGpuProg
     /* Reinit active timers */
     pme_gpu_reinit_timings(pme->gpu);
 
+    printf("pme_gpu_reinit_grids...\n");
     pme_gpu_reinit_grids(pme->gpu);
     // Note: if timing the reinit launch overhead becomes more relevant
     // (e.g. with regulat PP-PME re-balancing), we should pass wcycle here.
+    printf("pme_gpu_reinit_computation...\n");
     pme_gpu_reinit_computation(pme, nullptr);
     /* Clear the previous box - doesn't hurt, and forces the PME CPU recipbox
      * update for mixed mode on grid switch. TODO: use shared recipbox field.
@@ -1332,7 +1348,7 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
             &kernelParamsPtr->grid.d_gridlineIndicesTable, &kernelParamsPtr->atoms.d_coefficients,
             &kernelParamsPtr->atoms.d_coordinates);
 #endif
-
+    printf("chargeB in spread initialize: %.4f\n", kernelParamsPtr->atoms.d_coefficientsB[0]);
     launchGpuKernel(kernelPtr, config, timingEvent, "PME spline/spread", kernelArgs);
     pme_gpu_stop_timing(pmeGpu, timingId);
 
