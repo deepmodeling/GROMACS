@@ -885,9 +885,9 @@ gmx_pme_t* gmx_pme_init(const t_commrec*         cr,
                 GMX_THROW(gmx::NotImplementedError(errorString));
             }
         }
-        printf("\nlambda_q: %.4f\n", ir->fepvals->init_lambda[efptCOUL]);
-        printf(ir->efep != efepNO);
-        pme_gpu_reinit(pme.get(), gpuInfo, pmeGpuProgram, ir->efep != efepNO, ir->fepvals->init_lambda[efptCOUL]);
+        printf("\nlambda_q: %.4f\n", ir->fepvals->all_lambda[efptCOUL][ir->fepvals->init_fep_state]);
+        printf("bFEP: %d\n", ir->efep != efepNO);
+        pme_gpu_reinit(pme.get(), gpuInfo, pmeGpuProgram, ir->efep != efepNO, ir->fepvals->all_lambda[efptCOUL][ir->fepvals->init_fep_state]);
     }
 
     pme_init_all_work(&pme->solve_work, pme->nthread, pme->nkx);
@@ -935,7 +935,7 @@ void gmx_pme_reinit(struct gmx_pme_t** pmedata,
          */
         if (!pme_src->gpu && pme_src->nnodes == 1)
         {
-            gmx_pme_reinit_atoms(*pmedata, pme_src->atc[0].numAtoms(), nullptr);
+            gmx_pme_reinit_atoms(*pmedata, pme_src->atc[0].numAtoms(), nullptr, nullptr);
         }
         // TODO this is mostly passing around current values
     }
