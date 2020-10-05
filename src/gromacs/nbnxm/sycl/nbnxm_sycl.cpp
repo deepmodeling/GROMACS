@@ -116,7 +116,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
         {
             GMX_ASSERT(sizeof(nb->nbst.fshift[0]) == adat->fshift.elementSize(),
                        "Sizes of host- and device-side shift vectors should be the same.");
-            copyFromDeviceBuffer(reinterpret_cast<float*>(nb->nbst.fshift), &adat->fshift, 0,
+            copyFromDeviceBuffer(reinterpret_cast<float3*>(nb->nbst.fshift), &adat->fshift, 0,
                                  SHIFTS, deviceStream, GpuApiCallBehavior::Async, nullptr);
         }
 

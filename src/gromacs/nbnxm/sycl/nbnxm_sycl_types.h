@@ -107,7 +107,7 @@ struct sycl_atomdata
     DeviceBuffer<float> e_el;
 
     //! shift forces
-    DeviceBuffer<float> fshift;
+    DeviceBuffer<float3> fshift;
 
     //! number of atom types
     int ntypes;

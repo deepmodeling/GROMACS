@@ -52,8 +52,6 @@
 //! \internal Twin of NbnxmSyclKernelParams, but using cl::sycl:accessor's
 struct KernelParamsOnDevice
 {
-    // SYCL-TODO
-    bool bCalcFshift;
 };
 
 // We need to use functor to store any kernel arguments
@@ -61,12 +59,38 @@ template<bool doPruneNBL, bool doCalcEnergies, enum eelType flavorEL, enum evdwT
 class NbnxmSyclKernelFunctor
 {
 public:
-    KernelParamsOnDevice params;
-    NbnxmSyclKernelFunctor(const KernelParamsOnDevice& params_) : params(params_) {}
+    NbnxmSyclKernelFunctor(cl::sycl::handler& cgh, const NbnxmSyclKernelParams& params);
 
     //! Main kernel function
     void operator()(cl::sycl::nd_item<3> itemIdx) const;
+
+private:
+    int                                                               natoms_;
+    int                                                               natoms_local_;
+    cl::sycl::accessor<float4, 1, cl::sycl::access::mode::read>       xq_;
+    cl::sycl::accessor<float3, 1, cl::sycl::access::mode::read_write> f_;
+    cl::sycl::accessor<float3, 1, cl::sycl::access::mode::read_write> f_shift_;
+    cl::sycl::accessor<float, 1, cl::sycl::access::mode::read_write>  e_el_;
+    cl::sycl::accessor<float, 1, cl::sycl::access::mode::read_write>  e_lj_;
+    // SYCL-TODO: other types
+    bool bCalcFshift_;
 };
+
+template<bool doPruneNBL, bool doCalcEnergies, enum eelType flavorEL, enum evdwType flavorLJ>
+NbnxmSyclKernelFunctor<doPruneNBL, doCalcEnergies, flavorEL, flavorLJ>::NbnxmSyclKernelFunctor(
+        cl::sycl::handler&           cgh,
+        const NbnxmSyclKernelParams& params) :
+    natoms_(params.atomdata->natoms),
+    natoms_local_(params.atomdata->natoms_local),
+    xq_(params.atomdata->xq.buffer_->get_access<cl::sycl::access::mode::read>(cgh)),
+    f_(params.atomdata->f.buffer_->get_access<cl::sycl::access::mode::read_write>(cgh)),
+    f_shift_(params.atomdata->fshift.buffer_->get_access<cl::sycl::access::mode::read_write>(cgh)),
+    e_el_(params.atomdata->e_el.buffer_->get_access<cl::sycl::access::mode::read_write>(cgh)),
+    e_lj_(params.atomdata->e_lj.buffer_->get_access<cl::sycl::access::mode::read_write>(cgh)),
+    // SYCL-TODO: initialize the rest of the fields
+    bCalcFshift_(params.bCalcFshift)
+{
+}
 
 template<bool doPruneNBL, bool doCalcEnergies, enum eelType flavorEL, enum evdwType flavorLJ>
 void NbnxmSyclKernelFunctor<doPruneNBL, doCalcEnergies, flavorEL, flavorLJ>::
@@ -92,6 +116,17 @@ void NbnxmSyclKernelFunctor<doPruneNBL, doCalcEnergies, flavorEL, flavorLJ>::
 
     constexpr bool doExclusionForces =
             (flavorELEwaldAny || flavorELRF || flavorLJEwald || (flavorELCutoff && doCalcEnergies));
+
+    // SYCL-TODO: The code below just sets arbitrary values
+    const int numThreads     = itemIdx.get_global_range().size();
+    const int atomsPerThread = natoms_ / numThreads + 1;
+    const int threadId       = itemIdx.get_global_linear_id();
+    const int atStart        = threadId * atomsPerThread;
+    const int atEnd          = cl::sycl::min((threadId + 1) * atomsPerThread, natoms_);
+    for (int at = atStart; at < atEnd; at++)
+    {
+        f_[at] = { 0, xq_[at].y(), at };
+    }
 }
 
 // Specs are not very clear, but it seems that invoking kernel functors must be done in the
@@ -110,10 +145,8 @@ cl::sycl::event NbnxmSyclKernelLauncher<doPruneNBL, doCalcEnergies, flavorEL, fl
     cl::sycl::queue q = deviceStream.stream();
 
     cl::sycl::event e = q.submit([&](cl::sycl::handler& cgh) {
-        struct KernelParamsOnDevice d_args;
-        d_args.bCalcFshift = args.bCalcFshift;
-        // SYCL-TODO: Set-up necessary accessors
-        auto kernel = NbnxmSyclKernelFunctor<doPruneNBL, doCalcEnergies, flavorEL, flavorLJ>{ d_args };
+        // SYCL-TODO: Set-up remaining accessors
+        auto kernel = NbnxmSyclKernelFunctor<doPruneNBL, doCalcEnergies, flavorEL, flavorLJ>{ cgh, args };
         cgh.parallel_for(executionRange, kernel);
     });
 
