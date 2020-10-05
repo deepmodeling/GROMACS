@@ -220,13 +220,9 @@ void* nonbonded_verlet_t::getGpuForces()
     {
         return Nbnxm::getGpuForces(gpu_nbv8x8);
     }
-    else if (useGpu4x4())
-    {
-        return Nbnxm::getGpuForces(gpu_nbv4x4);
-    }
     else
     {
-        GMX_ASSERT(false, "Unhandled statement");
+        return Nbnxm::getGpuForces(gpu_nbv4x4);
     }
 }
 
