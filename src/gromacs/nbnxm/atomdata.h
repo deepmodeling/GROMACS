@@ -52,6 +52,7 @@
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/locality.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/bitmask.h"
 #include "gromacs/utility/real.h"
@@ -61,6 +62,7 @@ namespace gmx
 class MDLogger;
 }
 
+template<PairlistType>
 struct NbnxmGpu;
 struct nbnxn_atomdata_t;
 struct nonbonded_verlet_t;
@@ -365,12 +367,29 @@ void nbnxn_atomdata_copy_x_to_nbat_x(const Nbnxm::GridSet& gridSet,
  * \param[in]     d_x        Coordinates to be copied (in plain rvec format).
  * \param[in]     xReadyOnDevice   Event synchronizer indicating that the coordinates are ready in the device memory.
  */
+template<PairlistType type>
 void nbnxn_atomdata_x_to_nbat_x_gpu(const Nbnxm::GridSet&   gridSet,
                                     gmx::AtomLocality       locality,
                                     bool                    fillLocal,
-                                    NbnxmGpu*               gpu_nbv,
+                                    NbnxmGpu<type>*         gpu_nbv,
                                     DeviceBuffer<gmx::RVec> d_x,
                                     GpuEventSynchronizer*   xReadyOnDevice);
+
+extern template void nbnxn_atomdata_x_to_nbat_x_gpu<PairlistType::Hierarchical8x8>(
+        const Nbnxm::GridSet&                    gridSet,
+        gmx::AtomLocality                        locality,
+        bool                                     fillLocal,
+        NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv,
+        DeviceBuffer<gmx::RVec>                  d_x,
+        GpuEventSynchronizer*                    xReadyOnDevice);
+
+extern template void nbnxn_atomdata_x_to_nbat_x_gpu<PairlistType::Hierarchical4x4>(
+        const Nbnxm::GridSet&                    gridSet,
+        gmx::AtomLocality                        locality,
+        bool                                     fillLocal,
+        NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv,
+        DeviceBuffer<gmx::RVec>                  d_x,
+        GpuEventSynchronizer*                    xReadyOnDevice);
 
 /*! \brief Add the computed forces to \p f, an internal reduction might be performed as well
  *

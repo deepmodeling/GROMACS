@@ -95,6 +95,7 @@ struct NbnxnPairlistCpuWork
 };
 
 /* Working data for the actual i-supercell during pair search */
+template<PairlistType type>
 struct NbnxnPairlistGpuWork
 {
     struct ISuperClusterData
@@ -104,8 +105,8 @@ struct NbnxnPairlistGpuWork
 #if NBNXN_SEARCH_BB_SIMD4
             bbPacked(c_gpuNumClusterPerCell / c_packedBoundingBoxesDimSize * c_packedBoundingBoxesSize),
 #endif
-            x(c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize * DIM),
-            xSimd(c_gpuNumClusterPerCell * c_nbnxnGpuClusterSize * DIM)
+            x(c_gpuNumClusterPerCell * nbnxnGpuClusterSize<type>() * DIM),
+            xSimd(c_gpuNumClusterPerCell * nbnxnGpuClusterSize<type>() * DIM)
         {
         }
 

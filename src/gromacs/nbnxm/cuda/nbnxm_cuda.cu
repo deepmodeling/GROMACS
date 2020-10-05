@@ -121,8 +121,18 @@ namespace Nbnxm
 // TODO Optimize this through experimentation
 constexpr static int c_bufOpsThreadsPerBlock = 128;
 
-/*! Nonbonded kernel function pointer type */
-typedef void (*nbnxn_cu_kfunc_ptr_t)(const cu_atomdata_t, const NBParamGpu, const gpu_plist, bool);
+/*! Nonbonded kernel function pointer type for 8x8 pairlist*/
+typedef void (*nbnxn_cu_kfunc_ptr_t8x8)(const cu_atomdata_t,
+                                        const NBParamGpu,
+                                        const gpu_plist<PairlistType::Hierarchical8x8>,
+                                        bool);
+
+/*! Nonbonded kernel function pointer type for 4x4 pairlist*/
+typedef void (*nbnxn_cu_kfunc_ptr_t4x4)(const cu_atomdata_t,
+                                        const NBParamGpu,
+                                        const gpu_plist<PairlistType::Hierarchical4x4>,
+                                        bool);
+
 
 /*********************************/
 
@@ -151,7 +161,6 @@ static inline int calc_nb_kernel_nblock(int nwork_units, const DeviceInformation
     return nwork_units;
 }
 
-
 /* Constant arrays listing all kernel function pointers and enabling selection
    of a kernel in an elegant manner. */
 
@@ -164,7 +173,7 @@ static inline int calc_nb_kernel_nblock(int nwork_units, const DeviceInformation
  */
 
 /*! Force-only kernel function pointers. */
-static const nbnxn_cu_kfunc_ptr_t nb_kfunc_noener_noprune_ptr[eelTypeNR][evdwTypeNR] = {
+static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_noener_noprune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_F_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_cuda,
       nbnxn_kernel_ElecCut_VdwLJPsw_F_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_F_cuda,
@@ -192,7 +201,7 @@ static const nbnxn_cu_kfunc_ptr_t nb_kfunc_noener_noprune_ptr[eelTypeNR][evdwTyp
 };
 
 /*! Force + energy kernel function pointers. */
-static const nbnxn_cu_kfunc_ptr_t nb_kfunc_ener_noprune_ptr[eelTypeNR][evdwTypeNR] = {
+static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_ener_noprune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_cuda,
       nbnxn_kernel_ElecCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_cuda,
@@ -220,7 +229,7 @@ static const nbnxn_cu_kfunc_ptr_t nb_kfunc_ener_noprune_ptr[eelTypeNR][evdwTypeN
 };
 
 /*! Force + pruning kernel function pointers. */
-static const nbnxn_cu_kfunc_ptr_t nb_kfunc_noener_prune_ptr[eelTypeNR][evdwTypeNR] = {
+static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_noener_prune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJPsw_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_F_prune_cuda,
@@ -250,7 +259,125 @@ static const nbnxn_cu_kfunc_ptr_t nb_kfunc_noener_prune_ptr[eelTypeNR][evdwTypeN
 };
 
 /*! Force + energy + pruning kernel function pointers. */
-static const nbnxn_cu_kfunc_ptr_t nb_kfunc_ener_prune_ptr[eelTypeNR][evdwTypeNR] = {
+static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_ener_prune_ptr8x8[eelTypeNR][evdwTypeNR] = {
+    { nbnxn_kernel_ElecCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecCut_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_prune_cuda,
+      nbnxn_kernel_ElecCut_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecCut_VdwLJEwCombLB_VF_prune_cuda },
+    { nbnxn_kernel_ElecRF_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecRF_VdwLJCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecRF_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecRF_VdwLJFsw_VF_prune_cuda,
+      nbnxn_kernel_ElecRF_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecRF_VdwLJEwCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecRF_VdwLJEwCombLB_VF_prune_cuda },
+    { nbnxn_kernel_ElecEwQSTab_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJFsw_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_prune_cuda },
+    { nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_prune_cuda },
+    { nbnxn_kernel_ElecEw_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecEw_VdwLJCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEw_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecEw_VdwLJFsw_VF_prune_cuda,
+      nbnxn_kernel_ElecEw_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecEw_VdwLJEwCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEw_VdwLJEwCombLB_VF_prune_cuda },
+    { nbnxn_kernel_ElecEwTwinCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJCombLB_VF_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJFsw_VF_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJPsw_VF_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_prune_cuda }
+};
+
+/*! Force-only kernel function pointers. */
+static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_noener_noprune_ptr4x4[eelTypeNR][evdwTypeNR] = {
+    { nbnxn_kernel_ElecCut_VdwLJ_F_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_cuda,
+      nbnxn_kernel_ElecCut_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_cuda,
+      nbnxn_kernel_ElecCut_VdwLJPsw_F_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_F_cuda,
+      nbnxn_kernel_ElecCut_VdwLJEwCombLB_F_cuda },
+    { nbnxn_kernel_ElecRF_VdwLJ_F_cuda, nbnxn_kernel_ElecRF_VdwLJCombGeom_F_cuda,
+      nbnxn_kernel_ElecRF_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecRF_VdwLJFsw_F_cuda,
+      nbnxn_kernel_ElecRF_VdwLJPsw_F_cuda, nbnxn_kernel_ElecRF_VdwLJEwCombGeom_F_cuda,
+      nbnxn_kernel_ElecRF_VdwLJEwCombLB_F_cuda },
+    { nbnxn_kernel_ElecEwQSTab_VdwLJ_F_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJCombGeom_F_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJFsw_F_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJPsw_F_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJEwCombGeom_F_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJEwCombLB_F_cuda },
+    { nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJ_F_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_F_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJFsw_F_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJPsw_F_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_F_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_F_cuda },
+    { nbnxn_kernel_ElecEw_VdwLJ_F_cuda, nbnxn_kernel_ElecEw_VdwLJCombGeom_F_cuda,
+      nbnxn_kernel_ElecEw_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecEw_VdwLJFsw_F_cuda,
+      nbnxn_kernel_ElecEw_VdwLJPsw_F_cuda, nbnxn_kernel_ElecEw_VdwLJEwCombGeom_F_cuda,
+      nbnxn_kernel_ElecEw_VdwLJEwCombLB_F_cuda },
+    { nbnxn_kernel_ElecEwTwinCut_VdwLJ_F_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJCombGeom_F_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJFsw_F_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJPsw_F_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombGeom_F_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_cuda }
+};
+
+/*! Force + energy kernel function pointers. */
+static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_ener_noprune_ptr4x4[eelTypeNR][evdwTypeNR] = {
+    { nbnxn_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
+      nbnxn_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_cuda,
+      nbnxn_kernel_ElecCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_kernel_ElecCut_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_kernel_ElecRF_VdwLJ_VF_cuda, nbnxn_kernel_ElecRF_VdwLJCombGeom_VF_cuda,
+      nbnxn_kernel_ElecRF_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecRF_VdwLJFsw_VF_cuda,
+      nbnxn_kernel_ElecRF_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecRF_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_kernel_ElecRF_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_kernel_ElecEwQSTab_VdwLJ_VF_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJFsw_VF_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_kernel_ElecEw_VdwLJ_VF_cuda, nbnxn_kernel_ElecEw_VdwLJCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEw_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEw_VdwLJFsw_VF_cuda,
+      nbnxn_kernel_ElecEw_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEw_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEw_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_kernel_ElecEwTwinCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJFsw_VF_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_cuda }
+};
+
+/*! Force + pruning kernel function pointers. */
+static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_noener_prune_ptr4x4[eelTypeNR][evdwTypeNR] = {
+    { nbnxn_kernel_ElecCut_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecCut_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_prune_cuda,
+      nbnxn_kernel_ElecCut_VdwLJPsw_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecCut_VdwLJEwCombLB_F_prune_cuda },
+    { nbnxn_kernel_ElecRF_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecRF_VdwLJCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecRF_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecRF_VdwLJFsw_F_prune_cuda,
+      nbnxn_kernel_ElecRF_VdwLJPsw_F_prune_cuda, nbnxn_kernel_ElecRF_VdwLJEwCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecRF_VdwLJEwCombLB_F_prune_cuda },
+    { nbnxn_kernel_ElecEwQSTab_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJFsw_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJPsw_F_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJEwCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTab_VdwLJEwCombLB_F_prune_cuda },
+    { nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJ_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJFsw_F_prune_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJPsw_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_F_prune_cuda },
+    { nbnxn_kernel_ElecEw_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecEw_VdwLJCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEw_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecEw_VdwLJFsw_F_prune_cuda,
+      nbnxn_kernel_ElecEw_VdwLJPsw_F_prune_cuda, nbnxn_kernel_ElecEw_VdwLJEwCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEw_VdwLJEwCombLB_F_prune_cuda },
+    { nbnxn_kernel_ElecEwTwinCut_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJFsw_F_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJPsw_F_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombGeom_F_prune_cuda,
+      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_prune_cuda }
+};
+
+/*! Force + energy + pruning kernel function pointers. */
+static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_ener_prune_ptr4x4[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_prune_cuda,
@@ -282,13 +409,13 @@ static const nbnxn_cu_kfunc_ptr_t nb_kfunc_ener_prune_ptr[eelTypeNR][evdwTypeNR]
 };
 
 /*! Return a pointer to the kernel version to be executed at the current step. */
-static inline nbnxn_cu_kfunc_ptr_t select_nbnxn_kernel(int                     eeltype,
-                                                       int                     evdwtype,
-                                                       bool                    bDoEne,
-                                                       bool                    bDoPrune,
-                                                       const DeviceInformation gmx_unused* deviceInfo)
+static inline nbnxn_cu_kfunc_ptr_t8x8 select_nbnxn_kernel8x8(int                     eeltype,
+                                                             int                     evdwtype,
+                                                             bool                    bDoEne,
+                                                             bool                    bDoPrune,
+                                                             const DeviceInformation gmx_unused* deviceInfo)
 {
-    nbnxn_cu_kfunc_ptr_t res;
+    nbnxn_cu_kfunc_ptr_t8x8 res;
 
     GMX_ASSERT(eeltype < eelTypeNR,
                "The electrostatics type requested is not implemented in the CUDA kernels.");
@@ -296,7 +423,8 @@ static inline nbnxn_cu_kfunc_ptr_t select_nbnxn_kernel(int                     e
                "The VdW type requested is not implemented in the CUDA kernels.");
 
     /* assert assumptions made by the kernels */
-    GMX_ASSERT(c_nbnxnGpuClusterSize * c_nbnxnGpuClusterSize / c_nbnxnGpuClusterpairSplit
+    GMX_ASSERT(nbnxnGpuClusterSize<PairlistType::Hierarchical8x8>()
+                               * nbnxnGpuClusterSize<PairlistType::Hierarchical8x8>() / c_nbnxnGpuClusterpairSplit
                        == deviceInfo->prop.warpSize,
                "The CUDA kernels require the "
                "cluster_size_i*cluster_size_j/nbnxn_gpu_clusterpair_split to match the warp size "
@@ -306,22 +434,70 @@ static inline nbnxn_cu_kfunc_ptr_t select_nbnxn_kernel(int                     e
     {
         if (bDoPrune)
         {
-            res = nb_kfunc_ener_prune_ptr[eeltype][evdwtype];
+            res = nb_kfunc_ener_prune_ptr8x8[eeltype][evdwtype];
         }
         else
         {
-            res = nb_kfunc_ener_noprune_ptr[eeltype][evdwtype];
+            res = nb_kfunc_ener_noprune_ptr8x8[eeltype][evdwtype];
         }
     }
     else
     {
         if (bDoPrune)
         {
-            res = nb_kfunc_noener_prune_ptr[eeltype][evdwtype];
+            res = nb_kfunc_noener_prune_ptr8x8[eeltype][evdwtype];
         }
         else
         {
-            res = nb_kfunc_noener_noprune_ptr[eeltype][evdwtype];
+            res = nb_kfunc_noener_noprune_ptr8x8[eeltype][evdwtype];
+        }
+    }
+
+    return res;
+}
+
+/*! Return a pointer to the kernel version to be executed at the current step. */
+static inline nbnxn_cu_kfunc_ptr_t4x4 select_nbnxn_kernel4x4(int                     eeltype,
+                                                             int                     evdwtype,
+                                                             bool                    bDoEne,
+                                                             bool                    bDoPrune,
+                                                             const DeviceInformation gmx_unused* deviceInfo)
+{
+    nbnxn_cu_kfunc_ptr_t4x4 res;
+
+    GMX_ASSERT(eeltype < eelTypeNR,
+               "The electrostatics type requested is not implemented in the CUDA kernels.");
+    GMX_ASSERT(evdwtype < evdwTypeNR,
+               "The VdW type requested is not implemented in the CUDA kernels.");
+
+    /* assert assumptions made by the kernels */
+    GMX_ASSERT(nbnxnGpuClusterSize<PairlistType::Hierarchical4x4>()
+                               * nbnxnGpuClusterSize<PairlistType::Hierarchical4x4>() / c_nbnxnGpuClusterpairSplit
+                       == deviceInfo->prop.warpSize,
+               "The CUDA kernels require the "
+               "cluster_size_i*cluster_size_j/nbnxn_gpu_clusterpair_split to match the warp size "
+               "of the architecture targeted.");
+
+    if (bDoEne)
+    {
+        if (bDoPrune)
+        {
+            res = nb_kfunc_ener_prune_ptr4x4[eeltype][evdwtype];
+        }
+        else
+        {
+            res = nb_kfunc_ener_noprune_ptr4x4[eeltype][evdwtype];
+        }
+    }
+    else
+    {
+        if (bDoPrune)
+        {
+            res = nb_kfunc_noener_prune_ptr4x4[eeltype][evdwtype];
+        }
+        else
+        {
+            res = nb_kfunc_noener_noprune_ptr4x4[eeltype][evdwtype];
         }
     }
 
@@ -329,6 +505,7 @@ static inline nbnxn_cu_kfunc_ptr_t select_nbnxn_kernel(int                     e
 }
 
 /*! \brief Calculates the amount of shared memory required by the nonbonded kernel in use. */
+template<PairlistType type>
 static inline int calc_shmem_required_nonbonded(const int               num_threads_z,
                                                 const DeviceInformation gmx_unused* deviceInfo,
                                                 const NBParamGpu*                   nbp)
@@ -340,19 +517,19 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
     /* size of shmem (force-buffers/xq/atom type preloading) */
     /* NOTE: with the default kernel on sm3.0 we need shmem only for pre-loading */
     /* i-atom x+q in shared memory */
-    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(float4);
+    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float4);
     /* cj in shared memory, for each warp separately */
     shmem += num_threads_z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize * sizeof(int);
 
     if (nbp->vdwtype == evdwTypeCUTCOMBGEOM || nbp->vdwtype == evdwTypeCUTCOMBLB)
     {
         /* i-atom LJ combination parameters in shared memory */
-        shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(float2);
+        shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float2);
     }
     else
     {
         /* i-atom types in shared memory */
-        shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(int);
+        shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(int);
     }
 
     return shmem;
@@ -365,7 +542,8 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
  *  the local, this function records the event if called with the local stream as
  *  argument and inserts in the GPU stream a wait on the event on the nonlocal.
  */
-void nbnxnInsertNonlocalGpuDependency(const NbnxmGpu* nb, const InteractionLocality interactionLocality)
+template<PairlistType type>
+void nbnxnInsertNonlocalGpuDependency(const NbnxmGpu<type>* nb, const InteractionLocality interactionLocality)
 {
     const DeviceStream& deviceStream = *nb->deviceStreams[interactionLocality];
 
@@ -391,8 +569,17 @@ void nbnxnInsertNonlocalGpuDependency(const NbnxmGpu* nb, const InteractionLocal
     }
 }
 
+template void nbnxnInsertNonlocalGpuDependency<PairlistType::Hierarchical8x8>(
+        const NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+        const InteractionLocality                      interactionLocality);
+
+template void nbnxnInsertNonlocalGpuDependency<PairlistType::Hierarchical4x4>(
+        const NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+        const InteractionLocality                      interactionLocality);
+
 /*! \brief Launch asynchronously the xq buffer host to device copy. */
-void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const AtomLocality atomLocality)
+template<PairlistType type>
+void gpu_copy_xq_to_gpu(NbnxmGpu<type>* nb, const nbnxn_atomdata_t* nbatom, const AtomLocality atomLocality)
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
@@ -404,7 +591,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     int adat_begin, adat_len; /* local/nonlocal offset and length used for xq and f */
 
     cu_atomdata_t*      adat         = nb->atdat;
-    gpu_plist*          plist        = nb->plist[iloc];
+    gpu_plist<type>*    plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -464,6 +651,14 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     nbnxnInsertNonlocalGpuDependency(nb, iloc);
 }
 
+template void gpu_copy_xq_to_gpu<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                const nbnxn_atomdata_t* nbatom,
+                                                                const AtomLocality atomLocality);
+
+template void gpu_copy_xq_to_gpu<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                const nbnxn_atomdata_t* nbatom,
+                                                                const AtomLocality atomLocality);
+
 /*! As we execute nonbonded workload in separate streams, before launching
    the kernel we need to make sure that he following operations have completed:
    - atomdata allocation and related H2D transfers (every nstlist step);
@@ -481,11 +676,12 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
    the local x+q H2D (and all preceding) tasks are complete and synchronize
    with this event in the non-local stream before launching the non-bonded kernel.
  */
-void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const InteractionLocality iloc)
+template<PairlistType type>
+void gpu_launch_kernel(NbnxmGpu<type>* nb, const gmx::StepWorkload& stepWork, const InteractionLocality iloc)
 {
     cu_atomdata_t*      adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
-    gpu_plist*          plist        = nb->plist[iloc];
+    gpu_plist<type>*    plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -513,7 +709,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
            (TODO: ATM that's the way the timing accounting can distinguish between
            separate prune kernel and combined force+prune, maybe we need a better way?).
          */
-        gpu_launch_kernel_pruneonly(nb, iloc, 1);
+        gpu_launch_kernel_pruneonly<type>(nb, iloc, 1);
     }
 
     if (plist->nsci == 0)
@@ -542,12 +738,12 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
 
 
     KernelLaunchConfig config;
-    config.blockSize[0] = c_clSize;
-    config.blockSize[1] = c_clSize;
+    config.blockSize[0] = c_clSize<type>;
+    config.blockSize[1] = c_clSize<type>;
     config.blockSize[2] = num_threads_z;
     config.gridSize[0]  = nblock;
     config.sharedMemorySize =
-            calc_shmem_required_nonbonded(num_threads_z, &nb->deviceContext_->deviceInfo(), nbp);
+            calc_shmem_required_nonbonded<type>(num_threads_z, &nb->deviceContext_->deviceInfo(), nbp);
 
     if (debug)
     {
@@ -560,14 +756,42 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
                 c_nbnxnGpuNumClusterPerSupercluster, plist->na_c, config.sharedMemorySize);
     }
 
-    auto*      timingEvent = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
-    const auto kernel =
-            select_nbnxn_kernel(nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy,
-                                (plist->haveFreshList && !nb->timers->interaction[iloc].didPrune),
-                                &nb->deviceContext_->deviceInfo());
-    const auto kernelArgs =
-            prepareGpuKernelArguments(kernel, config, adat, nbp, plist, &stepWork.computeVirial);
-    launchGpuKernel(kernel, config, deviceStream, timingEvent, "k_calc_nb", kernelArgs);
+    auto* timingEvent = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
+    nbnxn_cu_kfunc_ptr_t8x8 kernel8x8;
+    nbnxn_cu_kfunc_ptr_t4x4 kernel4x4;
+
+    switch (type)
+    {
+        case PairlistType::Hierarchical8x8:
+            kernel8x8 = select_nbnxn_kernel8x8(
+                    nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy,
+                    (plist->haveFreshList && !nb->timers->interaction[iloc].didPrune),
+                    &nb->deviceContext_->deviceInfo());
+            break;
+        case PairlistType::Hierarchical4x4:
+            kernel4x4 = select_nbnxn_kernel4x4(
+                    nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy,
+                    (plist->haveFreshList && !nb->timers->interaction[iloc].didPrune),
+                    &nb->deviceContext_->deviceInfo());
+            break;
+        default: GMX_ASSERT(false, "Unhandled statement");
+    }
+    if (type == PairlistType::Hierarchical8x8)
+    {
+        const auto kernelArgs =
+                prepareGpuKernelArguments(kernel8x8, config, adat, nbp, plist, &stepWork.computeVirial);
+        launchGpuKernel(kernel8x8, config, deviceStream, timingEvent, "k_calc_nb", kernelArgs);
+    }
+    else if (type == PairlistType::Hierarchical4x4)
+    {
+        const auto kernelArgs =
+                prepareGpuKernelArguments(kernel4x4, config, adat, nbp, plist, &stepWork.computeVirial);
+        launchGpuKernel(kernel4x4, config, deviceStream, timingEvent, "k_calc_nb", kernelArgs);
+    }
+    else
+    {
+        GMX_ASSERT(false, "Unhandled statement");
+    }
 
     if (bDoTime)
     {
@@ -581,24 +805,34 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     }
 }
 
+template void gpu_launch_kernel<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                               const gmx::StepWorkload&  stepWork,
+                                                               const InteractionLocality iloc);
+
+template void gpu_launch_kernel<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                               const gmx::StepWorkload&  stepWork,
+                                                               const InteractionLocality iloc);
+
 /*! Calculates the amount of shared memory required by the CUDA kernel in use. */
+template<PairlistType type>
 static inline int calc_shmem_required_prune(const int num_threads_z)
 {
     int shmem;
 
     /* i-atom x in shared memory */
-    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(float4);
+    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float4);
     /* cj in shared memory, for each warp separately */
     shmem += num_threads_z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize * sizeof(int);
 
     return shmem;
 }
 
-void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, const int numParts)
+template<PairlistType type>
+void gpu_launch_kernel_pruneonly(NbnxmGpu<type>* nb, const InteractionLocality iloc, const int numParts)
 {
     cu_atomdata_t*      adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
-    gpu_plist*          plist        = nb->plist[iloc];
+    gpu_plist<type>*    plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -664,14 +898,14 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
      *   and j-cluster concurrency, in x, y, and z, respectively.
      * - The 1D block-grid contains as many blocks as super-clusters.
      */
-    int num_threads_z = c_cudaPruneKernelJ4Concurrency;
+    int num_threads_z = c_cudaPruneKernelJ4ConcurrencyTypeDependent<type>;
     int nblock        = calc_nb_kernel_nblock(numSciInPart, &nb->deviceContext_->deviceInfo());
     KernelLaunchConfig config;
-    config.blockSize[0]     = c_clSize;
-    config.blockSize[1]     = c_clSize;
+    config.blockSize[0]     = c_clSize<type>;
+    config.blockSize[1]     = c_clSize<type>;
     config.blockSize[2]     = num_threads_z;
     config.gridSize[0]      = nblock;
-    config.sharedMemorySize = calc_shmem_required_prune(num_threads_z);
+    config.sharedMemorySize = calc_shmem_required_prune<type>(num_threads_z);
 
     if (debug)
     {
@@ -686,8 +920,8 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
 
     auto*          timingEvent  = bDoTime ? timer->fetchNextEvent() : nullptr;
     constexpr char kernelName[] = "k_pruneonly";
-    const auto     kernel =
-            plist->haveFreshList ? nbnxn_kernel_prune_cuda<true> : nbnxn_kernel_prune_cuda<false>;
+    const auto     kernel       = plist->haveFreshList ? nbnxn_kernel_prune_cuda<type, true>
+                                             : nbnxn_kernel_prune_cuda<type, false>;
     const auto kernelArgs = prepareGpuKernelArguments(kernel, config, adat, nbp, plist, &numParts, &part);
     launchGpuKernel(kernel, config, deviceStream, timingEvent, kernelName, kernelArgs);
 
@@ -717,7 +951,18 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
     }
 }
 
-void gpu_launch_cpyback(NbnxmGpu*                nb,
+template void
+gpu_launch_kernel_pruneonly<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                           const InteractionLocality iloc,
+                                                           const int                 numParts);
+
+template void
+gpu_launch_kernel_pruneonly<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                           const InteractionLocality iloc,
+                                                           const int                 numParts);
+
+template<PairlistType type>
+void gpu_launch_cpyback(NbnxmGpu<type>*          nb,
                         nbnxn_atomdata_t*        nbatom,
                         const gmx::StepWorkload& stepWork,
                         const AtomLocality       atomLocality)
@@ -813,6 +1058,17 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     }
 }
 
+template void gpu_launch_cpyback<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                nbnxn_atomdata_t*        nbatom,
+                                                                const gmx::StepWorkload& stepWork,
+                                                                const AtomLocality atomLocality);
+
+template void gpu_launch_cpyback<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                nbnxn_atomdata_t*        nbatom,
+                                                                const gmx::StepWorkload& stepWork,
+                                                                const AtomLocality atomLocality);
+
+template<PairlistType type>
 void cuda_set_cacheconfig()
 {
     cudaError_t stat;
@@ -821,20 +1077,41 @@ void cuda_set_cacheconfig()
     {
         for (int j = 0; j < evdwTypeNR; j++)
         {
-            /* Default kernel 32/32 kB Shared/L1 */
-            cudaFuncSetCacheConfig(nb_kfunc_ener_prune_ptr[i][j], cudaFuncCachePreferEqual);
-            cudaFuncSetCacheConfig(nb_kfunc_ener_noprune_ptr[i][j], cudaFuncCachePreferEqual);
-            cudaFuncSetCacheConfig(nb_kfunc_noener_prune_ptr[i][j], cudaFuncCachePreferEqual);
-            stat = cudaFuncSetCacheConfig(nb_kfunc_noener_noprune_ptr[i][j], cudaFuncCachePreferEqual);
-            CU_RET_ERR(stat, "cudaFuncSetCacheConfig failed");
+            switch (type)
+            {
+                case PairlistType::Hierarchical8x8:
+                    /* Default kernel 32/32 kB Shared/L1 */
+                    cudaFuncSetCacheConfig(nb_kfunc_ener_prune_ptr8x8[i][j], cudaFuncCachePreferEqual);
+                    cudaFuncSetCacheConfig(nb_kfunc_ener_noprune_ptr8x8[i][j], cudaFuncCachePreferEqual);
+                    cudaFuncSetCacheConfig(nb_kfunc_noener_prune_ptr8x8[i][j], cudaFuncCachePreferEqual);
+                    stat = cudaFuncSetCacheConfig(nb_kfunc_noener_noprune_ptr8x8[i][j],
+                                                  cudaFuncCachePreferEqual);
+                    CU_RET_ERR(stat, "cudaFuncSetCacheConfig failed");
+                    break;
+                case PairlistType::Hierarchical4x4:
+                    /* Default kernel 32/32 kB Shared/L1 */
+                    cudaFuncSetCacheConfig(nb_kfunc_ener_prune_ptr4x4[i][j], cudaFuncCachePreferEqual);
+                    cudaFuncSetCacheConfig(nb_kfunc_ener_noprune_ptr4x4[i][j], cudaFuncCachePreferEqual);
+                    cudaFuncSetCacheConfig(nb_kfunc_noener_prune_ptr4x4[i][j], cudaFuncCachePreferEqual);
+                    stat = cudaFuncSetCacheConfig(nb_kfunc_noener_noprune_ptr4x4[i][j],
+                                                  cudaFuncCachePreferEqual);
+                    CU_RET_ERR(stat, "cudaFuncSetCacheConfig failed");
+                    break;
+                default: GMX_ASSERT(false, "Unhandled statement");
+            }
         }
     }
 }
 
+template void cuda_set_cacheconfig<PairlistType::Hierarchical8x8>();
+
+template void cuda_set_cacheconfig<PairlistType::Hierarchical4x4>();
+
 /* X buffer operations on GPU: performs conversion from rvec to nb format. */
+template<PairlistType type>
 void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
                            bool                      setFillerCoords,
-                           NbnxmGpu*                 nb,
+                           NbnxmGpu<type>*           nb,
                            DeviceBuffer<gmx::RVec>   d_x,
                            GpuEventSynchronizer*     xReadyOnDevice,
                            const Nbnxm::AtomLocality locality,
@@ -894,9 +1171,36 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
     nbnxnInsertNonlocalGpuDependency(nb, interactionLoc);
 }
 
-void* getGpuForces(NbnxmGpu* nb)
+template void
+nbnxn_gpu_x_to_nbat_x<PairlistType::Hierarchical8x8>(const Nbnxm::Grid& grid,
+                                                     bool setFillerCoords,
+                                                     NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                     DeviceBuffer<gmx::RVec> d_x,
+                                                     GpuEventSynchronizer* xReadyOnDevice,
+                                                     const Nbnxm::AtomLocality locality,
+                                                     int                       gridId,
+                                                     int numColumnsMax);
+
+template void
+nbnxn_gpu_x_to_nbat_x<PairlistType::Hierarchical4x4>(const Nbnxm::Grid& grid,
+                                                     bool setFillerCoords,
+                                                     NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                     DeviceBuffer<gmx::RVec> d_x,
+                                                     GpuEventSynchronizer* xReadyOnDevice,
+                                                     const Nbnxm::AtomLocality locality,
+                                                     int                       gridId,
+                                                     int numColumnsMax);
+
+template<PairlistType type>
+void* getGpuForces(NbnxmGpu<type>* nb)
 {
     return nb->atdat->f;
 }
+
+template
+void* getGpuForces<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template
+void* getGpuForces<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
 
 } // namespace Nbnxm

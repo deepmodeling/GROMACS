@@ -1073,10 +1073,11 @@ void nbnxn_atomdata_copy_x_to_nbat_x(const Nbnxm::GridSet&   gridSet,
 }
 
 /* Copies (and reorders) the coordinates to nbnxn_atomdata_t on the GPU*/
+template<PairlistType type>
 void nbnxn_atomdata_x_to_nbat_x_gpu(const Nbnxm::GridSet&   gridSet,
                                     const gmx::AtomLocality locality,
                                     bool                    fillLocal,
-                                    NbnxmGpu*               gpu_nbv,
+                                    NbnxmGpu<type>*         gpu_nbv,
                                     DeviceBuffer<RVec>      d_x,
                                     GpuEventSynchronizer*   xReadyOnDevice)
 {
@@ -1087,10 +1088,26 @@ void nbnxn_atomdata_x_to_nbat_x_gpu(const Nbnxm::GridSet&   gridSet,
 
     for (int g = gridBegin; g < gridEnd; g++)
     {
-        nbnxn_gpu_x_to_nbat_x(gridSet.grids()[g], fillLocal && g == 0, gpu_nbv, d_x, xReadyOnDevice,
-                              locality, g, gridSet.numColumnsMax());
+        Nbnxm::nbnxn_gpu_x_to_nbat_x<type>(gridSet.grids()[g], fillLocal && g == 0, gpu_nbv, d_x,
+                                           xReadyOnDevice, locality, g, gridSet.numColumnsMax());
     }
 }
+
+template void nbnxn_atomdata_x_to_nbat_x_gpu<PairlistType::Hierarchical8x8>(
+        const Nbnxm::GridSet&                    gridSet,
+        const gmx::AtomLocality                  locality,
+        bool                                     fillLocal,
+        NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv,
+        DeviceBuffer<RVec>                       d_x,
+        GpuEventSynchronizer*                    xReadyOnDevice);
+
+template void nbnxn_atomdata_x_to_nbat_x_gpu<PairlistType::Hierarchical4x4>(
+        const Nbnxm::GridSet&                    gridSet,
+        const gmx::AtomLocality                  locality,
+        bool                                     fillLocal,
+        NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv,
+        DeviceBuffer<RVec>                       d_x,
+        GpuEventSynchronizer*                    xReadyOnDevice);
 
 static void nbnxn_atomdata_clear_reals(gmx::ArrayRef<real> dest, int i0, int i1)
 {

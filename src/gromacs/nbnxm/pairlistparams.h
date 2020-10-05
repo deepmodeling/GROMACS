@@ -56,15 +56,49 @@ namespace Nbnxm
 enum class KernelType;
 }
 
+//! The available pair list types
+enum class PairlistType : int
+{
+    Simple4x2,       //!< cpu pair list
+    Simple4x4,       //!< cpu pair list
+    Simple4x8,       //!< cpu pair list
+    Hierarchical8x8, //!< this is the 8x8x8 gpu pair list with superclusters
+    Hierarchical4x4, //!< smaller list with 4x4x8 gpu pair list with superclusters
+    Count
+};
+
+
 //! The i-cluster size for CPU kernels, always 4 atoms
 static constexpr int c_nbnxnCpuIClusterSize = 4;
 
 //! The i- and j-cluster size for GPU lists, 8 atoms for CUDA, set at compile time for OpenCL
-#if GMX_GPU_OPENCL
-static constexpr int c_nbnxnGpuClusterSize = GMX_OPENCL_NB_CLUSTER_SIZE;
-#else
-static constexpr int c_nbnxnGpuClusterSize = 8;
-#endif
+static constexpr int c_nbnxnGpuClusterSize8 = 8;
+//!  The i- and j-cluster size for GPU lists, 8 atoms for CUDA, set at compile time for OpenCL
+static constexpr int c_nbnxnGpuClusterSize4 = 4;
+//! Log2 of cluster size 8
+static constexpr int c_nbnxnGpuClusterSize8Log2 = 3;
+//! Log2 of cluster size 4
+static constexpr int c_nbnxnGpuClusterSize4Log2 = 2;
+//! Log2 of warp size for cluster size 8
+static constexpr int c_nbnxnGpuWarpSize8Log2 = 5;
+//! Log2 of warp size for cluster size 4
+static constexpr int c_nbnxnGpuWarpSize4Log2 = 3;
+
+template<PairlistType type>
+constexpr int nbnxnGpuClusterSize()
+{
+    static_assert(type == PairlistType::Hierarchical8x8 || type == PairlistType::Hierarchical4x4,
+                  "Pairlist type needs to be a GPU pairlist");
+    return type == PairlistType::Hierarchical8x8 ? c_nbnxnGpuClusterSize8 : c_nbnxnGpuClusterSize4;
+}
+
+template<PairlistType type>
+constexpr int nbnxnGpuClusterSizeLog2()
+{
+    static_assert(type == PairlistType::Hierarchical8x8 || type == PairlistType::Hierarchical4x4,
+                  "Pairlist type needs to be a GPU pairlist");
+    return type == PairlistType::Hierarchical8x8 ? c_nbnxnGpuClusterSize8Log2 : c_nbnxnGpuClusterSize4Log2;
+}
 
 //! The number of clusters along Z in a pair-search grid cell for GPU lists
 static constexpr int c_gpuNumClusterPerCellZ = 2;
@@ -85,26 +119,18 @@ static constexpr int c_gpuNumClusterPerCell =
 static constexpr int c_nbnxnGpuClusterpairSplit = 2;
 
 //! The fixed size of the exclusion mask array for a half GPU cluster pair
-static constexpr int c_nbnxnGpuExclSize =
-        c_nbnxnGpuClusterSize * c_nbnxnGpuClusterSize / c_nbnxnGpuClusterpairSplit;
-
-//! The available pair list types
-enum class PairlistType : int
-{
-    Simple4x2,
-    Simple4x4,
-    Simple4x8,
-    HierarchicalNxN,
-    Count
-};
+template<PairlistType type>
+static constexpr int c_nbnxnGpuExclSize = nbnxnGpuClusterSize<type>() * nbnxnGpuClusterSize<type>()
+                                          / c_nbnxnGpuClusterpairSplit;
 
 //! Gives the i-cluster size for each pairlist type
 static constexpr gmx::EnumerationArray<PairlistType, int> IClusterSizePerListType = {
-    { c_nbnxnCpuIClusterSize, c_nbnxnCpuIClusterSize, c_nbnxnCpuIClusterSize, c_nbnxnGpuClusterSize }
+    { c_nbnxnCpuIClusterSize, c_nbnxnCpuIClusterSize, c_nbnxnCpuIClusterSize,
+      c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize4 }
 };
 //! Gives the j-cluster size for each pairlist type
 static constexpr gmx::EnumerationArray<PairlistType, int> JClusterSizePerListType = {
-    { 2, 4, 8, c_nbnxnGpuClusterSize }
+    { 2, 4, 8, c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize4 }
 };
 
 /*! \internal

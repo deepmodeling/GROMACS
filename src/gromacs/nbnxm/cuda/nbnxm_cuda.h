@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -41,10 +41,13 @@
 #ifndef GMX_NBNXN_CUDA_NBNXN_CUDA_H
 #define GMX_NBNXN_CUDA_NBNXN_CUDA_H
 
+enum class PairlistType : int;
+
 namespace Nbnxm
 {
 
 //! Set up the cache configuration for the non-bonded kernels.
+template<PairlistType>
 void cuda_set_cacheconfig();
 
 } // namespace Nbnxm

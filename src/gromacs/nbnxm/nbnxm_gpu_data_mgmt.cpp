@@ -191,18 +191,21 @@ void gpu_pme_loadbal_update_param(const nonbonded_verlet_t* nbv, const interacti
     {
         return;
     }
-    NbnxmGpu*   nb  = nbv->gpu_nbv;
-    NBParamGpu* nbp = nb->nbparam;
+    NbnxmGpu<PairlistType::Hierarchical8x8>* nb8x8 = nbv->gpu_nbv8x8;
+    NbnxmGpu<PairlistType::Hierarchical4x4>* nb4x4 = nbv->gpu_nbv4x4;
+    NBParamGpu* nbp = (nb8x8 != nullptr) ? nb8x8->nbparam : nb4x4->nbparam;
 
     set_cutoff_parameters(nbp, ic, nbv->pairlistSets().params());
 
     nbp->eeltype = nbnxn_gpu_pick_ewald_kernel_type(*ic);
 
     GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
-    init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp, *nb->deviceContext_);
+    init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp,
+                                   (nb8x8 != nullptr) ? *nb8x8->deviceContext_ : *nb4x4->deviceContext_);
 }
 
-void init_plist(gpu_plist* pl)
+template<PairlistType type>
+void init_plist(gpu_plist<type>* pl)
 {
     /* initialize to nullptr pointers to data that is not allocated here and will
        need reallocation in nbnxn_gpu_init_pairlist */
@@ -223,6 +226,10 @@ void init_plist(gpu_plist* pl)
     pl->excl_nalloc   = -1;
     pl->haveFreshList = false;
 }
+
+template void init_plist<PairlistType::Hierarchical8x8>(gpu_plist<PairlistType::Hierarchical8x8>* pl);
+
+template void init_plist<PairlistType::Hierarchical4x4>(gpu_plist<PairlistType::Hierarchical4x4>* pl);
 
 void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
 {
@@ -247,8 +254,8 @@ void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
     t->dynamicPruneTime.t = 0.0;
 }
 
-//! This function is documented in the header file
-void gpu_init_pairlist(NbnxmGpu* nb, const NbnxnPairlistGpu* h_plist, const InteractionLocality iloc)
+template<PairlistType type>
+void gpu_init_pairlist(NbnxmGpu<type>* nb, const NbnxnPairlistGpu<type>* h_plist, const InteractionLocality iloc)
 {
     char sbuf[STRLEN];
     // Timing accumulation should happen only if there was work to do
@@ -256,7 +263,7 @@ void gpu_init_pairlist(NbnxmGpu* nb, const NbnxnPairlistGpu* h_plist, const Inte
     // which leads to the counter not being reset.
     bool                bDoTime      = (nb->bDoTime && !h_plist->sci.empty());
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
-    gpu_plist*          d_plist      = nb->plist[iloc];
+    gpu_plist<type>*    d_plist      = nb->plist[iloc];
 
     if (d_plist->na_c < 0)
     {
@@ -310,24 +317,51 @@ void gpu_init_pairlist(NbnxmGpu* nb, const NbnxnPairlistGpu* h_plist, const Inte
     d_plist->haveFreshList = true;
 }
 
-//! This function is documented in the header file
-gmx_wallclock_gpu_nbnxn_t* gpu_get_timings(NbnxmGpu* nb)
+template void gpu_init_pairlist<PairlistType::Hierarchical8x8>(
+        NbnxmGpu<PairlistType::Hierarchical8x8>*               nb,
+        const NbnxnPairlistGpu<PairlistType::Hierarchical8x8>* h_plist,
+        const InteractionLocality                              iloc);
+
+template void gpu_init_pairlist<PairlistType::Hierarchical4x4>(
+        NbnxmGpu<PairlistType::Hierarchical4x4>*               nb,
+        const NbnxnPairlistGpu<PairlistType::Hierarchical4x4>* h_plist,
+        const InteractionLocality                              iloc);
+
+template<PairlistType type>
+gmx_wallclock_gpu_nbnxn_t* gpu_get_timings(NbnxmGpu<type>* nb)
 {
     return (nb != nullptr && nb->bDoTime) ? nb->timings : nullptr;
 }
 
+template gmx_wallclock_gpu_nbnxn_t*
+gpu_get_timings<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template gmx_wallclock_gpu_nbnxn_t*
+gpu_get_timings<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
 //! This function is documented in the header file
 void gpu_reset_timings(nonbonded_verlet_t* nbv)
 {
-    if (nbv->gpu_nbv && nbv->gpu_nbv->bDoTime)
+    if (nbv->gpu_nbv8x8 && nbv->gpu_nbv8x8->bDoTime)
     {
-        init_timings(nbv->gpu_nbv->timings);
+        init_timings(nbv->gpu_nbv8x8->timings);
+    }
+    else if (nbv->gpu_nbv4x4 && nbv->gpu_nbv4x4->bDoTime)
+    {
+        init_timings(nbv->gpu_nbv4x4->timings);
     }
 }
 
-bool gpu_is_kernel_ewald_analytical(const NbnxmGpu* nb)
+template<PairlistType type>
+bool gpu_is_kernel_ewald_analytical(const NbnxmGpu<type>* nb)
 {
     return ((nb->nbparam->eeltype == eelTypeEWALD_ANA) || (nb->nbparam->eeltype == eelTypeEWALD_ANA_TWIN));
 }
+
+template bool gpu_is_kernel_ewald_analytical<PairlistType::Hierarchical8x8>(
+        const NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template bool gpu_is_kernel_ewald_analytical<PairlistType::Hierarchical4x4>(
+        const NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
 
 } // namespace Nbnxm

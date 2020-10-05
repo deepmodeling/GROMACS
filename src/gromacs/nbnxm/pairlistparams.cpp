@@ -67,7 +67,14 @@ PairlistParams::PairlistParams(const Nbnxm::KernelType kernelType,
 {
     if (!Nbnxm::kernelTypeUsesSimplePairlist(kernelType))
     {
-        pairlistType = PairlistType::HierarchicalNxN;
+        if (kernelType == Nbnxm::KernelType::Gpu8x8x8)
+        {
+            pairlistType = PairlistType::Hierarchical8x8;
+        }
+        else
+        {
+            pairlistType = PairlistType::Hierarchical4x4;
+        }
     }
     else
     {

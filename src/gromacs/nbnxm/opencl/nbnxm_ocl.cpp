@@ -96,9 +96,9 @@ namespace Nbnxm
 
 /*! \brief Convenience constants */
 //@{
-static constexpr int c_clSize = c_nbnxnGpuClusterSize;
+template<PairlistType type>
+static constexpr int c_clSize = nbnxnGpuClusterSize<type>();
 //@}
-
 
 /*! \brief Validates the input global work size parameter.
  */
@@ -320,6 +320,7 @@ static const char* nb_kfunc_ener_prune_ptr[eelTypeNR][evdwTypeNR] = {
  * \param[in] kernel_pruneonly  array of prune kernel objects
  * \param[in] firstPrunePass    true if the first pruning pass is being executed
  */
+template<PairlistType type>
 static inline cl_kernel selectPruneKernel(cl_kernel kernel_pruneonly[], bool firstPrunePass)
 {
     cl_kernel* kernelPtr;
@@ -341,7 +342,8 @@ static inline cl_kernel selectPruneKernel(cl_kernel kernel_pruneonly[], bool fir
  *  OpenCL kernel objects are cached in nb. If the requested kernel is not
  *  found in the cache, it will be created and the cache will be updated.
  */
-static inline cl_kernel select_nbnxn_kernel(NbnxmGpu* nb, int eeltype, int evdwtype, bool bDoEne, bool bDoPrune)
+template<PairlistType type>
+static inline cl_kernel select_nbnxn_kernel(NbnxmGpu<type>* nb, int eeltype, int evdwtype, bool bDoEne, bool bDoPrune)
 {
     const char* kernel_name_to_run;
     cl_kernel*  kernel_ptr;
@@ -392,6 +394,7 @@ static inline cl_kernel select_nbnxn_kernel(NbnxmGpu* nb, int eeltype, int evdwt
 
 /*! \brief Calculates the amount of shared memory required by the nonbonded kernel in use.
  */
+template<PairlistType type>
 static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjParam)
 {
     int shmem;
@@ -399,7 +402,7 @@ static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjPar
     /* size of shmem (force-buffers/xq/atom type preloading) */
     /* NOTE: with the default kernel on sm3.0 we need shmem only for pre-loading */
     /* i-atom x+q in shared memory */
-    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(float) * 4; /* xqib */
+    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float) * 4; /* xqib */
     /* cj in shared memory, for both warps separately
      * TODO: in the "nowarp kernels we load cj only once  so the factor 2 is not needed.
      */
@@ -409,17 +412,17 @@ static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjPar
         if (useLjCombRule(vdwType))
         {
             /* i-atom LJ combination parameters in shared memory */
-            shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize * 2
+            shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * 2
                      * sizeof(float); /* atib abused for ljcp, float2 */
         }
         else
         {
             /* i-atom types in shared memory */
-            shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(int); /* atib */
+            shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(int); /* atib */
         }
     }
     /* force reduction buffers in shared memory */
-    shmem += c_clSize * c_clSize * 3 * sizeof(float); /* f_buf */
+    shmem += c_clSize<type> * c_clSize<type> * 3 * sizeof(float); /* f_buf */
     /* Warp vote. In fact it must be * number of warps in block.. */
     shmem += sizeof(cl_uint) * 2; /* warp_any */
     return shmem;
@@ -476,7 +479,8 @@ static void sync_ocl_event(cl_command_queue stream, cl_event* ocl_event)
 }
 
 /*! \brief Launch asynchronously the xq buffer host to device copy. */
-void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const AtomLocality atomLocality)
+template<PairlistType type>
+void gpu_copy_xq_to_gpu(NbnxmGpu<type>* nb, const nbnxn_atomdata_t* nbatom, const AtomLocality atomLocality)
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
@@ -486,7 +490,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     int adat_begin, adat_len;
 
     cl_atomdata_t*      adat         = nb->atdat;
-    gpu_plist*          plist        = nb->plist[iloc];
+    gpu_plist<type>*    plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -565,6 +569,13 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     }
 }
 
+template void gpu_copy_xq_to_gpu<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                const nbnxn_atomdata_t* nbatom,
+                                                                const AtomLocality atomLocality);
+
+template void gpu_copy_xq_to_gpu<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                const nbnxn_atomdata_t* nbatom,
+                                                                const AtomLocality atomLocality);
 
 /*! \brief Launch GPU kernel
 
@@ -584,11 +595,12 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
    misc_ops_done event to record the point in time when the above  operations
    are finished and synchronize with this event in the non-local stream.
  */
-void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nbnxm::InteractionLocality iloc)
+template<PairlistType type>
+void gpu_launch_kernel(NbnxmGpu<type>* nb, const gmx::StepWorkload& stepWork, const Nbnxm::InteractionLocality iloc)
 {
     cl_atomdata_t*      adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
-    gpu_plist*          plist        = nb->plist[iloc];
+    gpu_plist<type>*    plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -618,7 +630,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
            (that's the way the timing accounting can distinguish between
            separate prune kernel and combined force+prune).
          */
-        Nbnxm::gpu_launch_kernel_pruneonly(nb, iloc, 1);
+        Nbnxm::gpu_launch_kernel_pruneonly<type>(nb, iloc, 1);
     }
 
     if (plist->nsci == 0)
@@ -637,9 +649,9 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     /* kernel launch config */
 
     KernelLaunchConfig config;
-    config.sharedMemorySize = calc_shmem_required_nonbonded(nbp->vdwtype, nb->bPrefetchLjParam);
-    config.blockSize[0]     = c_clSize;
-    config.blockSize[1]     = c_clSize;
+    config.sharedMemorySize = calc_shmem_required_nonbonded<type>(nbp->vdwtype, nb->bPrefetchLjParam);
+    config.blockSize[0]     = c_clSize<type>;
+    config.blockSize[1]     = c_clSize<type>;
     config.gridSize[0]      = plist->nsci;
 
     validate_global_work_size(config, 3, &nb->deviceContext_->deviceInfo());
@@ -691,6 +703,13 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     }
 }
 
+template void gpu_launch_kernel<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                               const gmx::StepWorkload& stepWork,
+                                                               const Nbnxm::InteractionLocality iloc);
+
+template void gpu_launch_kernel<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                               const gmx::StepWorkload& stepWork,
+                                                               const Nbnxm::InteractionLocality iloc);
 
 /*! \brief Calculates the amount of shared memory required by the prune kernel.
  *
@@ -700,12 +719,13 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
  * \param[in] num_threads_z cj4 concurrency equal to the number of threads/work items in the 3-rd
  * dimension. \returns   the amount of local memory in bytes required by the pruning kernel
  */
+template<PairlistType type>
 static inline int calc_shmem_required_prune(const int num_threads_z)
 {
     int shmem;
 
     /* i-atom x in shared memory (for convenience we load all 4 components including q) */
-    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(float) * 4;
+    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float) * 4;
     /* cj in shared memory, for each warp separately
      * Note: only need to load once per wavefront, but to keep the code simple,
      * for now we load twice on AMD.
@@ -721,11 +741,12 @@ static inline int calc_shmem_required_prune(const int num_threads_z)
  * Launch the pairlist prune only kernel for the given locality.
  * \p numParts tells in how many parts, i.e. calls the list will be pruned.
  */
-void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, const int numParts)
+template<PairlistType type>
+void gpu_launch_kernel_pruneonly(NbnxmGpu<type>* nb, const InteractionLocality iloc, const int numParts)
 {
     cl_atomdata_t*      adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
-    gpu_plist*          plist        = nb->plist[iloc];
+    gpu_plist<type>*    plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
     bool                bDoTime      = nb->bDoTime;
@@ -795,9 +816,9 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
 
     /* kernel launch config */
     KernelLaunchConfig config;
-    config.sharedMemorySize = calc_shmem_required_prune(num_threads_z);
-    config.blockSize[0]     = c_clSize;
-    config.blockSize[1]     = c_clSize;
+    config.sharedMemorySize = calc_shmem_required_prune<type>(num_threads_z);
+    config.blockSize[0]     = c_clSize<type>;
+    config.blockSize[1]     = c_clSize<type>;
     config.blockSize[2]     = num_threads_z;
     config.gridSize[0]      = numSciInPart;
 
@@ -820,8 +841,8 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
 
     auto*          timingEvent  = bDoTime ? timer->fetchNextEvent() : nullptr;
     constexpr char kernelName[] = "k_pruneonly";
-    const auto     pruneKernel  = selectPruneKernel(nb->kernel_pruneonly, plist->haveFreshList);
-    const auto     kernelArgs   = prepareGpuKernelArguments(pruneKernel, config, &nbparams_params,
+    const auto pruneKernel = selectPruneKernel<type>(nb->kernel_pruneonly, plist->haveFreshList);
+    const auto kernelArgs  = prepareGpuKernelArguments(pruneKernel, config, &nbparams_params,
                                                       &adat->xq, &adat->shift_vec, &plist->sci,
                                                       &plist->cj4, &plist->imask, &numParts, &part);
     launchGpuKernel(pruneKernel, config, deviceStream, timingEvent, kernelName, kernelArgs);
@@ -844,11 +865,22 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
     }
 }
 
+template void
+gpu_launch_kernel_pruneonly<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                           const InteractionLocality iloc,
+                                                           const int                 numParts);
+
+template void
+gpu_launch_kernel_pruneonly<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                           const InteractionLocality iloc,
+                                                           const int                 numParts);
+
 /*! \brief
  * Launch asynchronously the download of nonbonded forces from the GPU
  * (and energies/shift forces if required).
  */
-void gpu_launch_cpyback(NbnxmGpu*                nb,
+template<PairlistType type>
+void gpu_launch_cpyback(NbnxmGpu<type>*          nb,
                         struct nbnxn_atomdata_t* nbatom,
                         const gmx::StepWorkload& stepWork,
                         const AtomLocality       aloc)
@@ -899,7 +931,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* DtoH f */
     GMX_ASSERT(sizeof(*nbatom->out[0].f.data()) == sizeof(float),
                "The host force buffer should be in single precision to match device data size.");
-    copyFromDeviceBuffer(&nbatom->out[0].f.data()[adat_begin * DIM], &adat->f, adat_begin * DIM,
+    copyFromDeviceBuffer(&nbatom->out[0].f[adat_begin * DIM], &adat->f, adat_begin * DIM,
                          adat_len * DIM, deviceStream, GpuApiCallBehavior::Async,
                          bDoTime ? t->xf[aloc].nb_d2h.fetchNextEvent() : nullptr);
 
@@ -952,5 +984,15 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
         t->xf[aloc].nb_d2h.closeTimingRegion(deviceStream);
     }
 }
+
+template void gpu_launch_cpyback<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                struct nbnxn_atomdata_t* nbatom,
+                                                                const gmx::StepWorkload& stepWork,
+                                                                const AtomLocality       aloc);
+
+template void gpu_launch_cpyback<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                struct nbnxn_atomdata_t* nbatom,
+                                                                const gmx::StepWorkload& stepWork,
+                                                                const AtomLocality       aloc);
 
 } // namespace Nbnxm

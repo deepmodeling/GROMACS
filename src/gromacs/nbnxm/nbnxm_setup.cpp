@@ -40,10 +40,12 @@
  * \ingroup module_nbnxm
  */
 
+#include <algorithm>
 #include "gmxpre.h"
 
 #include "gromacs/domdec/domdec.h"
 #include "gromacs/domdec/domdec_struct.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdtypes/commrec.h"
@@ -73,9 +75,11 @@ namespace Nbnxm
 /*! \brief Resources that can be used to execute non-bonded kernels on */
 enum class NonbondedResource : int
 {
-    Cpu,
-    Gpu,
-    EmulateGpu
+    Cpu,        //!< Plain CPU
+    Gpu8x8,     //!< GPU with 8 execution width
+    Gpu4x4,     //!< GPU with 4 execution width
+    EmulateGpu, //!< GPU emulation for 8 execution width
+    Count       //!< Number of entries
 };
 
 /*! \brief Returns whether CPU SIMD support exists for the given inputrec
@@ -225,8 +229,10 @@ const char* lookup_kernel_name(const KernelType kernelType)
             returnvalue = "not available";
 #endif // GMX_SIMD
             break;
-        case KernelType::Gpu8x8x8: returnvalue = "GPU"; break;
-        case KernelType::Cpu8x8x8_PlainC: returnvalue = "plain C"; break;
+        case KernelType::Gpu8x8x8: returnvalue = "GPU 8 width"; break;
+        case KernelType::Gpu4x4x8: returnvalue = "GPU 4 width"; break;
+        case KernelType::Cpu8x8x8_PlainC: returnvalue = "plain C 8x8"; break;
+        case KernelType::Cpu4x4x8_PlainC: returnvalue = "plain C 4x4"; break;
 
         default: gmx_fatal(FARGS, "Illegal kernel type selected");
     }
@@ -249,9 +255,14 @@ static KernelSetup pick_nbnxn_kernel(const gmx::MDLogger&     mdlog,
 
         GMX_LOG(mdlog.warning).asParagraph().appendText("Emulating a GPU run on the CPU (slow)");
     }
-    else if (nonbondedResource == NonbondedResource::Gpu)
+    else if (nonbondedResource == NonbondedResource::Gpu8x8)
     {
         kernelSetup.kernelType         = KernelType::Gpu8x8x8;
+        kernelSetup.ewaldExclusionType = EwaldExclusionType::DecidedByGpuModule;
+    }
+    else if (nonbondedResource == NonbondedResource::Gpu4x4)
+    {
+        kernelSetup.kernelType         = KernelType::Gpu4x4x8;
         kernelSetup.ewaldExclusionType = EwaldExclusionType::DecidedByGpuModule;
     }
     else
@@ -275,7 +286,8 @@ static KernelSetup pick_nbnxn_kernel(const gmx::MDLogger&     mdlog,
                                  JClusterSizePerKernelType[kernelSetup.kernelType]);
 
     if (KernelType::Cpu4x4_PlainC == kernelSetup.kernelType
-        || KernelType::Cpu8x8x8_PlainC == kernelSetup.kernelType)
+        || KernelType::Cpu8x8x8_PlainC == kernelSetup.kernelType
+        || KernelType::Cpu4x4x8_PlainC == kernelSetup.kernelType)
     {
         GMX_LOG(mdlog.warning)
                 .asParagraph()
@@ -312,7 +324,8 @@ namespace Nbnxm
 {
 
 /*! \brief Gets and returns the minimum i-list count for balacing based on the GPU used or env.var. when set */
-static int getMinimumIlistCountForGpuBalancing(NbnxmGpu* nbnxmGpu)
+template<PairlistType type>
+static int getMinimumIlistCountForGpuBalancing(NbnxmGpu<type>* nbnxmGpu)
 {
     int minimumIlistCount;
 
@@ -364,10 +377,22 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
     GMX_RELEASE_ASSERT(!(emulateGpu && useGpuForNonbonded),
                        "When GPU emulation is active, there cannot be a GPU assignment");
 
+    const bool is4WidthOpenCL =
+            std::any_of(hardwareInfo.deviceInfoList.begin(), hardwareInfo.deviceInfoList.end(),
+                        [](const std::unique_ptr<DeviceInformation>& info) {
+                            return info->deviceVendor == DeviceVendor::Intel;
+                        });
     NonbondedResource nonbondedResource;
     if (useGpuForNonbonded)
     {
-        nonbondedResource = NonbondedResource::Gpu;
+        if (is4WidthOpenCL)
+        {
+            nonbondedResource = NonbondedResource::Gpu4x4;
+        }
+        else
+        {
+            nonbondedResource = NonbondedResource::Gpu8x8;
+        }
     }
     else if (emulateGpu)
     {
@@ -432,8 +457,9 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
                         fr->nbfp, mimimumNumEnergyGroupNonbonded,
                         (useGpuForNonbonded || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
 
-    NbnxmGpu* gpu_nbv                          = nullptr;
-    int       minimumIlistCountForGpuBalancing = 0;
+    NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv8x8                       = nullptr;
+    NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv4x4                       = nullptr;
+    int                                      minimumIlistCountForGpuBalancing = 0;
     if (useGpuForNonbonded)
     {
         /* init the NxN GPU data; the last argument tells whether we'll have
@@ -441,9 +467,20 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
         GMX_RELEASE_ASSERT(
                 (deviceStreamManager != nullptr),
                 "Device stream manager should be initialized in order to use GPU for non-bonded.");
-        gpu_nbv = gpu_init(*deviceStreamManager, fr->ic, pairlistParams, nbat.get(), haveMultipleDomains);
-
-        minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv);
+        switch (pairlistParams.pairlistType)
+        {
+            case PairlistType::Hierarchical8x8:
+                gpu_nbv8x8 = gpu_init<PairlistType::Hierarchical8x8>(
+                        *deviceStreamManager, fr->ic, pairlistParams, nbat.get(), haveMultipleDomains);
+                minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv8x8);
+                break;
+            case PairlistType::Hierarchical4x4:
+                gpu_nbv4x4 = gpu_init<PairlistType::Hierarchical4x4>(
+                        *deviceStreamManager, fr->ic, pairlistParams, nbat.get(), haveMultipleDomains);
+                minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv4x4);
+                break;
+            default: GMX_ASSERT(false, "Unhandled statement");
+        }
     }
 
     auto pairlistSets = std::make_unique<PairlistSets>(pairlistParams, haveMultipleDomains,
@@ -455,23 +492,26 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
             bFEP_NonBonded, gmx_omp_nthreads_get(emntPairsearch), pinPolicy);
 
     return std::make_unique<nonbonded_verlet_t>(std::move(pairlistSets), std::move(pairSearch),
-                                                std::move(nbat), kernelSetup, gpu_nbv, wcycle);
+                                                std::move(nbat), kernelSetup, gpu_nbv8x8,
+                                                gpu_nbv4x4, wcycle);
 }
 
 } // namespace Nbnxm
 
-nonbonded_verlet_t::nonbonded_verlet_t(std::unique_ptr<PairlistSets>     pairlistSets,
-                                       std::unique_ptr<PairSearch>       pairSearch,
-                                       std::unique_ptr<nbnxn_atomdata_t> nbat_in,
-                                       const Nbnxm::KernelSetup&         kernelSetup,
-                                       NbnxmGpu*                         gpu_nbv_ptr,
-                                       gmx_wallcycle*                    wcycle) :
+nonbonded_verlet_t::nonbonded_verlet_t(std::unique_ptr<PairlistSets>            pairlistSets,
+                                       std::unique_ptr<PairSearch>              pairSearch,
+                                       std::unique_ptr<nbnxn_atomdata_t>        nbat_in,
+                                       const Nbnxm::KernelSetup&                kernelSetup,
+                                       NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv_ptr8x8,
+                                       NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv_ptr4x4,
+                                       gmx_wallcycle*                           wcycle) :
     pairlistSets_(std::move(pairlistSets)),
     pairSearch_(std::move(pairSearch)),
     nbat(std::move(nbat_in)),
     kernelSetup_(kernelSetup),
     wcycle_(wcycle),
-    gpu_nbv(gpu_nbv_ptr)
+    gpu_nbv8x8(gpu_nbv_ptr8x8),
+    gpu_nbv4x4(gpu_nbv_ptr4x4)
 {
     GMX_RELEASE_ASSERT(pairlistSets_, "Need valid pairlistSets");
     GMX_RELEASE_ASSERT(pairSearch_, "Need valid search object");
@@ -480,5 +520,6 @@ nonbonded_verlet_t::nonbonded_verlet_t(std::unique_ptr<PairlistSets>     pairlis
 
 nonbonded_verlet_t::~nonbonded_verlet_t()
 {
-    Nbnxm::gpu_free(gpu_nbv);
+    Nbnxm::gpu_free(gpu_nbv8x8);
+    Nbnxm::gpu_free(gpu_nbv4x4);
 }

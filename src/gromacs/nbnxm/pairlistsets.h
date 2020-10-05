@@ -56,7 +56,6 @@
 
 struct nbnxn_atomdata_t;
 class PairlistSet;
-enum class PairlistType;
 class PairSearch;
 struct t_nrnb;
 

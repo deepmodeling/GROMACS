@@ -148,7 +148,20 @@ void nonbonded_verlet_t::convertCoordinatesGpu(const gmx::AtomLocality locality,
     wallcycle_start(wcycle_, ewcLAUNCH_GPU);
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_GPU_NB_X_BUF_OPS);
 
-    nbnxn_atomdata_x_to_nbat_x_gpu(pairSearch_->gridSet(), locality, fillLocal, gpu_nbv, d_x, xReadyOnDevice);
+    switch (kernelSetup().kernelType)
+    {
+        case Nbnxm::KernelType::Gpu8x8x8:
+        case Nbnxm::KernelType::Cpu8x8x8_PlainC:
+            nbnxn_atomdata_x_to_nbat_x_gpu<PairlistType::Hierarchical8x8>(
+                    pairSearch_->gridSet(), locality, fillLocal, gpu_nbv8x8, d_x, xReadyOnDevice);
+            break;
+        case Nbnxm::KernelType::Gpu4x4x8:
+        case Nbnxm::KernelType::Cpu4x4x8_PlainC:
+            nbnxn_atomdata_x_to_nbat_x_gpu<PairlistType::Hierarchical4x4>(
+                    pairSearch_->gridSet(), locality, fillLocal, gpu_nbv4x4, d_x, xReadyOnDevice);
+            break;
+        default: GMX_ASSERT(false, "Unhandled statement");
+    }
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_GPU_NB_X_BUF_OPS);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
@@ -165,7 +178,11 @@ void nonbonded_verlet_t::atomdata_add_nbat_f_to_f(const gmx::AtomLocality  local
 
     /* Skip the reduction if there was no short-range GPU work to do
      * (either NB or both NB and bonded work). */
-    if (!pairlistIsSimple() && !Nbnxm::haveGpuShortRangeWork(gpu_nbv, locality))
+    const bool haveGpuShortRangeWork8x8 =
+            ((useGpu8x8() || emulateGpu()) && Nbnxm::haveGpuShortRangeWork(gpu_nbv8x8, locality));
+    const bool haveGpuShortRangeWork4x4 =
+            (useGpu4x4() && Nbnxm::haveGpuShortRangeWork(gpu_nbv4x4, locality));
+    if (!pairlistIsSimple() && !(haveGpuShortRangeWork8x8 || haveGpuShortRangeWork4x4))
     {
         return;
     }
@@ -199,7 +216,18 @@ int nonbonded_verlet_t::getNumAtoms(const gmx::AtomLocality locality)
 
 void* nonbonded_verlet_t::getGpuForces()
 {
-    return Nbnxm::getGpuForces(gpu_nbv);
+    if (useGpu8x8())
+    {
+        return Nbnxm::getGpuForces(gpu_nbv8x8);
+    }
+    else if (useGpu4x4())
+    {
+        return Nbnxm::getGpuForces(gpu_nbv4x4);
+    }
+    else
+    {
+        GMX_ASSERT(false, "Unhandled statement");
+    }
 }
 
 real nonbonded_verlet_t::pairlistInnerRadius() const
@@ -222,18 +250,47 @@ void nonbonded_verlet_t::setupGpuShortRangeWork(const gmx::GpuBonded*          g
 {
     if (useGpu() && !emulateGpu())
     {
-        Nbnxm::setupGpuShortRangeWork(gpu_nbv, gpuBonded, iLocality);
+        if (useGpu8x8())
+        {
+            Nbnxm::setupGpuShortRangeWork(gpu_nbv8x8, gpuBonded, iLocality);
+        }
+        else
+        {
+            Nbnxm::setupGpuShortRangeWork(gpu_nbv4x4, gpuBonded, iLocality);
+        }
     }
 }
 
 void nonbonded_verlet_t::atomdata_init_copy_x_to_nbat_x_gpu()
 {
-    Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv);
+    if (useGpu8x8())
+    {
+        Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv8x8);
+    }
+    else if (useGpu4x4())
+    {
+        Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv4x4);
+    }
+    else
+    {
+        GMX_ASSERT(false, "Unhandled statement");
+    }
 }
 
 void nonbonded_verlet_t::insertNonlocalGpuDependency(const gmx::InteractionLocality interactionLocality)
 {
-    Nbnxm::nbnxnInsertNonlocalGpuDependency(gpu_nbv, interactionLocality);
+    if (useGpu8x8())
+    {
+        Nbnxm::nbnxnInsertNonlocalGpuDependency(gpu_nbv8x8, interactionLocality);
+    }
+    else if (useGpu4x4())
+    {
+        Nbnxm::nbnxnInsertNonlocalGpuDependency(gpu_nbv4x4, interactionLocality);
+    }
+    else
+    {
+        GMX_ASSERT(false, "Unhandled statement");
+    }
 }
 
 /*! \endcond */

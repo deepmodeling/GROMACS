@@ -250,7 +250,8 @@ static void init_nbparam(NBParamGpu*                     nbp,
 }
 
 /*! \brief Initializes the OpenCL kernel pointers of the nbnxn_ocl_ptr_t input data structure. */
-static cl_kernel nbnxn_gpu_create_kernel(NbnxmGpu* nb, const char* kernel_name)
+template<PairlistType type>
+static cl_kernel nbnxn_gpu_create_kernel(NbnxmGpu<type>* nb, const char* kernel_name)
 {
     cl_kernel kernel;
     cl_int    cl_error;
@@ -267,7 +268,8 @@ static cl_kernel nbnxn_gpu_create_kernel(NbnxmGpu* nb, const char* kernel_name)
 
 /*! \brief Clears nonbonded shift force output array and energy outputs on the GPU.
  */
-static void nbnxn_ocl_clear_e_fshift(NbnxmGpu* nb)
+template<PairlistType type>
+static void nbnxn_ocl_clear_e_fshift(NbnxmGpu<type>* nb)
 {
 
     cl_int           cl_error;
@@ -300,7 +302,8 @@ static void nbnxn_ocl_clear_e_fshift(NbnxmGpu* nb)
 }
 
 /*! \brief Initializes the OpenCL kernel pointers of the nbnxn_ocl_ptr_t input data structure. */
-static void nbnxn_gpu_init_kernels(NbnxmGpu* nb)
+template<PairlistType type>
+static void nbnxn_gpu_init_kernels(NbnxmGpu<type>* nb)
 {
     /* Init to 0 main kernel arrays */
     /* They will be later on initialized in select_nbnxn_kernel */
@@ -342,15 +345,16 @@ static void nbnxn_ocl_init_const(cl_atomdata_t*                  atomData,
 
 
 //! This function is documented in the header file
-NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
-                   const interaction_const_t*      ic,
-                   const PairlistParams&           listParams,
-                   const nbnxn_atomdata_t*         nbat,
-                   const bool                      bLocalAndNonlocal)
+template<PairlistType type>
+NbnxmGpu<type>* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
+                         const interaction_const_t*      ic,
+                         const PairlistParams&           listParams,
+                         const nbnxn_atomdata_t*         nbat,
+                         const bool                      bLocalAndNonlocal)
 {
     GMX_ASSERT(ic, "Need a valid interaction constants object");
 
-    auto nb            = new NbnxmGpu();
+    auto nb            = new NbnxmGpu<type>();
     nb->deviceContext_ = &deviceStreamManager.context();
     snew(nb->atdat, 1);
     snew(nb->nbparam, 1);
@@ -428,9 +432,24 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     return nb;
 }
 
+template NbnxmGpu<PairlistType::Hierarchical8x8>*
+gpu_init<PairlistType::Hierarchical8x8>(const gmx::DeviceStreamManager& deviceStreamManager,
+                                        const interaction_const_t*      ic,
+                                        const PairlistParams&           listParams,
+                                        const nbnxn_atomdata_t*         nbat,
+                                        const bool                      bLocalAndNonlocal);
+
+template NbnxmGpu<PairlistType::Hierarchical4x4>*
+gpu_init<PairlistType::Hierarchical4x4>(const gmx::DeviceStreamManager& deviceStreamManager,
+                                        const interaction_const_t*      ic,
+                                        const PairlistParams&           listParams,
+                                        const nbnxn_atomdata_t*         nbat,
+                                        const bool                      bLocalAndNonlocal);
+
 /*! \brief Clears the first natoms_clear elements of the GPU nonbonded force output array.
  */
-static void nbnxn_ocl_clear_f(NbnxmGpu* nb, int natoms_clear)
+template<PairlistType type>
+static void nbnxn_ocl_clear_f(NbnxmGpu<type>* nb, int natoms_clear)
 {
     if (natoms_clear == 0)
     {
@@ -444,7 +463,8 @@ static void nbnxn_ocl_clear_f(NbnxmGpu* nb, int natoms_clear)
 }
 
 //! This function is documented in the header file
-void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
+template<PairlistType type>
+void gpu_clear_outputs(NbnxmGpu<type>* nb, bool computeVirial)
 {
     nbnxn_ocl_clear_f(nb, nb->atdat->natoms);
     /* clear shift force array and energies if the outputs were
@@ -460,8 +480,15 @@ void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
     GMX_ASSERT(cl_error == CL_SUCCESS, ("clFlush failed: " + ocl_get_error_string(cl_error)).c_str());
 }
 
+template void gpu_clear_outputs<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                               bool computeVirial);
+
+template void gpu_clear_outputs<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                               bool computeVirial);
+
 //! This function is documented in the header file
-void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
+template<PairlistType type>
+void gpu_upload_shiftvec(NbnxmGpu<type>* nb, const nbnxn_atomdata_t* nbatom)
 {
     cl_atomdata_t*      adat         = nb->atdat;
     const DeviceStream& deviceStream = *nb->deviceStreams[InteractionLocality::Local];
@@ -477,8 +504,15 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
     }
 }
 
+template void gpu_upload_shiftvec<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                 const nbnxn_atomdata_t* nbatom);
+
+template void gpu_upload_shiftvec<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                 const nbnxn_atomdata_t* nbatom);
+
 //! This function is documented in the header file
-void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
+template<PairlistType type>
+void gpu_init_atomdata(NbnxmGpu<type>* nb, const nbnxn_atomdata_t* nbat)
 {
     cl_int               cl_error;
     int                  nalloc, natoms;
@@ -584,6 +618,12 @@ static void free_kernel(cl_kernel* kernel_ptr)
     }
 }
 
+template void gpu_init_atomdata<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                               const nbnxn_atomdata_t* nbat);
+
+template void gpu_init_atomdata<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                               const nbnxn_atomdata_t* nbat);
+
 /*! \brief Releases a list of OpenCL kernel pointers */
 static void free_kernels(cl_kernel* kernels, int count)
 {
@@ -614,7 +654,8 @@ static void freeGpuProgram(cl_program program)
 }
 
 //! This function is documented in the header file
-void gpu_free(NbnxmGpu* nb)
+template<PairlistType type>
+void gpu_free(NbnxmGpu<type>* nb)
 {
     if (nb == nullptr)
     {
@@ -706,10 +747,19 @@ void gpu_free(NbnxmGpu* nb)
     }
 }
 
+template void gpu_free<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template void gpu_free<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
 //! This function is documented in the header file
-int gpu_min_ci_balanced(NbnxmGpu* nb)
+template<PairlistType type>
+int gpu_min_ci_balanced(NbnxmGpu<type>* nb)
 {
     return nb != nullptr ? gpu_min_ci_balanced_factor * nb->deviceContext_->deviceInfo().compute_units : 0;
 }
+
+template int gpu_min_ci_balanced<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template int gpu_min_ci_balanced<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
 
 } // namespace Nbnxm

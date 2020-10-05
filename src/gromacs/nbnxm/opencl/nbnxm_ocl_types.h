@@ -207,6 +207,7 @@ typedef struct Nbnxm::gpu_timers_t cl_timers_t;
 /*! \internal
  * \brief Main data structure for OpenCL nonbonded force calculations.
  */
+template<PairlistType type>
 struct NbnxmGpu
 {
     /* \brief OpenCL device context
@@ -249,7 +250,7 @@ struct NbnxmGpu
     //! parameters required for the non-bonded calc.
     NBParamGpu* nbparam = nullptr;
     //! pair-list data structures (local and non-local)
-    gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist*> plist = { nullptr };
+    gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist<type>*> plist = { nullptr };
     //! staging area where fshift/energies get downloaded
     nb_staging_t nbst;
 

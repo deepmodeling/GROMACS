@@ -686,8 +686,10 @@ static void finish_run(FILE*                     fplog,
 
     if (printReport)
     {
-        auto nbnxn_gpu_timings =
-                (nbv != nullptr && nbv->useGpu()) ? Nbnxm::gpu_get_timings(nbv->gpu_nbv) : nullptr;
+        auto nbnxn_gpu_timings = (nbv != nullptr && nbv->useGpu())
+                                         ? nbv->useGpu8x8() ? Nbnxm::gpu_get_timings(nbv->gpu_nbv8x8)
+                                                            : Nbnxm::gpu_get_timings(nbv->gpu_nbv4x4)
+                                         : nullptr;
         gmx_wallclock_gpu_pme_t pme_gpu_timings = {};
 
         if (pme_gpu_task_enabled(pme))

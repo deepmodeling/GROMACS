@@ -334,7 +334,8 @@ gmx_manage_lmfit()
 target_link_libraries(libgromacs PRIVATE lmfit)
 
 # Make sure we fix "everything" found by more recent versions of clang.
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7")
+if ((CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7") OR
+    (CMAKE_CXX_COMPILER_ID MATCHES "icpx" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7"))
    target_compile_options(libgromacs PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Weverything ${IGNORED_CLANG_ALL_WARNINGS}>)
 endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

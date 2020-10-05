@@ -316,6 +316,10 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
                             deviceInfoList[i]->id, cudaGetErrorName(stat), cudaGetErrorString(stat));
             }
         }
+        else
+        {
+            deviceInfoList[i]->deviceVendor = DeviceVendor::Nvidia;
+        }
     }
 
     stat = cudaPeekAtLastError();

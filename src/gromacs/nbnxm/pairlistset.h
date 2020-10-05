@@ -106,17 +106,30 @@ public:
     gmx::ArrayRef<const NbnxnPairlistCpu> cpuLists() const { return cpuLists_; }
 
     //! Returns a pointer to the GPU pairlist, nullptr when not present
-    const NbnxnPairlistGpu* gpuList() const
+    const NbnxnPairlistGpu<PairlistType::Hierarchical8x8>* gpuList8x8() const
     {
-        if (!gpuLists_.empty())
+        if (!gpuLists8x8_.empty())
         {
-            return &gpuLists_[0];
+            return &gpuLists8x8_[0];
         }
         else
         {
             return nullptr;
         }
     }
+    //! Returns a pointer to the GPU pairlist, nullptr when not present
+    const NbnxnPairlistGpu<PairlistType::Hierarchical4x4>* gpuList4x4() const
+    {
+        if (!gpuLists4x4_.empty())
+        {
+            return &gpuLists4x4_[0];
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
 
     //! Returns the lists of free-energy pairlists, empty when nonbonded interactions are not perturbed
     gmx::ArrayRef<const std::unique_ptr<t_nblist>> fepLists() const { return fepLists_; }
@@ -128,8 +141,10 @@ private:
     std::vector<NbnxnPairlistCpu> cpuLists_;
     //! List of working list for rebalancing CPU lists
     std::vector<NbnxnPairlistCpu> cpuListsWork_;
-    //! List of pairlists in GPU layout
-    std::vector<NbnxnPairlistGpu> gpuLists_;
+    //! List of pairlists in GPU layout for 8x8 cluster size
+    std::vector<NbnxnPairlistGpu<PairlistType::Hierarchical8x8>> gpuLists8x8_;
+    //! List of pairlists in GPU layout for 4x4 cluster size
+    std::vector<NbnxnPairlistGpu<PairlistType::Hierarchical4x4>> gpuLists4x4_;
     //! Pairlist parameters describing setup and ranges
     const PairlistParams& params_;
     //! Tells whether multiple lists get merged into one (the first) after creation

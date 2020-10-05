@@ -191,11 +191,9 @@ static DeviceStatus isDeviceFunctional(const DeviceInformation& deviceInfo)
         case DeviceVendor::Nvidia:
             return runningOnCompatibleHWForNvidia(deviceInfo) ? DeviceStatus::Compatible
                                                               : DeviceStatus::IncompatibleNvidiaVolta;
+        case DeviceVendor::Intel: return DeviceStatus::Compatible;
         case DeviceVendor::Amd:
             return runningOnCompatibleOSForAmd() ? DeviceStatus::Compatible : DeviceStatus::Incompatible;
-        case DeviceVendor::Intel:
-            return GMX_OPENCL_NB_CLUSTER_SIZE == 4 ? DeviceStatus::Compatible
-                                                   : DeviceStatus::IncompatibleClusterSize;
         default: return DeviceStatus::Incompatible;
     }
 }

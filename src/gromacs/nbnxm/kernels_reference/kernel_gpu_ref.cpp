@@ -53,49 +53,49 @@
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/utility/fatalerror.h"
 
-static constexpr int c_clSize = c_nbnxnGpuClusterSize;
-
-void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu*    nbl,
-                          const nbnxn_atomdata_t*    nbat,
-                          const interaction_const_t* iconst,
-                          rvec*                      shift_vec,
-                          const gmx::StepWorkload&   stepWork,
-                          int                        clearF,
-                          gmx::ArrayRef<real>        f,
-                          real*                      fshift,
-                          real*                      Vc,
-                          real*                      Vvdw)
+template<PairlistType pairlistType>
+void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu<pairlistType>* nbl,
+                          const nbnxn_atomdata_t*               nbat,
+                          const interaction_const_t*            iconst,
+                          rvec*                                 shift_vec,
+                          const gmx::StepWorkload&              stepWork,
+                          int                                   clearF,
+                          gmx::ArrayRef<real>                   f,
+                          real*                                 fshift,
+                          real*                                 Vc,
+                          real*                                 Vvdw)
 {
-    gmx_bool            bEwald;
-    const real*         Ftab = nullptr;
-    real                rcut2, rvdw2, rlist2;
-    int                 ntype;
-    real                facel;
-    int                 ish3;
-    int                 sci;
-    int                 cj4_ind0, cj4_ind1, cj4_ind;
-    int                 ci, cj;
-    int                 ic, jc, ia, ja, is, ifs, js, jfs, im, jm;
-    int                 n0;
-    int                 ggid;
-    real                shX, shY, shZ;
-    real                fscal, tx, ty, tz;
-    real                rinvsq;
-    real                iq;
-    real                qq, vcoul = 0, krsq, vctot;
-    int                 nti;
-    int                 tj;
-    real                rt, r, eps;
-    real                rinvsix;
-    real                Vvdwtot;
-    real                Vvdw_rep, Vvdw_disp;
-    real                ix, iy, iz, fix, fiy, fiz;
-    real                jx, jy, jz;
-    real                dx, dy, dz, rsq, rinv;
-    real                int_bit;
-    real                fexcl;
-    real                c6, c12;
-    const nbnxn_excl_t* excl[2];
+    constexpr int                     c_clSize = nbnxnGpuClusterSize<pairlistType>();
+    gmx_bool                          bEwald;
+    const real*                       Ftab = nullptr;
+    real                              rcut2, rvdw2, rlist2;
+    int                               ntype;
+    real                              facel;
+    int                               ish3;
+    int                               sci;
+    int                               cj4_ind0, cj4_ind1, cj4_ind;
+    int                               ci, cj;
+    int                               ic, jc, ia, ja, is, ifs, js, jfs, im, jm;
+    int                               n0;
+    int                               ggid;
+    real                              shX, shY, shZ;
+    real                              fscal, tx, ty, tz;
+    real                              rinvsq;
+    real                              iq;
+    real                              qq, vcoul = 0, krsq, vctot;
+    int                               nti;
+    int                               tj;
+    real                              rt, r, eps;
+    real                              rinvsix;
+    real                              Vvdwtot;
+    real                              Vvdw_rep, Vvdw_disp;
+    real                              ix, iy, iz, fix, fiy, fiz;
+    real                              jx, jy, jz;
+    real                              dx, dy, dz, rsq, rinv;
+    real                              int_bit;
+    real                              fexcl;
+    real                              c6, c12;
+    const nbnxn_excl_t<pairlistType>* excl[2];
 
     int npair_tot, npair;
     int nhwu, nhwu_pruned;
@@ -225,8 +225,8 @@ void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu*    nbl,
                                     continue;
                                 }
 
-                                constexpr int clusterPerSplit =
-                                        c_nbnxnGpuClusterSize / c_nbnxnGpuClusterpairSplit;
+                                constexpr int clusterPerSplit = nbnxnGpuClusterSize<pairlistType>()
+                                                                / c_nbnxnGpuClusterpairSplit;
                                 int_bit = static_cast<real>(
                                         (excl[jc / clusterPerSplit]->pair[(jc & (clusterPerSplit - 1)) * c_clSize + ic]
                                          >> (jm * c_nbnxnGpuNumClusterPerSupercluster + im))
@@ -377,3 +377,27 @@ void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu*    nbl,
                 npair_tot / static_cast<double>(nhwu_pruned * gmx::exactDiv(nbl->na_ci, 2) * nbl->na_ci));
     }
 }
+
+template void nbnxn_kernel_gpu_ref<PairlistType::Hierarchical8x8>(
+        const NbnxnPairlistGpu<PairlistType::Hierarchical8x8>* nbl,
+        const nbnxn_atomdata_t*                                nbat,
+        const interaction_const_t*                             iconst,
+        rvec*                                                  shift_vec,
+        const gmx::StepWorkload&                               stepWork,
+        int                                                    clearF,
+        gmx::ArrayRef<real>                                    f,
+        real*                                                  fshift,
+        real*                                                  Vc,
+        real*                                                  Vvdw);
+
+template void nbnxn_kernel_gpu_ref<PairlistType::Hierarchical4x4>(
+        const NbnxnPairlistGpu<PairlistType::Hierarchical4x4>* nbl,
+        const nbnxn_atomdata_t*                                nbat,
+        const interaction_const_t*                             iconst,
+        rvec*                                                  shift_vec,
+        const gmx::StepWorkload&                               stepWork,
+        int                                                    clearF,
+        gmx::ArrayRef<real>                                    f,
+        real*                                                  fshift,
+        real*                                                  Vc,
+        real*                                                  Vvdw);

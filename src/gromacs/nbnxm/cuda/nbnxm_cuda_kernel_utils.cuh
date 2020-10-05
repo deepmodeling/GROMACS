@@ -50,6 +50,7 @@
  * code that is in double precision.
  */
 
+#include "gromacs/nbnxm/pairlistparams.h"
 #include "gromacs/gpu_utils/cuda_arch_utils.cuh"
 #include "gromacs/gpu_utils/cuda_kernel_utils.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
@@ -61,13 +62,17 @@
 
 /*! \brief Log of the i and j cluster size.
  *  change this together with c_clSize !*/
-static const int __device__ c_clSizeLog2 = 3;
+template<PairlistType type>
+static const int __device__ c_clSizeLog2 = nbnxnGpuClusterSizeLog2<type>();
 /*! \brief Square of cluster size. */
-static const int __device__ c_clSizeSq = c_clSize * c_clSize;
+template<PairlistType type>
+static const int __device__ c_clSizeSq = c_clSize<type>* c_clSize<type>;
 /*! \brief j-cluster size after split (4 in the current implementation). */
-static const int __device__ c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
+template<PairlistType type>
+static const int __device__ c_splitClSize = c_clSize<type> / c_nbnxnGpuClusterpairSplit;
 /*! \brief Stride in the force accumualation buffer */
-static const int __device__ c_fbufStride = c_clSizeSq;
+template<PairlistType type>
+static const int __device__ c_fbufStride = c_clSizeSq<type>;
 /*! \brief i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set */
 static const unsigned __device__ superClInteractionMask =
         ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
@@ -455,15 +460,18 @@ static __forceinline__ __device__ float pmecorrF(float z2)
 /*! Final j-force reduction; this generic implementation works with
  *  arbitrary array sizes.
  */
+template<PairlistType type>
 static __forceinline__ __device__ void
                        reduce_force_j_generic(float* f_buf, float3* fout, int tidxi, int tidxj, int aidx)
 {
+    const int clusterSize  = c_clSize<type>;
+    const int bufferStride = c_fbufStride<type>;
     if (tidxi < 3)
     {
         float f = 0.0f;
-        for (int j = tidxj * c_clSize; j < (tidxj + 1) * c_clSize; j++)
+        for (int j = tidxj * clusterSize; j < (tidxj + 1) * clusterSize; j++)
         {
-            f += f_buf[c_fbufStride * tidxi + j];
+            f += f_buf[bufferStride * tidxi + j];
         }
 
         atomicAdd((&fout[aidx].x) + tidxi, f);
@@ -505,20 +513,19 @@ static __forceinline__ __device__ void
  *  arbitrary array sizes.
  * TODO: add the tidxi < 3 trick
  */
-static __forceinline__ __device__ void reduce_force_i_generic(float*  f_buf,
-                                                              float3* fout,
-                                                              float*  fshift_buf,
-                                                              bool    bCalcFshift,
-                                                              int     tidxi,
-                                                              int     tidxj,
-                                                              int     aidx)
+template<PairlistType type>
+static __forceinline__ __device__ void
+                       reduce_force_i_generic(float* f_buf, float3* fout, float* fshift_buf, bool bCalcFshift, int tidxi, int tidxj, int aidx)
 {
+    const int clusterSize        = c_clSize<type>;
+    const int squaredClusterSize = c_clSizeSq<type>;
+    const int bufferStride       = c_fbufStride<type>;
     if (tidxj < 3)
     {
         float f = 0.0f;
-        for (int j = tidxi; j < c_clSizeSq; j += c_clSize)
+        for (int j = tidxi; j < squaredClusterSize; j += clusterSize)
         {
-            f += f_buf[tidxj * c_fbufStride + j];
+            f += f_buf[tidxj * bufferStride + j];
         }
 
         atomicAdd(&fout[aidx].x + tidxj, f);
@@ -533,6 +540,7 @@ static __forceinline__ __device__ void reduce_force_i_generic(float*  f_buf,
 /*! Final i-force reduction; this implementation works only with power of two
  *  array sizes.
  */
+template<PairlistType type>
 static __forceinline__ __device__ void reduce_force_i_pow2(volatile float* f_buf,
                                                            float3*         fout,
                                                            float*          fshift_buf,
@@ -541,27 +549,30 @@ static __forceinline__ __device__ void reduce_force_i_pow2(volatile float* f_buf
                                                            int             tidxj,
                                                            int             aidx)
 {
-    int   i, j;
-    float f;
+    int       i, j;
+    float     f;
+    const int clusterSize        = c_clSize<type>;
+    const int squaredClusterSize = c_clSizeSq<type>;
+    const int bufferStride       = c_fbufStride<type>;
 
-    assert(c_clSize == 1 << c_clSizeLog2);
+    assert(clusterSize == 1 << squaredClusterSize);
 
-    /* Reduce the initial c_clSize values for each i atom to half
-     * every step by using c_clSize * i threads.
+    /* Reduce the initial clusterSize values for each i atom to half
+     * every step by using clusterSize * i threads.
      * Can't just use i as loop variable because than nvcc refuses to unroll.
      */
-    i = c_clSize / 2;
+    i = clusterSize / 2;
 #    pragma unroll 5
-    for (j = c_clSizeLog2 - 1; j > 0; j--)
+    for (j = squaredClusterSize - 1; j > 0; j--)
     {
         if (tidxj < i)
         {
 
-            f_buf[tidxj * c_clSize + tidxi] += f_buf[(tidxj + i) * c_clSize + tidxi];
-            f_buf[c_fbufStride + tidxj * c_clSize + tidxi] +=
-                    f_buf[c_fbufStride + (tidxj + i) * c_clSize + tidxi];
-            f_buf[2 * c_fbufStride + tidxj * c_clSize + tidxi] +=
-                    f_buf[2 * c_fbufStride + (tidxj + i) * c_clSize + tidxi];
+            f_buf[tidxj * clusterSize + tidxi] += f_buf[(tidxj + i) * clusterSize + tidxi];
+            f_buf[bufferStride + tidxj * clusterSize + tidxi] +=
+                    f_buf[bufferStride + (tidxj + i) * clusterSize + tidxi];
+            f_buf[2 * bufferStride + tidxj * clusterSize + tidxi] +=
+                    f_buf[2 * bufferStride + (tidxj + i) * clusterSize + tidxi];
         }
         i >>= 1;
     }
@@ -569,8 +580,8 @@ static __forceinline__ __device__ void reduce_force_i_pow2(volatile float* f_buf
     /* i == 1, last reduction step, writing to global mem */
     if (tidxj < 3)
     {
-        /* tidxj*c_fbufStride selects x, y or z */
-        f = f_buf[tidxj * c_fbufStride + tidxi] + f_buf[tidxj * c_fbufStride + i * c_clSize + tidxi];
+        /* tidxj*bufferStride selects x, y or z */
+        f = f_buf[tidxj * bufferStride + tidxi] + f_buf[tidxj * bufferStride + i * clusterSize + tidxi];
 
         atomicAdd(&(fout[aidx].x) + tidxj, f);
 
@@ -584,22 +595,25 @@ static __forceinline__ __device__ void reduce_force_i_pow2(volatile float* f_buf
 /*! Final i-force reduction wrapper; calls the generic or pow2 reduction depending
  *  on whether the size of the array to be reduced is power of two or not.
  */
+template<PairlistType type>
 static __forceinline__ __device__ void
                        reduce_force_i(float* f_buf, float3* f, float* fshift_buf, bool bCalcFshift, int tidxi, int tidxj, int ai)
 {
-    if ((c_clSize & (c_clSize - 1)))
+    const int clusterSize = c_clSize<type>;
+    if ((clusterSize & (clusterSize - 1)))
     {
-        reduce_force_i_generic(f_buf, f, fshift_buf, bCalcFshift, tidxi, tidxj, ai);
+        reduce_force_i_generic<type>(f_buf, f, fshift_buf, bCalcFshift, tidxi, tidxj, ai);
     }
     else
     {
-        reduce_force_i_pow2(f_buf, f, fshift_buf, bCalcFshift, tidxi, tidxj, ai);
+        reduce_force_i_pow2<type>(f_buf, f, fshift_buf, bCalcFshift, tidxi, tidxj, ai);
     }
 }
 
 /*! Final i-force reduction; this implementation works only with power of two
  *  array sizes.
  */
+template<PairlistType type>
 static __forceinline__ __device__ void reduce_force_i_warp_shfl(float3             fin,
                                                                 float3*            fout,
                                                                 float*             fshift_buf,
@@ -608,17 +622,18 @@ static __forceinline__ __device__ void reduce_force_i_warp_shfl(float3          
                                                                 int                aidx,
                                                                 const unsigned int activemask)
 {
-    fin.x += __shfl_down_sync(activemask, fin.x, c_clSize);
-    fin.y += __shfl_up_sync(activemask, fin.y, c_clSize);
-    fin.z += __shfl_down_sync(activemask, fin.z, c_clSize);
+    const int clusterSize = c_clSize<type>;
+    fin.x += __shfl_down_sync(activemask, fin.x, clusterSize);
+    fin.y += __shfl_up_sync(activemask, fin.y, clusterSize);
+    fin.z += __shfl_down_sync(activemask, fin.z, clusterSize);
 
     if (tidxj & 1)
     {
         fin.x = fin.y;
     }
 
-    fin.x += __shfl_down_sync(activemask, fin.x, 2 * c_clSize);
-    fin.z += __shfl_up_sync(activemask, fin.z, 2 * c_clSize);
+    fin.x += __shfl_down_sync(activemask, fin.x, 2 * clusterSize);
+    fin.z += __shfl_up_sync(activemask, fin.z, 2 * clusterSize);
 
     if (tidxj & 2)
     {
@@ -640,10 +655,12 @@ static __forceinline__ __device__ void reduce_force_i_warp_shfl(float3          
 /*! Energy reduction; this implementation works only with power of two
  *  array sizes.
  */
+template<PairlistType type>
 static __forceinline__ __device__ void
                        reduce_energy_pow2(volatile float* buf, float* e_lj, float* e_el, unsigned int tidx)
 {
-    float e1, e2;
+    float     e1, e2;
+    const int bufferStride = c_fbufStride<type>;
 
     unsigned int i = warp_size / 2;
 
@@ -654,7 +671,7 @@ static __forceinline__ __device__ void
         if (tidx < i)
         {
             buf[tidx] += buf[tidx + i];
-            buf[c_fbufStride + tidx] += buf[c_fbufStride + tidx + i];
+            buf[bufferStride + tidx] += buf[bufferStride + tidx + i];
         }
         i >>= 1;
     }
@@ -665,7 +682,7 @@ static __forceinline__ __device__ void
     if (tidx == 0)
     {
         e1 = buf[tidx] + buf[tidx + i];
-        e2 = buf[c_fbufStride + tidx] + buf[c_fbufStride + tidx + i];
+        e2 = buf[bufferStride + tidx] + buf[bufferStride + tidx + i];
 
         atomicAdd(e_lj, e1);
         atomicAdd(e_el, e2);

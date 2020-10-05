@@ -63,18 +63,39 @@
  *  The GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro allows compile-time override.
  */
 #ifndef GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
-#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY 4
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY8x8 4
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY4x4 8
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY8x8
+#else
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY8x8 GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY4x4 GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
 #endif
 /*! \brief Default for the prune kernel's j4 processing concurrency.
  *
  *  Initialized using the #GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro which allows compile-time override.
  */
-const int c_cudaPruneKernelJ4Concurrency = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY;
+constexpr int c_cudaPruneKernelJ4Concurrency8x8 = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY8x8;
+
+constexpr int c_cudaPruneKernelJ4Concurrency4x4 = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY4x4;
 
 /* TODO: consider moving this to kernel_utils */
 /* Convenience defines */
 /*! \brief cluster size = number of atoms per cluster. */
-static constexpr int c_clSize = c_nbnxnGpuClusterSize;
+template<PairlistType type>
+static constexpr int c_clSize = nbnxnGpuClusterSize<type>();
+
+template<PairlistType type>
+constexpr int c_cudaPruneKernelJ4ConcurrencyTypeDependentSafe()
+{
+    static_assert(type == PairlistType::Hierarchical8x8 || type == PairlistType::Hierarchical4x4,
+                  "Pairlist type needs to be a GPU pairlist");
+    return type == PairlistType::Hierarchical8x8 ? c_cudaPruneKernelJ4Concurrency8x8
+                                                 : c_cudaPruneKernelJ4Concurrency4x4;
+}
+
+template<PairlistType type>
+static constexpr int c_cudaPruneKernelJ4ConcurrencyTypeDependent =
+        c_cudaPruneKernelJ4ConcurrencyTypeDependentSafe<type>();
 
 /* All structs prefixed with "cu_" hold data used in GPU calculations and
  * are passed to the kernels, except cu_timers_t. */
@@ -147,6 +168,7 @@ class GpuEventSynchronizer;
 /*! \internal
  * \brief Main data structure for CUDA nonbonded force calculations.
  */
+template<PairlistType type>
 struct NbnxmGpu
 {
     /*! \brief GPU device context.
@@ -179,7 +201,7 @@ struct NbnxmGpu
     /*! \brief parameters required for the non-bonded calc. */
     NBParamGpu* nbparam = nullptr;
     /*! \brief pair-list data structures (local and non-local) */
-    gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist*> plist = { { nullptr } };
+    gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist<type>*> plist = { { nullptr } };
     /*! \brief staging area where fshift/energies get downloaded */
     nb_staging_t nbst;
     /*! \brief local and non-local GPU streams */

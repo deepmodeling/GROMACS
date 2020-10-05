@@ -124,7 +124,10 @@ static inline InteractionLocality gpuAtomToInteractionLocality(const AtomLocalit
 
 
 //NOLINTNEXTLINE(misc-definitions-in-headers)
-void setupGpuShortRangeWork(NbnxmGpu* nb, const gmx::GpuBonded* gpuBonded, const gmx::InteractionLocality iLocality)
+template<PairlistType type>
+void setupGpuShortRangeWork(NbnxmGpu<type>*                nb,
+                            const gmx::GpuBonded*          gpuBonded,
+                            const gmx::InteractionLocality iLocality)
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
@@ -135,6 +138,16 @@ void setupGpuShortRangeWork(NbnxmGpu* nb, const gmx::GpuBonded* gpuBonded, const
                                || (gpuBonded != nullptr && gpuBonded->haveInteractions()));
 }
 
+template void
+setupGpuShortRangeWork<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                      const gmx::GpuBonded*          gpuBonded,
+                                                      const gmx::InteractionLocality iLocality);
+
+template void
+setupGpuShortRangeWork<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                      const gmx::GpuBonded*          gpuBonded,
+                                                      const gmx::InteractionLocality iLocality);
+
 /*! \brief Returns true if there is GPU short-range work for the given interaction locality.
  *
  * Note that as, unlike nonbonded tasks, bonded tasks are not split into local/nonlocal,
@@ -144,19 +157,26 @@ void setupGpuShortRangeWork(NbnxmGpu* nb, const gmx::GpuBonded* gpuBonded, const
  * \param[inout]  nb        Pointer to the nonbonded GPU data structure
  * \param[in]     iLocality Interaction locality identifier
  */
-static bool haveGpuShortRangeWork(const NbnxmGpu& nb, const gmx::InteractionLocality iLocality)
+template<PairlistType type>
+static bool haveGpuShortRangeWork(const NbnxmGpu<type>& nb, const gmx::InteractionLocality iLocality)
 {
     return nb.haveWork[iLocality];
 }
 
 //NOLINTNEXTLINE(misc-definitions-in-headers)
-bool haveGpuShortRangeWork(const NbnxmGpu* nb, const gmx::AtomLocality aLocality)
+template<PairlistType type>
+bool haveGpuShortRangeWork(const NbnxmGpu<type>* nb, const gmx::AtomLocality aLocality)
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
     return haveGpuShortRangeWork(*nb, gpuAtomToInteractionLocality(aLocality));
 }
 
+template bool haveGpuShortRangeWork<PairlistType::Hierarchical8x8>(const NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                   const gmx::AtomLocality aLocality);
+
+template bool haveGpuShortRangeWork<PairlistType::Hierarchical4x4>(const NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                   const gmx::AtomLocality aLocality);
 
 /*! \brief Calculate atom range and return start index and length.
  *
@@ -166,10 +186,10 @@ bool haveGpuShortRangeWork(const NbnxmGpu* nb, const gmx::AtomLocality aLocality
  * \param[out] atomRangeLen Atom range length in the atom data array.
  */
 template<typename AtomDataT>
-static inline void getGpuAtomRange(const AtomDataT*   atomData,
-                                   const AtomLocality atomLocality,
-                                   int*               atomRangeBegin,
-                                   int*               atomRangeLen)
+static inline void getGpuAtomRange(const AtomDataT* atomData,
+                                   AtomLocality     atomLocality,
+                                   int*             atomRangeBegin,
+                                   int*             atomRangeLen)
 {
     assert(atomData);
     validateGpuAtomLocality(atomLocality);
@@ -362,7 +382,8 @@ static inline void gpu_accumulate_timings(gmx_wallclock_gpu_nbnxn_t* timings,
  * objects.
  */
 //NOLINTNEXTLINE(misc-definitions-in-headers)
-bool gpu_try_finish_task(NbnxmGpu*                nb,
+template<PairlistType type>
+bool gpu_try_finish_task(NbnxmGpu<type>*          nb,
                          const gmx::StepWorkload& stepWork,
                          const AtomLocality       aloc,
                          real*                    e_lj,
@@ -439,6 +460,24 @@ bool gpu_try_finish_task(NbnxmGpu*                nb,
     return true;
 }
 
+template bool gpu_try_finish_task<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                 const gmx::StepWorkload& stepWork,
+                                                                 const AtomLocality       aloc,
+                                                                 real*                    e_lj,
+                                                                 real*                    e_el,
+                                                                 gmx::ArrayRef<gmx::RVec> shiftForces,
+                                                                 GpuTaskCompletion completionKind,
+                                                                 gmx_wallcycle*    wcycle);
+
+template bool gpu_try_finish_task<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                 const gmx::StepWorkload& stepWork,
+                                                                 const AtomLocality       aloc,
+                                                                 real*                    e_lj,
+                                                                 real*                    e_el,
+                                                                 gmx::ArrayRef<gmx::RVec> shiftForces,
+                                                                 GpuTaskCompletion completionKind,
+                                                                 gmx_wallcycle*    wcycle);
+
 /*! \brief
  * Wait for the asynchronously launched nonbonded tasks and data
  * transfers to finish.
@@ -457,7 +496,8 @@ bool gpu_try_finish_task(NbnxmGpu*                nb,
  * \return            The number of cycles the gpu wait took
  */
 //NOLINTNEXTLINE(misc-definitions-in-headers) TODO: move into source file
-float gpu_wait_finish_task(NbnxmGpu*                nb,
+template<PairlistType type>
+float gpu_wait_finish_task(NbnxmGpu<type>*          nb,
                            const gmx::StepWorkload& stepWork,
                            AtomLocality             aloc,
                            real*                    e_lj,
@@ -475,6 +515,22 @@ float gpu_wait_finish_task(NbnxmGpu*                nb,
 
     return waitTime;
 }
+
+template float gpu_wait_finish_task<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                   const gmx::StepWorkload& stepWork,
+                                                                   AtomLocality             aloc,
+                                                                   real*                    e_lj,
+                                                                   real*                    e_el,
+                                                                   gmx::ArrayRef<gmx::RVec> shiftForces,
+                                                                   gmx_wallcycle*           wcycle);
+
+template float gpu_wait_finish_task<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                   const gmx::StepWorkload& stepWork,
+                                                                   AtomLocality             aloc,
+                                                                   real*                    e_lj,
+                                                                   real*                    e_el,
+                                                                   gmx::ArrayRef<gmx::RVec> shiftForces,
+                                                                   gmx_wallcycle*           wcycle);
 
 } // namespace Nbnxm
 

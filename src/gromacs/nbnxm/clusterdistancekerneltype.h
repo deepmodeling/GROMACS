@@ -57,16 +57,22 @@ enum class ClusterDistanceKernelType : int
     CpuPlainC,    //!< Plain-C for CPU list
     CpuSimd_4xM,  //!< SIMD for CPU list for j-cluster size matching the SIMD width
     CpuSimd_2xMM, //!< SIMD for CPU list for j-cluster size matching half the SIMD width
-    Gpu           //!< For GPU list, can be either plain-C or SIMD
+    Gpu8x8,       //!< For GPU cluster geometry of 8x8, can be either plain-C or SIMD
+    Gpu4x4,       //!< For GPU cluster geometry of 4x4, can be either plain-C or SIMD
+    Count         //!< Number of entries.
 };
 
 //! Return the cluster distance kernel type given the pairlist type and atomdata
 static inline ClusterDistanceKernelType getClusterDistanceKernelType(const PairlistType pairlistType,
                                                                      const nbnxn_atomdata_t& atomdata)
 {
-    if (pairlistType == PairlistType::HierarchicalNxN)
+    if (pairlistType == PairlistType::Hierarchical8x8)
     {
-        return ClusterDistanceKernelType::Gpu;
+        return ClusterDistanceKernelType::Gpu8x8;
+    }
+    else if (pairlistType == PairlistType::Hierarchical4x4)
+    {
+        return ClusterDistanceKernelType::Gpu4x4;
     }
     else if (atomdata.XFormat == nbatXYZ)
     {

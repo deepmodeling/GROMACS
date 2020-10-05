@@ -114,6 +114,7 @@
 #include <memory>
 
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/locality.h"
 #include "gromacs/utility/arrayref.h"
@@ -125,13 +126,14 @@ struct gmx_domdec_zones_t;
 struct gmx_enerdata_t;
 struct gmx_hw_info_t;
 struct gmx_mtop_t;
+template<PairlistType>
 struct NbnxmGpu;
 struct gmx_wallcycle;
 struct interaction_const_t;
 struct nbnxn_atomdata_t;
-struct nonbonded_verlet_t;
 class PairSearch;
 class PairlistSets;
+struct nonbonded_verlet_t;
 struct t_commrec;
 struct t_lambda;
 struct t_mdatoms;
@@ -172,6 +174,8 @@ enum class KernelType : int
     Cpu4xN_Simd_2xNN,
     Gpu8x8x8,
     Cpu8x8x8_PlainC,
+    Gpu4x4x8,
+    Cpu4x4x8_PlainC,
     Count
 };
 
@@ -215,22 +219,29 @@ struct nonbonded_verlet_t
 {
 public:
     //! Constructs an object from its components
-    nonbonded_verlet_t(std::unique_ptr<PairlistSets>     pairlistSets,
-                       std::unique_ptr<PairSearch>       pairSearch,
-                       std::unique_ptr<nbnxn_atomdata_t> nbat,
-                       const Nbnxm::KernelSetup&         kernelSetup,
-                       NbnxmGpu*                         gpu_nbv,
-                       gmx_wallcycle*                    wcycle);
+    nonbonded_verlet_t(std::unique_ptr<PairlistSets>            pairlistSets,
+                       std::unique_ptr<PairSearch>              pairSearch,
+                       std::unique_ptr<nbnxn_atomdata_t>        nbat,
+                       const Nbnxm::KernelSetup&                kernelSetup,
+                       NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv8x8,
+                       NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv4x4,
+                       gmx_wallcycle*                           wcycle);
 
     ~nonbonded_verlet_t();
 
+    //! Whether we are using a 8x8 pairlist.
+    bool useGpu8x8() const { return kernelSetup_.kernelType == Nbnxm::KernelType::Gpu8x8x8; }
+    //! Whether we are using a 4x4 pairlist.
+    bool useGpu4x4() const { return kernelSetup_.kernelType == Nbnxm::KernelType::Gpu4x4x8; }
+
     //! Returns whether a GPU is use for the non-bonded calculations
-    bool useGpu() const { return kernelSetup_.kernelType == Nbnxm::KernelType::Gpu8x8x8; }
+    bool useGpu() const { return useGpu8x8() || useGpu4x4(); }
 
     //! Returns whether a GPU is emulated for the non-bonded calculations
     bool emulateGpu() const
     {
-        return kernelSetup_.kernelType == Nbnxm::KernelType::Cpu8x8x8_PlainC;
+        return kernelSetup_.kernelType == Nbnxm::KernelType::Cpu8x8x8_PlainC
+               || kernelSetup_.kernelType == Nbnxm::KernelType::Cpu4x4x8_PlainC;
     }
 
     //! Return whether the pairlist is of simple, CPU type
@@ -403,7 +414,9 @@ private:
 
 public:
     //! GPU Nbnxm data, only used with a physical GPU (TODO: use unique_ptr)
-    NbnxmGpu* gpu_nbv;
+    NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv8x8;
+    //! GPU Nbnxm data, only used with a physical GPU (TODO: use unique_ptr)
+    NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv4x4;
 };
 
 namespace Nbnxm

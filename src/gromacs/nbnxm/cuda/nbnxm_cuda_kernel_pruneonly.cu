@@ -38,8 +38,29 @@
 
 #ifndef FUNCTION_DECLARATION_ONLY
 /* Instantiate external template functions */
-template __global__ void
-nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
-template __global__ void
-nbnxn_kernel_prune_cuda<true>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
+template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical8x8, false>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical8x8>,
+        int,
+        int);
+template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical4x4, true>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical4x4>,
+        int,
+        int);
+
+template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical8x8, true>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical8x8>,
+        int,
+        int);
+template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical4x4, false>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical4x4>,
+        int,
+        int);
 #endif

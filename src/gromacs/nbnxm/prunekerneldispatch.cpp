@@ -104,9 +104,22 @@ void nonbonded_verlet_t::dispatchPruneKernelGpu(int64_t step)
     const bool stepIsEven =
             (pairlistSets().numStepsWithPairlist(step) % (2 * pairlistSets().params().mtsFactor) == 0);
 
-    Nbnxm::gpu_launch_kernel_pruneonly(
-            gpu_nbv, stepIsEven ? gmx::InteractionLocality::Local : gmx::InteractionLocality::NonLocal,
-            pairlistSets().params().numRollingPruningParts);
+    switch (kernelSetup().kernelType)
+    {
+        case Nbnxm::KernelType::Gpu8x8x8:
+            Nbnxm::gpu_launch_kernel_pruneonly<PairlistType::Hierarchical8x8>(
+                    gpu_nbv8x8,
+                    stepIsEven ? gmx::InteractionLocality::Local : gmx::InteractionLocality::NonLocal,
+                    pairlistSets().params().numRollingPruningParts);
+            break;
+        case Nbnxm::KernelType::Gpu4x4x8:
+            Nbnxm::gpu_launch_kernel_pruneonly<PairlistType::Hierarchical4x4>(
+                    gpu_nbv4x4,
+                    stepIsEven ? gmx::InteractionLocality::Local : gmx::InteractionLocality::NonLocal,
+                    pairlistSets().params().numRollingPruningParts);
+            break;
+        default: GMX_ASSERT(false, "Unhandled statement");
+    }
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_GPU_NONBONDED);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);

@@ -45,10 +45,12 @@
 #ifndef GMX_NBNXM_KERNELS_REFERENCE_KERNEL_GPU_REF_H
 #define GMX_NBNXM_KERNELS_REFERENCE_KERNEL_GPU_REF_H
 
+#include "gromacs/nbnxm/pairlistparams.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/real.h"
 
+template<PairlistType>
 struct NbnxnPairlistGpu;
 struct nbnxn_atomdata_t;
 struct interaction_const_t;
@@ -60,15 +62,41 @@ class StepWorkload;
 }
 
 //! Reference (slow) kernel for nb n vs n GPU type pair lists
-void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu*    nbl,
-                          const nbnxn_atomdata_t*    nbat,
-                          const interaction_const_t* iconst,
-                          rvec*                      shift_vec,
-                          const gmx::StepWorkload&   stepWork,
-                          int                        clearF,
-                          gmx::ArrayRef<real>        f,
-                          real*                      fshift,
-                          real*                      Vc,
-                          real*                      Vvdw);
+template<PairlistType type>
+void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu<type>* nbl,
+                          const nbnxn_atomdata_t*       nbat,
+                          const interaction_const_t*    iconst,
+                          rvec*                         shift_vec,
+                          const gmx::StepWorkload&      stepWork,
+                          int                           clearF,
+                          gmx::ArrayRef<real>           f,
+                          real*                         fshift,
+                          real*                         Vc,
+                          real*                         Vvdw);
+
+extern template void nbnxn_kernel_gpu_ref<PairlistType::Hierarchical8x8>(
+        const NbnxnPairlistGpu<PairlistType::Hierarchical8x8>* nbl,
+        const nbnxn_atomdata_t*                                nbat,
+        const interaction_const_t*                             iconst,
+        rvec*                                                  shift_vec,
+        const gmx::StepWorkload&                               stepWork,
+        int                                                    clearF,
+        gmx::ArrayRef<real>                                    f,
+        real*                                                  fshift,
+        real*                                                  Vc,
+        real*                                                  Vvdw);
+
+extern template void nbnxn_kernel_gpu_ref<PairlistType::Hierarchical4x4>(
+        const NbnxnPairlistGpu<PairlistType::Hierarchical4x4>* nbl,
+        const nbnxn_atomdata_t*                                nbat,
+        const interaction_const_t*                             iconst,
+        rvec*                                                  shift_vec,
+        const gmx::StepWorkload&                               stepWork,
+        int                                                    clearF,
+        gmx::ArrayRef<real>                                    f,
+        real*                                                  fshift,
+        real*                                                  Vc,
+        real*                                                  Vvdw);
+
 
 #endif

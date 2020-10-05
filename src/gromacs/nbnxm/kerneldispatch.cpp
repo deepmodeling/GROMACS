@@ -368,7 +368,9 @@ static void accountFlops(t_nrnb*                    nrnb,
                          const interaction_const_t& ic,
                          const gmx::StepWorkload&   stepWork)
 {
-    const bool usingGpuKernels = nbv.useGpu();
+    const bool usingGpuKernels    = nbv.useGpu();
+    const bool usingGpuKernels8x8 = nbv.useGpu8x8();
+    const bool usingGpuKernels4x4 = nbv.useGpu4x4();
 
     int enr_nbnxn_kernel_ljc;
     if (EEL_RF(ic.eeltype) || ic.eeltype == eelCUT)
@@ -376,7 +378,8 @@ static void accountFlops(t_nrnb*                    nrnb,
         enr_nbnxn_kernel_ljc = eNR_NBNXN_LJ_RF;
     }
     else if ((!usingGpuKernels && nbv.kernelSetup().ewaldExclusionType == Nbnxm::EwaldExclusionType::Analytical)
-             || (usingGpuKernels && Nbnxm::gpu_is_kernel_ewald_analytical(nbv.gpu_nbv)))
+             || (usingGpuKernels8x8 && Nbnxm::gpu_is_kernel_ewald_analytical(nbv.gpu_nbv8x8))
+             || (usingGpuKernels4x4 && Nbnxm::gpu_is_kernel_ewald_analytical(nbv.gpu_nbv4x4)))
     {
         enr_nbnxn_kernel_ljc = eNR_NBNXN_LJ_EWALD;
     }
@@ -439,15 +442,26 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
             break;
 
         case Nbnxm::KernelType::Gpu8x8x8:
-            Nbnxm::gpu_launch_kernel(gpu_nbv, stepWork, iLocality);
+            Nbnxm::gpu_launch_kernel<PairlistType::Hierarchical8x8>(gpu_nbv8x8, stepWork, iLocality);
+            break;
+
+        case Nbnxm::KernelType::Gpu4x4x8:
+            Nbnxm::gpu_launch_kernel<PairlistType::Hierarchical4x4>(gpu_nbv4x4, stepWork, iLocality);
             break;
 
         case Nbnxm::KernelType::Cpu8x8x8_PlainC:
-            nbnxn_kernel_gpu_ref(
-                    pairlistSet.gpuList(), nbat.get(), &ic, fr.shift_vec, stepWork, clearF,
+            nbnxn_kernel_gpu_ref<PairlistType::Hierarchical8x8>(
+                    pairlistSet.gpuList8x8(), nbat.get(), &ic, fr.shift_vec, stepWork, clearF,
                     nbat->out[0].f, nbat->out[0].fshift.data(), enerd->grpp.ener[egCOULSR].data(),
                     fr.bBHAM ? enerd->grpp.ener[egBHAMSR].data() : enerd->grpp.ener[egLJSR].data());
             break;
+        case Nbnxm::KernelType::Cpu4x4x8_PlainC:
+            nbnxn_kernel_gpu_ref<PairlistType::Hierarchical4x4>(
+                    pairlistSet.gpuList4x4(), nbat.get(), &ic, fr.shift_vec, stepWork, clearF,
+                    nbat->out[0].f, nbat->out[0].fshift.data(), enerd->grpp.ener[egCOULSR].data(),
+                    fr.bBHAM ? enerd->grpp.ener[egBHAMSR].data() : enerd->grpp.ener[egLJSR].data());
+            break;
+
 
         default: GMX_RELEASE_ASSERT(false, "Invalid nonbonded kernel type passed!");
     }

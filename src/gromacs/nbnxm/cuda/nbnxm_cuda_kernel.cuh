@@ -48,6 +48,7 @@
 
 #include "gromacs/gpu_utils/cuda_arch_utils.cuh"
 #include "gromacs/gpu_utils/cuda_kernel_utils.cuh"
+#include "gromacs/nbnxm/pairlist.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/pbcutil/ishift.h"
 /* Note that floating-point constants in CUDA code should be suffixed
@@ -137,12 +138,18 @@
 #    define NTHREAD_Z (1)
 #    define MIN_BLOCKS_PER_MP (16)
 #endif /* GMX_PTX_ARCH == 370 */
-#define THREADS_PER_BLOCK (c_clSize * c_clSize * NTHREAD_Z)
+#define THREADS_PER_BLOCK (c_clSize<type> * c_clSize<type> * NTHREAD_Z)
+#define THREADS_PER_BLOCK8x8 \
+    (c_clSize<PairlistType::Hierarchical8x8> * c_clSize<PairlistType::Hierarchical8x8> * NTHREAD_Z)
+#define THREADS_PER_BLOCK4x4 \
+    (c_clSize<PairlistType::Hierarchical4x4> * c_clSize<PairlistType::Hierarchical4x4> * NTHREAD_Z)
 
 #if GMX_PTX_ARCH >= 350
 /**@}*/
+template<PairlistType type>
 __launch_bounds__(THREADS_PER_BLOCK, MIN_BLOCKS_PER_MP)
 #else
+template<PairlistType type>
 __launch_bounds__(THREADS_PER_BLOCK)
 #endif /* GMX_PTX_ARCH >= 350 */
 #ifdef PRUNE_NBL
@@ -158,7 +165,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 #endif     /* PRUNE_NBL */
-                (const cu_atomdata_t atdat, const NBParamGpu nbparam, const Nbnxm::gpu_plist plist, bool bCalcFshift)
+                (const cu_atomdata_t atdat, const NBParamGpu nbparam, const Nbnxm::gpu_plist<type> plist, bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY
                         ; /* Only do function declaration, omit the function body. */
 #else
@@ -168,46 +175,46 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifndef PRUNE_NBL
     const
 #    endif
-            nbnxn_cj4_t* pl_cj4      = plist.cj4;
-    const nbnxn_excl_t*  excl        = plist.excl;
+            nbnxn_cj4_t*      pl_cj4      = plist.cj4;
+    const nbnxn_excl_t<type>* excl        = plist.excl;
 #    ifndef LJ_COMB
-    const int*           atom_types  = atdat.atom_types;
-    int                  ntypes      = atdat.ntypes;
+    const int*                atom_types  = atdat.atom_types;
+    int                       ntypes      = atdat.ntypes;
 #    else
     const float2* lj_comb = atdat.lj_comb;
     float2        ljcp_i, ljcp_j;
 #    endif
-    const float4*        xq          = atdat.xq;
-    float3*              f           = atdat.f;
-    const float3*        shift_vec   = atdat.shift_vec;
-    float                rcoulomb_sq = nbparam.rcoulomb_sq;
+    const float4*             xq          = atdat.xq;
+    float3*                   f           = atdat.f;
+    const float3*             shift_vec   = atdat.shift_vec;
+    float                     rcoulomb_sq = nbparam.rcoulomb_sq;
 #    ifdef VDW_CUTOFF_CHECK
-    float                rvdw_sq     = nbparam.rvdw_sq;
-    float                vdw_in_range;
+    float                     rvdw_sq     = nbparam.rvdw_sq;
+    float                     vdw_in_range;
 #    endif
 #    ifdef LJ_EWALD
-    float                lje_coeff2, lje_coeff6_6;
+    float                     lje_coeff2, lje_coeff6_6;
 #    endif
 #    ifdef EL_RF
-    float                two_k_rf    = nbparam.two_k_rf;
+    float                     two_k_rf = nbparam.two_k_rf;
 #    endif
 #    ifdef EL_EWALD_ANA
-    float                beta2       = nbparam.ewald_beta * nbparam.ewald_beta;
-    float                beta3       = nbparam.ewald_beta * nbparam.ewald_beta * nbparam.ewald_beta;
+    float                     beta2    = nbparam.ewald_beta * nbparam.ewald_beta;
+    float                     beta3 = nbparam.ewald_beta * nbparam.ewald_beta * nbparam.ewald_beta;
 #    endif
 #    ifdef PRUNE_NBL
-    float                rlist_sq    = nbparam.rlistOuter_sq;
+    float                     rlist_sq    = nbparam.rlistOuter_sq;
 #    endif
 
 #    ifdef CALC_ENERGIES
 #        ifdef EL_EWALD_ANY
-    float                beta        = nbparam.ewald_beta;
-    float                ewald_shift = nbparam.sh_ewald;
+    float                     beta        = nbparam.ewald_beta;
+    float                     ewald_shift = nbparam.sh_ewald;
 #        else
     float c_rf = nbparam.c_rf;
 #        endif /* EL_EWALD_ANY */
-    float*               e_lj        = atdat.e_lj;
-    float*               e_el        = atdat.e_el;
+    float*                    e_lj        = atdat.e_lj;
+    float*                    e_el        = atdat.e_el;
 #    endif     /* CALC_ENERGIES */
 
     /* thread/block/warp id-s */
@@ -250,6 +257,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     /*! i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set */
     const unsigned superClInteractionMask = ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
 
+    const int clusterSize = c_clSize<type>;
+
     /*********************************************************************
      * Set up shared memory pointers.
      * sm_nextSlotPtr should always be updated to point to the "next slot",
@@ -262,7 +271,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
     /* shmem buffer for i x+q pre-loading */
     float4* xqib = (float4*)sm_nextSlotPtr;
-    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(*xqib));
+    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * clusterSize * sizeof(*xqib));
 
     /* shmem buffer for cj, for each warp separately */
     int* cjs = (int*)(sm_nextSlotPtr);
@@ -273,11 +282,11 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifndef LJ_COMB
     /* shmem buffer for i atom-type pre-loading */
     int* atib = (int*)sm_nextSlotPtr;
-    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(*atib));
+    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * clusterSize * sizeof(*atib));
 #    else
     /* shmem buffer for i-atom LJ combination rule parameters */
     float2* ljcpib = (float2*)sm_nextSlotPtr;
-    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(*ljcpib));
+    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * clusterSize * sizeof(*ljcpib));
 #    endif
     /*********************************************************************/
 
@@ -290,19 +299,19 @@ __launch_bounds__(THREADS_PER_BLOCK)
     {
         /* Pre-load i-atom x and q into shared memory */
         ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj;
-        ai = ci * c_clSize + tidxi;
+        ai = ci * clusterSize + tidxi;
 
         float* shiftptr = (float*)&shift_vec[nb_sci.shift];
         xqbuf = xq[ai] + make_float4(LDG(shiftptr), LDG(shiftptr + 1), LDG(shiftptr + 2), 0.0f);
         xqbuf.w *= nbparam.epsfac;
-        xqib[tidxj * c_clSize + tidxi] = xqbuf;
+        xqib[tidxj * clusterSize + tidxi] = xqbuf;
 
 #    ifndef LJ_COMB
         /* Pre-load the i-atom types into shared memory */
-        atib[tidxj * c_clSize + tidxi] = atom_types[ai];
+        atib[tidxj * clusterSize + tidxi] = atom_types[ai];
 #    else
         /* Pre-load the LJ combination parameters into shared memory */
-        ljcpib[tidxj * c_clSize + tidxi] = lj_comb[ai];
+        ljcpib[tidxj * clusterSize + tidxi] = lj_comb[ai];
 #    endif
     }
     __syncthreads();
@@ -330,7 +339,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         for (i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
         {
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
-            qi = xqib[i * c_clSize + tidxi].w;
+            qi = xqib[i * clusterSize + tidxi].w;
             E_el += qi * qi;
 #            endif
 
@@ -341,7 +350,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #                else
             E_lj += tex1Dfetch<float>(
                     nbparam.nbfp_texobj,
-                    atom_types[(sci * c_nbnxnGpuNumClusterPerSupercluster + i) * c_clSize + tidxi]
+                    atom_types[(sci * c_nbnxnGpuNumClusterPerSupercluster + i) * clusterSize + tidxi]
                             * (ntypes + 1) * 2);
 #                endif
 #            endif
@@ -349,13 +358,13 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
         /* divide the self term(s) equally over the j-threads, then multiply with the coefficients. */
 #            ifdef LJ_EWALD
-        E_lj /= c_clSize * NTHREAD_Z;
+        E_lj /= clusterSize * NTHREAD_Z;
         E_lj *= 0.5f * c_oneSixth * lje_coeff6_6;
 #            endif
 
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
         /* Correct for epsfac^2 due to adding qi^2 */
-        E_el /= nbparam.epsfac * c_clSize * NTHREAD_Z;
+        E_el /= nbparam.epsfac * clusterSize * NTHREAD_Z;
 #                if defined EL_RF || defined EL_CUTOFF
         E_el *= -0.5f * c_rf;
 #                else
@@ -388,7 +397,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
             /* Pre-load cj into shared memory on both warps separately */
             if ((tidxj == 0 | tidxj == 4) & (tidxi < c_nbnxnGpuJgroupSize))
             {
-                cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = pl_cj4[j4].cj[tidxi];
+                cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize<type>] = pl_cj4[j4].cj[tidxi];
             }
             __syncwarp(c_fullWarpMask);
 
@@ -402,8 +411,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                 {
                     mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
 
-                    cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
-                    aj = cj * c_clSize + tidxj;
+                    cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize<type>];
+                    aj = cj * clusterSize + tidxj;
 
                     /* load j atom data */
                     xqbuf = xq[aj];
@@ -427,7 +436,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                             ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i; /* i cluster index */
 
                             /* all threads load an atom from i cluster ci into shmem! */
-                            xqbuf = xqib[i * c_clSize + tidxi];
+                            xqbuf = xqib[i * clusterSize + tidxi];
                             xi    = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
 
                             /* distance between i and j atoms */
@@ -458,10 +467,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifndef LJ_COMB
                                 /* LJ 6*C6 and 12*C12 */
-                                typei = atib[i * c_clSize + tidxi];
+                                typei = atib[i * clusterSize + tidxi];
                                 fetch_nbfp_c6_c12(c6, c12, nbparam, ntypes * typei + typej);
 #    else
-                                ljcp_i       = ljcpib[i * c_clSize + tidxi];
+                                ljcp_i       = ljcpib[i * clusterSize + tidxi];
 #        ifdef LJ_COMB_GEOM
                                 c6           = ljcp_i.x * ljcp_j.x;
                                 c12          = ljcp_i.y * ljcp_j.y;
@@ -632,8 +641,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     /* reduce i forces */
     for (i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
     {
-        ai = (sci * c_nbnxnGpuNumClusterPerSupercluster + i) * c_clSize + tidxi;
-        reduce_force_i_warp_shfl(fci_buf[i], f, &fshift_buf, bCalcFshift, tidxj, ai, c_fullWarpMask);
+        ai = (sci * c_nbnxnGpuNumClusterPerSupercluster + i) * clusterSize + tidxi;
+        reduce_force_i_warp_shfl<type>(fci_buf[i], f, &fshift_buf, bCalcFshift, tidxj, ai, c_fullWarpMask);
     }
 
     /* add up local shift forces into global mem, tidxj indexes x,y,z */
@@ -649,9 +658,59 @@ __launch_bounds__(THREADS_PER_BLOCK)
 }
 #endif /* FUNCTION_DECLARATION_ONLY */
 
+#ifndef FUNCTION_DECLARATION_ONLY
+#    if GMX_PTX_ARCH >= 350
+template __launch_bounds__(THREADS_PER_BLOCK8x8, MIN_BLOCKS_PER_MP)
+#    else
+template __launch_bounds__(THREADS_PER_BLOCK8x8)
+#    endif /* GMX_PTX_ARCH >= 350 */
+#    ifdef PRUNE_NBL
+#        ifdef CALC_ENERGIES
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_prune_cuda)
+#        else
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_prune_cuda)
+#        endif /* CALC_ENERGIES */
+#    else
+#        ifdef CALC_ENERGIES
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_cuda)
+#        else
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
+#        endif /* CALC_ENERGIES */
+#    endif     /* PRUNE_NBL */
+        <PairlistType::Hierarchical8x8>(const cu_atomdata_t atdat,
+                                        const NBParamGpu    nbparam,
+                                        const Nbnxm::gpu_plist<PairlistType::Hierarchical8x8> plist,
+                                        bool bCalcFshift);
+#    if GMX_PTX_ARCH >= 350
+template __launch_bounds__(THREADS_PER_BLOCK4x4, MIN_BLOCKS_PER_MP)
+#    else
+template __launch_bounds__(THREADS_PER_BLOCK4x4)
+#    endif /* GMX_PTX_ARCH >= 350 */
+#    ifdef PRUNE_NBL
+#        ifdef CALC_ENERGIES
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_prune_cuda)
+#        else
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_prune_cuda)
+#        endif /* CALC_ENERGIES */
+#    else
+#        ifdef CALC_ENERGIES
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_cuda)
+#        else
+        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
+#        endif /* CALC_ENERGIES */
+#    endif     /* PRUNE_NBL */
+        <PairlistType::Hierarchical4x4>(const cu_atomdata_t atdat,
+                                        const NBParamGpu    nbparam,
+                                        const Nbnxm::gpu_plist<PairlistType::Hierarchical4x4> plist,
+                                        bool bCalcFshift);
+#endif
+
+
 #undef NTHREAD_Z
 #undef MIN_BLOCKS_PER_MP
 #undef THREADS_PER_BLOCK
+#undef THREADS_PER_BLOCK8x8
+#undef THREADS_PER_BLOCK4x4
 
 #undef EL_EWALD_ANY
 #undef EXCLUSION_FORCES

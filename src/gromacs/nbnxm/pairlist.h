@@ -50,6 +50,8 @@
 #include "pairlistparams.h"
 
 struct NbnxnPairlistCpuWork;
+enum class PairlistType : int;
+template<PairlistType>
 struct NbnxnPairlistGpuWork;
 struct t_nblist;
 
@@ -205,6 +207,7 @@ typedef struct
 } nbnxn_cj4_t;
 
 //! Struct for storing the atom-pair interaction bits for a cluster pair in a GPU pairlist
+template<PairlistType type>
 struct nbnxn_excl_t
 {
     //! Constructor, sets no exclusions, so all atom pairs interacting
@@ -219,7 +222,7 @@ struct nbnxn_excl_t
     MSVC_DIAGNOSTIC_RESET
 
     //! Topology exclusion interaction bits per warp
-    unsigned int pair[c_nbnxnGpuExclSize];
+    unsigned int pair[c_nbnxnGpuExclSize<type>];
 };
 
 //! Cluster pairlist type for use on CPUs
@@ -264,6 +267,7 @@ struct NbnxnPairlistCpu
  *       all vectors should use default initialization. But when
  *       changing this, excl should be intialized when adding entries.
  */
+template<PairlistType type>
 struct NbnxnPairlistGpu
 {
     /*! \brief Constructor
@@ -283,20 +287,23 @@ struct NbnxnPairlistGpu
     int na_sc;
     //! The radius for constructing the list
     real rlist;
-    // The i-super-cluster list, indexes into cj4;
+    //! The i-super-cluster list, indexes into cj4;
     gmx::HostVector<nbnxn_sci_t> sci;
-    // The list of 4*j-cluster groups
+    //! The list of 4*j-cluster groups
     gmx::HostVector<nbnxn_cj4_t> cj4;
-    // Atom interaction bits (non-exclusions)
-    gmx::HostVector<nbnxn_excl_t> excl;
+    //! Atom interaction bits (non-exclusions), default
+    gmx::HostVector<nbnxn_excl_t<type>> excl;
     // The total number of i-clusters
     int nci_tot;
 
     //! Working data storage for list construction
-    std::unique_ptr<NbnxnPairlistGpuWork> work;
+    std::unique_ptr<NbnxnPairlistGpuWork<type>> work;
 
     //! Cache protection
     gmx_cache_protect_t cp1;
+
+    //! Type of pairlist, needed to decide on GPU kernel size.
+    PairlistType pairlistType;
 };
 
 //! Initializes a free-energy pair-list

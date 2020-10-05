@@ -179,6 +179,7 @@ struct gpu_timers_t
 
 /*! \internal
  * \brief GPU pair list structure */
+template<PairlistType type>
 struct gpu_plist
 {
     //! number of atoms per cluster
@@ -204,7 +205,7 @@ struct gpu_plist
     //! imask for 2 warps for each 4*j cluster group
     DeviceBuffer<unsigned int> imask;
     //! atom interaction bits
-    DeviceBuffer<nbnxn_excl_t> excl;
+    DeviceBuffer<nbnxn_excl_t<type>> excl;
     //! count for excl
     int nexcl;
     //! allocation size of excl

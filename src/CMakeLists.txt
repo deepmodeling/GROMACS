@@ -91,7 +91,8 @@ list(APPEND IGNORED_CLANG_ALL_WARNINGS
     "-Wno-float-equal"
     "-Wno-old-style-cast"
     "-Wno-conversion"
-    "-Wno-double-promotion")
+    "-Wno-double-promotion"
+    "-Wno-undefined-func-template")
 
 option(GMX_CLANG_TIDY "Use clang-tidy" OFF)
 if (GMX_CLANG_TIDY)

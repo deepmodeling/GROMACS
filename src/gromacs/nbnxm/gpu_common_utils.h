@@ -64,7 +64,8 @@ namespace Nbnxm
  * local part of the force array also depends on the non-local kernel.
  * The skip of the local kernel is taken care of separately.
  */
-static inline bool canSkipNonbondedWork(const NbnxmGpu& nb, InteractionLocality iloc)
+template<PairlistType type>
+static inline bool canSkipNonbondedWork(const NbnxmGpu<type>& nb, InteractionLocality iloc)
 {
     assert(nb.plist[iloc]);
     return (iloc == InteractionLocality::NonLocal && nb.plist[iloc]->nsci == 0);

@@ -93,7 +93,8 @@ namespace Nbnxm
 static unsigned int gpu_min_ci_balanced_factor = 44;
 
 /* Fw. decl. */
-static void nbnxn_cuda_clear_e_fshift(NbnxmGpu* nb);
+template<PairlistType type>
+static void nbnxn_cuda_clear_e_fshift(NbnxmGpu<type>* nb);
 
 /*! Initializes the atomdata structure first time, it only gets filled at
     pair-search. */
@@ -227,7 +228,8 @@ static void init_nbparam(NBParamGpu*                     nbp,
 }
 
 /*! Initializes simulation constant data. */
-static void cuda_init_const(NbnxmGpu*                       nb,
+template<PairlistType type>
+static void cuda_init_const(NbnxmGpu<type>*                 nb,
                             const interaction_const_t*      ic,
                             const PairlistParams&           listParams,
                             const nbnxn_atomdata_t::Params& nbatParams)
@@ -239,15 +241,16 @@ static void cuda_init_const(NbnxmGpu*                       nb,
     nbnxn_cuda_clear_e_fshift(nb);
 }
 
-NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
-                   const interaction_const_t*      ic,
-                   const PairlistParams&           listParams,
-                   const nbnxn_atomdata_t*         nbat,
-                   bool                            bLocalAndNonlocal)
+template<PairlistType type>
+NbnxmGpu<type>* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
+                         const interaction_const_t*      ic,
+                         const PairlistParams&           listParams,
+                         const nbnxn_atomdata_t*         nbat,
+                         bool                            bLocalAndNonlocal)
 {
     cudaError_t stat;
 
-    auto nb            = new NbnxmGpu();
+    auto nb            = new NbnxmGpu<type>();
     nb->deviceContext_ = &deviceStreamManager.context();
     snew(nb->atdat, 1);
     snew(nb->nbparam, 1);
@@ -311,7 +314,7 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
 
     /* set the kernel type for the current GPU */
     /* pick L1 cache configuration */
-    cuda_set_cacheconfig();
+    cuda_set_cacheconfig<type>();
 
     cuda_init_const(nb, ic, listParams, nbat->params());
 
@@ -330,7 +333,22 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     return nb;
 }
 
-void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
+template NbnxmGpu<PairlistType::Hierarchical8x8>*
+gpu_init<PairlistType::Hierarchical8x8>(const gmx::DeviceStreamManager& deviceStreamManager,
+                                        const interaction_const_t*      ic,
+                                        const PairlistParams&           listParams,
+                                        const nbnxn_atomdata_t*         nbat,
+                                        bool                            bLocalAndNonlocal);
+
+template NbnxmGpu<PairlistType::Hierarchical4x4>*
+gpu_init<PairlistType::Hierarchical4x4>(const gmx::DeviceStreamManager& deviceStreamManager,
+                                        const interaction_const_t*      ic,
+                                        const PairlistParams&           listParams,
+                                        const nbnxn_atomdata_t*         nbat,
+                                        bool                            bLocalAndNonlocal);
+
+template<PairlistType type>
+void gpu_upload_shiftvec(NbnxmGpu<type>* nb, const nbnxn_atomdata_t* nbatom)
 {
     cu_atomdata_t*      adat        = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
@@ -346,8 +364,15 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
     }
 }
 
+template void gpu_upload_shiftvec<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                                 const nbnxn_atomdata_t* nbatom);
+
+template void gpu_upload_shiftvec<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                                 const nbnxn_atomdata_t* nbatom);
+
 /*! Clears the first natoms_clear elements of the GPU nonbonded force output array. */
-static void nbnxn_cuda_clear_f(NbnxmGpu* nb, int natoms_clear)
+template<PairlistType type>
+static void nbnxn_cuda_clear_f(NbnxmGpu<type>* nb, int natoms_clear)
 {
     cu_atomdata_t*      adat        = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
@@ -355,7 +380,8 @@ static void nbnxn_cuda_clear_f(NbnxmGpu* nb, int natoms_clear)
 }
 
 /*! Clears nonbonded shift force output array and energy outputs on the GPU. */
-static void nbnxn_cuda_clear_e_fshift(NbnxmGpu* nb)
+template<PairlistType type>
+static void nbnxn_cuda_clear_e_fshift(NbnxmGpu<type>* nb)
 {
     cu_atomdata_t*      adat        = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
@@ -365,7 +391,8 @@ static void nbnxn_cuda_clear_e_fshift(NbnxmGpu* nb)
     clearDeviceBufferAsync(&adat->e_el, 0, 1, localStream);
 }
 
-void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
+template<PairlistType type>
+void gpu_clear_outputs(NbnxmGpu<type>* nb, bool computeVirial)
 {
     nbnxn_cuda_clear_f(nb, nb->atdat->natoms);
     /* clear shift force array and energies if the outputs were
@@ -376,7 +403,14 @@ void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
     }
 }
 
-void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
+template void gpu_clear_outputs<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                               bool computeVirial);
+
+template void gpu_clear_outputs<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                               bool computeVirial);
+
+template<PairlistType type>
+void gpu_init_atomdata(NbnxmGpu<type>* nb, const nbnxn_atomdata_t* nbat)
 {
     int                  nalloc, natoms;
     bool                 realloced;
@@ -456,7 +490,14 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
     }
 }
 
-void gpu_free(NbnxmGpu* nb)
+template void gpu_init_atomdata<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb,
+                                                               const nbnxn_atomdata_t* nbat);
+
+template void gpu_init_atomdata<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb,
+                                                               const nbnxn_atomdata_t* nbat);
+
+template<PairlistType type>
+void gpu_free(NbnxmGpu<type>* nb)
 {
     cudaError_t    stat;
     cu_atomdata_t* atdat;
@@ -542,36 +583,65 @@ void gpu_free(NbnxmGpu* nb)
     }
 }
 
-int gpu_min_ci_balanced(NbnxmGpu* nb)
+template void gpu_free<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template void gpu_free<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
+template<PairlistType type>
+int gpu_min_ci_balanced(NbnxmGpu<type>* nb)
 {
     return nb != nullptr ? gpu_min_ci_balanced_factor * nb->deviceContext_->deviceInfo().prop.multiProcessorCount
                          : 0;
 }
 
-void* gpu_get_xq(NbnxmGpu* nb)
+template int gpu_min_ci_balanced<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template int gpu_min_ci_balanced<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
+template<PairlistType type>
+void* gpu_get_xq(NbnxmGpu<type>* nb)
 {
     assert(nb);
 
     return static_cast<void*>(nb->atdat->xq);
 }
 
-DeviceBuffer<gmx::RVec> gpu_get_f(NbnxmGpu* nb)
+template void* gpu_get_xq<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template void* gpu_get_xq<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
+template<PairlistType type>
+DeviceBuffer<gmx::RVec> gpu_get_f(NbnxmGpu<type>* nb)
 {
     assert(nb);
 
     return reinterpret_cast<DeviceBuffer<gmx::RVec>>(nb->atdat->f);
 }
 
-DeviceBuffer<gmx::RVec> gpu_get_fshift(NbnxmGpu* nb)
+template DeviceBuffer<gmx::RVec>
+gpu_get_f<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template DeviceBuffer<gmx::RVec>
+gpu_get_f<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
+template<PairlistType type>
+DeviceBuffer<gmx::RVec> gpu_get_fshift(NbnxmGpu<type>* nb)
 {
     assert(nb);
 
     return reinterpret_cast<DeviceBuffer<gmx::RVec>>(nb->atdat->fshift);
 }
 
+template DeviceBuffer<gmx::RVec>
+gpu_get_fshift<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template DeviceBuffer<gmx::RVec>
+gpu_get_fshift<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);
+
 /* Initialization for X buffer operations on GPU. */
 /* TODO  Remove explicit pinning from host arrays from here and manage in a more natural way*/
-void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv)
+template<PairlistType type>
+void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu<type>* gpu_nbv)
 {
     const DeviceStream& deviceStream  = *gpu_nbv->deviceStreams[InteractionLocality::Local];
     bool                bDoTime       = gpu_nbv->bDoTime;
@@ -656,5 +726,13 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
 
     return;
 }
+
+template void nbnxn_gpu_init_x_to_nbat_x<PairlistType::Hierarchical8x8>(
+        const Nbnxm::GridSet&                    gridSet,
+        NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv);
+
+template void nbnxn_gpu_init_x_to_nbat_x<PairlistType::Hierarchical4x4>(
+        const Nbnxm::GridSet&                    gridSet,
+        NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv);
 
 } // namespace Nbnxm

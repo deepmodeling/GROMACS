@@ -64,7 +64,7 @@ namespace
  * \todo This is similar to CU_CHECK_PREV_ERR, which should be
  * consolidated.
  */
-static inline void ensureNoPendingCudaError(const char* errorMessage)
+inline void ensureNoPendingCudaError(const char* errorMessage)
 {
     // Ensure there is no pending error that would otherwise affect
     // the behaviour of future error handling.
@@ -110,7 +110,7 @@ enum class GpuApiCallBehavior;
 #    define CU_RET_ERR(status, msg)                                            \
         do                                                                     \
         {                                                                      \
-            if (status != cudaSuccess)                                         \
+            if ((status) != cudaSuccess)                                       \
             {                                                                  \
                 gmx_fatal(FARGS, "%s: %s\n", msg, cudaGetErrorString(status)); \
             }                                                                  \

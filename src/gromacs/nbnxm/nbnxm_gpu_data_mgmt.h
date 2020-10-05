@@ -47,6 +47,7 @@
 struct interaction_const_t;
 struct NBParamGpu;
 struct PairlistParams;
+enum class PairlistType : int;
 
 namespace gmx
 {
@@ -56,6 +57,7 @@ enum class InteractionLocality;
 namespace Nbnxm
 {
 
+template<PairlistType>
 struct gpu_plist;
 
 /*! \brief Tabulates the Ewald Coulomb force and initializes the size/scale and the table GPU array.
@@ -76,7 +78,8 @@ void set_cutoff_parameters(NBParamGpu* nbp, const interaction_const_t* ic, const
 
 /*! \brief Initializes the pair list data structure.
  */
-void init_plist(gpu_plist* pl);
+template<PairlistType type>
+void init_plist(gpu_plist<type>* pl);
 
 /*! \brief Initializes the timings data structure. */
 void init_timings(gmx_wallclock_gpu_nbnxn_t* t);

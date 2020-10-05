@@ -167,7 +167,8 @@ static std::string makeDefinesForKernelTypes(bool bFastGen, int eeltype, int vdw
  *
  * Does not throw
  */
-void nbnxn_gpu_compile_kernels(NbnxmGpu* nb)
+template<PairlistType type>
+void nbnxn_gpu_compile_kernels(NbnxmGpu<type>* nb)
 {
     gmx_bool   bFastGen = TRUE;
     cl_program program  = nullptr;
@@ -194,7 +195,7 @@ void nbnxn_gpu_compile_kernels(NbnxmGpu* nb)
                 " -Dc_nbnxnGpuNumClusterPerSupercluster=%d"
                 " -Dc_nbnxnGpuJgroupSize=%d"
                 "%s",
-                c_nbnxnGpuClusterSize, c_nbnxnMinDistanceSquared, c_nbnxnGpuNumClusterPerSupercluster,
+                nbnxnGpuClusterSize<type>(), c_nbnxnMinDistanceSquared, c_nbnxnGpuNumClusterPerSupercluster,
                 c_nbnxnGpuJgroupSize, (nb->bPrefetchLjParam) ? " -DIATYPE_SHMEM" : "");
         try
         {
@@ -217,3 +218,9 @@ void nbnxn_gpu_compile_kernels(NbnxmGpu* nb)
 
     nb->dev_rundata->program = program;
 }
+
+template void
+nbnxn_gpu_compile_kernels<PairlistType::Hierarchical8x8>(NbnxmGpu<PairlistType::Hierarchical8x8>* nb);
+
+template void
+nbnxn_gpu_compile_kernels<PairlistType::Hierarchical4x4>(NbnxmGpu<PairlistType::Hierarchical4x4>* nb);

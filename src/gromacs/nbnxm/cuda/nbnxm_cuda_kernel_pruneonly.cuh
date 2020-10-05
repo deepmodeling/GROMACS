@@ -48,6 +48,7 @@
 
 #include "gromacs/gpu_utils/cuda_arch_utils.cuh"
 #include "gromacs/math/utilities.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 #include "gromacs/pbcutil/ishift.h"
 
 #include "nbnxm_cuda_kernel_utils.cuh"
@@ -81,8 +82,8 @@
  *     are not split (much), but the rolling chunks are small;
  *   - with large inputs NTHREAD_Z=1 is 2-3% faster (on CC>=5.0)
  */
-#define NTHREAD_Z (GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY)
-#define THREADS_PER_BLOCK (c_clSize * c_clSize * NTHREAD_Z)
+#define NTHREAD_Z (c_cudaPruneKernelJ4ConcurrencyTypeDependent<type>)
+#define THREADS_PER_BLOCK (c_clSize<type> * c_clSize<type> * NTHREAD_Z)
 // we want 100% occupancy, so max threads/block
 #define MIN_BLOCKS_PER_MP (GMX_CUDA_MAX_THREADS_PER_MP / THREADS_PER_BLOCK)
 /**@}*/
@@ -101,22 +102,45 @@
  *
  *   Each thread calculates an i-j atom distance..
  */
-template<bool haveFreshList>
+template<PairlistType type, bool haveFreshList>
 __launch_bounds__(THREADS_PER_BLOCK, MIN_BLOCKS_PER_MP) __global__
-        void nbnxn_kernel_prune_cuda(const cu_atomdata_t    atdat,
-                                     const NBParamGpu       nbparam,
-                                     const Nbnxm::gpu_plist plist,
-                                     int                    numParts,
-                                     int                    part)
+        void nbnxn_kernel_prune_cuda(const cu_atomdata_t          atdat,
+                                     const NBParamGpu             nbparam,
+                                     const Nbnxm::gpu_plist<type> plist,
+                                     int                          numParts,
+                                     int                          part)
 #ifdef FUNCTION_DECLARATION_ONLY
                 ; /* Only do function declaration, omit the function body. */
 
 // Add extern declarations so each translation unit understands that
 // there will be a definition provided.
-extern template __global__ void
-nbnxn_kernel_prune_cuda<true>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
-extern template __global__ void
-nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
+extern template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical8x8, true>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical8x8>,
+        int,
+        int);
+extern template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical4x4, false>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical4x4>,
+        int,
+        int);
+
+extern template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical8x8, false>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical8x8>,
+        int,
+        int);
+extern template __global__ void nbnxn_kernel_prune_cuda<PairlistType::Hierarchical4x4, true>(
+        const cu_atomdata_t,
+        const NBParamGpu,
+        const Nbnxm::gpu_plist<PairlistType::Hierarchical4x4>,
+        int,
+        int);
+
+
 #else
 {
 
@@ -132,13 +156,9 @@ nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnx
     /* thread/block/warp id-s */
     unsigned int tidxi = threadIdx.x;
     unsigned int tidxj = threadIdx.y;
-#    if NTHREAD_Z == 1
-    unsigned int tidxz = 0;
-#    else
-    unsigned int tidxz = threadIdx.z;
-#    endif
+    unsigned int tidxz = NTHREAD_Z == 1 ? 0 : threadIdx.z;
     unsigned int bidx  = blockIdx.x;
-    unsigned int widx  = (threadIdx.y * c_clSize) / warp_size; /* warp index */
+    unsigned int widx  = (threadIdx.y * c_clSize<type>) / warp_size; /* warp index */
 
     /*********************************************************************
      * Set up shared memory pointers.
@@ -152,7 +172,7 @@ nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnx
 
     /* shmem buffer for i x+q pre-loading */
     float4* xib = (float4*)sm_nextSlotPtr;
-    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(*xib));
+    sm_nextSlotPtr += (c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(*xib));
 
     /* shmem buffer for cj, for each warp separately */
     int* cjs = (int*)(sm_nextSlotPtr);
@@ -172,13 +192,13 @@ nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnx
     {
         /* Pre-load i-atom x and q into shared memory */
         int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj;
-        int ai = ci * c_clSize + tidxi;
+        int ai = ci * c_clSize<type> + tidxi;
 
         /* We don't need q, but using float4 in shmem avoids bank conflicts.
            (but it also wastes L2 bandwidth). */
-        float4 tmp                    = xq[ai];
-        float4 xi                     = tmp + shift_vec[nb_sci.shift];
-        xib[tidxj * c_clSize + tidxi] = xi;
+        float4 tmp                          = xq[ai];
+        float4 xi                           = tmp + shift_vec[nb_sci.shift];
+        xib[tidxj * c_clSize<type> + tidxi] = xi;
     }
     __syncthreads();
 
@@ -213,7 +233,7 @@ nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnx
             /* Pre-load cj into shared memory on both warps separately */
             if ((tidxj == 0 || tidxj == 4) && tidxi < c_nbnxnGpuJgroupSize)
             {
-                cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = pl_cj4[j4].cj[tidxi];
+                cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize<type>] = pl_cj4[j4].cj[tidxi];
             }
             __syncwarp(c_fullWarpMask);
 
@@ -224,8 +244,8 @@ nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnx
                 {
                     unsigned int mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
 
-                    int cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
-                    int aj = cj * c_clSize + tidxj;
+                    int cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize<type>];
+                    int aj = cj * c_clSize<type> + tidxj;
 
                     /* load j atom data */
                     float4 tmp = xq[aj];
@@ -237,7 +257,7 @@ nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnx
                         if (imaskCheck & mask_ji)
                         {
                             /* load i-cluster coordinates from shmem */
-                            float4 xi = xib[i * c_clSize + tidxi];
+                            float4 xi = xib[i * c_clSize<type> + tidxi];
 
 
                             /* distance between i and j atoms */
