@@ -41,6 +41,8 @@
  */
 #include "gmxpre.h"
 
+#include "config.h"
+
 #include "gromacs/pulling/pull.h"
 
 #include <cmath>
@@ -154,6 +156,42 @@ protected:
             }
             EXPECT_REAL_EQ_TOL(0.25 * minDist2, max_pull_distance2(&pcrd, &pbc), defaultRealTolerance());
         }
+#if HAVE_MUPARSER
+        {
+            // transformation pull coordinate test
+            pull_t pull;
+
+            // Create standard pull coordinate
+            t_pull_coord params;
+            params.eGeom = epullgDIST;
+            pull.coord.emplace_back(params);
+
+            // Create transformation pull coordinate
+            params.eGeom           = epullgTRANSFORMATION;
+            std::string expression = "x1^2 + 3";
+            params.expression      = expression.c_str();
+            pull.coord.emplace_back(params);
+
+            for (double v = 0; v < 10; v++)
+            {
+                // transformation pull coord value
+                pull.coord[0].spatialData.value = v;
+                pull.coord[1].spatialData.value = getTransformationPullCoordinateValue(&pull, 1);
+                // Since we perform numerical differentiation and floating point operations
+                // we only expect the results below to be approximately equal
+                double expected  = v * v + 3;
+                double tolerance = 0.001; // Numerical tolerance for two results to be equal
+                EXPECT_TRUE(std::abs(expected - pull.coord[1].spatialData.value) < tolerance) << true;
+
+                // force and derivative
+                double transformationForce = v + 0.5;
+                pull.coord[1].scalarForce  = transformationForce;
+                double variableForce       = computeForceFromTransformationPullCoord(&pull, 1, 0);
+                expected                   = 2 * v * transformationForce;
+                EXPECT_TRUE(std::abs(expected - variableForce) < tolerance) << true;
+            }
+        }
+#endif
     }
 };
 

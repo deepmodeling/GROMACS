@@ -88,5 +88,5 @@ function(gmx_manage_muparser)
 
         set(HAVE_MUPARSER 0 CACHE INTERNAL "Is muparser found?")
     endif()
-        mark_as_advanced(HAVE_MUPARSER)
+    mark_as_advanced(HAVE_MUPARSER)
 endfunction()

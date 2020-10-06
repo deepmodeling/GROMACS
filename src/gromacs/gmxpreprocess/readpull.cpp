@@ -133,13 +133,15 @@ static void process_pull_dim(char* dim_buf, ivec dim, const t_pull_coord* pcrd)
     }
 }
 
-static void init_pull_coord(t_pull_coord* pcrd,
-                            int           coord_index_for_output,
-                            char*         dim_buf,
-                            const char*   origin_buf,
-                            const char*   vec_buf,
-                            warninp_t     wi)
+static void init_pull_coord(pull_params_t* pull,
+                            int            coordNum,
+                            char*          dim_buf,
+                            const char*    origin_buf,
+                            const char*    vec_buf,
+                            warninp_t      wi)
 {
+    t_pull_coord* pcrd;
+    pcrd = &pull->coord[coordNum - 1];
     int  m;
     dvec origin, vec;
     char buf[STRLEN];
@@ -161,8 +163,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
             sprintf(buf,
                     "The use of pull type '%s' for pull coordinate %d requires that the name of "
                     "the module providing the potential external is set with the option %s%d%s",
-                    epull_names[pcrd->eType], coord_index_for_output, "pull-coord",
-                    coord_index_for_output, "-potential-provider");
+                    epull_names[pcrd->eType], coordNum, "pull-coord", coordNum,
+                    "-potential-provider");
             warning_error(wi, buf);
         }
 
@@ -171,7 +173,7 @@ static void init_pull_coord(t_pull_coord* pcrd,
             sprintf(buf,
                     "The use of pull type '%s' for pull coordinate %d requires that the pull rate "
                     "is zero",
-                    epull_names[pcrd->eType], coord_index_for_output);
+                    epull_names[pcrd->eType], coordNum);
             warning_error(wi, buf);
         }
 
@@ -279,6 +281,33 @@ static void init_pull_coord(t_pull_coord* pcrd,
             warning(wi, buf);
         }
     }
+    if (pcrd->eGeom == epullgTRANSFORMATION)
+    {
+        /*Validate the mathematical expression to epullgTRANSFORMATION*/
+        if (pcrd->expression == nullptr || sizeof(pcrd->expression) == 0)
+        {
+            gmx_fatal(FARGS,
+                      "pull-coord%d-expression not set for pull coordinate of geometry "
+                      "'transformation'",
+                      coordNum);
+        }
+        /* make sure that the kappa of all previous pull coords is 0*/
+        for (int previousCoordIndex = 0; previousCoordIndex < coordNum - 1; previousCoordIndex++)
+        {
+            t_pull_coord* previousPcrd = &pull->coord[previousCoordIndex];
+            if (previousPcrd->k > 0)
+            {
+                gmx_fatal(FARGS,
+                          "pull-coord%d-k not must be set to zero "
+                          "since pull-coord%d-geometry=transformation.\n Met"
+                          "Transformation coordinates and their variables must occur first. "
+                          "Change the order of the pull coordinates if "
+                          "pull-coord%d does not depend on pull-coord%d",
+                          previousCoordIndex + 1, coordNum, previousCoordIndex + 1, coordNum);
+            }
+        }
+    }
+
     for (m = 0; m < DIM; m++)
     {
         pcrd->origin[m] = origin[m];
@@ -290,7 +319,7 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
 {
     int  nscan, idum;
     char buf[STRLEN];
-    char provider[STRLEN], groups[STRLEN], dim_buf[STRLEN];
+    char provider[STRLEN], groups[STRLEN], dim_buf[STRLEN], expression[STRLEN];
     char wbuf[STRLEN], origin_buf[STRLEN], vec_buf[STRLEN];
 
     t_pull_group* pgrp;
@@ -360,6 +389,9 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
         sprintf(buf, "pull-coord%d-potential-provider", coordNum);
         setStringEntry(inp, buf, provider, "");
         pcrd->externalPotentialProvider = gmx_strdup(provider);
+        sprintf(buf, "pull-coord%d-expression", coordNum);
+        setStringEntry(inp, buf, expression, "");
+        pcrd->expression = gmx_strdup(expression);
         sprintf(buf, "pull-coord%d-geometry", coordNum);
         pcrd->eGeom = get_eeenum(inp, buf, epullg_names, wi);
         sprintf(buf, "pull-coord%d-groups", coordNum);
@@ -370,11 +402,18 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
             case epullgDIHEDRAL: pcrd->ngroup = 6; break;
             case epullgDIRRELATIVE:
             case epullgANGLE: pcrd->ngroup = 4; break;
+            case epullgTRANSFORMATION: pcrd->ngroup = 0; break;
             default: pcrd->ngroup = 2; break;
         }
 
         nscan = sscanf(groups, "%d %d %d %d %d %d %d", &pcrd->group[0], &pcrd->group[1],
                        &pcrd->group[2], &pcrd->group[3], &pcrd->group[4], &pcrd->group[5], &idum);
+        sprintf(buf, "nscan %d\n", nscan);
+        if (nscan == -1 && pcrd->eGeom == epullgTRANSFORMATION)
+        {
+            // nscan returns -1 instead of 0. Just change its value and let the call fall through
+            nscan = 0;
+        }
         if (nscan != pcrd->ngroup)
         {
             auto message =
@@ -412,7 +451,7 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
         pcrd->kB = get_ereal(inp, buf, pcrd->k, wi);
 
         /* Initialize the pull coordinate */
-        init_pull_coord(pcrd, coordNum, dim_buf, origin_buf, vec_buf, wi);
+        init_pull_coord(pull, coordNum, dim_buf, origin_buf, vec_buf, wi);
     }
 
     return pullGroups;
@@ -498,7 +537,10 @@ void make_pull_coords(pull_params_t* pull)
     for (c = 0; c < pull->ncoord; c++)
     {
         pcrd = &pull->coord[c];
-
+        if (pcrd->eGeom == epullgTRANSFORMATION && pcrd->ngroup == 0)
+        {
+            continue;
+        }
         if (pcrd->group[0] < 0 || pcrd->group[0] >= pull->ngroup || pcrd->group[1] < 0
             || pcrd->group[1] >= pull->ngroup)
         {

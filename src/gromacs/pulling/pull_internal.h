@@ -52,7 +52,12 @@
 #include "config.h"
 
 #include <memory>
+#include <string>
 #include <vector>
+
+#if HAVE_MUPARSER
+#    include <muParser.h>
+#endif
 
 #include "gromacs/domdec/localatomset.h"
 #include "gromacs/mdtypes/pull_params.h"
@@ -72,6 +77,8 @@ static const int c_pullMaxNumLocalAtomsSingleThreaded = 1;
 
 class PullHistory;
 enum class PbcType : int;
+
+class t_state;
 
 enum
 {
@@ -134,6 +141,122 @@ struct PullCoordSpatialData
     double value; /* The current value of the coordinate, units of nm or rad */
 };
 
+/*! \brief Class with a mathematical expression and parser.
+ *
+ * The class handles parser instantiation from an mathematical expression, e.g. 'x1*x2',
+ * and evaluates the expression given the variables' numerical values.
+ *
+ * Note that for performance reasons you should not create a new PullCoordExpressionParser
+ * for every evaluation.
+ * Instead, instantiate one PullCoordExpressionParser per expression,
+ * then update the variables before the next evaluation.
+ * */
+class PullCoordExpressionParser
+{
+public:
+    /* Constructor which takes a mathematical expreesion as argument.
+     * null values are equivalent to a blank expression.
+     * */
+    PullCoordExpressionParser(const char* expressionChar)
+    {
+        if (expressionChar == nullptr)
+        {
+            expression_ = std::string("");
+        }
+        else
+        {
+            expression_ = std::string(expressionChar);
+        }
+    }
+
+    /*! \brief Initializes the parser and binds a numerical value to a variable in the expression
+     *
+     * \param[in]   variableIdx The variable index in the expression.
+     * Index 0 corresponds to the variable 'x1' etc.
+     * \param[in]   value  The variable's numerical value to be passed on for evaluation
+     * \param[in]   nVariables  The total number of variables to bind
+     */
+    //NOLINTNEXTLINE
+    void setVariable(int variableIdx, double value, int nVariables)
+    {
+#if HAVE_MUPARSER
+        if (!parser_)
+        {
+            initializeParser(nVariables);
+        }
+        if (gmx::ssize(variableValues_) <= variableIdx)
+        {
+            throw std::invalid_argument("Variable index out of range for the expression");
+        }
+        variableValues_[variableIdx] = value;
+#else
+        GMX_UNUSED_VALUE(variableIdx);
+        GMX_UNUSED_VALUE(value);
+        GMX_UNUSED_VALUE(nVariables);
+        GMX_RELEASE_ASSERT(false, "Can not use transformation pull coordinate without muparser");
+#endif
+    }
+
+    /*! \brief Evaluates the expression with the numerical values passed to
+     * the function setVariable().
+     * This method will raise an std::exception if setVariable was not called before evaluation.
+     *
+     */
+    //NOLINTNEXTLINE
+    double eval()
+    {
+#if HAVE_MUPARSER
+        if (!parser_)
+        {
+            throw std::runtime_error("Tried to evaluate an uninitialized expression.");
+        }
+        return parser_->Eval();
+#else
+        return 0;
+
+#endif
+    }
+
+private:
+    /*! \brief
+     * Prepares the expressionparser to bind muParser to n_variables.
+     *
+     * There's a performance gain by doing it this way since muParser will convert the expression
+     * to bytecode the first time it's initialized. Then the subsequent evaluations are much faster.
+     */
+    //NOLINTNEXTLINE
+    void initializeParser(int nVariables)
+    {
+#if HAVE_MUPARSER
+        parser_ = std::make_unique<mu::Parser>();
+        parser_->SetExpr(expression_);
+        variableValues_.resize(nVariables);
+        for (int n = 0; n < nVariables; n++)
+        {
+            variableValues_[n] = 0;
+            std::string name   = "x" + std::to_string(n + 1);
+            parser_->DefineVar(name, &variableValues_[n]);
+        }
+#else
+        GMX_UNUSED_VALUE(nVariables);
+        GMX_RELEASE_ASSERT(false, "Can not use transformation pull coordinate without muparser");
+#endif
+    }
+
+    /*! \brief The mathematical expression, e.g. 'x1*x2' */
+    std::string expression_;
+#if HAVE_MUPARSER
+    /*! \brief A vector containing the numerical values of the variables before parser evaluation.
+     *
+     * muParser compiles the expression to bytecode, then binds to the memory address
+     * of these vector elements, making the evaluations fast and memory efficient.
+     * */
+    std::vector<double> variableValues_;
+    /*! \brief The parser_ which compiles and evaluates the mathematical expression */
+    std::unique_ptr<mu::Parser> parser_;
+#endif
+};
+
 /* Struct with parameters and force evaluation local data for a pull coordinate */
 struct pull_coord_work_t
 {
@@ -143,7 +266,8 @@ struct pull_coord_work_t
         value_ref(0),
         spatialData(),
         scalarForce(0),
-        bExternalPotentialProviderHasBeenRegistered(false)
+        bExternalPotentialProviderHasBeenRegistered(false),
+        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : nullptr)
     {
     }
 
@@ -157,6 +281,8 @@ struct pull_coord_work_t
 
     /* For external-potential coordinates only, for checking if a provider has been registered */
     bool bExternalPotentialProviderHasBeenRegistered;
+
+    PullCoordExpressionParser expressionParser;
 };
 
 /* Struct for storing vectorial forces for a pull coordinate */

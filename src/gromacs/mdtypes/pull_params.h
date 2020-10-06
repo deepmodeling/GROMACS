@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -72,19 +72,20 @@ static const int c_pullCoordNgroupMax = 6;
 /*! \brief Struct that defines a pull coordinate */
 typedef struct
 {
-    int      eType; /**< The pull type: umbrella, constraint, ... */
-    char*    externalPotentialProvider; /**< Name of the module providing the external potential, only used with eType==epullEXTERNAL */
-    int      eGeom;                       /**< The pull geometry */
-    int      ngroup;                      /**< The number of groups, depends on eGeom */
-    int      group[c_pullCoordNgroupMax]; /**< The pull groups: indices into the group arrays in pull_t and pull_params_t, ngroup indices are used */
-    ivec     dim;                         /**< Used to select components for constraint */
-    rvec     origin;                      /**< The origin for the absolute reference */
-    rvec     vec;                         /**< The pull vector, direction or position */
-    gmx_bool bStart;                      /**< Set init based on the initial structure */
-    real     init;                        /**< Initial reference displacement (nm) or (deg) */
-    real     rate;                        /**< Rate of motion (nm/ps) or (deg/ps) */
-    real     k; /**< Force constant (kJ/(mol nm^2) or kJ/(mol rad^2) for umbrella pull type, or kJ/(mol nm) or kJ/(mol rad) for constant force pull type */
-    real     kB; /**< Force constant for state B */
+    int         eType; /**< The pull type: umbrella, constraint, ... */
+    char*       externalPotentialProvider; /**< Name of the module providing the external potential, only used with eType==epullEXTERNAL */
+    const char* expression; /**< Mathematical expression evaluated by the pull code for transformation coordinates */
+    int         eGeom;                       /**< The pull geometry */
+    int         ngroup;                      /**< The number of groups, depends on eGeom */
+    int         group[c_pullCoordNgroupMax]; /**< The pull groups: indices into the group arrays in pull_t and pull_params_t, ngroup indices are used */
+    ivec        dim;                         /**< Used to select components for constraint */
+    rvec        origin;                      /**< The origin for the absolute reference */
+    rvec        vec;                         /**< The pull vector, direction or position */
+    gmx_bool    bStart;                      /**< Set init based on the initial structure */
+    real        init;                        /**< Initial reference displacement (nm) or (deg) */
+    real        rate;                        /**< Rate of motion (nm/ps) or (deg/ps) */
+    real        k; /**< Force constant (kJ/(mol nm^2) or kJ/(mol rad^2) for umbrella pull type, or kJ/(mol nm) or kJ/(mol rad) for constant force pull type */
+    real        kB; /**< Force constant for state B */
 } t_pull_coord;
 
 /*! \brief Struct containing all pull parameters */
