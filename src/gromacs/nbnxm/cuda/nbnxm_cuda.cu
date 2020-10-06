@@ -172,7 +172,7 @@ static inline int calc_nb_kernel_nblock(int nwork_units, const DeviceInformation
  *  defined in nbnxn_cuda_types.h.
  */
 
-/*! Force-only kernel function pointers. */
+/*! Force-only kernel function pointers. 8x8 pairlist */
 static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_noener_noprune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_F_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_cuda,
@@ -200,7 +200,7 @@ static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_noener_noprune_ptr8x8[eelTypeNR][e
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_cuda }
 };
 
-/*! Force + energy kernel function pointers. */
+/*! Force + energy kernel function pointers. 8x8 pairlist */
 static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_ener_noprune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_cuda,
@@ -228,7 +228,7 @@ static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_ener_noprune_ptr8x8[eelTypeNR][evd
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_cuda }
 };
 
-/*! Force + pruning kernel function pointers. */
+/*! Force + pruning kernel function pointers. 8x8 pairlist */
 static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_noener_prune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_prune_cuda,
@@ -258,7 +258,7 @@ static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_noener_prune_ptr8x8[eelTypeNR][evd
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_prune_cuda }
 };
 
-/*! Force + energy + pruning kernel function pointers. */
+/*! Force + energy + pruning kernel function pointers. 8x8 pairlist */
 static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_ener_prune_ptr8x8[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_prune_cuda,
@@ -290,7 +290,7 @@ static const nbnxn_cu_kfunc_ptr_t8x8 nb_kfunc_ener_prune_ptr8x8[eelTypeNR][evdwT
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_prune_cuda }
 };
 
-/*! Force-only kernel function pointers. */
+/*! Force-only kernel function pointers. 4x4 pairlist */
 static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_noener_noprune_ptr4x4[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_F_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_F_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_cuda,
@@ -318,7 +318,7 @@ static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_noener_noprune_ptr4x4[eelTypeNR][e
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_cuda }
 };
 
-/*! Force + energy kernel function pointers. */
+/*! Force + energy kernel function pointers. 4x4 pairlist */
 static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_ener_noprune_ptr4x4[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_cuda,
@@ -346,7 +346,7 @@ static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_ener_noprune_ptr4x4[eelTypeNR][evd
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_cuda }
 };
 
-/*! Force + pruning kernel function pointers. */
+/*! Force + pruning kernel function pointers. 4x4 pairlist */
 static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_noener_prune_ptr4x4[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_F_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_F_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_F_prune_cuda,
@@ -376,7 +376,7 @@ static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_noener_prune_ptr4x4[eelTypeNR][evd
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_prune_cuda }
 };
 
-/*! Force + energy + pruning kernel function pointers. */
+/*! Force + energy + pruning kernel function pointers. 4x4 pairlist */
 static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_ener_prune_ptr4x4[eelTypeNR][evdwTypeNR] = {
     { nbnxn_kernel_ElecCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_prune_cuda,
       nbnxn_kernel_ElecCut_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_prune_cuda,
@@ -408,7 +408,11 @@ static const nbnxn_cu_kfunc_ptr_t4x4 nb_kfunc_ener_prune_ptr4x4[eelTypeNR][evdwT
       nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_prune_cuda }
 };
 
-/*! Return a pointer to the kernel version to be executed at the current step. */
+/*! \brief
+ * Return a pointer to the kernel version to be executed at the current step.
+ *
+ * Version for 8x8 pairlist. Ugly, I know.
+ */
 static inline nbnxn_cu_kfunc_ptr_t8x8 select_nbnxn_kernel8x8(int                     eeltype,
                                                              int                     evdwtype,
                                                              bool                    bDoEne,
@@ -456,7 +460,11 @@ static inline nbnxn_cu_kfunc_ptr_t8x8 select_nbnxn_kernel8x8(int                
     return res;
 }
 
-/*! Return a pointer to the kernel version to be executed at the current step. */
+/*! \brief
+ * Return a pointer to the kernel version to be executed at the current step.
+ *
+ * Version for 4x4 pairlist.
+ */
 static inline nbnxn_cu_kfunc_ptr_t4x4 select_nbnxn_kernel4x4(int                     eeltype,
                                                              int                     evdwtype,
                                                              bool                    bDoEne,

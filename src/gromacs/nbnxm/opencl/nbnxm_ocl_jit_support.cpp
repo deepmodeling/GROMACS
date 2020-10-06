@@ -170,8 +170,9 @@ static std::string makeDefinesForKernelTypes(bool bFastGen, int eeltype, int vdw
 template<PairlistType type>
 void nbnxn_gpu_compile_kernels(NbnxmGpu<type>* nb)
 {
-    gmx_bool   bFastGen = TRUE;
-    cl_program program  = nullptr;
+    constexpr int clusterSize = nbnxnGpuClusterSize<type>();
+    gmx_bool      bFastGen    = TRUE;
+    cl_program    program     = nullptr;
 
     if (getenv("GMX_OCL_NOFASTGEN") != nullptr)
     {
@@ -195,7 +196,7 @@ void nbnxn_gpu_compile_kernels(NbnxmGpu<type>* nb)
                 " -Dc_nbnxnGpuNumClusterPerSupercluster=%d"
                 " -Dc_nbnxnGpuJgroupSize=%d"
                 "%s",
-                nbnxnGpuClusterSize<type>(), c_nbnxnMinDistanceSquared, c_nbnxnGpuNumClusterPerSupercluster,
+                clusterSize, c_nbnxnMinDistanceSquared, c_nbnxnGpuNumClusterPerSupercluster,
                 c_nbnxnGpuJgroupSize, (nb->bPrefetchLjParam) ? " -DIATYPE_SHMEM" : "");
         try
         {

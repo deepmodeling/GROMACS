@@ -397,12 +397,12 @@ static inline cl_kernel select_nbnxn_kernel(NbnxmGpu<type>* nb, int eeltype, int
 template<PairlistType type>
 static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjParam)
 {
-    int shmem;
+    constexpr int clusterSize = c_clSize<type>;
 
     /* size of shmem (force-buffers/xq/atom type preloading) */
     /* NOTE: with the default kernel on sm3.0 we need shmem only for pre-loading */
     /* i-atom x+q in shared memory */
-    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float) * 4; /* xqib */
+    int shmem = c_nbnxnGpuNumClusterPerSupercluster * clusterSize * sizeof(float) * 4; /* xqib */
     /* cj in shared memory, for both warps separately
      * TODO: in the "nowarp kernels we load cj only once  so the factor 2 is not needed.
      */
@@ -412,17 +412,17 @@ static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjPar
         if (useLjCombRule(vdwType))
         {
             /* i-atom LJ combination parameters in shared memory */
-            shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * 2
+            shmem += c_nbnxnGpuNumClusterPerSupercluster * clusterSize * 2
                      * sizeof(float); /* atib abused for ljcp, float2 */
         }
         else
         {
             /* i-atom types in shared memory */
-            shmem += c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(int); /* atib */
+            shmem += c_nbnxnGpuNumClusterPerSupercluster * clusterSize * sizeof(int); /* atib */
         }
     }
     /* force reduction buffers in shared memory */
-    shmem += c_clSize<type> * c_clSize<type> * 3 * sizeof(float); /* f_buf */
+    shmem += clusterSize * clusterSize * 3 * sizeof(float); /* f_buf */
     /* Warp vote. In fact it must be * number of warps in block.. */
     shmem += sizeof(cl_uint) * 2; /* warp_any */
     return shmem;
@@ -598,6 +598,7 @@ template void gpu_copy_xq_to_gpu<PairlistType::Hierarchical4x4>(NbnxmGpu<Pairlis
 template<PairlistType type>
 void gpu_launch_kernel(NbnxmGpu<type>* nb, const gmx::StepWorkload& stepWork, const Nbnxm::InteractionLocality iloc)
 {
+    constexpr int       clusterSize  = c_clSize<type>;
     cl_atomdata_t*      adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
     gpu_plist<type>*    plist        = nb->plist[iloc];
@@ -650,8 +651,8 @@ void gpu_launch_kernel(NbnxmGpu<type>* nb, const gmx::StepWorkload& stepWork, co
 
     KernelLaunchConfig config;
     config.sharedMemorySize = calc_shmem_required_nonbonded<type>(nbp->vdwtype, nb->bPrefetchLjParam);
-    config.blockSize[0]     = c_clSize<type>;
-    config.blockSize[1]     = c_clSize<type>;
+    config.blockSize[0]     = clusterSize;
+    config.blockSize[1]     = clusterSize;
     config.gridSize[0]      = plist->nsci;
 
     validate_global_work_size(config, 3, &nb->deviceContext_->deviceInfo());
@@ -722,10 +723,10 @@ template void gpu_launch_kernel<PairlistType::Hierarchical4x4>(NbnxmGpu<Pairlist
 template<PairlistType type>
 static inline int calc_shmem_required_prune(const int num_threads_z)
 {
-    int shmem;
+    constexpr int clusterSize = c_clSize<type>;
 
     /* i-atom x in shared memory (for convenience we load all 4 components including q) */
-    shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize<type> * sizeof(float) * 4;
+    int shmem = c_nbnxnGpuNumClusterPerSupercluster * clusterSize * sizeof(float) * 4;
     /* cj in shared memory, for each warp separately
      * Note: only need to load once per wavefront, but to keep the code simple,
      * for now we load twice on AMD.
@@ -744,6 +745,7 @@ static inline int calc_shmem_required_prune(const int num_threads_z)
 template<PairlistType type>
 void gpu_launch_kernel_pruneonly(NbnxmGpu<type>* nb, const InteractionLocality iloc, const int numParts)
 {
+    constexpr int       clusterSize  = c_clSize<type>;
     cl_atomdata_t*      adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
     gpu_plist<type>*    plist        = nb->plist[iloc];
@@ -817,8 +819,8 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu<type>* nb, const InteractionLocality i
     /* kernel launch config */
     KernelLaunchConfig config;
     config.sharedMemorySize = calc_shmem_required_prune<type>(num_threads_z);
-    config.blockSize[0]     = c_clSize<type>;
-    config.blockSize[1]     = c_clSize<type>;
+    config.blockSize[0]     = clusterSize;
+    config.blockSize[1]     = clusterSize;
     config.blockSize[2]     = num_threads_z;
     config.gridSize[0]      = numSciInPart;
 

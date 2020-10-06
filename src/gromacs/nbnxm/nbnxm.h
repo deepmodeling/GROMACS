@@ -413,9 +413,9 @@ private:
     gmx_wallcycle* wcycle_;
 
 public:
-    //! GPU Nbnxm data, only used with a physical GPU (TODO: use unique_ptr)
+    //! GPU Nbnxm data, only used with a physical GPU, 8x8 pairlist (TODO: use unique_ptr)
     NbnxmGpu<PairlistType::Hierarchical8x8>* gpu_nbv8x8;
-    //! GPU Nbnxm data, only used with a physical GPU (TODO: use unique_ptr)
+    //! GPU Nbnxm data, only used with a physical GPU, 4x4 pairlist (TODO: use unique_ptr)
     NbnxmGpu<PairlistType::Hierarchical4x4>* gpu_nbv4x4;
 };
 

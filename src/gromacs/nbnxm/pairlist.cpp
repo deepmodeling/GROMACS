@@ -487,20 +487,20 @@ static inline bool clusterpair_in_range(const NbnxnPairlistGpuWork<type>& work,
                                         const real*                       x_j,
                                         real                              rlist2)
 {
+    constexpr int clusterSize = nbnxnGpuClusterSize<type>();
 #if !GMX_SIMD4_HAVE_REAL
 
     /* Plain C version.
      * All coordinates are stored as xyzxyz...
      */
-
     const real* x_i = work.iSuperClusterData.x.data();
 
-    for (int i = 0; i < nbnxnGpuClusterSize<type>(); i++)
+    for (int i = 0; i < clusterSize; i++)
     {
-        int i0 = (si * nbnxnGpuClusterSize<type>() + i) * DIM;
-        for (int j = 0; j < nbnxnGpuClusterSize<type>(); j++)
+        int i0 = (si * clusterSize + i) * DIM;
+        for (int j = 0; j < clusterSize; j++)
         {
-            int j0 = (csj * nbnxnGpuClusterSize<type>() + j) * stride;
+            int j0 = (csj * clusterSize + j) * stride;
 
             real d2 = gmx::square(x_i[i0] - x_j[j0]) + gmx::square(x_i[i0 + 1] - x_j[j0 + 1])
                       + gmx::square(x_i[i0 + 2] - x_j[j0 + 2]);
@@ -520,20 +520,19 @@ static inline bool clusterpair_in_range(const NbnxnPairlistGpuWork<type>& work,
      * The coordinates x_i are stored as xxxxyyyy..., x_j is stored xyzxyz...
      * Using 8-wide AVX(2) is not faster on Intel Sandy Bridge and Haswell.
      */
-    static_assert(nbnxnGpuClusterSize<type>() == 8 || nbnxnGpuClusterSize<type>() == 4,
-                  "A cluster is hard-coded to 4/8 atoms.");
+    static_assert(clusterSize == 8 || clusterSize == 4, "A cluster is hard-coded to 4/8 atoms.");
 
     Simd4Real rc2_S = Simd4Real(rlist2);
 
     const real* x_i = work.iSuperClusterData.xSimd.data();
 
-    int       dim_stride = nbnxnGpuClusterSize<type>() * DIM;
+    int       dim_stride = clusterSize * DIM;
     Simd4Real ix_S0      = load4(x_i + si * dim_stride + 0 * GMX_SIMD4_WIDTH);
     Simd4Real iy_S0      = load4(x_i + si * dim_stride + 1 * GMX_SIMD4_WIDTH);
     Simd4Real iz_S0      = load4(x_i + si * dim_stride + 2 * GMX_SIMD4_WIDTH);
 
     Simd4Real ix_S1, iy_S1, iz_S1;
-    if (nbnxnGpuClusterSize<type>() == 8)
+    if (clusterSize == 8)
     {
         ix_S1 = load4(x_i + si * dim_stride + 3 * GMX_SIMD4_WIDTH);
         iy_S1 = load4(x_i + si * dim_stride + 4 * GMX_SIMD4_WIDTH);
@@ -542,8 +541,8 @@ static inline bool clusterpair_in_range(const NbnxnPairlistGpuWork<type>& work,
     /* We loop from the outer to the inner particles to maximize
      * the chance that we find a pair in range quickly and return.
      */
-    int j0 = csj * nbnxnGpuClusterSize<type>();
-    int j1 = j0 + nbnxnGpuClusterSize<type>() - 1;
+    int j0 = csj * clusterSize;
+    int j1 = j0 + clusterSize - 1;
     while (j0 < j1)
     {
         Simd4Real jx0_S, jy0_S, jz0_S;
@@ -580,7 +579,7 @@ static inline bool clusterpair_in_range(const NbnxnPairlistGpuWork<type>& work,
         dx_S2 = ix_S0 - jx1_S;
         dy_S2 = iy_S0 - jy1_S;
         dz_S2 = iz_S0 - jz1_S;
-        if (nbnxnGpuClusterSize<type>() == 8)
+        if (clusterSize == 8)
         {
             dx_S1 = ix_S1 - jx0_S;
             dy_S1 = iy_S1 - jy0_S;
@@ -593,7 +592,7 @@ static inline bool clusterpair_in_range(const NbnxnPairlistGpuWork<type>& work,
         /* rsq = dx*dx+dy*dy+dz*dz */
         rsq_S0 = norm2(dx_S0, dy_S0, dz_S0);
         rsq_S2 = norm2(dx_S2, dy_S2, dz_S2);
-        if (nbnxnGpuClusterSize<type>() == 8)
+        if (clusterSize == 8)
         {
             rsq_S1 = norm2(dx_S1, dy_S1, dz_S1);
             rsq_S3 = norm2(dx_S3, dy_S3, dz_S3);
@@ -601,12 +600,12 @@ static inline bool clusterpair_in_range(const NbnxnPairlistGpuWork<type>& work,
 
         wco_S0 = (rsq_S0 < rc2_S);
         wco_S2 = (rsq_S2 < rc2_S);
-        if (nbnxnGpuClusterSize<type>() == 8)
+        if (clusterSize == 8)
         {
             wco_S1 = (rsq_S1 < rc2_S);
             wco_S3 = (rsq_S3 < rc2_S);
         }
-        if (nbnxnGpuClusterSize<type>() == 8)
+        if (clusterSize == 8)
         {
             wco_any_S01 = wco_S0 || wco_S1;
             wco_any_S23 = wco_S2 || wco_S3;
@@ -913,7 +912,8 @@ static void setSelfAndNewtonExclusionsGpu(NbnxnPairlistGpu<type>* nbl,
                                           const int               jOffsetInGroup,
                                           const int               iClusterInCell)
 {
-    constexpr int numJatomsPerPart = nbnxnGpuClusterSize<type>() / c_nbnxnGpuClusterpairSplit;
+    constexpr int clusterSize      = nbnxnGpuClusterSize<type>();
+    constexpr int numJatomsPerPart = clusterSize / c_nbnxnGpuClusterpairSplit;
 
     /* The exclusions are stored separately for each part of the split */
     for (int part = 0; part < c_nbnxnGpuClusterpairSplit; part++)
@@ -925,9 +925,9 @@ static void setSelfAndNewtonExclusionsGpu(NbnxnPairlistGpu<type>* nbl,
         /* Set all bits with j-index <= i-index */
         for (int jIndexInPart = 0; jIndexInPart < numJatomsPerPart; jIndexInPart++)
         {
-            for (int i = jOffset + jIndexInPart; i < nbnxnGpuClusterSize<type>(); i++)
+            for (int i = jOffset + jIndexInPart; i < clusterSize; i++)
             {
-                excl.pair[jIndexInPart * nbnxnGpuClusterSize<type>() + i] &=
+                excl.pair[jIndexInPart * clusterSize + i] &=
                         ~(1U << (jOffsetInGroup * c_gpuNumClusterPerCell + iClusterInCell));
             }
         }
@@ -1131,7 +1131,8 @@ static void make_cluster_list_supersub(const Grid&             iGrid,
                                        const float             rbb2,
                                        int*                    numDistanceChecks)
 {
-    NbnxnPairlistGpuWork<type>& work = *nbl->work;
+    constexpr int               clusterSize = nbnxnGpuClusterSize<type>();
+    NbnxnPairlistGpuWork<type>& work        = *nbl->work;
 
 #if NBNXN_BBXXXX
     const float* pbb_ci = work.iSuperClusterData.bbPacked.data();
@@ -1139,10 +1140,8 @@ static void make_cluster_list_supersub(const Grid&             iGrid,
     const BoundingBox* bb_ci = work.iSuperClusterData.bb.data();
 #endif
 
-    GMX_ASSERT(nbnxnGpuClusterSize<type>() == iGrid.geometry().numAtomsICluster,
-               "Need to correct cluster size");
-    GMX_ASSERT(nbnxnGpuClusterSize<type>() == jGrid.geometry().numAtomsICluster,
-               "Need to correct cluster size");
+    GMX_ASSERT(clusterSize == iGrid.geometry().numAtomsICluster, "Need to correct cluster size");
+    GMX_ASSERT(clusterSize == jGrid.geometry().numAtomsICluster, "Need to correct cluster size");
 
     /* We generate the pairlist mainly based on bounding-box distances
      * and do atom pair distance based pruning on the GPU.
@@ -1181,7 +1180,7 @@ static void make_cluster_list_supersub(const Grid&             iGrid,
         const int offset = packedBoundingBoxesIndex(cj) + (cj & (c_packedBoundingBoxesDimSize - 1));
         clusterBoundingBoxDistance2_xxxx_simd4(jGrid.packedBoundingBoxes().data() + offset, ci1,
                                                pbb_ci, d2l);
-        *numDistanceChecks += nbnxnGpuClusterSize<type>() * 2;
+        *numDistanceChecks += clusterSize * 2;
 #endif
 
         int          npair = 0;
@@ -1207,7 +1206,7 @@ static void make_cluster_list_supersub(const Grid&             iGrid,
              * or within the cut-off and there is at least one atom pair
              * within the cut-off. This check is very costly.
              */
-            *numDistanceChecks += c_nbnxnGpuClusterSize * c_nbnxnGpuClusterSize;
+            *numDistanceChecks += clusterSize * clusterSize;
             if (d2 < rbb2 || (d2 < rlist2 && clusterpair_in_range(work, ci, cj_gl, stride, x, rlist2)))
 #else
             /* Check if the distance between the two bounding boxes
@@ -1766,6 +1765,8 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
     const int cj4_ind_start = nbl_sci->cj4_ind_start;
     const int cj4_ind_end   = nbl_sci->cj4_ind_end;
 
+    constexpr int clusterSize = nbnxnGpuClusterSize<type>();
+
     /* Here we process one super-cell, max #atoms na_sc, versus a list
      * cj4 entries, each with max c_nbnxnGpuJgroupSize cj's, each
      * of size na_cj atoms.
@@ -1840,8 +1841,7 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
                                     unsigned int excl_bit;
                                     real         dx, dy, dz;
 
-                                    const int jHalf =
-                                            j / (nbnxnGpuClusterSize<type>() / c_nbnxnGpuClusterpairSplit);
+                                    const int jHalf = j / (clusterSize / c_nbnxnGpuClusterpairSplit);
                                     nbnxn_excl_t<type>& excl =
                                             get_exclusion_mask<type>(nbl, cj4_ind, jHalf);
 
@@ -1923,6 +1923,7 @@ static void setExclusionsForIEntry(const Nbnxm::GridSet&   gridSet,
         return;
     }
 
+    constexpr int clusterSize = nbnxnGpuClusterSize<type>();
     /* Set the search ranges using start and end j-cluster indices.
      * Note that here we can not use cj4_ind_end, since the last cj4
      * can be only partially filled, so we use cj_ind.
@@ -1930,10 +1931,9 @@ static void setExclusionsForIEntry(const Nbnxm::GridSet&   gridSet,
     const JListRanges ranges(iEntry.cj4_ind_start * c_nbnxnGpuJgroupSize, nbl->work->cj_ind,
                              gmx::makeConstArrayRef(nbl->cj4));
 
-    GMX_ASSERT(nbl->na_ci == nbnxnGpuClusterSize<type>(),
-               "na_ci should match the GPU cluster size");
-    constexpr int c_clusterSize      = nbnxnGpuClusterSize<type>();
-    constexpr int c_superClusterSize = c_nbnxnGpuNumClusterPerSupercluster * nbnxnGpuClusterSize<type>();
+    GMX_ASSERT(nbl->na_ci == clusterSize, "na_ci should match the GPU cluster size");
+    constexpr int c_clusterSize      = clusterSize;
+    constexpr int c_superClusterSize = c_nbnxnGpuNumClusterPerSupercluster * clusterSize;
 
     const int iSuperCluster = iEntry.sci;
 
@@ -2415,12 +2415,13 @@ static void icell_set_x(int                       ci,
                         ClusterDistanceKernelType gmx_unused kernelType,
                         NbnxnPairlistGpuWork<type>*          work)
 {
+    constexpr int clusterSize = nbnxnGpuClusterSize<type>();
 #if !GMX_SIMD4_HAVE_REAL
 
     real* x_ci = work->iSuperClusterData.x.data();
 
-    int ia = ci * c_gpuNumClusterPerCell * nbnxnGpuClusterSize<type>();
-    for (int i = 0; i < c_gpuNumClusterPerCell * nbnxnGpuClusterSize<type>(); i++)
+    int ia = ci * c_gpuNumClusterPerCell * clusterSize;
+    for (int i = 0; i < c_gpuNumClusterPerCell * clusterSize; i++)
     {
         x_ci[i * DIM + XX] = x[(ia + i) * stride + XX] + shx;
         x_ci[i * DIM + YY] = x[(ia + i) * stride + YY] + shy;
@@ -2433,10 +2434,10 @@ static void icell_set_x(int                       ci,
 
     for (int si = 0; si < c_gpuNumClusterPerCell; si++)
     {
-        for (int i = 0; i < nbnxnGpuClusterSize<type>(); i += GMX_SIMD4_WIDTH)
+        for (int i = 0; i < clusterSize; i += GMX_SIMD4_WIDTH)
         {
-            int io = si * nbnxnGpuClusterSize<type>() + i;
-            int ia = ci * c_gpuNumClusterPerCell * nbnxnGpuClusterSize<type>() + io;
+            int io = si * clusterSize + i;
+            int ia = ci * c_gpuNumClusterPerCell * clusterSize + io;
             for (int j = 0; j < GMX_SIMD4_WIDTH; j++)
             {
                 x_ci[io * DIM + j + XX * GMX_SIMD4_WIDTH] = x[(ia + j) * stride + XX] + shx;

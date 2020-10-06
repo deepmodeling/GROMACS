@@ -79,7 +79,7 @@ namespace Nbnxm
 /*! \brief The nbnxn i-cluster size in atoms for each nbnxn kernel type */
 static constexpr gmx::EnumerationArray<KernelType, int> IClusterSizePerKernelType = {
     { 0, c_nbnxnCpuIClusterSize, c_nbnxnCpuIClusterSize, c_nbnxnCpuIClusterSize,
-      c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize4 }
+      c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize4, c_nbnxnGpuClusterSize4 }
 };
 
 /*! \brief The nbnxn j-cluster size in atoms for each nbnxn kernel type */
@@ -90,7 +90,7 @@ static constexpr gmx::EnumerationArray<KernelType, int> JClusterSizePerKernelTyp
 #else
       0, 0,
 #endif
-      c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize8 / 2, c_nbnxnGpuClusterSize4 }
+      c_nbnxnGpuClusterSize8, c_nbnxnGpuClusterSize8 / 2, c_nbnxnGpuClusterSize4, c_nbnxnGpuClusterSize4 / 2 }
 };
 
 /*! \brief Returns whether the pair-list corresponding to nb_kernel_type is simple */

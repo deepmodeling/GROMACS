@@ -193,7 +193,7 @@ void gpu_pme_loadbal_update_param(const nonbonded_verlet_t* nbv, const interacti
     }
     NbnxmGpu<PairlistType::Hierarchical8x8>* nb8x8 = nbv->gpu_nbv8x8;
     NbnxmGpu<PairlistType::Hierarchical4x4>* nb4x4 = nbv->gpu_nbv4x4;
-    NBParamGpu* nbp = (nb8x8 != nullptr) ? nb8x8->nbparam : nb4x4->nbparam;
+    NBParamGpu* nbp = nbv->useGpu8x8() ? nb8x8->nbparam : nb4x4->nbparam;
 
     set_cutoff_parameters(nbp, ic, nbv->pairlistSets().params());
 
@@ -201,7 +201,7 @@ void gpu_pme_loadbal_update_param(const nonbonded_verlet_t* nbv, const interacti
 
     GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
     init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp,
-                                   (nb8x8 != nullptr) ? *nb8x8->deviceContext_ : *nb4x4->deviceContext_);
+                                   nbv->useGpu8x8() ? *nb8x8->deviceContext_ : *nb4x4->deviceContext_);
 }
 
 template<PairlistType type>

@@ -519,7 +519,8 @@ void setupDynamicPairlistPruning(const gmx::MDLogger&       mdlog,
                                     JClusterSizePerListType[listParams->pairlistType] };
 
     /* Currently emulation mode does not support dual pair-lists */
-    const bool useGpuList = (listParams->pairlistType == PairlistType::Hierarchical8x8);
+    const bool useGpuList = (listParams->pairlistType == PairlistType::Hierarchical8x8
+                             || listParams->pairlistType == PairlistType::Hierarchical4x4);
 
     if (supportsDynamicPairlistGenerationInterval(*ir) && getenv("GMX_DISABLE_DYNAMICPRUNING") == nullptr)
     {
