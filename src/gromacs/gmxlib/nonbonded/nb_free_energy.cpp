@@ -301,7 +301,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     const bool  doForces      = ((kernel_data->flags & GMX_NONBONDED_DO_FORCE) != 0);
     const bool  doShiftForces = ((kernel_data->flags & GMX_NONBONDED_DO_SHIFTFORCE) != 0);
     const bool  doPotential   = ((kernel_data->flags & GMX_NONBONDED_DO_POTENTIAL) != 0);
-    const bool  useScBeta   = (alpha_coul == 0.0);
+    const bool  useScBetaNO   = (alpha_coul == 0.0);
 
     // Extract data from interaction_const_t
     const real facel           = ic->epsfac;
@@ -597,7 +597,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma_pow */
                         if (useSoftCore and not gapsys)
                         {
-                            if (useScBeta)
+                            if (useScBetaNO)
                             {
                                 rpinvC = one / (alpha_vdw_eff * lfac_coul[i] * sigma_pow[i] + rp);
                             }
@@ -786,7 +786,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                     if (useSoftCore and not gapsys)
                     {
-                        if (useScBeta)
+                        if (useScBetaNO)
                         {
                             dvdl_coul +=
                                 Vcoul[i] * DLF[i]
