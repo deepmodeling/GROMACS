@@ -41,9 +41,9 @@
  */
 #include "gmxpre.h"
 
-#include "config.h"
-
 #include "gromacs/pulling/pull.h"
+
+#include "config.h"
 
 #include <cmath>
 
