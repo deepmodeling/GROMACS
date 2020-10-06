@@ -301,6 +301,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     const bool  doForces      = ((kernel_data->flags & GMX_NONBONDED_DO_FORCE) != 0);
     const bool  doShiftForces = ((kernel_data->flags & GMX_NONBONDED_DO_SHIFTFORCE) != 0);
     const bool  doPotential   = ((kernel_data->flags & GMX_NONBONDED_DO_POTENTIAL) != 0);
+    const bool  useScBeta   = (alpha_coul == 0.0);
 
     // Extract data from interaction_const_t
     const real facel           = ic->epsfac;
@@ -596,7 +597,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma_pow */
                         if (useSoftCore and not gapsys)
                         {
-                            if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
+                            if (useScBeta)
+                            {
+                                rpinvC = one / (alpha_vdw_eff * lfac_coul[i] * sigma_pow[i] + rp);
+                            }
+                            else if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
                             {
                                 rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
                                 sqRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
@@ -781,9 +786,18 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                     if (useSoftCore and not gapsys)
                     {
-                        dvdl_coul +=
+                        if (useScBeta)
+                        {
+                            dvdl_coul +=
+                                Vcoul[i] * DLF[i]
+                                + LFC[i] * alpha_vdw_eff * dlfac_coul[i] * FscalC[i] * sigma_pow[i];
+                        }
+                        else
+                        {
+                            dvdl_coul +=
                                 Vcoul[i] * DLF[i]
                                 + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i];
+                        }
                         dvdl_vdw += Vvdw[i] * DLF[i]
                                     + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * FscalV[i] * sigma_pow[i];
                     }
@@ -1089,6 +1103,7 @@ static KernelFunction dispatchKernel(const bool        scLambdasOrAlphasDiffer,
                 scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
                 vdwModifierIsPotSwitch));
     }
+    printf("sc-alpha: %.4f, sc-beta: %.4f, sc-gapsys: %d, sc-rp: %.3f, sc-rpc: %.3f\n", fr->sc_alphavdw, fr->sc_alphacoul, fr->sc_gapsys, fr->sc_r_power, fr->sc_r_power_coul);
 }
 
 
