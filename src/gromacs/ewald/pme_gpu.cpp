@@ -181,7 +181,6 @@ void pme_gpu_launch_spread(gmx_pme_t* pme, GpuEventSynchronizer* xReadyOnDevice,
                "Need a valid xReadyOnDevice on PP+PME ranks with CUDA.");
 
     PmeGpu* pmeGpu = pme->gpu;
-    printf("launch_spread!\n");
     const unsigned int gridIndex = 0;
     real*              fftgrid   = pme->fftgrid[gridIndex];
     if (pmeGpu->settings.currentFlags & GMX_PME_SPREAD)
@@ -204,7 +203,6 @@ void pme_gpu_launch_complex_transforms(gmx_pme_t* pme, gmx_wallcycle* wcycle)
     const bool performBackFFT = (pmeGpu->settings.currentFlags & (GMX_PME_CALC_F | GMX_PME_CALC_POT)) != 0;
     const unsigned int gridIndex = 0;
     t_complex*         cfftgrid  = pme->cfftgrid[gridIndex];
-    printf("launch_transform!\n");
     if (pmeGpu->settings.currentFlags & GMX_PME_SPREAD)
     {
         if (!pme_gpu_performs_FFT(pmeGpu))
