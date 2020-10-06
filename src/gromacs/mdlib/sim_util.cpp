@@ -1611,7 +1611,8 @@ void do_force(FILE*                               fplog,
     /* Set up and clear force outputs:
      * forceOutMtsLevel0:  everything except what is in the other two outputs
      * forceOutMtsLevel1:  PME-mesh and listed-forces group 1
-     * forceOutNonbonded: non-bonded forces
+     * forceOutNonbonded: pointer to non-bonded force outputs
+     * forceOutLongrangeNonbonded: pointer to long-range non-bonded force outputs
      * Without multiple time stepping all point to the same object.
      * With multiple time-stepping the use is different for MTS fast (level0 only) and slow steps.
      */
@@ -1634,9 +1635,13 @@ void do_force(FILE*                               fplog,
 
     const bool nonbondedAtMtsLevel1 = runScheduleWork->simulationWork.computeNonbondedAtMtsLevel1;
 
-    ForceOutputs* forceOutNonbonded =
+    ForceOutputs* const forceOutNonbonded =
             nonbondedAtMtsLevel1 ? (stepWork.computeSlowForces ? forceOutMtsLevels[1] : nullptr)
                                  : forceOutMtsLevels[0];
+
+    // Long-range nonbonded forces, e.g. PME-mesh, are always computed at the highest MTS level
+    ForceOutputs* const forceOutLongrangeNonbonded =
+            stepWork.computeSlowForces ? forceOutMtsLevels.back() : nullptr;
 
     if (inputrec->bPull && pull_have_constraint(pull_work))
     {
@@ -1762,7 +1767,7 @@ void do_force(FILE*                               fplog,
     {
         calculateLongRangeNonbondeds(
                 fr, inputrec, cr, nrnb, wcycle, mdatoms, x.unpaddedConstArrayRef(),
-                &forceOutMtsLevels.back()->forceWithVirial(), enerd, box, lambda.data(),
+                &forceOutLongrangeNonbonded->forceWithVirial(), enerd, box, lambda.data(),
                 as_rvec_array(dipoleData.muStateAB), stepWork, ddBalanceRegionHandler);
     }
 
@@ -1923,13 +1928,13 @@ void do_force(FILE*                               fplog,
     if (alternateGpuWait)
     {
         alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, forceOutNonbonded,
-                                    forceOutMtsLevels[1], enerd, lambda[efptCOUL], stepWork, wcycle);
+                                    forceOutLongrangeNonbonded, enerd, lambda[efptCOUL], stepWork, wcycle);
     }
 
     if (!alternateGpuWait && useGpuPmeOnThisRank)
     {
         pme_gpu_wait_and_reduce(fr->pmedata, stepWork, wcycle,
-                                &forceOutMtsLevels[1]->forceWithVirial(), enerd, lambda[efptCOUL]);
+                                &forceOutLongrangeNonbonded->forceWithVirial(), enerd, lambda[efptCOUL]);
     }
 
     /* Wait for local GPU NB outputs on the non-alternating wait path */
@@ -1981,7 +1986,7 @@ void do_force(FILE*                               fplog,
         /* In case of node-splitting, the PP nodes receive the long-range
          * forces, virial and energy from the PME nodes here.
          */
-        pme_receive_force_ener(fr, cr, &forceOutMtsLevels.back()->forceWithVirial(), enerd,
+        pme_receive_force_ener(fr, cr, &forceOutLongrangeNonbonded->forceWithVirial(), enerd,
                                simulationWork.useGpuPmePpCommunication,
                                stepWork.useGpuPmeFReduction, wcycle);
     }
@@ -2076,7 +2081,7 @@ void do_force(FILE*                               fplog,
         /* In case of node-splitting, the PP nodes receive the long-range
          * forces, virial and energy from the PME nodes here.
          */
-        pme_receive_force_ener(fr, cr, &forceOutMtsLevels.back()->forceWithVirial(), enerd,
+        pme_receive_force_ener(fr, cr, &forceOutLongrangeNonbonded->forceWithVirial(), enerd,
                                simulationWork.useGpuPmePpCommunication, false, wcycle);
     }
 
