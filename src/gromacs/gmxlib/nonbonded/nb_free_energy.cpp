@@ -600,6 +600,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             if (useScBetaNO)
                             {
                                 rpinvC = one / (alpha_vdw_eff * lfac_coul[i] * sigma_pow[i] + rp);
+                                pthRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
                             }
                             else if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
                             {
