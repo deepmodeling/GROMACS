@@ -226,9 +226,11 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
 {
     const bool bFEP = kernelParams.constants.bFEP;
     const float lambda = kernelParams.current.lambda_q;
+    const float lambda_= 1 - lambda;
 
     /* Global memory pointers */
     const float* __restrict__ gm_coefficients = kernelParams.atoms.d_coefficients;
+    const float* __restrict__ gm_coefficientsB= kernelParams.atoms.d_coefficientsB;
     const float* __restrict__ gm_grid         = kernelParams.grid.d_realGrid;
     const float* __restrict__ gm_gridB        = kernelParams.grid.d_realGridB;
     float* __restrict__ gm_forces             = kernelParams.atoms.d_forces;
@@ -359,6 +361,9 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     float fx = 0.0f;
     float fy = 0.0f;
     float fz = 0.0f;
+    float fxB = 0.0f;
+    float fyB = 0.0f;
+    float fzB = 0.0f;
 
     const int globalCheck = pme_gpu_check_atom_data_index(atomIndexGlobal, kernelParams.atoms.nAtoms);
     const int chargeCheck = pme_gpu_check_atom_charge(gm_coefficients[atomIndexGlobal]);
@@ -411,29 +416,39 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
                 }
                 const int gridIndexGlobal = ix * pny * pnz + constOffset;
                 assert(gridIndexGlobal >= 0);
-                float gridValue = gm_grid[gridIndexGlobal];
-                if (bFEP)
-                {
-                    gridValue = (1 - lambda) * gm_grid[gridIndexGlobal] + lambda * gm_gridB[gridIndexGlobal];
-                }
-                
+                const float gridValue = gm_grid[gridIndexGlobal];
                 assert(isfinite(gridValue));
                 const int splineIndexX =
                         getSplineParamIndex<order, atomsPerWarp>(splineIndexBase, XX, ithx);
                 const float2 tdx  = make_float2(sm_theta[splineIndexX], sm_dtheta[splineIndexX]);
-                const float  fxy1 = tdz.x * gridValue;
-                const float  fz1  = tdz.y * gridValue;
-                fx += tdx.y * tdy.x * fxy1;
-                fy += tdx.x * tdy.y * fxy1;
-                fz += tdx.x * tdy.x * fz1;
+                const float  dmdx = tdx.y * tdy.x * tdz.x;
+                const float  dmdy = tdx.x * tdy.y * tdz.x;
+                const float  dmdz = tdx.x * tdy.x * tdz.y;
+                fx += dmdx * gridValue;
+                fy += dmdy * gridValue;
+                fz += dmdz * gridValue;
+                
+                if (bFEP)
+                {
+                    const float gridValueB = gm_gridB[gridIndexGlobal];
+                    assert(isfinite(gridValueB));
+                    fxB += dmdx * gridValueB;
+                    fyB += dmdy * gridValueB;
+                    fzB += dmdz * gridValueB;
+                }
             }
         }
     }
 
     // Reduction of partial force contributions
-    __shared__ float3 sm_forces[atomsPerBlock];
+    __shared__ float3 sm_forces[atomsPerBlock], sm_forcesB[atomsPerBlock];
     reduce_atom_forces<order, atomDataSize, blockSize>(sm_forces, atomIndexLocal, splineIndex, lineIndex,
                                                        kernelParams.grid.realGridSizeFP, fx, fy, fz);
+    if (bFEP)
+    {
+        reduce_atom_forces<order, atomDataSize, blockSize>(sm_forcesB, atomIndexLocal, splineIndex, lineIndex,
+                                                           kernelParams.grid.realGridSizeFP, fxB, fyB, fzB);
+    }
     __syncthreads();
 
     /* Calculating the final forces with no component branching, atomsPerBlock threads */
@@ -445,14 +460,31 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
         const float3 atomForces     = sm_forces[forceIndexLocal];
         const float  negCoefficient = -gm_coefficients[forceIndexGlobal];
         float3       result;
-        result.x = negCoefficient * kernelParams.current.recipBox[XX][XX] * atomForces.x;
-        result.y = negCoefficient
-                   * (kernelParams.current.recipBox[XX][YY] * atomForces.x
-                      + kernelParams.current.recipBox[YY][YY] * atomForces.y);
-        result.z = negCoefficient
-                   * (kernelParams.current.recipBox[XX][ZZ] * atomForces.x
-                      + kernelParams.current.recipBox[YY][ZZ] * atomForces.y
-                      + kernelParams.current.recipBox[ZZ][ZZ] * atomForces.z);
+        if (!bFEP)
+        {
+            result.x = negCoefficient * kernelParams.current.recipBox[XX][XX] * atomForces.x;
+            result.y = negCoefficient
+                       * (kernelParams.current.recipBox[XX][YY] * atomForces.x
+                          + kernelParams.current.recipBox[YY][YY] * atomForces.y);
+            result.z = negCoefficient
+                       * (kernelParams.current.recipBox[XX][ZZ] * atomForces.x
+                          + kernelParams.current.recipBox[YY][ZZ] * atomForces.y
+                          + kernelParams.current.recipBox[ZZ][ZZ] * atomForces.z);
+        }
+        else
+        {
+            const float3 atomForcesB     = sm_forcesB[forceIndexLocal];
+            const float  negCoefficientB = -gm_coefficientsB[forceIndexGlobal];
+            const float  coeffForce_x    = lambda_* negCoefficient * atomForces.x + lambda * negCoefficientB * atomForcesB.x;
+            const float  coeffForce_y    = lambda_* negCoefficient * atomForces.y + lambda * negCoefficientB * atomForcesB.y;
+            const float  coeffForce_z    = lambda_* negCoefficient * atomForces.z + lambda * negCoefficientB * atomForcesB.z;
+            result.x = coeffForce_x * kernelParams.current.recipBox[XX][XX];
+            result.y = coeffForce_x * kernelParams.current.recipBox[XX][YY]
+                          + coeffForce_y * kernelParams.current.recipBox[YY][YY];
+            result.z = coeffForce_x * kernelParams.current.recipBox[XX][ZZ]
+                          + coeffForce_y * kernelParams.current.recipBox[YY][ZZ]
+                          + coeffForce_z * kernelParams.current.recipBox[ZZ][ZZ];
+        }
         sm_forces[forceIndexLocal] = result;
     }
 
