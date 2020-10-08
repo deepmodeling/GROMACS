@@ -577,7 +577,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     else
                     {
                         alpha_vdw_eff  = alpha_vdw;
-                        alpha_coul_eff = alpha_coul;
+                        if (useScBetaNO)
+                        {
+                            alpha_coul_eff = alpha_vdw_eff;
+                        }
+                        else
+                        {
+                            alpha_coul_eff = alpha_coul;
+                        }
                     }
                 }
 
