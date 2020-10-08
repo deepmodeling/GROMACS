@@ -885,9 +885,7 @@ gmx_pme_t* gmx_pme_init(const t_commrec*         cr,
                 GMX_THROW(gmx::NotImplementedError(errorString));
             }
         }
-        printf("\nlambda_q: %.4f\n", ir->fepvals->all_lambda[efptCOUL][ir->fepvals->init_fep_state]);
-        printf("bFEP: %d\n", ir->efep != efepNO);
-        pme_gpu_reinit(pme.get(), gpuInfo, pmeGpuProgram, ir->efep != efepNO, ir->fepvals->all_lambda[efptCOUL][ir->fepvals->init_fep_state]);
+        pme_gpu_reinit(pme.get(), gpuInfo, pmeGpuProgram, ir->efep != efepNO, ir->fepvals->init_lambda);
     }
 
     pme_init_all_work(&pme->solve_work, pme->nthread, pme->nkx);
@@ -918,6 +916,7 @@ void gmx_pme_reinit(struct gmx_pme_t** pmedata,
     irc.nkx                    = grid_size[XX];
     irc.nky                    = grid_size[YY];
     irc.nkz                    = grid_size[ZZ];
+    irc.fepvals->init_lambda   = ir->fepvals->all_lambda[efptCOUL][ir->fepvals->init_fep_state];
 
     try
     {

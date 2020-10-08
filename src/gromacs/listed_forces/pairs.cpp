@@ -154,8 +154,10 @@ static real evaluate_single(real        r2,
 /*! \brief Compute the energy and force for a single pair interaction under FEP */
 static real free_energy_evaluate_single(real        r2,
                                         real        sc_r_power,
+                                        real        sc_r_power_coul,
                                         real        alpha_coul,
                                         real        alpha_vdw,
+                                        bool        gapsys,
                                         real        tabscale,
                                         const real* vftab,
                                         real        tableStride,
@@ -180,7 +182,7 @@ static real free_energy_evaluate_single(real        r2,
                                         real*       vvdwtot,
                                         real*       dvdl)
 {
-    real       rp, rpm2, rtab, eps, eps2, Y, F, Geps, Heps2, Fp, VV, FF, fscal;
+    real       rp, rpm2, rpc, rpcm2, rtab, eps, eps2, Y, F, Geps, Heps2, Fp, VV, FF, fscal;
     real       qq[2], c6[2], c12[2], sigma6[2], sigma2[2], sigma_pow[2];
     real       alpha_coul_eff, alpha_vdw_eff, dvdl_coul, dvdl_vdw;
     real       rpinv, r_coul, r_vdw, velecsum, vvdwsum;
@@ -193,6 +195,7 @@ static real free_energy_evaluate_single(real        r2,
     const real two         = 2.0;
     const real six         = 6.0;
     const real fourtyeight = 48.0;
+    const bool useScBetaNO = (alpha_coul == 0.0);
 
     qq[0]  = qqA;
     qq[1]  = qqB;
@@ -205,6 +208,16 @@ static real free_energy_evaluate_single(real        r2,
     {
         rpm2 = r2 * r2;   /* r4 */
         rp   = rpm2 * r2; /* r6 */
+        if (sc_r_power_coul == six)
+        {
+            rpcm2 = rpm2;
+            rpc   = rp;
+        }
+        else
+        {
+            rpcm2 = 1.0;
+            rpc   = r2;
+        }
     }
     else if (sc_r_power == fourtyeight)
     {
@@ -213,11 +226,15 @@ static real free_energy_evaluate_single(real        r2,
         rp   = rp * rp;      /* r24 */
         rp   = rp * rp;      /* r48 */
         rpm2 = rp / r2;      /* r46 */
+        rpcm2= rpm2;
+        rpc  = rp;
     }
     else
     {
         rp = std::pow(r2, half * sc_r_power); /* not currently supported as input, but can handle it */
         rpm2 = rp / r2;
+        rpcm2= rpm2;
+        rpc  = rp;
     }
 
     /* Loop over state A(0) and B(1) */
@@ -268,7 +285,14 @@ static real free_energy_evaluate_single(real        r2,
     else
     {
         alpha_vdw_eff  = alpha_vdw;
-        alpha_coul_eff = alpha_coul;
+        if (useScBetaNO)
+        {
+            alpha_coul_eff = alpha_vdw_eff;
+        }
+        else
+        {
+            alpha_coul_eff = alpha_coul;
+        }
     }
 
     /* Loop over A and B states again */
@@ -283,8 +307,15 @@ static real free_energy_evaluate_single(real        r2,
         if ((qq[i] != 0) || (c6[i] != 0) || (c12[i] != 0))
         {
             /* Coulomb */
-            rpinv  = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rp);
-            r_coul = std::pow(rpinv, minusOne / sc_r_power);
+            if (useScBetaNO)
+            {
+                rpinv  = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rp);
+            }
+            else
+            {
+                rpinv  = one / (alpha_coul_eff * lfac_coul[i] + rpc);
+            }
+            r_coul = std::pow(rpinv, minusOne / sc_r_power_coul);
 
             /* Electrostatics table lookup data */
             rtab = r_coul * tabscale;
@@ -348,10 +379,19 @@ static real free_energy_evaluate_single(real        r2,
         velecsum += LFC[i] * velec[i];
         vvdwsum += LFV[i] * vvdw[i];
 
-        fscal += (LFC[i] * fscal_elec[i] + LFV[i] * fscal_vdw[i]) * rpm2;
+        fscal += LFC[i] * fscal_elec[i] * rpcm2 + LFV[i] * fscal_vdw[i] * rpm2;
 
-        dvdl_coul += velec[i] * DLF[i]
-                     + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i] * sigma_pow[i];
+        if (useScBetaNO)
+        {
+            dvdl_coul += velec[i] * DLF[i]
+                         + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i] * sigma_pow[i];
+        }
+        else
+        {
+            dvdl_coul += velec[i] * DLF[i]
+                         + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i];
+        }
+        
         dvdl_vdw += vvdw[i] * DLF[i]
                     + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * fscal_vdw[i] * sigma_pow[i];
     }
@@ -535,9 +575,9 @@ static real do_pairs_general(int                   ftype,
             c12B = iparams[itype].lj14.c12B * 12.0;
 
             fscal = free_energy_evaluate_single(
-                    r2, fr->sc_r_power, fr->sc_alphacoul, fr->sc_alphavdw, fr->pairsTable->scale,
-                    fr->pairsTable->data, fr->pairsTable->stride, qq, c6, c12, qqB, c6B, c12B, LFC,
-                    LFV, DLF, lfac_coul, lfac_vdw, dlfac_coul, dlfac_vdw, fr->sc_sigma6_def,
+                    r2, fr->sc_r_power, fr->sc_r_power_coul, fr->sc_alphacoul, fr->sc_alphavdw, fr->sc_gapsys,
+                    fr->pairsTable->scale, fr->pairsTable->data, fr->pairsTable->stride, qq, c6, c12, qqB, c6B, c12B,
+                    LFC, LFV, DLF, lfac_coul, lfac_vdw, dlfac_coul, dlfac_vdw, fr->sc_sigma6_def,
                     fr->sc_sigma6_min, sigma2_def, sigma2_min, &velec, &vvdw, dvdl);
         }
         else
