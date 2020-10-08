@@ -61,34 +61,52 @@ using Exponent      = real;
 using Degrees = StrongType<real, struct DegreeParameter>;
 using Radians = StrongType<real, struct RadianParameter>;
 
-#define CREATE_MEMBER(NAME, INDEX)                               \
-    inline auto&       NAME() { return std::get<INDEX>(*this); } \
-    inline const auto& NAME() const { return std::get<INDEX>(*this); }
-#define NAMED_MEMBERS(...) MAP_ENUMERATE(CREATE_MEMBER, __VA_ARGS__)
-
-/* NAMED_MEMBERS example expansion
-   NAMED_MEMBERS(forceConstant, equilDistance) will expand to
-
-   inline auto& forceConstant() { return std::get<0>(*this); }
-   inline auto& equilDistance() { return std::get<1>(*this); }
-
-   + const versions
-   Note that the index for each member name is inferred from its position in the argument list
+/*! \brief Basic template for interactions with 2 parameters named forceConstant and equilDistance
+ *
+ * \tparam Phantom unused template parameter for type distinction
+ *
+ * Distinct bond types can be generated from this template with using declarations
+ * and declared, but undefined structs. For example:
+ * using HarmonicBondType = TwoParameterInteraction<struct HarmonicBondTypeParameter>;
+ * Note that HarmonicBondTypeParameter does not have to be defined.
  */
+template<class Phantom>
+class TwoParameterInteraction
+{
+public:
+    TwoParameterInteraction() = default;
+    TwoParameterInteraction(ForceConstant f, EquilDistance d) : forceConstant_(f), equilDistance_(d)
+    {
+    }
 
+    [[nodiscard]] const ForceConstant& forceConstant() const { return forceConstant_; }
+    [[nodiscard]] const EquilDistance& equilDistance() const { return equilDistance_; }
 
-/*! \brief Harmonic bond type
+private:
+    ForceConstant forceConstant_;
+    EquilDistance equilDistance_;
+};
+
+template<class Phantom>
+inline bool operator<(const TwoParameterInteraction<Phantom>& a, const TwoParameterInteraction<Phantom>& b)
+{
+    return std::tie(a.forceConstant(), a.equilDistance())
+           < std::tie(b.forceConstant(), b.equilDistance());
+}
+
+template<class Phantom>
+inline bool operator==(const TwoParameterInteraction<Phantom>& a, const TwoParameterInteraction<Phantom>& b)
+{
+    return std::tie(a.forceConstant(), a.equilDistance())
+           == std::tie(b.forceConstant(), b.equilDistance());
+}
+
+/*! \brief harmonic bond type
  *
  *  It represents the interaction of the form
  *  V(r; forceConstant, equilDistance) = 0.5 * forceConstant * (r - equilDistance)^2
  */
-struct HarmonicBondType : public std::tuple<real, real>
-{
-    HarmonicBondType() = default;
-    HarmonicBondType(ForceConstant f, EquilDistance d) : std::tuple<real, real>{ f, d } {}
-
-    NAMED_MEMBERS(forceConstant, equilDistance)
-};
+using HarmonicBondType = TwoParameterInteraction<struct HarmonicBondTypeParameter>;
 
 
 /*! \brief GROMOS bond type
@@ -96,13 +114,24 @@ struct HarmonicBondType : public std::tuple<real, real>
  * It represents the interaction of the form
  * V(r; forceConstant, equilDistance) = 0.25 * forceConstant * (r^2 - equilDistance^2)^2
  */
-struct G96BondType : public std::tuple<real, real>
-{
-    G96BondType() = default;
-    G96BondType(ForceConstant f, EquilDistance d) : std::tuple<real, real>{ f, d } {}
+using G96BondType = TwoParameterInteraction<struct G96BondTypeParameter>;
 
-    NAMED_MEMBERS(forceConstant, equilDistance)
-};
+
+/*! \brief FENE bond type
+ *
+ * It represents the interaction of the form
+ * V(r; forceConstant, equilDistance) = - 0.5 * forceConstant * equilDistance^2 * log( 1 - (r / equilDistance)^2)
+ */
+using FENEBondType = TwoParameterInteraction<struct FENEBondTypeParameter>;
+
+
+/*! \brief Half-attractive quartic bond type
+ *
+ * It represents the interaction of the form
+ * V(r; forceConstant, equilDistance) = 0.5 * forceConstant * (r - equilDistance)^4
+ */
+using HalfAttractiveQuarticBondType =
+        TwoParameterInteraction<struct HalfAttractiveQuarticBondTypeParameter>;
 
 
 /*! \brief Cubic bond type
@@ -111,134 +140,228 @@ struct G96BondType : public std::tuple<real, real>
  * V(r; quadraticForceConstant, cubicForceConstant, equilDistance) = quadraticForceConstant * (r -
  * equilDistance)^2 + quadraticForceConstant * cubicForceConstant * (r - equilDistance)
  */
-struct CubicBondType : public std::tuple<real, real, real>
+struct CubicBondType
 {
     CubicBondType() = default;
     CubicBondType(ForceConstant fq, ForceConstant fc, EquilDistance d) :
-        std::tuple<real, real, real>{ fq, fc, d }
+        quadraticForceConstant_(fq),
+        cubicForceConstant_(fc),
+        equilDistance_(d)
     {
     }
 
-    NAMED_MEMBERS(quadraticForceConstant, cubicForceConstant, equilDistance)
+    [[nodiscard]] const ForceConstant& quadraticForceConstant() const
+    {
+        return quadraticForceConstant_;
+    }
+    [[nodiscard]] const ForceConstant& cubicForceConstant() const { return cubicForceConstant_; }
+    [[nodiscard]] const EquilDistance& equilDistance() const { return equilDistance_; }
+
+private:
+    ForceConstant quadraticForceConstant_;
+    ForceConstant cubicForceConstant_;
+    EquilDistance equilDistance_;
 };
 
-
-/*! \brief FENE bond type
- *
- * It represents the interaction of the form
- * V(r; forceConstant, equilDistance) = - 0.5 * forceConstant * equilDistance^2 * log( 1 - (r / equilDistance)^2)
- */
-struct FENEBondType : public std::tuple<real, real>
+inline bool operator<(const CubicBondType& a, const CubicBondType& b)
 {
-    FENEBondType() = default;
-    FENEBondType(ForceConstant f, EquilDistance d) : std::tuple<real, real>{ f, d } {}
+    return std::tie(a.quadraticForceConstant(), a.cubicForceConstant(), a.equilDistance())
+           < std::tie(b.quadraticForceConstant(), b.cubicForceConstant(), b.equilDistance());
+}
 
-    NAMED_MEMBERS(forceConstant, equilDistance)
-};
-
+inline bool operator==(const CubicBondType& a, const CubicBondType& b)
+{
+    return std::tie(a.quadraticForceConstant(), a.cubicForceConstant(), a.equilDistance())
+           == std::tie(b.quadraticForceConstant(), b.cubicForceConstant(), b.equilDistance());
+}
 
 /*! \brief Morse bond type
  *
  * It represents the interaction of the form
  * V(r; forceConstant, exponent, equilDistance) = forceConstant * ( 1 - exp( -exponent * (r - equilDistance))
  */
-struct MorseBondType : public std::tuple<real, real, real>
+class MorseBondType
 {
+public:
     MorseBondType() = default;
     MorseBondType(ForceConstant f, Exponent e, EquilDistance d) :
-        std::tuple<real, real, real>{ f, e, d }
+        forceConstant_(f),
+        exponent_(e),
+        equilDistance_(d)
     {
     }
 
-    NAMED_MEMBERS(forceConstant, exponent, equilDistance)
+    [[nodiscard]] const ForceConstant& forceConstant() const { return forceConstant_; }
+    [[nodiscard]] const Exponent&      exponent() const { return exponent_; }
+    [[nodiscard]] const EquilDistance& equilDistance() const { return equilDistance_; }
+
+private:
+    ForceConstant forceConstant_;
+    Exponent      exponent_;
+    EquilDistance equilDistance_;
 };
 
-
-/*! \brief Half-attractive quartic bond type
- *
- * It represents the interaction of the form
- * V(r; forceConstant, equilDistance) = 0.5 * forceConstant * (r - equilDistance)^4
- */
-struct HalfAttractiveQuarticBondType : public std::tuple<real, real>
+inline bool operator<(const MorseBondType& a, const MorseBondType& b)
 {
-    HalfAttractiveQuarticBondType() = default;
-    HalfAttractiveQuarticBondType(ForceConstant f, EquilDistance d) : std::tuple<real, real>{ f, d }
-    {
-    }
+    return std::tie(a.forceConstant(), a.exponent(), a.equilDistance())
+           < std::tie(b.forceConstant(), b.exponent(), b.equilDistance());
+}
 
-    NAMED_MEMBERS(forceConstant, equilDistance)
-};
+inline bool operator==(const MorseBondType& a, const MorseBondType& b)
+{
+    return std::tie(a.forceConstant(), a.exponent(), a.equilDistance())
+           == std::tie(b.forceConstant(), b.exponent(), b.equilDistance());
+}
 
 
 /*! \brief default angle type
  *
  * Note: the angle is always stored as radians internally
  */
-struct DefaultAngle : public std::tuple<real, real>
+struct DefaultAngle : public TwoParameterInteraction<struct DefaultAngleParameter>
 {
     DefaultAngle() = default;
     //! \brief construct from angle given in radians
-    DefaultAngle(Radians angle, ForceConstant f) : std::tuple<real, real>{ angle, f } {}
+    DefaultAngle(Radians angle, ForceConstant f) :
+        TwoParameterInteraction<struct DefaultAngleParameter>{ f, angle }
+    {
+    }
 
     //! \brief construct from angle given in degrees
-    DefaultAngle(Degrees angle, ForceConstant f) : std::tuple<real, real>{ angle * DEG2RAD, f } {}
-
-    NAMED_MEMBERS(equilDistance, forceConstant)
+    DefaultAngle(Degrees angle, ForceConstant f) :
+        TwoParameterInteraction<struct DefaultAngleParameter>{ f, angle * DEG2RAD }
+    {
+    }
 };
-
 
 /*! \brief Proper Dihedral Implementation
  */
-struct ProperDihedral : public std::tuple<real, real, int>
+class ProperDihedral
 {
+public:
     using Multiplicity = int;
 
     ProperDihedral() = default;
     ProperDihedral(Radians phi, ForceConstant f, Multiplicity m) :
-        std::tuple<real, real, int>{ phi, f, m }
+        phi_(phi),
+        forceConstant_(f),
+        multiplicity_(m)
     {
     }
     ProperDihedral(Degrees phi, ForceConstant f, Multiplicity m) :
-        std::tuple<real, real, int>{ phi * DEG2RAD, f, m }
+        phi_(phi * DEG2RAD),
+        forceConstant_(f),
+        multiplicity_(m)
     {
     }
 
-    NAMED_MEMBERS(equilDistance, forceConstant, multiplicity)
+    [[nodiscard]] const EquilDistance& equilDistance() const { return phi_; }
+    [[nodiscard]] const ForceConstant& forceConstant() const { return forceConstant_; }
+    [[nodiscard]] const Multiplicity&  multiplicity() const { return multiplicity_; }
+
+private:
+    EquilDistance phi_;
+    ForceConstant forceConstant_;
+    Multiplicity  multiplicity_;
 };
+
+inline bool operator<(const ProperDihedral& a, const ProperDihedral& b)
+{
+    return std::tie(a.equilDistance(), a.forceConstant(), a.multiplicity())
+           < std::tie(b.equilDistance(), b.forceConstant(), b.multiplicity());
+}
+
+inline bool operator==(const ProperDihedral& a, const ProperDihedral& b)
+{
+    return std::tie(a.equilDistance(), a.forceConstant(), a.multiplicity())
+           == std::tie(b.equilDistance(), b.forceConstant(), b.multiplicity());
+}
 
 
 /*! \brief Improper Dihedral Implementation
  */
-struct ImproperDihedral : public std::tuple<real, real>
+struct ImproperDihedral : public TwoParameterInteraction<struct ImproperDihdedralParameter>
 {
     ImproperDihedral() = default;
-    ImproperDihedral(Radians phi, ForceConstant f) : std::tuple<real, real>{ phi, f } {}
-    ImproperDihedral(Degrees phi, ForceConstant f) : std::tuple<real, real>{ phi * DEG2RAD, f } {}
-
-    NAMED_MEMBERS(equilDistance, forceConstant)
+    ImproperDihedral(Radians phi, ForceConstant f) :
+        TwoParameterInteraction<struct ImproperDihdedralParameter>{ f, phi }
+    {
+    }
+    ImproperDihedral(Degrees phi, ForceConstant f) :
+        TwoParameterInteraction<struct ImproperDihdedralParameter>{ f, phi * DEG2RAD }
+    {
+    }
 };
 
 /*! \brief Ryckaert-Belleman Dihedral Implementation
  */
-struct RyckaertBellemanDihedral : public std::array<real, 6>
+class RyckaertBellemanDihedral
 {
-};
-
-
-/*! \brief Type for 5-center interaction (C-MAP)
- */
-struct Default5Center : public std::tuple<real, real, real, real>
-{
-    using Multiplicity = int;
-
-    Default5Center() = default;
-    Default5Center(Radians phi, Radians psi, ForceConstant fphi, ForceConstant fpsi) :
-        std::tuple<real, real, real, real>{ phi, psi, fphi, fpsi }
+public:
+    RyckaertBellemanDihedral() = default;
+    RyckaertBellemanDihedral(real p1, real p2, real p3, real p4, real p5, real p6) :
+        parameters_{ p1, p2, p3, p4, p5, p6 }
     {
     }
 
-    NAMED_MEMBERS(phi, psi, forceConstantPhi, forceConstantPsi)
+    const real& operator[](std::size_t i) const { return parameters_[i]; }
+
+    [[nodiscard]] const std::array<real, 6>& parameters() const { return parameters_; }
+
+    [[nodiscard]] std::size_t size() const { return parameters_.size(); }
+
+private:
+    std::array<real, 6> parameters_;
 };
+
+inline bool operator<(const RyckaertBellemanDihedral& a, const RyckaertBellemanDihedral& b)
+{
+    return a.parameters() < b.parameters();
+}
+
+inline bool operator==(const RyckaertBellemanDihedral& a, const RyckaertBellemanDihedral& b)
+{
+    return a.parameters() == b.parameters();
+}
+
+
+/*! \brief Type for 5-center interaction (C-MAP)
+ *
+ *  Note: no kernels currently implemented
+ */
+class Default5Center
+{
+public:
+    Default5Center() = default;
+    Default5Center(Radians phi, Radians psi, ForceConstant fphi, ForceConstant fpsi) :
+        phi_(phi),
+        psi_(psi),
+        fphi_(fphi),
+        fpsi_(fpsi)
+    {
+    }
+
+    [[nodiscard]] const Radians&       phi() const { return phi_; }
+    [[nodiscard]] const Radians&       psi() const { return psi_; }
+    [[nodiscard]] const ForceConstant& fphi() const { return fphi_; }
+    [[nodiscard]] const ForceConstant& fpsi() const { return fpsi_; }
+
+private:
+    Radians       phi_, psi_;
+    ForceConstant fphi_, fpsi_;
+};
+
+inline bool operator<(const Default5Center& a, const Default5Center& b)
+{
+    return std::tie(a.phi(), a.psi(), a.fphi(), a.fpsi())
+           < std::tie(b.phi(), b.psi(), b.fphi(), b.fpsi());
+}
+
+inline bool operator==(const Default5Center& a, const Default5Center& b)
+{
+    return std::tie(a.phi(), a.psi(), a.fphi(), a.fpsi())
+           == std::tie(b.phi(), b.psi(), b.fphi(), b.fpsi());
+}
 
 
 } // namespace nblib
