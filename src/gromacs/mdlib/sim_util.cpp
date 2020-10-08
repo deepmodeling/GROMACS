@@ -141,6 +141,27 @@ using gmx::StepWorkload;
 // PME-first ordering would suffice).
 static const bool c_disableAlternatingWait = (getenv("GMX_DISABLE_ALTERNATING_GPU_WAIT") != nullptr);
 
+namespace
+{
+//! Helper for selecting GPU nonbonded datastructures.
+template<class F>
+auto call_with_gpu_nbv(F&& f, nonbonded_verlet_t* nbv)
+{
+    if (nbv->useGpu8x8())
+    {
+        return std::forward<F>(f)(nbv->gpu_nbv8x8);
+    }
+    else if (nbv->useGpu4x4())
+    {
+        return std::forward<F>(f)(nbv->gpu_nbv4x4);
+    }
+    else
+    {
+        GMX_ASSERT(false, "Unhandled statement");
+    }
+}
+} // namespace
+
 static void sum_forces(ArrayRef<RVec> f, ArrayRef<const RVec> forceToAdd)
 {
     GMX_ASSERT(f.size() >= forceToAdd.size(), "Accumulation buffer should be sufficiently large");
@@ -960,18 +981,11 @@ static void launchGpuEndOfStepTasks(nonbonded_verlet_t*               nbv,
         /* now clear the GPU outputs while we finish the step on the CPU */
         wallcycle_start_nocount(wcycle, ewcLAUNCH_GPU);
         wallcycle_sub_start_nocount(wcycle, ewcsLAUNCH_GPU_NONBONDED);
-        if (nbv->useGpu8x8())
-        {
-            Nbnxm::gpu_clear_outputs(nbv->gpu_nbv8x8, runScheduleWork.stepWork.computeVirial);
-        }
-        else if (nbv->useGpu4x4())
-        {
-            Nbnxm::gpu_clear_outputs(nbv->gpu_nbv4x4, runScheduleWork.stepWork.computeVirial);
-        }
-        else
-        {
-            GMX_ASSERT(false, "Unhandled statement");
-        }
+        call_with_gpu_nbv(
+                [&](auto gpu_nbv) {
+                    Nbnxm::gpu_clear_outputs(gpu_nbv, runScheduleWork.stepWork.computeVirial);
+                },
+                nbv);
         wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
         wallcycle_stop(wcycle, ewcLAUNCH_GPU);
     }
@@ -1360,18 +1374,10 @@ void do_force(FILE*                               fplog,
             wallcycle_start_nocount(wcycle, ewcLAUNCH_GPU);
 
             wallcycle_sub_start_nocount(wcycle, ewcsLAUNCH_GPU_NONBONDED);
-            if (nbv->useGpu8x8())
-            {
-                Nbnxm::gpu_init_atomdata(nbv->gpu_nbv8x8, nbv->nbat.get());
-            }
-            else if (nbv->useGpu4x4())
-            {
-                Nbnxm::gpu_init_atomdata(nbv->gpu_nbv4x4, nbv->nbat.get());
-            }
-            else
-            {
-                GMX_ASSERT(false, "Unhandled statement");
-            }
+
+            call_with_gpu_nbv(
+                    [&](auto gpu_nbv) { Nbnxm::gpu_init_atomdata(gpu_nbv, nbv->nbat.get()); }, nbv);
+
             wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
 
             if (fr->gpuBonded)
@@ -1384,22 +1390,13 @@ void do_force(FILE*                               fplog,
                 // TODO the xq, f, and fshift buffers are now shared
                 // resources, so they should be maintained by a
                 // higher-level object than the nb module.
-                if (nbv->useGpu8x8())
-                {
-                    fr->gpuBonded->updateInteractionListsAndDeviceBuffers(
-                            nbv->getGridIndices(), top->idef, Nbnxm::gpu_get_xq(nbv->gpu_nbv8x8),
-                            Nbnxm::gpu_get_f(nbv->gpu_nbv8x8), Nbnxm::gpu_get_fshift(nbv->gpu_nbv8x8));
-                }
-                else if (nbv->useGpu4x4())
-                {
-                    fr->gpuBonded->updateInteractionListsAndDeviceBuffers(
-                            nbv->getGridIndices(), top->idef, Nbnxm::gpu_get_xq(nbv->gpu_nbv4x4),
-                            Nbnxm::gpu_get_f(nbv->gpu_nbv4x4), Nbnxm::gpu_get_fshift(nbv->gpu_nbv4x4));
-                }
-                else
-                {
-                    GMX_ASSERT(false, "Unhandled statement");
-                }
+                call_with_gpu_nbv(
+                        [&](auto gpu_nbv) {
+                            fr->gpuBonded->updateInteractionListsAndDeviceBuffers(
+                                    nbv->getGridIndices(), top->idef, Nbnxm::gpu_get_xq(gpu_nbv),
+                                    Nbnxm::gpu_get_f(gpu_nbv), Nbnxm::gpu_get_fshift(gpu_nbv));
+                        },
+                        nbv);
             }
             wallcycle_stop(wcycle, ewcLAUNCH_GPU);
         }
@@ -1457,32 +1454,14 @@ void do_force(FILE*                               fplog,
         wallcycle_start(wcycle, ewcLAUNCH_GPU);
 
         wallcycle_sub_start(wcycle, ewcsLAUNCH_GPU_NONBONDED);
-        if (nbv->useGpu8x8())
-        {
-            Nbnxm::gpu_upload_shiftvec(nbv->gpu_nbv8x8, nbv->nbat.get());
-        }
-        else if (nbv->useGpu4x4())
-        {
-            Nbnxm::gpu_upload_shiftvec(nbv->gpu_nbv4x4, nbv->nbat.get());
-        }
-        else
-        {
-            GMX_ASSERT(false, "Unhandled statement");
-        }
+        call_with_gpu_nbv([&](auto gpu_nbv) { Nbnxm::gpu_upload_shiftvec(gpu_nbv, nbv->nbat.get()); }, nbv);
         if (stepWork.doNeighborSearch || !stepWork.useGpuXBufferOps)
         {
-            if (nbv->useGpu8x8())
-            {
-                Nbnxm::gpu_copy_xq_to_gpu(nbv->gpu_nbv8x8, nbv->nbat.get(), AtomLocality::Local);
-            }
-            else if (nbv->useGpu4x4())
-            {
-                Nbnxm::gpu_copy_xq_to_gpu(nbv->gpu_nbv4x4, nbv->nbat.get(), AtomLocality::Local);
-            }
-            else
-            {
-                GMX_ASSERT(false, "Unhandled statement");
-            }
+            call_with_gpu_nbv(
+                    [&](auto gpu_nbv) {
+                        Nbnxm::gpu_copy_xq_to_gpu(gpu_nbv, nbv->nbat.get(), AtomLocality::Local);
+                    },
+                    nbv);
         }
         wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
         // with X buffer ops offloaded to the GPU on all but the search steps
@@ -1582,18 +1561,11 @@ void do_force(FILE*                               fplog,
             if (stepWork.doNeighborSearch || !stepWork.useGpuXBufferOps)
             {
                 wallcycle_sub_start(wcycle, ewcsLAUNCH_GPU_NONBONDED);
-                if (nbv->useGpu8x8())
-                {
-                    Nbnxm::gpu_copy_xq_to_gpu(nbv->gpu_nbv8x8, nbv->nbat.get(), AtomLocality::NonLocal);
-                }
-                else if (nbv->useGpu4x4())
-                {
-                    Nbnxm::gpu_copy_xq_to_gpu(nbv->gpu_nbv4x4, nbv->nbat.get(), AtomLocality::NonLocal);
-                }
-                else
-                {
-                    GMX_ASSERT(false, "Unhandled statement");
-                }
+                call_with_gpu_nbv(
+                        [&](auto gpu_nbv) {
+                            Nbnxm::gpu_copy_xq_to_gpu(gpu_nbv, nbv->nbat.get(), AtomLocality::NonLocal);
+                        },
+                        nbv);
                 wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
             }
 
@@ -1622,31 +1594,17 @@ void do_force(FILE*                               fplog,
 
         if (havePPDomainDecomposition(cr))
         {
-            if (nbv->useGpu8x8())
-            {
-                Nbnxm::gpu_launch_cpyback(nbv->gpu_nbv8x8, nbv->nbat.get(), stepWork, AtomLocality::NonLocal);
-            }
-            else if (nbv->useGpu4x4())
-            {
-                Nbnxm::gpu_launch_cpyback(nbv->gpu_nbv4x4, nbv->nbat.get(), stepWork, AtomLocality::NonLocal);
-            }
-            else
-            {
-                GMX_ASSERT(false, "Unhandled statement");
-            }
+            call_with_gpu_nbv(
+                    [&](auto gpu_nbv) {
+                        Nbnxm::gpu_launch_cpyback(gpu_nbv, nbv->nbat.get(), stepWork, AtomLocality::NonLocal);
+                    },
+                    nbv);
         }
-        if (nbv->useGpu8x8())
-        {
-            Nbnxm::gpu_launch_cpyback(nbv->gpu_nbv8x8, nbv->nbat.get(), stepWork, AtomLocality::Local);
-        }
-        else if (nbv->useGpu4x4())
-        {
-            Nbnxm::gpu_launch_cpyback(nbv->gpu_nbv4x4, nbv->nbat.get(), stepWork, AtomLocality::Local);
-        }
-        else
-        {
-            GMX_ASSERT(false, "Unhandled statement");
-        }
+        call_with_gpu_nbv(
+                [&](auto gpu_nbv) {
+                    Nbnxm::gpu_launch_cpyback(gpu_nbv, nbv->nbat.get(), stepWork, AtomLocality::Local);
+                },
+                nbv);
         wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
 
         if (domainWork.haveGpuBondedWork && stepWork.computeEnergy)
