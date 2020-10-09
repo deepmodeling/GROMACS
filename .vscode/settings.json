@@ -2,6 +2,7 @@
     "files.associations": {
         "future": "cpp",
         "*.cuh": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "memory": "cpp"
     }
 }
