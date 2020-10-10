@@ -741,6 +741,31 @@ static void nbnxn_atomdata_set_atomtypes(nbnxn_atomdata_t::Params* params,
     }
 }
 
+/* Sets the atom type in nbnxn_atomdata_t */
+static void nbnxn_atomdata_set_atomtypesAB(nbnxn_atomdata_t::Params* params,
+                                           const Nbnxm::GridSet&     gridSet,
+                                           const int*                type,
+                                           const int*                typeB)
+{
+    params->type.resize(gridSet.numGridAtomsTotal());
+    params->typeB.resize(gridSet.numGridAtomsTotal());
+
+    for (const Nbnxm::Grid& grid : gridSet.grids())
+    {
+        /* Loop over all columns and copy and fill */
+        for (int i = 0; i < grid.numColumns(); i++)
+        {
+            const int numAtoms   = grid.paddedNumAtomsInColumn(i);
+            const int atomOffset = grid.firstAtomInColumn(i);
+
+            copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
+                                 numAtoms, type, params->numTypes - 1, params->type.data() + atomOffset);
+            copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
+                                 numAtoms, typeB, params->numTypes - 1, params->typeB.data() + atomOffset);
+        }
+    }
+}
+
 /* Sets the LJ combination rule parameters in nbnxn_atomdata_t */
 static void nbnxn_atomdata_set_ljcombparams(nbnxn_atomdata_t::Params* params,
                                             const int                 XFormat,
@@ -774,6 +799,53 @@ static void nbnxn_atomdata_set_ljcombparams(nbnxn_atomdata_t::Params* params,
                 {
                     copy_lj_to_nbat_lj_comb<1>(params->nbfp_comb, params->type.data() + atomOffset,
                                                numAtoms, params->lj_comb.data() + atomOffset * 2);
+                }
+            }
+        }
+    }
+}
+
+/* Sets the LJ combination rule parameters in nbnxn_atomdata_t */
+static void nbnxn_atomdata_set_ljcombparamsAB(nbnxn_atomdata_t::Params* params,
+                                              const int                 XFormat,
+                                              const Nbnxm::GridSet&     gridSet)
+{
+    params->lj_comb.resize(gridSet.numGridAtomsTotal() * 2);
+
+    if (params->comb_rule != ljcrNONE)
+    {
+        for (const Nbnxm::Grid& grid : gridSet.grids())
+        {
+            /* Loop over all columns and copy and fill */
+            for (int i = 0; i < grid.numColumns(); i++)
+            {
+                const int numAtoms   = grid.paddedNumAtomsInColumn(i);
+                const int atomOffset = grid.firstAtomInColumn(i);
+
+                if (XFormat == nbatX4)
+                {
+                    copy_lj_to_nbat_lj_comb<c_packX4>(params->nbfp_comb,
+                                                      params->type.data() + atomOffset, numAtoms,
+                                                      params->lj_comb.data() + atomOffset * 2);
+                    copy_lj_to_nbat_lj_comb<c_packX4>(params->nbfp_comb,
+                                                      params->typeB.data() + atomOffset, numAtoms,
+                                                      params->lj_combB.data() + atomOffset * 2);
+                }
+                else if (XFormat == nbatX8)
+                {
+                    copy_lj_to_nbat_lj_comb<c_packX8>(params->nbfp_comb,
+                                                      params->type.data() + atomOffset, numAtoms,
+                                                      params->lj_comb.data() + atomOffset * 2);
+                    copy_lj_to_nbat_lj_comb<c_packX8>(params->nbfp_comb,
+                                                      params->typeB.data() + atomOffset, numAtoms,
+                                                      params->LJ_EWALD_COMB_LB.data() + atomOffset * 2);
+                }
+                else if (XFormat == nbatXYZQ)
+                {
+                    copy_lj_to_nbat_lj_comb<1>(params->nbfp_comb, params->type.data() + atomOffset,
+                                               numAtoms, params->lj_comb.data() + atomOffset * 2);
+                    copy_lj_to_nbat_lj_comb<1>(params->nbfp_comb, params->typeB.data() + atomOffset,
+                                               numAtoms, params->lj_combB.data() + atomOffset * 2);
                 }
             }
         }
@@ -827,6 +899,68 @@ static void nbnxn_atomdata_set_charges(nbnxn_atomdata_t* nbat, const Nbnxm::Grid
                 {
                     *q = 0;
                     q++;
+                }
+            }
+        }
+    }
+}
+
+static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::GridSet& gridSet, const real* charge, const real* chargeB)
+{
+    if (nbat->XFormat != nbatXYZQ)
+    {
+        nbat->paramsDeprecated().q.resize(nbat->numAtoms());
+    }
+
+    for (const Nbnxm::Grid& grid : gridSet.grids())
+    {
+        /* Loop over all columns and copy and fill */
+        for (int cxy = 0; cxy < grid.numColumns(); cxy++)
+        {
+            const int atomOffset     = grid.firstAtomInColumn(cxy);
+            const int numAtoms       = grid.numAtomsInColumn(cxy);
+            const int paddedNumAtoms = grid.paddedNumAtomsInColumn(cxy);
+
+            if (nbat->XFormat == nbatXYZQ)
+            {
+                real* q = nbat->x().data() + atomOffset * STRIDE_XYZQ + ZZ + 1;
+                real* qB= nbat->paramsDeprecated().qB.data() + atomOffset;
+                int   i;
+                for (i = 0; i < numAtoms; i++)
+                {
+                    *q = charge[gridSet.atomIndices()[atomOffset + i]];
+                    q += STRIDE_XYZQ;
+                    *qB= chargeB[gridSet.atomIndices()[atomOffset + i]];
+                    qB++;
+                }
+                /* Complete the partially filled last cell with zeros */
+                for (; i < paddedNumAtoms; i++)
+                {
+                    *q = 0;
+                    q += STRIDE_XYZQ;
+                    *qB= 0;
+                    qB++;
+                }
+            }
+            else
+            {
+                real* q = nbat->paramsDeprecated().q.data() + atomOffset;
+                real* qB= nbat->paramsDeprecated().qB.data() + atomOffset;
+                int   i;
+                for (i = 0; i < numAtoms; i++)
+                {
+                    *q = charge[gridSet.atomIndices()[atomOffset + i]];
+                    q++;
+                    *qB= chargeB[gridSet.atomIndices()[atomOffset + i]];
+                    qB++;
+                }
+                /* Complete the partially filled last cell with zeros */
+                for (; i < paddedNumAtoms; i++)
+                {
+                    *q = 0;
+                    q++;
+                    *qB= 0;
+                    qB++;
                 }
             }
         }
@@ -968,6 +1102,24 @@ void nbnxn_atomdata_set(nbnxn_atomdata_t*     nbat,
 
     /* This must be done after masking types for FEP */
     nbnxn_atomdata_set_ljcombparams(&params, nbat->XFormat, gridSet);
+
+    nbnxn_atomdata_set_energygroups(&params, gridSet, atinfo);
+}
+
+/* Sets all required atom parameter data in nbnxn_atomdata_t */
+void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
+                          const Nbnxm::GridSet& gridSet,
+                          const t_mdatoms*      mdatoms,
+                          const int*            atinfo)
+{
+    nbnxn_atomdata_t::Params& params = nbat->paramsDeprecated();
+
+    nbnxn_atomdata_set_atomtypesAB(&params, gridSet, mdatoms->typeA, mdatoms->typeB);
+
+    nbnxn_atomdata_set_chargesAB(nbat, gridSet, mdatoms->chargeA, mdatoms->chargeB);
+
+    /* This must be done after masking types for FEP */
+    nbnxn_atomdata_set_ljcombparamsAB(&params, nbat->XFormat, gridSet);
 
     nbnxn_atomdata_set_energygroups(&params, gridSet, atinfo);
 }

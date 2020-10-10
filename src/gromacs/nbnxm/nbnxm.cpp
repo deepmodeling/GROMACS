@@ -120,7 +120,15 @@ void nonbonded_verlet_t::setLocalAtomOrder()
 
 void nonbonded_verlet_t::setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo)
 {
-    nbnxn_atomdata_set(nbat.get(), pairSearch_->gridSet(), &mdatoms, atomInfo.data());
+    bool bFEP = mdatoms.nPerturbed != 0;
+    if (bFEP)
+    {
+        nbnxn_atomdata_setAB(nbat.get(), pairSearch_->gridSet(), &mdatoms, atomInfo.data());
+    }
+    else
+    {
+        nbnxn_atomdata_set(nbat.get(), pairSearch_->gridSet(), &mdatoms, atomInfo.data());
+    }
 }
 
 void nonbonded_verlet_t::convertCoordinates(const gmx::AtomLocality        locality,
