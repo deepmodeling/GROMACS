@@ -418,6 +418,9 @@ nbnxn_atomdata_t::Params::Params(gmx::PinningPolicy pinningPolicy) :
     type({}, { pinningPolicy }),
     lj_comb({}, { pinningPolicy }),
     q({}, { pinningPolicy }),
+    typeB({}, { pinningPolicy }),
+    lj_combB({}, { pinningPolicy }),
+    qB({}, { pinningPolicy }),
     nenergrp(0),
     neg_2log(0),
     energrp({}, { pinningPolicy })
@@ -811,6 +814,7 @@ static void nbnxn_atomdata_set_ljcombparamsAB(nbnxn_atomdata_t::Params* params,
                                               const Nbnxm::GridSet&     gridSet)
 {
     params->lj_comb.resize(gridSet.numGridAtomsTotal() * 2);
+    params->lj_combB.resize(gridSet.numGridAtomsTotal() * 2);
 
     if (params->comb_rule != ljcrNONE)
     {
@@ -838,7 +842,7 @@ static void nbnxn_atomdata_set_ljcombparamsAB(nbnxn_atomdata_t::Params* params,
                                                       params->lj_comb.data() + atomOffset * 2);
                     copy_lj_to_nbat_lj_comb<c_packX8>(params->nbfp_comb,
                                                       params->typeB.data() + atomOffset, numAtoms,
-                                                      params->LJ_EWALD_COMB_LB.data() + atomOffset * 2);
+                                                      params->lj_combB.data() + atomOffset * 2);
                 }
                 else if (XFormat == nbatXYZQ)
                 {
@@ -907,9 +911,15 @@ static void nbnxn_atomdata_set_charges(nbnxn_atomdata_t* nbat, const Nbnxm::Grid
 
 static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::GridSet& gridSet, const real* charge, const real* chargeB)
 {
+    printf("size of chargeA: %d\n", sizeof(charge));
+    printf("size of chargeB: %d\n", sizeof(chargeB));
     if (nbat->XFormat != nbatXYZQ)
     {
         nbat->paramsDeprecated().q.resize(nbat->numAtoms());
+    }
+    else
+    {
+        nbat->paramsDeprecated().qB.resize(nbat->numAtoms());
     }
 
     for (const Nbnxm::Grid& grid : gridSet.grids())
@@ -928,9 +938,10 @@ static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::Gr
                 int   i;
                 for (i = 0; i < numAtoms; i++)
                 {
-                    *q = charge[gridSet.atomIndices()[atomOffset + i]];
+                    int idx = gridSet.atomIndices()[atomOffset + i];
+                    *q = charge[idx];
                     q += STRIDE_XYZQ;
-                    *qB= chargeB[gridSet.atomIndices()[atomOffset + i]];
+                    *qB= chargeB[idx];
                     qB++;
                 }
                 /* Complete the partially filled last cell with zeros */
@@ -949,9 +960,10 @@ static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::Gr
                 int   i;
                 for (i = 0; i < numAtoms; i++)
                 {
-                    *q = charge[gridSet.atomIndices()[atomOffset + i]];
+                    int idx = gridSet.atomIndices()[atomOffset + i];
+                    *q = charge[idx];
                     q++;
-                    *qB= chargeB[gridSet.atomIndices()[atomOffset + i]];
+                    *qB= chargeB[idx];
                     qB++;
                 }
                 /* Complete the partially filled last cell with zeros */
@@ -1113,14 +1125,14 @@ void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
                           const int*            atinfo)
 {
     nbnxn_atomdata_t::Params& params = nbat->paramsDeprecated();
-
+    printf("setting atomdata...\n");
     nbnxn_atomdata_set_atomtypesAB(&params, gridSet, mdatoms->typeA, mdatoms->typeB);
-
+    printf("setting charges...\n");
     nbnxn_atomdata_set_chargesAB(nbat, gridSet, mdatoms->chargeA, mdatoms->chargeB);
-
+    printf("setting lj...\n");
     /* This must be done after masking types for FEP */
     nbnxn_atomdata_set_ljcombparamsAB(&params, nbat->XFormat, gridSet);
-
+    printf("setting energygroups...\n");
     nbnxn_atomdata_set_energygroups(&params, gridSet, atinfo);
 }
 

@@ -311,6 +311,11 @@ void nbnxn_atomdata_set(nbnxn_atomdata_t*     nbat,
                         const t_mdatoms*      mdatoms,
                         const int*            atinfo);
 
+void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
+                        const Nbnxm::GridSet& gridSet,
+                        const t_mdatoms*      mdatoms,
+                        const int*            atinfo);
+
 /* Copy the shift vectors to nbat */
 void nbnxn_atomdata_copy_shiftvec(gmx_bool dynamic_box, rvec* shift_vec, nbnxn_atomdata_t* nbat);
 

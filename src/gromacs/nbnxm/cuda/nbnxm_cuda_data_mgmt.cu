@@ -411,14 +411,12 @@ static void cuda_init_const(gmx_nbnxn_cuda_t*               nb,
     nbnxn_cuda_clear_e_fshift(nb);
 }
 
-static void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
+void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
                                const bool        bFEP,
                                const float       alpha_coul,
                                const float       alpha_vdw,
                                const float       sc_sigma6_def,
-                               const float       sc_sigma6_min,
-                               const float       lambda_q,
-                               const float       lambda_v)
+                               const float       sc_sigma6_min)
 {
     nb->nbparam->bFEP       = bFEP;
     nb->nbparam->alpha_coul = alpha_coul;
@@ -427,7 +425,7 @@ static void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
     nb->nbparam->sc_sigma6_min = sc_sigma6_min;
 }
 
-static void cuda_copy_feplambda(gmx_nbnxn_cuda_t* nb,
+void cuda_copy_feplambda(gmx_nbnxn_cuda_t* nb,
                                 const float       lambda_q,
                                 const float       lambda_v)
 {
