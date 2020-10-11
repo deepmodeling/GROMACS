@@ -155,6 +155,7 @@ struct cu_atomdata
     int nalloc;       /**< allocation size for the atom data (xq, f)    */
 
     float4* xq; /**< atom coordinates + charges, size natoms      */
+    float*  qB; /**< atom chargeBs, size natoms                   */
     float3* f;  /**< force output array, size natoms              */
 
     float* e_lj; /**< LJ energy output, size 1                     */
@@ -165,6 +166,8 @@ struct cu_atomdata
     int     ntypes;     /**< number of atom types                         */
     int*    atom_types; /**< atom type indices, size natoms               */
     float2* lj_comb;    /**< sqrt(c6),sqrt(c12) size natoms               */
+    int*    atom_typesB;/**< atom typeB indices, size natoms              */
+    float2* lj_combB;   /**< sqrt(c6),sqrt(c12) for stateB, size natoms   */
 
     float3* shift_vec;         /**< shifts                                       */
     bool    bShiftVecUploaded; /**< true if the shift vector has been uploaded   */
@@ -209,6 +212,14 @@ struct cu_nbparam
     float               coulomb_tab_scale;  /**< table scale/spacing                        */
     float*              coulomb_tab;        /**< pointer to the table in the device memory  */
     cudaTextureObject_t coulomb_tab_texobj; /**< texture object bound to coulomb_tab        */
+
+    bool  bFEP; /**< whether using free energy perturbation    */
+    float alpha_coul;
+    float alpha_vdw;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    float lambda_q; /**< free energy λ for coulomb interaction */
+    float lambda_v; /**< free energy λ for vdw interaction     */
 };
 
 /** \internal
