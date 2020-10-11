@@ -3136,7 +3136,8 @@ static void nbnxn_make_pairlist_part(const Nbnxm::GridSet&   gridSet,
 
     gridSet.getBox(box);
 
-    const bool haveFep = gridSet.haveFep();
+    // const bool haveFep = gridSet.haveFep();
+    const bool haveFep = 0;
 
     const real rlist2 = nbl->rlist * nbl->rlist;
 

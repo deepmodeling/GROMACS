@@ -411,6 +411,30 @@ static void cuda_init_const(gmx_nbnxn_cuda_t*               nb,
     nbnxn_cuda_clear_e_fshift(nb);
 }
 
+static void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
+                               const bool        bFEP,
+                               const float       alpha_coul,
+                               const float       alpha_vdw,
+                               const float       sc_sigma6_def,
+                               const float       sc_sigma6_min,
+                               const float       lambda_q,
+                               const float       lambda_v)
+{
+    nb->nbparam->bFEP       = bFEP;
+    nb->nbparam->alpha_coul = alpha_coul;
+    nb->nbparam->alpha_vdw  = alpha_vdw;
+    nb->nbparam->sc_sigma6  = sc_sigma6_def;
+    nb->nbparam->sc_sigma6_min = sc_sigma6_min;
+}
+
+static void cuda_copy_feplambda(gmx_nbnxn_cuda_t* nb,
+                                const float       lambda_q,
+                                const float       lambda_v)
+{
+    nb->nbparam->lambda_q   = lambda_q;
+    nb->nbparam->lambda_v   = lambda_v;
+}
+
 gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
                            const interaction_const_t* ic,
                            const PairlistParams&      listParams,
@@ -620,6 +644,7 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
     int            nalloc, natoms;
     bool           realloced;
     bool           bDoTime = nb->bDoTime;
+    bool           bFEP    = nb->nbparam->bFEP;
     cu_timers_t*   timers  = nb->timers;
     cu_atomdata_t* d_atdat = nb->atdat;
     cudaStream_t   ls      = nb->stream[InteractionLocality::Local];
@@ -663,6 +688,22 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
             CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_types");
         }
 
+        if (bFEP)
+        {
+            stat = cudaMalloc((void**)&d_atdat->qB, nalloc * sizeof(*d_atdat->qB));
+            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->qB");
+            if (useLjCombRule(nb->nbparam))
+            {
+                stat = cudaMalloc((void**)&d_atdat->lj_combB, nalloc * sizeof(*d_atdat->lj_combB));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->lj_combB");
+            }
+            else
+            {
+                stat = cudaMalloc((void**)&d_atdat->atom_typesB, nalloc * sizeof(*d_atdat->atom_typesB));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_typesB");
+            }
+        }
+
         d_atdat->nalloc = nalloc;
         realloced       = true;
     }
@@ -685,6 +726,22 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
     {
         cu_copy_H2D_async(d_atdat->atom_types, nbat->params().type.data(),
                           natoms * sizeof(*d_atdat->atom_types), ls);
+    }
+
+    if (bFEP)
+    {
+        cu_copy_H2D_async(d_atdat->qB, nbat->params().qB.data(),
+                          natoms * sizeof(*d_atdat->qB), ls);
+        if (useLjCombRule(nb->nbparam))
+        {
+            cu_copy_H2D_async(d_atdat->lj_combB, nbat->params().lj_combB.data(),
+                              natoms * sizeof(*d_atdat->lj_combB), ls);
+        }
+        else
+        {
+            cu_copy_H2D_async(d_atdat->atom_typesB, nbat->params().typeB.data(),
+                              natoms * sizeof(*d_atdat->atom_typesB), ls);
+        }
     }
 
     if (bDoTime)
