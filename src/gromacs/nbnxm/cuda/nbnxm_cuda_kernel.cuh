@@ -172,8 +172,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float alpha_vdw_eff    = alpha_vdw;
     const bool useSoftCore = (alpha_vdw != 0.0);
     const bool useScBetaNO = (alpha_vdw == 0.0);
-    const float sc_sigma6  = nbparam.sc_sigma6;
-    const float sc_sigma6_min = nbparam.sc_sigma6_min;
+    const float sigma6_def  = nbparam.sc_sigma6;
+    const float sigma6_min = nbparam.sc_sigma6_min;
     const float lambda_q   = nbparam.lambda_q;
     const float _lambda_q  = 1 - lambda_q;
     const float lambda_v   = nbparam.lambda_v;
@@ -258,8 +258,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #ifdef LJ_COMB_LB
     float        sigma, epsilon;
     float        sigmaB, epsilonB;
-    float        sigma6[2];
 #endif
+    float        sigma6[2];
+
     float        int_bit, F_invr;
 #    ifdef CALC_ENERGIES
     float        E_lj, E_el;
@@ -315,6 +316,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float2* ljcpBib = (float2*)sm_nextSlotPtr;
     sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*ljcpBib));
 #endif
+    printf("xqib: %p, qBib: %p, cjs: %p, sm_nextSlotPtr: %p\n", xqib, qBib, cjs, sm_nextSlotPtr);
     /*********************************************************************/
 
     nb_sci     = pl_sci[bidx];         /* my i super-cluster's index = current bidx */
@@ -327,20 +329,27 @@ __launch_bounds__(THREADS_PER_BLOCK)
         /* Pre-load i-atom x and q into shared memory */
         ci = sci * c_numClPerSupercl + tidxj;
         ai = ci * c_clSize + tidxi;
+        printf("qBib: %.4f\n", qB[ai] * nbparam.epsfac);
 
         float* shiftptr = (float*)&shift_vec[nb_sci.shift];
         xqbuf = xq[ai] + make_float4(LDG(shiftptr), LDG(shiftptr + 1), LDG(shiftptr + 2), 0.0f);
         xqbuf.w *= nbparam.epsfac;
         xqib[tidxj * c_clSize + tidxi] = xqbuf;
 
+        printf("xqib: %.8f, %.8f, %.8f, %.8f\n", xqbuf.x, xqbuf.y, xqbuf.z, xqbuf.w);
+
         qBib[tidxj * c_clSize + tidxi] = qB[ai] * nbparam.epsfac;
 
 #ifndef LJ_COMB
         /* Pre-load the i-atom types into shared memory */
+        printf("atib: %d\n", atom_types[ai]);
+        printf("atBib: %d\n", atom_typesB[ai]);
         atib[tidxj * c_clSize + tidxi] = atom_types[ai];
         atBib[tidxj * c_clSize + tidxi] = atom_typesB[ai];
 #else
         /* Pre-load the LJ combination parameters into shared memory */
+        printf("ljcpib: %.4f, %.4f\n", lj_comb[ai].x, lj_comb[ai].y);
+        printf("ljcpBib: %.4f, %.4f\n", lj_combB[ai].x, lj_combB[ai].y);
         ljcpib[tidxj * c_clSize + tidxi] = lj_comb[ai];
         ljcpBib[tidxj * c_clSize + tidxi] = lj_combB[ai];
 #endif
@@ -535,13 +544,13 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 typei = atib[i * c_clSize + tidxi];
                                 fetch_nbfp_c6_c12(c6, c12, nbparam, ntypes * typei + typej);
                                 if (bFEP)
-                                {  
+                                {
                                     typeBi= atBib[i * c_clSize + tidxi];
                                     fetch_nbfp_c6_c12(c6B, c12B, nbparam, ntypes * typeBi + typeBj);
                                     if (useSoftCore)
                                     {
-                                        convert_c6_c12_to_sigma6_epsilon(c6, c12, sigma6[0], epsilon);
-                                        convert_c6_c12_to_sigma6_epsilon(c6B, c12B, sigma6[1], epsilonB);
+                                        convert_c6_c12_to_sigma6_epsilon(c6, c12, &(sigma6[0]));
+                                        convert_c6_c12_to_sigma6_epsilon(c6B, c12B, &(sigma6[1]));
                                     }
                                 }
 #    else
@@ -559,8 +568,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     c12B         = ljcpB_i.y * ljcpB_j.y;
                                     if (useSoftCore)
                                     {
-                                        convert_c6_c12_to_sigma6_epsilon(c6, c12, sigma6[0], epsilon);
-                                        convert_c6_c12_to_sigma6_epsilon(c6B, c12B, sigma6[1], epsilonB);
+                                        convert_c6_c12_to_sigma6_epsilon(c6, c12, &(sigma6[0]));
+                                        convert_c6_c12_to_sigma6_epsilon(c6B, c12B, &(sigma6[1]));
                                     }
                                 }
 #        else
@@ -644,14 +653,14 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     }
                                     else
                                     {
-                                        rpinvC[k] = 1;
-                                        r2invC[k] = inv_r2;
-                                        rinvC[k]  = inv_r;
-                                        rC[k]     = r2 * inv_r;
-                                        rpinvV[k] = 1;
-                                        r2invV[k] = inv_r2;
-                                        rinvV[k]  = inv_r;
-                                        rV[k]     = rC[k];
+                                        rpinvC[0] = 1;           rpinvC[1] = 1;
+                                        r2invC[0] = inv_r2;      r2invC[1] = inv_r2;
+                                        rinvC[0]  = inv_r;       rinvC[1]  = inv_r;
+                                        rC[0]     = r2 * inv_r;  rC[1]     = rC[0];
+                                        rpinvV[0] = 1;           rpinvV[1] = 1;
+                                        r2invV[0] = inv_r2;      r2invV[1] = inv_r2;
+                                        rinvV[0]  = inv_r;       rinvV[1]  = inv_r;
+                                        rV[0]     = rC[0];       rV[1]     = rC[0];
                                     }
                                     F_invr = 0.0f;
                                 }
@@ -707,27 +716,43 @@ __launch_bounds__(THREADS_PER_BLOCK)
 //                                 F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
 // #    endif     /* !LJ_COMB_LB || CALC_ENERGIES */
 
-//TODO: adding fep into vdw modifier with force switch
+// TODO: adding fep into vdw modifier with force switch
 #    ifdef LJ_FORCE_SWITCH
 #        ifdef CALC_ENERGIES
+                                if (!bFEP)
                                 calculate_force_switch_F_E(nbparam, c6, c12, inv_r, r2, &F_invr, &E_lj_p);
+                                else
+                                calculate_force_switch_F_E(nbparam, c6, c12, rinvV[0], rV[0] * rV[0], &F_invr, &E_lj_p);
 #        else
+                                if (!bFEP)
                                 calculate_force_switch_F(nbparam, c6, c12, inv_r, r2, &F_invr);
+                                else
+                                calculate_force_switch_F(nbparam, c6, c12, rinvV[0], rV[0] * rV[0], &F_invr);
 #        endif /* CALC_ENERGIES */
 #    endif     /* LJ_FORCE_SWITCH */
 
-//TODO: adding fep into vdw Ewald
+// TODO: adding fep into vdw Ewald
 #    ifdef LJ_EWALD
 #        ifdef LJ_EWALD_COMB_GEOM
 #            ifdef CALC_ENERGIES
+                                if (!bFEP)
                                 calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, r2, inv_r2,
                                                                  lje_coeff2, lje_coeff6_6, int_bit,
                                                                  &F_invr, &E_lj_p);
+                                else
+                                calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, rV[0] * rV[0], inv_r2,
+                                                                 lje_coeff2, lje_coeff6_6, int_bit,
+                                                                 &F_invr, &E_lj_p);
 #            else
+                                if (!bFEP)
                                 calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, r2, inv_r2,
+                                                               lje_coeff2, lje_coeff6_6, &F_invr);
+                                else
+                                calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, rV[0] * rV[0], inv_r2,
                                                                lje_coeff2, lje_coeff6_6, &F_invr);
 #            endif /* CALC_ENERGIES */
 #        elif defined LJ_EWALD_COMB_LB
+                                if (!bFEP)
                                 calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, r2, inv_r2,
                                                                lje_coeff2, lje_coeff6_6,
 #            ifdef CALC_ENERGIES
@@ -736,15 +761,26 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                                                0, &F_invr, nullptr
 #            endif /* CALC_ENERGIES */
                                 );
+                                else
+                                calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, rV[0] * rV[0], inv_r2,
+                                                               lje_coeff2, lje_coeff6_6,
+                                                               0, &F_invr, nullptr
+                                );
 #        endif     /* LJ_EWALD_COMB_GEOM */
 #    endif         /* LJ_EWALD */
 
-//TODO: adding fep into vdw modifier with poteintial switch
+// TODO: adding fep into vdw modifier with poteintial switch
 #    ifdef LJ_POT_SWITCH
 #        ifdef CALC_ENERGIES
+                                if (!bFEP)
                                 calculate_potential_switch_F_E(nbparam, inv_r, r2, &F_invr, &E_lj_p);
+                                else
+                                calculate_potential_switch_F_E(nbparam, inv_r, rV[0] * rV[0], &F_invr, &E_lj_p);
 #        else
+                                if (!bFEP)
                                 calculate_potential_switch_F(nbparam, inv_r, r2, &F_invr, &E_lj_p);
+                                else
+                                calculate_potential_switch_F(nbparam, inv_r, rV[0] * rV[0], &F_invr, &E_lj_p);
 #        endif /* CALC_ENERGIES */
 #    endif     /* LJ_POT_SWITCH */
 
@@ -763,7 +799,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 E_lj += E_lj_p;
 #    endif
 
-                                if (bFEP) float qq[2] = {qi * qj_f, qBi * qBj_f};
+                                float qq[2] = {qi * qj_f, qi * qj_f};
+                                if (bFEP) qq[1] = qBi * qBj_f;
 #    ifdef EL_CUTOFF
 #        ifdef EXCLUSION_FORCES
                                 if (!bFEP)

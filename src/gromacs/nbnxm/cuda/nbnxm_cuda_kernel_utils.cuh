@@ -88,17 +88,17 @@ static __forceinline__ __device__ void
 
 /*! Convert LJ C6,C12 parameters to sigma,epsilon. */
 static __forceinline__ __device__ void
-                       convert_c6_c12_to_sigma6_epsilon(const float c6, const float c12, float* sigma6, float* epsilon)
+                       convert_c6_c12_to_sigma6_epsilon(const float c6, const float c12, float* sigma6)
 {
     if ((c6 > 0) && (c12 > 0))
     {
         *sigma6  = c12 / c6;
-        *epsilon = c6 / *sigma6;
+        // *epsilon = c6 / *sigma6;
     }
     else
     {
         *sigma6  = 0;
-        *epsilon = 1;
+        // *epsilon = 0;
     }
 }
 

@@ -17,4 +17,4 @@ export CXX=/data2/publicsoft/gcc/5.4.0/bin/g++
 rm -rf build;
 mkdir build;
 cd build; 
-cmake .. -DGMX_MPI=ON -DGMX_GPU=ON -DCUDA_TOOLKIT_ROOT_DIR=/data2/publicsoft/cuda10.0 -DCMAKE_INSTALL_PREFIX=/data1/anguse/zijian/gromacs-2020.2-nvtest && make -j16 && make install
+cmake .. -DGMX_MPI=ON -DGMX_GPU=ON -DCUDA_TOOLKIT_ROOT_DIR=/data2/publicsoft/cuda10.0 -DCMAKE_INSTALL_PREFIX=/data1/anguse/zijian/gromacs-2020.2-gnbfep && make -j install

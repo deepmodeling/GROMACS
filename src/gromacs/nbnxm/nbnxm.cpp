@@ -47,6 +47,7 @@
 
 #include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/timing/wallcycle.h"
+#include "gromacs/mdtypes/mdatom.h"
 
 #include "atomdata.h"
 #include "pairlistsets.h"
