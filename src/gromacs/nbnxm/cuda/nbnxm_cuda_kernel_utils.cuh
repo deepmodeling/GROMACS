@@ -92,7 +92,7 @@ static __forceinline__ __device__ void
 {
     if ((c6 > 0) && (c12 > 0))
     {
-        *sigma6  = c12 / c6;
+        *sigma6  = c12 / c6 * 0.5;
         // *epsilon = c6 / *sigma6;
     }
     else
