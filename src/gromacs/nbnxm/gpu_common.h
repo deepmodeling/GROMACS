@@ -414,7 +414,6 @@ bool gpu_try_finish_task(gmx_nbnxn_gpu_t*         nb,
         }
         else if (haveResultToWaitFor)
         {
-            printf("synchronizing...\n");
             gpuStreamSynchronize(nb->stream[iLocality]);
         }
 

@@ -316,7 +316,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float2* ljcpBib = (float2*)sm_nextSlotPtr;
     sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*ljcpBib));
 #endif
-    printf("xqib: %p, qBib: %p, cjs: %p, sm_nextSlotPtr: %p\n", xqib, qBib, cjs, sm_nextSlotPtr);
+    
     /*********************************************************************/
 
     nb_sci     = pl_sci[bidx];         /* my i super-cluster's index = current bidx */
@@ -329,27 +329,19 @@ __launch_bounds__(THREADS_PER_BLOCK)
         /* Pre-load i-atom x and q into shared memory */
         ci = sci * c_numClPerSupercl + tidxj;
         ai = ci * c_clSize + tidxi;
-        printf("qBib: %.4f\n", qB[ai] * nbparam.epsfac);
 
         float* shiftptr = (float*)&shift_vec[nb_sci.shift];
         xqbuf = xq[ai] + make_float4(LDG(shiftptr), LDG(shiftptr + 1), LDG(shiftptr + 2), 0.0f);
         xqbuf.w *= nbparam.epsfac;
         xqib[tidxj * c_clSize + tidxi] = xqbuf;
-
-        printf("xqib: %.8f, %.8f, %.8f, %.8f\n", xqbuf.x, xqbuf.y, xqbuf.z, xqbuf.w);
-
         qBib[tidxj * c_clSize + tidxi] = qB[ai] * nbparam.epsfac;
 
 #ifndef LJ_COMB
         /* Pre-load the i-atom types into shared memory */
-        printf("atib: %d\n", atom_types[ai]);
-        printf("atBib: %d\n", atom_typesB[ai]);
         atib[tidxj * c_clSize + tidxi] = atom_types[ai];
         atBib[tidxj * c_clSize + tidxi] = atom_typesB[ai];
 #else
         /* Pre-load the LJ combination parameters into shared memory */
-        printf("ljcpib: %.4f, %.4f\n", lj_comb[ai].x, lj_comb[ai].y);
-        printf("ljcpBib: %.4f, %.4f\n", lj_combB[ai].x, lj_combB[ai].y);
         ljcpib[tidxj * c_clSize + tidxi] = lj_comb[ai];
         ljcpBib[tidxj * c_clSize + tidxi] = lj_combB[ai];
 #endif
