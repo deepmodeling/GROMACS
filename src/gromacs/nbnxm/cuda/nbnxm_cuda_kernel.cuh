@@ -171,7 +171,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float alpha_coul_eff   = alpha_coul;
     float alpha_vdw_eff    = alpha_vdw;
     const bool useSoftCore = (alpha_vdw != 0.0);
-    const bool useScBetaNO = (alpha_vdw == 0.0);
+    const bool useScBetaNO = (alpha_coul == 0.0);
     const float sigma6_def  = nbparam.sc_sigma6;
     const float sigma6_min = nbparam.sc_sigma6_min;
     const float lambda_q   = nbparam.lambda_q;
@@ -253,7 +253,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 // #if !defined LJ_COMB_LB || defined CALC_ENERGIES
     float        inv_r6, c6, c12;
     float        c6B, c12B;
-    float        rC[2], rV[2], rinvC[2], rinvV[2], r2invC[2], r2invV[2], rpinvC[2], rpinvV[2];
+    float        rinvC[2], rinvV[2], r2C[2], r2V[2], rpinvC[2], rpinvV[2];
 // #endif
 #ifdef LJ_COMB_LB
     float        sigma, epsilon;
@@ -577,9 +577,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     if (useSoftCore)
                                     {
                                         float sigma2 = sigma * sigma;
-                                        sigma6[0]    = sigma2 * sigma2 * sigma2;
+                                        sigma6[0]    = sigma2 * sigma2 * sigma2 * 0.5;
                                         float sigma2B= sigmaB * sigmaB;
-                                        sigma6[1]    = sigma2B * sigma2B * sigma2B;
+                                        sigma6[1]    = sigma2B * sigma2B * sigma2B * 0.5;
                                     }
                                 }
 // #            if defined CALC_ENERGIES || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH
@@ -598,9 +598,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 r2 = max(r2, NBNXN_MIN_RSQ);
                                 inv_r  = rsqrt(r2);
                                 inv_r2 = inv_r * inv_r;
+                                inv_r6 = inv_r2 * inv_r2 * inv_r2;
                                 if (bFEP)
                                 {
-                                    if ((c12 > 0) && (c12B > 0) && (useSoftCore))
+                                    if (((c12 == 0) || (c12B == 0)) && (useSoftCore))
                                     {
                                         alpha_vdw_eff  = alpha_vdw;
                                         alpha_coul_eff = (useScBetaNO ? alpha_vdw_eff : alpha_coul);
@@ -622,43 +623,38 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                             {
                                                 rpinvC[k] = 1.0f / (alpha_coul_eff * lfac_coul[k] + rp);
                                             }
-                                            r2invC[k] = cbrt(rpinvC[k]);
-                                            rinvC[k]  = sqrt(r2invC[k]);
-                                            rC[k]     = 1.0f / rinvC[k];
+                                            r2C[k]    = rcbrt(rpinvC[k]);
+                                            rinvC[k]  = rsqrt(r2C[k]);
                             
                                             if ((alpha_coul_eff != alpha_vdw_eff) || (!useScBetaNO))
                                             {
                                                 rpinvV[k] = 1.0f / (alpha_vdw_eff * lfac_vdw[k] * sigma6[k] + rp);
-                                                r2invV[k] = cbrt(rpinvV[k]);
-                                                rinvV[k]  = sqrt(r2invV[k]);
-                                                rV[k]     = 1.0f / rinvV[k];
+                                                r2V[k]    = rcbrt(rpinvV[k]);
+                                                rinvV[k]  = rsqrt(r2V[k]);
                                             }
                                             else
                                             {
                                                 /* We can avoid one expensive pow and one / operation */
                                                 rpinvV[k] = rpinvC[k];
-                                                r2invV[k] = r2invC[k];
+                                                r2V[k]    = r2C[k];
                                                 rinvV[k]  = rinvC[k];
-                                                rV[k]     = rC[k];
                                             }
                                         }
                                     }
                                     else
                                     {
-                                        rpinvC[0] = 1;           rpinvC[1] = 1;
-                                        r2invC[0] = inv_r2;      r2invC[1] = inv_r2;
+                                        rpinvC[0] = inv_r6;      rpinvC[1] = inv_r6;
+                                        r2C[0]    = r2;          r2C[1]    = r2;
                                         rinvC[0]  = inv_r;       rinvC[1]  = inv_r;
-                                        rC[0]     = r2 * inv_r;  rC[1]     = rC[0];
-                                        rpinvV[0] = 1;           rpinvV[1] = 1;
-                                        r2invV[0] = inv_r2;      r2invV[1] = inv_r2;
+                                        rpinvV[0] = inv_r6;      rpinvV[1] = inv_r6;
+                                        r2V[0]    = r2;          r2V[1]    = r2;
                                         rinvV[0]  = inv_r;       rinvV[1]  = inv_r;
-                                        rV[0]     = rC[0];       rV[1]     = rC[0];
                                     }
                                     F_invr = 0.0f;
                                 }
                                 
 // #    if !defined LJ_COMB_LB || defined CALC_ENERGIES
-                                inv_r6 = inv_r2 * inv_r2 * inv_r2;
+                                // inv_r6 = inv_r2 * inv_r2 * inv_r2;
 #        ifdef EXCLUSION_FORCES
                                 /* We could mask inv_r2, but with Ewald
                                  * masking both inv_r6 and F_invr is faster */
@@ -677,6 +673,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     // float Vvdw6[2] = {c6 * rpinvV[0], c6B * rpinvV[1]};
                                     // float Vvdw12[2]= {c12 * rpinvV[0] * rpinvV[0], c12B * rpinvV[1] * rpinvV[1]};
                                     float FscalV[2]= {c12 * rpinvV[0] - c6, c12B * rpinvV[1] - c6B};
+                                    F_invr = 0.0f;
                                     for (int k = 0; k < 2; k++)
                                     {
                                         F_invr += lfac_vdw[1-k] * rpinvV[k] * rpinvV[k] * FscalV[k] * rpm2;
@@ -689,6 +686,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                             - c6 * (inv_r6 + nbparam.dispersion_shift.cpot) * c_oneSixth);
                                 else
                                 {
+                                    E_lj_p = 0;
                                     E_lj_p += int_bit * lfac_vdw[1]
                                          * (c12 * (rpinvV[0] * rpinvV[0] + nbparam.repulsion_shift.cpot) * c_oneTwelveth
                                             - c6 * (rpinvV[0] + nbparam.dispersion_shift.cpot) * c_oneSixth);
@@ -714,12 +712,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 if (!bFEP)
                                 calculate_force_switch_F_E(nbparam, c6, c12, inv_r, r2, &F_invr, &E_lj_p);
                                 else
-                                calculate_force_switch_F_E(nbparam, c6, c12, rinvV[0], rV[0] * rV[0], &F_invr, &E_lj_p);
+                                calculate_force_switch_F_E(nbparam, c6, c12, rinvV[0], r2V[0], &F_invr, &E_lj_p);
 #        else
                                 if (!bFEP)
                                 calculate_force_switch_F(nbparam, c6, c12, inv_r, r2, &F_invr);
                                 else
-                                calculate_force_switch_F(nbparam, c6, c12, rinvV[0], rV[0] * rV[0], &F_invr);
+                                calculate_force_switch_F(nbparam, c6, c12, rinvV[0], r2V[0], &F_invr);
 #        endif /* CALC_ENERGIES */
 #    endif     /* LJ_FORCE_SWITCH */
 
@@ -732,7 +730,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                                                  lje_coeff2, lje_coeff6_6, int_bit,
                                                                  &F_invr, &E_lj_p);
                                 else
-                                calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, rV[0] * rV[0], inv_r2,
+                                calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, r2V[0], inv_r2,
                                                                  lje_coeff2, lje_coeff6_6, int_bit,
                                                                  &F_invr, &E_lj_p);
 #            else
@@ -740,7 +738,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, r2, inv_r2,
                                                                lje_coeff2, lje_coeff6_6, &F_invr);
                                 else
-                                calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, rV[0] * rV[0], inv_r2,
+                                calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, r2V[0], inv_r2,
                                                                lje_coeff2, lje_coeff6_6, &F_invr);
 #            endif /* CALC_ENERGIES */
 #        elif defined LJ_EWALD_COMB_LB
@@ -754,7 +752,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #            endif /* CALC_ENERGIES */
                                 );
                                 else
-                                calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, rV[0] * rV[0], inv_r2,
+                                calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, r2V[0], inv_r2,
                                                                lje_coeff2, lje_coeff6_6,
                                                                0, &F_invr, nullptr
                                 );
@@ -767,12 +765,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 if (!bFEP)
                                 calculate_potential_switch_F_E(nbparam, inv_r, r2, &F_invr, &E_lj_p);
                                 else
-                                calculate_potential_switch_F_E(nbparam, inv_r, rV[0] * rV[0], &F_invr, &E_lj_p);
+                                calculate_potential_switch_F_E(nbparam, inv_r, r2V[0], &F_invr, &E_lj_p);
 #        else
                                 if (!bFEP)
                                 calculate_potential_switch_F(nbparam, inv_r, r2, &F_invr, &E_lj_p);
                                 else
-                                calculate_potential_switch_F(nbparam, inv_r, rV[0] * rV[0], &F_invr, &E_lj_p);
+                                calculate_potential_switch_F(nbparam, inv_r, r2V[0], &F_invr, &E_lj_p);
 #        endif /* CALC_ENERGIES */
 #    endif     /* LJ_POT_SWITCH */
 
@@ -818,7 +816,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 else
                                     for (int k = 0; k < 2; k++)
                                     {
-                                        F_invr += lfac_coul[1-k] * qq[k] * (int_bit * rinvC[k] - two_k_rf * rC[k] * rC[k]) * rpinvC[k] * rpm2;
+                                        F_invr += lfac_coul[1-k] * qq[k] * (int_bit * rinvC[k] - two_k_rf * r2C[k]) * rpinvC[k] * rpm2;
                                     }
 #    endif
 #    if defined   EL_EWALD_ANA
@@ -829,7 +827,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     for (int k = 0; k < 2; k++)
                                     {
                                         F_invr += lfac_coul[1-k] * qq[k]
-                                          * (int_bit * rinvC[k] + pmecorrF(beta2 * rC[k] * rC[k]) * beta3 * rC[k] * rC[k]) * rpinvC[k] * rpm2;
+                                          * (int_bit * rinvC[k] + pmecorrF(beta2 * r2C[k]) * beta3 * r2C[k]) * rpinvC[k] * rpm2;
                                     }
 #    elif defined EL_EWALD_TAB
                                 if (!bFEP)
@@ -842,7 +840,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     {
                                         F_invr += lfac_coul[1-k] * qq[k]
                                           * (int_bit
-                                             - interpolate_coulomb_force_r(nbparam, rC[k]) * rC[k])
+                                             - interpolate_coulomb_force_r(nbparam, r2C[k] * rinvC[k]) * r2C[k] * rinvC[k])
                                           * rpinvC[k] * rpm2;
                                     }
 #    endif /* EL_EWALD_ANA/TAB */
@@ -863,7 +861,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 else
                                     for (int k = 0; k < 2; k++)
                                     {
-                                        E_el += lfac_coul[1-k] * qq[k] * (int_bit * rinvC[k] + 0.5f * two_k_rf * rC[k] * rC[k] - c_rf);
+                                        E_el += lfac_coul[1-k] * qq[k] * (int_bit * rinvC[k] + 0.5f * two_k_rf * r2C[k] - c_rf);
                                     }
 #        endif
 #        ifdef EL_EWALD_ANY
@@ -875,7 +873,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     for (int k = 0; k < 2; k++)
                                     {
                                         E_el += lfac_coul[1-k] * qq[k]
-                                                * (rinvC[k] * (int_bit - erff(rC[k] * beta)) - int_bit * ewald_shift);
+                                                * (rinvC[k] * (int_bit - erff(r2C[k] * rinvC[k] * beta)) - int_bit * ewald_shift);
                                     }
 #        endif /* EL_EWALD_ANY */
 #    endif
