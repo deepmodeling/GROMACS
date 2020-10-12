@@ -1125,14 +1125,10 @@ void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
                           const int*            atinfo)
 {
     nbnxn_atomdata_t::Params& params = nbat->paramsDeprecated();
-    printf("setting atomdata...\n");
     nbnxn_atomdata_set_atomtypesAB(&params, gridSet, mdatoms->typeA, mdatoms->typeB);
-    printf("setting charges...\n");
     nbnxn_atomdata_set_chargesAB(nbat, gridSet, mdatoms->chargeA, mdatoms->chargeB);
-    printf("setting lj...\n");
     /* This must be done after masking types for FEP */
     nbnxn_atomdata_set_ljcombparamsAB(&params, nbat->XFormat, gridSet);
-    printf("setting energygroups...\n");
     nbnxn_atomdata_set_energygroups(&params, gridSet, atinfo);
 }
 
