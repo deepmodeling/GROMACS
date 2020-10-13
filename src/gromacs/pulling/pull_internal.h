@@ -255,7 +255,7 @@ struct pull_coord_work_t
         spatialData(),
         scalarForce(0),
         bExternalPotentialProviderHasBeenRegistered(false),
-        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : nullptr)
+        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : "")
     {
     }
 
