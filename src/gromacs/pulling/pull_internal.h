@@ -61,6 +61,7 @@
 
 #include "gromacs/domdec/localatomset.h"
 #include "gromacs/mdtypes/pull_params.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxmpi.h"
 
 /*! \brief Determines up to what local atom count a pull group gets processed single-threaded.
@@ -174,7 +175,7 @@ public:
         }
         if (gmx::ssize(variableValues_) <= variableIdx)
         {
-            throw std::invalid_argument("Variable index out of range for the expression");
+            GMX_THROW(gmx::InvalidInputError("Variable index out of range for the expression"));
         }
         variableValues_[variableIdx] = value;
 #else
@@ -196,7 +197,7 @@ public:
 #if HAVE_MUPARSER
         if (!parser_)
         {
-            throw std::runtime_error("Tried to evaluate an uninitialized expression.");
+            GMX_THROW(gmx::InvalidInputError("Tried to evaluate an uninitialized expression."));
         }
         return parser_->Eval();
 #else
