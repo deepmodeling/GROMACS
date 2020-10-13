@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -265,11 +265,16 @@ static void gmx_pme_send_coeffs_coords(t_forcerec*      fr,
             real* xRealPtr = const_cast<real*>(x[0]);
             if (useGpuPmePpComms && (fr != nullptr))
             {
-                void* sendPtr = sendCoordinatesFromGpu
-                                        ? static_cast<void*>(fr->stateGpu->getCoordinates())
-                                        : static_cast<void*>(xRealPtr);
-                fr->pmePpCommGpu->sendCoordinatesToPmeCudaDirect(
+#    if GMX_GPU_CUDA
+                DeviceBuffer<gmx::RVec> sendPtr =
+                        sendCoordinatesFromGpu ? fr->stateGpu->getCoordinates()
+                                               : reinterpret_cast<DeviceBuffer<gmx::RVec>>(xRealPtr);
+                fr->pmePpCommGpu->sendCoordinatesToPme(
                         sendPtr, n, sendCoordinatesFromGpu, coordinatesReadyOnDeviceEvent);
+#    else
+                GMX_UNUSED_VALUE(sendCoordinatesFromGpu);
+                GMX_UNUSED_VALUE(coordinatesReadyOnDeviceEvent);
+#    endif
             }
             else
             {
@@ -520,9 +525,17 @@ static void recvFFromPme(gmx::PmePpCommGpu* pmePpCommGpu,
 {
     if (useGpuPmePpComms)
     {
+#if GMX_GPU_CUDA
         GMX_ASSERT(pmePpCommGpu != nullptr, "Need valid pmePpCommGpu");
         // Receive directly using CUDA memory copy
-        pmePpCommGpu->receiveForceFromPmeCudaDirect(recvptr, n, receivePmeForceToGpu);
+        pmePpCommGpu->receiveForceFromPme(
+                static_cast<DeviceBuffer<gmx::RVec>>(recvptr), n, receivePmeForceToGpu);
+#else
+        GMX_UNUSED_VALUE(pmePpCommGpu);
+        GMX_UNUSED_VALUE(recvptr);
+        GMX_UNUSED_VALUE(n);
+        GMX_UNUSED_VALUE(receivePmeForceToGpu);
+#endif
     }
     else
     {

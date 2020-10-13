@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -77,14 +77,17 @@ public:
 
     /*! \brief
      * launch receive of coordinate data from PP rank
-     * \param[in] ppRank  PP rank to send data
+     * \param[in] recvbuf  coordinates buffer in GPU memory
+     * \param[in] nat      starting element in buffer
+     * \param[in] numBytes number of bytes to transfer
+     * \param[in] ppRank   PP rank to send data
      */
-    void launchReceiveCoordinatesFromPpCudaDirect(int ppRank);
+    void launchReceiveCoordinatesFromPp(DeviceBuffer<RVec> recvbuf, int nat, int numBytes, int ppRank);
 
     /*! \brief
      * enqueue wait for coordinate data from PP ranks
      */
-    void enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+    void waitOrEnqueueWaitReceiveCoordinatesFromPp();
 
 private:
     class Impl;

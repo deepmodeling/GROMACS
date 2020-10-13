@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -105,8 +105,8 @@
 #include "pme_pp_communication.h"
 
 /*! \brief environment variable to enable GPU P2P communication */
-static const bool c_enableGpuPmePpComms =
-        GMX_GPU_CUDA && GMX_THREAD_MPI && (getenv("GMX_GPU_PME_PP_COMMS") != nullptr);
+static const bool c_enableGpuPmePpComms = GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI)
+                                          && (getenv("GMX_GPU_PME_PP_COMMS") != nullptr);
 
 /*! \brief Master PP-PME communication data structure */
 struct gmx_pme_pp
@@ -438,6 +438,7 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                 }
                 if (pme_pp->useGpuDirectComm)
                 {
+#    if GMX_GPU_CUDA
                     GMX_ASSERT(runMode == PmeRunMode::GPU,
                                "GPU Direct PME-PP communication has been enabled, "
                                "but PME run mode is not PmeRunMode::GPU\n");
@@ -446,7 +447,8 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                     pme_pp->pmeCoordinateReceiverGpu->sendCoordinateBufferAddressToPpRanks(
                             stateGpu->getCoordinates());
                     pme_pp->pmeForceSenderGpu->sendForceBufferAddressToPpRanks(
-                            reinterpret_cast<rvec*>(pme_gpu_get_device_f(pme)));
+                            reinterpret_cast<DeviceBuffer<gmx::RVec>>(pme_gpu_get_device_f(pme)));
+#    endif
                 }
             }
 
@@ -467,8 +469,9 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                 {
                     if (pme_pp->useGpuDirectComm)
                     {
-                        pme_pp->pmeCoordinateReceiverGpu->launchReceiveCoordinatesFromPpCudaDirect(
-                                sender.rankId);
+                        DeviceBuffer<gmx::RVec> recvBuf = stateGpu->getCoordinates();
+                        pme_pp->pmeCoordinateReceiverGpu->launchReceiveCoordinatesFromPp(
+                                recvBuf, nat, sender.numAtoms * sizeof(rvec), sender.rankId);
                     }
                     else
                     {
@@ -494,14 +497,18 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
 
             if (pme_pp->useGpuDirectComm)
             {
-                pme_pp->pmeCoordinateReceiverGpu->enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+                pme_pp->pmeCoordinateReceiverGpu->waitOrEnqueueWaitReceiveCoordinatesFromPp();
             }
 
             status = pmerecvqxX;
         }
 
         /* Wait for the coordinates and/or charges to arrive */
-        MPI_Waitall(messages, pme_pp->req.data(), pme_pp->stat.data());
+        if (messages > 0)
+        {
+            MPI_Waitall(messages, pme_pp->req.data(), pme_pp->stat.data());
+        }
+
         messages = 0;
     } while (status == -1);
 #else
@@ -538,11 +545,15 @@ static void sendFToPP(void* sendbuf, PpRanks receiver, gmx_pme_pp* pme_pp, int* 
 
     if (pme_pp->useGpuDirectComm)
     {
+#    if GMX_GPU_CUDA
         GMX_ASSERT((pme_pp->pmeForceSenderGpu != nullptr),
                    "The use of GPU direct communication for PME-PP is enabled, "
                    "but the PME GPU force reciever object does not exist");
 
-        pme_pp->pmeForceSenderGpu->sendFToPpCudaDirect(receiver.rankId);
+        pme_pp->pmeForceSenderGpu->sendFToPp(static_cast<DeviceBuffer<gmx::RVec>>(sendbuf),
+                                             receiver.numAtoms * sizeof(rvec),
+                                             receiver.rankId);
+#    endif
     }
     else
     {

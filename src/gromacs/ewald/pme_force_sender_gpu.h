@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -42,6 +42,7 @@
 #ifndef GMX_PMEFORCESENDERGPU_H
 #define GMX_PMEFORCESENDERGPU_H
 
+#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxmpi.h"
@@ -82,13 +83,15 @@ public:
      * Initialization of GPU PME Force sender
      * \param[in] d_f   force buffer in GPU memory
      */
-    void sendForceBufferAddressToPpRanks(rvec* d_f);
+    void sendForceBufferAddressToPpRanks(DeviceBuffer<RVec> d_f);
 
     /*! \brief
      * Send PP data to PP rank
+     * \param[in] sendbuf  force buffer in GPU memory
+     * \param[in] numBytes number of bytes to transfer
      * \param[in] ppRank           PP rank to receive data
      */
-    void sendFToPpCudaDirect(int ppRank);
+    void sendFToPp(DeviceBuffer<RVec> sendbuf, int numBytes, int ppRank);
 
 private:
     class Impl;

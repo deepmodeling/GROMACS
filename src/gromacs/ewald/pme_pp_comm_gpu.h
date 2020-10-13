@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -42,6 +42,7 @@
 #ifndef GMX_PME_PP_COMM_GPU_H
 #define GMX_PME_PP_COMM_GPU_H
 
+#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxmpi.h"
 
@@ -82,7 +83,7 @@ public:
      * \param[in]  recvSize Number of elements to receive
      * \param[in] recvPmeForceToGpu Whether receive is to GPU, otherwise CPU
      */
-    void receiveForceFromPmeCudaDirect(void* recvPtr, int recvSize, bool recvPmeForceToGpu);
+    void receiveForceFromPme(DeviceBuffer<RVec> recvPtr, int recvSize, bool recvPmeForceToGpu);
 
     /*! \brief Push coordinates buffer directly to GPU memory on PME task
      * \param[in] sendPtr Buffer with coordinate data
@@ -90,10 +91,10 @@ public:
      * \param[in] sendPmeCoordinatesFromGpu Whether send is from GPU, otherwise CPU
      * \param[in] coordinatesReadyOnDeviceEvent Event recorded when coordinates are available on device
      */
-    void sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
-                                        int                   sendSize,
-                                        bool                  sendPmeCoordinatesFromGpu,
-                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void sendCoordinatesToPme(DeviceBuffer<RVec>    sendPtr,
+                              int                   sendSize,
+                              bool                  sendPmeCoordinatesFromGpu,
+                              GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief
      * Return pointer to buffer used for staging PME force on GPU

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -206,41 +206,42 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
         copyToDeviceBuffer(
                 &d_indexMap_, h_indexMap_.data(), 0, newSize, nonLocalStream_, GpuApiCallBehavior::Async, nullptr);
     }
-    // This rank will push data to its neighbor, so needs to know
-    // the remote receive address and similarly send its receive
-    // address to other neighbour. We can do this here in reinit fn
-    // since the pointers will not change until the next NS step.
 
-    // Coordinates buffer:
-    void* recvPtr = static_cast<void*>(&d_x_[atomOffset_]);
 #if GMX_MPI
-    MPI_Sendrecv(&recvPtr,
-                 sizeof(void*),
-                 MPI_BYTE,
-                 recvRankX_,
-                 0,
-                 &remoteXPtr_,
-                 sizeof(void*),
-                 MPI_BYTE,
-                 sendRankX_,
-                 0,
-                 mpi_comm_mysim_,
-                 MPI_STATUS_IGNORE);
+    // Exchange of remote addresses from neighboring ranks is needed only with CUDA-direct as cudamemcpy needs both src/dst pointer
+    // MPI calls such as MPI_send doesn't worry about receiving address, that is taken care by MPI_recv call in neighboring rank
+    if (GMX_THREAD_MPI)
+    {
+        // Coordinates buffer:
+        float3* recvPtr = &d_x_[atomOffset_];
+        MPI_Sendrecv(&recvPtr,
+                     sizeof(void*),
+                     MPI_BYTE,
+                     recvRankX_,
+                     0,
+                     &remoteXPtr_,
+                     sizeof(void*),
+                     MPI_BYTE,
+                     sendRankX_,
+                     0,
+                     mpi_comm_mysim_,
+                     MPI_STATUS_IGNORE);
 
-    // Force buffer:
-    recvPtr = static_cast<void*>(d_recvBuf_);
-    MPI_Sendrecv(&recvPtr,
-                 sizeof(void*),
-                 MPI_BYTE,
-                 recvRankF_,
-                 0,
-                 &remoteFPtr_,
-                 sizeof(void*),
-                 MPI_BYTE,
-                 sendRankF_,
-                 0,
-                 mpi_comm_mysim_,
-                 MPI_STATUS_IGNORE);
+        // Force buffer:
+        recvPtr = d_recvBuf_;
+        MPI_Sendrecv(&recvPtr,
+                     sizeof(void*),
+                     MPI_BYTE,
+                     recvRankF_,
+                     0,
+                     &remoteFPtr_,
+                     sizeof(void*),
+                     MPI_BYTE,
+                     sendRankF_,
+                     0,
+                     mpi_comm_mysim_,
+                     MPI_STATUS_IGNORE);
+    }
 #endif
 
     wallcycle_sub_stop(wcycle_, ewcsDD_GPU);
@@ -399,59 +400,107 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
                                                 GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
 
-    void* sendPtr;
-    int   sendSize;
-    void* remotePtr;
-    int   sendRank;
-    int   recvRank;
+    float3* sendPtr;
+    float3* recvPtr;
+    int     sendSize;
+    int     recvSize;
+    float3* remotePtr;
+    int     sendRank;
+    int     recvRank;
 
     if (haloQuantity == HaloQuantity::HaloCoordinates)
     {
-        sendPtr   = static_cast<void*>(d_sendBuf_);
+        sendPtr   = d_sendBuf_;
+        recvPtr   = &d_x_[atomOffset_];
         sendSize  = xSendSize_;
+        recvSize  = xRecvSize_;
         remotePtr = remoteXPtr_;
         sendRank  = sendRankX_;
         recvRank  = recvRankX_;
-
 #if GMX_MPI
-        // Wait for event from receiving task that remote coordinates are ready, and enqueue that event to stream used
-        // for subsequent data push. This avoids a race condition with the remote data being written in the previous timestep.
-        // Similarly send event to task that will push data to this task.
-        GpuEventSynchronizer* remoteCoordinatesReadyOnDeviceEvent;
-        MPI_Sendrecv(&coordinatesReadyOnDeviceEvent,
-                     sizeof(GpuEventSynchronizer*),
-                     MPI_BYTE,
-                     recvRank,
-                     0,
-                     &remoteCoordinatesReadyOnDeviceEvent,
-                     sizeof(GpuEventSynchronizer*),
-                     MPI_BYTE,
-                     sendRank,
-                     0,
-                     mpi_comm_mysim_,
-                     MPI_STATUS_IGNORE);
-        remoteCoordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
+        // wait for remote co-ordinates is implicit with process-MPI as non-local stream is synchronized before MPI calls
+        // and MPI_Waitall call makes sure both neighboring ranks' non-local stream is synchronized before data transfe r is initiated
+        if (GMX_THREAD_MPI)
+        {
+            GMX_ASSERT(coordinatesReadyOnDeviceEvent != nullptr,
+                       "Co-ordinate Halo exchange requires valid co-ordinate ready event");
+
+            // Wait for event from receiving task that remote coordinates are ready, and enqueue that event to stream used
+            // for subsequent data push. This avoids a race condition with the remote data being written in the previous timestep.
+            // Similarly send event to task that will push data to this task.
+            GpuEventSynchronizer* remoteCoordinatesReadyOnDeviceEvent;
+            MPI_Sendrecv(&coordinatesReadyOnDeviceEvent,
+                         sizeof(GpuEventSynchronizer*),
+                         MPI_BYTE,
+                         recvRank,
+                         0,
+                         &remoteCoordinatesReadyOnDeviceEvent,
+                         sizeof(GpuEventSynchronizer*),
+                         MPI_BYTE,
+                         sendRank,
+                         0,
+                         mpi_comm_mysim_,
+                         MPI_STATUS_IGNORE);
+            remoteCoordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
+        }
 #else
         GMX_UNUSED_VALUE(coordinatesReadyOnDeviceEvent);
 #endif
     }
     else
     {
-        sendPtr   = static_cast<void*>(&(d_ptr[atomOffset_]));
+        sendPtr   = &(d_ptr[atomOffset_]);
+        recvPtr   = d_recvBuf_;
         sendSize  = fSendSize_;
+        recvSize  = fRecvSize_;
         remotePtr = remoteFPtr_;
         sendRank  = sendRankF_;
         recvRank  = recvRankF_;
     }
 
-    communicateHaloDataWithCudaDirect(sendPtr, sendSize, sendRank, remotePtr, recvRank);
+    if (GMX_THREAD_MPI)
+    {
+        communicateHaloDataWithCudaDirect(sendPtr, sendSize, sendRank, remotePtr, recvRank);
+    }
+    else
+    {
+        communicateHaloDataWithCudaMPI(sendPtr, sendSize, sendRank, recvPtr, recvSize, recvRank);
+    }
 }
 
-void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
-                                                              int   sendSize,
-                                                              int   sendRank,
-                                                              void* remotePtr,
-                                                              int   recvRank)
+void GpuHaloExchange::Impl::communicateHaloDataWithCudaMPI(float3* sendPtr,
+                                                           int     sendSize,
+                                                           int     sendRank,
+                                                           float3* recvPtr,
+                                                           int     recvSize,
+                                                           int     recvRank)
+{
+    // wait for non local stream to complete all outstanding
+    // activities, to ensure that buffer is up-to-date in GPU memory
+    // before transferring to remote rank
+    cudaError_t stat = cudaStreamSynchronize(nonLocalStream_.stream());
+    CU_RET_ERR(stat, "cudaStreamSynchronize on nonLocalStream_ failed");
+
+    // perform halo exchange directly in device buffers
+#if GMX_MPI
+    MPI_Request request;
+    MPI_Status  status;
+
+    // recv remote data into halo region
+    MPI_Irecv(recvPtr, recvSize * DIM, MPI_FLOAT, recvRank, 0, mpi_comm_mysim_, &request);
+
+    // send data to remote halo region
+    MPI_Send(sendPtr, sendSize * DIM, MPI_FLOAT, sendRank, 0, mpi_comm_mysim_);
+
+    MPI_Wait(&request, &status);
+#endif
+}
+
+void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(float3* sendPtr,
+                                                              int     sendSize,
+                                                              int     sendRank,
+                                                              float3* remotePtr,
+                                                              int     recvRank)
 {
 
     cudaError_t stat;
@@ -481,6 +530,9 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
     // to its stream.
     GpuEventSynchronizer* haloDataTransferRemote;
 
+    GMX_ASSERT(haloDataTransferLaunched_ != nullptr,
+               "Halo exchange requires valid event to synchronize data transfer initiated in "
+               "remote rank");
     haloDataTransferLaunched_->markEvent(nonLocalStream_);
 
     MPI_Sendrecv(&haloDataTransferLaunched_,
@@ -523,7 +575,7 @@ GpuHaloExchange::Impl::Impl(gmx_domdec_t*        dd,
     sendRankF_(dd->neighbor[dimIndex][0]),
     recvRankF_(dd->neighbor[dimIndex][1]),
     usePBC_(dd->ci[dd->dim[dimIndex]] == 0),
-    haloDataTransferLaunched_(new GpuEventSynchronizer()),
+    haloDataTransferLaunched_(GMX_THREAD_MPI ? new GpuEventSynchronizer() : nullptr),
     mpi_comm_mysim_(mpi_comm_mysim),
     deviceContext_(deviceContext),
     localStream_(localStream),
@@ -532,9 +584,9 @@ GpuHaloExchange::Impl::Impl(gmx_domdec_t*        dd,
     pulse_(pulse),
     wcycle_(wcycle)
 {
-
-    GMX_RELEASE_ASSERT(GMX_THREAD_MPI,
-                       "GPU Halo exchange is currently only supported with thread-MPI enabled");
+    GMX_RELEASE_ASSERT(GMX_THREAD_MPI || CUDA_AWARE_MPI,
+                       "GPU Halo exchange is currently only supported with thread-MPI or "
+                       "CUDA-aware MPI enabled");
 
     if (usePBC_ && dd->unitCellInfo.haveScrewPBC)
     {

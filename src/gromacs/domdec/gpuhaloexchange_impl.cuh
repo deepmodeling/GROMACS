@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -132,7 +132,14 @@ private:
      * \param [inout] remotePtr  remote address to recv data
      * \param [in] recvRank      rank to recv data from
      */
-    void communicateHaloDataWithCudaDirect(void* sendPtr, int sendSize, int sendRank, void* remotePtr, int recvRank);
+    void communicateHaloDataWithCudaDirect(float3* sendPtr, int sendSize, int sendRank, float3* remotePtr, int recvRank);
+
+    void communicateHaloDataWithCudaMPI(float3* sendPtr,
+                                        int     sendSize,
+                                        int     sendRank,
+                                        float3* recvPtr,
+                                        int     recvSize,
+                                        int     recvRank);
 
     //! Domain decomposition object
     gmx_domdec_t* dd_ = nullptr;
@@ -177,9 +184,9 @@ private:
     //! number of home atoms - offset of local halo region
     int numHomeAtoms_ = 0;
     //! remote GPU coordinates buffer pointer for pushing data
-    void* remoteXPtr_ = nullptr;
+    float3* remoteXPtr_ = nullptr;
     //! remote GPU force buffer pointer for pushing data
-    void* remoteFPtr_ = nullptr;
+    float3* remoteFPtr_ = nullptr;
     //! Periodic Boundary Conditions for this rank
     bool usePBC_ = false;
     //! force shift buffer on device

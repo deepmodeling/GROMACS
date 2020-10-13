@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2013,2014,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -74,7 +74,21 @@
 #            error No MPI_INT64_T and no 64 bit integer found.
 #        endif
 #    endif /*MPI_INT64_T*/
+/* open mpi provides mpi-ext.h to check CUDA-aware MPI support */
+#    if OPEN_MPI
+#        include <mpi-ext.h>
+#        if MPIX_CUDA_AWARE_SUPPORT
+#            define CUDA_AWARE_MPI 1
+#        else
+#            define CUDA_AWARE_MPI GMX_CUDA_AWARE_MPI
+#        endif
+#    else
+/* if not openMPI, check GMX_CUDA_AWARE_MPI cmake option */
+#        define CUDA_AWARE_MPI GMX_CUDA_AWARE_MPI
+#    endif
 #else
+/* thread MPI is not cuda-aware */
+#    define CUDA_AWARE_MPI 0
 #    if GMX_THREAD_MPI
 #        include "thread_mpi/mpi_bindings.h" /* IWYU pragma: export */
 #        include "thread_mpi/tmpi.h"         /* IWYU pragma: export */

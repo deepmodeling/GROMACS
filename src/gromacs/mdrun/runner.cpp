@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2011-2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2011-2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -205,10 +205,11 @@ static DevelopmentFeatureFlags manageDevelopmentFeatures(const gmx::MDLogger& md
 
     devFlags.enableGpuBufferOps =
             GMX_GPU_CUDA && useGpuForNonbonded && (getenv("GMX_USE_GPU_BUFFER_OPS") != nullptr);
-    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_DD_COMMS") != nullptr;
+    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI)
+                                     && getenv("GMX_GPU_DD_COMMS") != nullptr;
     devFlags.forceGpuUpdateDefault = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr) || GMX_FAHCORE;
-    devFlags.enableGpuPmePPComm =
-            GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
+    devFlags.enableGpuPmePPComm = GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI)
+                                  && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
 
 #pragma GCC diagnostic pop
 
@@ -2026,7 +2027,13 @@ int Mdrunner::mdrunner()
     {
         physicalNodeComm.barrier();
     }
+
+#if !CUDA_AWARE_MPI
+    // Don't reset GPU in case of CUDA_AWARE_MPI
+    // UCX creates CUDA buffers which are cleaned-up as part of MPI_Finalize()
+    // resetting the device before MPI_Finalize() results in crashes inside UCX
     releaseDevice(deviceInfo);
+#endif
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());
