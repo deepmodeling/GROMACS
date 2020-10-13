@@ -111,7 +111,7 @@ double pull_conversion_factor_internal2userinput(const t_pull_coord* pcrd);
  * \param[in] transformationPullCoordinateIndex Index for coordinates treated.
  * \returns Transformation value for pull coordinate.
  */
-double getTransformationPullCoordinateValue(struct pull_t* pull, int transformationPullCoordinateIndex);
+double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
 
 /*! \brief Get the value for pull coord coord_ind.
  *
@@ -120,7 +120,7 @@ double getTransformationPullCoordinateValue(struct pull_t* pull, int transformat
  * \param[in]     pbc       Information structure about periodicity.
  * \returns the value of the pull coordinate.
  */
-double get_pull_coord_value(struct pull_t* pull, int coord_ind, const t_pbc* pbc);
+double get_pull_coord_value(pull_t* pull, int coord_ind, const t_pbc* pbc);
 
 /*! \brief Registers the provider of an external potential for a coordinate.
  *
@@ -372,7 +372,7 @@ real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc);
  * \param[in] transformationPcrdIndex Index for transformation coordinate.
  * \param[in] variablePcrdIndex Pull coordinate index of a variable.
  */
-double computeForceFromTransformationPullCoord(struct pull_t* pull,
+double computeForceFromTransformationPullCoord(pull_t* pull,
                                                int            transformationPcrdIndex,
                                                int            variablePcrdIndex);
 
