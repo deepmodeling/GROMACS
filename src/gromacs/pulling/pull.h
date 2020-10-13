@@ -372,9 +372,7 @@ real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc);
  * \param[in] transformationPcrdIndex Index for transformation coordinate.
  * \param[in] variablePcrdIndex Pull coordinate index of a variable.
  */
-double computeForceFromTransformationPullCoord(pull_t* pull,
-                                               int            transformationPcrdIndex,
-                                               int            variablePcrdIndex);
+double computeForceFromTransformationPullCoord(pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex);
 
 /*! \brief Sets the previous step COM in pull to the current COM and updates the pull_com_prev_step in the state
  *
