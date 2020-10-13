@@ -82,12 +82,12 @@ auto computeTwoCenter(const TwoCenterType& parameters, const BasicVector& dx, Ba
 
 /*! \brief calculate two-center interactions
  *
- * @tparam BondType
- * @param index
- * @param bondInstances
- * @param x
- * @param forces
- * @return
+ * \tparam BondType
+ * \param index
+ * \param bondInstances
+ * \param x
+ * \param forces
+ * \return
  */
 template <class Buffer, class TwoCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
@@ -169,12 +169,12 @@ auto computeThreeCenter(const ThreeCenterType& parameters, const BasicVector& ri
 
 /*! \brief calculate three-center interactions
  *
- * @tparam BondType
- * @param index
- * @param bondInstances
- * @param x
- * @param forces
- * @return
+ * \tparam BondType
+ * \param index
+ * \param bondInstances
+ * \param x
+ * \param forces
+ * \return
  */
 template <class Buffer, class ThreeCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
@@ -250,13 +250,13 @@ return 0.0;
 
 /*! \brief calculate four-center interactions
  *
- * @tparam FourCenterType The bond type to compute; used for type deduction
- * @param[in] index The atom and parameter indices used for computing the interaction
- * @param[in] parameters The full type-specific interaction list
- * @param[in] x The coordinates
- * @param[in/out] forces The forces
- * @param[in] pbc Object used for computing distances accounting for PBC's
- * @return
+ * \tparam FourCenterType The bond type to compute; used for type deduction
+ * \param[in] index The atom and parameter indices used for computing the interaction
+ * \param[in] parameters The full type-specific interaction list
+ * \param[in] x The coordinates
+ * \param[in/out] forces The forces
+ * \param[in] pbc Object used for computing distances accounting for PBC's
+ * \return
  */
 template <class Buffer, class FourCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
@@ -307,12 +307,12 @@ auto dispatchInteraction(const FourCenterInteractionIndex& index,
 
 /*! \brief calculate five-center interactions
  *
- * @tparam BondType
- * @param index
- * @param bondInstances
- * @param x
- * @param forces
- * @return
+ * \tparam BondType
+ * \param index
+ * \param bondInstances
+ * \param x
+ * \param forces
+ * \return
  */
 template <class Buffer, class FiveCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
