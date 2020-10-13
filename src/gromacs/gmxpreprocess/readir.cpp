@@ -45,6 +45,7 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "gromacs/applied_forces/awh/read_params.h"
@@ -110,8 +111,6 @@ struct gmx_inputrec_strings
     std::vector<std::string> pullGroupNames;
     std::vector<std::string> rotateGroupNames;
     char anneal[STRLEN], anneal_npoints[STRLEN], anneal_time[STRLEN], anneal_temp[STRLEN];
-    char QMmethod[STRLEN], QMbasis[STRLEN], QMcharge[STRLEN], QMmult[STRLEN], bSH[STRLEN],
-            CASorbitals[STRLEN], CASelectrons[STRLEN], SAon[STRLEN], SAoff[STRLEN], SAsteps[STRLEN];
 };
 
 static gmx_inputrec_strings* inputrecStrings = nullptr;
@@ -312,6 +311,19 @@ static void setupMtsLevels(gmx::ArrayRef<gmx::MtsLevel> mtsLevels,
         if (ir.efep != efepNO)
         {
             checkMtsRequirement(ir, "nstdhdl", ir.fepvals->nstdhdl, wi);
+        }
+
+        if (ir.bPull)
+        {
+            const int pullMtsLevel = gmx::forceGroupMtsLevel(ir.mtsLevels, gmx::MtsForceGroups::Pull);
+            if (ir.pull->nstxout % ir.mtsLevels[pullMtsLevel].stepFactor != 0)
+            {
+                warning_error(wi, "pull-nstxout should be a multiple of mts-factor");
+            }
+            if (ir.pull->nstfout % ir.mtsLevels[pullMtsLevel].stepFactor != 0)
+            {
+                warning_error(wi, "pull-nstfout should be a multiple of mts-factor");
+            }
         }
     }
 }
@@ -2131,29 +2143,8 @@ void get_ir(const char*     mdparin,
     /* QMMM */
     printStringNewline(&inp, "OPTIONS FOR QMMM calculations");
     ir->bQMMM = (get_eeenum(&inp, "QMMM", yesno_names, wi) != 0);
-    printStringNoNewline(&inp, "Groups treated Quantum Mechanically");
+    printStringNoNewline(&inp, "Groups treated with MiMiC");
     setStringEntry(&inp, "QMMM-grps", inputrecStrings->QMMM, nullptr);
-    printStringNoNewline(&inp, "QM method");
-    setStringEntry(&inp, "QMmethod", inputrecStrings->QMmethod, nullptr);
-    printStringNoNewline(&inp, "QMMM scheme");
-    const char* noQMMMSchemeName = "normal";
-    get_eeenum(&inp, "QMMMscheme", &noQMMMSchemeName, wi);
-    printStringNoNewline(&inp, "QM basisset");
-    setStringEntry(&inp, "QMbasis", inputrecStrings->QMbasis, nullptr);
-    printStringNoNewline(&inp, "QM charge");
-    setStringEntry(&inp, "QMcharge", inputrecStrings->QMcharge, nullptr);
-    printStringNoNewline(&inp, "QM multiplicity");
-    setStringEntry(&inp, "QMmult", inputrecStrings->QMmult, nullptr);
-    printStringNoNewline(&inp, "Surface Hopping");
-    setStringEntry(&inp, "SH", inputrecStrings->bSH, nullptr);
-    printStringNoNewline(&inp, "CAS space options");
-    setStringEntry(&inp, "CASorbitals", inputrecStrings->CASorbitals, nullptr);
-    setStringEntry(&inp, "CASelectrons", inputrecStrings->CASelectrons, nullptr);
-    setStringEntry(&inp, "SAon", inputrecStrings->SAon, nullptr);
-    setStringEntry(&inp, "SAoff", inputrecStrings->SAoff, nullptr);
-    setStringEntry(&inp, "SAsteps", inputrecStrings->SAsteps, nullptr);
-    printStringNoNewline(&inp, "Scale factor for MM charges");
-    get_ereal(&inp, "MMChargeScaleFactor", 1.0, wi);
 
     /* Simulated annealing */
     printStringNewline(&inp, "SIMULATED ANNEALING");
@@ -2219,8 +2210,8 @@ void get_ir(const char*     mdparin,
     ir->bPull = (get_eeenum(&inp, "pull", yesno_names, wi) != 0);
     if (ir->bPull)
     {
-        snew(ir->pull, 1);
-        inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull, wi);
+        ir->pull                        = std::make_unique<pull_params_t>();
+        inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull.get(), wi);
 
         if (ir->useMts)
         {
@@ -3082,7 +3073,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
          * belong to different TC or VCM groups it is anyhow difficult
          * to determine the optimal nrdf assignment.
          */
-        pull = ir->pull;
+        pull = ir->pull.get();
 
         for (int i = 0; i < pull->ncoord; i++)
         {
@@ -3099,7 +3090,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
 
                 pgrp = &pull->group[pull->coord[i].group[j]];
 
-                if (pgrp->nat > 0)
+                if (!pgrp->ind.empty())
                 {
                     /* Subtract 1/2 dof from each group */
                     int ai = pgrp->ind[0];
@@ -3362,11 +3353,12 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
             if (numFrozenDims == DIM)
             {
                 /* Do not remove COM motion for this fully frozen atom */
-                if (groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
+                if (groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
                 {
-                    groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].resize(numAtoms, 0);
+                    groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval].resize(
+                            numAtoms, 0);
                 }
-                groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval][a] = vcmRestGroup;
+                groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval][a] = vcmRestGroup;
                 numFullyFrozenVcmAtoms++;
             }
             else if (numFrozenDims > 0)
@@ -3765,9 +3757,9 @@ void do_index(const char*                   mdparin,
 
     if (ir->bPull)
     {
-        make_pull_groups(ir->pull, inputrecStrings->pullGroupNames, defaultIndexGroups, gnames);
+        process_pull_groups(ir->pull->group, inputrecStrings->pullGroupNames, defaultIndexGroups, gnames);
 
-        make_pull_coords(ir->pull);
+        checkPullCoords(ir->pull->group, ir->pull->coord);
     }
 
     if (ir->bRot)

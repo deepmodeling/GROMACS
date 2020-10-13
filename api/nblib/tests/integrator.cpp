@@ -77,13 +77,11 @@ TEST(NBlibTest, IntegratorWorks)
     topologyBuilder.addParticleTypesInteractions(interactions);
     Topology topology = topologyBuilder.buildTopology();
 
-    std::vector<Vec3> x(numAtoms);
-    std::vector<Vec3> v(numAtoms);
-    std::vector<Vec3> f(numAtoms);
-
-    f[0][XX] = 1.0;
-    f[0][YY] = 2.0;
-    f[0][ZZ] = 0.0;
+    // Some random starting conditions
+    std::vector<Vec3> x(numAtoms, { -9.0, 8.0, -7.0 });
+    std::vector<Vec3> v(numAtoms, { 0.6, -0.5, 0.4 });
+    // Constant force acting on the atom
+    std::vector<Vec3> f(numAtoms, { 1.0, 2.0, 0.0 });
 
     Box box(100);
 
@@ -126,9 +124,9 @@ TEST(NBlibTest, IntegratorWorks)
                                    "solution at step {}.",
                                    d, i, step);
             }
-            integrator.integrate(dt, simulationState.coordinates(), simulationState.velocities(),
-                                 simulationState.forces());
         }
+        integrator.integrate(dt, simulationState.coordinates(), simulationState.velocities(),
+                             simulationState.forces());
     }
 }
 

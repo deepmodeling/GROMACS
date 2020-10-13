@@ -154,20 +154,8 @@ struct PullCoordSpatialData
 class PullCoordExpressionParser
 {
 public:
-    /* Constructor which takes a mathematical expreesion as argument.
-     * null values are equivalent to a blank expression.
-     * */
-    PullCoordExpressionParser(const char* expressionChar)
-    {
-        if (expressionChar == nullptr)
-        {
-            expression_ = std::string("");
-        }
-        else
-        {
-            expression_ = std::string(expressionChar);
-        }
-    }
+    //! Constructor which takes a mathematical expression as argument.
+    PullCoordExpressionParser(const std::string& expression) : expression_(expression) {}
 
     /*! \brief Initializes the parser and binds a numerical value to a variable in the expression
      *

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,64 +32,60 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+
+/*! \internal \file
+ * \brief
+ * Test for MD with dispersion correction.
+ *
+ * \author Paul Bauer <paul.bauer.q@gmail.com>
+ * \ingroup module_mdrun_integration_tests
+ */
 #include "gmxpre.h"
 
-#include "threadaffinitytest.h"
-
-#include "config.h"
-
-#include <memory>
-
-#include <gmock/gmock.h>
-
-#include "gromacs/hardware/hardwaretopology.h"
-#include "gromacs/mdtypes/commrec.h"
-#include "gromacs/utility/basenetwork.h"
-#include "gromacs/utility/gmxmpi.h"
-#include "gromacs/utility/smalloc.h"
+#include "moduletest.h"
 
 namespace gmx
 {
 namespace test
 {
 
-MockThreadAffinityAccess::MockThreadAffinityAccess() : supported_(true)
+class DispersionCorrectionTestFixture : public MdrunTestFixture
 {
-    using ::testing::_;
-    using ::testing::Return;
-    ON_CALL(*this, setCurrentThreadAffinityToCore(_)).WillByDefault(Return(true));
-}
+protected:
+    DispersionCorrectionTestFixture();
+    ~DispersionCorrectionTestFixture() override;
+};
 
-MockThreadAffinityAccess::~MockThreadAffinityAccess() {}
+DispersionCorrectionTestFixture::DispersionCorrectionTestFixture() {}
 
+DispersionCorrectionTestFixture::~DispersionCorrectionTestFixture() {}
 
-ThreadAffinityTestHelper::ThreadAffinityTestHelper()
+//! Test fixture for mdrun with dispersion correction
+typedef gmx::test::DispersionCorrectionTestFixture DispersionCorrectionTest;
+
+/* Check whether the dispersion correction function works. */
+TEST_F(DispersionCorrectionTest, DispersionCorrectionCanRun)
 {
-    snew(cr_, 1);
-    cr_->nnodes = gmx_node_num();
-    cr_->nodeid = gmx_node_rank();
-    // Default communicator is needed for [SIM]MASTER(cr) to work
-    // TODO: Should get cleaned up once thread affinity works with
-    //       communicators rather than the full cr (part of #2395)
-    cr_->sizeOfDefaultCommunicator = gmx_node_num();
-    cr_->rankInDefaultCommunicator = gmx_node_rank();
-    cr_->duty                      = DUTY_PP;
-#if GMX_MPI
-    cr_->mpi_comm_mysim = MPI_COMM_WORLD;
-#endif
-    hwOpt_.threadAffinity      = ThreadAffinity::Auto;
-    hwOpt_.totNumThreadsIsAuto = false;
-    physicalNodeId_            = 0;
-}
+    runner_.useTopGroAndNdxFromDatabase("alanine_vsite_vacuo");
+    const std::string mdpContents = R"(
+        dt            = 0.002
+        nsteps        = 200
+        tcoupl        = Berendsen
+        tc-grps       = System
+        tau-t         = 0.5
+        ref-t         = 300
+        constraints   = h-bonds
+        cutoff-scheme = Verlet
+        DispCorr      = AllEnerPres
+    )";
+    runner_.useStringAsMdpFile(mdpContents);
 
-ThreadAffinityTestHelper::~ThreadAffinityTestHelper()
-{
-    sfree(cr_);
-}
+    EXPECT_EQ(0, runner_.callGrompp());
 
-void ThreadAffinityTestHelper::setLogicalProcessorCount(int logicalProcessorCount)
-{
-    hwTop_ = std::make_unique<HardwareTopology>(logicalProcessorCount);
+    ::gmx::test::CommandLine disperCorrCaller;
+
+    // Do an mdrun with ORIRES enabled
+    ASSERT_EQ(0, runner_.callMdrun(disperCorrCaller));
 }
 
 } // namespace test

@@ -60,6 +60,7 @@
 #include "gromacs/utility/iserializer.h"
 
 struct DeviceInformation;
+enum class DeviceVendor : int;
 
 /*! \brief Return whether GPUs can be detected.
  *
@@ -103,11 +104,11 @@ bool isDeviceDetectionEnabled();
  */
 bool isDeviceDetectionFunctional(std::string* errorMessage);
 
-/*! \brief Checks if one can compute on the GPU
+/*! \brief Returns an DeviceVendor value corresponding to the input OpenCL vendor name.
  *
- * \returns  True if the build supports GPUs and there are at least one available.
+ *  \returns               DeviceVendor value for the input vendor name
  */
-bool canComputeOnDevice();
+DeviceVendor getDeviceVendor(const char* vendorName);
 
 /*! \brief Find all GPUs in the system.
  *

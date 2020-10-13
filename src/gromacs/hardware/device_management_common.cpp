@@ -73,16 +73,26 @@ bool isDeviceDetectionEnabled()
     }
 }
 
-bool canComputeOnDevice()
+DeviceVendor getDeviceVendor(const char* vendorName)
 {
-    bool canComputeOnDevice = false;
-    if (canPerformDeviceDetection(nullptr))
+    if (vendorName)
     {
-        std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnDevice = !getCompatibleDevices(devInfos).empty();
+        if (strstr(vendorName, "NVIDIA"))
+        {
+            return DeviceVendor::Nvidia;
+        }
+        else if (strstr(vendorName, "AMD") || strstr(vendorName, "Advanced Micro Devices"))
+        {
+            return DeviceVendor::Amd;
+        }
+        else if (strstr(vendorName, "Intel"))
+        {
+            return DeviceVendor::Intel;
+        }
     }
-    return canComputeOnDevice;
+    return DeviceVendor::Unknown;
 }
+
 
 std::vector<std::reference_wrapper<DeviceInformation>>
 getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
