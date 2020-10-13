@@ -172,7 +172,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float alpha_vdw_eff    = alpha_vdw;
     const bool useSoftCore = (alpha_vdw != 0.0);
     const bool useScBetaNO = (alpha_coul == 0.0);
-    const float sigma6_def  = nbparam.sc_sigma6;
+    const float sigma6_def = nbparam.sc_sigma6;
     const float sigma6_min = nbparam.sc_sigma6_min;
     const float lambda_q   = nbparam.lambda_q;
     const float _lambda_q  = 1 - lambda_q;
@@ -486,13 +486,22 @@ __launch_bounds__(THREADS_PER_BLOCK)
                     xqbuf = xq[aj];
                     xj    = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
                     qj_f  = xqbuf.w;
-                    qBj_f = qB[aj];
+                    if (bFEP)
+                    {
+                        qBj_f = qB[aj];
+                    }
 #    ifndef LJ_COMB
                     typej = atom_types[aj];
-                    typeBj= atom_typesB[aj];
+                    if (bFEP)
+                    {
+                        typeBj= atom_typesB[aj];
+                    }
 #    else
                     ljcp_j = lj_comb[aj];
-                    ljcpB_j = lj_combB[aj];
+                    if (bFEP)
+                    {
+                        ljcpB_j = lj_combB[aj];
+                    }
 #    endif
 
                     fcj_buf = make_float3(0.0f);
@@ -692,8 +701,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifndef LJ_COMB
                                 /* LJ 6*C6 and 12*C12 */
-                                float typeiAB[2] = {atib[i * c_clSize + tidxi], atBib[i * c_clSize + tidxi]};
-                                float typejAB[2] = {typej, typeBj};
+                                int typeiAB[2] = {atib[i * c_clSize + tidxi], atBib[i * c_clSize + tidxi]};
+                                int typejAB[2] = {typej, typeBj};
                                 for (int k = 0; k < 2; k++)
                                 {
                                     fetch_nbfp_c6_c12(c6AB[k], c12AB[k], nbparam, ntypes * typeiAB[k] + typejAB[k]);
@@ -753,7 +762,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     Vvdw[k]   = 0;
                                     if ((qq[k] != 0) || (c6AB[k] != 0) || (c12AB[k] != 0))
                                     {
-                                        if (((c12AB[0] == 0) || (c12AB[1] == 0)) && (useSoftCore))
+                                        if ((c12AB[0] == 0 || c12AB[1] == 0) && (useSoftCore))
                                         {
                                             alpha_vdw_eff  = alpha_vdw;
                                             alpha_coul_eff = (useScBetaNO ? alpha_vdw_eff : alpha_coul);
@@ -817,7 +826,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                                 ((Vvdw12 + c12AB[k] * nbparam.repulsion_shift.cpot) * c_oneTwelveth - (Vvdw6 + c6AB[k] * nbparam.dispersion_shift.cpot) * c_oneSixth);
 #        endif
 // TODO: adding fep into vdw modifier with force switch
-#    ifdef LJ_FORCE_SWITCH
+#    ifdef LJ_FORCE_SWITCH 
 #        ifdef CALC_ENERGIES
                                             calculate_force_switch_F_E(nbparam, c6AB[k], c12AB[k], rinvV, r2V, &(FscalV[k]), &(Vvdw[k]));
 #        else
@@ -881,9 +890,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                             FscalC[k] = qq[k] * (int_bit * rinvC - two_k_rf * r2C);
 #    endif
 #    if defined   EL_EWALD_ANA
-                                            FscalC[k] = qq[k] * (int_bit * rinvC + pmecorrF(beta2 * r2C) * beta3 * r2C);
+                                            FscalC[k] = qq[k] * int_bit * rinvC
+                                                        + qq[k] * pmecorrF(beta2 * r2) * beta3 * r2 * inv_r6 * r2C * r2C * r2C;
+                                            // printf("interaction [%d-%d], ewald corr. of state %d=%.4f; FscalV=%.4f\n", ai, aj, k, pmecorrF(beta2 * r2) * beta3 * r2 * inv_r6 * r2C * r2C * r2C, FscalV[k] * rpinvV);
 #    elif defined EL_EWALD_TAB
-                                            FscalC[k] = qq[k] * (int_bit * rinvC - interpolate_coulomb_force_r(nbparam, r2C * rinvC) * r2C * rinvC);
+                                            FscalC[k] = qq[k] * int_bit * rinvC 
+                                                        - qq[k] * interpolate_coulomb_force_r(nbparam, r2 * inv_r) * inv_r * r2 * inv_r6 * r2C * r2C * r2C;
 #    endif /* EL_EWALD_ANA/TAB */
 
 #    ifdef CALC_ENERGIES
@@ -895,7 +907,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif
 #        ifdef EL_EWALD_ANY
                                             /* 1.0f - erff is faster than erfcf */
-                                            Vcoul[k] = qq[k] * (rinvC * (int_bit - erff(r2C * rinvC * beta)) - int_bit * ewald_shift);
+                                            Vcoul[k] = qq[k] * int_bit * (rinvC - ewald_shift) - qq[k] * inv_r * erff(r2 * inv_r * beta);
 #        endif /* EL_EWALD_ANY */
 #    endif
                                         }
@@ -903,7 +915,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                         FscalV[k] *= rpinvV;
                                     }
                                 }
-
                                 for (int k = 0; k < 2; k++)
                                 {
 #    ifdef CALC_ENERGIES

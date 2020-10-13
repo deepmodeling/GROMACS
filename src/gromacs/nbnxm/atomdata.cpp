@@ -911,8 +911,6 @@ static void nbnxn_atomdata_set_charges(nbnxn_atomdata_t* nbat, const Nbnxm::Grid
 
 static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::GridSet& gridSet, const real* charge, const real* chargeB)
 {
-    printf("size of chargeA: %d\n", sizeof(charge));
-    printf("size of chargeB: %d\n", sizeof(chargeB));
     if (nbat->XFormat != nbatXYZQ)
     {
         nbat->paramsDeprecated().q.resize(nbat->numAtoms());
