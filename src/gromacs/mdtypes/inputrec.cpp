@@ -466,8 +466,6 @@ static void pr_pull_group(FILE* fp, int indent, int g, const t_pull_group* pgrp)
 
 static void pr_pull_coord(FILE* fp, int indent, int c, const t_pull_coord* pcrd)
 {
-    int g;
-
     pr_indent(fp, indent);
     fprintf(fp, "pull-coord %d:\n", c);
     PS("type", EPULLTYPE(pcrd->eType));
@@ -476,12 +474,10 @@ static void pr_pull_coord(FILE* fp, int indent, int c, const t_pull_coord* pcrd)
         PS("potential-provider", pcrd->externalPotentialProvider.c_str());
     }
     PS("geometry", EPULLGEOM(pcrd->eGeom));
-    for (g = 0; g < pcrd->ngroup; g++)
+    for (int g = 0; g < pcrd->ngroup; g++)
     {
-        char buf[10];
-
-        sprintf(buf, "group[%d]", g);
-        PI(buf, pcrd->group[g]);
+        std::string buffer = gmx::formatString("group[%d]", g);
+        PI(buffer.c_str(), pcrd->group[g]);
     }
     pr_ivec(fp, indent, "dim", pcrd->dim, DIM, TRUE);
     pr_rvec(fp, indent, "origin", pcrd->origin, DIM, TRUE);

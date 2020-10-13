@@ -80,14 +80,14 @@ struct t_pull_coord
     int                                   eGeom;  /**< The pull geometry */
     int                                   ngroup; /**< The number of groups, depends on eGeom */
     std::array<int, c_pullCoordNgroupMax> group; /**< The pull groups: indices into the group arrays in pull_t and pull_params_t, ngroup indices are used */
-    gmx::IVec                             dim;   /**< Used to select components for constraint */
-    gmx::RVec                             origin; /**< The origin for the absolute reference */
-    gmx::RVec                             vec;    /**< The pull vector, direction or position */
-    bool                                  bStart; /**< Set init based on the initial structure */
-    real                                  init; /**< Initial reference displacement (nm) or (deg) */
-    real                                  rate; /**< Rate of motion (nm/ps) or (deg/ps) */
-    real                                  k; /**< Force constant (kJ/(mol nm^2) or kJ/(mol rad^2) for umbrella pull type, or kJ/(mol nm) or kJ/(mol rad) for constant force pull type */
-    real                                  kB; /**< Force constant for state B */
+    gmx::IVec dim{ 0, 0, 0 };                    /**< Used to select components for constraint */
+    gmx::RVec origin{ 0, 0, 0 };                 /**< The origin for the absolute reference */
+    gmx::RVec vec{ 0, 0, 0 };                    /**< The pull vector, direction or position */
+    bool      bStart;                            /**< Set init based on the initial structure */
+    real      init; /**< Initial reference displacement (nm) or (deg) */
+    real      rate; /**< Rate of motion (nm/ps) or (deg/ps) */
+    real      k; /**< Force constant (kJ/(mol nm^2) or kJ/(mol rad^2) for umbrella pull type, or kJ/(mol nm) or kJ/(mol rad) for constant force pull type */
+    real      kB; /**< Force constant for state B */
 };
 
 /*! \brief Struct containing all pull parameters */
