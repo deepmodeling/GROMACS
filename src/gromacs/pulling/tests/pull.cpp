@@ -169,7 +169,7 @@ protected:
             // Create transformation pull coordinate
             params.eGeom           = epullgTRANSFORMATION;
             std::string expression = "x1^2 + 3";
-            params.expression      = expression.c_str();
+            params.expression      = expression;
             pull.coord.emplace_back(params);
 
             for (double v = 0; v < 10; v++)
