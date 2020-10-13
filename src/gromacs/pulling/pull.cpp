@@ -1573,33 +1573,27 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
     }
     pull_coord_work_t* pcrd;
     pcrd = &pull->coord[transformationCoordIndex];
-    if (pcrd->params.eGeom == epullgTRANSFORMATION)
+    GMX_ASSERT(pcrd->params.eGeom == epullgTRANSFORMATION,
+               "We shouldn't end up here when not using a transformation pull coordinate.");
+    pcrd->scalarForce = transformationCoordForce;
+    for (int variableCoordIndex = 0; variableCoordIndex < transformationCoordIndex; variableCoordIndex++)
     {
-        pcrd->scalarForce = transformationCoordForce;
-        for (int variableCoordIndex = 0; variableCoordIndex < transformationCoordIndex; variableCoordIndex++)
+        pull_coord_work_t* variablePCrd = &pull->coord[variableCoordIndex];
+        if (variablePCrd->params.eGeom == epullgTRANSFORMATION)
         {
-            pull_coord_work_t* variablePCrd = &pull->coord[variableCoordIndex];
-            if (variablePCrd->params.eGeom == epullgTRANSFORMATION)
-            {
-                /*
-                 * We can have a transformation pull coordinate depend on another sub-transformation pull coordinate
-                 * as long as it has force constant set to 0.
-                 * The real non-transformation pull coordinates will have the force distributed directly from
-                 * the highest ranked transformation coordinate with a force constant != 0 by numerical
-                 * differentiation. Here we avoid redistributing the force twice (hopefully).
-                 */
-                return;
-            }
-            double variablePcrdForce = computeForceFromTransformationPullCoord(
-                    pull, transformationCoordIndex, variableCoordIndex);
-            applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce, masses,
-                                              forceWithVirial);
+            /*
+             * We can have a transformation pull coordinate depend on another sub-transformation pull coordinate
+             * as long as it has force constant set to 0.
+             * The real non-transformation pull coordinates will have the force distributed directly from
+             * the highest ranked transformation coordinate with a force constant != 0 by numerical
+             * differentiation. Here we avoid redistributing the force twice (hopefully).
+             */
+            return;
         }
-    }
-    else
-    {
-        apply_default_pull_coord_force(pull, transformationCoordIndex, transformationCoordForce,
-                                       masses, forceWithVirial);
+        double variablePcrdForce = computeForceFromTransformationPullCoord(
+                pull, transformationCoordIndex, variableCoordIndex);
+        applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce, masses,
+                                          forceWithVirial);
     }
 }
 
