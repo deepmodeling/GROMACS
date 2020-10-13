@@ -37,7 +37,6 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/utility/stringutil.h"
 #include "pull.h"
 
 #include "config.h"
@@ -81,6 +80,7 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/strconvert.h"
+#include "gromacs/utility/stringutil.h"
 
 #include "pull_internal.h"
 
