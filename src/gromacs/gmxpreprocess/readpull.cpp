@@ -57,9 +57,11 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"
 #include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/stringutil.h"
 
 
 static void string2dvec(const char buf[], dvec nums)
@@ -283,10 +285,10 @@ static void init_pull_coord(t_pull_coord*        pcrd,
         /*Validate the mathematical expression to epullgTRANSFORMATION*/
         if (pcrd->expression.empty())
         {
-            gmx_fatal(FARGS,
-                      "pull-coord%d-expression not set for pull coordinate of geometry "
-                      "'transformation'",
-                      coord_index_for_output);
+            GMX_THROW(gmx::InvalidInputError(gmx::formatString(
+                    "pull-coord%d-expression not set for pull coordinate of geometry "
+                    "'transformation'",
+                    coord_index_for_output)));
         }
         /* make sure that the kappa of all previous pull coords is 0*/
         int previousCoordIndex = 0;

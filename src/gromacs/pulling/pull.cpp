@@ -37,6 +37,7 @@
  */
 #include "gmxpre.h"
 
+#include "gromacs/utility/stringutil.h"
 #include "pull.h"
 
 #include "config.h"
@@ -698,16 +699,17 @@ double getTransformationPullCoordinateValue(struct pull_t* pull, int transformat
     }
     catch (mu::Parser::exception_type& e)
     {
-        gmx_fatal(FARGS, "failed to evaluate expression for transformation pull-coord%d: %s\n",
-                  transformationPullCoordinateIndex + 1, e.GetMsg().c_str());
+        GMX_THROW(gmx::InternalError(gmx::formatString(
+                "failed to evaluate expression for transformation pull-coord%d: %s\n",
+                transformationPullCoordinateIndex + 1, e.GetMsg().c_str())));
     }
     catch (std::exception& e)
     {
-        gmx_fatal(FARGS,
-                  "failed to evaluate expression for transformation pull-coord%d.\n"
-                  "Last variable pull-coord-index: %d.\n"
-                  "Message:  %s\n",
-                  transformationPullCoordinateIndex + 1, variablePcrdIndex + 1, e.what());
+        GMX_THROW(gmx::InternalError(gmx::formatString(
+                "failed to evaluate expression for transformation pull-coord%d.\n"
+                "Last variable pull-coord-index: %d.\n"
+                "Message:  %s\n",
+                transformationPullCoordinateIndex + 1, variablePcrdIndex + 1, e.what())));
     }
     return result;
 #else
