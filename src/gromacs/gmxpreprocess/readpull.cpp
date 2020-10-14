@@ -552,6 +552,7 @@ void checkPullCoords(gmx::ArrayRef<const t_pull_group> pullGroups, gmx::ArrayRef
                         "Weights are not supported for the reference group with cylinder pulling");
             }
         }
+   c++;
     }
 }
 
