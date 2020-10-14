@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "muparser.h"
+#include "gmxmuparser.h"
 
 #include "config.h"
 
@@ -96,7 +96,7 @@ void PullCoordExpressionParser::initializeParser(int nVariables)
 #endif
 }
 
-double getTransformationPullCoordinateValue(struct pull_t* pull, int transformationPullCoordinateIndex)
+double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex)
 {
 #if HAVE_MUPARSER
     double             result = 0;
