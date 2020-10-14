@@ -296,14 +296,18 @@ static void init_pull_coord(t_pull_coord*        pcrd,
         {
             if (previousPcrd.k > 0)
             {
-                gmx_fatal(FARGS,
-                          "pull-coord%d-k not must be set to zero "
-                          "since pull-coord%d-geometry=transformation.\n Met"
-                          "Transformation coordinates and their variables must occur first. "
-                          "Change the order of the pull coordinates if "
-                          "pull-coord%d does not depend on pull-coord%d",
-                          previousCoordIndex + 1, coord_index_for_output, previousCoordIndex + 1,
-                          coord_index_for_output);
+                /* This use case should be revisited in the future, as
+                 * we might want to allow this but there is currently
+                 * no way to make sure it actually works.
+                 */
+                GMX_THROW(gmx::InvalidInputError(gmx::formatString(
+                        "pull-coord%d-k not must be set to zero "
+                        "since pull-coord%d-geometry=transformation.\n Met"
+                        "Transformation coordinates and their variables must occur first. "
+                        "Change the order of the pull coordinates if "
+                        "pull-coord%d does not depend on pull-coord%d",
+                        previousCoordIndex + 1, coord_index_for_output, previousCoordIndex + 1,
+                        coord_index_for_output)));
             }
         }
     }

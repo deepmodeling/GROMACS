@@ -1586,7 +1586,7 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
              * as long as it has force constant set to 0.
              * The real non-transformation pull coordinates will have the force distributed directly from
              * the highest ranked transformation coordinate with a force constant != 0 by numerical
-             * differentiation. Here we avoid redistributing the force twice (hopefully).
+             * differentiation. This check avoids redistributing the force twice in those cases.
              */
             return;
         }
