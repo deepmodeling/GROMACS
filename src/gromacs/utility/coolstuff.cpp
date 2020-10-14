@@ -1583,7 +1583,13 @@ std::string getCoolQuote()
           "Anonymous" },
         { "Schrödinger's backup: The condition of any backup is unknown until a restore is "
           "attempted.",
-          "Anonymous" }
+          "Anonymous" },
+        { "When I was admitted to MIT for graduate school I was miserable. I thought of committing "
+          "suicide. Then I realized that I could try MIT and *then* commit suicide if I didn't "
+          "like it, but I couldn't reverse the order, first committing suicide and then attending "
+          "MIT. The two operators would not commute. So in the end I did decide to attend MIT and "
+          "give it a try.",
+          "Murray Gell-Mann" }
     };
 
     if (beCool())
