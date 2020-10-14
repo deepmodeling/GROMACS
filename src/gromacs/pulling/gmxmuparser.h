@@ -38,7 +38,7 @@
  * \brief
  * This classes and methods related to use of MuParser in pulling
  *
- * \author Oliver Fleetwood
+ * \author Oliver Fleetwood <oliver.fleetwood@gmail.com>
  * \author Paul Bauer
  * \author Joe Jordan <ejjordan@kth.se>
  *
