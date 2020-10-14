@@ -691,8 +691,8 @@ double getTransformationPullCoordinateValue(struct pull_t* pull, int transformat
         for (variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
              variablePcrdIndex++)
         {
-            pull_coord_work_t* variablePcrd = &pull->coord[variablePcrdIndex];
-            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd->spatialData.value,
+            const pull_coord_work_t& variablePcrd = pull->coord[variablePcrdIndex];
+            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd.spatialData.value,
                                                 transformationPullCoordinateIndex);
         }
         result = coord->expressionParser.eval();
@@ -1578,8 +1578,8 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
     pcrd->scalarForce = transformationCoordForce;
     for (int variableCoordIndex = 0; variableCoordIndex < transformationCoordIndex; variableCoordIndex++)
     {
-        pull_coord_work_t* variablePCrd = &pull->coord[variableCoordIndex];
-        if (variablePCrd->params.eGeom == epullgTRANSFORMATION)
+        const pull_coord_work_t& variablePCrd = pull->coord[variableCoordIndex];
+        if (variablePCrd.params.eGeom == epullgTRANSFORMATION)
         {
             /*
              * We can have a transformation pull coordinate depend on another sub-transformation pull coordinate
@@ -1590,10 +1590,17 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
              */
             return;
         }
-        double variablePcrdForce = computeForceFromTransformationPullCoord(
+        const double variablePcrdForce = computeForceFromTransformationPullCoord(
                 pull, transformationCoordIndex, variableCoordIndex);
-        applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce, masses,
-                                          forceWithVirial);
+        /* Since we loop over all pull coordinates with smaller index, there can be ones
+         * that are not referenced by the transformation coordinate. Avoid apply forces
+         * on those by skipping application of zero force.
+         */
+        if (variablePcrdForce != 0)
+        {
+            applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce, masses,
+                                              forceWithVirial);
+        }
     }
 }
 
