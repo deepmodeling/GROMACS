@@ -1,0 +1,132 @@
+/*
+ * This file is part of the GROMACS molecular simulation package.
+ *
+ * Copyright (c) 2020, by the GROMACS development team, led by
+ * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
+ * and including many others, as listed in the AUTHORS file in the
+ * top-level source directory and at http://www.gromacs.org.
+ *
+ * GROMACS is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the License, or (at your option) any later version.
+ *
+ * GROMACS is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with GROMACS; if not, see
+ * http://www.gnu.org/licenses, or write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
+ *
+ * If you want to redistribute modifications to GROMACS, please
+ * consider that scientific software is very special. Version
+ * control is crucial - bugs must be traceable. We will be happy to
+ * consider code for inclusion in the official distribution, but
+ * derived work must not be called official GROMACS. Details are found
+ * in the README & COPYING files - if they are missing, get the
+ * official version at http://www.gromacs.org.
+ *
+ * To help us fund GROMACS development, we humbly ask that you cite
+ * the research papers on the package. Check out http://www.gromacs.org.
+ */
+/*! \internal \file
+ *
+ *
+ * \brief
+ * This classes and methods related to use of MuParser in pulling
+ *
+ * \author Oliver Fleetwood
+ * \author Paul Bauer
+ * \author Joe Jordan <ejjordan@kth.se>
+ *
+ */
+#ifndef GROMACS_MUPARSER_H
+#define GROMACS_MUPARSER_H
+
+#include "config.h"
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#if HAVE_MUPARSER
+#    include <muParser.h>
+#else
+namespace mu
+{
+using Parser = std::false_type;
+}
+#endif
+
+struct pull_t;
+
+/*! \brief Class with a mathematical expression and parser.
+ * \internal
+ *
+ * The class handles parser instantiation from an mathematical expression, e.g. 'x1*x2',
+ * and evaluates the expression given the variables' numerical values.
+ *
+ * Note that for performance reasons you should not create a new PullCoordExpressionParser
+ * for every evaluation.
+ * Instead, instantiate one PullCoordExpressionParser per expression,
+ * then update the variables before the next evaluation.
+ *
+ */
+class PullCoordExpressionParser
+{
+public:
+    //! Constructor which takes a mathematical expression as argument.
+    PullCoordExpressionParser(const std::string& expression) : expression_(expression) {}
+
+    /*! \brief Initializes the parser and binds a numerical value to a variable in the expression
+     *
+     * \param[in]   variableIdx The variable index in the expression.
+     * Index 0 corresponds to the variable 'x1' etc.
+     * \param[in]   value  The variable's numerical value to be passed on for evaluation
+     * \param[in]   nVariables  The total number of variables to bind
+     */
+    void setVariable(int variableIdx, double value, int nVariables);
+
+    /*! \brief Evaluates the expression with the numerical values passed to
+     * the function setVariable().
+     * This method will raise an std::exception if setVariable was not called before evaluation.
+     *
+     */
+    double eval();
+
+private:
+    /*! \brief
+     * Prepares the expressionparser to bind muParser to n_variables.
+     *
+     * There's a performance gain by doing it this way since muParser will convert the expression
+     * to bytecode the first time it's initialized. Then the subsequent evaluations are much faster.
+     */
+    void initializeParser(int nVariables);
+
+    /*! \brief The mathematical expression, e.g. 'x1*x2' */
+    std::string expression_;
+
+    /*! \brief A vector containing the numerical values of the variables before parser evaluation.
+     *
+     * muParser compiles the expression to bytecode, then binds to the memory address
+     * of these vector elements, making the evaluations fast and memory efficient.
+     * */
+    std::vector<double> variableValues_;
+
+    /*! \brief The parser_ which compiles and evaluates the mathematical expression */
+    std::unique_ptr<mu::Parser> parser_;
+};
+
+/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
+ *
+ * This requires the values of the pull coordinates of lower indices to be set
+ * \param[in] pull Pulling data.
+ * \param[in] transformationPullCoordinateIndex Index for coordinates treated.
+ * \returns Transformation value for pull coordinate.
+ */
+double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
+
+#endif // GROMACS_MUPARSER_H

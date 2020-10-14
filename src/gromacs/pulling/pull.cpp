@@ -680,45 +680,6 @@ static double get_dihedral_angle_coord(PullCoordSpatialData* spatialData)
     return sign * phi;
 }
 
-double getTransformationPullCoordinateValue(struct pull_t* pull, int transformationPullCoordinateIndex)
-{
-#if HAVE_MUPARSER
-    double             result = 0;
-    pull_coord_work_t* coord  = &pull->coord[transformationPullCoordinateIndex];
-    int                variablePcrdIndex;
-    try
-    {
-        for (variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
-             variablePcrdIndex++)
-        {
-            pull_coord_work_t* variablePcrd = &pull->coord[variablePcrdIndex];
-            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd->spatialData.value,
-                                                transformationPullCoordinateIndex);
-        }
-        result = coord->expressionParser.eval();
-    }
-    catch (mu::Parser::exception_type& e)
-    {
-        GMX_THROW(gmx::InternalError(gmx::formatString(
-                "failed to evaluate expression for transformation pull-coord%d: %s\n",
-                transformationPullCoordinateIndex + 1, e.GetMsg().c_str())));
-    }
-    catch (std::exception& e)
-    {
-        GMX_THROW(gmx::InternalError(gmx::formatString(
-                "failed to evaluate expression for transformation pull-coord%d.\n"
-                "Last variable pull-coord-index: %d.\n"
-                "Message:  %s\n",
-                transformationPullCoordinateIndex + 1, variablePcrdIndex + 1, e.what())));
-    }
-    return result;
-#else
-    GMX_UNUSED_VALUE(pull);
-    GMX_UNUSED_VALUE(transformationPullCoordinateIndex);
-    return 0;
-#endif
-}
-
 /* Calculates pull->coord[coord_ind].value.
  * This function also updates pull->coord[coord_ind].dr.
  */

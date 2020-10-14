@@ -104,15 +104,6 @@ double pull_conversion_factor_userinput2internal(const t_pull_coord* pcrd);
  */
 double pull_conversion_factor_internal2userinput(const t_pull_coord* pcrd);
 
-/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
- *
- * This requires the values of the pull coordinates of lower indices to be set
- * \param[in] pull Pulling data.
- * \param[in] transformationPullCoordinateIndex Index for coordinates treated.
- * \returns Transformation value for pull coordinate.
- */
-double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
-
 /*! \brief Get the value for pull coord coord_ind.
  *
  * \param[in,out] pull      The pull struct.
