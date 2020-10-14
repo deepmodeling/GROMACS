@@ -43,8 +43,8 @@
  * \author Joe Jordan <ejjordan@kth.se>
  *
  */
-#ifndef GROMACS_GMXMUPARSER_H
-#define GROMACS_GMXMUPARSER_H
+#ifndef GMX_PULLCOORDEXPRESSIONPARSER_H
+#define GMX_PULLCOORDEXPRESSIONPARSER_H
 
 #include "config.h"
 
@@ -129,4 +129,4 @@ private:
  */
 double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
 
-#endif // GROMACS_GMXMUPARSER_H
+#endif // GMX_PULLCOORDEXPRESSIONPARSER_H

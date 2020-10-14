@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "gmxmuparser.h"
+#include "pullcoordexpressionparser.h"
 
 #include "config.h"
 

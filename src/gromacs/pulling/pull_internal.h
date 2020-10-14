@@ -59,7 +59,7 @@
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/utility/gmxmpi.h"
 
-#include "gmxmuparser.h"
+#include "pullcoordexpressionparser.h"
 
 /*! \brief Determines up to what local atom count a pull group gets processed single-threaded.
  *
