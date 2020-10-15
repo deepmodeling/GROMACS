@@ -690,11 +690,12 @@ double getTransformationPullCoordinateValue(pull_coord_work_t*                  
     double result = 0;
     try
     {
-        std::vector<double> variables(transformationPullCoordinateIndex);
+        std::vector<double> variables;
+        variables.reserve(transformationPullCoordinateIndex);
         for (int variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
              variablePcrdIndex++)
         {
-            variables[variablePcrdIndex] = variableCoords[variablePcrdIndex].spatialData.value;
+            variable.push_back(variableCoords[variablePcrdIndex].spatialData.value);
         }
         result = coord->expressionParser.evaluate(variables);
     }

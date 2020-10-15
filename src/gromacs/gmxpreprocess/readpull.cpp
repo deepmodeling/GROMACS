@@ -301,7 +301,7 @@ static void init_pull_coord(t_pull_coord*        pcrd,
                  * no way to make sure it actually works.
                  */
                 GMX_THROW(gmx::InvalidInputError(gmx::formatString(
-                        "pull-coord%d-k not must be set to zero "
+                        "pull-coord%d-k must be set to zero "
                         "since pull-coord%d-geometry=transformation.\n Met"
                         "Transformation coordinates and their variables must occur first. "
                         "Change the order of the pull coordinates if "
