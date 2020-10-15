@@ -357,17 +357,6 @@ bool pull_have_constraint(const pull_params_t& pullParameters);
  */
 real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc);
 
-//! computeForceFromTransformationPullCoord() computes the derivative using a finite differnce with this value of epsilon
-constexpr double c_pullTransformationCoordinateDifferentationEpsilon = 1e-9;
-
-/*! \brief
- * Calculates force for pull coordinate.
- * \param[in] pull Pulling information.
- * \param[in] transformationPcrdIndex Index for transformation coordinate.
- * \param[in] variablePcrdIndex Pull coordinate index of a variable.
- */
-double computeForceFromTransformationPullCoord(pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex);
-
 /*! \brief Sets the previous step COM in pull to the current COM and updates the pull_com_prev_step in the state
  *
  * \param[in]   pull  The COM pull force calculation data structure

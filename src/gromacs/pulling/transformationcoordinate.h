@@ -32,61 +32,49 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#include "gmxpre.h"
+/*! \internal \file
+ *
+ * \brief
+ * Declares function for compute transformation coordinate values and forces
+ *
+ * \author Oliver Fleetwood <oliver.fleetwood@gmail.com>
+ * \author Paul Bauer <paul.bauer.q@gmail.com>
+ * \author Joe Jordan <ejjordan@kth.se>
+ * \author Berk Hess <hess@kth.se>
+ *
+ */
+#ifndef GMX_PULL_TRANSFORMATIONCOORDINATE_H
+#define GMX_PULL_TRANSFORMATIONCOORDINATE_H
 
-#include "pullcoordexpressionparser.h"
-
-#include "config.h"
-
-#include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/exceptions.h"
-#include "gromacs/utility/gmxassert.h"
-#include "gromacs/utility/stringutil.h"
-
-#include "pull_internal.h"
+struct pull_t;
+struct pull_coord_work_t;
 
 namespace gmx
 {
+template<typename>
+class ArrayRef;
 
-double PullCoordExpressionParser::evaluate(ArrayRef<const double> variables)
-{
-#if HAVE_MUPARSER
-    if (!parser_)
-    {
-        initializeParser(variables.size());
-    }
-    GMX_ASSERT(variables.size() == variableValues_.size(),
-               "The size of variables should match the size passed at the first call of this "
-               "method");
-    // Todo: consider if we can use variableValues_ directly without the extra variables buffer
-    std::copy(variables.begin(), variables.end(), variableValues_.begin());
+//! computeForceFromTransformationPullCoord() computes the derivative using a finite difference with this value of epsilon
+constexpr double c_pullTransformationCoordinateDifferentationEpsilon = 1e-9;
 
-    return parser_->Eval();
-#else
-    GMX_UNUSED_VALUE(variables);
+/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
+ *
+ * This requires the values of the pull coordinates of lower indices to be set
+ * \param[in] coord  The (transformation) coordinate to compute the value for
+ * \param[in] variableCoords  Pull coordinates used as variables, entries 0 to coord->coordIndex
+ * will be used \returns Transformation value for pull coordinate.
+ */
+double getTransformationPullCoordinateValue(pull_coord_work_t*                coord,
+                                            ArrayRef<const pull_coord_work_t> variableCoords);
 
-    GMX_RELEASE_ASSERT(false, "evaluate() should not be called without muparser");
-
-    return 0;
-#endif
-}
-
-void PullCoordExpressionParser::initializeParser(int numVariables)
-{
-#if HAVE_MUPARSER
-    parser_ = std::make_unique<mu::Parser>();
-    parser_->SetExpr(expression_);
-    variableValues_.resize(numVariables);
-    for (int n = 0; n < numVariables; n++)
-    {
-        variableValues_[n] = 0;
-        std::string name   = "x" + std::to_string(n + 1);
-        parser_->DefineVar(name, &variableValues_[n]);
-    }
-#else
-    GMX_UNUSED_VALUE(numVariables);
-    GMX_RELEASE_ASSERT(false, "Can not use transformation pull coordinate without muparser");
-#endif
-}
+/*! \brief
+ * Calculates force for pull coordinate.
+ * \param[in] pull Pulling information.
+ * \param[in] transformationPcrdIndex Index for transformation coordinate.
+ * \param[in] variablePcrdIndex Pull coordinate index of a variable.
+ */
+double computeForceFromTransformationPullCoord(pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex);
 
 } // namespace gmx
+
+#endif // GMX_PULL_TRANSFORMATIONCOORDINATE_H

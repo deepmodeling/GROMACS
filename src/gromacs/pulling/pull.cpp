@@ -83,6 +83,7 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "pull_internal.h"
+#include "transformationcoordinate.h"
 
 namespace gmx
 {
@@ -1457,32 +1458,6 @@ static void check_external_potential_registration(const struct pull_t* pull)
     }
 }
 
-double computeForceFromTransformationPullCoord(struct pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex)
-{
-    pull_coord_work_t& transformationPcrd = pull->coord[transformationPcrdIndex];
-    // epsilon for numerical differentiation.
-    const double       epsilon = c_pullTransformationCoordinateDifferentationEpsilon;
-    const double       transformationPcrdValue = transformationPcrd.spatialData.value;
-    pull_coord_work_t& prePcrd                 = pull->coord[variablePcrdIndex];
-    // Perform numerical differentiation of 1st order
-    prePcrd.spatialData.value += epsilon;
-    double transformationPcrdValueEps = gmx::getTransformationPullCoordinateValue(
-            &transformationPcrd,
-            gmx::constArrayRefFromArray(pull->coord.data(), transformationPcrd.coordIndex));
-    double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
-    prePcrd.spatialData.value -= epsilon; // reset pull coordinate value
-    double result = transformationPcrd.scalarForce * derivative;
-    if (debug)
-    {
-        fprintf(debug,
-                "Distributing force %4.4f for transformation coordinate %d to coordinate %d with "
-                "force "
-                "%4.4f\n",
-                transformationPcrd.scalarForce, transformationPcrdIndex, variablePcrdIndex, result);
-    }
-    return result;
-}
-
 /*! \brief
  * Applies a force of any non-transformation pull coordinate
  *
@@ -1554,7 +1529,7 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
              */
             return;
         }
-        const double variablePcrdForce = computeForceFromTransformationPullCoord(
+        const double variablePcrdForce = gmx::computeForceFromTransformationPullCoord(
                 pull, transformationCoordIndex, variableCoordIndex);
         /* Since we loop over all pull coordinates with smaller index, there can be ones
          * that are not referenced by the transformation coordinate. Avoid apply forces

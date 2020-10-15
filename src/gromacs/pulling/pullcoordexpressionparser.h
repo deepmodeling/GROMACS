@@ -34,13 +34,13 @@
  */
 /*! \internal \file
  *
- *
  * \brief
  * Contains classes and methods related to use of MuParser in pulling
  *
  * \author Oliver Fleetwood <oliver.fleetwood@gmail.com>
  * \author Paul Bauer <paul.bauer.q@gmail.com>
  * \author Joe Jordan <ejjordan@kth.se>
+ * \author Berk Hess <hess@kth.se>
  *
  */
 #ifndef GMX_PULL_PULLCOORDEXPRESSIONPARSER_H
@@ -112,16 +112,6 @@ private:
     /*! \brief The parser_ which compiles and evaluates the mathematical expression */
     std::unique_ptr<mu::Parser> parser_;
 };
-
-/*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
- *
- * This requires the values of the pull coordinates of lower indices to be set
- * \param[in] coord  The (transformation) coordinate to compute the value for
- * \param[in] variableCoords  Pull coordinates used as variables, entries 0 to coord->coordIndex
- * will be used \returns Transformation value for pull coordinate.
- */
-double getTransformationPullCoordinateValue(pull_coord_work_t*                coord,
-                                            ArrayRef<const pull_coord_work_t> variableCoords);
 
 } // namespace gmx
 
