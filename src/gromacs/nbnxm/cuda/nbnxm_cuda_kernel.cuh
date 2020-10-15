@@ -440,6 +440,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #                endif
 #            endif /* EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF */
     }
+    // printf("E_el=%e\n\n", E_el);
 #        endif     /* EXCLUSION_FORCES */
 
 #    endif /* CALC_ENERGIES */
@@ -516,7 +517,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                             ci = sci * c_numClPerSupercl + i; /* i cluster index */
 
                             /* all threads load an atom from i cluster ci into shmem! */
-                            xqbuf = xqib[i * c_clSize + tidxi];
+                            ai    = i * c_clSize + tidxi;
+                            xqbuf = xqib[ai];
                             xi    = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
 
                             /* distance between i and j atoms */
@@ -549,10 +551,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifndef LJ_COMB
                                 /* LJ 6*C6 and 12*C12 */
-                                typei = atib[i * c_clSize + tidxi];
+                                typei = atib[ai];
                                 fetch_nbfp_c6_c12(c6, c12, nbparam, ntypes * typei + typej);
 #    else
-                                ljcp_i       = ljcpib[i * c_clSize + tidxi];
+                                ljcp_i       = ljcpib[ai];
 #        ifdef LJ_COMB_GEOM
                                 c6           = ljcp_i.x * ljcp_j.x;
                                 c12          = ljcp_i.y * ljcp_j.y;
@@ -687,11 +689,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
                             }
                             else
                             {
+                                F_invr = 0.0f;
                                 /* load the rest of the i-atom parameters */
                                 qi = xqbuf.w;
                                 qBi= qBib[i * c_clSize + tidxi];
                                 
-                                float rinvC, rinvV, r2C, r2V, rpinvC, rpinvV;
+                                float rinvC, rinvV, r2C, r2V, rpinvC, rpinvV, rpinvC_nonzero, rpinvV_nonzero;
                                 float sigma6[2], c6AB[2], c12AB[2];
                                 float qq[2] = {qi * qj_f, qBi * qBj_f};
                                 float FscalC[2], FscalV[2], Vvdw[2], Vcoul[2];
@@ -752,7 +755,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        ifdef EXCLUSION_FORCES
                                 /* We could mask inv_r2, but with Ewald
                                  * masking both inv_r6 and F_invr is faster */
-                                inv_r6 *= int_bit;
+                                // inv_r6 *= int_bit;
 #        endif /* EXCLUSION_FORCES */
                                 for (int k = 0; k < 2; k++)
                                 {
@@ -808,6 +811,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                             r2V    = r2;
                                             rinvV  = inv_r;
                                         }
+                                        rpinvC_nonzero = rpinvC;
+                                        rpinvV_nonzero = rpinvV;
 #        ifdef EXCLUSION_FORCES
                                         /* We could mask inv_r2, but with Ewald
                                          * masking both inv_r6 and F_invr is faster */
@@ -869,7 +874,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                             /* Separate VDW cut-off check to enable twin-range cut-offs
                                              * (rvdw < rcoulomb <= rlist)
                                              */
-                                            vdw_in_range = (r2 < rvdw_sq) ? 1.0f : 0.0f;
+                                            vdw_in_range = (r2V < rvdw_sq) ? 1.0f : 0.0f;
                                             FscalV[k] *= vdw_in_range;
 #        ifdef CALC_ENERGIES
                                             Vvdw[k] *= vdw_in_range;
@@ -890,12 +895,18 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                             FscalC[k] = qq[k] * (int_bit * rinvC - two_k_rf * r2C);
 #    endif
 #    if defined   EL_EWALD_ANA
+// #ifdef CALC_ENERGIES
+//                     if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
+//                     printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], qq=[%e, %e], c6=[%e, %e], c12=[%e, %e], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%f\n", ai, aj, r2, rinvC, pmecorrF(beta2 * r2) * beta3, inv_r * erff(r2 * inv_r * beta),
+//                     qq[0], qq[1], c6AB[0], c6AB[1], c12AB[0], c12AB[1], 
+//                     qq[0] * int_bit * rinvC0 * rpinvC[0] * rpm2, qq[1] * int_bit * rinvC * rpinvC[1] * rpm2, 
+//                     FscalV[0] * rpm2, FscalV[1] * rpinvV * rpm2, qq[0] * int_bit * (rinvC0 - ewald_shift), qq[1] * int_bit * (rinvC - ewald_shift), Vvdw[0], Vvdw[1], int_bit);
+// #        endif
                                             FscalC[k] = qq[k] * int_bit * rinvC
-                                                        + qq[k] * pmecorrF(beta2 * r2) * beta3 * r2 * inv_r6 * r2C * r2C * r2C;
-                                            // printf("interaction [%d-%d], ewald corr. of state %d=%.4f; FscalV=%.4f\n", ai, aj, k, pmecorrF(beta2 * r2) * beta3 * r2 * inv_r6 * r2C * r2C * r2C, FscalV[k] * rpinvV);
+                                                        + qq[k] * pmecorrF(beta2 * r2) * beta3 * inv_r2 * inv_r2 * r2C * r2C * r2C;
 #    elif defined EL_EWALD_TAB
                                             FscalC[k] = qq[k] * int_bit * rinvC 
-                                                        - qq[k] * interpolate_coulomb_force_r(nbparam, r2 * inv_r) * inv_r * r2 * inv_r6 * r2C * r2C * r2C;
+                                                        - qq[k] * interpolate_coulomb_force_r(nbparam, r2 * inv_r) * inv_r * r2 * inv_r2 * inv_r2 * r2C * r2C * r2C;
 #    endif /* EL_EWALD_ANA/TAB */
 
 #    ifdef CALC_ENERGIES
@@ -911,8 +922,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif /* EL_EWALD_ANY */
 #    endif
                                         }
-                                        FscalC[k] *= rpinvC;
-                                        FscalV[k] *= rpinvV;
+                                        // if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
+                                        // printf("interaction [%d-%d], r2=[%e], mask=%f, FscalC=[%e, %e], FscalV=[%e, %e]\n", ai, aj, r2, int_bit, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2);
+                                        FscalC[k] *= rpinvC_nonzero;
+                                        FscalV[k] *= rpinvV_nonzero;
                                     }
                                 }
                                 for (int k = 0; k < 2; k++)
