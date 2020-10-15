@@ -685,17 +685,16 @@ double getTransformationPullCoordinateValue(pull_coord_work_t*                  
 {
 #if HAVE_MUPARSER
     const int transformationPullCoordinateIndex = coord->coordIndex;
-    GMX_ASSERT(ssize(variableCoords) >= transformationPullCoordinateIndex,
+    GMX_ASSERT(ssize(variableCoords) == transformationPullCoordinateIndex,
                "We need as many variables as the transformation pull coordinate index");
     double result = 0;
     try
     {
         std::vector<double> variables;
-        variables.reserve(transformationPullCoordinateIndex);
-        for (int variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
-             variablePcrdIndex++)
+        variables.reserve(variableCoords.size());
+        for (const auto& variableCoord : variableCoords)
         {
-            variables.push_back(variableCoords[variablePcrdIndex].spatialData.value);
+            variables.push_back(variableCoord.spatialData.value);
         }
         result = coord->expressionParser.evaluate(variables);
     }
@@ -761,7 +760,8 @@ static void get_pull_coord_distance(struct pull_t* pull, int coord_ind, const t_
             break;
         case epullgTRANSFORMATION:
             // Note that we would only need to pass the part of coord up to coord_ind
-            spatialData.value = getTransformationPullCoordinateValue(pcrd, pull->coord);
+            spatialData.value = getTransformationPullCoordinateValue(
+                    pcrd, gmx::constArrayRefFromArray(pull->coord.data(), pcrd->coordIndex));
             break;
         default: gmx_incons("Unsupported pull type in get_pull_coord_distance");
     }
@@ -1506,8 +1506,9 @@ double computeForceFromTransformationPullCoord(struct pull_t* pull, int transfor
     pull_coord_work_t& prePcrd                 = pull->coord[variablePcrdIndex];
     // Perform numerical differentiation of 1st order
     prePcrd.spatialData.value += epsilon;
-    double transformationPcrdValueEps =
-            getTransformationPullCoordinateValue(&transformationPcrd, pull->coord);
+    double transformationPcrdValueEps = getTransformationPullCoordinateValue(
+            &transformationPcrd,
+            gmx::constArrayRefFromArray(pull->coord.data(), transformationPcrd.coordIndex));
     double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
     prePcrd.spatialData.value -= epsilon; // reset pull coordinate value
     double result = transformationPcrd.scalarForce * derivative;
