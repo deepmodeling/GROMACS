@@ -57,6 +57,7 @@
 #else
 namespace mu
 {
+//! Defines a dummy Parser type to reduce us of the preprocessor.
 using Parser = std::false_type;
 }
 #endif
