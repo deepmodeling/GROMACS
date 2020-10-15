@@ -48,7 +48,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <string>
 
 #include "gromacs/commandline/filenm.h"
 #include "gromacs/domdec/domdec_struct.h"
@@ -721,7 +720,7 @@ static void get_pull_coord_distance(struct pull_t* pull, int coord_ind, const t_
         case epullgTRANSFORMATION:
             // Note that we would only need to pass the part of coord up to coord_ind
             spatialData.value = gmx::getTransformationPullCoordinateValue(
-                    pcrd, gmx::constArrayRefFromArray(pull->coord.data(), pcrd->coordIndex));
+                    pcrd, gmx::constArrayRefFromArray(pull->coord.data(), pcrd->params.coordIndex));
             break;
         default: gmx_incons("Unsupported pull type in get_pull_coord_distance");
     }
@@ -1468,7 +1467,7 @@ double computeForceFromTransformationPullCoord(struct pull_t* pull, int transfor
     prePcrd.spatialData.value += epsilon;
     double transformationPcrdValueEps = gmx::getTransformationPullCoordinateValue(
             &transformationPcrd,
-            gmx::constArrayRefFromArray(pull->coord.data(), transformationPcrd.coordIndex));
+            gmx::constArrayRefFromArray(pull->coord.data(), transformationPcrd.params.coordIndex));
     double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
     prePcrd.spatialData.value -= epsilon; // reset pull coordinate value
     double result = transformationPcrd.scalarForce * derivative;
@@ -2058,8 +2057,11 @@ struct pull_t* init_pull(FILE*                     fplog,
 
     for (int c = 0; c < pull->params.ncoord; c++)
     {
+        GMX_RELEASE_ASSERT(pull_params->coord[c].coordIndex == c,
+                           "The stored index should match the position in the vector");
+
         /* Construct a pull coordinate, copying all coordinate parameters */
-        pull->coord.emplace_back(pull_params->coord[c], c);
+        pull->coord.emplace_back(pull_params->coord[c]);
 
         pull_coord_work_t* pcrd = &pull->coord.back();
 

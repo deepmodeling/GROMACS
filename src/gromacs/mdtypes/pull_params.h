@@ -87,7 +87,8 @@ struct t_pull_coord
     real      init; /**< Initial reference displacement (nm) or (deg) */
     real      rate; /**< Rate of motion (nm/ps) or (deg/ps) */
     real      k; /**< Force constant (kJ/(mol nm^2) or kJ/(mol rad^2) for umbrella pull type, or kJ/(mol nm) or kJ/(mol rad) for constant force pull type */
-    real      kB; /**< Force constant for state B */
+    real      kB;         /**< Force constant for state B */
+    int       coordIndex; /**< The index of this coordinate in the list of coordinates */
 };
 
 /*! \brief Struct containing all pull parameters */

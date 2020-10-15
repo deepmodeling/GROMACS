@@ -143,14 +143,13 @@ struct PullCoordSpatialData
 struct pull_coord_work_t
 {
     /* Constructor */
-    pull_coord_work_t(const t_pull_coord& params, const int coordIndex) :
+    pull_coord_work_t(const t_pull_coord& params) :
         params(params),
         value_ref(0),
         spatialData(),
         scalarForce(0),
         bExternalPotentialProviderHasBeenRegistered(false),
-        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : ""),
-        coordIndex(coordIndex)
+        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : "")
     {
     }
 
@@ -166,7 +165,6 @@ struct pull_coord_work_t
     bool bExternalPotentialProviderHasBeenRegistered;
 
     gmx::PullCoordExpressionParser expressionParser;
-    const int                      coordIndex;
 };
 
 /* Struct for storing vectorial forces for a pull coordinate */

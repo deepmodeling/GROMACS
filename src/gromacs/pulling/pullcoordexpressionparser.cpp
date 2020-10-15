@@ -91,7 +91,7 @@ double getTransformationPullCoordinateValue(pull_coord_work_t*                co
                                             ArrayRef<const pull_coord_work_t> variableCoords)
 {
 #if HAVE_MUPARSER
-    const int transformationPullCoordinateIndex = coord->coordIndex;
+    const int transformationPullCoordinateIndex = coord->params.coordIndex;
     GMX_ASSERT(ssize(variableCoords) == transformationPullCoordinateIndex,
                "We need as many variables as the transformation pull coordinate index");
     double result = 0;
