@@ -680,46 +680,6 @@ static double get_dihedral_angle_coord(PullCoordSpatialData* spatialData)
     return sign * phi;
 }
 
-double getTransformationPullCoordinateValue(pull_coord_work_t*                     coord,
-                                            gmx::ArrayRef<const pull_coord_work_t> variableCoords)
-{
-#if HAVE_MUPARSER
-    const int transformationPullCoordinateIndex = coord->coordIndex;
-    GMX_ASSERT(ssize(variableCoords) == transformationPullCoordinateIndex,
-               "We need as many variables as the transformation pull coordinate index");
-    double result = 0;
-    try
-    {
-        std::vector<double> variables;
-        variables.reserve(variableCoords.size());
-        for (const auto& variableCoord : variableCoords)
-        {
-            variables.push_back(variableCoord.spatialData.value);
-        }
-        result = coord->expressionParser.evaluate(variables);
-    }
-    catch (mu::Parser::exception_type& e)
-    {
-        GMX_THROW(gmx::InternalError(gmx::formatString(
-                "failed to evaluate expression for transformation pull-coord%d: %s\n",
-                transformationPullCoordinateIndex + 1, e.GetMsg().c_str())));
-    }
-    catch (std::exception& e)
-    {
-        GMX_THROW(gmx::InternalError(gmx::formatString(
-                "failed to evaluate expression for transformation pull-coord%d.\n"
-                "Last variable pull-coord-index: %d.\n"
-                "Message:  %s\n",
-                transformationPullCoordinateIndex + 1, transformationPullCoordinateIndex + 1, e.what())));
-    }
-    return result;
-#else
-    GMX_UNUSED_VALUE(coord);
-    GMX_UNUSED_VALUE(variableCoords);
-    return 0;
-#endif
-}
-
 /* Calculates pull->coord[coord_ind].value.
  * This function also updates pull->coord[coord_ind].dr.
  */
@@ -760,7 +720,7 @@ static void get_pull_coord_distance(struct pull_t* pull, int coord_ind, const t_
             break;
         case epullgTRANSFORMATION:
             // Note that we would only need to pass the part of coord up to coord_ind
-            spatialData.value = getTransformationPullCoordinateValue(
+            spatialData.value = gmx::getTransformationPullCoordinateValue(
                     pcrd, gmx::constArrayRefFromArray(pull->coord.data(), pcrd->coordIndex));
             break;
         default: gmx_incons("Unsupported pull type in get_pull_coord_distance");
@@ -1506,7 +1466,7 @@ double computeForceFromTransformationPullCoord(struct pull_t* pull, int transfor
     pull_coord_work_t& prePcrd                 = pull->coord[variablePcrdIndex];
     // Perform numerical differentiation of 1st order
     prePcrd.spatialData.value += epsilon;
-    double transformationPcrdValueEps = getTransformationPullCoordinateValue(
+    double transformationPcrdValueEps = gmx::getTransformationPullCoordinateValue(
             &transformationPcrd,
             gmx::constArrayRefFromArray(pull->coord.data(), transformationPcrd.coordIndex));
     double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
