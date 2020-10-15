@@ -693,7 +693,7 @@ double getTransformationPullCoordinateValue(pull_t* pull, int transformationPull
         {
             variables[variablePcrdIndex] = pull->coord[variablePcrdIndex].spatialData.value;
         }
-        result = coord.expressionParser.eval(variables);
+        result = coord.expressionParser.evaluate(variables);
     }
     catch (mu::Parser::exception_type& e)
     {

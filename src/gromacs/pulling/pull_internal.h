@@ -149,8 +149,6 @@ struct PullCoordSpatialData
  *
  * Note that for performance reasons you should not create a new PullCoordExpressionParser
  * for every evaluation.
- * Instead, instantiate one PullCoordExpressionParser per expression,
- * then update the variables before the next evaluation.
  * */
 class PullCoordExpressionParser
 {
@@ -161,7 +159,7 @@ public:
     /*! \brief Evaluates the expression with the numerical values passed in \p variables.
      */
     //NOLINTNEXTLINE
-    double eval(gmx::ArrayRef<const double> variables)
+    double evaluate(gmx::ArrayRef<const double> variables)
     {
 #if HAVE_MUPARSER
         if (!parser_)
@@ -171,7 +169,7 @@ public:
         GMX_ASSERT(variables.size() == variableValues_.size(),
                    "The size of variables should match the size passed at the first call of this "
                    "method");
-        // Todo: consider if directly use the variableValues_ without the extra variables buffer
+        // Todo: consider if we can use variableValues_ directly without the extra variables buffer
         std::copy(variables.begin(), variables.end(), variableValues_.begin());
 
         return parser_->Eval();
