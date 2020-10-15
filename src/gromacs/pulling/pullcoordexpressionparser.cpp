@@ -107,8 +107,8 @@ double getTransformationPullCoordinateValue(pull_t* pull, int transformationPull
         for (variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
              variablePcrdIndex++)
         {
-            pull_coord_work_t* variablePcrd = &pull->coord[variablePcrdIndex];
-            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd->spatialData.value,
+            const pull_coord_work_t& variablePcrd = pull->coord[variablePcrdIndex];
+            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd.spatialData.value,
                                                 transformationPullCoordinateIndex);
         }
         result = coord->expressionParser.eval();
