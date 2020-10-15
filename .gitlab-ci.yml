@@ -36,6 +36,8 @@ stages:
   - release-prepare-deploy
   # Deploy stage for release builds
   - release-deploy
+  # Wait for dependent pipelines
+  - wait-for-others
 
 include:
   # Mix-in helper job definitions of general utility.
@@ -57,3 +59,5 @@ include:
   - local: '/admin/gitlab-ci/documentation.gitlab-ci.yml'
   # Prepare release archives.
   - local: '/admin/gitlab-ci/archive.gitlab-ci.yml'
+  # Wait for dependent pipelines
+  - local: '/admin/gitlab-ci/interpipeline-dependencies.gitlab-ci.yml'
