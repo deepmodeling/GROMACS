@@ -231,7 +231,7 @@ TEST_F(PullTest, TransformationCoord)
         // force and derivative
         double transformationForce = v + 0.5;
         pull.coord[1].scalarForce  = transformationForce;
-        double variableForce       = computeForceFromTransformationPullCoord(&pull, 1, 0);
+        double variableForce       = computeForceFromTransformationPullCoord(&pull.coord[1], 0);
         expected                   = 2 * v * transformationForce;
         double finiteDiffInputSize = square(v + c_pullTransformationCoordinateDifferentationEpsilon) + 3;
         EXPECT_REAL_EQ_TOL(variableForce, expected,

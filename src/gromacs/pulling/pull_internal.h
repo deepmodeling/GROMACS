@@ -150,7 +150,8 @@ struct pull_coord_work_t
         scalarForce(0),
         bExternalPotentialProviderHasBeenRegistered(false),
         expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : ""),
-        coordIndex(coordIndex)
+        coordIndex(coordIndex),
+        transformationVariables(params.eGeom == epullgTRANSFORMATION ? coordIndex : 0)
     {
     }
 
@@ -165,8 +166,12 @@ struct pull_coord_work_t
     /* For external-potential coordinates only, for checking if a provider has been registered */
     bool bExternalPotentialProviderHasBeenRegistered;
 
+    // The expression parser for a transformation coordinate
     gmx::PullCoordExpressionParser expressionParser;
-    const int                      coordIndex;
+    // The index of this coordinate int the list of coordinates
+    const int coordIndex;
+    // Variables from other pull coordinates for a transformation coordinate
+    std::vector<double> transformationVariables;
 };
 
 /* Struct for storing vectorial forces for a pull coordinate */

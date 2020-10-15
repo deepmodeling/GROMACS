@@ -1510,8 +1510,7 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
         // the force is effectively 0. Don't proceed and distribute it recursively
         return;
     }
-    pull_coord_work_t* pcrd;
-    pcrd = &pull->coord[transformationCoordIndex];
+    pull_coord_work_t* pcrd = &pull->coord[transformationCoordIndex];
     GMX_ASSERT(pcrd->params.eGeom == epullgTRANSFORMATION,
                "We shouldn't end up here when not using a transformation pull coordinate.");
     pcrd->scalarForce = transformationCoordForce;
@@ -1529,8 +1528,8 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
              */
             return;
         }
-        const double variablePcrdForce = gmx::computeForceFromTransformationPullCoord(
-                pull, transformationCoordIndex, variableCoordIndex);
+        const double variablePcrdForce =
+                gmx::computeForceFromTransformationPullCoord(pcrd, variableCoordIndex);
         /* Since we loop over all pull coordinates with smaller index, there can be ones
          * that are not referenced by the transformation coordinate. Avoid apply forces
          * on those by skipping application of zero force.

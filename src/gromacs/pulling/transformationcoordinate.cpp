@@ -50,22 +50,19 @@
 namespace gmx
 {
 
-double getTransformationPullCoordinateValue(pull_coord_work_t*                coord,
-                                            ArrayRef<const pull_coord_work_t> variableCoords)
+namespace
+{
+
+//! Calculates the value a for transformation pull coordinate
+double getTransformationPullCoordinateValue(pull_coord_work_t* coord)
 {
     const int transformationPullCoordinateIndex = coord->coordIndex;
-    GMX_ASSERT(ssize(variableCoords) == transformationPullCoordinateIndex,
+    GMX_ASSERT(ssize(coord->transformationVariables) == transformationPullCoordinateIndex,
                "We need as many variables as the transformation pull coordinate index");
     double result = 0;
     try
     {
-        std::vector<double> variables;
-        variables.reserve(variableCoords.size());
-        for (const auto& variableCoord : variableCoords)
-        {
-            variables.push_back(variableCoord.spatialData.value);
-        }
-        result = coord->expressionParser.evaluate(variables);
+        result = coord->expressionParser.evaluate(coord->transformationVariables);
     }
     catch (mu::Parser::exception_type& e)
     {
@@ -84,28 +81,45 @@ double getTransformationPullCoordinateValue(pull_coord_work_t*                co
     return result;
 }
 
-double computeForceFromTransformationPullCoord(pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex)
+} // namespace
+
+double getTransformationPullCoordinateValue(pull_coord_work_t*                coord,
+                                            ArrayRef<const pull_coord_work_t> variableCoords)
 {
-    pull_coord_work_t& transformationPcrd = pull->coord[transformationPcrdIndex];
+    GMX_ASSERT(ssize(variableCoords) == coord->coordIndex,
+               "We need as many variables as the transformation pull coordinate index");
+    int coordIndex = 0;
+    for (const auto& variableCoord : variableCoords)
+    {
+        coord->transformationVariables[coordIndex++] = variableCoord.spatialData.value;
+    }
+
+    return getTransformationPullCoordinateValue(coord);
+}
+
+double computeForceFromTransformationPullCoord(pull_coord_work_t* coord, const int variablePcrdIndex)
+{
+    GMX_ASSERT(variablePcrdIndex >= 0 && variablePcrdIndex < coord->coordIndex,
+               "The variable index should be in range of the transformation coordinate");
+
     // epsilon for numerical differentiation.
-    const double       epsilon = c_pullTransformationCoordinateDifferentationEpsilon;
-    const double       transformationPcrdValue = transformationPcrd.spatialData.value;
-    pull_coord_work_t& prePcrd                 = pull->coord[variablePcrdIndex];
+    const double epsilon                 = c_pullTransformationCoordinateDifferentationEpsilon;
+    const double transformationPcrdValue = coord->spatialData.value;
     // Perform numerical differentiation of 1st order
-    prePcrd.spatialData.value += epsilon;
-    double transformationPcrdValueEps = getTransformationPullCoordinateValue(
-            &transformationPcrd,
-            gmx::constArrayRefFromArray(pull->coord.data(), transformationPcrd.coordIndex));
+    const double valueBackup = coord->transformationVariables[variablePcrdIndex];
+    coord->transformationVariables[variablePcrdIndex] += epsilon;
+    double transformationPcrdValueEps = getTransformationPullCoordinateValue(coord);
     double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
-    prePcrd.spatialData.value -= epsilon; // reset pull coordinate value
-    double result = transformationPcrd.scalarForce * derivative;
+    // reset pull coordinate value
+    coord->transformationVariables[variablePcrdIndex] = valueBackup;
+    double result                                     = coord->scalarForce * derivative;
     if (debug)
     {
         fprintf(debug,
                 "Distributing force %4.4f for transformation coordinate %d to coordinate %d with "
                 "force "
                 "%4.4f\n",
-                transformationPcrd.scalarForce, transformationPcrdIndex, variablePcrdIndex, result);
+                coord->scalarForce, coord->coordIndex, variablePcrdIndex, result);
     }
     return result;
 }
