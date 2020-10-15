@@ -148,7 +148,7 @@ static KernelSetup pick_nbnxn_kernel_cpu(const t_inputrec gmx_unused* ir,
             kernelSetup.kernelType = KernelType::Cpu4xN_Simd_2xNN;
         }
 
-        if (hardwareInfo.haveAmdZen1Cpu)
+        if (hardwareInfo.summaryInformation.haveAmdZen1Cpu)
         {
             /* One 256-bit FMA per cycle makes 2xNN faster */
             kernelSetup.kernelType = KernelType::Cpu4xN_Simd_2xNN;
@@ -191,7 +191,7 @@ static KernelSetup pick_nbnxn_kernel_cpu(const t_inputrec gmx_unused* ir,
 #if GMX_SIMD
                 (GMX_SIMD_REAL_WIDTH >= 8 || (GMX_SIMD_REAL_WIDTH >= 4 && GMX_SIMD_HAVE_FMA && !GMX_DOUBLE)) &&
 #endif
-                !hardwareInfo.haveAmdZen1Cpu)
+                !hardwareInfo.summaryInformation.haveAmdZen1Cpu)
         {
             kernelSetup.ewaldExclusionType = EwaldExclusionType::Analytical;
         }

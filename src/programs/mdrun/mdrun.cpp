@@ -59,6 +59,7 @@
 #include "gromacs/commandline/pargs.h"
 #include "gromacs/domdec/options.h"
 #include "gromacs/fileio/gmxfio.h"
+#include "gromacs/hardware/detecthardware.h"
 #include "gromacs/mdrun/legacymdrunoptions.h"
 #include "gromacs/mdrun/runner.h"
 #include "gromacs/mdrun/simulationcontext.h"
@@ -66,7 +67,8 @@
 #include "gromacs/mdrunutility/logging.h"
 #include "gromacs/mdrunutility/multisim.h"
 #include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/basenetwork.h"
+#include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "mdrun_main.h"
 
@@ -232,6 +234,10 @@ int gmx_mdrun(int argc, char* argv[])
             findIsSimulationMasterRank(ms, communicator), communicator, ms,
             options.mdrunOptions.appendingBehavior, ssize(options.filenames), options.filenames.data());
 
+    PhysicalNodeCommunicator physicalNodeCommunicator(simulationContext.libraryWorldCommunicator_,
+                                                      gmx_physicalnode_id_hash());
+    gmx_hw_info_t            hardwareInformation = gmx_detect_hardware(physicalNodeCommunicator);
+
     /* The named components for the builder exposed here are descriptive of the
      * state of mdrun at implementation and are not intended to be prescriptive
      * of future design. (Note the ICommandLineOptions... framework used elsewhere.)
@@ -244,7 +250,8 @@ int gmx_mdrun(int argc, char* argv[])
      * details to future optimizations.
      */
     auto builder = MdrunnerBuilder(std::move(mdModules),
-                                   compat::not_null<SimulationContext*>(&simulationContext));
+                                   compat::not_null<SimulationContext*>(&simulationContext),
+                                   compat::make_not_null<const gmx_hw_info_t*>(&hardwareInformation));
     builder.addSimulationMethod(options.mdrunOptions, options.pforce, startingBehavior);
     builder.addDomainDecomposition(options.domdecOptions);
     // \todo pass by value

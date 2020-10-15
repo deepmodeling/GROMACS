@@ -54,7 +54,6 @@
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/utility/basenetwork.h"
 #include "gromacs/utility/exceptions.h"
-#include "gromacs/utility/loggerbuilder.h"
 #include "gromacs/utility/physicalnodecommunicator.h"
 
 namespace gmx
@@ -89,19 +88,18 @@ void callAddGlobalTestEnvironment()
     getTestHardwareEnvironment();
 }
 
-//! Simple hardware initialization
-static gmx_hw_info_t* hardwareInit()
+TestHardwareEnvironment::TestHardwareEnvironment() :
+    hardwareInfo_(gmx_detect_hardware(
+            PhysicalNodeCommunicator{ MPI_COMM_WORLD, gmx_physicalnode_id_hash() })),
+    testDeviceList_()
 {
-    PhysicalNodeCommunicator physicalNodeComm(MPI_COMM_WORLD, gmx_physicalnode_id_hash());
-    return gmx_detect_hardware(MDLogger{}, physicalNodeComm);
 }
 
 void TestHardwareEnvironment::SetUp()
 {
     testDeviceList_.clear();
-    hardwareInfo_ = hardwareInit();
     // Constructing contexts for all compatible GPUs - will be empty on non-GPU builds
-    for (const DeviceInformation& compatibleDeviceInfo : getCompatibleDevices(hardwareInfo_->deviceInfoList))
+    for (const DeviceInformation& compatibleDeviceInfo : getCompatibleDevices(hardwareInfo_.deviceInfoList))
     {
         std::string description = getDeviceInformationString(compatibleDeviceInfo);
         testDeviceList_.emplace_back(std::make_unique<TestDevice>(description.c_str(), compatibleDeviceInfo));

@@ -73,7 +73,7 @@ class PhysicalNodeCommunicator;
  * with the hardware, except that ntmpi could be larger than number of GPUs.
  * If necessary, this function will modify hw_opt->nthreads_omp.
  */
-int get_nthreads_mpi(const gmx_hw_info_t* hwinfo,
+int get_nthreads_mpi(const gmx_hw_info_t& hwinfo,
                      gmx_hw_opt_t*        hw_opt,
                      int                  numDevicesToUse,
                      bool                 nonbondedOnGpu,
@@ -91,7 +91,7 @@ int get_nthreads_mpi(const gmx_hw_info_t* hwinfo,
  * bNtOmpSet==TRUE; with bNtOptOptionSet==FALSE a fatal error is issued.
  * This function should be called after thread-MPI and OpenMP are set up.
  */
-void check_resource_division_efficiency(const gmx_hw_info_t* hwinfo,
+void check_resource_division_efficiency(const gmx_hw_info_t& hwinfo,
                                         bool                 willUsePhysicalGpu,
                                         gmx_bool             bNtOmpOptionSet,
                                         t_commrec*           cr,

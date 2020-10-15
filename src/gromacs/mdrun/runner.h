@@ -194,8 +194,13 @@ public:
     Mdrunner cloneOnSpawnedThread() const;
 
 private:
-    /*! \brief Constructor. */
-    explicit Mdrunner(std::unique_ptr<MDModules> mdModules);
+    /*! \brief Constructor.
+     *
+     * \param[in]  mdModules                  The modules that comprise mdrun.
+     * \param[in]  hardwareInformationHandle  Non-owning handle to result of hardware detection.
+     */
+    Mdrunner(std::unique_ptr<MDModules>             mdModules,
+             compat::not_null<const gmx_hw_info_t*> hardwareInformationHandle);
 
     //! Parallelism-related user options.
     gmx_hw_opt_t hw_opt;
@@ -306,6 +311,9 @@ private:
     //! The modules that comprise mdrun.
     std::unique_ptr<MDModules> mdModules_;
 
+    //! Non-owning handle to the results of the hardware detection.
+    compat::not_null<const gmx_hw_info_t*> hardwareInformationHandle_;
+
     /*!
      * \brief Holds simulation input specification provided by client, if any.
      *
@@ -364,14 +372,16 @@ public:
      *
      * \param mdModules  The handle to the set of modules active in mdrun
      * \param context    Required handle to simulation context
+     * \param hardwareInformationHandle  Non-owning handle to result of hardware detection.
      *
      * The calling code must guarantee that the
      * pointer remains valid for the lifetime of the builder, and that the
      * resources retrieved from the context remain valid for the lifetime of
      * the runner produced.
      */
-    explicit MdrunnerBuilder(std::unique_ptr<MDModules>           mdModules,
-                             compat::not_null<SimulationContext*> context);
+    explicit MdrunnerBuilder(std::unique_ptr<MDModules>             mdModules,
+                             compat::not_null<SimulationContext*>   context,
+                             compat::not_null<const gmx_hw_info_t*> hardwareInformationHandle);
 
     //! \cond
     MdrunnerBuilder()                       = delete;

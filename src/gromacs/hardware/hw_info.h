@@ -37,6 +37,7 @@
 #define GMX_HARDWARE_HWINFO_H
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,51 +48,77 @@ namespace gmx
 {
 class CpuInfo;
 class HardwareTopology;
+enum class SimdType;
 } // namespace gmx
 struct DeviceInformation;
 
-/* Hardware information structure with CPU and GPU information.
- * It is initialized by gmx_detect_hardware().
- * NOTE: this structure may only contain structures that are
- *       valid over the whole process (i.e. must be able to
- *       be shared among all threads) */
+/*! \brief Contains summary information obtained from the
+ * hardware detection.
+ *
+ * The data is computed by reduction over all ranks of this
+ * simulation. */
+struct HardwareSummaryInformation
+{
+    //! Number of physical nodes used in the simulation
+    int nphysicalnode;
+    //! Sum of number of cores over all ranks of this simulation, can be 0
+    int ncore_tot;
+    //! Min number of cores over all ranks of this simulation
+    int ncore_min;
+    //! Max number of cores over all ranks of this simulation
+    int ncore_max;
+    //! Sum of number of hwthreads over all ranks of this simulation
+    int nhwthread_tot;
+    //! Min number of hwthreads over all ranks of this simulation
+    int nhwthread_min;
+    //! Max number of hwthreads over all ranks of this simulation
+    int nhwthread_max;
+    //! Sum of number of GPUs over all ranks of this simulation
+    int ngpu_compatible_tot;
+    //! Min number of GPUs over all ranks of this simulation
+    int ngpu_compatible_min;
+    //! Max number of GPUs over all ranks of this simulation
+    int ngpu_compatible_max;
+    //! Highest SIMD instruction set supported by all ranks
+    gmx::SimdType minimumDetectedSimdSupport;
+    //! Highest SIMD instruction set supported by at least one rank
+    gmx::SimdType maximumDetectedSimdSupport;
+    //! True if all ranks have the same type(s) and order of GPUs
+    bool bIdenticalGPUs;
+    /*! \brief True when at least one CPU in any of the nodes of
+     * ranks of this simulation is AMD Zen of the first
+     * generation. */
+    bool haveAmdZen1Cpu;
+};
+
+/*! \brief Hardware information structure with CPU and GPU information.
+ *
+ * This structure may only contain data that is
+ * valid over the whole process (i.e. must be able to
+ * be shared among all threads, particularly the ranks
+ * of thread-MPI)
+ *
+ * \todo Make deviceInfoList something like a
+ * std::vector<std::variant<CudaDeviceInformation,
+ *   OpenCLDeviceInformation, SyclDeviceInformation>>
+ * so that gmx_hw_info_t becomes copyable. Then setup code
+ * will have an easier time passing the results of hardware
+ * detection to the runner.
+ */
 struct gmx_hw_info_t
 {
-    gmx_hw_info_t(std::unique_ptr<gmx::CpuInfo>          cpuInfo,
-                  std::unique_ptr<gmx::HardwareTopology> hardwareTopology);
     ~gmx_hw_info_t();
 
-    /* Data for our local physical node */
-
-    /*! \brief Number of hardware threads available.
-     *
-     * This number is based on the number of CPUs reported as
-     * available by the OS at the time of detection. */
-    int nthreads_hw_avail;
-
-
-    std::unique_ptr<gmx::CpuInfo>          cpuInfo; /* Information about CPU capabilities */
-    std::unique_ptr<gmx::HardwareTopology> hardwareTopology; /* Information about hardware topology */
-    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList; /* Information about GPUs detected on this physical node */
-
-
-    /* Data reduced through MPI over all physical nodes */
-    int nphysicalnode;       /* Number of physical nodes */
-    int ncore_tot;           /* Sum of #cores over all nodes, can be 0 */
-    int ncore_min;           /* Min #cores over all nodes */
-    int ncore_max;           /* Max #cores over all nodes */
-    int nhwthread_tot;       /* Sum of #hwthreads over all nodes */
-    int nhwthread_min;       /* Min #hwthreads over all nodes */
-    int nhwthread_max;       /* Max #hwthreads over all nodes */
-    int ngpu_compatible_tot; /* Sum of #GPUs over all nodes */
-    int ngpu_compatible_min; /* Min #GPUs over all nodes */
-    int ngpu_compatible_max; /* Max #GPUs over all nodes */
-
-    int simd_suggest_min; /* Highest SIMD instruction set supported by all ranks */
-    int simd_suggest_max; /* Highest SIMD instruction set supported by at least one rank */
-
-    gmx_bool bIdenticalGPUs; /* TRUE if all ranks have the same type(s) and order of GPUs */
-    bool     haveAmdZen1Cpu; /* TRUE when at least one CPU in any of the nodes is AMD Zen of the first generation */
+    //! Information about CPU capabilities on this physical node
+    std::unique_ptr<gmx::CpuInfo> cpuInfo;
+    //! Information about hardware topology on this phyiscal node
+    std::unique_ptr<gmx::HardwareTopology> hardwareTopology;
+    //! Information about GPUs detected on this physical node
+    std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList;
+    //! Summary information across all ranks of this simulation.
+    HardwareSummaryInformation summaryInformation;
+    //! Any warnings to log when that is possible.
+    std::optional<std::string> hardwareDetectionWarnings_;
 };
 
 
@@ -117,7 +144,7 @@ enum class ThreadAffinity
 struct gmx_hw_opt_t
 {
     //! Total number of threads requested (thread-MPI + OpenMP).
-    int nthreads_tot = 0;
+    int totalThreadsRequested = 0;
     //! Number of thread-MPI threads requested.
     int nthreads_tmpi = 0;
     //! Number of OpenMP threads requested.

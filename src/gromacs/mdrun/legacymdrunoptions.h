@@ -168,7 +168,7 @@ public:
         { "-nt",
           FALSE,
           etINT,
-          { &hw_opt.nthreads_tot },
+          { &hw_opt.totalThreadsRequested },
           "Total number of threads to start (0 is guess)" },
         { "-ntmpi",
           FALSE,

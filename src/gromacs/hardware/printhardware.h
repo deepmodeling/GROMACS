@@ -51,6 +51,6 @@ class MDLogger;
 void gmx_print_detected_hardware(FILE*                fplog,
                                  bool                 warnToStdErr,
                                  const gmx::MDLogger& mdlog,
-                                 const gmx_hw_info_t* hwinfo);
+                                 const gmx_hw_info_t& hwinfo);
 
 #endif

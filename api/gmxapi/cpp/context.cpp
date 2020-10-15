@@ -55,6 +55,7 @@
 #include "gromacs/commandline/filenm.h"
 #include "gromacs/commandline/pargs.h"
 #include "gromacs/gmxlib/network.h"
+#include "gromacs/hardware/detecthardware.h"
 #include "gromacs/mdlib/stophandler.h"
 #include "gromacs/mdrunutility/logging.h"
 #include "gromacs/mdrunutility/multisim.h"
@@ -65,7 +66,7 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxmpi.h"
 #include "gromacs/utility/init.h"
-#include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "gmxapi/mpi/resourceassignment.h"
 #include "gmxapi/exceptions.h"
@@ -343,8 +344,13 @@ std::shared_ptr<Session> ContextImpl::launch(const Workflow& work)
                               communicator, ms, options_.mdrunOptions.appendingBehavior,
                               ssize(options_.filenames), options_.filenames.data());
 
-        auto builder = MdrunnerBuilder(std::move(mdModules),
-                                       compat::not_null<SimulationContext*>(&simulationContext));
+        PhysicalNodeCommunicator physicalNodeCommunicator(
+                simulationContext.libraryWorldCommunicator_, gmx_physicalnode_id_hash());
+        gmx_hw_info_t hardwareInformation = gmx_detect_hardware(physicalNodeCommunicator);
+
+        auto builder = MdrunnerBuilder(
+                std::move(mdModules), compat::not_null<SimulationContext*>(&simulationContext),
+                compat::make_not_null<const gmx_hw_info_t*>(&hardwareInformation));
         builder.addSimulationMethod(options_.mdrunOptions, options_.pforce, startingBehavior);
         builder.addDomainDecomposition(options_.domdecOptions);
         // \todo pass by value

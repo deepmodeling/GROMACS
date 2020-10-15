@@ -115,7 +115,7 @@ public:
             pmeTestHardwareContext->activate();
             CodePath   codePath       = pmeTestHardwareContext->codePath();
             const bool supportedInput = pmeSupportsInputForMode(
-                    *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
+                    getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
                 /* Testing the failure for the unsupported input */

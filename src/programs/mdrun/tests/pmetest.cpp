@@ -61,7 +61,6 @@
 #include "gromacs/trajectory/energyframe.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/gmxmpi.h"
-#include "gromacs/utility/loggerbuilder.h"
 #include "gromacs/utility/physicalnodecommunicator.h"
 #include "gromacs/utility/stringutil.h"
 
@@ -110,14 +109,14 @@ void PmeTest::runTest(const RunModesList& runModes)
         EXPECT_NONFATAL_FAILURE(rootChecker.checkUnusedEntries(), ""); // skip checks on other ranks
     }
 
-    auto hardwareInfo_ = gmx_detect_hardware(
-            MDLogger{}, PhysicalNodeCommunicator(MPI_COMM_WORLD, gmx_physicalnode_id_hash()));
+    auto hardwareInfo_ =
+            gmx_detect_hardware(PhysicalNodeCommunicator(MPI_COMM_WORLD, gmx_physicalnode_id_hash()));
 
     for (const auto& mode : runModes)
     {
         SCOPED_TRACE("mdrun " + joinStrings(mode.second, " "));
         auto modeTargetsGpus = (mode.first.find("Gpu") != std::string::npos);
-        if (modeTargetsGpus && getCompatibleDevices(hardwareInfo_->deviceInfoList).empty())
+        if (modeTargetsGpus && getCompatibleDevices(hardwareInfo_.deviceInfoList).empty())
         {
             // This run mode will cause a fatal error from mdrun when
             // it can't find GPUs, which is not something we're trying
@@ -126,7 +125,7 @@ void PmeTest::runTest(const RunModesList& runModes)
         }
         auto modeTargetsPmeOnGpus = (mode.first.find("PmeOnGpu") != std::string::npos);
         if (modeTargetsPmeOnGpus
-            && !(pme_gpu_supports_build(nullptr) && pme_gpu_supports_hardware(*hardwareInfo_, nullptr)))
+            && !(pme_gpu_supports_build(nullptr) && pme_gpu_supports_hardware(hardwareInfo_, nullptr)))
         {
             // This run mode will cause a fatal error from mdrun when
             // it finds an unsuitable device, which is not something

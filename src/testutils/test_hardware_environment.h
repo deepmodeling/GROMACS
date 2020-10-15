@@ -50,6 +50,7 @@
 
 #include <gtest/gtest.h>
 
+#include "gromacs/hardware/hw_info.h"
 #include "gromacs/utility/gmxassert.h"
 
 #include "testutils/test_device.h"
@@ -68,11 +69,12 @@ class TestHardwareEnvironment : public ::testing::Environment
 {
 private:
     //! General hardware info
-    gmx_hw_info_t* hardwareInfo_;
+    gmx_hw_info_t hardwareInfo_;
     //! Storage of hardware contexts
     std::vector<std::unique_ptr<TestDevice>> testDeviceList_;
 
 public:
+    TestHardwareEnvironment();
     //! This is called by GTest framework once to query the hardware
     void SetUp() override;
     //! This is called by GTest framework once release the hardware
@@ -84,7 +86,7 @@ public:
     }
     bool hasCompatibleDevices() const { return !testDeviceList_.empty(); }
     //! Get available hardware information.
-    const gmx_hw_info_t* hwinfo() const { return hardwareInfo_; }
+    const gmx_hw_info_t& hwinfo() const { return hardwareInfo_; }
 };
 
 //! Get the test environment

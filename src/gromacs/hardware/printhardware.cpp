@@ -130,25 +130,25 @@ static void check_use_of_rdtscp_on_this_cpu(const gmx::MDLogger& mdlog, const gm
     }
 }
 
-static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bFullCpuInfo)
+static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo, bool bFullCpuInfo)
 {
     std::string s;
 
-    const gmx::CpuInfo&          cpuInfo = *hwinfo->cpuInfo;
-    const gmx::HardwareTopology& hwTop   = *hwinfo->hardwareTopology;
+    const gmx::CpuInfo&          cpuInfo = *hwinfo.cpuInfo;
+    const gmx::HardwareTopology& hwTop   = *hwinfo.hardwareTopology;
 
     s = gmx::formatString("\n");
-    s += gmx::formatString("Running on %d node%s with total", hwinfo->nphysicalnode,
-                           hwinfo->nphysicalnode == 1 ? "" : "s");
-    if (hwinfo->ncore_tot > 0)
+    s += gmx::formatString("Running on %d node%s with total", hwinfo.summaryInformation.nphysicalnode,
+                           hwinfo.summaryInformation.nphysicalnode == 1 ? "" : "s");
+    if (hwinfo.summaryInformation.ncore_tot > 0)
     {
-        s += gmx::formatString(" %d cores,", hwinfo->ncore_tot);
+        s += gmx::formatString(" %d cores,", hwinfo.summaryInformation.ncore_tot);
     }
-    s += gmx::formatString(" %d logical cores", hwinfo->nhwthread_tot);
+    s += gmx::formatString(" %d logical cores", hwinfo.summaryInformation.nhwthread_tot);
     if (canPerformDeviceDetection(nullptr))
     {
-        s += gmx::formatString(", %d compatible GPU%s", hwinfo->ngpu_compatible_tot,
-                               hwinfo->ngpu_compatible_tot == 1 ? "" : "s");
+        s += gmx::formatString(", %d compatible GPU%s", hwinfo.summaryInformation.ngpu_compatible_tot,
+                               hwinfo.summaryInformation.ngpu_compatible_tot == 1 ? "" : "s");
     }
     else if (bGPUBinary)
     {
@@ -163,35 +163,36 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
     }
     s += gmx::formatString("\n");
 
-    if (hwinfo->nphysicalnode > 1)
+    if (hwinfo.summaryInformation.nphysicalnode > 1)
     {
         /* Print per node hardware feature counts */
-        if (hwinfo->ncore_max > 0)
+        if (hwinfo.summaryInformation.ncore_max > 0)
         {
-            s += gmx::formatString("  Cores per node:           %2d", hwinfo->ncore_min);
-            if (hwinfo->ncore_max > hwinfo->ncore_min)
+            s += gmx::formatString("  Cores per node:           %2d", hwinfo.summaryInformation.ncore_min);
+            if (hwinfo.summaryInformation.ncore_max > hwinfo.summaryInformation.ncore_min)
             {
-                s += gmx::formatString(" - %2d", hwinfo->ncore_max);
+                s += gmx::formatString(" - %2d", hwinfo.summaryInformation.ncore_max);
             }
             s += gmx::formatString("\n");
         }
-        s += gmx::formatString("  Logical cores per node:   %2d", hwinfo->nhwthread_min);
-        if (hwinfo->nhwthread_max > hwinfo->nhwthread_min)
+        s += gmx::formatString("  Logical cores per node:   %2d", hwinfo.summaryInformation.nhwthread_min);
+        if (hwinfo.summaryInformation.nhwthread_max > hwinfo.summaryInformation.nhwthread_min)
         {
-            s += gmx::formatString(" - %2d", hwinfo->nhwthread_max);
+            s += gmx::formatString(" - %2d", hwinfo.summaryInformation.nhwthread_max);
         }
         s += gmx::formatString("\n");
         if (bGPUBinary)
         {
-            s += gmx::formatString("  Compatible GPUs per node: %2d", hwinfo->ngpu_compatible_min);
-            if (hwinfo->ngpu_compatible_max > hwinfo->ngpu_compatible_min)
+            s += gmx::formatString("  Compatible GPUs per node: %2d",
+                                   hwinfo.summaryInformation.ngpu_compatible_min);
+            if (hwinfo.summaryInformation.ngpu_compatible_max > hwinfo.summaryInformation.ngpu_compatible_min)
             {
-                s += gmx::formatString(" - %2d", hwinfo->ngpu_compatible_max);
+                s += gmx::formatString(" - %2d", hwinfo.summaryInformation.ngpu_compatible_max);
             }
             s += gmx::formatString("\n");
-            if (hwinfo->ngpu_compatible_tot > 0)
+            if (hwinfo.summaryInformation.ngpu_compatible_tot > 0)
             {
-                if (hwinfo->bIdenticalGPUs)
+                if (hwinfo.summaryInformation.bIdenticalGPUs)
                 {
                     s += gmx::formatString("  All nodes have identical type(s) of GPUs\n");
                 }
@@ -351,12 +352,12 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
         }
     }
 
-    if (bGPUBinary && !hwinfo->deviceInfoList.empty())
+    if (bGPUBinary && !hwinfo.deviceInfoList.empty())
     {
         s += gmx::formatString("  GPU info:\n");
         s += gmx::formatString("    Number of GPUs detected: %d\n",
-                               static_cast<int>(hwinfo->deviceInfoList.size()));
-        s += sprint_gpus(hwinfo->deviceInfoList) + "\n";
+                               static_cast<int>(hwinfo.deviceInfoList.size()));
+        s += sprint_gpus(hwinfo.deviceInfoList) + "\n";
     }
     return s;
 }
@@ -364,10 +365,8 @@ static std::string detected_hardware_string(const gmx_hw_info_t* hwinfo, bool bF
 void gmx_print_detected_hardware(FILE*                fplog,
                                  const bool           warnToStdErr,
                                  const gmx::MDLogger& mdlog,
-                                 const gmx_hw_info_t* hwinfo)
+                                 const gmx_hw_info_t& hwinfo)
 {
-    const gmx::CpuInfo& cpuInfo = *hwinfo->cpuInfo;
-
     if (fplog != nullptr)
     {
         std::string detected;
@@ -384,14 +383,14 @@ void gmx_print_detected_hardware(FILE*                fplog,
     /* Check the compiled SIMD instruction set against that of the node
      * with the lowest SIMD level support (skip if SIMD detection did not work)
      */
-    if (cpuInfo.supportLevel() >= gmx::CpuInfo::SupportLevel::Features)
+    if (hwinfo.cpuInfo->supportLevel() >= gmx::CpuInfo::SupportLevel::Features)
     {
-        gmx::simdCheck(static_cast<gmx::SimdType>(hwinfo->simd_suggest_min), fplog, warnToStdErr);
+        gmx::simdCheck(hwinfo.summaryInformation.minimumDetectedSimdSupport, fplog, warnToStdErr);
     }
 
     /* For RDTSCP we only check on our local node and skip the MPI reduction, only on x86 */
     if (gmx::c_architecture == gmx::Architecture::X86)
     {
-        check_use_of_rdtscp_on_this_cpu(mdlog, cpuInfo);
+        check_use_of_rdtscp_on_this_cpu(mdlog, *hwinfo.cpuInfo);
     }
 }
