@@ -130,4 +130,4 @@ private:
  */
 double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
 
-#endif // GMX_PULLCOORDEXPRESSIONPARSER_H
+#endif // GMX_PULL_PULLCOORDEXPRESSIONPARSER_H
