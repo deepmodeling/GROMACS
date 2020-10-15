@@ -99,7 +99,7 @@ protected:
             params.dim[XX] = 1;
             params.dim[YY] = 1;
             params.dim[ZZ] = 1;
-            pull_coord_work_t pcrd(params);
+            pull_coord_work_t pcrd(params, 0);
             clear_dvec(pcrd.spatialData.vec);
 
             real minBoxSize2 = GMX_REAL_MAX;
@@ -118,7 +118,7 @@ protected:
             params.dim[XX] = 0;
             params.dim[YY] = 0;
             params.dim[ZZ] = 1;
-            pull_coord_work_t pcrd(params);
+            pull_coord_work_t pcrd(params, 0);
             clear_dvec(pcrd.spatialData.vec);
             EXPECT_REAL_EQ_TOL(0.25 * boxSizeZSquared, max_pull_distance2(&pcrd, &pbc),
                                defaultRealTolerance());
@@ -131,7 +131,7 @@ protected:
             params.dim[XX] = 1;
             params.dim[YY] = 1;
             params.dim[ZZ] = 1;
-            pull_coord_work_t pcrd(params);
+            pull_coord_work_t pcrd(params, 0);
             clear_dvec(pcrd.spatialData.vec);
             pcrd.spatialData.vec[ZZ] = 1;
             EXPECT_REAL_EQ_TOL(0.25 * boxSizeZSquared, max_pull_distance2(&pcrd, &pbc),
@@ -145,7 +145,7 @@ protected:
             params.dim[XX] = 1;
             params.dim[YY] = 1;
             params.dim[ZZ] = 1;
-            pull_coord_work_t pcrd(params);
+            pull_coord_work_t pcrd(params, 0);
             clear_dvec(pcrd.spatialData.vec);
             pcrd.spatialData.vec[XX] = 1;
 
@@ -156,42 +156,6 @@ protected:
             }
             EXPECT_REAL_EQ_TOL(0.25 * minDist2, max_pull_distance2(&pcrd, &pbc), defaultRealTolerance());
         }
-#if HAVE_MUPARSER
-        {
-            // transformation pull coordinate test
-            pull_t pull;
-
-            // Create standard pull coordinate
-            t_pull_coord params;
-            params.eGeom = epullgDIST;
-            pull.coord.emplace_back(params);
-
-            // Create transformation pull coordinate
-            params.eGeom           = epullgTRANSFORMATION;
-            std::string expression = "x1^2 + 3";
-            params.expression      = expression;
-            pull.coord.emplace_back(params);
-
-            for (double v = 0; v < 10; v++)
-            {
-                // transformation pull coord value
-                pull.coord[0].spatialData.value = v;
-                pull.coord[1].spatialData.value = getTransformationPullCoordinateValue(&pull, 1);
-                // Since we perform numerical differentiation and floating point operations
-                // we only expect the results below to be approximately equal
-                double expected  = v * v + 3;
-                double tolerance = 0.001; // Numerical tolerance for two results to be equal
-                EXPECT_TRUE(std::abs(expected - pull.coord[1].spatialData.value) < tolerance) << true;
-
-                // force and derivative
-                double transformationForce = v + 0.5;
-                pull.coord[1].scalarForce  = transformationForce;
-                double variableForce       = computeForceFromTransformationPullCoord(&pull, 1, 0);
-                expected                   = 2 * v * transformationForce;
-                EXPECT_TRUE(std::abs(expected - variableForce) < tolerance) << true;
-            }
-        }
-#endif
     }
 };
 
@@ -229,6 +193,53 @@ TEST_F(PullTest, MaxPullDistanceXySkewedBox)
 
     test(PbcType::XY, box);
 }
+
+#if HAVE_MUPARSER
+TEST_F(PullTest, TransformationCoord)
+{
+    t_pbc pbc;
+
+    // PBC stuff
+    matrix box = { { 10, 0, 0 }, { 0, 10, 0 }, { 0, 0, 10 } };
+    set_pbc(&pbc, PbcType::Xyz, box);
+
+    pull_t pull;
+
+    // Create standard pull coordinate
+    t_pull_coord params;
+    params.eGeom = epullgDIST;
+    pull.coord.emplace_back(params, 0);
+
+    // Create transformation pull coordinate
+    params.eGeom           = epullgTRANSFORMATION;
+    std::string expression = "x1^2 + 3";
+    params.expression      = expression;
+    pull.coord.emplace_back(params, 1);
+
+    for (double v = 0; v < 10; v += 1)
+    {
+        // transformation pull coord value
+        pull.coord[0].spatialData.value = v;
+        pull.coord[1].spatialData.value = getTransformationPullCoordinateValue(
+                &pull.coord[1], constArrayRefFromArray(pull.coord.data(), 1));
+        // Since we perform numerical differentiation and floating point operations
+        // we only expect the results below to be approximately equal
+        double expected = v * v + 3;
+        EXPECT_REAL_EQ_TOL(pull.coord[1].spatialData.value, expected, defaultRealTolerance());
+
+        // force and derivative
+        double transformationForce = v + 0.5;
+        pull.coord[1].scalarForce  = transformationForce;
+        double variableForce       = computeForceFromTransformationPullCoord(&pull, 1, 0);
+        expected                   = 2 * v * transformationForce;
+        double finiteDiffInputSize = square(v + c_pullTransformationCoordinateDifferentationEpsilon) + 3;
+        EXPECT_REAL_EQ_TOL(variableForce, expected,
+                           test::relativeToleranceAsFloatingPoint(
+                                   finiteDiffInputSize,
+                                   1e-15 / c_pullTransformationCoordinateDifferentationEpsilon));
+    }
+}
+#endif // HAVE_MUPARSER
 
 } // namespace
 

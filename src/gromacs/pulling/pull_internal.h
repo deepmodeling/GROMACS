@@ -174,9 +174,9 @@ public:
 
         return parser_->Eval();
 #else
-        return 0;
-
         GMX_UNUSED_VALUE(variables);
+
+        return 0;
 #endif
     }
 
@@ -224,13 +224,14 @@ private:
 struct pull_coord_work_t
 {
     /* Constructor */
-    pull_coord_work_t(const t_pull_coord& params) :
+    pull_coord_work_t(const t_pull_coord& params, const int coordIndex) :
         params(params),
         value_ref(0),
         spatialData(),
         scalarForce(0),
         bExternalPotentialProviderHasBeenRegistered(false),
-        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : "")
+        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : ""),
+        coordIndex(coordIndex)
     {
     }
 
@@ -246,6 +247,7 @@ struct pull_coord_work_t
     bool bExternalPotentialProviderHasBeenRegistered;
 
     PullCoordExpressionParser expressionParser;
+    const int                 coordIndex;
 };
 
 /* Struct for storing vectorial forces for a pull coordinate */

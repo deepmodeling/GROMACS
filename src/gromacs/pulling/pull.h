@@ -107,11 +107,12 @@ double pull_conversion_factor_internal2userinput(const t_pull_coord* pcrd);
 /*! \brief Calculates pull->coord[coord_ind].spatialData.value for transformation pull coordinates
  *
  * This requires the values of the pull coordinates of lower indices to be set
- * \param[in] pull Pulling data.
- * \param[in] transformationPullCoordinateIndex Index for coordinates treated.
- * \returns Transformation value for pull coordinate.
+ * \param[in] coord  The (transformation) coordinate to compute the value for
+ * \param[in] variableCoords  Pull coordinates used as variables, entries 0 to coord->coordIndex
+ * will be used \returns Transformation value for pull coordinate.
  */
-double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex);
+double getTransformationPullCoordinateValue(pull_coord_work_t*                     coord,
+                                            gmx::ArrayRef<const pull_coord_work_t> variableCoords);
 
 /*! \brief Get the value for pull coord coord_ind.
  *
@@ -365,6 +366,9 @@ bool pull_have_constraint(const pull_params_t& pullParameters);
  * \returns The maximume distance
  */
 real max_pull_distance2(const pull_coord_work_t* pcrd, const t_pbc* pbc);
+
+//! computeForceFromTransformationPullCoord() computes the derivative using a finite differnce with this value of epsilon
+constexpr double c_pullTransformationCoordinateDifferentationEpsilon = 1e-9;
 
 /*! \brief
  * Calculates force for pull coordinate.

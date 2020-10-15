@@ -680,20 +680,23 @@ static double get_dihedral_angle_coord(PullCoordSpatialData* spatialData)
     return sign * phi;
 }
 
-double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex)
+double getTransformationPullCoordinateValue(pull_coord_work_t*                     coord,
+                                            gmx::ArrayRef<const pull_coord_work_t> variableCoords)
 {
 #if HAVE_MUPARSER
-    double             result = 0;
-    pull_coord_work_t& coord  = pull->coord[transformationPullCoordinateIndex];
+    const int transformationPullCoordinateIndex = coord->coordIndex;
+    GMX_ASSERT(ssize(variableCoords) >= transformationPullCoordinateIndex,
+               "We need as many variables as the transformation pull coordinate index");
+    double result = 0;
     try
     {
         std::vector<double> variables(transformationPullCoordinateIndex);
         for (int variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
              variablePcrdIndex++)
         {
-            variables[variablePcrdIndex] = pull->coord[variablePcrdIndex].spatialData.value;
+            variables[variablePcrdIndex] = variableCoords[variablePcrdIndex].spatialData.value;
         }
-        result = coord.expressionParser.evaluate(variables);
+        result = coord->expressionParser.evaluate(variables);
     }
     catch (mu::Parser::exception_type& e)
     {
@@ -711,8 +714,8 @@ double getTransformationPullCoordinateValue(pull_t* pull, int transformationPull
     }
     return result;
 #else
-    GMX_UNUSED_VALUE(pull);
-    GMX_UNUSED_VALUE(transformationPullCoordinateIndex);
+    GMX_UNUSED_VALUE(coord);
+    GMX_UNUSED_VALUE(variableCoords);
     return 0;
 #endif
 }
@@ -756,7 +759,8 @@ static void get_pull_coord_distance(struct pull_t* pull, int coord_ind, const t_
             spatialData.value = gmx_angle_between_dvecs(spatialData.dr01, spatialData.vec);
             break;
         case epullgTRANSFORMATION:
-            spatialData.value = getTransformationPullCoordinateValue(pull, coord_ind);
+            // Note that we would only need to pass the part of coord up to coord_ind
+            spatialData.value = getTransformationPullCoordinateValue(pcrd, pull->coord);
             break;
         default: gmx_incons("Unsupported pull type in get_pull_coord_distance");
     }
@@ -1494,15 +1498,15 @@ static void check_external_potential_registration(const struct pull_t* pull)
 
 double computeForceFromTransformationPullCoord(struct pull_t* pull, int transformationPcrdIndex, int variablePcrdIndex)
 {
-    const pull_coord_work_t& transformationPcrd = pull->coord[transformationPcrdIndex];
+    pull_coord_work_t& transformationPcrd = pull->coord[transformationPcrdIndex];
     // epsilon for numerical differentiation.
-    const double       epsilon                 = 1e-9;
+    const double       epsilon = c_pullTransformationCoordinateDifferentationEpsilon;
     const double       transformationPcrdValue = transformationPcrd.spatialData.value;
     pull_coord_work_t& prePcrd                 = pull->coord[variablePcrdIndex];
     // Perform numerical differentiation of 1st order
     prePcrd.spatialData.value += epsilon;
     double transformationPcrdValueEps =
-            getTransformationPullCoordinateValue(pull, transformationPcrdIndex);
+            getTransformationPullCoordinateValue(&transformationPcrd, pull->coord);
     double derivative = (transformationPcrdValueEps - transformationPcrdValue) / epsilon;
     prePcrd.spatialData.value -= epsilon; // reset pull coordinate value
     double result = transformationPcrd.scalarForce * derivative;
@@ -1564,7 +1568,7 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
                                               const real*           masses,
                                               gmx::ForceWithVirial* forceWithVirial)
 {
-    if (transformationCoordForce < 1e-9)
+    if (std::abs(transformationCoordForce) < 1e-9)
     {
         // the force is effectively 0. Don't proceed and distribute it recursively
         return;
@@ -2093,7 +2097,7 @@ struct pull_t* init_pull(FILE*                     fplog,
     for (int c = 0; c < pull->params.ncoord; c++)
     {
         /* Construct a pull coordinate, copying all coordinate parameters */
-        pull->coord.emplace_back(pull_params->coord[c]);
+        pull->coord.emplace_back(pull_params->coord[c], c);
 
         pull_coord_work_t* pcrd = &pull->coord.back();
 
