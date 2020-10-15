@@ -166,6 +166,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     const nbnxn_sci_t* pl_sci = plist.sci;
     
     const bool bFEP = nbparam.bFEP;
+    bool       bFEPpair = 0;
     const float alpha_coul = nbparam.alpha_coul;
     const float alpha_vdw  = nbparam.alpha_vdw;
     float alpha_coul_eff   = alpha_coul;
@@ -198,6 +199,15 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float2        ljcp_i, ljcp_j;
     float2        ljcpB_i, ljcpB_j;
 #endif
+
+    float rinvC, rinvV, r2C, r2V, rpinvC, rpinvV, rpinvC_nonzero, rpinvV_nonzero;
+    float sigma6[2], c6AB[2], c12AB[2];
+    float qq[2];
+    float FscalC[2], FscalV[2], Vvdw[2], Vcoul[2];
+#    ifdef LJ_COMB_LB
+    float sigmaAB[2], epsilonAB[2];
+#    endif
+
     const float4*        xq          = atdat.xq;
     const float*         qB          = atdat.qB;
     float3*              f           = atdat.f;
@@ -543,165 +553,20 @@ __launch_bounds__(THREADS_PER_BLOCK)
                             if ((r2 < rcoulomb_sq) * int_bit)
 #    endif
                             {
+                                rpm2 = r2 * r2;
+                                rp = rpm2 * r2;
                                 
-                            if (!bFEP)
-                            {
-                                /* load the rest of the i-atom parameters */
-                                qi = xqbuf.w;
-
-#    ifndef LJ_COMB
-                                /* LJ 6*C6 and 12*C12 */
-                                typei = atib[ai];
-                                fetch_nbfp_c6_c12(c6, c12, nbparam, ntypes * typei + typej);
-#    else
-                                ljcp_i       = ljcpib[ai];
-#        ifdef LJ_COMB_GEOM
-                                c6           = ljcp_i.x * ljcp_j.x;
-                                c12          = ljcp_i.y * ljcp_j.y;
-#        else
-                                /* LJ 2^(1/6)*sigma and 12*epsilon */
-                                sigma   = ljcp_i.x + ljcp_j.x;
-                                epsilon = ljcp_i.y * ljcp_j.y;
-#            if defined CALC_ENERGIES || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH
-                                convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
-#            endif
-#        endif /* LJ_COMB_GEOM */
-#    endif     /* LJ_COMB */
-
                                 // Ensure distance do not become so small that r^-12 overflows
                                 r2 = max(r2, NBNXN_MIN_RSQ);
-
                                 inv_r  = rsqrt(r2);
                                 inv_r2 = inv_r * inv_r;
-#    if !defined LJ_COMB_LB || defined CALC_ENERGIES
-                                inv_r6 = inv_r2 * inv_r2 * inv_r2;
-#        ifdef EXCLUSION_FORCES
-                                /* We could mask inv_r2, but with Ewald
-                                 * masking both inv_r6 and F_invr is faster */
-                                inv_r6 *= int_bit;
-#        endif /* EXCLUSION_FORCES */
-
-                                F_invr = inv_r6 * (c12 * inv_r6 - c6) * inv_r2;
-#        if defined CALC_ENERGIES || defined LJ_POT_SWITCH
-                                E_lj_p = int_bit
-                                         * (c12 * (inv_r6 * inv_r6 + nbparam.repulsion_shift.cpot) * c_oneTwelveth
-                                            - c6 * (inv_r6 + nbparam.dispersion_shift.cpot) * c_oneSixth);
-#        endif
-#    else /* !LJ_COMB_LB || CALC_ENERGIES */
-                                float sig_r  = sigma * inv_r;
-                                float sig_r2 = sig_r * sig_r;
-                                float sig_r6 = sig_r2 * sig_r2 * sig_r2;
-#        ifdef EXCLUSION_FORCES
-                                sig_r6 *= int_bit;
-#        endif /* EXCLUSION_FORCES */
-
-                                F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
-#    endif     /* !LJ_COMB_LB || CALC_ENERGIES */
-
-#    ifdef LJ_FORCE_SWITCH
-#        ifdef CALC_ENERGIES
-                                calculate_force_switch_F_E(nbparam, c6, c12, inv_r, r2, &F_invr, &E_lj_p);
-#        else
-                                calculate_force_switch_F(nbparam, c6, c12, inv_r, r2, &F_invr);
-#        endif /* CALC_ENERGIES */
-#    endif     /* LJ_FORCE_SWITCH */
-
-
-#    ifdef LJ_EWALD
-#        ifdef LJ_EWALD_COMB_GEOM
-#            ifdef CALC_ENERGIES
-                                calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, r2, inv_r2,
-                                                                 lje_coeff2, lje_coeff6_6, int_bit,
-                                                                 &F_invr, &E_lj_p);
-#            else
-                                calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, r2, inv_r2,
-                                                               lje_coeff2, lje_coeff6_6, &F_invr);
-#            endif /* CALC_ENERGIES */
-#        elif defined LJ_EWALD_COMB_LB
-                                calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, r2, inv_r2,
-                                                               lje_coeff2, lje_coeff6_6,
-#            ifdef CALC_ENERGIES
-                                                               int_bit, &F_invr, &E_lj_p
-#            else
-                                                               0, &F_invr, nullptr
-#            endif /* CALC_ENERGIES */
-                                );
-#        endif     /* LJ_EWALD_COMB_GEOM */
-#    endif         /* LJ_EWALD */
-
-#    ifdef LJ_POT_SWITCH
-#        ifdef CALC_ENERGIES
-                                calculate_potential_switch_F_E(nbparam, inv_r, r2, &F_invr, &E_lj_p);
-#        else
-                                calculate_potential_switch_F(nbparam, inv_r, r2, &F_invr, &E_lj_p);
-#        endif /* CALC_ENERGIES */
-#    endif     /* LJ_POT_SWITCH */
-
-#    ifdef VDW_CUTOFF_CHECK
-                                /* Separate VDW cut-off check to enable twin-range cut-offs
-                                 * (rvdw < rcoulomb <= rlist)
-                                 */
-                                vdw_in_range = (r2 < rvdw_sq) ? 1.0f : 0.0f;
-                                F_invr *= vdw_in_range;
-#        ifdef CALC_ENERGIES
-                                E_lj_p *= vdw_in_range;
-#        endif
-#    endif /* VDW_CUTOFF_CHECK */
-
-#    ifdef CALC_ENERGIES
-                                E_lj += E_lj_p;
-#    endif
-
-
-#    ifdef EL_CUTOFF
-#        ifdef EXCLUSION_FORCES
-                                F_invr += qi * qj_f * int_bit * inv_r2 * inv_r;
-#        else
-                                F_invr += qi * qj_f * inv_r2 * inv_r;
-#        endif
-#    endif
-#    ifdef EL_RF
-                                F_invr += qi * qj_f * (int_bit * inv_r2 * inv_r - two_k_rf);
-#    endif
-#    if defined   EL_EWALD_ANA
-                                F_invr += qi * qj_f
-                                          * (int_bit * inv_r2 * inv_r + pmecorrF(beta2 * r2) * beta3);
-#    elif defined EL_EWALD_TAB
-                                F_invr += qi * qj_f
-                                          * (int_bit * inv_r2
-                                             - interpolate_coulomb_force_r(nbparam, r2 * inv_r))
-                                          * inv_r;
-#    endif /* EL_EWALD_ANA/TAB */
-
-#    ifdef CALC_ENERGIES
-#        ifdef EL_CUTOFF
-                                E_el += qi * qj_f * (int_bit * inv_r - c_rf);
-#        endif
-#        ifdef EL_RF
-                                E_el += qi * qj_f * (int_bit * inv_r + 0.5f * two_k_rf * r2 - c_rf);
-#        endif
-#        ifdef EL_EWALD_ANY
-                                /* 1.0f - erff is faster than erfcf */
-                                E_el += qi * qj_f
-                                        * (inv_r * (int_bit - erff(r2 * inv_r * beta)) - int_bit * ewald_shift);
-#        endif /* EL_EWALD_ANY */
-#    endif
-                            }
-                            else
+                            if (bFEP)
                             {
                                 F_invr = 0.0f;
                                 /* load the rest of the i-atom parameters */
                                 qi = xqbuf.w;
-                                qBi= qBib[i * c_clSize + tidxi];
-                                
-                                float rinvC, rinvV, r2C, r2V, rpinvC, rpinvV, rpinvC_nonzero, rpinvV_nonzero;
-                                float sigma6[2], c6AB[2], c12AB[2];
-                                float qq[2] = {qi * qj_f, qBi * qBj_f};
-                                float FscalC[2], FscalV[2], Vvdw[2], Vcoul[2];
-#    ifdef LJ_COMB_LB
-                                float sigmaAB[2], epsilonAB[2];
-#    endif
-
+                                qBi= qBib[ai];
+                                qq[0] = qi * qj_f;  qq[1] = qBi * qBj_f;
 #    ifndef LJ_COMB
                                 /* LJ 6*C6 and 12*C12 */
                                 int typeiAB[2] = {atib[i * c_clSize + tidxi], atBib[i * c_clSize + tidxi]};
@@ -744,13 +609,16 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif /* LJ_COMB_GEOM */
                                 }
 #    endif     /* LJ_COMB */
-                                rpm2 = r2 * r2;
-                                rp = rpm2 * r2;
-                                
-                                // Ensure distance do not become so small that r^-12 overflows
-                                r2 = max(r2, NBNXN_MIN_RSQ);
-                                inv_r  = rsqrt(r2);
-                                inv_r2 = inv_r * inv_r;
+                                if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 0;
+                                else bFEPpair = 1;
+                            }
+                            else
+                            {
+                                bFEPpair = 0;
+                            }
+
+                            if (bFEPpair)
+                            {
                                 inv_r6 = inv_r2 * inv_r2 * inv_r2;
 #        ifdef EXCLUSION_FORCES
                                 /* We could mask inv_r2, but with Ewald
@@ -937,6 +805,144 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     F_invr += LFC[k] * FscalC[k] * rpm2;
                                     F_invr += LFV[k] * FscalV[k] * rpm2;
                                 }
+                            }
+                            else
+                            {
+                                /* load the rest of the i-atom parameters */
+                                qi = xqbuf.w;
+
+#    ifndef LJ_COMB
+                                /* LJ 6*C6 and 12*C12 */
+                                typei = atib[ai];
+                                fetch_nbfp_c6_c12(c6, c12, nbparam, ntypes * typei + typej);
+#    else
+                                ljcp_i       = ljcpib[ai];
+#        ifdef LJ_COMB_GEOM
+                                c6           = ljcp_i.x * ljcp_j.x;
+                                c12          = ljcp_i.y * ljcp_j.y;
+#        else
+                                /* LJ 2^(1/6)*sigma and 12*epsilon */
+                                sigma   = ljcp_i.x + ljcp_j.x;
+                                epsilon = ljcp_i.y * ljcp_j.y;
+#            if defined CALC_ENERGIES || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH
+                                convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
+#            endif
+#        endif /* LJ_COMB_GEOM */
+#    endif     /* LJ_COMB */
+
+#    if !defined LJ_COMB_LB || defined CALC_ENERGIES
+                                inv_r6 = inv_r2 * inv_r2 * inv_r2;
+#        ifdef EXCLUSION_FORCES
+                                /* We could mask inv_r2, but with Ewald
+                                 * masking both inv_r6 and F_invr is faster */
+                                inv_r6 *= int_bit;
+#        endif /* EXCLUSION_FORCES */
+
+                                F_invr = inv_r6 * (c12 * inv_r6 - c6) * inv_r2;
+#        if defined CALC_ENERGIES || defined LJ_POT_SWITCH
+                                E_lj_p = int_bit
+                                         * (c12 * (inv_r6 * inv_r6 + nbparam.repulsion_shift.cpot) * c_oneTwelveth
+                                            - c6 * (inv_r6 + nbparam.dispersion_shift.cpot) * c_oneSixth);
+#        endif
+#    else /* !LJ_COMB_LB || CALC_ENERGIES */
+                                float sig_r  = sigma * inv_r;
+                                float sig_r2 = sig_r * sig_r;
+                                float sig_r6 = sig_r2 * sig_r2 * sig_r2;
+#        ifdef EXCLUSION_FORCES
+                                sig_r6 *= int_bit;
+#        endif /* EXCLUSION_FORCES */
+
+                                F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
+#    endif     /* !LJ_COMB_LB || CALC_ENERGIES */
+
+#    ifdef LJ_FORCE_SWITCH
+#        ifdef CALC_ENERGIES
+                                calculate_force_switch_F_E(nbparam, c6, c12, inv_r, r2, &F_invr, &E_lj_p);
+#        else
+                                calculate_force_switch_F(nbparam, c6, c12, inv_r, r2, &F_invr);
+#        endif /* CALC_ENERGIES */
+#    endif     /* LJ_FORCE_SWITCH */
+
+
+#    ifdef LJ_EWALD
+#        ifdef LJ_EWALD_COMB_GEOM
+#            ifdef CALC_ENERGIES
+                                calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, r2, inv_r2,
+                                                                 lje_coeff2, lje_coeff6_6, int_bit,
+                                                                 &F_invr, &E_lj_p);
+#            else
+                                calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, r2, inv_r2,
+                                                               lje_coeff2, lje_coeff6_6, &F_invr);
+#            endif /* CALC_ENERGIES */
+#        elif defined LJ_EWALD_COMB_LB
+                                calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, r2, inv_r2,
+                                                               lje_coeff2, lje_coeff6_6,
+#            ifdef CALC_ENERGIES
+                                                               int_bit, &F_invr, &E_lj_p
+#            else
+                                                               0, &F_invr, nullptr
+#            endif /* CALC_ENERGIES */
+                                );
+#        endif     /* LJ_EWALD_COMB_GEOM */
+#    endif         /* LJ_EWALD */
+
+#    ifdef LJ_POT_SWITCH
+#        ifdef CALC_ENERGIES
+                                calculate_potential_switch_F_E(nbparam, inv_r, r2, &F_invr, &E_lj_p);
+#        else
+                                calculate_potential_switch_F(nbparam, inv_r, r2, &F_invr, &E_lj_p);
+#        endif /* CALC_ENERGIES */
+#    endif     /* LJ_POT_SWITCH */
+
+#    ifdef VDW_CUTOFF_CHECK
+                                /* Separate VDW cut-off check to enable twin-range cut-offs
+                                 * (rvdw < rcoulomb <= rlist)
+                                 */
+                                vdw_in_range = (r2 < rvdw_sq) ? 1.0f : 0.0f;
+                                F_invr *= vdw_in_range;
+#        ifdef CALC_ENERGIES
+                                E_lj_p *= vdw_in_range;
+#        endif
+#    endif /* VDW_CUTOFF_CHECK */
+
+#    ifdef CALC_ENERGIES
+                                E_lj += E_lj_p;
+#    endif
+
+
+#    ifdef EL_CUTOFF
+#        ifdef EXCLUSION_FORCES
+                                F_invr += qi * qj_f * int_bit * inv_r2 * inv_r;
+#        else
+                                F_invr += qi * qj_f * inv_r2 * inv_r;
+#        endif
+#    endif
+#    ifdef EL_RF
+                                F_invr += qi * qj_f * (int_bit * inv_r2 * inv_r - two_k_rf);
+#    endif
+#    if defined   EL_EWALD_ANA
+                                F_invr += qi * qj_f
+                                          * (int_bit * inv_r2 * inv_r + pmecorrF(beta2 * r2) * beta3);
+#    elif defined EL_EWALD_TAB
+                                F_invr += qi * qj_f
+                                          * (int_bit * inv_r2
+                                             - interpolate_coulomb_force_r(nbparam, r2 * inv_r))
+                                          * inv_r;
+#    endif /* EL_EWALD_ANA/TAB */
+
+#    ifdef CALC_ENERGIES
+#        ifdef EL_CUTOFF
+                                E_el += qi * qj_f * (int_bit * inv_r - c_rf);
+#        endif
+#        ifdef EL_RF
+                                E_el += qi * qj_f * (int_bit * inv_r + 0.5f * two_k_rf * r2 - c_rf);
+#        endif
+#        ifdef EL_EWALD_ANY
+                                /* 1.0f - erff is faster than erfcf */
+                                E_el += qi * qj_f
+                                        * (inv_r * (int_bit - erff(r2 * inv_r * beta)) - int_bit * ewald_shift);
+#        endif /* EL_EWALD_ANY */
+#    endif
                             }
                             
                             f_ij = rv * F_invr;
