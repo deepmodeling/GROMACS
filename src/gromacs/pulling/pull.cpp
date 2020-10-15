@@ -695,7 +695,7 @@ double getTransformationPullCoordinateValue(pull_coord_work_t*                  
         for (int variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
              variablePcrdIndex++)
         {
-            variable.push_back(variableCoords[variablePcrdIndex].spatialData.value);
+            variables.push_back(variableCoords[variablePcrdIndex].spatialData.value);
         }
         result = coord->expressionParser.evaluate(variables);
     }
