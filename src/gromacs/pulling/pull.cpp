@@ -680,7 +680,7 @@ static double get_dihedral_angle_coord(PullCoordSpatialData* spatialData)
     return sign * phi;
 }
 
-double getTransformationPullCoordinateValue(struct pull_t* pull, int transformationPullCoordinateIndex)
+double getTransformationPullCoordinateValue(pull_t* pull, int transformationPullCoordinateIndex)
 {
 #if HAVE_MUPARSER
     double             result = 0;
