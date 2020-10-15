@@ -36,8 +36,6 @@
 
 #include "transformationcoordinate.h"
 
-#include "config.h"
-
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"

@@ -48,13 +48,33 @@
 namespace gmx
 {
 
+PullCoordExpressionParser::PullCoordExpressionParser(const std::string& expression, const int numVariables) :
+    expression_(expression)
+{
+#if HAVE_MUPARSER
+    if (!expression.empty())
+    {
+        // Initialize the parser
+        parser_ = std::make_unique<mu::Parser>();
+        parser_->SetExpr(expression_);
+        variableValues_.resize(numVariables);
+        for (int n = 0; n < numVariables; n++)
+        {
+            variableValues_[n] = 0;
+            std::string name   = "x" + std::to_string(n + 1);
+            parser_->DefineVar(name, &variableValues_[n]);
+        }
+    }
+#else
+    GMX_UNUSED_VALUE(numVariables);
+    GMX_RELEASE_ASSERT(expression.empty(),
+                       "Can not use transformation pull coordinate without muparser");
+#endif
+}
+
 double PullCoordExpressionParser::evaluate(ArrayRef<const double> variables)
 {
 #if HAVE_MUPARSER
-    if (!parser_)
-    {
-        initializeParser(variables.size());
-    }
     GMX_ASSERT(variables.size() == variableValues_.size(),
                "The size of variables should match the size passed at the first call of this "
                "method");
@@ -68,24 +88,6 @@ double PullCoordExpressionParser::evaluate(ArrayRef<const double> variables)
     GMX_RELEASE_ASSERT(false, "evaluate() should not be called without muparser");
 
     return 0;
-#endif
-}
-
-void PullCoordExpressionParser::initializeParser(int numVariables)
-{
-#if HAVE_MUPARSER
-    parser_ = std::make_unique<mu::Parser>();
-    parser_->SetExpr(expression_);
-    variableValues_.resize(numVariables);
-    for (int n = 0; n < numVariables; n++)
-    {
-        variableValues_[n] = 0;
-        std::string name   = "x" + std::to_string(n + 1);
-        parser_->DefineVar(name, &variableValues_[n]);
-    }
-#else
-    GMX_UNUSED_VALUE(numVariables);
-    GMX_RELEASE_ASSERT(false, "Can not use transformation pull coordinate without muparser");
 #endif
 }
 

@@ -149,7 +149,7 @@ struct pull_coord_work_t
         spatialData(),
         scalarForce(0),
         bExternalPotentialProviderHasBeenRegistered(false),
-        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : ""),
+        expressionParser(params.eGeom == epullgTRANSFORMATION ? params.expression : "", coordIndex),
         coordIndex(coordIndex),
         transformationVariables(params.eGeom == epullgTRANSFORMATION ? coordIndex : 0)
     {

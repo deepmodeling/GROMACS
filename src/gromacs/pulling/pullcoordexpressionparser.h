@@ -84,21 +84,13 @@ class ArrayRef;
 class PullCoordExpressionParser
 {
 public:
-    //! Constructor which takes a mathematical expression as argument.
-    PullCoordExpressionParser(const std::string& expression) : expression_(expression) {}
+    //! Constructor which takes a mathematical expression and the number of variables as arguments
+    PullCoordExpressionParser(const std::string& expression, int numVariables);
 
     //! Evaluates the expression with the numerical values passed in \p variables.
     double evaluate(ArrayRef<const double> variables);
 
 private:
-    /*! \brief
-     * Prepares the expressionparser to bind muParser to n_variables.
-     *
-     * There's a performance gain by doing it this way since muParser will convert the expression
-     * to bytecode the first time it's initialized. Then the subsequent evaluations are much faster.
-     */
-    void initializeParser(int numVariables);
-
     /*! \brief The mathematical expression, e.g. 'x1*x2' */
     std::string expression_;
 
