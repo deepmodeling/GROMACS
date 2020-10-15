@@ -684,18 +684,16 @@ double getTransformationPullCoordinateValue(pull_t* pull, int transformationPull
 {
 #if HAVE_MUPARSER
     double             result = 0;
-    pull_coord_work_t* coord  = &pull->coord[transformationPullCoordinateIndex];
-    int                variablePcrdIndex;
+    pull_coord_work_t& coord  = pull->coord[transformationPullCoordinateIndex];
     try
     {
-        for (variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
+        std::vector<double> variables(transformationPullCoordinateIndex);
+        for (int variablePcrdIndex = 0; variablePcrdIndex < transformationPullCoordinateIndex;
              variablePcrdIndex++)
         {
-            const pull_coord_work_t& variablePcrd = pull->coord[variablePcrdIndex];
-            coord->expressionParser.setVariable(variablePcrdIndex, variablePcrd.spatialData.value,
-                                                transformationPullCoordinateIndex);
+            variables[variablePcrdIndex] = pull->coord[variablePcrdIndex].spatialData.value;
         }
-        result = coord->expressionParser.eval();
+        result = coord.expressionParser.eval(variables);
     }
     catch (mu::Parser::exception_type& e)
     {
@@ -709,7 +707,7 @@ double getTransformationPullCoordinateValue(pull_t* pull, int transformationPull
                 "failed to evaluate expression for transformation pull-coord%d.\n"
                 "Last variable pull-coord-index: %d.\n"
                 "Message:  %s\n",
-                transformationPullCoordinateIndex + 1, variablePcrdIndex + 1, e.what())));
+                transformationPullCoordinateIndex + 1, transformationPullCoordinateIndex + 1, e.what())));
     }
     return result;
 #else

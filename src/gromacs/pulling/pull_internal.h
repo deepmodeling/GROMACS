@@ -158,51 +158,27 @@ public:
     //! Constructor which takes a mathematical expression as argument.
     PullCoordExpressionParser(const std::string& expression) : expression_(expression) {}
 
-    /*! \brief Initializes the parser and binds a numerical value to a variable in the expression
-     *
-     * \param[in]   variableIdx The variable index in the expression.
-     * Index 0 corresponds to the variable 'x1' etc.
-     * \param[in]   value  The variable's numerical value to be passed on for evaluation
-     * \param[in]   nVariables  The total number of variables to bind
+    /*! \brief Evaluates the expression with the numerical values passed in \p variables.
      */
     //NOLINTNEXTLINE
-    void setVariable(int variableIdx, double value, int nVariables)
+    double eval(gmx::ArrayRef<const double> variables)
     {
 #if HAVE_MUPARSER
         if (!parser_)
         {
-            initializeParser(nVariables);
+            initializeParser(variables.size());
         }
-        if (gmx::ssize(variableValues_) <= variableIdx)
-        {
-            GMX_THROW(gmx::InvalidInputError("Variable index out of range for the expression"));
-        }
-        variableValues_[variableIdx] = value;
-#else
-        GMX_UNUSED_VALUE(variableIdx);
-        GMX_UNUSED_VALUE(value);
-        GMX_UNUSED_VALUE(nVariables);
-        GMX_RELEASE_ASSERT(false, "Can not use transformation pull coordinate without muparser");
-#endif
-    }
+        GMX_ASSERT(variables.size() == variableValues_.size(),
+                   "The size of variables should match the size passed at the first call of this "
+                   "method");
+        // Todo: consider if directly use the variableValues_ without the extra variables buffer
+        std::copy(variables.begin(), variables.end(), variableValues_.begin());
 
-    /*! \brief Evaluates the expression with the numerical values passed to
-     * the function setVariable().
-     * This method will raise an std::exception if setVariable was not called before evaluation.
-     *
-     */
-    //NOLINTNEXTLINE
-    double eval()
-    {
-#if HAVE_MUPARSER
-        if (!parser_)
-        {
-            GMX_THROW(gmx::InvalidInputError("Tried to evaluate an uninitialized expression."));
-        }
         return parser_->Eval();
 #else
         return 0;
 
+        GMX_UNUSED_VALUE(variables);
 #endif
     }
 
@@ -214,20 +190,20 @@ private:
      * to bytecode the first time it's initialized. Then the subsequent evaluations are much faster.
      */
     //NOLINTNEXTLINE
-    void initializeParser(int nVariables)
+    void initializeParser(int numVariables)
     {
 #if HAVE_MUPARSER
         parser_ = std::make_unique<mu::Parser>();
         parser_->SetExpr(expression_);
-        variableValues_.resize(nVariables);
-        for (int n = 0; n < nVariables; n++)
+        variableValues_.resize(numVariables);
+        for (int n = 0; n < numVariables; n++)
         {
             variableValues_[n] = 0;
             std::string name   = "x" + std::to_string(n + 1);
             parser_->DefineVar(name, &variableValues_[n]);
         }
 #else
-        GMX_UNUSED_VALUE(nVariables);
+        GMX_UNUSED_VALUE(numVariables);
         GMX_RELEASE_ASSERT(false, "Can not use transformation pull coordinate without muparser");
 #endif
     }
