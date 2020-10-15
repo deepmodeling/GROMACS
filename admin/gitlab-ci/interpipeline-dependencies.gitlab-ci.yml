@@ -6,6 +6,6 @@ gromacs:ci:check-push-pipeline:
   extends:
     - .rules:merge-requests
   stage: wait-for-others
-  image: python/3.9-alpine  # Most lightweight?
+  image: gromacs/ci-docs-llvm-master  # Most lightweight?
   script:
     - python3 admin/ci-scripts/check_gitlab_pipeline.py --token ${CI_JOB_TOKEN} --sha ${CI_COMMIT_SHA}
