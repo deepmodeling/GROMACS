@@ -36,7 +36,7 @@
  *
  *
  * \brief
- * This classes and methods related to use of MuParser in pulling
+ * Contains classes and methods related to use of MuParser in pulling
  *
  * \author Oliver Fleetwood <oliver.fleetwood@gmail.com>
  * \author Paul Bauer <paul.bauer.q@gmail.com>
@@ -57,7 +57,7 @@
 #else
 namespace mu
 {
-//! Defines a dummy Parser type to reduce us of the preprocessor.
+//! Defines a dummy Parser type to reduce use of the preprocessor.
 using Parser = std::false_type;
 }
 #endif
