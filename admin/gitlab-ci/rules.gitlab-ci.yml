@@ -17,7 +17,7 @@
 # the main distinguishing characteristic of the mix-in.
 
 # Exclude from pipelines launched outside the "gromacs" GitLab project namespace.
-.rules-element:if-not-gromacs-then-never: &if-not-gromacs-then-never
+.rules-element:if-not-gromacs-then-never: &require-gromacs-project
   if: '$CI_PROJECT_NAMESPACE != "gromacs"'
   when: never
 
@@ -27,29 +27,9 @@
   when: never
 
 # Exclude unless the GROMACS_RELEASE variable is set (through the web interface).
-.rules-element:if-not-release-then-never: &if-not-release-then-never
+.rules-element:if-not-release-then-never: &require-release
   if: '$GROMACS_RELEASE == null'
   when: never
-
-# Include in pipelines triggered through the web interface.
-.rules-element:if-web-then-always: &if-web-then-always
-  if: '$CI_PIPELINE_SOURCE == "web"'
-  when: always
-
-# Exclude from pipelines triggered by "push" events.
-.rules-element:if-push-then-never: &if-push-then-never
-  if: '$CI_PIPELINE_SOURCE == "push"'
-  when: never
-
-# Include in pipelines triggered by "push" events to any branch.
-.rules-element:if-push-then-always: &if-push-then-always
-  if: '$CI_PIPELINE_SOURCE == "push"'
-  when: always
-
-# Include in "schedule" pipelines (e.g. nightly jobs)
-.rules-element:if-schedule-then-always: &if-schedule-then-always
-  if: '$CI_PIPELINE_SOURCE == "schedule"'
-  when: always
 
 # Exclude from selective "schedule" pipelines, e.g. just those
 # that should run the post-merge-acceptance jobs.
@@ -57,30 +37,12 @@
   if: '$POST_MERGE_ACCEPTANCE'
   when: never
 
-# Include in pipelines triggered in the merge request process.
-.rules-element:if-mr-then-always: &if-mr-then-always
-  if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-  when: always
-
 # Exclude from pipelines triggered in the merge request process, such as for
 # jobs that duplicate checks already performed for "push" events or that we
 # only want to run in scheduled / manually triggered pipelines.
 .rules-element:if-mr-then-never: &if-mr-then-never
   if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   when: never
-
-# Include job when running for merge request or when pushing to protected branch.
-.rules-element:if-post-merge-acceptance-or-mr-then-always: &if-post-merge-acceptance-or-mr-then-always
-  if: '$CI_PIPELINE_SOURCE == "merge_request_event" ||
-       ($CI_PIPELINE_SOURCE == "push" &&
-        $CI_COMMIT_REF_NAME == "master")'
-  when: always
-
-# Include job only for post submit push
-.rules-element:if-post-merge-acceptance-then-always: &if-post-merge-acceptance-then-always
-  if: '$CI_PIPELINE_SOURCE == "push" &&
-       $CI_COMMIT_REF_NAME == "master"'
-  when: always
 
 # When composing a rule set, note that the first matching rule is applied.
 # If you want later rules to be evaluated, you must make sure that the *if*
@@ -100,67 +62,51 @@
     - *if-release-then-never
     - *if-mr-then-never
     - *if-post-merge-acceptance-then-never
-    - *if-web-then-always
-    - *if-push-then-always
-    - *if-schedule-then-always
+    - when: on_success
+
+.rules:require-gromacs-project:
+  rules:
+    - *require-gromacs-project
+    - when: on_success
 
 # Jobs to run after successful merge of a new commit.
 # Only run on GROMACS infrastructure and only when merging into
 # the master or release branches.
 .rules:post-merge-acceptance:
   rules:
-    - *if-not-gromacs-then-never
-    - *if-release-then-never
-    - *if-mr-then-never
-    - *if-post-merge-acceptance-then-always
-    - *if-web-then-always
-    - *if-schedule-then-always
+    - *require-gromacs-project
+    - when: on_success
 
 # Jobs that run for merge requests and schedules, but not when GROMACS_RELEASE
 # is set. Excludes non-GROMACS projects.
 # More elaborate rule sets for merge requests should be based on the same sequence.
 .rules:merge-requests:
   rules:
-    - *if-not-gromacs-then-never
+    - *require-gromacs-project
     - *if-release-then-never
-    - *if-push-then-never
     - *if-post-merge-acceptance-then-never
-    - *if-web-then-always
-    - *if-schedule-then-always
-    - *if-mr-then-always
-
-# Jobs running both in post submit and for merge requests
-# Excludes non-GROMACS projects.
-.rules:merge-and-post-merge-acceptance:
-  rules:
-    - *if-not-gromacs-then-never
-    - *if-release-then-never
-    - *if-web-then-always
-    - *if-schedule-then-always
-    - *if-post-merge-acceptance-or-mr-then-always
+    - when: on_success
 
 # Jobs that run for merge requests and schedules for branch `master`,
 # but not when GROMACS_RELEASE is set.
 # Excludes non-gromacs projects.
 .rules:merge-requests:master:
   rules:
-    - *if-not-gromacs-then-never
+    - *require-gromacs-project
     - *if-release-then-never
     - *if-post-merge-acceptance-then-never
-    - *if-web-then-always
     # This rule catches "push" and other events in branches other than `master`
     # but allows merge_request_events for merge requests targeting master.
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME != "master" && $CI_COMMIT_REF_NAME != "master"'
       when: never
-    - *if-schedule-then-always
-    - *if-mr-then-always
+    - when: on_success
 
 # Jobs that run for merge requests and schedules for branch `release-2020`,
 # but not when GROMACS_RELEASE is set.
 # Excludes non-gromacs projects.
 .rules:merge-requests:release-2020:
   rules:
-    - *if-not-gromacs-then-never
+    - *require-gromacs-project
     - *if-release-then-never
     - *if-post-merge-acceptance-then-never
     # This next rule catches "push" and other events in branches other than `release-2020`
@@ -173,27 +119,25 @@
     # to be provided through the web interface.
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME != "release-2020" && $CI_COMMIT_REF_NAME != "release-2020"'
       when: never
-    - *if-web-then-always
-    - *if-schedule-then-always
-    - *if-mr-then-always
+    - when: on_success
 
 # Rule to run a job only in nightly release-preparation pipelines.
 # Checks if the GROMACS_RELEASE variable was set (typically through the GitLab web interface).
 # Excludes merge_requests and non-gromacs projects.
 .rules:nightly-only-for-release:
   rules:
-    - *if-not-gromacs-then-never
-    - *if-not-release-then-never
-    - *if-post-merge-acceptance-then-never
-    - *if-web-then-always
-    - *if-schedule-then-always
+    - *require-gromacs-project
+    - *require-release
+    - if: '$CI_PIPELINE_SOURCE != "schedule" && $CI_PIPELINE_SOURCE != "web"'
+      when: never
+    - when: on_success
 
 # Jobs that run on schedules, but not for merge requests or when GROMACS_RELEASE
 # is set. Excludes non-gromacs projects.
 .rules:nightly-not-for-release:
   rules:
-    - *if-not-gromacs-then-never
+    - *require-gromacs-project
     - *if-release-then-never
-    - *if-post-merge-acceptance-then-never
-    - *if-web-then-always
-    - *if-schedule-then-always
+    - if: '$CI_PIPELINE_SOURCE != "schedule" && $CI_PIPELINE_SOURCE != "web"'
+      when: never
+    - when: on_success

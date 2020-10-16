@@ -25,7 +25,7 @@ prepare-release-version:
 regressiontests:prepare:
   extends:
     - .variables:default
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   cache: {}
   image: gromacs/ci-docs-llvm-master
   stage: configure-build

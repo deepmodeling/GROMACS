@@ -221,7 +221,7 @@ gromacs:gcc-7:configure:
     - .gromacs:base:configure
     - .use-gcc:base
     - .use-opencl
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=AVX2_256"
@@ -233,7 +233,7 @@ gromacs:gcc-8-cuda-11.0:configure:
     - .gromacs:base:configure
     - .use-gcc:base
     - .use-cuda
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=SSE4.1"
@@ -245,7 +245,7 @@ gromacs:gcc-8-cuda-11.0:configureMPI:
     - .use-gcc:base
     - .use-cuda
     - .use-mpi
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   variables:
     CMAKE_SIMD_OPTIONS: "-DGMX_SIMD=SSE4.1"
@@ -255,7 +255,7 @@ gromacs:clang-TSAN:configure:
   extends:
     - .gromacs:base:configure
     - .use-clang:base
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   variables:
     COMPILER_MAJOR_VERSION: 8
@@ -317,7 +317,7 @@ gromacs:oneapi-2021.1-beta09-sycl:configure:
    - .gromacs:base:configure
    - .use-oneapi:base
    - .use-sycl
-   - .rules:merge-and-post-merge-acceptance
+   - .rules:require-gromacs-project
   image: gromacs/cmake-3.17.2-oneapi-2021.1-beta09-master
   variables:
     COMPILER_MAJOR_VERSION: 2021
@@ -326,7 +326,7 @@ gromacs:clang-UBSAN:configure:
   extends:
     - .gromacs:base:configure
     - .use-clang:base
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   variables:
     COMPILER_MAJOR_VERSION: 8
@@ -450,7 +450,7 @@ gromacs:gcc-7:build:
     - .gromacs:base:build
     - .before_script:default
     - .use-ccache
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.13.0-gcc-7-amdopencl-clfft-openmpi-master
   needs:
     - job: gromacs:gcc-7:configure
@@ -462,7 +462,7 @@ gromacs:gcc-8-cuda-11.0:build:
     - .gromacs:base:build
     - .before_script:default
     - .use-ccache
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   needs:
     - job: gromacs:gcc-8-cuda-11.0:configure
@@ -473,7 +473,7 @@ gromacs:gcc-8-cuda-11.0:buildMPI:
     - .gromacs:base:build
     - .before_script:default
     - .use-ccache
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.15.7-gcc-8-cuda-11.0-nvidiaopencl-clfft-openmpi-master
   needs:
     - job: gromacs:gcc-8-cuda-11.0:configureMPI
@@ -484,7 +484,7 @@ gromacs:clang-TSAN:build:
     - .gromacs:base:build
     - .use-clang:base
     - .use-ccache
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   needs:
     - job: gromacs:clang-TSAN:configure
@@ -508,7 +508,7 @@ gromacs:clang-UBSAN:build:
     - .gromacs:base:build
     - .use-clang:base
     - .use-ccache
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.13.0-llvm-8-tsan-master
   tags:
     - k8s-scilifelab
@@ -556,7 +556,7 @@ gromacs:oneapi-2021.1-beta09-sycl:build:
     - .gromacs:base:build
     - .use-ccache
     - .use-oneapi:base
-    - .rules:merge-and-post-merge-acceptance
+    - .rules:require-gromacs-project
   image: gromacs/cmake-3.17.2-oneapi-2021.1-beta09-master
   needs:
     - job: gromacs:oneapi-2021.1-beta09-sycl:configure

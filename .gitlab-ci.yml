@@ -10,10 +10,6 @@ stages:
   - build
   # Unit test each configuration, perhaps in multiple ways
   - test
-  # Generate documentation files
-  - documentation
-  # Check documentation from source code for errors
-  - source-check
   # Linting, docs, static analysis, coverage, code analysis...
   - post-test
   # Nightly work to configure builds
@@ -36,6 +32,13 @@ stages:
   - release-prepare-deploy
   # Deploy stage for release builds
   - release-deploy
+
+workflow:
+  rules:
+    - if: '$CI_PROJECT_NAMESPACE != "gromacs"'
+    - if: '$CI_PROJECT_NAMESPACE == "gromacs" && $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_REF_NAME == "master" ||
+    $CI_COMMIT_REF_NAME == "release-2020")'
+    - if: '$CI_PIPELINE_SOURCE != "push" && ($CI_COMMIT_REF_NAME != "master" && $CI_COMMIT_REF_NAME != "release-2020")'
 
 include:
   # Mix-in helper job definitions of general utility.
