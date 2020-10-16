@@ -282,6 +282,13 @@ static void init_pull_coord(t_pull_coord*        pcrd,
     }
     if (pcrd->eGeom == epullgTRANSFORMATION)
     {
+        if (pcrd->eType == epullCONSTRAINT)
+        {
+            GMX_THROW(gmx::InvalidInputError(gmx::formatString(
+                    "pull-coord%d can not have type 'constraint' and geometry 'transformation'",
+                    coord_index_for_output)));
+        }
+
         /*Validate the mathematical expression to epullgTRANSFORMATION*/
         if (pcrd->expression.empty())
         {
@@ -291,9 +298,25 @@ static void init_pull_coord(t_pull_coord*        pcrd,
                     coord_index_for_output)));
         }
         /* make sure that the kappa of all previous pull coords is 0*/
-        int previousCoordIndex = 0;
+        int previousCoordOutputIndex = 0;
         for (const auto& previousPcrd : pull.coord)
         {
+            previousCoordOutputIndex++;
+
+            std::string previousPcrdName = gmx::formatString("x%d", previousCoordOutputIndex);
+            if (pcrd->expression.find(previousPcrdName) == std::string::npos)
+            {
+                // This previous coordinate is not used in this transformation, do not check it
+                break;
+            }
+
+            if (previousPcrd.eType == epullCONSTRAINT)
+            {
+                GMX_THROW(gmx::InvalidInputError(
+                        gmx::formatString("pull-coord%d can not use pull-coord%d in the "
+                                          "transformation since this is a constraint",
+                                          coord_index_for_output, previousCoordOutputIndex)));
+            }
             if (previousPcrd.k > 0)
             {
                 /* This use case should be revisited in the future, as
@@ -306,7 +329,7 @@ static void init_pull_coord(t_pull_coord*        pcrd,
                         "Transformation coordinates and their variables must occur first. "
                         "Change the order of the pull coordinates if "
                         "pull-coord%d does not depend on pull-coord%d",
-                        previousCoordIndex + 1, coord_index_for_output, previousCoordIndex + 1,
+                        previousCoordOutputIndex, coord_index_for_output, previousCoordOutputIndex,
                         coord_index_for_output)));
             }
         }

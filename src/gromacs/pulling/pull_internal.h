@@ -139,10 +139,10 @@ struct PullCoordSpatialData
     double value; /* The current value of the coordinate, units of nm or rad */
 };
 
-/* Struct with parameters and force evaluation local data for a pull coordinate */
+//! \brief Struct with parameters and force evaluation local data for a pull coordinate
 struct pull_coord_work_t
 {
-    /* Constructor */
+    //! Constructor, \p coordIndex should match the index in the list of coordinates
     pull_coord_work_t(const t_pull_coord& params, const int coordIndex) :
         params(params),
         value_ref(0),
@@ -155,22 +155,26 @@ struct pull_coord_work_t
     {
     }
 
-    const t_pull_coord params; /* Pull coordinate parameters */
+    //! Pull coordinate parameters
+    const t_pull_coord params;
 
-    double value_ref; /* The reference value, usually init+rate*t, units of nm or rad */
+    //! The reference value, usually init+rate*t, units of nm or rad
+    double value_ref;
 
-    PullCoordSpatialData spatialData; /* Data defining the current geometry */
+    //! Data defining the current geometry
+    PullCoordSpatialData spatialData;
 
-    double scalarForce; /* Scalar force for this cooordinate */
+    //! Scalar force for this cooordinate
+    double scalarForce;
 
-    /* For external-potential coordinates only, for checking if a provider has been registered */
+    //! For external-potential coordinates only, for checking if a provider has been registered
     bool bExternalPotentialProviderHasBeenRegistered;
 
-    // The expression parser for a transformation coordinate
+    //! The expression parser for a transformation coordinate
     gmx::PullCoordExpressionParser expressionParser;
-    // The index of this coordinate int the list of coordinates
+    //! The index of this coordinate int the list of coordinates
     const int coordIndex;
-    // Variables from other pull coordinates for a transformation coordinate
+    //! Variables from other pull coordinates for a transformation coordinate
     std::vector<double> transformationVariables;
 };
 

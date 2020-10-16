@@ -970,8 +970,8 @@ do_constraint(struct pull_t* pull, t_pbc* pbc, rvec* x, rvec* v, gmx_bool bMaste
                     dr_tot[c] += -lambda;
                     break;
                 case epullgTRANSFORMATION:
-                    gmx_fatal(FARGS,
-                              "transformation coordinates are incompatible with constraints.");
+                    GMX_RELEASE_ASSERT(false, "transformation with constraints should never occur");
+                    break;
                 default: gmx_incons("Invalid enumeration value for eGeom");
             }
 
@@ -1458,8 +1458,7 @@ static void check_external_potential_registration(const struct pull_t* pull)
     }
 }
 
-/*! \brief
- * Applies a force of any non-transformation pull coordinate
+/*! \brief Applies a force of any non-transformation pull coordinate
  *
  * \param[in] pull
  * \param[in] coord_index
@@ -1490,18 +1489,16 @@ static void apply_default_pull_coord_force(struct pull_t*        pull,
                        as_rvec_array(forceWithVirial->force_.data()));
 }
 
-/*! \brief
- * Applies a force of a transformation pull coordinate and distributes it to pull coordinates of lower rank
+/*! \brief Applies a force of a transformation pull coordinate and distributes it to pull coordinates of lower rank
  *
- * \param[in] pull
- * \param[in] transformationCoordIndex
- * \param[in] transformationCoordForce
- * \param[in] masses
- * \param[in] forceWithVirial
+ * \param[in] pcrd             The transformation pull coordinate to act on
+ * \param[in] variableCoords   List of variable coords up to the coord index of \p pcrd
+ * \param[in] masses           Atom masses
+ * \param[in] forceWithVirial  Atom force and virial object
  */
-static void applyTransformationPullCoordForce(struct pull_t*        pull,
-                                              int                   transformationCoordIndex,
-                                              double                transformationCoordForce,
+static void applyTransformationPullCoordForce(pull_coord_work_t*               pcrd,
+                                              gmx::ArrayRef<pull_coord_work_t> variableCoords,
+                                              const double          transformationCoordForce,
                                               const real*           masses,
                                               gmx::ForceWithVirial* forceWithVirial)
 {
@@ -1510,14 +1507,16 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
         // the force is effectively 0. Don't proceed and distribute it recursively
         return;
     }
-    pull_coord_work_t* pcrd = &pull->coord[transformationCoordIndex];
     GMX_ASSERT(pcrd->params.eGeom == epullgTRANSFORMATION,
                "We shouldn't end up here when not using a transformation pull coordinate.");
+    GMX_ASSERT(ssize(variableCoords) == pcrd->coordIndex,
+               "We should have as many variable coords as the coord index of the transformation "
+               "coordinate");
+
     pcrd->scalarForce = transformationCoordForce;
-    for (int variableCoordIndex = 0; variableCoordIndex < transformationCoordIndex; variableCoordIndex++)
+    for (auto& variableCoord : variableCoords)
     {
-        const pull_coord_work_t& variablePCrd = pull->coord[variableCoordIndex];
-        if (variablePCrd.params.eGeom == epullgTRANSFORMATION)
+        if (variableCoord.params.eGeom == epullgTRANSFORMATION)
         {
             /*
              * We can have a transformation pull coordinate depend on another sub-transformation pull coordinate
@@ -1529,15 +1528,16 @@ static void applyTransformationPullCoordForce(struct pull_t*        pull,
             return;
         }
         const double variablePcrdForce =
-                gmx::computeForceFromTransformationPullCoord(pcrd, variableCoordIndex);
+                gmx::computeForceFromTransformationPullCoord(pcrd, variableCoord.coordIndex);
         /* Since we loop over all pull coordinates with smaller index, there can be ones
          * that are not referenced by the transformation coordinate. Avoid apply forces
          * on those by skipping application of zero force.
          */
         if (variablePcrdForce != 0)
         {
-            applyTransformationPullCoordForce(pull, variableCoordIndex, variablePcrdForce, masses,
-                                              forceWithVirial);
+            applyTransformationPullCoordForce(&variableCoord,
+                                              variableCoords.subArray(0, variableCoord.coordIndex),
+                                              variablePcrdForce, masses, forceWithVirial);
         }
     }
 }
@@ -1571,7 +1571,9 @@ void apply_external_pull_coord_force(struct pull_t*        pull,
 
         if (pcrd->params.eGeom == epullgTRANSFORMATION)
         {
-            applyTransformationPullCoordForce(pull, coord_index, coord_force, masses, forceWithVirial);
+            applyTransformationPullCoordForce(
+                    pcrd, gmx::arrayRefFromArray(pull->coord.data(), pcrd->coordIndex), coord_force,
+                    masses, forceWithVirial);
         }
         else
         {
@@ -1651,7 +1653,9 @@ real pull_potential(struct pull_t*        pull,
                     pull, coord_index, pbc, t, lambda, &V, computeVirial ? virial : nullptr, &dVdl);
             if (pcrd->params.eGeom == epullgTRANSFORMATION)
             {
-                applyTransformationPullCoordForce(pull, coord_index, pcrd->scalarForce, masses, force);
+                applyTransformationPullCoordForce(
+                        pcrd, gmx::arrayRefFromArray(pull->coord.data(), pcrd->coordIndex),
+                        pcrd->scalarForce, masses, force);
             }
             else
             {
