@@ -1460,15 +1460,15 @@ static void check_external_potential_registration(const struct pull_t* pull)
 
 /*! \brief Applies a force of any non-transformation pull coordinate
  *
- * \param[in] pull
- * \param[in] coord_index
- * \param[in] coord_force
- * \param[in] masses
- * \param[in] forceWithVirial
+ * \param[in] pull         The pull struct, we can't pass only the coord because of cylinder pulling
+ * \param[in] coord_index  The index of the coord to apply to force for
+ * \param[in] coord_force  The force working on this coord
+ * \param[in] masses       Atom masses
+ * \param[in] forceWithVirial  Atom force and virial object
  */
-static void apply_default_pull_coord_force(struct pull_t*        pull,
-                                           int                   coord_index,
-                                           double                coord_force,
+static void apply_default_pull_coord_force(pull_t*               pull,
+                                           const int             coord_index,
+                                           const double          coord_force,
                                            const real*           masses,
                                            gmx::ForceWithVirial* forceWithVirial)
 {
@@ -1491,8 +1491,9 @@ static void apply_default_pull_coord_force(struct pull_t*        pull,
 
 /*! \brief Applies a force of a transformation pull coordinate and distributes it to pull coordinates of lower rank
  *
- * \param[in] pcrd             The transformation pull coordinate to act on
- * \param[in] variableCoords   List of variable coords up to the coord index of \p pcrd
+ * \param[in,out] pcrd            The transformation pull coordinate to act on
+ * \param[in,out] variableCoords  List of variable coords up to the coord index of \p pcrd
+ * \param[in] transformationCoordForce  The force working on coord \p pcrd
  * \param[in] masses           Atom masses
  * \param[in] forceWithVirial  Atom force and virial object
  */
