@@ -586,6 +586,62 @@ void gpu_init_pairlist(gmx_nbnxn_cuda_t* nb, const NbnxnPairlistGpu* h_plist, co
     d_plist->haveFreshList = true;
 }
 
+void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const InteractionLocality iloc)
+{
+    char         sbuf[STRLEN];
+    bool         bDoTime = (nb->bDoTime && !h_plist->sci.empty());
+    cudaStream_t stream  = nb->stream[iloc];
+    cu_feplist_t* d_feplist = nb->feplist[iloc];
+
+    if (d_feplist->na_c < 0)
+    {
+        d_feplist->na_c = h_feplist->na_ci;
+    }
+    else
+    {
+        if (d_feplist->na_c != h_feplist->na_ci)
+        {
+            sprintf(sbuf, "In cu_init_feplist: the #atoms per cell has changed (from %d to %d)",
+                    d_feplist->na_c, h_feplist->na_ci);
+            gmx_incons(sbuf);
+        }
+    }
+
+    gpu_timers_t::Interaction& iTimers = nb->timers->interaction[iloc];
+
+    if (bDoTime)
+    {
+        iTimers.pl_h2d.openTimingRegion(stream);
+        iTimers.didPairlistH2D = true;
+    }
+
+    DeviceContext context = nullptr;
+
+    reallocateDeviceBuffer(&d_feplist->sci, h_feplist->sci.size(), &d_feplist->nsci, &d_feplist->sci_nalloc, context);
+    copyToDeviceBuffer(&d_feplist->sci, h_feplist->sci.data(), 0, h_feplist->sci.size(), stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+
+    reallocateDeviceBuffer(&d_feplist->cj4, h_feplist->cj4.size(), &d_feplist->ncj4, &d_feplist->cj4_nalloc, context);
+    copyToDeviceBuffer(&d_feplist->cj4, h_feplist->cj4.data(), 0, h_feplist->cj4.size(), stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+
+    reallocateDeviceBuffer(&d_feplist->imask, h_feplist->cj4.size() * c_nbnxnGpuClusterpairSplit,
+                           &d_feplist->nimask, &d_feplist->imask_nalloc, context);
+
+    reallocateDeviceBuffer(&d_feplist->excl, h_feplist->excl.size(), &d_feplist->nexcl,
+                           &d_feplist->excl_nalloc, context);
+    copyToDeviceBuffer(&d_feplist->excl, h_feplist->excl.data(), 0, h_feplist->excl.size(), stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+
+    if (bDoTime)
+    {
+        iTimers.pl_h2d.closeTimingRegion(stream);
+    }
+
+    /* the next use of thist list we be the first one, so we need to prune */
+    d_feplist->haveFreshList = true;
+}
+
 void gpu_upload_shiftvec(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbatom)
 {
     cu_atomdata_t* adat = nb->atdat;
