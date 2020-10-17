@@ -2809,6 +2809,106 @@ static void balance_fep_lists(gmx::ArrayRef<std::unique_ptr<t_nblist>> fepLists,
     }
 }
 
+static void combine_fep_lists(gmx::ArrayRef<std::unique_ptr<t_nblist>> fepLists,
+                              gmx::ArrayRef<PairsearchWork>            work)
+{
+    const int numLists = fepLists.ssize();
+
+    if (numLists == 1)
+    {
+        /* Nothing to balance */
+        return;
+    }
+
+    /* Count the total i-lists and pairs */
+    int nri_tot = 0;
+    int nrj_tot = 0;
+    for (const auto& list : fepLists)
+    {
+        nri_tot += list->nri;
+        nrj_tot += list->nrj;
+    }
+
+    const int nrj_target = nrj_tot;
+
+#pragma omp parallel for schedule(static) num_threads(numLists)
+    for (int th = 0; th < numLists; th++)
+    {
+        try
+        {
+            t_nblist* nbl = work[th].nbl_fep.get();
+
+            /* Note that here we allocate for the total size, instead of
+             * a per-thread esimate (which is hard to obtain).
+             */
+            if (nri_tot > nbl->maxnri)
+            {
+                nbl->maxnri = over_alloc_large(nri_tot);
+                reallocate_nblist(nbl);
+            }
+            if (nri_tot > nbl->maxnri || nrj_tot > nbl->maxnrj)
+            {
+                nbl->maxnrj = over_alloc_small(nrj_tot);
+                srenew(nbl->jjnr, nbl->maxnrj);
+                srenew(nbl->excl_fep, nbl->maxnrj);
+            }
+
+            clear_pairlist_fep(nbl);
+        }
+        GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
+    }
+
+    /* Loop over the source lists and assign and copy i-entries */
+    int       th_dest = 0;
+    t_nblist* nbld    = work[th_dest].nbl_fep.get();
+    for (int th = 0; th < numLists; th++)
+    {
+        const t_nblist* nbls = fepLists[th].get();
+
+        for (int i = 0; i < nbls->nri; i++)
+        {
+            int nrj;
+
+            /* The number of pairs in this i-entry */
+            nrj = nbls->jindex[i + 1] - nbls->jindex[i];
+
+            /* Decide if list th_dest is too large and we should procede
+             * to the next destination list.
+             */
+            // if (th_dest + 1 < numLists && nbld->nrj > 0
+            //     && nbld->nrj + nrj - nrj_target > nrj_target - nbld->nrj)
+            // {
+            //     th_dest++;
+            //     nbld = work[th_dest].nbl_fep.get();
+            // }
+
+            nbld->iinr[nbld->nri]  = nbls->iinr[i];
+            nbld->gid[nbld->nri]   = nbls->gid[i];
+            nbld->shift[nbld->nri] = nbls->shift[i];
+
+            for (int j = nbls->jindex[i]; j < nbls->jindex[i + 1]; j++)
+            {
+                nbld->jjnr[nbld->nrj]     = nbls->jjnr[j];
+                nbld->excl_fep[nbld->nrj] = nbls->excl_fep[j];
+                nbld->nrj++;
+            }
+            nbld->nri++;
+            nbld->jindex[nbld->nri] = nbld->nrj;
+        }
+    }
+
+    /* Swap the list pointers */
+    for (int th = 0; th < numLists; th++)
+    {
+        fepLists[th].swap(work[th].nbl_fep);
+
+        if (debug)
+        {
+            fprintf(debug, "nbl_fep[%d] nri %4d nrj %4d\n", th, fepLists[th]->nri, fepLists[th]->nrj);
+        }
+    }
+}
+
 /* Returns the next ci to be processes by our thread */
 static gmx_bool next_ci(const Grid& grid, int nth, int ci_block, int* ci_x, int* ci_y, int* ci_b, int* ci)
 {
@@ -3136,8 +3236,8 @@ static void nbnxn_make_pairlist_part(const Nbnxm::GridSet&   gridSet,
 
     gridSet.getBox(box);
 
-    // const bool haveFep = gridSet.haveFep();
-    const bool haveFep = 0;
+    const bool haveFep = gridSet.haveFep();
+    // const bool haveFep = 0;
 
     const real rlist2 = nbl->rlist * nbl->rlist;
 

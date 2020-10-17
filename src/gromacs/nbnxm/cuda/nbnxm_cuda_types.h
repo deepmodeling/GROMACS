@@ -228,6 +228,11 @@ struct cu_nbparam
 using cu_plist_t = Nbnxm::gpu_plist;
 
 /** \internal
+ * \brief FEP Pair list data.
+ */
+using cu_feplist_t = Nbnxm::gpu_feplist;
+
+/** \internal
  * \brief Typedef of actual timer type.
  */
 typedef struct Nbnxm::gpu_timers_t cu_timers_t;
@@ -273,6 +278,8 @@ struct gmx_nbnxn_cuda_t
     cu_nbparam_t* nbparam;
     //! pair-list data structures (local and non-local)
     gmx::EnumerationArray<Nbnxm::InteractionLocality, cu_plist_t*> plist;
+    //! fep pair-list data structures (local and non-local)
+    gmx::EnumerationArray<Nbnxm::InteractionLocality, cu_feplist_t*> feplist;
     //! staging area where fshift/energies get downloaded
     nb_staging_t nbst;
     //! local and non-local GPU streams

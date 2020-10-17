@@ -88,6 +88,12 @@ GPU_FUNC_QUALIFIER
 void gpu_init_pairlist(gmx_nbnxn_gpu_t gmx_unused*   nb,
                        const struct NbnxnPairlistGpu gmx_unused* h_nblist,
                        gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
+                       
+/** Initializes fep pair-list data for GPU, called at every pair search step. */
+GPU_FUNC_QUALIFIER
+void gpu_init_feppairlist(gmx_nbnxn_gpu_t gmx_unused*   nb,
+                          const struct t_nblist gmx_unused* h_nblist,
+                          gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
 
 /** Initializes atom-data on the GPU, called at every pair search step. */
 GPU_FUNC_QUALIFIER
