@@ -4242,7 +4242,8 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
     if (gridSet.haveFep())
     {
         /* Balance the free-energy lists over all the threads */
-        balance_fep_lists(fepLists_, searchWork);
+        // balance_fep_lists(fepLists_, searchWork);
+        combine_fep_lists(fepLists_, searchWork);
     }
 
     if (isCpuType_)
@@ -4348,6 +4349,10 @@ void nonbonded_verlet_t::constructPairlist(const InteractionLocality iLocality,
          * NOTE: The launch overhead is currently not timed separately
          */
         Nbnxm::gpu_init_pairlist(gpu_nbv, pairlistSets().pairlistSet(iLocality).gpuList(), iLocality);
+        if (pairlistSets().pairlistSet(iLocality).params_.haveFep)
+        {
+            Nbnxm::gpu_init_feppairlist(gpu_nbv, pairlistSets().pairlistSet(iLocality).fepList(), iLocality);
+        }
     }
 }
 

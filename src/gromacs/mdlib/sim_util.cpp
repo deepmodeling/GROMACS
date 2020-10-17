@@ -1484,17 +1484,17 @@ void do_force(FILE*                               fplog,
         /* Calculate the local and non-local free energy interactions here.
          * Happens here on the CPU both with and without GPU.
          */
-        nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
-                                      as_rvec_array(x.unpaddedArrayRef().data()),
-                                      &forceOut.forceWithShiftForces(), *mdatoms, inputrec->fepvals,
-                                      lambda.data(), enerd, stepWork, nrnb);
+        // nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
+        //                               as_rvec_array(x.unpaddedArrayRef().data()),
+        //                               &forceOut.forceWithShiftForces(), *mdatoms, inputrec->fepvals,
+        //                               lambda.data(), enerd, stepWork, nrnb);
 
-        if (havePPDomainDecomposition(cr))
-        {
-            nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
-                                          as_rvec_array(x.unpaddedArrayRef().data()),
-                                          &forceOut.forceWithShiftForces(), *mdatoms,
-                                          inputrec->fepvals, lambda.data(), enerd, stepWork, nrnb);
+        // if (havePPDomainDecomposition(cr))
+        // {
+        //     nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
+        //                                   as_rvec_array(x.unpaddedArrayRef().data()),
+        //                                   &forceOut.forceWithShiftForces(), *mdatoms,
+        //                                   inputrec->fepvals, lambda.data(), enerd, stepWork, nrnb);
         }
     }
 

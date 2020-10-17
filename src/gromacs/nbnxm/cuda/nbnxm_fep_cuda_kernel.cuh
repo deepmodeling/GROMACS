@@ -271,7 +271,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #ifdef LJ_COMB_LB
     float        sigma, epsilon;
 #endif
-
     float        int_bit, F_invr;
 #    ifdef CALC_ENERGIES
     float        E_lj, E_el;
