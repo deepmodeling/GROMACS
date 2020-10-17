@@ -589,20 +589,20 @@ void gpu_init_pairlist(gmx_nbnxn_cuda_t* nb, const NbnxnPairlistGpu* h_plist, co
 void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const InteractionLocality iloc)
 {
     char         sbuf[STRLEN];
-    bool         bDoTime = (nb->bDoTime && !h_plist->sci.empty());
+    bool         bDoTime = (nb->bDoTime && !h_feplist->nri == 0);
     cudaStream_t stream  = nb->stream[iloc];
     cu_feplist_t* d_feplist = nb->feplist[iloc];
 
-    if (d_feplist->na_c < 0)
+    if (d_feplist->nri < 0)
     {
-        d_feplist->na_c = h_feplist->na_ci;
+        d_feplist->nri = h_feplist->nri;
     }
     else
     {
-        if (d_feplist->na_c != h_feplist->na_ci)
+        if (d_feplist->nri != h_feplist->nri)
         {
             sprintf(sbuf, "In cu_init_feplist: the #atoms per cell has changed (from %d to %d)",
-                    d_feplist->na_c, h_feplist->na_ci);
+                    d_feplist->nri, h_feplist->nri);
             gmx_incons(sbuf);
         }
     }
@@ -617,20 +617,27 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
 
     DeviceContext context = nullptr;
 
-    reallocateDeviceBuffer(&d_feplist->sci, h_feplist->sci.size(), &d_feplist->nsci, &d_feplist->sci_nalloc, context);
-    copyToDeviceBuffer(&d_feplist->sci, h_feplist->sci.data(), 0, h_feplist->sci.size(), stream,
+    reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->iinr, &h_feplist->iinr, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = h_feplist->nri;
 
-    reallocateDeviceBuffer(&d_feplist->cj4, h_feplist->cj4.size(), &d_feplist->ncj4, &d_feplist->cj4_nalloc, context);
-    copyToDeviceBuffer(&d_feplist->cj4, h_feplist->cj4.data(), 0, h_feplist->cj4.size(), stream,
+    reallocateDeviceBuffer(&d_feplist->gid, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->gid, &h_feplist->gid, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = h_feplist->nri;
 
-    reallocateDeviceBuffer(&d_feplist->imask, h_feplist->cj4.size() * c_nbnxnGpuClusterpairSplit,
-                           &d_feplist->nimask, &d_feplist->imask_nalloc, context);
+    reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->shift, &h_feplist->shift, 0, h_feplist->nri, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = h_feplist->nri;
 
-    reallocateDeviceBuffer(&d_feplist->excl, h_feplist->excl.size(), &d_feplist->nexcl,
-                           &d_feplist->excl_nalloc, context);
-    copyToDeviceBuffer(&d_feplist->excl, h_feplist->excl.data(), 0, h_feplist->excl.size(), stream,
+    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->jindex, &h_feplist->jindex, 0, h_feplist->nri, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    
+    reallocateDeviceBuffer(&d_feplist->jjnr, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
+    copyToDeviceBuffer(&d_feplist->jjnr, &h_feplist->jjnr, 0, h_feplist->nrj, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
 
     if (bDoTime)
