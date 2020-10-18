@@ -152,9 +152,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 // #    endif /* CALC_ENERGIES */
 // #else
 #    ifdef CALC_ENERGIES
-        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _VF_cuda)
+        __global__ void NB_FEP_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _VF_cuda)
 #    else
-        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _F_cuda)
+        __global__ void NB_FEP_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 // #endif     /* PRUNE_NBL */
                 (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_feplist_t feplist, bool bCalcFshift)
@@ -163,7 +163,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #else
 {
     /* convenience variables */
-    const nbnxn_sci_t* pl_sci = plist.sci;
+    // const nbnxn_sci_t* pl_sci = plist.sci;
     
     const bool bFEP = nbparam.bFEP;
     bool       bFEPpair = 0;
@@ -186,23 +186,31 @@ __launch_bounds__(THREADS_PER_BLOCK)
     const float LFC[2]       = {_lambda_q, lambda_q};
     const float LFV[2]       = {_lambda_v, lambda_v};
 
-    const nbnxn_excl_t*  excl        = plist.excl;
+    // const nbnxn_excl_t*  excl        = plist.excl;
 #ifndef LJ_COMB
     const int*           atom_types  = atdat.atom_types;
     const int*           atom_typesB = atdat.atom_typesB;
     int                  ntypes      = atdat.ntypes;
+    int typeiAB[2], typejAB[2];
 #else
     const float2* lj_comb = atdat.lj_comb;
     const float2* lj_combB= atdat.lj_combB;
-    float2        ljcp_i, ljcp_j;
-    float2        ljcpB_i, ljcpB_j;
 #endif
 
-    float rinvC, rinvV, r2C, r2V, rpinvC, rpinvV, rpinvC_nonzero, rpinvV_nonzero;
+    float rinvC, r2C, rpinvC, rpinvV;
+#    if defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH || defined LJ_EWALD
+    float rinvV, r2V;
+#    endif
     float sigma6[2], c6AB[2], c12AB[2];
     float qq[2];
-    float FscalC[2], FscalV[2], Vvdw[2], Vcoul[2];
-    int typeiAB[2], typejAB[2];
+    float FscalC[2], FscalV[2];
+
+#    ifdef CALC_ENERGIES
+    float Vcoul[2];
+#    endif
+#    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
+    float Vvdw[2];
+#    endif
 
 #    ifdef LJ_COMB_LB
     float sigmaAB[2], epsilonAB[2];
@@ -231,9 +239,13 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float                rlist_sq    = nbparam.rlistOuter_sq;
 #    endif
 
+#    ifdef EL_EWALD_ANY
+    float                beta        = nbparam.ewald_beta;
+    float                v_lr, f_lr;
+#    endif
+
 #    ifdef CALC_ENERGIES
 #        ifdef EL_EWALD_ANY
-    float                beta        = nbparam.ewald_beta;
     float                ewald_shift = nbparam.sh_ewald;
 #        else
     float c_rf = nbparam.c_rf;
@@ -243,26 +255,27 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif     /* CALC_ENERGIES */
 
     /* thread/block/warp id-s */
-    unsigned int tidxi = threadIdx.x;
-    unsigned int tidxj = threadIdx.y;
+    // unsigned int tidxi = threadIdx.x;
+    // unsigned int tidxj = threadIdx.y;
+#    ifdef CALC_ENERGIES
     unsigned int tidx  = threadIdx.y * blockDim.x + threadIdx.x;
+#    endif
     unsigned int tidxi_global = blockIdx.x * blockDim.x * blockDim.y * blockDim.z
                                 + threadIdx.z * blockDim.y * blockDim.x
                                 + threadIdx.y * blockDim.x + threadIdx.x;
    
-#    if NTHREAD_Z == 1
-    unsigned int tidxz = 0;
-#    else
-    unsigned int  tidxz = threadIdx.z;
-#    endif
-    unsigned int bidx  = blockIdx.x;
-    unsigned int widx  = tidx / warp_size; /* warp index */
+// #    if NTHREAD_Z == 1
+//     unsigned int tidxz = 0;
+// #    else
+//     unsigned int  tidxz = threadIdx.z;
+// #    endif
+    // unsigned int bidx  = blockIdx.x;
+    // unsigned int widx  = tidx / warp_size; /* warp index */
 
 #ifndef LJ_COMB
-    int          type, typej;
-    int          typeBi, typeBj;
+#else
+    float2       ljcp_iAB[2], ljcp_jAB[2];
 #endif
-    int          i, jm, j4, wexcl_idx;
     float        qi, qj_f, r2, rpm2, rp, inv_r, inv_r2;
     float        qBi, qBj_f;
 // #if !defined LJ_COMB_LB || defined CALC_ENERGIES
@@ -271,6 +284,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #ifdef LJ_COMB_LB
     float        sigma, epsilon;
 #endif
+
     float        int_bit, F_invr;
 #    ifdef CALC_ENERGIES
     float        E_lj, E_el;
@@ -333,12 +347,11 @@ __launch_bounds__(THREADS_PER_BLOCK)
     /*********************************************************************/
 
     // Extract pair list data
-    const int  nri    = feplist->nri;
-    const int* iinr   = feplist->iinr;
-    const int* jindex = feplist->jindex;
-    const int* jjnr   = feplist->jjnr;
-    const int* shift  = feplist->shift;
-    const int* gid    = feplist->gid;
+    const int  nri    = feplist.nri;
+    const int* iinr   = feplist.iinr;
+    const int* jindex = feplist.jindex;
+    const int* jjnr   = feplist.jjnr;
+    const int* shift  = feplist.shift;
 
 //     if (tidxz == 0)
 //     {
@@ -374,6 +387,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef CALC_ENERGIES
     E_lj         = 0.0f;
     E_el         = 0.0f;
+#    endif /* CALC_ENERGIES */
 
 // #        ifdef EXCLUSION_FORCES /* Ewald or RF */
 //     if (nb_sci.shift == CENTRAL && pl_cj4[cij4_start].cj[0] == sci * c_numClPerSupercl)
@@ -465,10 +479,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
     if (tidxi_global < nri)
     {
+        const int  n     = tidxi_global;
         const int  nj0   = jindex[n];
         const int  nj1   = jindex[n + 1];
         const int  ai    = iinr[n];
-        const int  n     = tidxi_global;
         float* shiftptr  = (float*)&shift_vec[shift[n]];
         xqbuf = xq[ai] + make_float4(LDG(shiftptr), LDG(shiftptr + 1), LDG(shiftptr + 2), 0.0f);
         xqbuf.w *= nbparam.epsfac;
@@ -493,21 +507,19 @@ __launch_bounds__(THREADS_PER_BLOCK)
         // int  = {typej, typeBj};
         // const int  ntiA  = 2 * ntype * typeA[ii];
         // const int  ntiB  = 2 * ntype * typeB[ii];
-        real       vctot = 0;
-        real       vvtot = 0;
 
         fci_buf = make_float3(0.0f);
         // real       fix   = 0;
         // real       fiy   = 0;
         // real       fiz   = 0;
 
-        for (int k = nj0; k < nj1; k++)
+        for (int j = nj0; j < nj1; j++)
         {
-            int        tj[NSTATES];
-            const int  aj  = jjnr[k];
-            real       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
-            real       r, rinv, rp, rpm2, rpc, rpcm2;
-            real       alpha_vdw_eff, alpha_coul_eff, sigma_pow[NSTATES];
+            // int        tj[NSTATES];
+            const int  aj  = jjnr[j];
+            // real       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
+            // real       r, rinv, rp, rpm2, rpc, rpcm2;
+            // real       alpha_vdw_eff, alpha_coul_eff, sigma_pow[NSTATES];
             // const real dx  = ix - x[j3];
             // const real dy  = iy - x[j3 + 1];
             // const real dz  = iz - x[j3 + 2];
@@ -530,15 +542,16 @@ __launch_bounds__(THREADS_PER_BLOCK)
             rv = xi - xj;
             r2 = norm2(rv);
 
-            if (nlist->excl_fep == nullptr || nlist->excl_fep[k])
+            if (feplist.excl_fep == nullptr || feplist.excl_fep[j])
             {
+                int_bit = 1;
                 /* cutoff & exclusion check */
                 if (r2 < rcoulomb_sq)
                 {
                     npair_within_cutoff++;
                     rpm2 = r2 * r2;
                     rp = rpm2 * r2;
-                                
+
                     // Ensure distance do not become so small that r^-12 overflows
                     r2 = max(r2, NBNXN_MIN_RSQ);
                     inv_r  = rsqrt(r2);
@@ -578,13 +591,15 @@ __launch_bounds__(THREADS_PER_BLOCK)
 //                                 }
 // #            endif
 #        endif /* LJ_COMB_GEOM */
-                        }
 #    endif     /* LJ_COMB */
+                        }
                         if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 0;
                         else bFEPpair = 1;
                     }
                     else
+                    {
                         bFEPpair = 0;
+                    }
 
                     if (bFEPpair)
                     {
@@ -599,8 +614,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
                         {
                             FscalC[k] = 0;
                             FscalV[k] = 0;
+#    ifdef CALC_ENERGIES
                             Vcoul[k]  = 0;
+#    endif
+#    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
                             Vvdw[k]   = 0;
+#    endif
                             if ((qq[k] != 0) || (c6AB[k] != 0) || (c12AB[k] != 0))
                             {
                                 if ((c12AB[0] == 0 || c12AB[1] == 0) && (useSoftCore))
@@ -629,15 +648,19 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     if ((alpha_coul_eff != alpha_vdw_eff) || (!useScBetaNO))
                                     {
                                         rpinvV = 1.0f / (alpha_vdw_eff * lfac_vdw[k] * sigma6[k] + rp);
+#    if defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH || defined LJ_EWALD
                                         r2V    = rcbrt(rpinvV);
                                         rinvV  = rsqrt(r2V);
+#    endif
                                     }
                                     else
                                     {
                                         /* We can avoid one expensive pow and one / operation */
                                         rpinvV = rpinvC;
+#    if defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH || defined LJ_EWALD
                                         r2V    = r2C;
                                         rinvV  = rinvC;
+#    endif
                                     }
                                 }
                                 else
@@ -646,10 +669,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     r2C    = r2;
                                     rinvC  = inv_r;
                                     rpinvV = inv_r6;
+#    if defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH || defined LJ_EWALD
                                     r2V    = r2;
                                     rinvV  = inv_r;
+#    endif
                                 }
-#        endif /* EXCLUSION_FORCES */
+// #        endif /* EXCLUSION_FORCES */
                                 // #    if !defined LJ_COMB_LB || defined CALC_ENERGIES
                                     
                                 if (c6AB[k] != 0 || c12AB[k] != 0)
@@ -695,9 +720,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifdef LJ_POT_SWITCH
 #        ifdef CALC_ENERGIES
-                                    calculate_potential_switch_F_E(nbparam, rinvC, r2V, &(FscalV[i]), &(Vvdw[i]));
+                                    calculate_potential_switch_F_E(nbparam, rinvV, r2V, &(FscalV[k]), &(Vvdw[k]));
 #        else
-                                    calculate_potential_switch_F(nbparam, rinvC, r2V, &(FscalV[i]), &(Vvdw[i]));
+                                    calculate_potential_switch_F(nbparam, rinvV, r2V, &(FscalV[k]), &(Vvdw[k]));
 #        endif /* CALC_ENERGIES */
 #    endif     /* LJ_POT_SWITCH */
 
@@ -705,7 +730,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     /* Separate VDW cut-off check to enable twin-range cut-offs
                                      * (rvdw < rcoulomb <= rlist)
                                      */
-                                    vdw_in_range = (r2V < rvdw_sq) ? 1.0f : 0.0f;
+                                    vdw_in_range = (r2 < rvdw_sq) ? 1.0f : 0.0f;
                                     FscalV[k] *= vdw_in_range;
 #        ifdef CALC_ENERGIES
                                     Vvdw[k] *= vdw_in_range;
@@ -725,7 +750,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef EL_RF
                                     FscalC[k] = qq[k] * (int_bit * rinvC - two_k_rf * r2C);
 #    endif
-#    if defined   EL_EWALD_ANA
+#    if defined   EL_EWALD_ANY
 // #ifdef CALC_ENERGIES
 //                     if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
 //                     printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], qq=[%e, %e], c6=[%e, %e], c12=[%e, %e], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%f\n", ai, aj, r2, rinvC, pmecorrF(beta2 * r2) * beta3, inv_r * erff(r2 * inv_r * beta),
@@ -733,11 +758,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 //                     qq[0] * int_bit * rinvC0 * rpinvC[0] * rpm2, qq[1] * int_bit * rinvC * rpinvC[1] * rpm2, 
 //                     FscalV[0] * rpm2, FscalV[1] * rpinvV * rpm2, qq[0] * int_bit * (rinvC0 - ewald_shift), qq[1] * int_bit * (rinvC - ewald_shift), Vvdw[0], Vvdw[1], int_bit);
 // #        endif
-                                    FscalC[k] = qq[k] * int_bit * rinvC
-                                                + qq[k] * pmecorrF(beta2 * r2) * beta3 * inv_r2 * inv_r2 * r2C * r2C * r2C;
-#    elif defined EL_EWALD_TAB
-                                    FscalC[k] = qq[k] * int_bit * rinvC 
-                                                - qq[k] * interpolate_coulomb_force_r(nbparam, r2 * inv_r) * inv_r * r2 * inv_r2 * inv_r2 * r2C * r2C * r2C;
+                                    FscalC[k] = qq[k] * int_bit * rinvC;
 #    endif /* EL_EWALD_ANA/TAB */
 
 #    ifdef CALC_ENERGIES
@@ -749,14 +770,14 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif
 #        ifdef EL_EWALD_ANY
                                     /* 1.0f - erff is faster than erfcf */
-                                    Vcoul[k] = qq[k] * int_bit * (rinvC - ewald_shift) - qq[k] * inv_r * erff(r2 * inv_r * beta);
+                                    Vcoul[k] = qq[k] * int_bit * (rinvC - ewald_shift);
 #        endif /* EL_EWALD_ANY */
 #    endif
                                 }
                                         // if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
                                         // printf("interaction [%d-%d], r2=[%e], mask=%f, FscalC=[%e, %e], FscalV=[%e, %e]\n", ai, aj, r2, int_bit, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2);
-                                FscalC[k] *= rpinvC_nonzero;
-                                FscalV[k] *= rpinvV_nonzero;
+                                FscalC[k] *= rpinvC;
+                                FscalV[k] *= rpinvV;
                             }
                         }
                         for (int k = 0; k < 2; k++)

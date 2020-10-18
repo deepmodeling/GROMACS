@@ -4349,9 +4349,9 @@ void nonbonded_verlet_t::constructPairlist(const InteractionLocality iLocality,
          * NOTE: The launch overhead is currently not timed separately
          */
         Nbnxm::gpu_init_pairlist(gpu_nbv, pairlistSets().pairlistSet(iLocality).gpuList(), iLocality);
-        if (pairlistSets().pairlistSet(iLocality).params_.haveFep)
+        if (pairlistSets().pairlistSet(iLocality).params().haveFep)
         {
-            Nbnxm::gpu_init_feppairlist(gpu_nbv, pairlistSets().pairlistSet(iLocality).fepList(), iLocality);
+            Nbnxm::gpu_init_feppairlist(gpu_nbv, pairlistSets().pairlistSet(iLocality).fepList()->get(), iLocality);
         }
     }
 }

@@ -618,26 +618,26 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
     DeviceContext context = nullptr;
 
     reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
-    copyToDeviceBuffer(&d_feplist->iinr, &h_feplist->iinr, 0, h_feplist->nri, stream,
+    copyToDeviceBuffer(&d_feplist->iinr, h_feplist->iinr, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     d_feplist->maxnri = h_feplist->nri;
 
     reallocateDeviceBuffer(&d_feplist->gid, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
-    copyToDeviceBuffer(&d_feplist->gid, &h_feplist->gid, 0, h_feplist->nri, stream,
+    copyToDeviceBuffer(&d_feplist->gid, h_feplist->gid, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     d_feplist->maxnri = h_feplist->nri;
 
     reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
-    copyToDeviceBuffer(&d_feplist->shift, &h_feplist->shift, 0, h_feplist->nri, stream,
+    copyToDeviceBuffer(&d_feplist->shift, h_feplist->shift, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     d_feplist->maxnri = h_feplist->nri;
 
     reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
-    copyToDeviceBuffer(&d_feplist->jindex, &h_feplist->jindex, 0, h_feplist->nri, stream,
+    copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     
     reallocateDeviceBuffer(&d_feplist->jjnr, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
-    copyToDeviceBuffer(&d_feplist->jjnr, &h_feplist->jjnr, 0, h_feplist->nrj, stream,
+    copyToDeviceBuffer(&d_feplist->jjnr, h_feplist->jjnr, 0, h_feplist->nrj, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
 
     if (bDoTime)

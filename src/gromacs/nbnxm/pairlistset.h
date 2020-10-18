@@ -113,7 +113,7 @@ public:
     }
 
     //! Returns a pointer to the FEP pairlist, nullptr when not present
-    const NbnxnPairlistGpu* fepList() const
+    const std::unique_ptr<t_nblist>* fepList() const
     {
         if (!fepLists_.empty())
         {
@@ -123,6 +123,11 @@ public:
         {
             return nullptr;
         }
+    }
+
+    const PairlistParams params() const
+    {
+        return params_;
     }
 
     //! Returns the lists of free-energy pairlists, empty when nonbonded interactions are not perturbed

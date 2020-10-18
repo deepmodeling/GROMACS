@@ -132,13 +132,12 @@ struct gpu_feplist
 {
     int     nri, maxnri; /* Current/max number of i particles	   */
     int     nrj, maxnrj; /* Current/max number of j particles	   */
-    int*    iinr;        /* The i-elements                        */
-    int*    gid;         /* Index in energy arrays                */
-    int*    shift;       /* Shift vector index                    */
-    int*    jindex;      /* Index in jjnr                         */
-    int*    jjnr;        /* The j-atom list                       */
-    char*   excl_fep;    /* Exclusions for FEP with Verlet scheme */
-    t_excl* excl;        /* Exclusions, only with enltypeCG       */
+    DeviceBuffer<int>    iinr;        /* The i-elements                        */
+    DeviceBuffer<int>    gid;         /* Index in energy arrays                */
+    DeviceBuffer<int>    shift;       /* Shift vector index                    */
+    DeviceBuffer<int>    jindex;      /* Index in jjnr                         */
+    DeviceBuffer<int>    jjnr;        /* The j-atom list                       */
+    DeviceBuffer<char>   excl_fep;    /* Exclusions for FEP with Verlet scheme */
 
     /* parameter+variables for normal and rolling pruning */
     bool haveFreshList; /**< true after search, indictes that initial pruning with outer prunning is needed */

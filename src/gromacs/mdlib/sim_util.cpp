@@ -1500,7 +1500,7 @@ void do_force(FILE*                               fplog,
         //                                   as_rvec_array(x.unpaddedArrayRef().data()),
         //                                   &forceOut.forceWithShiftForces(), *mdatoms,
         //                                   inputrec->fepvals, lambda.data(), enerd, stepWork, nrnb);
-        }
+        // }
     }
 
     if (!useOrEmulateGpuNb)
