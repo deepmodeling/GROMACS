@@ -1473,7 +1473,7 @@ static void reallocate_nblist(t_nblist* nl)
  * Note that half of the perturbed pairs will anyhow end up in very small lists,
  * since non perturbed i-particles will see few perturbed j-particles).
  */
-const int max_nrj_fep = 40;
+const int max_nrj_fep = 10;
 
 /* Exclude the perturbed pairs from the Verlet list. This is only done to avoid
  * singularities for overlapping particles (0/0), since the charges and
