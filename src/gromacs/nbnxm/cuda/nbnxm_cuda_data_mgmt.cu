@@ -374,6 +374,26 @@ static void init_plist(cu_plist_t* pl)
     pl->haveFreshList = false;
 }
 
+/*! Initializes the pair list data structure. */
+static void init_feplist(cu_feplist_t* pl)
+{
+    /* initialize to nullptr pointers to data that is not allocated here and will
+       need reallocation in nbnxn_gpu_init_pairlist */
+    pl->iinr   = nullptr;
+    pl->gid    = nullptr;
+    pl->shift  = nullptr;
+    pl->jindex = nullptr;
+    pl->jjnr   = nullptr;
+    pl->excl_fep= nullptr;
+
+    /* size -1 indicates that the respective array hasn't been initialized yet */
+    pl->nri           = -1;
+    pl->maxnri        = -1;
+    pl->nrj           = -1;
+    pl->maxnrj        = -1;
+    pl->haveFreshList = false;
+}
+
 /*! Initializes the timings data structure. */
 static void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
 {
@@ -447,9 +467,11 @@ gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
     snew(nb->atdat, 1);
     snew(nb->nbparam, 1);
     snew(nb->plist[InteractionLocality::Local], 1);
+    snew(nb->feplist[InteractionLocality::Local], 1);
     if (bLocalAndNonlocal)
     {
         snew(nb->plist[InteractionLocality::NonLocal], 1);
+        snew(nb->feplist[InteractionLocality::NonLocal], 1);
     }
 
     nb->bUseTwoStreams = bLocalAndNonlocal;
@@ -463,6 +485,7 @@ gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
     pmalloc((void**)&nb->nbst.fshift, SHIFTS * sizeof(*nb->nbst.fshift));
 
     init_plist(nb->plist[InteractionLocality::Local]);
+    init_feplist(nb->feplist[InteractionLocality::Local]);
 
     /* set device info, just point it to the right GPU among the detected ones */
     nb->dev_info = deviceInfo;
@@ -473,6 +496,7 @@ gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
     if (nb->bUseTwoStreams)
     {
         init_plist(nb->plist[InteractionLocality::NonLocal]);
+        init_feplist(nb->feplist[InteractionLocality::Local]);
 
         /* Note that the device we're running on does not have to support
          * priorities, because we are querying the priority range which in this
@@ -616,21 +640,22 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
     }
 
     DeviceContext context = nullptr;
+    printf("allocating buffer...\n");
 
     reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->iinr, h_feplist->iinr, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
-    d_feplist->maxnri = h_feplist->nri;
+    d_feplist->maxnri = 0;
 
     reallocateDeviceBuffer(&d_feplist->gid, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->gid, h_feplist->gid, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
-    d_feplist->maxnri = h_feplist->nri;
+    d_feplist->maxnri = 0;
 
     reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->shift, h_feplist->shift, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
-    d_feplist->maxnri = h_feplist->nri;
+    d_feplist->maxnri = 0;
 
     reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri, stream,
