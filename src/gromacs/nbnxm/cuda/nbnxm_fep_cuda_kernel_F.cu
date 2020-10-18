@@ -44,6 +44,6 @@
  * force-only output without pair list pruning;
  */
 #define FUNCTION_DECLARATION_ONLY
-#include "nbnxm_cuda_kernels.cuh"
+#include "nbnxm_fep_cuda_kernels.cuh"
 #undef FUNCTION_DECLARATION_ONLY
-#include "nbnxm_cuda_kernels.cuh"
+#include "nbnxm_fep_cuda_kernels.cuh"
