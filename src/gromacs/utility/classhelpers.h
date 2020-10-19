@@ -225,6 +225,81 @@ private:
     // Copy construction and assignment disabled by the unique_ptr member.
 };
 
+/**
+ * \brief
+ * Helper class to implement compile-time analogue of \c std::optional<T>.
+ *
+ * Example:
+ * \code
+    constexpr bool debug = ...;
+
+    ConstexprOptional<std::string, debug> errorMsg("Have following errors: ");
+
+    if constexpr (debug)
+    {
+        errorMsg->append(" error1");
+    }
+ * \endcode
+ *
+ * \warning Forwarding constructor call might not work for things like \c ConstexprOptional<ConstexprOptional<T>>.
+ *
+ * \inlibraryapi
+ * \ingroup module_utility
+ *
+ * \tparam T Wrapped value type.
+ * \tparam has_value Whether it will contain a value or not.
+ */
+template<class T, bool has_value>
+class ConstexprOptional;
+
+template<class T>
+class ConstexprOptional<T, true>
+{
+public:
+    //! Transparently construct wrapped object if it has default constructor (relying on SFINAE).
+    ConstexprOptional() : value_() {}
+    //! Transparently construct wrapped object; with extra magic to make sure we don't interfere with move/copy constructors.
+    template<typename Arg,
+            typename = std::enable_if_t<!std::is_convertible<Arg, ConstexprOptional<T, true>>::value>,
+            typename ...Args>
+    ConstexprOptional(Arg &&arg, Args &&...args) : value_(std::forward<Arg>(arg), std::forward<Args>(args)...) {}
+
+    //! Getter (const pointer)
+    constexpr const T* operator->() const { return &value_; }
+    //! Getter (pointer)
+    constexpr T* operator->() { return &value_; }
+    //! Getter (const lvalue reference)
+    constexpr const T& operator*() const& { return value_; }
+    //! Getter (lvalue reference)
+    constexpr T& operator*() & { return value_; }
+    //! Getter (const rvalue reference)
+    constexpr const T&& operator*() const&& { return std::move(value_); }
+    //! Getter (rvalue reference)
+    constexpr T&& operator*() && { return value_; }
+
+    //! Return true if \c *this contains a value (which is always)
+    constexpr operator bool() const { return true; }
+    //! Return true if \c *this contains a value (which is always)
+    static constexpr bool has_value() { return true; }
+
+private:
+    T value_;
+};
+
+template<class T>
+class ConstexprOptional<T, false>
+{
+public:
+    //! Transparently pretend to construct wrapped object
+    template<class ...Args>
+    ConstexprOptional(Args &&... /*args*/) {}
+
+    //! Return true if \c *this contains a value (which is never)
+    constexpr operator bool() const { return false; }
+    //! Return true if \c *this contains a value (which is never)
+    static constexpr bool has_value() { return false; }
+};
+
 } // namespace gmx
 
 #endif
