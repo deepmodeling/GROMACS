@@ -3,7 +3,7 @@
 leak:add_to_list
 leak:atoms_to_constraints
 leak:atoms_to_settles
-leak:balance_fep_lists
+#leak:balance_fep_lists
 leak:cpp_opts
 leak:dd_init_bondeds
 leak:dd_make_local_constraints
@@ -37,18 +37,18 @@ leak:make_exclusions_zone
 leak:make_fep_list
 leak:make_ljpme_c6grid
 leak:make_pull_groups
-leak:make_reverse_top
-leak:make_rotation_groups
+#leak:make_reverse_top
+#leak:make_rotation_groups
 leak:make_swap_groups
 leak:make_tables
 leak:mdoutf_write_to_trajectory_files
 # Stack trace does not report a function beyond gmx_srenew_impl, so the file is suppressed instead.
 leak:pairlist.cpp
-leak:read_rotparams
-leak:set_ddgrid_parameters
-leak:set_reference_positions
+#leak:read_rotparams
+#leak:set_ddgrid_parameters
+#leak:set_reference_positions
 leak:set_state_entries
-leak:visitOption
+#leak:visitOption
 
 # External suppressions
 leak:xdr_string
