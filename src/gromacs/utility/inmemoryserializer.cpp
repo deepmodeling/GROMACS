@@ -276,7 +276,7 @@ public:
     }
     void doString(std::string* value)
     {
-        uint64_t size;
+        uint64_t size = 0;
         doValue<uint64_t>(&size);
         *value = std::string(&buffer_[pos_], size);
         pos_ += size;

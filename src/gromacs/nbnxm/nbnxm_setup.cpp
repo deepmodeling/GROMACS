@@ -314,13 +314,11 @@ namespace Nbnxm
 /*! \brief Gets and returns the minimum i-list count for balacing based on the GPU used or env.var. when set */
 static int getMinimumIlistCountForGpuBalancing(NbnxmGpu* nbnxmGpu)
 {
-    int minimumIlistCount;
-
     if (const char* env = getenv("GMX_NB_MIN_CI"))
     {
-        char* end;
+        char* end = nullptr;
 
-        minimumIlistCount = strtol(env, &end, 10);
+        int minimumIlistCount = strtol(env, &end, 10);
         if (!end || (*end != 0) || minimumIlistCount < 0)
         {
             gmx_fatal(FARGS,
@@ -332,10 +330,11 @@ static int getMinimumIlistCountForGpuBalancing(NbnxmGpu* nbnxmGpu)
             fprintf(debug, "Neighbor-list balancing parameter: %d (passed as env. var.)\n",
                     minimumIlistCount);
         }
+        return minimumIlistCount;
     }
     else
     {
-        minimumIlistCount = gpu_min_ci_balanced(nbnxmGpu);
+        int minimumIlistCount = gpu_min_ci_balanced(nbnxmGpu);
         if (debug)
         {
             fprintf(debug,
@@ -343,9 +342,8 @@ static int getMinimumIlistCountForGpuBalancing(NbnxmGpu* nbnxmGpu)
                     "multi-processors)\n",
                     minimumIlistCount);
         }
+        return minimumIlistCount;
     }
-
-    return minimumIlistCount;
 }
 
 std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
@@ -388,7 +386,7 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
 
     setupDynamicPairlistPruning(mdlog, ir, mtop, box, fr->ic, &pairlistParams);
 
-    int enbnxninitcombrule;
+    int enbnxninitcombrule = 0;
     if (fr->ic->vdwtype == evdwCUT
         && (fr->ic->vdw_modifier == eintmodNONE || fr->ic->vdw_modifier == eintmodPOTSHIFT)
         && getenv("GMX_NO_LJ_COMB_RULE") == nullptr)

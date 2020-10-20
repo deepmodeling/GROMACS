@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -384,22 +384,19 @@ static inline float pmeForceCorrection(float z2)
     const float FD1(0.50736591960530292870F);
     const float FD0(1.0F);
 
-    float z4;
-    float polyFN0, polyFN1, polyFD0, polyFD1;
+    float z4 = z2 * z2;
 
-    z4 = z2 * z2;
+    float polyFD0 = fma(FD4, z4, FD2);
+    float polyFD1 = fma(FD3, z4, FD1);
+    polyFD0       = fma(polyFD0, z4, FD0);
+    polyFD0       = fma(polyFD1, z2, polyFD0);
 
-    polyFD0 = fma(FD4, z4, FD2);
-    polyFD1 = fma(FD3, z4, FD1);
-    polyFD0 = fma(polyFD0, z4, FD0);
-    polyFD0 = fma(polyFD1, z2, polyFD0);
-
-    polyFN0 = fma(FN6, z4, FN4);
-    polyFN1 = fma(FN5, z4, FN3);
-    polyFN0 = fma(polyFN0, z4, FN2);
-    polyFN1 = fma(polyFN1, z4, FN1);
-    polyFN0 = fma(polyFN0, z4, FN0);
-    polyFN0 = fma(polyFN1, z2, polyFN0);
+    float polyFN0 = fma(FN6, z4, FN4);
+    float polyFN1 = fma(FN5, z4, FN3);
+    polyFN0       = fma(polyFN0, z4, FN2);
+    polyFN1       = fma(polyFN1, z4, FN1);
+    polyFN0       = fma(polyFN0, z4, FN0);
+    polyFN0       = fma(polyFN1, z2, polyFN0);
 
     return polyFN0 / polyFD0;
 }
@@ -430,21 +427,18 @@ static inline float pmePotentialCorrection(float z2)
     const float VD1(0.43336185284710920150F);
     const float VD0(1.0F);
 
-    float z4;
-    float polyVN0, polyVN1, polyVD0, polyVD1;
+    float z4 = z2 * z2;
 
-    z4 = z2 * z2;
+    float polyVD1 = fma(VD3, z4, VD1);
+    float polyVD0 = fma(VD2, z4, VD0);
+    polyVD0       = fma(polyVD1, z2, polyVD0);
 
-    polyVD1 = fma(VD3, z4, VD1);
-    polyVD0 = fma(VD2, z4, VD0);
-    polyVD0 = fma(polyVD1, z2, polyVD0);
-
-    polyVN0 = fma(VN6, z4, VN4);
-    polyVN1 = fma(VN5, z4, VN3);
-    polyVN0 = fma(polyVN0, z4, VN2);
-    polyVN1 = fma(polyVN1, z4, VN1);
-    polyVN0 = fma(polyVN0, z4, VN0);
-    polyVN0 = fma(polyVN1, z2, polyVN0);
+    float polyVN0 = fma(VN6, z4, VN4);
+    float polyVN1 = fma(VN5, z4, VN3);
+    polyVN0       = fma(polyVN0, z4, VN2);
+    polyVN1       = fma(polyVN1, z4, VN1);
+    polyVN0       = fma(polyVN0, z4, VN0);
+    polyVN0       = fma(polyVN1, z2, polyVN0);
 
     return polyVN0 / polyVD0;
 }
@@ -777,30 +771,27 @@ static inline double pmeForceCorrection(double z2)
     const double FD1(0.41543303143712535988);
     const double FD0(1.0);
 
-    double z4;
-    double polyFN0, polyFN1, polyFD0, polyFD1;
+    double z4 = z2 * z2;
 
-    z4 = z2 * z2;
-
-    polyFD1 = fma(FD5, z4, FD3);
-    polyFD1 = fma(polyFD1, z4, FD1);
-    polyFD1 = polyFD1 * z2;
-    polyFD0 = fma(FD4, z4, FD2);
-    polyFD0 = fma(polyFD0, z4, FD0);
-    polyFD0 = polyFD0 + polyFD1;
+    double polyFD1 = fma(FD5, z4, FD3);
+    polyFD1        = fma(polyFD1, z4, FD1);
+    polyFD1        = polyFD1 * z2;
+    double polyFD0 = fma(FD4, z4, FD2);
+    polyFD0        = fma(polyFD0, z4, FD0);
+    polyFD0        = polyFD0 + polyFD1;
 
     polyFD0 = inv(polyFD0);
 
-    polyFN0 = fma(FN10, z4, FN8);
-    polyFN0 = fma(polyFN0, z4, FN6);
-    polyFN0 = fma(polyFN0, z4, FN4);
-    polyFN0 = fma(polyFN0, z4, FN2);
-    polyFN0 = fma(polyFN0, z4, FN0);
-    polyFN1 = fma(FN9, z4, FN7);
-    polyFN1 = fma(polyFN1, z4, FN5);
-    polyFN1 = fma(polyFN1, z4, FN3);
-    polyFN1 = fma(polyFN1, z4, FN1);
-    polyFN0 = fma(polyFN1, z2, polyFN0);
+    double polyFN0 = fma(FN10, z4, FN8);
+    polyFN0        = fma(polyFN0, z4, FN6);
+    polyFN0        = fma(polyFN0, z4, FN4);
+    polyFN0        = fma(polyFN0, z4, FN2);
+    polyFN0        = fma(polyFN0, z4, FN0);
+    double polyFN1 = fma(FN9, z4, FN7);
+    polyFN1        = fma(polyFN1, z4, FN5);
+    polyFN1        = fma(polyFN1, z4, FN3);
+    polyFN1        = fma(polyFN1, z4, FN1);
+    polyFN0        = fma(polyFN1, z2, polyFN0);
 
     return polyFN0 * polyFD0;
 }
@@ -836,28 +827,25 @@ static inline double pmePotentialCorrection(double z2)
     const double VD1(0.43652499166614811084);
     const double VD0(1.0);
 
-    double z4;
-    double polyVN0, polyVN1, polyVD0, polyVD1;
+    double z4 = z2 * z2;
 
-    z4 = z2 * z2;
-
-    polyVD1 = fma(VD5, z4, VD3);
-    polyVD0 = fma(VD4, z4, VD2);
-    polyVD1 = fma(polyVD1, z4, VD1);
-    polyVD0 = fma(polyVD0, z4, VD0);
-    polyVD0 = fma(polyVD1, z2, polyVD0);
+    double polyVD1 = fma(VD5, z4, VD3);
+    double polyVD0 = fma(VD4, z4, VD2);
+    polyVD1        = fma(polyVD1, z4, VD1);
+    polyVD0        = fma(polyVD0, z4, VD0);
+    polyVD0        = fma(polyVD1, z2, polyVD0);
 
     polyVD0 = inv(polyVD0);
 
-    polyVN1 = fma(VN9, z4, VN7);
-    polyVN0 = fma(VN8, z4, VN6);
-    polyVN1 = fma(polyVN1, z4, VN5);
-    polyVN0 = fma(polyVN0, z4, VN4);
-    polyVN1 = fma(polyVN1, z4, VN3);
-    polyVN0 = fma(polyVN0, z4, VN2);
-    polyVN1 = fma(polyVN1, z4, VN1);
-    polyVN0 = fma(polyVN0, z4, VN0);
-    polyVN0 = fma(polyVN1, z2, polyVN0);
+    double polyVN1 = fma(VN9, z4, VN7);
+    double polyVN0 = fma(VN8, z4, VN6);
+    polyVN1        = fma(polyVN1, z4, VN5);
+    polyVN0        = fma(polyVN0, z4, VN4);
+    polyVN1        = fma(polyVN1, z4, VN3);
+    polyVN0        = fma(polyVN0, z4, VN2);
+    polyVN1        = fma(polyVN1, z4, VN1);
+    polyVN0        = fma(polyVN0, z4, VN0);
+    polyVN0        = fma(polyVN1, z2, polyVN0);
 
     return polyVN0 * polyVD0;
 }
@@ -1183,24 +1171,21 @@ static inline double pmeForceCorrectionSingleAccuracy(double z2)
     const float FD1(0.50736591960530292870F);
     const float FD0(1.0F);
 
-    float z4;
-    float polyFN0, polyFN1, polyFD0, polyFD1;
-
     float z2f = z2;
 
-    z4 = z2f * z2f;
+    float z4 = z2f * z2f;
 
-    polyFD0 = fma(FD4, z4, FD2);
-    polyFD1 = fma(FD3, z4, FD1);
-    polyFD0 = fma(polyFD0, z4, FD0);
-    polyFD0 = fma(polyFD1, z2f, polyFD0);
+    float polyFD0 = fma(FD4, z4, FD2);
+    float polyFD1 = fma(FD3, z4, FD1);
+    polyFD0       = fma(polyFD0, z4, FD0);
+    polyFD0       = fma(polyFD1, z2f, polyFD0);
 
-    polyFN0 = fma(FN6, z4, FN4);
-    polyFN1 = fma(FN5, z4, FN3);
-    polyFN0 = fma(polyFN0, z4, FN2);
-    polyFN1 = fma(polyFN1, z4, FN1);
-    polyFN0 = fma(polyFN0, z4, FN0);
-    polyFN0 = fma(polyFN1, z2f, polyFN0);
+    float polyFN0 = fma(FN6, z4, FN4);
+    float polyFN1 = fma(FN5, z4, FN3);
+    polyFN0       = fma(polyFN0, z4, FN2);
+    polyFN1       = fma(polyFN1, z4, FN1);
+    polyFN0       = fma(polyFN0, z4, FN0);
+    polyFN0       = fma(polyFN1, z2f, polyFN0);
 
     return polyFN0 / polyFD0;
 }
@@ -1231,23 +1216,20 @@ static inline double pmePotentialCorrectionSingleAccuracy(double z2)
     const float VD1(0.43336185284710920150F);
     const float VD0(1.0F);
 
-    float z4;
-    float polyVN0, polyVN1, polyVD0, polyVD1;
-
     float z2f = z2;
 
-    z4 = z2f * z2f;
+    float z4 = z2f * z2f;
 
-    polyVD1 = fma(VD3, z4, VD1);
-    polyVD0 = fma(VD2, z4, VD0);
-    polyVD0 = fma(polyVD1, z2f, polyVD0);
+    float polyVD1 = fma(VD3, z4, VD1);
+    float polyVD0 = fma(VD2, z4, VD0);
+    polyVD0       = fma(polyVD1, z2f, polyVD0);
 
-    polyVN0 = fma(VN6, z4, VN4);
-    polyVN1 = fma(VN5, z4, VN3);
-    polyVN0 = fma(polyVN0, z4, VN2);
-    polyVN1 = fma(polyVN1, z4, VN1);
-    polyVN0 = fma(polyVN0, z4, VN0);
-    polyVN0 = fma(polyVN1, z2f, polyVN0);
+    float polyVN0 = fma(VN6, z4, VN4);
+    float polyVN1 = fma(VN5, z4, VN3);
+    polyVN0       = fma(polyVN0, z4, VN2);
+    polyVN1       = fma(polyVN1, z4, VN1);
+    polyVN0       = fma(polyVN0, z4, VN0);
+    polyVN0       = fma(polyVN1, z2f, polyVN0);
 
     return polyVN0 / polyVD0;
 }

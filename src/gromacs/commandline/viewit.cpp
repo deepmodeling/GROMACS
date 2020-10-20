@@ -55,9 +55,7 @@ static const char* view_program[] = { nullptr, "ghostview", "display", nullptr, 
 
 static int can_view(int ftp)
 {
-    int i;
-
-    for (i = 1; i < NVIEW; i++)
+    for (int i = 1; i < NVIEW; i++)
     {
         if (ftp == can_view_ftp[i])
         {
@@ -70,9 +68,7 @@ static int can_view(int ftp)
 
 void do_view(const gmx_output_env_t* oenv, const char* fn, const char* opts)
 {
-    char        buf[STRLEN], env[STRLEN];
-    const char* cmd;
-    int         ftp, n;
+    char buf[STRLEN], env[STRLEN];
 
     if (output_env_get_view(oenv) && fn)
     {
@@ -82,13 +78,15 @@ void do_view(const gmx_output_env_t* oenv, const char* fn, const char* opts)
         }
         else
         {
-            ftp = fn2ftp(fn);
+            int ftp = fn2ftp(fn);
             sprintf(env, "GMX_VIEW_%s", ftp2ext(ftp));
             upstring(env);
+            const char* cmd = getenv(env);
             switch (ftp)
             {
                 case efXVG:
-                    if (!(cmd = getenv(env)))
+                {
+                    if (cmd == nullptr)
                     {
                         if (getenv("GMX_USE_XMGR"))
                         {
@@ -100,10 +98,13 @@ void do_view(const gmx_output_env_t* oenv, const char* fn, const char* opts)
                         }
                     }
                     break;
+                }
                 default:
-                    if ((n = can_view(ftp)))
+                {
+                    int n = can_view(ftp);
+                    if (n > 0)
                     {
-                        if (!(cmd = getenv(env)))
+                        if (cmd == nullptr)
                         {
                             cmd = view_program[n];
                         }
@@ -113,6 +114,7 @@ void do_view(const gmx_output_env_t* oenv, const char* fn, const char* opts)
                         fprintf(stderr, "Don't know how to view file %s", fn);
                         return;
                     }
+                }
             }
             if (strlen(cmd))
             {
@@ -129,9 +131,7 @@ void do_view(const gmx_output_env_t* oenv, const char* fn, const char* opts)
 
 void view_all(const gmx_output_env_t* oenv, int nf, t_filenm fnm[])
 {
-    int i;
-
-    for (i = 0; i < nf; i++)
+    for (int i = 0; i < nf; i++)
     {
         if (can_view(fnm[i].ftp) && is_output(&(fnm[i])) && (!is_optional(&(fnm[i])) || is_set(&(fnm[i]))))
         {

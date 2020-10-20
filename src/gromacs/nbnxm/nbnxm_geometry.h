@@ -58,9 +58,7 @@
  */
 static inline int get_2log(int n)
 {
-    int log2;
-
-    log2 = 0;
+    int log2 = 0;
     while ((1 << log2) < n)
     {
         log2++;

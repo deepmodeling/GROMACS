@@ -162,7 +162,6 @@ public:
         int hwThreadRankInCore;  //!< Relative rank of logical processor in its core
     };
 
-public:
     /*! \brief Perform detection and construct a CpuInfo class from the results.
      *
      *  \note The detection should generally be performed again in different

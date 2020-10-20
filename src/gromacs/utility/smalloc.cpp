@@ -66,14 +66,8 @@ static tMPI_Thread_mutex_t g_over_alloc_mutex = TMPI_THREAD_MUTEX_INITIALIZER;
 
 void* save_malloc(const char* name, const char* file, int line, size_t size)
 {
-    void* p;
-
-    p = nullptr;
-    if (size == 0)
-    {
-        p = nullptr;
-    }
-    else
+    void* p = nullptr;
+    if (size != 0)
     {
         if ((p = malloc(size)) == nullptr)
         {
@@ -90,9 +84,7 @@ void* save_malloc(const char* name, const char* file, int line, size_t size)
 
 void* save_calloc(const char* name, const char* file, int line, size_t nelem, size_t elsize)
 {
-    void* p;
-
-    p = nullptr;
+    void* p = nullptr;
     if ((nelem == 0) || (elsize == 0))
     {
         p = nullptr;
@@ -133,10 +125,9 @@ void* save_calloc(const char* name, const char* file, int line, size_t nelem, si
 
 void* save_realloc(const char* name, const char* file, int line, void* ptr, size_t nelem, size_t elsize)
 {
-    void*  p;
     size_t size = nelem * elsize;
 
-    p = nullptr;
+    void* p = nullptr;
     if (size == 0)
     {
         save_free(name, file, line, ptr);
@@ -185,7 +176,7 @@ void save_free(const char gmx_unused* name, const char gmx_unused* file, int gmx
  * the necessary alignment. */
 void* save_malloc_aligned(const char* name, const char* file, int line, size_t nelem, size_t elsize, size_t alignment)
 {
-    void* p;
+    void* p = nullptr;
 
     if (alignment == 0)
     {
@@ -205,11 +196,7 @@ void* save_malloc_aligned(const char* name, const char* file, int line, size_t n
     }
 
 
-    if (nelem == 0 || elsize == 0)
-    {
-        p = nullptr;
-    }
-    else
+    if (nelem != 0 && elsize != 0)
     {
 #ifdef PRINT_ALLOC_KB
         if (nelem * elsize >= PRINT_ALLOC_KB * 1024)

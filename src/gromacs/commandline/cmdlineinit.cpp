@@ -98,7 +98,7 @@ void broadcastArguments(int* argc, char*** argv)
     }
     for (int i = 0; i < *argc; i++)
     {
-        int len;
+        int len = 0;
         if (isMaster)
         {
             len = std::strlen((*argv)[i]) + 1;

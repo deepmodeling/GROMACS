@@ -57,7 +57,7 @@ namespace Nbnxm
 //! Returns the number of search grids
 static int numGrids(const GridSet::DomainSetup& domainSetup)
 {
-    int numGrids;
+    int numGrids = 0;
     if (domainSetup.doTestParticleInsertion)
     {
         numGrids = 2;
@@ -147,20 +147,13 @@ void GridSet::putOnGrid(const matrix                   box,
 {
     Nbnxm::Grid& grid = grids_[gridIndex];
 
-    int cellOffset;
-    if (gridIndex == 0)
-    {
-        cellOffset = 0;
-    }
-    else
-    {
-        const Nbnxm::Grid& previousGrid = grids_[gridIndex - 1];
-        cellOffset = previousGrid.atomIndexEnd() / previousGrid.geometry().numAtomsPerCell;
-    }
+    int cellOffset = (gridIndex == 0) ? 0
+                                      : grids_[gridIndex - 1].atomIndexEnd()
+                                                / grids_[gridIndex - 1].geometry().numAtomsPerCell;
 
     const int n = atomRange.size();
 
-    real maxAtomGroupRadius;
+    real maxAtomGroupRadius = 0;
     if (gridIndex == 0)
     {
         copy_mat(box, box_);

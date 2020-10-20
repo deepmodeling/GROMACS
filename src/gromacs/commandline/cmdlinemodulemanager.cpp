@@ -499,7 +499,7 @@ void CommandLineModuleManager::addHelpTopic(HelpTopicPointer topic)
 
 int CommandLineModuleManager::run(int argc, char* argv[])
 {
-    ICommandLineModule*            module;
+    ICommandLineModule*            module  = nullptr;
     const bool                     bMaster = (gmx_node_rank() == 0);
     bool                           bQuiet  = impl_->bQuiet_ || !bMaster;
     CommandLineCommonOptionsHolder optionsHolder;

@@ -136,12 +136,9 @@ void increaseNstlist(FILE*               fp,
         return;
     }
 
-    float       listfac_ok, listfac_max;
-    int         nstlist_orig, nstlist_prev;
-    real        rlist_inc, rlist_ok, rlist_max;
-    real        rlist_new, rlist_prev;
-    size_t      nstlist_ind = 0;
-    gmx_bool    bBox, bDD, bCont;
+    float  listfac_ok  = 0.0F;
+    size_t nstlist_ind = 0;
+
     const char* nstl_gpu =
             "\nFor optimal performance with a GPU nstlist (now %d) should be larger.\nThe "
             "optimum depends on your CPU and GPU resources.\nYou might want to try several "
@@ -241,9 +238,9 @@ void increaseNstlist(FILE*               fp,
     {
         listfac_ok = c_nbnxnListSizeFactorCpu;
     }
-    listfac_max = listfac_ok + c_nbnxnListSizeFactorMargin;
+    const float listfac_max = listfac_ok + c_nbnxnListSizeFactorMargin;
 
-    nstlist_orig = ir->nstlist;
+    const int nstlist_orig = ir->nstlist;
     if (nstlist_cmdline > 0)
     {
         if (fp)
@@ -260,24 +257,31 @@ void increaseNstlist(FILE*               fp,
     /* Allow rlist to make the list a given factor larger than the list
      * would be with the reference value for nstlist (10*mtsFactor).
      */
-    nstlist_prev = ir->nstlist;
-    ir->nstlist  = nbnxnReferenceNstlist * mtsFactor;
+    int nstlist_prev = ir->nstlist;
+    ir->nstlist      = nbnxnReferenceNstlist * mtsFactor;
     const real rlistWithReferenceNstlist =
             calcVerletBufferSize(*mtop, det(box), *ir, ir->nstlist, ir->nstlist - 1, -1, listSetup);
     ir->nstlist = nstlist_prev;
 
     /* Determine the pair list size increase due to zero interactions */
-    rlist_inc = nbnxn_get_rlist_effective_inc(listSetup.cluster_size_j, mtop->natoms / det(box));
-    rlist_ok  = (rlistWithReferenceNstlist + rlist_inc) * std::cbrt(listfac_ok) - rlist_inc;
-    rlist_max = (rlistWithReferenceNstlist + rlist_inc) * std::cbrt(listfac_max) - rlist_inc;
+    const real rlist_inc =
+            nbnxn_get_rlist_effective_inc(listSetup.cluster_size_j, mtop->natoms / det(box));
+    const real rlist_ok = (rlistWithReferenceNstlist + rlist_inc) * std::cbrt(listfac_ok) - rlist_inc;
+    const real rlist_max = (rlistWithReferenceNstlist + rlist_inc) * std::cbrt(listfac_max) - rlist_inc;
     if (debug)
     {
         fprintf(debug, "nstlist tuning: rlist_inc %.3f rlist_ok %.3f rlist_max %.3f\n", rlist_inc,
                 rlist_ok, rlist_max);
     }
 
-    nstlist_prev = nstlist_orig;
-    rlist_prev   = ir->rlist;
+    nstlist_prev    = nstlist_orig;
+    real rlist_prev = ir->rlist;
+    real rlist_new  = 0.0;
+
+    bool bBox  = false;
+    bool bDD   = false;
+    bool bCont = false;
+
     do
     {
         if (nstlist_cmdline <= 0)
@@ -291,7 +295,7 @@ void increaseNstlist(FILE*               fp,
 
         /* Does rlist fit in the box? */
         bBox = (gmx::square(rlist_new) < max_cutoff2(ir->pbcType, box));
-        bDD  = TRUE;
+        bDD  = true;
         if (bBox && DOMAINDECOMP(cr))
         {
             /* Currently (as of July 2020), the code in this if clause is never executed.
@@ -315,7 +319,7 @@ void increaseNstlist(FILE*               fp,
                     gmx::boolToString(bBox), gmx::boolToString(bDD));
         }
 
-        bCont = FALSE;
+        bCont = false;
 
         if (nstlist_cmdline <= 0)
         {
@@ -331,8 +335,8 @@ void increaseNstlist(FILE*               fp,
                 /* Stick with the previous nstlist */
                 ir->nstlist = nstlist_prev;
                 rlist_new   = rlist_prev;
-                bBox        = TRUE;
-                bDD         = TRUE;
+                bBox        = true;
+                bDD         = true;
             }
         }
 
@@ -532,7 +536,7 @@ void setupDynamicPairlistPruning(const gmx::MDLogger&       mdlog,
 
         if (userSetNstlistPrune)
         {
-            char* end;
+            char* end                = nullptr;
             listParams->nstlistPrune = strtol(env, &end, 10);
             if (!end || (*end != 0)
                 || !(listParams->nstlistPrune > 0 && listParams->nstlistPrune < ir->nstlist))

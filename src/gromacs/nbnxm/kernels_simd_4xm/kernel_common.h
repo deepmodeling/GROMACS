@@ -76,13 +76,12 @@ static_assert(UNROLLI == c_nbnxnCpuIClusterSize, "UNROLLI should match the i-clu
 static inline void add_ener_grp(gmx::SimdReal e_S, real* v, const int* offset_jj)
 {
     using namespace gmx;
-    int jj;
 
     /* We need to balance the number of store operations with
      * the rapidly increases number of combinations of energy groups.
      * We add to a temporary buffer for 1 i-group vs 2 j-groups.
      */
-    for (jj = 0; jj < (UNROLLJ / 2); jj++)
+    for (int jj = 0; jj < (UNROLLJ / 2); jj++)
     {
         SimdReal v_S;
 

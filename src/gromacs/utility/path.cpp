@@ -419,8 +419,8 @@ std::string Path::getWorkingDirectory()
 
 void Path::splitPathEnvironment(const std::string& pathEnv, std::vector<std::string>* result)
 {
-    size_t prevPos = 0;
-    size_t separator;
+    size_t prevPos   = 0;
+    size_t separator = 0;
     do
     {
         separator = pathEnv.find(cPathSeparator, prevPos);
@@ -452,7 +452,7 @@ std::string Path::resolveSymlinks(const std::string& path)
     std::string result(path);
 #if !GMX_NATIVE_WINDOWS
     char buf[GMX_PATH_MAX];
-    int  length;
+    int  length = 0;
     while ((length = readlink(result.c_str(), buf, sizeof(buf) - 1)) > 0)
     {
         buf[length] = '\0';

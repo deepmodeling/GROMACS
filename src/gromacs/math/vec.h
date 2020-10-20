@@ -113,11 +113,9 @@
 
 static inline void rvec_add(const rvec a, const rvec b, rvec c)
 {
-    real x, y, z;
-
-    x = a[XX] + b[XX];
-    y = a[YY] + b[YY];
-    z = a[ZZ] + b[ZZ];
+    real x = a[XX] + b[XX];
+    real y = a[YY] + b[YY];
+    real z = a[ZZ] + b[ZZ];
 
     c[XX] = x;
     c[YY] = y;
@@ -126,11 +124,9 @@ static inline void rvec_add(const rvec a, const rvec b, rvec c)
 
 static inline void ivec_add(const ivec a, const ivec b, ivec c)
 {
-    int x, y, z;
-
-    x = a[XX] + b[XX];
-    y = a[YY] + b[YY];
-    z = a[ZZ] + b[ZZ];
+    int x = a[XX] + b[XX];
+    int y = a[YY] + b[YY];
+    int z = a[ZZ] + b[ZZ];
 
     c[XX] = x;
     c[YY] = y;
@@ -139,11 +135,9 @@ static inline void ivec_add(const ivec a, const ivec b, ivec c)
 
 static inline void rvec_inc(rvec a, const rvec b)
 {
-    real x, y, z;
-
-    x = a[XX] + b[XX];
-    y = a[YY] + b[YY];
-    z = a[ZZ] + b[ZZ];
+    real x = a[XX] + b[XX];
+    real y = a[YY] + b[YY];
+    real z = a[ZZ] + b[ZZ];
 
     a[XX] = x;
     a[YY] = y;
@@ -152,11 +146,9 @@ static inline void rvec_inc(rvec a, const rvec b)
 
 static inline void dvec_inc(dvec a, const dvec b)
 {
-    double x, y, z;
-
-    x = a[XX] + b[XX];
-    y = a[YY] + b[YY];
-    z = a[ZZ] + b[ZZ];
+    double x = a[XX] + b[XX];
+    double y = a[YY] + b[YY];
+    double z = a[ZZ] + b[ZZ];
 
     a[XX] = x;
     a[YY] = y;
@@ -165,11 +157,9 @@ static inline void dvec_inc(dvec a, const dvec b)
 
 static inline void rvec_sub(const rvec a, const rvec b, rvec c)
 {
-    real x, y, z;
-
-    x = a[XX] - b[XX];
-    y = a[YY] - b[YY];
-    z = a[ZZ] - b[ZZ];
+    real x = a[XX] - b[XX];
+    real y = a[YY] - b[YY];
+    real z = a[ZZ] - b[ZZ];
 
     c[XX] = x;
     c[YY] = y;
@@ -178,11 +168,9 @@ static inline void rvec_sub(const rvec a, const rvec b, rvec c)
 
 static inline void dvec_sub(const dvec a, const dvec b, dvec c)
 {
-    double x, y, z;
-
-    x = a[XX] - b[XX];
-    y = a[YY] - b[YY];
-    z = a[ZZ] - b[ZZ];
+    double x = a[XX] - b[XX];
+    double y = a[YY] - b[YY];
+    double z = a[ZZ] - b[ZZ];
 
     c[XX] = x;
     c[YY] = y;
@@ -191,11 +179,9 @@ static inline void dvec_sub(const dvec a, const dvec b, dvec c)
 
 static inline void rvec_dec(rvec a, const rvec b)
 {
-    real x, y, z;
-
-    x = a[XX] - b[XX];
-    y = a[YY] - b[YY];
-    z = a[ZZ] - b[ZZ];
+    real x = a[XX] - b[XX];
+    real y = a[YY] - b[YY];
+    real z = a[ZZ] - b[ZZ];
 
     a[XX] = x;
     a[YY] = y;
@@ -225,8 +211,7 @@ static inline void copy_dvec_to_rvec(const dvec a, rvec b)
 
 static inline void copy_rvecn(const rvec* a, rvec* b, int startn, int endn)
 {
-    int i;
-    for (i = startn; i < endn; i++)
+    for (int i = startn; i < endn; i++)
     {
         b[i][XX] = a[i][XX];
         b[i][YY] = a[i][YY];
@@ -250,11 +235,9 @@ static inline void copy_ivec(const ivec a, ivec b)
 
 static inline void ivec_sub(const ivec a, const ivec b, ivec c)
 {
-    int x, y, z;
-
-    x = a[XX] - b[XX];
-    y = a[YY] - b[YY];
-    z = a[ZZ] - b[ZZ];
+    int x = a[XX] - b[XX];
+    int y = a[YY] - b[YY];
+    int z = a[ZZ] - b[ZZ];
 
     c[XX] = x;
     c[YY] = y;
@@ -316,9 +299,7 @@ static inline void clear_ivec(ivec a)
 
 static inline void clear_rvecs(int n, rvec v[])
 {
-    int i;
-
-    for (i = 0; (i < n); i++)
+    for (int i = 0; (i < n); i++)
     {
         clear_rvec(v[i]);
     }
@@ -382,28 +363,21 @@ static inline real cos_angle(const rvec a, const rvec b)
      * cos-vec (a,b) =  ---------------------
      *                      ||a|| * ||b||
      */
-    real   cosval;
-    int    m;
-    double aa, bb, ip, ipa, ipb, ipab; /* For accuracy these must be double! */
 
-    ip = ipa = ipb = 0.0;
-    for (m = 0; (m < DIM); m++) /* 18 */
+    /* For accuracy these and aa, bb and ipab must be double! */
+    double ip  = 0.0;
+    double ipa = 0.0;
+    double ipb = 0.0;
+    for (int m = 0; (m < DIM); m++) /* 18 */
     {
-        aa = a[m];
-        bb = b[m];
+        double aa = a[m];
+        double bb = b[m];
         ip += aa * bb;
         ipa += aa * aa;
         ipb += bb * bb;
     }
-    ipab = ipa * ipb;
-    if (ipab > 0)
-    {
-        cosval = static_cast<real>(ip * gmx::invsqrt(ipab)); /*  7 */
-    }
-    else
-    {
-        cosval = 1;
-    }
+    double ipab   = ipa * ipb;
+    double cosval = (ipab > 0) ? static_cast<real>(ip * gmx::invsqrt(ipab)) : 1.0; /*  7 */
     /* 25 TOTAL */
     if (cosval > 1.0)
     {
@@ -438,25 +412,23 @@ static inline void dcprod(const dvec a, const dvec b, dvec c)
 static inline real gmx_angle(const rvec a, const rvec b)
 {
     rvec w;
-    real wlen, s;
 
     cprod(a, b, w);
 
-    wlen = norm(w);
-    s    = iprod(a, b);
+    real wlen = norm(w);
+    real s    = iprod(a, b);
 
     return std::atan2(wlen, s);
 }
 
 static inline double gmx_angle_between_dvecs(const dvec a, const dvec b)
 {
-    dvec   w;
-    double wlen, s;
+    dvec w;
 
     dcprod(a, b, w);
 
-    wlen = dnorm(w);
-    s    = diprod(a, b);
+    double wlen = dnorm(w);
+    double s    = diprod(a, b);
 
     return std::atan2(wlen, s);
 }
@@ -599,12 +571,10 @@ static inline void tmvmul_ur0(const matrix a, const rvec src, rvec dest)
 
 static inline void unitv(const rvec src, rvec dest)
 {
-    real linv;
-
-    linv     = gmx::invsqrt(norm2(src));
-    dest[XX] = linv * src[XX];
-    dest[YY] = linv * src[YY];
-    dest[ZZ] = linv * src[ZZ];
+    real linv = gmx::invsqrt(norm2(src));
+    dest[XX]  = linv * src[XX];
+    dest[YY]  = linv * src[YY];
+    dest[ZZ]  = linv * src[ZZ];
 }
 
 static inline real trace(const matrix m)

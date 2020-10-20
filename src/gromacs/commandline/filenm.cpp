@@ -123,9 +123,7 @@ gmx::ArrayRef<const std::string> opt2fnsIfOptionSet(const char* opt, int nfile, 
 
 const char* ftp2fn(int ftp, int nfile, const t_filenm fnm[])
 {
-    int i;
-
-    for (i = 0; (i < nfile); i++)
+    for (int i = 0; (i < nfile); i++)
     {
         if (ftp == fnm[i].ftp)
         {
@@ -155,9 +153,7 @@ gmx::ArrayRef<const std::string> ftp2fns(int ftp, int nfile, const t_filenm fnm[
 
 gmx_bool ftp2bSet(int ftp, int nfile, const t_filenm fnm[])
 {
-    int i;
-
-    for (i = 0; (i < nfile); i++)
+    for (int i = 0; (i < nfile); i++)
     {
         if (ftp == fnm[i].ftp)
         {
@@ -207,9 +203,7 @@ const char* opt2fn_null(const char* opt, int nfile, const t_filenm fnm[])
 
 const char* ftp2fn_null(int ftp, int nfile, const t_filenm fnm[])
 {
-    int i;
-
-    for (i = 0; (i < nfile); i++)
+    for (int i = 0; (i < nfile); i++)
     {
         if (ftp == fnm[i].ftp)
         {
@@ -286,7 +280,7 @@ int add_suffix_to_output_names(t_filenm* fnm, int nfile, const char* suffix)
                 // add the requested suffix, we need to check for
                 // files matching mdrun's pattern for adding part
                 // numbers. Then we can remove that if needed.
-                for (size_t partPosition;
+                for (size_t partPosition = 0;
                      (partPosition = findSuffixFromNoAppendPosition(filename)) != std::string::npos;)
                 {
                     // Remove the ".partNNNN" that we have found,

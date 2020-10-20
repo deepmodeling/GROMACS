@@ -91,7 +91,8 @@ void PairlistSet::dispatchPruneKernel(const nbnxn_atomdata_t* nbat, const rvec* 
     }
 }
 
-void nonbonded_verlet_t::dispatchPruneKernelCpu(const gmx::InteractionLocality iLocality, const rvec* shift_vec)
+void nonbonded_verlet_t::dispatchPruneKernelCpu(const gmx::InteractionLocality iLocality,
+                                                const rvec*                    shift_vec) const
 {
     pairlistSets_->dispatchPruneKernel(iLocality, nbat.get(), shift_vec);
 }

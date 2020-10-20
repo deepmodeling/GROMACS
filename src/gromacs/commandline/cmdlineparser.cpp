@@ -113,7 +113,7 @@ const char* CommandLineParser::Impl::toOptionName(const char* arg)
         return arg + 2;
     }
     // Don't return numbers as option names.
-    char* endptr;
+    char* endptr = nullptr;
     // We are only interested in endptr, not in the actual value.
     GMX_IGNORE_RETURN_VALUE(std::strtod(arg, &endptr));
     if (*endptr == '\0')

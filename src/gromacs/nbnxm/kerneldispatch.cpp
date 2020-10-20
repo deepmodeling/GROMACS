@@ -163,7 +163,7 @@ static void nbnxn_kernel_cpu(const PairlistSet&         pairlistSet,
                              gmx_wallcycle*             wcycle)
 {
 
-    int coulkt;
+    int coulkt = 0;
     if (EEL_RF(ic.eeltype) || ic.eeltype == eelCUT)
     {
         coulkt = coulktRF;
@@ -370,7 +370,7 @@ static void accountFlops(t_nrnb*                    nrnb,
 {
     const bool usingGpuKernels = nbv.useGpu();
 
-    int enr_nbnxn_kernel_ljc;
+    int enr_nbnxn_kernel_ljc = 0;
     if (EEL_RF(ic.eeltype) || ic.eeltype == eelCUT)
     {
         enr_nbnxn_kernel_ljc = eNR_NBNXN_LJ_RF;

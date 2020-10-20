@@ -179,7 +179,8 @@ typedef long gmx_cycles_t;
 static __inline__ gmx_cycles_t gmx_cycles_read()
 {
     /* x86 with GCC inline assembly - pentium TSC register */
-    unsigned low, high;
+    unsigned low  = 0;
+    unsigned high = 0;
 
 #    if GMX_USE_RDTSCP
     __asm__ __volatile__("rdtscp" : "=a"(low), "=d"(high)::"ecx");

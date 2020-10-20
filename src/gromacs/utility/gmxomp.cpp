@@ -105,7 +105,7 @@ gmx_bool gmx_omp_check_thread_affinity(char** message)
      * gcc supports. Even if this is not the case (e.g. Mac OS) the user
      * will only get a warning. */
 #    if defined(__GNUC__) || defined(__INTEL_COMPILER)
-    const char* programName;
+    const char* programName = nullptr;
     try
     {
         programName = gmx::getProgramContext().displayName();

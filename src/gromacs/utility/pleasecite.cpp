@@ -299,9 +299,6 @@ void please_cite(FILE* fp, const char* key)
     };
 #define NSTR static_cast<int>(asize(citedb))
 
-    int   index;
-    char* author;
-    char* title;
 #define LINE_WIDTH 79
 
     if (fp == nullptr)
@@ -309,14 +306,15 @@ void please_cite(FILE* fp, const char* key)
         return;
     }
 
+    int index = 0;
     for (index = 0; index < NSTR && (strcmp(citedb[index].key, key) != 0); index++) {}
 
     fprintf(fp, "\n++++ PLEASE READ AND CITE THE FOLLOWING REFERENCE ++++\n");
     if (index < NSTR)
     {
         /* Insert newlines */
-        author = wrap_lines(citedb[index].author, LINE_WIDTH, 0, FALSE);
-        title  = wrap_lines(citedb[index].title, LINE_WIDTH, 0, FALSE);
+        char* author = wrap_lines(citedb[index].author, LINE_WIDTH, 0, FALSE);
+        char* title  = wrap_lines(citedb[index].title, LINE_WIDTH, 0, FALSE);
         fprintf(fp, "%s\n%s\n%s %d (%d) pp. %s\n", author, title, citedb[index].journal,
                 citedb[index].volume, citedb[index].year, citedb[index].pages);
         sfree(author);

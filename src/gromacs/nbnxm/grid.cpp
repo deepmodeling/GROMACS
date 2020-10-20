@@ -146,8 +146,8 @@ void Grid::setDimensions(const int          ddZone,
         GMX_ASSERT(atomDensity > 0, "With one or more atoms, the density should be positive");
 
         /* target cell length */
-        real tlen_x;
-        real tlen_y;
+        real tlen_x = 0.0;
+        real tlen_y = 0.0;
         if (geometry_.isSimple)
         {
             /* To minimize the zero interactions, we should make
@@ -205,16 +205,11 @@ void Grid::setDimensions(const int          ddZone,
     changePinningPolicy(&cxy_ind_, pinningPolicy);
 
     /* Worst case scenario of 1 atom in each last cell */
-    int maxNumCells;
-    if (geometry_.numAtomsJCluster <= geometry_.numAtomsICluster)
-    {
-        maxNumCells = numAtoms / geometry_.numAtomsPerCell + numColumns();
-    }
-    else
-    {
-        maxNumCells = numAtoms / geometry_.numAtomsPerCell
-                      + numColumns() * geometry_.numAtomsJCluster / geometry_.numAtomsICluster;
-    }
+    int maxNumCells =
+            (geometry_.numAtomsJCluster <= geometry_.numAtomsICluster)
+                    ? numAtoms / geometry_.numAtomsPerCell + numColumns()
+                    : numAtoms / geometry_.numAtomsPerCell
+                              + numColumns() * geometry_.numAtomsJCluster / geometry_.numAtomsICluster;
 
     if (!geometry_.isSimple)
     {
@@ -453,17 +448,13 @@ static float R2F_U(const float x)
 //! Computes the bounding box for na coordinates in order x,y,z, bb order xyz0
 static void calc_bounding_box(int na, int stride, const real* x, BoundingBox* bb)
 {
-    int  i;
-    real xl, xh, yl, yh, zl, zh;
-
-    i  = 0;
-    xl = x[i + XX];
-    xh = x[i + XX];
-    yl = x[i + YY];
-    yh = x[i + YY];
-    zl = x[i + ZZ];
-    zh = x[i + ZZ];
-    i += stride;
+    real xl = x[XX];
+    real xh = x[XX];
+    real yl = x[YY];
+    real yh = x[YY];
+    real zl = x[ZZ];
+    real zh = x[ZZ];
+    int  i  = stride;
     for (int j = 1; j < na; j++)
     {
         xl = std::min(xl, x[i + XX]);
@@ -486,14 +477,12 @@ static void calc_bounding_box(int na, int stride, const real* x, BoundingBox* bb
 /*! \brief Computes the bounding box for na packed coordinates, bb order xyz0 */
 static void calc_bounding_box_x_x4(int na, const real* x, BoundingBox* bb)
 {
-    real xl, xh, yl, yh, zl, zh;
-
-    xl = x[XX * c_packX4];
-    xh = x[XX * c_packX4];
-    yl = x[YY * c_packX4];
-    yh = x[YY * c_packX4];
-    zl = x[ZZ * c_packX4];
-    zh = x[ZZ * c_packX4];
+    real xl = x[XX * c_packX4];
+    real xh = x[XX * c_packX4];
+    real yl = x[YY * c_packX4];
+    real yh = x[YY * c_packX4];
+    real zl = x[ZZ * c_packX4];
+    real zh = x[ZZ * c_packX4];
     for (int j = 1; j < na; j++)
     {
         xl = std::min(xl, x[j + XX * c_packX4]);
@@ -515,14 +504,12 @@ static void calc_bounding_box_x_x4(int na, const real* x, BoundingBox* bb)
 /*! \brief Computes the bounding box for na coordinates, bb order xyz0 */
 static void calc_bounding_box_x_x8(int na, const real* x, BoundingBox* bb)
 {
-    real xl, xh, yl, yh, zl, zh;
-
-    xl = x[XX * c_packX8];
-    xh = x[XX * c_packX8];
-    yl = x[YY * c_packX8];
-    yh = x[YY * c_packX8];
-    zl = x[ZZ * c_packX8];
-    zh = x[ZZ * c_packX8];
+    real xl = x[XX * c_packX8];
+    real xh = x[XX * c_packX8];
+    real yl = x[YY * c_packX8];
+    real yh = x[YY * c_packX8];
+    real zl = x[ZZ * c_packX8];
+    real zh = x[ZZ * c_packX8];
     for (int j = 1; j < na; j++)
     {
         xl = std::min(xl, x[j + XX * c_packX8]);
@@ -673,8 +660,8 @@ static void combine_bounding_box_pairs(const Grid&                      grid,
         const int sc2 = grid.firstCellInColumn(i) >> 1;
         /* For odd numbers skip the last bb here */
         const int nc2 = (grid.numAtomsInColumn(i) + 3) >> (2 + 1);
-        int       c2;
-        for (c2 = sc2; c2 < sc2 + nc2; c2++)
+        int       c2  = sc2;
+        for (; c2 < sc2 + nc2; c2++)
         {
 #if NBNXN_SEARCH_BB_SIMD4
             Simd4Float min_S, max_S;
@@ -726,11 +713,10 @@ static void print_bbsizes_simple(FILE* fp, const Grid& grid)
 /*! \brief Prints the average bb size, used for debug output */
 static void print_bbsizes_supersub(FILE* fp, const Grid& grid)
 {
-    int  ns;
     dvec ba;
 
     clear_dvec(ba);
-    ns = 0;
+    int ns = 0;
     for (int c = 0; c < grid.numCells(); c++)
     {
 #if NBNXN_BBXXXX

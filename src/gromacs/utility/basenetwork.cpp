@@ -55,7 +55,7 @@ bool gmx_mpi_initialized()
 #if !GMX_MPI
     return false;
 #else
-    int n;
+    int n = 0;
     MPI_Initialized(&n);
 
     return n != 0;
@@ -73,7 +73,7 @@ int gmx_node_num()
         return 1;
     }
 #    endif
-    int i;
+    int i = 0;
     (void)MPI_Comm_size(MPI_COMM_WORLD, &i);
     return i;
 #endif
@@ -90,7 +90,7 @@ int gmx_node_rank()
         return 0;
     }
 #    endif
-    int i;
+    int i = 0;
     (void)MPI_Comm_rank(MPI_COMM_WORLD, &i);
     return i;
 #endif
@@ -98,7 +98,11 @@ int gmx_node_rank()
 
 static int mpi_hostname_hash()
 {
-    int hash_int;
+    /* thread-MPI currently puts the thread number in the process name,
+     * we might want to change this, as this is inconsistent with what
+     * most MPI implementations would do when running on a single node.
+     */
+    int hash_int = 0;
 
 #if GMX_LIB_MPI
     int  resultlen;
@@ -121,13 +125,6 @@ static int mpi_hostname_hash()
     {
         hash_int -= INT_MIN;
     }
-#else
-
-    /* thread-MPI currently puts the thread number in the process name,
-     * we might want to change this, as this is inconsistent with what
-     * most MPI implementations would do when running on a single node.
-     */
-    hash_int = 0;
 #endif
 
     return hash_int;

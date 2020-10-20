@@ -72,9 +72,7 @@
 
 int nenum(const char* const enumc[])
 {
-    int i;
-
-    i = 1;
+    int i = 1;
     /* we *can* compare pointers directly here! */
     while (enumc[i] && enumc[0] != enumc[i])
     {
@@ -86,9 +84,7 @@ int nenum(const char* const enumc[])
 
 int opt2parg_int(const char* option, int nparg, t_pargs pa[])
 {
-    int i;
-
-    for (i = 0; (i < nparg); i++)
+    for (int i = 0; (i < nparg); i++)
     {
         if (strcmp(pa[i].option, option) == 0)
         {
@@ -101,9 +97,7 @@ int opt2parg_int(const char* option, int nparg, t_pargs pa[])
 
 gmx_bool opt2parg_bool(const char* option, int nparg, t_pargs pa[])
 {
-    int i;
-
-    for (i = 0; (i < nparg); i++)
+    for (int i = 0; (i < nparg); i++)
     {
         if (strcmp(pa[i].option, option) == 0)
         {
@@ -118,9 +112,7 @@ gmx_bool opt2parg_bool(const char* option, int nparg, t_pargs pa[])
 
 real opt2parg_real(const char* option, int nparg, t_pargs pa[])
 {
-    int i;
-
-    for (i = 0; (i < nparg); i++)
+    for (int i = 0; (i < nparg); i++)
     {
         if (strcmp(pa[i].option, option) == 0)
         {
@@ -133,9 +125,7 @@ real opt2parg_real(const char* option, int nparg, t_pargs pa[])
 
 const char* opt2parg_str(const char* option, int nparg, t_pargs pa[])
 {
-    int i;
-
-    for (i = 0; (i < nparg); i++)
+    for (int i = 0; (i < nparg); i++)
     {
         if (strcmp(pa[i].option, option) == 0)
         {
@@ -148,9 +138,7 @@ const char* opt2parg_str(const char* option, int nparg, t_pargs pa[])
 
 gmx_bool opt2parg_bSet(const char* option, int nparg, const t_pargs* pa)
 {
-    int i;
-
-    for (i = 0; (i < nparg); i++)
+    for (int i = 0; (i < nparg); i++)
     {
         if (strcmp(pa[i].option, option) == 0)
         {
@@ -165,9 +153,7 @@ gmx_bool opt2parg_bSet(const char* option, int nparg, const t_pargs* pa)
 
 const char* opt2parg_enum(const char* option, int nparg, t_pargs pa[])
 {
-    int i;
-
-    for (i = 0; (i < nparg); i++)
+    for (int i = 0; (i < nparg); i++)
     {
         if (strcmp(pa[i].option, option) == 0)
         {

@@ -67,8 +67,8 @@ static void clearBufferAll(gmx::ArrayRef<real> buffer)
 template<int numComponentsPerElement>
 static void clearBufferFlagged(const nbnxn_atomdata_t& nbat, int outputIndex, gmx::ArrayRef<real> buffer)
 {
-    gmx::ArrayRef<const gmx_bitmask_t> flags = nbat.buffer_flags;
-    gmx_bitmask_t                      our_flag;
+    gmx::ArrayRef<const gmx_bitmask_t> flags    = nbat.buffer_flags;
+    gmx_bitmask_t                      our_flag = 0;
     bitmask_init_bit(&our_flag, outputIndex);
 
     constexpr size_t numComponentsPerBlock = NBNXN_BUFFERFLAG_SIZE * numComponentsPerElement;
@@ -98,9 +98,7 @@ void clearForceBuffer(nbnxn_atomdata_t* nbat, int outputIndex)
 
 void clear_fshift(real* fshift)
 {
-    int i;
-
-    for (i = 0; i < SHIFTS * DIM; i++)
+    for (int i = 0; i < SHIFTS * DIM; i++)
     {
         fshift[i] = 0;
     }
