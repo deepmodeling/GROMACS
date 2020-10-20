@@ -1100,9 +1100,7 @@ void crescale_pscale(const t_inputrec*    ir,
     int nthreads gmx_unused;
     matrix       inv_mu;
 
-#ifndef __clang_analyzer__
     nthreads = gmx_omp_nthreads_get(emntUpdate);
-#endif
 
     gmx::invertBoxMatrix(mu, inv_mu);
 
@@ -1173,9 +1171,7 @@ void berendsen_pscale(const t_inputrec*    ir,
     int   d;
     int nthreads gmx_unused;
 
-#ifndef __clang_analyzer__
     nthreads = gmx_omp_nthreads_get(emntUpdate);
-#endif
 
     /* Scale the positions */
     if (scaleCoordinates)
