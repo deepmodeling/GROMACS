@@ -230,7 +230,9 @@ Context createContext()
 }
 
 ContextImpl::ContextImpl(MpiContextManager&& mpi) noexcept(std::is_nothrow_constructible_v<gmx::LegacyMdrunOptions>) :
-    mpi_(std::move(mpi))
+    mpi_(std::move(mpi)),
+    hardwareInformation_(gmx_detect_hardware(
+            gmx::PhysicalNodeCommunicator(mpi_.communicator(), gmx_physicalnode_id_hash())))
 {
     // Confirm our understanding of the MpiContextManager invariant.
     GMX_ASSERT(mpi_.communicator() == MPI_COMM_NULL ? !GMX_LIB_MPI : GMX_LIB_MPI,
@@ -329,6 +331,9 @@ std::shared_ptr<Session> ContextImpl::launch(const Workflow& work)
         // lifetime. The gmx wrapper binary uses the same infrastructure,
         // but the lifetime is now trivially that of the invocation of the
         // wrapper binary.
+        //
+        // For now, this should match the communicator used for hardware
+        // detection. There's no way to assert this is true.
         auto communicator = mpi_.communicator();
         // Confirm the precondition for simulationContext().
         GMX_ASSERT(communicator == MPI_COMM_NULL ? !GMX_LIB_MPI : GMX_LIB_MPI,
@@ -344,13 +349,9 @@ std::shared_ptr<Session> ContextImpl::launch(const Workflow& work)
                               communicator, ms, options_.mdrunOptions.appendingBehavior,
                               ssize(options_.filenames), options_.filenames.data());
 
-        PhysicalNodeCommunicator physicalNodeCommunicator(
-                simulationContext.libraryWorldCommunicator_, gmx_physicalnode_id_hash());
-        gmx_hw_info_t hardwareInformation = gmx_detect_hardware(physicalNodeCommunicator);
-
         auto builder = MdrunnerBuilder(
                 std::move(mdModules), compat::not_null<SimulationContext*>(&simulationContext),
-                compat::make_not_null<const gmx_hw_info_t*>(&hardwareInformation));
+                compat::make_not_null<const gmx_hw_info_t*>(&hardwareInformation_));
         builder.addSimulationMethod(options_.mdrunOptions, options_.pforce, startingBehavior);
         builder.addDomainDecomposition(options_.domdecOptions);
         // \todo pass by value

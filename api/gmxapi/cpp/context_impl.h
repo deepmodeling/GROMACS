@@ -44,6 +44,7 @@
 #include <memory>
 #include <string>
 
+#include "gromacs/hardware/hw_info.h"
 #include "gromacs/mdrun/legacymdrunoptions.h"
 #include "gromacs/mdtypes/mdrunoptions.h"
 #include "gromacs/utility/gmxmpi.h"
@@ -276,6 +277,12 @@ public:
      * be initialized at construction.
      */
     const MpiContextManager mpi_;
+
+    /*! \brief Owning handle to the results of the hardware detection.
+     *
+     * The hardware is detected across the whole environment described
+     * by \c mpi_ */
+    gmx_hw_info_t hardwareInformation_;
 
 private:
     /*!
