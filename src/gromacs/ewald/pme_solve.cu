@@ -224,26 +224,28 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
             gridValue.y *= etermk;
             *gm_gridCell = gridValue;
 
-            if (computeEnergyAndVirial)
+            if (!bFEP)
             {
-                const float tmp1k =
-                        2.0f * (gridValue.x * oldGridValue.x + gridValue.y * oldGridValue.y);
+                if (computeEnergyAndVirial)
+                {
+                    const float tmp1k =
+                            2.0f * (gridValue.x * oldGridValue.x + gridValue.y * oldGridValue.y);
 
-                float vfactor = (kernelParams.grid.ewaldFactor + 1.0f / m2k) * 2.0f;
-                float ets2    = corner_fac * tmp1k;
-                energy        = ets2;
+                    float vfactor = (kernelParams.grid.ewaldFactor + 1.0f / m2k) * 2.0f;
+                    float ets2    = corner_fac * tmp1k;
+                    energy        = ets2;
 
-                float ets2vf = ets2 * vfactor;
+                    float ets2vf = ets2 * vfactor;
 
-                virxx = ets2vf * mhxk * mhxk - ets2;
-                virxy = ets2vf * mhxk * mhyk;
-                virxz = ets2vf * mhxk * mhzk;
-                viryy = ets2vf * mhyk * mhyk - ets2;
-                viryz = ets2vf * mhyk * mhzk;
-                virzz = ets2vf * mhzk * mhzk - ets2;
+                    virxx = ets2vf * mhxk * mhxk - ets2;
+                    virxy = ets2vf * mhxk * mhyk;
+                    virxz = ets2vf * mhxk * mhzk;
+                    viryy = ets2vf * mhyk * mhyk - ets2;
+                    viryz = ets2vf * mhyk * mhzk;
+                    virzz = ets2vf * mhzk * mhzk - ets2;
+                }
             }
-
-            if (bFEP)
+            else
             {
                 float2* __restrict__ gm_gridBCell = gm_gridB + gridIndex;
                 float2       gridBValue    = *gm_gridBCell;
