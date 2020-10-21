@@ -62,7 +62,6 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/inmemoryserializer.h"
 #include "gromacs/utility/logger.h"
-#include "gromacs/utility/mutex.h"
 #include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "architecture.h"
@@ -299,7 +298,6 @@ collectHardwareSummaryInformation(const int           numberOfCoresInTopology,
     summaryInformation.areAllGpusIdentical = (maxMinReduced[4] == -maxMinReduced[9]);
     summaryInformation.haveAmdZen1Cpu      = (maxMinReduced[10] > 0);
 #else
-    /* All ranks use the same pointer, protected by a mutex in the caller */
     summaryInformation.numPhysicalNodes                       = 1;
     summaryInformation.numCoresInAllPhysicalNodes             = numberOfCoresInTopology;
     summaryInformation.minNumCoresPerPhysicalNode             = numberOfCoresInTopology;
