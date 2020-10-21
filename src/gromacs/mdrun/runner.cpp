@@ -763,9 +763,10 @@ int Mdrunner::mdrunner()
     gmx::LoggerOwner logOwner(buildLogger(fplog, isSimulationMasterRank));
     gmx::MDLogger    mdlog(logOwner.logger());
     // TODO This approach is temporary while gmx_hw_info_t cannot be
-    // copied, and should be replaced by a member variable that
-    // contains its own deep copy of the detection result whose
-    // lifetime is managed elsewhere.
+    // copied, nor can Mdrunner class contain a const reference while
+    // retaining movability. It should be replaced by a member
+    // variable that contains its own deep copy of the detection
+    // result whose lifetime it now controls.
     const gmx_hw_info_t& hardwareInformation = *hardwareInformationHandle_;
 
     gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hardwareInformation);
@@ -882,7 +883,8 @@ int Mdrunner::mdrunner()
     bool useGpuForPme       = false;
     bool useGpuForBonded    = false;
     bool useGpuForUpdate    = false;
-    bool gpusWereDetected   = hardwareInformation.summaryInformation.ngpu_compatible_tot > 0;
+    bool gpusWereDetected =
+            hardwareInformation.summaryInformation.numCompatibleGpusInAllPhysicalNodes > 0;
     try
     {
         // It's possible that there are different numbers of GPUs on

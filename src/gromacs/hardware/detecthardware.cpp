@@ -285,36 +285,36 @@ collectHardwareSummaryInformation(const int           numberOfCoresInTopology,
                       MPI_MAX, MPI_COMM_WORLD);
     }
 
-    summaryInformation.nphysicalnode              = countsReduced[0];
-    summaryInformation.ncore_tot                  = countsReduced[1];
-    summaryInformation.ncore_min                  = -maxMinReduced[5];
-    summaryInformation.ncore_max                  = maxMinReduced[0];
-    summaryInformation.nhwthread_tot              = countsReduced[2];
-    summaryInformation.nhwthread_min              = -maxMinReduced[6];
-    summaryInformation.nhwthread_max              = maxMinReduced[1];
-    summaryInformation.ngpu_compatible_tot        = countsReduced[3];
-    summaryInformation.ngpu_compatible_min        = -maxMinReduced[7];
-    summaryInformation.ngpu_compatible_max        = maxMinReduced[2];
-    summaryInformation.minimumDetectedSimdSupport = gmx::SimdType(-maxMinReduced[8]);
-    summaryInformation.maximumDetectedSimdSupport = gmx::SimdType(maxMinReduced[3]);
-    summaryInformation.bIdenticalGPUs             = (maxMinReduced[4] == -maxMinReduced[9]);
-    summaryInformation.haveAmdZen1Cpu             = (maxMinReduced[10] > 0);
+    summaryInformation.numPhysicalNodes                       = countsReduced[0];
+    summaryInformation.numCoresInAllPhysicalNodes             = countsReduced[1];
+    summaryInformation.minNumCoresPerPhysicalNode             = -maxMinReduced[5];
+    summaryInformation.maxNumCoresPerPhysicalNode             = maxMinReduced[0];
+    summaryInformation.numLogicalProcessorsInAllPhysicalNodes = countsReduced[2];
+    summaryInformation.minNumLogicalProcessorsPerPhysicalNode = -maxMinReduced[6];
+    summaryInformation.maxNumLogicalProcessorsPerPhysicalNode = maxMinReduced[1];
+    summaryInformation.numCompatibleGpusInAllPhysicalNodes    = countsReduced[3];
+    summaryInformation.minNumCompatibleGpusPerPhysicalNode    = -maxMinReduced[7];
+    summaryInformation.maxNumCompatibleGpusPerPhysicalNode    = maxMinReduced[2];
+    summaryInformation.minimumDetectedSimdSupport             = gmx::SimdType(-maxMinReduced[8]);
+    summaryInformation.maximumDetectedSimdSupport             = gmx::SimdType(maxMinReduced[3]);
+    summaryInformation.areAllGpusIdentical = (maxMinReduced[4] == -maxMinReduced[9]);
+    summaryInformation.haveAmdZen1Cpu      = (maxMinReduced[10] > 0);
 #else
     /* All ranks use the same pointer, protected by a mutex in the caller */
-    summaryInformation.nphysicalnode              = 1;
-    summaryInformation.ncore_tot                  = numberOfCoresInTopology;
-    summaryInformation.ncore_min                  = numberOfCoresInTopology;
-    summaryInformation.ncore_max                  = numberOfCoresInTopology;
-    summaryInformation.nhwthread_tot              = logicalProcessorCount;
-    summaryInformation.nhwthread_min              = logicalProcessorCount;
-    summaryInformation.nhwthread_max              = logicalProcessorCount;
-    summaryInformation.ngpu_compatible_tot        = numCompatibleDevices;
-    summaryInformation.ngpu_compatible_min        = numCompatibleDevices;
-    summaryInformation.ngpu_compatible_max        = numCompatibleDevices;
-    summaryInformation.minimumDetectedSimdSupport = simdSuggested(cpuInfo);
-    summaryInformation.maximumDetectedSimdSupport = simdSuggested(cpuInfo);
-    summaryInformation.bIdenticalGPUs             = TRUE;
-    summaryInformation.haveAmdZen1Cpu             = cpuIsAmdZen1;
+    summaryInformation.numPhysicalNodes                       = 1;
+    summaryInformation.numCoresInAllPhysicalNodes             = numberOfCoresInTopology;
+    summaryInformation.minNumCoresPerPhysicalNode             = numberOfCoresInTopology;
+    summaryInformation.maxNumCoresPerPhysicalNode             = numberOfCoresInTopology;
+    summaryInformation.numLogicalProcessorsInAllPhysicalNodes = logicalProcessorCount;
+    summaryInformation.minNumLogicalProcessorsPerPhysicalNode = logicalProcessorCount;
+    summaryInformation.maxNumLogicalProcessorsPerPhysicalNode = logicalProcessorCount;
+    summaryInformation.numCompatibleGpusInAllPhysicalNodes    = numCompatibleDevices;
+    summaryInformation.minNumCompatibleGpusPerPhysicalNode    = numCompatibleDevices;
+    summaryInformation.maxNumCompatibleGpusPerPhysicalNode    = numCompatibleDevices;
+    summaryInformation.minimumDetectedSimdSupport             = simdSuggested(cpuInfo);
+    summaryInformation.maximumDetectedSimdSupport             = simdSuggested(cpuInfo);
+    summaryInformation.areAllGpusIdentical                    = TRUE;
+    summaryInformation.haveAmdZen1Cpu                         = cpuIsAmdZen1;
     GMX_UNUSED_VALUE(physicalNodeComm);
 #endif
     return summaryInformation;

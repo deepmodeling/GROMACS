@@ -55,39 +55,42 @@ struct DeviceInformation;
 /*! \brief Contains summary information obtained from the
  * hardware detection.
  *
- * The data is computed by reduction over all ranks of this
- * simulation. */
+ * The data is computed by reduction over all ranks of all physical
+ * nodes (ie. of all simulations, for a multi-simulation). A core and
+ * a logical processor are as defined by by \c HardwareTopology.
+ *
+ * At the moment, much of this data is only used for printing a
+ * report, but is made available more widely so it can be used when
+ * the need arises. */
 struct HardwareSummaryInformation
 {
-    //! Number of physical nodes used in the simulation
-    int nphysicalnode;
-    //! Sum of number of cores over all ranks of this simulation, can be 0
-    int ncore_tot;
-    //! Min number of cores over all ranks of this simulation
-    int ncore_min;
-    //! Max number of cores over all ranks of this simulation
-    int ncore_max;
-    //! Sum of number of hwthreads over all ranks of this simulation
-    int nhwthread_tot;
-    //! Min number of hwthreads over all ranks of this simulation
-    int nhwthread_min;
-    //! Max number of hwthreads over all ranks of this simulation
-    int nhwthread_max;
-    //! Sum of number of GPUs over all ranks of this simulation
-    int ngpu_compatible_tot;
-    //! Min number of GPUs over all ranks of this simulation
-    int ngpu_compatible_min;
-    //! Max number of GPUs over all ranks of this simulation
-    int ngpu_compatible_max;
-    //! Highest SIMD instruction set supported by all ranks
+    //! Number of physical nodes represented in all simulations.
+    int numPhysicalNodes;
+    //! Total number of cores over all physical nodes, can be 0
+    int numCoresInAllPhysicalNodes;
+    //! Minimum number of cores found on any physical node
+    int minNumCoresPerPhysicalNode;
+    //! Maximum number of cores found on any physical node
+    int maxNumCoresPerPhysicalNode;
+    //! Total logical processors over all physical nodes
+    int numLogicalProcessorsInAllPhysicalNodes;
+    //! Min number of logical processors found on any physical node
+    int minNumLogicalProcessorsPerPhysicalNode;
+    //! Max number of logical processors found on any physical node
+    int maxNumLogicalProcessorsPerPhysicalNode;
+    //! Total available compatible GPUs over all physical nodes
+    int numCompatibleGpusInAllPhysicalNodes;
+    //! Min number of GPUs over all physical nodes
+    int minNumCompatibleGpusPerPhysicalNode;
+    //! Max number of GPUs over all physical nodes
+    int maxNumCompatibleGpusPerPhysicalNode;
+    //! Highest SIMD instruction set supported over all physical nodes
     gmx::SimdType minimumDetectedSimdSupport;
-    //! Highest SIMD instruction set supported by at least one rank
+    //! Highest SIMD instruction set supported over all physical nodes
     gmx::SimdType maximumDetectedSimdSupport;
-    //! True if all ranks have the same type(s) and order of GPUs
-    bool bIdenticalGPUs;
-    /*! \brief True when at least one CPU in any of the nodes of
-     * ranks of this simulation is AMD Zen of the first
-     * generation. */
+    //! True if all physical nodes have the same type(s) and order of GPUs
+    bool areAllGpusIdentical;
+    //! Whether any CPU on any physical node is AMD Zen of the first generation.
     bool haveAmdZen1Cpu;
 };
 
@@ -115,9 +118,9 @@ struct gmx_hw_info_t
     std::unique_ptr<gmx::HardwareTopology> hardwareTopology;
     //! Information about GPUs detected on this physical node
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList;
-    //! Summary information across all ranks of this simulation.
+    //! Summary information across all physical nodes
     HardwareSummaryInformation summaryInformation;
-    //! Any warnings to log when that is possible.
+    //! Any warnings to log later when that is possible.
     std::optional<std::string> hardwareDetectionWarnings_;
 };
 

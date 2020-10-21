@@ -901,13 +901,13 @@ void checkAndUpdateRequestedNumOpenmpThreads(gmx_hw_opt_t*         hw_opt,
 
     if (canChooseNumOpenmpThreads && haveSmtSupport && simRunsSingleRankNBAndPmeOnGpu)
     {
-        /* Note that the queing system might have limited us from using
-         * all detected ncore_tot physical cores. We are currently not
-         * checking for that here.
-         */
+        /* Note that the queueing system or container runtime might
+         * have limited us from using all detected
+         * numCoresInAllPhysicalNodes physical cores. We are currently
+         * not checking for that here. */
         int numRanksTot     = cr->nnodes * (isMultiSim(ms) ? ms->numSimulations_ : 1);
         int numAtomsPerRank = mtop.natoms / cr->nnodes;
-        int numCoresPerRank = hwinfo.summaryInformation.ncore_tot / numRanksTot;
+        int numCoresPerRank = hwinfo.summaryInformation.numCoresInAllPhysicalNodes / numRanksTot;
         if (numAtomsPerRank < c_numAtomsPerCoreSquaredSmtThreshold * gmx::square(numCoresPerRank))
         {
             /* Choose one OpenMP thread per physical core */

@@ -138,17 +138,19 @@ static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo, bool bF
     const gmx::HardwareTopology& hwTop   = *hwinfo.hardwareTopology;
 
     s = gmx::formatString("\n");
-    s += gmx::formatString("Running on %d node%s with total", hwinfo.summaryInformation.nphysicalnode,
-                           hwinfo.summaryInformation.nphysicalnode == 1 ? "" : "s");
-    if (hwinfo.summaryInformation.ncore_tot > 0)
+    s += gmx::formatString("Running on %d node%s with total", hwinfo.summaryInformation.numPhysicalNodes,
+                           hwinfo.summaryInformation.numPhysicalNodes == 1 ? "" : "s");
+    if (hwinfo.summaryInformation.numCoresInAllPhysicalNodes > 0)
     {
-        s += gmx::formatString(" %d cores,", hwinfo.summaryInformation.ncore_tot);
+        s += gmx::formatString(" %d cores,", hwinfo.summaryInformation.numCoresInAllPhysicalNodes);
     }
-    s += gmx::formatString(" %d logical cores", hwinfo.summaryInformation.nhwthread_tot);
+    s += gmx::formatString(" %d logical cores",
+                           hwinfo.summaryInformation.numLogicalProcessorsInAllPhysicalNodes);
     if (canPerformDeviceDetection(nullptr))
     {
-        s += gmx::formatString(", %d compatible GPU%s", hwinfo.summaryInformation.ngpu_compatible_tot,
-                               hwinfo.summaryInformation.ngpu_compatible_tot == 1 ? "" : "s");
+        s += gmx::formatString(
+                ", %d compatible GPU%s", hwinfo.summaryInformation.numCompatibleGpusInAllPhysicalNodes,
+                hwinfo.summaryInformation.numCompatibleGpusInAllPhysicalNodes == 1 ? "" : "s");
     }
     else if (bGPUBinary)
     {
@@ -163,36 +165,43 @@ static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo, bool bF
     }
     s += gmx::formatString("\n");
 
-    if (hwinfo.summaryInformation.nphysicalnode > 1)
+    if (hwinfo.summaryInformation.numPhysicalNodes > 1)
     {
         /* Print per node hardware feature counts */
-        if (hwinfo.summaryInformation.ncore_max > 0)
+        if (hwinfo.summaryInformation.maxNumCoresPerPhysicalNode > 0)
         {
-            s += gmx::formatString("  Cores per node:           %2d", hwinfo.summaryInformation.ncore_min);
-            if (hwinfo.summaryInformation.ncore_max > hwinfo.summaryInformation.ncore_min)
+            s += gmx::formatString("  Cores per node:           %2d",
+                                   hwinfo.summaryInformation.minNumCoresPerPhysicalNode);
+            if (hwinfo.summaryInformation.maxNumCoresPerPhysicalNode
+                > hwinfo.summaryInformation.minNumCoresPerPhysicalNode)
             {
-                s += gmx::formatString(" - %2d", hwinfo.summaryInformation.ncore_max);
+                s += gmx::formatString(" - %2d", hwinfo.summaryInformation.maxNumCoresPerPhysicalNode);
             }
             s += gmx::formatString("\n");
         }
-        s += gmx::formatString("  Logical cores per node:   %2d", hwinfo.summaryInformation.nhwthread_min);
-        if (hwinfo.summaryInformation.nhwthread_max > hwinfo.summaryInformation.nhwthread_min)
+        s += gmx::formatString("  Logical cores per node:   %2d",
+                               hwinfo.summaryInformation.minNumLogicalProcessorsPerPhysicalNode);
+        if (hwinfo.summaryInformation.maxNumLogicalProcessorsPerPhysicalNode
+            > hwinfo.summaryInformation.minNumLogicalProcessorsPerPhysicalNode)
         {
-            s += gmx::formatString(" - %2d", hwinfo.summaryInformation.nhwthread_max);
+            s += gmx::formatString(
+                    " - %2d", hwinfo.summaryInformation.maxNumLogicalProcessorsPerPhysicalNode);
         }
         s += gmx::formatString("\n");
         if (bGPUBinary)
         {
             s += gmx::formatString("  Compatible GPUs per node: %2d",
-                                   hwinfo.summaryInformation.ngpu_compatible_min);
-            if (hwinfo.summaryInformation.ngpu_compatible_max > hwinfo.summaryInformation.ngpu_compatible_min)
+                                   hwinfo.summaryInformation.minNumCompatibleGpusPerPhysicalNode);
+            if (hwinfo.summaryInformation.maxNumCompatibleGpusPerPhysicalNode
+                > hwinfo.summaryInformation.minNumCompatibleGpusPerPhysicalNode)
             {
-                s += gmx::formatString(" - %2d", hwinfo.summaryInformation.ngpu_compatible_max);
+                s += gmx::formatString(
+                        " - %2d", hwinfo.summaryInformation.maxNumCompatibleGpusPerPhysicalNode);
             }
             s += gmx::formatString("\n");
-            if (hwinfo.summaryInformation.ngpu_compatible_tot > 0)
+            if (hwinfo.summaryInformation.numCompatibleGpusInAllPhysicalNodes > 0)
             {
-                if (hwinfo.summaryInformation.bIdenticalGPUs)
+                if (hwinfo.summaryInformation.areAllGpusIdentical)
                 {
                     s += gmx::formatString("  All nodes have identical type(s) of GPUs\n");
                 }
