@@ -43,7 +43,6 @@
 #include <array>
 #include <chrono>
 #include <memory>
-#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -98,8 +97,8 @@ struct DeviceDetectionResult
 {
     //! The device information detected
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList_;
-    //! Optional warnings to issue when that is possible
-    std::optional<std::string> deviceDetectionWarnings_;
+    //! Container of possible warnings to issue when that is possible
+    std::vector<std::string> deviceDetectionWarnings_;
 };
 
 /*! \brief Detect GPUs when that makes sense to attempt.
@@ -151,8 +150,8 @@ static DeviceDetectionResult detectAllDeviceInformation(const PhysicalNodeCommun
         gpusCanBeDetected = isDeviceDetectionFunctional(&errorMessage);
         if (!gpusCanBeDetected)
         {
-            deviceDetectionResult.deviceDetectionWarnings_ =
-                    "Detection of GPUs failed. The API reported:\n" + errorMessage + "\n";
+            deviceDetectionResult.deviceDetectionWarnings_.emplace_back(
+                    "Detection of GPUs failed. The API reported:\n" + errorMessage);
         }
     }
 
@@ -470,11 +469,10 @@ gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeCo
 
 void logHardwareDetectionWarnings(const gmx::MDLogger& mdlog, const gmx_hw_info_t& hardwareInformation)
 {
-    if (!hardwareInformation.hardwareDetectionWarnings_)
+    for (const std::string& warningString : hardwareInformation.hardwareDetectionWarnings_)
     {
-        return;
+        GMX_LOG(mdlog.warning).asParagraph().appendText(warningString);
     }
-    GMX_LOG(mdlog.warning).asParagraph().appendText(hardwareInformation.hardwareDetectionWarnings_.value());
 }
 
 } // namespace gmx

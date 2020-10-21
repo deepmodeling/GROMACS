@@ -37,7 +37,6 @@
 #define GMX_HARDWARE_HWINFO_H
 
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -120,8 +119,8 @@ struct gmx_hw_info_t
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList;
     //! Summary information across all physical nodes
     HardwareSummaryInformation summaryInformation;
-    //! Any warnings to log later when that is possible.
-    std::optional<std::string> hardwareDetectionWarnings_;
+    //! Container of warning strings to log later when that is possible.
+    std::vector<std::string> hardwareDetectionWarnings_;
 };
 
 
