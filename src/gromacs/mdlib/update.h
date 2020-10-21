@@ -73,7 +73,7 @@ class Update
 {
 public:
     //! Constructor
-    Update(const t_inputrec* ir, BoxDeformation* boxDeformation);
+    Update(const t_inputrec* ir, BoxDeformation* boxDeformation, int natoms);
     ~Update();
     // TODO Get rid of getters when more free functions are incorporated as member methods
     //! Returns handle to stochd_t struct
@@ -149,6 +149,14 @@ void update_coords(int64_t           step,
                    int                                       bUpdatePart,
                    const t_commrec* cr, /* these shouldn't be here -- need to think about it */
                    const gmx::Constraints* constr);
+
+/*! Constrain gle_s */
+void do_constrain_gle_s(gmx::Constraints*         constr,
+                        int                       nstep,
+                        real                      dvdlambda,
+                        const t_mdatoms*          md,
+                        t_state*                  state,
+                        gmx_stochd_t*             sd);
 
 /* Return TRUE if OK, FALSE in case of Shake Error */
 

@@ -275,7 +275,7 @@ void gmx::LegacySimulator::do_md()
     }
 
     initialize_lambdas(fplog, *ir, MASTER(cr), &state_global->fep_state, state_global->lambda, lam0);
-    Update     upd(ir, deform);
+    Update     upd(ir, deform, top_global->natoms);
     const bool doSimulatedAnnealing = initSimulatedAnnealing(ir, &upd);
     const bool useReplicaExchange   = (replExParams.exchangeInterval > 0);
 
@@ -515,6 +515,8 @@ void gmx::LegacySimulator::do_md()
             /* Constrain the initial coordinates and velocities */
             do_constrain_first(fplog, constr, ir, mdatoms, state->natoms, state->x.arrayRefWithPadding(),
                                state->v.arrayRefWithPadding(), state->box, state->lambda[efptBONDED]);
+
+            //do_constrain_gle_s(constr, 0, dvdl_constr, mdatoms, state, upd.sd());
         }
         if (vsite)
         {
