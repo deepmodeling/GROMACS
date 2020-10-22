@@ -687,7 +687,7 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
     {
         cu_feplist_t*    feplist  = nb->feplist[iloc];
         KernelLaunchConfig fep_config;
-        fep_config.blockSize[0]     = 256;
+        fep_config.blockSize[0]     = 64;
         fep_config.blockSize[1]     = 1;
         fep_config.blockSize[2]     = num_threads_z;
 
@@ -695,6 +695,8 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
         nblock = (feplist->nri + bsize - 1) / bsize;
         nblock = calc_nb_kernel_nblock(nblock, nb->dev_info);
         fep_config.gridSize[0]      = nblock;
+        fep_config.gridSize[1]      = 1;
+        fep_config.gridSize[2]      = 1;
         fep_config.sharedMemorySize = 0;
         fep_config.stream           = stream;
 
@@ -715,7 +717,7 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
         const auto fep_kernelArgs =
                 prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &stepWork.computeVirial);
         printf("nri: %d, nrj: %d\n", feplist->nri, feplist->nrj);
-        launchGpuKernel(fep_kernel, config, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
+        launchGpuKernel(fep_kernel, fep_config, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
     }
 
     if (bDoTime)
