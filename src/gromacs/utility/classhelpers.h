@@ -237,11 +237,15 @@ private:
 
     if constexpr (debug)
     {
-        errorMsg->append(" error1");
+        errorMsg->append("error1");
     }
  * \endcode
  *
- * \warning Forwarding constructor call might not work for things like \c ConstexprOptional<ConstexprOptional<T>>.
+ * Unlike \c std::optional, which throws an exception when trying to access its value when
+ * there is none, the \c ConstexprOptional simply will not compile.
+ *
+ * \warning When \p has_value is \c false, any arguments can be passed to the constructor,
+ * which will silently ignore them. It makes code similar to the one above possible.
  *
  * \inlibraryapi
  * \ingroup module_utility
@@ -258,29 +262,40 @@ class ConstexprOptional<T, true>
 public:
     //! Transparently construct wrapped object if it has default constructor (relying on SFINAE).
     ConstexprOptional() : value_() {}
-    //! Transparently construct wrapped object; with extra magic to make sure we don't interfere with move/copy constructors.
-    template<typename Arg,
+    //! Transparently construct wrapped object.
+    template<typename Arg, // enable_if to make sure we don't interfere with default move/copy constructors.
             typename = std::enable_if_t<!std::is_convertible<Arg, ConstexprOptional<T, true>>::value>,
             typename ...Args>
     ConstexprOptional(Arg &&arg, Args &&...args) : value_(std::forward<Arg>(arg), std::forward<Args>(args)...) {}
 
-    //! Getter (const pointer)
+    ///@{
+    /** Getter */
     constexpr const T* operator->() const { return &value_; }
-    //! Getter (pointer)
     constexpr T* operator->() { return &value_; }
-    //! Getter (const lvalue reference)
     constexpr const T& operator*() const& { return value_; }
-    //! Getter (lvalue reference)
     constexpr T& operator*() & { return value_; }
-    //! Getter (const rvalue reference)
     constexpr const T&& operator*() const&& { return std::move(value_); }
-    //! Getter (rvalue reference)
-    constexpr T&& operator*() && { return value_; }
+    constexpr T&& operator*() && { return std::move(value_); }
+    constexpr T& value() & { return value_; }
+    constexpr const T & value() const & { return value_; }
+    constexpr T&& value() && { return std::move(value_); }
+    constexpr const T&& value() const && { return std::move(value_); }
+    ///@}
 
-    //! Return true if \c *this contains a value (which is always)
+    ///@{
+    /** Getter Getter with optional (ignored) default value */
+    template< class U >
+    constexpr T value_or( U&& /*default_value*/ ) const& { return value_; }
+    template< class U >
+    constexpr T value_or( U&& /*default_value*/ ) && { return std::move(value_); }
+    ///@}
+
+    ///@{
+    /** Return true if \c *this contains a value (which is always) */
+    // NOLINTNEXTLINE readability-convert-member-functions-to-static
     constexpr operator bool() const { return true; }
-    //! Return true if \c *this contains a value (which is always)
     static constexpr bool has_value() { return true; }
+    ///@}
 
 private:
     T value_;
@@ -294,10 +309,20 @@ public:
     template<class ...Args>
     ConstexprOptional(Args &&... /*args*/) {}
 
-    //! Return true if \c *this contains a value (which is never)
+    ///@{
+    /** Return true if \c *this contains a value (which is always) */
+    // NOLINTNEXTLINE readability-convert-member-functions-to-static
     constexpr operator bool() const { return false; }
-    //! Return true if \c *this contains a value (which is never)
     static constexpr bool has_value() { return false; }
+    ///@}
+
+    ///@{
+    /** Getter Getter with optional default value, which will always be returned */
+    template< class U >
+    constexpr T value_or( U&& default_value ) const& { return default_value; }
+    template< class U >
+    constexpr T value_or( U&& default_value ) && { return std::forward<U>(default_value); }
+    ///@}
 };
 
 } // namespace gmx
