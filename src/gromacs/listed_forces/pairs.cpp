@@ -313,7 +313,7 @@ static real free_energy_evaluate_single(real        r2,
             }
             else
             {
-                rpinv  = one / (alpha_coul_eff * lfac_coul[i] + rpc);
+                rpinv  = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rpc);
             }
             r_coul = std::pow(rpinv, minusOne / sc_r_power_coul);
 
@@ -389,7 +389,7 @@ static real free_energy_evaluate_single(real        r2,
         else
         {
             dvdl_coul += velec[i] * DLF[i]
-                         + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i];
+                         + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i] * sigma_pow[i];
         }
         
         dvdl_vdw += vvdw[i] * DLF[i]
