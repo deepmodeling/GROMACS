@@ -525,7 +525,14 @@ __launch_bounds__(THREADS_PER_BLOCK)
             // const real dz  = iz - x[j3 + 2];
             // const real rsq = dx * dx + dy * dy + dz * dz;
             // SCReal     FscalC[NSTATES], FscalV[NSTATES]; /* Needs double for sc_power==48 */
-
+            F_invr = 0.0f;
+            FscalC[0] = FscalC[1] = FscalV[0] = FscalV[1] = 0;
+#    ifdef CALC_ENERGIES
+            Vcoul[0] = Vcoul[1] = 0;
+#    endif
+#    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
+            Vvdw[0] = Vvdw[1] = 0;
+#    endif
             /* load j atom data */
             xqbuf = xq[aj];
             xj    = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
@@ -541,6 +548,19 @@ __launch_bounds__(THREADS_PER_BLOCK)
             /* distance between i and j atoms */
             rv = xi - xj;
             r2 = norm2(rv);
+            // Ensure distance do not become so small that r^-12 overflows
+            if (r2 > 0)
+            {
+                inv_r  = rsqrt(r2);
+            }
+            else
+            {
+                inv_r = 0;
+                r2 = 0;
+            }
+            // r2 = max(r2, NBNXN_MIN_RSQ);
+            inv_r2 = inv_r * inv_r;
+            // printf("excl %d=%d\n", j, feplist.excl_fep[j]);
 
             if (feplist.excl_fep == nullptr || feplist.excl_fep[j])
             {
@@ -552,14 +572,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                     rpm2 = r2 * r2;
                     rp = rpm2 * r2;
 
-                    // Ensure distance do not become so small that r^-12 overflows
-                    r2 = max(r2, NBNXN_MIN_RSQ);
-                    inv_r  = rsqrt(r2);
-                    inv_r2 = inv_r * inv_r;
-
                     if (bFEP)
                     {
-                        F_invr = 0.0f;
                         for (int k = 0; k < 2; k++)
                         {
 #    ifndef LJ_COMB
@@ -593,12 +607,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif /* LJ_COMB_GEOM */
 #    endif     /* LJ_COMB */
                         }
-                        if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 0;
+                        if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 1;
                         else bFEPpair = 1;
                     }
                     else
                     {
-                        bFEPpair = 0;
+                        bFEPpair = 1;
                     }
 
                     if (bFEPpair)
@@ -752,11 +766,13 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif
 #    if defined   EL_EWALD_ANY
 // #ifdef CALC_ENERGIES
+// #ifdef EL_EWALD_ANA
 //                     if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
 //                     printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], qq=[%e, %e], c6=[%e, %e], c12=[%e, %e], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%f\n", ai, aj, r2, rinvC, pmecorrF(beta2 * r2) * beta3, inv_r * erff(r2 * inv_r * beta),
 //                     qq[0], qq[1], c6AB[0], c6AB[1], c12AB[0], c12AB[1], 
-//                     qq[0] * int_bit * rinvC0 * rpinvC[0] * rpm2, qq[1] * int_bit * rinvC * rpinvC[1] * rpm2, 
-//                     FscalV[0] * rpm2, FscalV[1] * rpinvV * rpm2, qq[0] * int_bit * (rinvC0 - ewald_shift), qq[1] * int_bit * (rinvC - ewald_shift), Vvdw[0], Vvdw[1], int_bit);
+//                     FscalC[0] * rpm2, qq[1] * int_bit * rinvC * rpinvC * rpm2, 
+//                     FscalV[0] * rpm2, FscalV[1] * rpinvV * rpm2, Vcoul[0], qq[1] * int_bit * (rinvC - ewald_shift), Vvdw[0], Vvdw[1], int_bit);
+// #endif
 // #        endif
                                     FscalC[k] = qq[k] * int_bit * rinvC;
 #    endif /* EL_EWALD_ANA/TAB */
@@ -902,13 +918,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
                         F_invr += qi * qj_f * (int_bit * inv_r2 * inv_r - two_k_rf);
 #    endif
 #    if defined   EL_EWALD_ANA
-                        F_invr += qi * qj_f
-                                  * (inv_r2 * inv_r + pmecorrF(beta2 * r2) * beta3);
+                        F_invr += qi * qj_f * inv_r2 * inv_r;
 #    elif defined EL_EWALD_TAB
-                        F_invr += qi * qj_f
-                                  * (inv_r2
-                                     - interpolate_coulomb_force_r(nbparam, r2 * inv_r))
-                                  * inv_r;
+                        F_invr += qi * qj_f * inv_r2 * inv_r;
 #    endif /* EL_EWALD_ANA/TAB */
 
 #    ifdef CALC_ENERGIES
@@ -920,8 +932,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif
 #        ifdef EL_EWALD_ANY
                                 /* 1.0f - erff is faster than erfcf */
-                        E_el += qi * qj_f
-                                * (inv_r * (int_bit - erff(r2 * inv_r * beta)) - int_bit * ewald_shift);
+                        E_el += qi * qj_f * int_bit * (inv_r - ewald_shift);
 #        endif /* EL_EWALD_ANY */
 #    endif
                     }
@@ -930,13 +941,16 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef EL_EWALD_ANY
             if (r2 < rcoulomb_sq)
             {
-                v_lr = inv_r * erff(r2 * inv_r * beta);
+                v_lr = inv_r > 0 ? inv_r * erff(r2 * inv_r * beta) : 2 * beta * M_FLOAT_1_SQRTPI;
                 if (ai == aj) v_lr *= 0.5f;
 #        if defined   EL_EWALD_ANA
-                f_lr = -pmecorrF(beta2 * r2) * beta3;
+                f_lr = inv_r > 0 ? -pmecorrF(beta2 * r2) * beta3 : 0;
 #        elif defined EL_EWALD_TAB
-                f_lr = interpolate_coulomb_force_r(nbparam, r2 * inv_r);
+                f_lr = inv_r > 0 ? interpolate_coulomb_force_r(nbparam, r2 * inv_r) : 0;
 #        endif
+#    ifdef CALC_ENERGIES
+                printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=1.000000\n", ai, aj, r2, rinvC, -f_lr, v_lr, FscalC[0], FscalC[1], FscalV[0], FscalV[1], Vcoul[0], Vcoul[1], Vvdw[0], Vvdw[1]);
+#    endif
                 if (bFEP)
                 {
                     for (int k = 0; k < 2; k++)
@@ -1003,7 +1017,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         /* reduce the energies over warps and store into global memory */
         reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
 #    endif
-        printf("nFEP=%d, nnFEP=%d\n", nFEP, nnFEP);
+        // printf("nFEP=%d, nnFEP=%d\n", nFEP, nnFEP);
     }
 }
 #endif /* FUNCTION_DECLARATION_ONLY */

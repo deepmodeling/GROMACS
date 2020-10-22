@@ -640,7 +640,6 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
     }
 
     DeviceContext context = nullptr;
-    printf("allocating buffer...\n");
 
     reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->iinr, h_feplist->iinr, 0, h_feplist->nri, stream,
@@ -657,12 +656,17 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     d_feplist->maxnri = 0;
 
-    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri+1, &d_feplist->nri+1, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     
     reallocateDeviceBuffer(&d_feplist->jjnr, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
     copyToDeviceBuffer(&d_feplist->jjnr, h_feplist->jjnr, 0, h_feplist->nrj, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnrj = 0;
+
+    reallocateDeviceBuffer(&d_feplist->excl_fep, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
+    copyToDeviceBuffer(&d_feplist->excl_fep, h_feplist->excl_fep, 0, h_feplist->nrj, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
 
     if (bDoTime)
