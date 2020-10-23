@@ -236,7 +236,8 @@ int gmx_mdrun(int argc, char* argv[])
 
     PhysicalNodeCommunicator physicalNodeCommunicator(simulationContext.libraryWorldCommunicator_,
                                                       gmx_physicalnode_id_hash());
-    gmx_hw_info_t            hardwareInformation = gmx_detect_hardware(physicalNodeCommunicator);
+    gmx_hw_info_t            hardwareInformation =
+            gmx_detect_hardware(physicalNodeCommunicator, simulationContext.libraryWorldCommunicator_);
 
     /* The named components for the builder exposed here are descriptive of the
      * state of mdrun at implementation and are not intended to be prescriptive

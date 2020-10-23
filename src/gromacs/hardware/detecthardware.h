@@ -37,6 +37,7 @@
 #define GMX_HARDWARE_DETECTHARDWARE_H
 
 #include "gromacs/hardware/hw_info.h"
+#include "gromacs/utility/gmxmpi.h"
 
 namespace gmx
 {
@@ -46,17 +47,18 @@ class PhysicalNodeCommunicator;
 /*! \brief Run detection and make correct and consistent
  * hardware information available on all ranks.
  *
- * May do communication on MPI_COMM_WORLD when compiled with real MPI.
+ * \param[in]  physicalNodeComm          A communication object across ranks of this physical node within \c libraryWorldCommunicator
+ * \param[in]  libraryWorldCommunicator  An MPI_Comm across ranks of all simulations in this session
+ *
+ * May do communication when compiled with library MPI.
  *
  * This routine is designed to be called once on each process.  In a
  * thread-MPI configuration, it may only be called before the threads
  * are spawned. With real MPI, communication is needed to coordinate
  * the results. In all cases, any thread within a process may use the
- * returned handle.
- *
- * \todo Replace the use of MPI_COMM_WORLD by using a libraryCommWorld
- * argument. See https://gitlab.com/gromacs/gromacs/-/issues/3650 */
-gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm);
+ * returned handle. */
+gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm,
+                                  MPI_Comm                        libraryWorldCommunicator);
 
 /*! \brief Sanity check hardware topology and print some notes to log
  *

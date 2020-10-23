@@ -199,17 +199,14 @@ static DeviceDetectionResult detectAllDeviceInformation(const PhysicalNodeCommun
  * \todo This coordination activity should not be handled in a
  * low-level module. See
  * https://gitlab.com/gromacs/gromacs/-/issues/3650.
- *
- * \todo This routine should not use MPI_COMM_WORLD, but rather the
- * libraryWorldCommunicator set up by higher-level code. See
- * https://gitlab.com/gromacs/gromacs/-/issues/3650.
  */
 static HardwareSummaryInformation
 collectHardwareSummaryInformation(const int           numberOfCoresInTopology,
                                   const int           logicalProcessorCount,
                                   const gmx::CpuInfo& cpuInfo,
                                   const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
-                                  const PhysicalNodeCommunicator& physicalNodeComm)
+                                  const PhysicalNodeCommunicator& physicalNodeComm,
+                                  MPI_Comm                        libraryWorldCommunicator)
 {
     HardwareSummaryInformation summaryInformation;
 
@@ -258,7 +255,7 @@ collectHardwareSummaryInformation(const int           numberOfCoresInTopology,
         }
 
         MPI_Allreduce(countsLocal.data(), countsReduced.data(), countsLocal.size(), MPI_INT,
-                      MPI_SUM, MPI_COMM_WORLD);
+                      MPI_SUM, libraryWorldCommunicator);
     }
 
     constexpr int                   numElementsMax = 11;
@@ -281,7 +278,7 @@ collectHardwareSummaryInformation(const int           numberOfCoresInTopology,
         maxMinLocal[10] = (cpuIsAmdZen1 ? 1 : 0);
 
         MPI_Allreduce(maxMinLocal.data(), maxMinReduced.data(), maxMinLocal.size(), MPI_INT,
-                      MPI_MAX, MPI_COMM_WORLD);
+                      MPI_MAX, libraryWorldCommunicator);
     }
 
     summaryInformation.numPhysicalNodes                       = countsReduced[0];
@@ -314,6 +311,7 @@ collectHardwareSummaryInformation(const int           numberOfCoresInTopology,
     summaryInformation.areAllGpusIdentical                    = TRUE;
     summaryInformation.haveAmdZen1Cpu                         = cpuIsAmdZen1;
     GMX_UNUSED_VALUE(physicalNodeComm);
+    GMX_UNUSED_VALUE(libraryWorldCommunicator);
 #endif
     return summaryInformation;
 }
@@ -449,7 +447,8 @@ void hardwareTopologyDoubleCheckDetection(const gmx::MDLogger&         mdlog,
 #endif
 }
 
-gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm)
+gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm,
+                                  MPI_Comm                        libraryWorldCommunicator)
 {
     // Make the new hardwareInfo in a temporary.
     hardwareTopologyPrepareDetection();
@@ -459,7 +458,7 @@ gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeCo
     DeviceDetectionResult      deviceDetectionResult = detectAllDeviceInformation(physicalNodeComm);
     HardwareSummaryInformation summaryInformation    = collectHardwareSummaryInformation(
             hardwareTopology->numberOfCores(), hardwareTopology->machine().logicalProcessorCount,
-            *cpuInfo, deviceDetectionResult.deviceInfoList_, physicalNodeComm);
+            *cpuInfo, deviceDetectionResult.deviceInfoList_, physicalNodeComm, libraryWorldCommunicator);
 
     return gmx_hw_info_t{ std::move(cpuInfo), std::move(hardwareTopology),
                           std::move(deviceDetectionResult.deviceInfoList_), summaryInformation,

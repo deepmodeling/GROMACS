@@ -89,7 +89,8 @@ void callAddGlobalTestEnvironment()
 }
 
 TestHardwareEnvironment::TestHardwareEnvironment() :
-    hardwareInfo_(gmx_detect_hardware(PhysicalNodeCommunicator{ MPI_COMM_WORLD, gmx_physicalnode_id_hash() }))
+    hardwareInfo_(gmx_detect_hardware(PhysicalNodeCommunicator{ MPI_COMM_WORLD, gmx_physicalnode_id_hash() },
+                                      MPI_COMM_WORLD))
 {
 }
 

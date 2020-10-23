@@ -109,8 +109,8 @@ void PmeTest::runTest(const RunModesList& runModes)
         EXPECT_NONFATAL_FAILURE(rootChecker.checkUnusedEntries(), ""); // skip checks on other ranks
     }
 
-    auto hardwareInfo_ =
-            gmx_detect_hardware(PhysicalNodeCommunicator(MPI_COMM_WORLD, gmx_physicalnode_id_hash()));
+    auto hardwareInfo_ = gmx_detect_hardware(
+            PhysicalNodeCommunicator(MPI_COMM_WORLD, gmx_physicalnode_id_hash()), MPI_COMM_WORLD);
 
     for (const auto& mode : runModes)
     {
