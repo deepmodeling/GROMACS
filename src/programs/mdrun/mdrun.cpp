@@ -67,8 +67,6 @@
 #include "gromacs/mdrunutility/logging.h"
 #include "gromacs/mdrunutility/multisim.h"
 #include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/basenetwork.h"
-#include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "mdrun_main.h"
 
@@ -234,10 +232,7 @@ int gmx_mdrun(int argc, char* argv[])
             findIsSimulationMasterRank(ms, communicator), communicator, ms,
             options.mdrunOptions.appendingBehavior, ssize(options.filenames), options.filenames.data());
 
-    PhysicalNodeCommunicator physicalNodeCommunicator(simulationContext.libraryWorldCommunicator_,
-                                                      gmx_physicalnode_id_hash());
-    gmx_hw_info_t            hardwareInformation =
-            gmx_detect_hardware(physicalNodeCommunicator, simulationContext.libraryWorldCommunicator_);
+    gmx_hw_info_t hardwareInformation = gmx_detect_hardware(simulationContext.libraryWorldCommunicator_);
 
     /* The named components for the builder exposed here are descriptive of the
      * state of mdrun at implementation and are not intended to be prescriptive

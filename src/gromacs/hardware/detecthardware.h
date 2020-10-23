@@ -47,7 +47,6 @@ class PhysicalNodeCommunicator;
 /*! \brief Run detection and make correct and consistent
  * hardware information available on all ranks.
  *
- * \param[in]  physicalNodeComm          A communication object across ranks of this physical node within \c libraryWorldCommunicator
  * \param[in]  libraryWorldCommunicator  An MPI_Comm across ranks of all simulations in this session
  *
  * May do communication when compiled with library MPI.
@@ -57,8 +56,7 @@ class PhysicalNodeCommunicator;
  * are spawned. With real MPI, communication is needed to coordinate
  * the results. In all cases, any thread within a process may use the
  * returned handle. */
-gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm,
-                                  MPI_Comm                        libraryWorldCommunicator);
+gmx_hw_info_t gmx_detect_hardware(MPI_Comm libraryWorldCommunicator);
 
 /*! \brief Sanity check hardware topology and print some notes to log
  *

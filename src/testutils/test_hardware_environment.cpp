@@ -52,9 +52,7 @@
 #include "gromacs/hardware/detecthardware.h"
 #include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hw_info.h"
-#include "gromacs/utility/basenetwork.h"
 #include "gromacs/utility/exceptions.h"
-#include "gromacs/utility/physicalnodecommunicator.h"
 
 namespace gmx
 {
@@ -89,8 +87,7 @@ void callAddGlobalTestEnvironment()
 }
 
 TestHardwareEnvironment::TestHardwareEnvironment() :
-    hardwareInfo_(gmx_detect_hardware(PhysicalNodeCommunicator{ MPI_COMM_WORLD, gmx_physicalnode_id_hash() },
-                                      MPI_COMM_WORLD))
+    hardwareInfo_(gmx_detect_hardware(MPI_COMM_WORLD))
 {
 }
 

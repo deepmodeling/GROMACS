@@ -66,7 +66,6 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxmpi.h"
 #include "gromacs/utility/init.h"
-#include "gromacs/utility/physicalnodecommunicator.h"
 
 #include "gmxapi/mpi/resourceassignment.h"
 #include "gmxapi/exceptions.h"
@@ -231,9 +230,7 @@ Context createContext()
 
 ContextImpl::ContextImpl(MpiContextManager&& mpi) noexcept(std::is_nothrow_constructible_v<gmx::LegacyMdrunOptions>) :
     mpi_(std::move(mpi)),
-    hardwareInformation_(gmx_detect_hardware(
-            gmx::PhysicalNodeCommunicator(mpi_.communicator(), gmx_physicalnode_id_hash()),
-            mpi_.communicator()))
+    hardwareInformation_(gmx::gmx_detect_hardware(mpi_.communicator()))
 {
     // Confirm our understanding of the MpiContextManager invariant.
     GMX_ASSERT(mpi_.communicator() == MPI_COMM_NULL ? !GMX_LIB_MPI : GMX_LIB_MPI,

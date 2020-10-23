@@ -447,10 +447,10 @@ void hardwareTopologyDoubleCheckDetection(const gmx::MDLogger&         mdlog,
 #endif
 }
 
-gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm,
-                                  MPI_Comm                        libraryWorldCommunicator)
+gmx_hw_info_t gmx_detect_hardware(MPI_Comm libraryWorldCommunicator)
 {
-    // Make the new hardwareInfo in a temporary.
+    PhysicalNodeCommunicator physicalNodeComm(libraryWorldCommunicator, gmx_physicalnode_id_hash());
+
     hardwareTopologyPrepareDetection();
 
     auto cpuInfo          = std::make_unique<CpuInfo>(CpuInfo::detect());
