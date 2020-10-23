@@ -38,6 +38,8 @@
 
 #include <cstdio>
 
+#include "gromacs/utility/gmxmpi.h"
+
 struct gmx_hw_info_t;
 
 namespace gmx
@@ -45,12 +47,24 @@ namespace gmx
 class MDLogger;
 }
 
-/* Print information about the detected hardware to fplog (if != NULL)
- * and to stderr on the master rank of the master simulation.
- */
+/*! \brief Report information about the detected hardware
+ *
+ * \param[in] fplog         Log file to write to, when valid
+ * \param[in] warnToStdErr  Whether to issue warnings on stderr
+ * \param[in] mdlog         Log file to write to, when valid
+ * \param[in] hwinfo        The hardware detection to report
+ * \param[in] simulationCommunicator  The communicator for the simulation of this rank
+ *
+ * Note that passing both of fplog and mdlog is intended, so that the
+ * SIMD module stays free of logger dependencies.
+ *
+ * \todo Return strings from simdCheck (so that the SIMD module
+ * remains low on dependencies) and write them to mdlog, so that fplog
+ * is not needed here. */
 void gmx_print_detected_hardware(FILE*                fplog,
                                  bool                 warnToStdErr,
                                  const gmx::MDLogger& mdlog,
-                                 const gmx_hw_info_t& hwinfo);
+                                 const gmx_hw_info_t& hwinfo,
+                                 MPI_Comm             simulationCommunicator);
 
 #endif

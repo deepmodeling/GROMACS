@@ -769,7 +769,8 @@ int Mdrunner::mdrunner()
     // result whose lifetime it now controls.
     const gmx_hw_info_t& hardwareInformation = *hardwareInformationHandle_;
 
-    gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hardwareInformation);
+    gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog,
+                                hardwareInformation, simulationCommunicator);
 
     std::vector<int> gpuIdsToUse =
             makeGpuIdsToUse(hardwareInformation.deviceInfoList, hw_opt.gpuIdsAvailable);

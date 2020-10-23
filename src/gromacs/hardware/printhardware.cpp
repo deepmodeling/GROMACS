@@ -130,7 +130,9 @@ static void check_use_of_rdtscp_on_this_cpu(const gmx::MDLogger& mdlog, const gm
     }
 }
 
-static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo, bool bFullCpuInfo)
+static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo,
+                                            MPI_Comm             simulationCommunicator,
+                                            bool                 bFullCpuInfo)
 {
     std::string s;
 
@@ -223,12 +225,13 @@ static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo, bool bF
 
     gmx_gethostname(host, STRLEN);
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(simulationCommunicator, &rank);
 
     // TODO Use a wrapper around MPI_Get_processor_name instead.
     s += gmx::formatString("Hardware detected on host %s (the node of MPI rank %d):\n", host, rank);
 #else
     s += gmx::formatString("Hardware detected:\n");
+    GMX_UNUSED_VALUE(simulationCommunicator);
 #endif
     s += gmx::formatString("  CPU info:\n");
 
@@ -374,13 +377,14 @@ static std::string detected_hardware_string(const gmx_hw_info_t& hwinfo, bool bF
 void gmx_print_detected_hardware(FILE*                fplog,
                                  const bool           warnToStdErr,
                                  const gmx::MDLogger& mdlog,
-                                 const gmx_hw_info_t& hwinfo)
+                                 const gmx_hw_info_t& hwinfo,
+                                 MPI_Comm             simulationCommunicator)
 {
     if (fplog != nullptr)
     {
         std::string detected;
 
-        detected = detected_hardware_string(hwinfo, TRUE);
+        detected = detected_hardware_string(hwinfo, simulationCommunicator, true);
 
         fprintf(fplog, "%s\n", detected.c_str());
     }
