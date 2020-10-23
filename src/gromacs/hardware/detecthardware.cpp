@@ -131,7 +131,7 @@ static DeviceDetectionResult detectAllDeviceInformation(const PhysicalNodeCommun
     // Read-only access is enforced with providing those ranks with a
     // handle to a const object, so usage is also race free.
     GMX_UNUSED_VALUE(physicalNodeComm);
-    isMasterRankOfPhysicalNode = true;
+    isMasterRankOfPhysicalNode                                = true;
 #endif
 
     /* The SYCL and OpenCL support requires us to run detection on all
@@ -201,7 +201,8 @@ static DeviceDetectionResult detectAllDeviceInformation(const PhysicalNodeCommun
  * https://gitlab.com/gromacs/gromacs/-/issues/3650.
  *
  * \todo This routine should not use MPI_COMM_WORLD, but rather the
- * libraryWorldCommunicator set up by higher-level code.
+ * libraryWorldCommunicator set up by higher-level code. See
+ * https://gitlab.com/gromacs/gromacs/-/issues/3650.
  */
 static HardwareSummaryInformation
 collectHardwareSummaryInformation(const int           numberOfCoresInTopology,

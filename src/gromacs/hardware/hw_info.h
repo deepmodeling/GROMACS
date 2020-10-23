@@ -105,8 +105,8 @@ struct HardwareSummaryInformation
  *   OpenCLDeviceInformation, SyclDeviceInformation>>
  * so that gmx_hw_info_t becomes copyable. Then setup code
  * will have an easier time passing the results of hardware
- * detection to the runner.
- */
+ * detection to the runner. See
+ * https://gitlab.com/gromacs/gromacs/-/issues/3650 */
 struct gmx_hw_info_t
 {
     ~gmx_hw_info_t();

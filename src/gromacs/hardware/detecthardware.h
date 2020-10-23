@@ -54,7 +54,8 @@ class PhysicalNodeCommunicator;
  * the results. In all cases, any thread within a process may use the
  * returned handle.
  *
- * \todo Stop using MPI_COMM_WORLD, but rather libraryCommWorld. */
+ * \todo Replace the use of MPI_COMM_WORLD by using a libraryCommWorld
+ * argument. See https://gitlab.com/gromacs/gromacs/-/issues/3650 */
 gmx_hw_info_t gmx_detect_hardware(const PhysicalNodeCommunicator& physicalNodeComm);
 
 /*! \brief Sanity check hardware topology and print some notes to log
