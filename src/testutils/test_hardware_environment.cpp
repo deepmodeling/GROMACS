@@ -50,6 +50,7 @@
 
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/hardware/detecthardware.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/utility/basenetwork.h"
@@ -107,6 +108,7 @@ void TestHardwareEnvironment::SetUp()
 void TestHardwareEnvironment::TearDown()
 {
     testDeviceList_.clear();
+    hardwareInfo_.deviceInfoList.clear();
 }
 
 } // namespace test

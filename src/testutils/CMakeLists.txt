@@ -83,7 +83,7 @@ else()
 endif()
 
 if (GMX_GPU_SYCL)
-    set_source_files_properties(test_device.cpp
+    set_source_files_properties(test_device.cpp test_hardware_environment.cpp
       PROPERTIES COMPILE_FLAGS "${SYCL_CXX_FLAGS}")
 endif()
 
