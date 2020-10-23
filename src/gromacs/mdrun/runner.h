@@ -375,7 +375,7 @@ public:
      * \param hardwareInformationHandle  Non-owning handle to result of hardware detection.
      *
      * The calling code must guarantee that the
-     * pointer remains valid for the lifetime of the builder, and that the
+     * pointers to *context* and *hardwareInformationHandle* remain valid for the lifetime of the builder, and that the
      * resources retrieved from the context remain valid for the lifetime of
      * the runner produced.
      */

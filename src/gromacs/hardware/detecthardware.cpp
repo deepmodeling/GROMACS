@@ -90,7 +90,7 @@ namespace gmx
  *
  * Note that non-functional device detection still produces
  * a detection result, ie. of no devices. This might not be
- * what the user wanted, so make sense to log later when
+ * what the user wanted, so it makes sense to log later when
  * that is possible. */
 struct DeviceDetectionResult
 {
