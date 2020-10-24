@@ -65,6 +65,8 @@ struct GridSetData
     gmx::HostVector<int> cells;
     //! The atom indices for all atoms stored in cell order
     gmx::HostVector<int> atomIndices;
+    //! The atom indices for all atoms stored in cell order
+    gmx::HostVector<int> atomIndicesInv;
 };
 
 /*! \internal

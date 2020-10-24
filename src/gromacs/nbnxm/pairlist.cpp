@@ -1491,7 +1491,8 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
                           real gmx_unused rlist_fep2,
                           const Grid&     iGrid,
                           const Grid&     jGrid,
-                          t_nblist*       nlist)
+                          t_nblist*       nlist,
+                          gmx_bool        bIndexed)
 {
     int      ci, cj_ind_start, cj_ind_end, cja, cjr;
     int      nri_max;
@@ -1549,7 +1550,9 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
     for (int i = 0; i < nbl->na_ci; i++)
     {
         ind_i = ci * nbl->na_ci + i;
-        ai    = atomIndices[ind_i];
+        if (bIndexed) ai    = ind_i;
+        else          ai    = atomIndices[ind_i];
+
         if (ai >= 0)
         {
             nri                    = nlist->nri;
@@ -1622,7 +1625,9 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
                     {
                         /* Is this interaction perturbed and not excluded? */
                         ind_j = cja * nbl->na_cj + j;
-                        aj    = atomIndices[ind_j];
+                        if (bIndexed) aj    = ind_j;
+                        else          aj    = atomIndices[ind_j];
+                        
                         if (aj >= 0 && (bFEP_i || (fep_cj & (1 << j))) && (!bDiagRemoved || ind_j >= ind_i))
                         {
                             if (ngid > 1)
@@ -1709,7 +1714,8 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
                           real                     rlist_fep2,
                           const Grid&              iGrid,
                           const Grid&              jGrid,
-                          t_nblist*                nlist)
+                          t_nblist*                nlist,
+                          gmx_bool                 bIndexed)
 {
     int                nri_max;
     int                c_abs;
@@ -1753,7 +1759,9 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
         for (int i = 0; i < nbl->na_ci; i++)
         {
             ind_i = c_abs * nbl->na_ci + i;
-            ai    = atomIndices[ind_i];
+            if (bIndexed) ai    = ind_i;
+            else          ai    = atomIndices[ind_i];
+
             if (ai >= 0)
             {
                 nri                    = nlist->nri;
@@ -1797,7 +1805,9 @@ static void make_fep_list(gmx::ArrayRef<const int> atomIndices,
                             {
                                 /* Is this interaction perturbed and not excluded? */
                                 ind_j = (jGrid.cellOffset() * c_gpuNumClusterPerCell + cjr) * nbl->na_cj + j;
-                                aj = atomIndices[ind_j];
+                                if (bIndexed) aj = ind_j;
+                                else          aj = atomIndices[ind_j];
+
                                 if (aj >= 0 && (bFEP_i || jGrid.atomIsPerturbed(cjr, j))
                                     && (!bDiagRemoved || ind_j >= ind_i))
                                 {
@@ -3652,7 +3662,7 @@ static void nbnxn_make_pairlist_part(const Nbnxm::GridSet&   gridSet,
                     if (haveFep)
                     {
                         make_fep_list(gridSet.atomIndices(), nbat, nbl, excludeSubDiagonal,
-                                      getOpenIEntry(nbl), shx, shy, shz, rl_fep2, iGrid, jGrid, nbl_fep);
+                                      getOpenIEntry(nbl), shx, shy, shz, rl_fep2, iGrid, jGrid, nbl_fep, 1);
                     }
 
                     /* Close this ci list */

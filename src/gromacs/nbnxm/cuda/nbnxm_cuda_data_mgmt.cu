@@ -1008,6 +1008,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* 
     reallocateDeviceBuffer(&gpu_nbv->cxy_ind, maxNumColumns * gridSet.grids().size(),
                            &gpu_nbv->ncxy_ind, &gpu_nbv->ncxy_ind_alloc, nullptr);
 
+    gridSet.setAtomIndicesInverse();
+
     for (unsigned int g = 0; g < gridSet.grids().size(); g++)
     {
 
@@ -1016,10 +1018,14 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* 
         const int  numColumns      = grid.numColumns();
         const int* atomIndices     = gridSet.atomIndices().data();
         const int  atomIndicesSize = gridSet.atomIndices().size();
+        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
         const int* cxy_na          = grid.cxy_na().data();
         const int* cxy_ind         = grid.cxy_ind().data();
 
         reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, nullptr);
+        &gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
                                &gpu_nbv->atomIndicesSize_alloc, nullptr);
 
         if (atomIndicesSize > 0)
@@ -1031,6 +1037,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* 
             }
 
             copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, stream,
+                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, stream,
                                GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)

@@ -1125,6 +1125,10 @@ void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
     nbnxn_atomdata_t::Params& params = nbat->paramsDeprecated();
     nbnxn_atomdata_set_atomtypesAB(&params, gridSet, mdatoms->typeA, mdatoms->typeB);
     nbnxn_atomdata_set_chargesAB(nbat, gridSet, mdatoms->chargeA, mdatoms->chargeB);
+    if (gridSet.haveFep())
+    {
+        // nbnxn_atomdata_mask_fep(nbat, gridSet);
+    }
     /* This must be done after masking types for FEP */
     nbnxn_atomdata_set_ljcombparamsAB(&params, nbat->XFormat, gridSet);
     nbnxn_atomdata_set_energygroups(&params, gridSet, atinfo);

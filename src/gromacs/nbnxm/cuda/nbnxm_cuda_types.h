@@ -256,8 +256,10 @@ struct gmx_nbnxn_cuda_t
     int ncell;
     //! number of indices allocated in cell buffer
     int ncell_alloc;
-    //! array of atom indices
+    //! array of atom indices (nbat to normal)
     int* atomIndices;
+    //! array of atom indices (normal to nbat)
+    int* atomIndicesInv;
     //! size of atom indices
     int atomIndicesSize;
     //! size of atom indices allocated in device buffer
