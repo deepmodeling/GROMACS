@@ -1278,7 +1278,7 @@ static void resizeForNumberOfCells(const int         numNbnxnAtoms,
      * make sure we have enough space.
      */
     gridSetData->atomIndices.resize(numNbnxnAtoms + numAtomsMoved);
-
+    gridSetData->atomIndicesInv.resize(numNbnxnAtoms + numAtomsMoved);
     /* Make space in nbat for storing the atom coordinates */
     nbat->resizeCoordinateBuffer(numNbnxnAtoms);
 }

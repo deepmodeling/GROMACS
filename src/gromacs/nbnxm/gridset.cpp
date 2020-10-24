@@ -111,6 +111,7 @@ GridSet::GridSet(const int                 ePBC,
     clear_mat(box_);
     changePinningPolicy(&gridSetData_.cells, pinningPolicy);
     changePinningPolicy(&gridSetData_.atomIndices, pinningPolicy);
+    changePinningPolicy(&gridSetData_.atomIndicesInv, pinningPolicy);
 }
 
 void GridSet::setLocalAtomOrder()
@@ -129,6 +130,20 @@ void GridSet::setLocalAtomOrder()
             gridSetData_.cells[atomIndex]       = cellIndex;
             atomIndex++;
             cellIndex++;
+        }
+    }
+}
+
+void GridSet::setAtomIndicesInverse()
+{
+    /* Extract the atom index array that will be filled here */
+    const int atomIndicesSize = gridSetData_.atomIndices.size();
+
+    for (int i = 0; i < atomIndicesSize; i++)
+    {
+        if (gridSetData_.atomIndices[i] < atomIndicesSize && gridSetData_.atomIndices[i] >= 0)
+        {
+            gridSetData_.atomIndicesInv[gridSetData_.atomIndices[i]] = i;
         }
     }
 }
