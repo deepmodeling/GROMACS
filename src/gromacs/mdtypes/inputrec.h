@@ -136,6 +136,7 @@ struct t_lambda
     int nstdhdl;
     //! Fractional value of lambda (usually will use init_fep_state, this will only be for slow growth, and for legacy free energy code. Only has a valid value if positive)
     double init_lambda;
+    double init_lambda_q;
     //! The initial number of the state
     int init_fep_state;
     //! Change of lambda per time step (fraction of (0.1)

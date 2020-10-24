@@ -477,6 +477,7 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
         serializer->doReal(&rdum);
         fepvals->delta_lambda = rdum;
     }
+    fepvals->init_lambda_q = fepvals->init_lambda;
     if (file_version >= 79)
     {
         serializer->doInt(&fepvals->n_lambda);

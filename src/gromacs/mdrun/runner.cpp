@@ -1452,9 +1452,9 @@ int Mdrunner::mdrunner()
         {
             try
             {
-                if (inputrec->fepvals->init_lambda == -1)
+                if (inputrec->fepvals->init_lambda_q == -1)
                 {
-                    inputrec->fepvals->init_lambda = inputrec->fepvals->all_lambda[efptCOUL][inputrec->fepvals->init_fep_state];
+                    inputrec->fepvals->init_lambda_q = inputrec->fepvals->all_lambda[efptCOUL][inputrec->fepvals->init_fep_state];
                 }
                 pmedata = gmx_pme_init(cr, getNumPmeDomains(cr->dd), inputrec, nChargePerturbed != 0,
                                        nTypePerturbed != 0, mdrunOptions.reproducible, ewaldcoeff_q,
