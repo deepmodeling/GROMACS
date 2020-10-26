@@ -488,7 +488,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
         xqbuf.w *= nbparam.epsfac;
 
         xi = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
-        xi_raw = make_float3(xq[ai].x, xq[ai].y, xq[ai].z);
         qi = qA[ai] * nbparam.epsfac;
         qBi = qB[ai] * nbparam.epsfac;
         // const int  is3   = 3 * shift[n];
