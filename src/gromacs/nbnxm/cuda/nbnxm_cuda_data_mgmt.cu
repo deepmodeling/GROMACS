@@ -780,15 +780,21 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
 
         if (bFEP)
         {
+            stat = cudaMalloc((void**)&d_atdat->qA, nalloc * sizeof(*d_atdat->qA));
+            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->qA");
             stat = cudaMalloc((void**)&d_atdat->qB, nalloc * sizeof(*d_atdat->qB));
             CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->qB");
             if (useLjCombRule(nb->nbparam))
             {
+                stat = cudaMalloc((void**)&d_atdat->lj_combA, nalloc * sizeof(*d_atdat->lj_combA));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->lj_combA");
                 stat = cudaMalloc((void**)&d_atdat->lj_combB, nalloc * sizeof(*d_atdat->lj_combB));
                 CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->lj_combB");
             }
             else
             {
+                stat = cudaMalloc((void**)&d_atdat->atom_typesA, nalloc * sizeof(*d_atdat->atom_typesA));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_typesA");
                 stat = cudaMalloc((void**)&d_atdat->atom_typesB, nalloc * sizeof(*d_atdat->atom_typesB));
                 CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_typesB");
             }
@@ -820,15 +826,21 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
 
     if (bFEP)
     {
+        cu_copy_H2D_async(d_atdat->qA, nbat->params().qA.data(),
+                          natoms * sizeof(*d_atdat->qA), ls);
         cu_copy_H2D_async(d_atdat->qB, nbat->params().qB.data(),
                           natoms * sizeof(*d_atdat->qB), ls);
         if (useLjCombRule(nb->nbparam))
         {
+            cu_copy_H2D_async(d_atdat->lj_combA, nbat->params().lj_combA.data(),
+                              natoms * sizeof(*d_atdat->lj_combA), ls);
             cu_copy_H2D_async(d_atdat->lj_combB, nbat->params().lj_combB.data(),
                               natoms * sizeof(*d_atdat->lj_combB), ls);
         }
         else
         {
+            cu_copy_H2D_async(d_atdat->atom_typesA, nbat->params().typeA.data(),
+                              natoms * sizeof(*d_atdat->atom_typesA), ls);
             cu_copy_H2D_async(d_atdat->atom_typesB, nbat->params().typeB.data(),
                               natoms * sizeof(*d_atdat->atom_typesB), ls);
         }

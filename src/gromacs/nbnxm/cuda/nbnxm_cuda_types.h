@@ -155,7 +155,8 @@ struct cu_atomdata
     int nalloc;       /**< allocation size for the atom data (xq, f)    */
 
     float4* xq; /**< atom coordinates + charges, size natoms      */
-    float*  qB; /**< atom chargeBs, size natoms                   */
+    float*  qA; /**< atom chargeAs, size natoms, only in FEP      */
+    float*  qB; /**< atom chargeBs, size natoms, only in FEP      */
     float3* f;  /**< force output array, size natoms              */
 
     float* e_lj; /**< LJ energy output, size 1                     */
@@ -166,7 +167,9 @@ struct cu_atomdata
     int     ntypes;     /**< number of atom types                         */
     int*    atom_types; /**< atom type indices, size natoms               */
     float2* lj_comb;    /**< sqrt(c6),sqrt(c12) size natoms               */
-    int*    atom_typesB;/**< atom typeB indices, size natoms              */
+    int*    atom_typesA;/**< atom typeB indices, size natoms, only in FEP */
+    float2* lj_combA;   /**< sqrt(c6),sqrt(c12) for stateA, size natoms   */
+    int*    atom_typesB;/**< atom typeB indices, size natoms, only in FEP */
     float2* lj_combB;   /**< sqrt(c6),sqrt(c12) for stateB, size natoms   */
 
     float3* shift_vec;         /**< shifts                                       */

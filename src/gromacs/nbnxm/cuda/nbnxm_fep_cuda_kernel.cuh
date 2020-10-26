@@ -188,12 +188,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
     // const nbnxn_excl_t*  excl        = plist.excl;
 #ifndef LJ_COMB
-    const int*           atom_types  = atdat.atom_types;
+    const int*           atom_typesA = atdat.atom_typesA;
     const int*           atom_typesB = atdat.atom_typesB;
     int                  ntypes      = atdat.ntypes;
     int typeiAB[2], typejAB[2];
 #else
-    const float2* lj_comb = atdat.lj_comb;
+    const float2* lj_combA = atdat.lj_combA;
     const float2* lj_combB= atdat.lj_combB;
 #endif
 
@@ -217,6 +217,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif
 
     const float4*        xq          = atdat.xq;
+    const float*         qA          = atdat.qA;
     const float*         qB          = atdat.qB;
     float3*              f           = atdat.f;
     const float3*        shift_vec   = atdat.shift_vec;
@@ -293,7 +294,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        E_lj_p;
 #    endif
     float4       xqbuf;
-    float3       xi, xi_raw, xj, rv, f_ij, fci_buf, fcj_buf;
+    float3       xi, xj, rv, f_ij, fci_buf, fcj_buf;
 
     /*********************************************************************
      * Set up shared memory pointers.
@@ -367,11 +368,11 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 // #ifndef LJ_COMB
 //         /* Pre-load the i-atom types into shared memory */
-//         atib[tidxj * c_clSize + tidxi] = atom_types[ai];
+//         atib[tidxj * c_clSize + tidxi] = atom_typesA[ai];
 //         atBib[tidxj * c_clSize + tidxi] = atom_typesB[ai];
 // #else
 //         /* Pre-load the LJ combination parameters into shared memory */
-//         ljcpib[tidxj * c_clSize + tidxi] = lj_comb[ai];
+//         ljcpib[tidxj * c_clSize + tidxi] = lj_combA[ai];
 //         ljcpBib[tidxj * c_clSize + tidxi] = lj_combB[ai];
 // #endif
 //     }
@@ -413,21 +414,21 @@ __launch_bounds__(THREADS_PER_BLOCK)
 //             if (bFEP)
 //             {
 //                 E_lj += _lambda_v * LDG(
-//                         &nbparam.nbfp[atom_types[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2])
+//                         &nbparam.nbfp[atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2])
 //                     + lambda_v * LDG(
 //                         &nbparam.nbfp[atom_typesB[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2]);
 //             }
 //             else
 //             {
 //                 E_lj += LDG(
-//                         &nbparam.nbfp[atom_types[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2]);
+//                         &nbparam.nbfp[atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2]);
 //             }
 // #                else
 //             if (bFEP)
 //             {
 //                 E_lj += _lambda_v * tex1Dfetch<float>(
 //                         nbparam.nbfp_texobj,
-//                         atom_types[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
+//                         atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
 //                     + lambda_v * tex1Dfetch<float>(
 //                         nbparam.nbfp_texobj,
 //                         atom_typesB[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
@@ -436,7 +437,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 //             {
 //                 E_lj += tex1Dfetch<float>(
 //                         nbparam.nbfp_texobj,
-//                         atom_types[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
+//                         atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
 //             }
 // #                endif
 // #            endif
@@ -488,7 +489,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
         xi = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
         xi_raw = make_float3(xq[ai].x, xq[ai].y, xq[ai].z);
-        qi = xqbuf.w;
+        qi = qA[ai] * nbparam.epsfac;
         qBi = qB[ai] * nbparam.epsfac;
         // const int  is3   = 3 * shift[n];
         // const real shX   = shiftvec[is3];
@@ -500,9 +501,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
         // const real iz    = shZ + x[ii3 + 2];
 
 #ifndef LJ_COMB
-        typeiAB[0] = atom_types[ai];  typeiAB[1] = atom_typesB[ai];
+        typeiAB[0] = atom_typesA[ai];  typeiAB[1] = atom_typesB[ai];
 #else
-        ljcp_iAB[0] = lj_comb[ai];  ljcp_iAB[1] = lj_combB[ai];
+        ljcp_iAB[0] = lj_combA[ai];  ljcp_iAB[1] = lj_combB[ai];
 #endif
         // int  = {typej, typeBj};
         // const int  ntiA  = 2 * ntype * typeA[ii];
@@ -536,14 +537,14 @@ __launch_bounds__(THREADS_PER_BLOCK)
             /* load j atom data */
             xqbuf = xq[aj];
             xj    = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
-            qj_f  = xqbuf.w;
+            qj_f  = qA[aj];
             qBj_f = qB[aj];
             qq[0] = qi * qj_f;  qq[1] = qBi * qBj_f;
             // printf("ni=%d, nj=%d, ii=%d, jj=%d, xi=[%.4f, %.4f, %.4f], xi_shift=[%.4f, %.4f, %.4f], xj=[%.4f, %.4f, %.4f]\n", n, j, iinr[n], jjnr[j], xi_raw.x, xi_raw.y, xi_raw.z, xi.x, xi.y, xi.z, xj.x, xj.y, xj.z);
 #    ifndef LJ_COMB
-            typejAB[0] = atom_types[aj];    typejAB[1] = atom_typesB[aj];
+            typejAB[0] = atom_typesA[aj];    typejAB[1] = atom_typesB[aj];
 #    else
-            ljcp_jAB[0] = lj_comb[aj];  ljcp_jAB[1] = lj_combB[aj];
+            ljcp_jAB[0] = lj_combA[aj];  ljcp_jAB[1] = lj_combB[aj];
 #    endif
             fcj_buf = make_float3(0.0f);
             /* distance between i and j atoms */
