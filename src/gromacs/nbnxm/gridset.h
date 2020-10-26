@@ -166,7 +166,7 @@ public:
     //! Returns the grid atom indices covering all grids
     gmx::ArrayRef<const int> atomIndices() const { return gridSetData_.atomIndices; }
 
-    gmx::ArrayRef<int> atomIndicesInv() const { return gridSetData_.atomIndicesInv; }
+    gmx::ArrayRef<const int> atomIndicesInv() const { return gridSetData_.atomIndicesInv; }
 
     //! Returns whether we have perturbed non-bonded interactions
     bool haveFep() const { return haveFep_; }

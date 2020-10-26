@@ -651,13 +651,13 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     d_feplist->maxnri = 0;
 
-    reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
-    copyToDeviceBuffer(&d_feplist->shift, h_feplist->shift, 0, h_feplist->nri, stream,
+    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri+1, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri+1, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     d_feplist->maxnri = 0;
 
-    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri+1, &d_feplist->nri+1, &d_feplist->maxnri, context);
-    copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri, stream,
+    reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->shift, h_feplist->shift, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
     
     reallocateDeviceBuffer(&d_feplist->jjnr, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
@@ -995,6 +995,62 @@ rvec* gpu_get_fshift(gmx_nbnxn_gpu_t* nb)
     return reinterpret_cast<rvec*>(nb->atdat->fshift);
 }
 
+void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gridSet, gmx_nbnxn_gpu_t* gpu_nbv)
+{
+    cudaStream_t stream        = gpu_nbv->stream[InteractionLocality::Local];
+    bool         bDoTime       = gpu_nbv->bDoTime;
+
+    gridSet.setAtomIndicesInverse();
+
+    for (unsigned int g = 0; g < gridSet.grids().size(); g++)
+    {
+
+        const Nbnxm::Grid& grid = gridSet.grids()[g];
+
+        const int  numColumns      = grid.numColumns();
+        const int* atomIndices     = gridSet.atomIndices().data();
+        const int  atomIndicesSize = gridSet.atomIndices().size();
+        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
+
+        printf("\n\natomIndices:\n");
+        for (int i = 0; i < atomIndicesSize; i++)
+        {
+            printf("%d ", atomIndices[i]);
+        }
+
+        printf("\n\natomIndicesInv:\n");
+        for (int i = 0; i < atomIndicesSize; i++)
+        {
+            printf("%d ", atomIndicesInv[i]);
+        }
+
+        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, nullptr);
+        gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, nullptr);
+        
+        if (atomIndicesSize > 0)
+        {
+
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(stream);
+            }
+
+            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, stream,
+                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, stream,
+                               GpuApiCallBehavior::Async, nullptr);
+
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.closeTimingRegion(stream);
+            }
+        }
+    }
+}
+
 /* Initialization for X buffer operations on GPU. */
 /* TODO  Remove explicit pinning from host arrays from here and manage in a more natural way*/
 void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* gpu_nbv)
@@ -1008,8 +1064,6 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* 
     reallocateDeviceBuffer(&gpu_nbv->cxy_ind, maxNumColumns * gridSet.grids().size(),
                            &gpu_nbv->ncxy_ind, &gpu_nbv->ncxy_ind_alloc, nullptr);
 
-    gridSet.setAtomIndicesInverse();
-
     for (unsigned int g = 0; g < gridSet.grids().size(); g++)
     {
 
@@ -1018,14 +1072,10 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* 
         const int  numColumns      = grid.numColumns();
         const int* atomIndices     = gridSet.atomIndices().data();
         const int  atomIndicesSize = gridSet.atomIndices().size();
-        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
         const int* cxy_na          = grid.cxy_na().data();
         const int* cxy_ind         = grid.cxy_ind().data();
 
         reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, nullptr);
-        &gpu_nbv->atomIndicesSize_alloc = 0;
-        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
                                &gpu_nbv->atomIndicesSize_alloc, nullptr);
 
         if (atomIndicesSize > 0)
@@ -1037,8 +1087,6 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, gmx_nbnxn_gpu_t* 
             }
 
             copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, stream,
-                               GpuApiCallBehavior::Async, nullptr);
-            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, stream,
                                GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)

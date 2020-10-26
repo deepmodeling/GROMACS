@@ -1214,6 +1214,7 @@ void do_force(FILE*                               fplog,
         {
             nbv->atomdata_init_copy_x_to_nbat_x_gpu();
         }
+        nbv->atomdata_init_atomIndicesInv();
         // For force buffer ops, we use the below conditon rather than
         // useGpuFBufOps to ensure that init is performed even if this
         // NS step is also a virial step (on which f buf ops are deactivated).
