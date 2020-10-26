@@ -250,6 +250,11 @@ void nonbonded_verlet_t::atomdata_init_copy_x_to_nbat_x_gpu()
     Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv);
 }
 
+void nonbonded_verlet_t::atomdata_init_atomIndicesInv()
+{
+    Nbnxm::nbnxn_gpu_init_atomIndicesInv(pairSearch_->gridSet(), gpu_nbv);
+}
+
 void nonbonded_verlet_t::insertNonlocalGpuDependency(const gmx::InteractionLocality interactionLocality)
 {
     Nbnxm::nbnxnInsertNonlocalGpuDependency(gpu_nbv, interactionLocality);

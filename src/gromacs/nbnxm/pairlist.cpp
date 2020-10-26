@@ -3662,7 +3662,7 @@ static void nbnxn_make_pairlist_part(const Nbnxm::GridSet&   gridSet,
                     if (haveFep)
                     {
                         make_fep_list(gridSet.atomIndices(), nbat, nbl, excludeSubDiagonal,
-                                      getOpenIEntry(nbl), shx, shy, shz, rl_fep2, iGrid, jGrid, nbl_fep, 1);
+                                      getOpenIEntry(nbl), shx, shy, shz, rl_fep2, iGrid, jGrid, nbl_fep, 0);
                     }
 
                     /* Close this ci list */

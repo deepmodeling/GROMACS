@@ -157,7 +157,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         __global__ void NB_FEP_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 // #endif     /* PRUNE_NBL */
-                (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_feplist_t feplist, bool bCalcFshift)
+                (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_feplist_t feplist, const int* __restrict__ gm_atomIndexInv, bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY
                         ; /* Only do function declaration, omit the function body. */
 #else
@@ -293,7 +293,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        E_lj_p;
 #    endif
     float4       xqbuf;
-    float3       xi, xj, rv, f_ij, fci_buf, fcj_buf;
+    float3       xi, xi_raw, xj, rv, f_ij, fci_buf, fcj_buf;
 
     /*********************************************************************
      * Set up shared memory pointers.
@@ -476,18 +476,18 @@ __launch_bounds__(THREADS_PER_BLOCK)
     int npair_within_cutoff = 0;
 
     // float* shiftptr = (float*)&shift_vec[nb_sci.shift];
-
     if (tidxi_global < nri)
     {
         const int  n     = tidxi_global;
         const int  nj0   = jindex[n];
         const int  nj1   = jindex[n + 1];
-        const int  ai    = iinr[n];
+        const int  ai    = gm_atomIndexInv[iinr[n]];
         float* shiftptr  = (float*)&shift_vec[shift[n]];
         xqbuf = xq[ai] + make_float4(LDG(shiftptr), LDG(shiftptr + 1), LDG(shiftptr + 2), 0.0f);
         xqbuf.w *= nbparam.epsfac;
 
         xi = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
+        xi_raw = make_float3(xq[ai].x, xq[ai].y, xq[ai].z);
         qi = xqbuf.w;
         qBi = qB[ai] * nbparam.epsfac;
         // const int  is3   = 3 * shift[n];
@@ -516,7 +516,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         for (int j = nj0; j < nj1; j++)
         {
             // int        tj[NSTATES];
-            const int  aj  = jjnr[j];
+            const int  aj  = gm_atomIndexInv[jjnr[j]];
             // real       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
             // real       r, rinv, rp, rpm2, rpc, rpcm2;
             // real       alpha_vdw_eff, alpha_coul_eff, sigma_pow[NSTATES];
@@ -539,6 +539,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
             qj_f  = xqbuf.w;
             qBj_f = qB[aj];
             qq[0] = qi * qj_f;  qq[1] = qBi * qBj_f;
+            // printf("ni=%d, nj=%d, ii=%d, jj=%d, xi=[%.4f, %.4f, %.4f], xi_shift=[%.4f, %.4f, %.4f], xj=[%.4f, %.4f, %.4f]\n", n, j, iinr[n], jjnr[j], xi_raw.x, xi_raw.y, xi_raw.z, xi.x, xi.y, xi.z, xj.x, xj.y, xj.z);
 #    ifndef LJ_COMB
             typejAB[0] = atom_types[aj];    typejAB[1] = atom_typesB[aj];
 #    else
@@ -949,7 +950,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                 f_lr = inv_r > 0 ? interpolate_coulomb_force_r(nbparam, r2 * inv_r) : 0;
 #        endif
 #    ifdef CALC_ENERGIES
-                printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=1.000000\n", ai, aj, r2, rinvC, -f_lr, v_lr, FscalC[0], FscalC[1], FscalV[0], FscalV[1], Vcoul[0], Vcoul[1], Vvdw[0], Vvdw[1]);
+                printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%d\n", iinr[n], jjnr[j], r2, rinvC, -f_lr, v_lr, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2, Vcoul[0], Vcoul[1], Vvdw[0], Vvdw[1], feplist.excl_fep[j]);
 #    endif
                 if (bFEP)
                 {
@@ -1015,7 +1016,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifdef CALC_ENERGIES
         /* reduce the energies over warps and store into global memory */
-        reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
+        // reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
+        atomicAdd(e_lj, E_lj);
+        atomicAdd(e_el, E_el);
 #    endif
         // printf("nFEP=%d, nnFEP=%d\n", nFEP, nnFEP);
     }

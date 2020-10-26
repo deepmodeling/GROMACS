@@ -371,7 +371,7 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
 /*********************************/
 
 /*! Nonbonded FEP kernel function pointer type */
-typedef void (*nbnxn_fep_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_feplist_t, bool);
+typedef void (*nbnxn_fep_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_feplist_t, const int* __restrict__, bool);
 
 /*********************************/
 
@@ -686,6 +686,8 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
     if (bFEP)
     {
         cu_feplist_t*    feplist  = nb->feplist[iloc];
+        const int* d_atomIndicesInv = nb->atomIndicesInv;
+        const int* d_atomIndices    = nb->atomIndices;
         KernelLaunchConfig fep_config;
         fep_config.blockSize[0]     = 64;
         fep_config.blockSize[1]     = 1;
@@ -715,7 +717,7 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
         const auto fep_kernel      = select_nbnxn_fep_kernel(
                 nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, nb->dev_info);
         const auto fep_kernelArgs =
-                prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &stepWork.computeVirial);
+                prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &d_atomIndicesInv, &stepWork.computeVirial);
         printf("nri: %d, nrj: %d\n", feplist->nri, feplist->nrj);
         launchGpuKernel(fep_kernel, fep_config, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
     }
