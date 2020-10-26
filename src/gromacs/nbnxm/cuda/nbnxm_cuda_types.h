@@ -155,6 +155,8 @@ struct cu_atomdata
     int nalloc;       /**< allocation size for the atom data (xq, f)    */
 
     float4* xq; /**< atom coordinates + charges, size natoms      */
+    float*  qA; /**< atom chargeAs, size natoms, only in FEP      */
+    float*  qB; /**< atom chargeBs, size natoms, only in FEP      */
     float3* f;  /**< force output array, size natoms              */
 
     float* e_lj; /**< LJ energy output, size 1                     */
@@ -165,6 +167,10 @@ struct cu_atomdata
     int     ntypes;     /**< number of atom types                         */
     int*    atom_types; /**< atom type indices, size natoms               */
     float2* lj_comb;    /**< sqrt(c6),sqrt(c12) size natoms               */
+    int*    atom_typesA;/**< atom typeB indices, size natoms, only in FEP */
+    float2* lj_combA;   /**< sqrt(c6),sqrt(c12) for stateA, size natoms   */
+    int*    atom_typesB;/**< atom typeB indices, size natoms, only in FEP */
+    float2* lj_combB;   /**< sqrt(c6),sqrt(c12) for stateB, size natoms   */
 
     float3* shift_vec;         /**< shifts                                       */
     bool    bShiftVecUploaded; /**< true if the shift vector has been uploaded   */
@@ -209,12 +215,25 @@ struct cu_nbparam
     float               coulomb_tab_scale;  /**< table scale/spacing                        */
     float*              coulomb_tab;        /**< pointer to the table in the device memory  */
     cudaTextureObject_t coulomb_tab_texobj; /**< texture object bound to coulomb_tab        */
+
+    bool  bFEP; /**< whether using free energy perturbation    */
+    float alpha_coul;
+    float alpha_vdw;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    float lambda_q; /**< free energy λ for coulomb interaction */
+    float lambda_v; /**< free energy λ for vdw interaction     */
 };
 
 /** \internal
  * \brief Pair list data.
  */
 using cu_plist_t = Nbnxm::gpu_plist;
+
+/** \internal
+ * \brief FEP Pair list data.
+ */
+using cu_feplist_t = Nbnxm::gpu_feplist;
 
 /** \internal
  * \brief Typedef of actual timer type.
@@ -240,8 +259,10 @@ struct gmx_nbnxn_cuda_t
     int ncell;
     //! number of indices allocated in cell buffer
     int ncell_alloc;
-    //! array of atom indices
+    //! array of atom indices (nbat to normal)
     int* atomIndices;
+    //! array of atom indices (normal to nbat)
+    int* atomIndicesInv;
     //! size of atom indices
     int atomIndicesSize;
     //! size of atom indices allocated in device buffer
@@ -262,6 +283,8 @@ struct gmx_nbnxn_cuda_t
     cu_nbparam_t* nbparam;
     //! pair-list data structures (local and non-local)
     gmx::EnumerationArray<Nbnxm::InteractionLocality, cu_plist_t*> plist;
+    //! fep pair-list data structures (local and non-local)
+    gmx::EnumerationArray<Nbnxm::InteractionLocality, cu_feplist_t*> feplist;
     //! staging area where fshift/energies get downloaded
     nb_staging_t nbst;
     //! local and non-local GPU streams

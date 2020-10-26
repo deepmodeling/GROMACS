@@ -186,6 +186,21 @@ struct nbnxn_atomdata_t
         gmx::HostVector<real> lj_comb;
         // Charges per atom, not set with format nbatXYZQ
         gmx::HostVector<real> q;
+
+        // Added by CJH,
+        // Atom types of stateA per atom
+        gmx::HostVector<int> typeA;
+        // LJ parameters of stateA per atom for fast SIMD loading
+        gmx::HostVector<real> lj_combA;
+        // Charges of stateA per atom, not set with format nbatXYZQ
+        gmx::HostVector<real> qA;
+        // Atom types of stateB per atom
+        gmx::HostVector<int> typeB;
+        // LJ parameters of stateB per atom for fast SIMD loading
+        gmx::HostVector<real> lj_combB;
+        // Charges of stateB per atom, not set with format nbatXYZQ
+        gmx::HostVector<real> qB;
+
         // The number of energy groups
         int nenergrp;
         // 2log(nenergrp)
@@ -298,6 +313,11 @@ void nbnxn_atomdata_init(const gmx::MDLogger& mdlog,
                          int                  nout);
 
 void nbnxn_atomdata_set(nbnxn_atomdata_t*     nbat,
+                        const Nbnxm::GridSet& gridSet,
+                        const t_mdatoms*      mdatoms,
+                        const int*            atinfo);
+
+void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
                         const Nbnxm::GridSet& gridSet,
                         const t_mdatoms*      mdatoms,
                         const int*            atinfo);

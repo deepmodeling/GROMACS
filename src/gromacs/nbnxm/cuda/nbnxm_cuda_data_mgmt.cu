@@ -374,6 +374,26 @@ static void init_plist(cu_plist_t* pl)
     pl->haveFreshList = false;
 }
 
+/*! Initializes the pair list data structure. */
+static void init_feplist(cu_feplist_t* pl)
+{
+    /* initialize to nullptr pointers to data that is not allocated here and will
+       need reallocation in nbnxn_gpu_init_pairlist */
+    pl->iinr   = nullptr;
+    pl->gid    = nullptr;
+    pl->shift  = nullptr;
+    pl->jindex = nullptr;
+    pl->jjnr   = nullptr;
+    pl->excl_fep= nullptr;
+
+    /* size -1 indicates that the respective array hasn't been initialized yet */
+    pl->nri           = -1;
+    pl->maxnri        = -1;
+    pl->nrj           = -1;
+    pl->maxnrj        = -1;
+    pl->haveFreshList = false;
+}
+
 /*! Initializes the timings data structure. */
 static void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
 {
@@ -411,6 +431,28 @@ static void cuda_init_const(gmx_nbnxn_cuda_t*               nb,
     nbnxn_cuda_clear_e_fshift(nb);
 }
 
+void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
+                               const bool        bFEP,
+                               const float       alpha_coul,
+                               const float       alpha_vdw,
+                               const float       sc_sigma6_def,
+                               const float       sc_sigma6_min)
+{
+    nb->nbparam->bFEP       = bFEP;
+    nb->nbparam->alpha_coul = alpha_coul;
+    nb->nbparam->alpha_vdw  = alpha_vdw;
+    nb->nbparam->sc_sigma6  = sc_sigma6_def;
+    nb->nbparam->sc_sigma6_min = sc_sigma6_min;
+}
+
+void cuda_copy_feplambda(gmx_nbnxn_cuda_t* nb,
+                                const float       lambda_q,
+                                const float       lambda_v)
+{
+    nb->nbparam->lambda_q   = lambda_q;
+    nb->nbparam->lambda_v   = lambda_v;
+}
+
 gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
                            const interaction_const_t* ic,
                            const PairlistParams&      listParams,
@@ -425,9 +467,11 @@ gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
     snew(nb->atdat, 1);
     snew(nb->nbparam, 1);
     snew(nb->plist[InteractionLocality::Local], 1);
+    snew(nb->feplist[InteractionLocality::Local], 1);
     if (bLocalAndNonlocal)
     {
         snew(nb->plist[InteractionLocality::NonLocal], 1);
+        snew(nb->feplist[InteractionLocality::NonLocal], 1);
     }
 
     nb->bUseTwoStreams = bLocalAndNonlocal;
@@ -441,6 +485,7 @@ gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
     pmalloc((void**)&nb->nbst.fshift, SHIFTS * sizeof(*nb->nbst.fshift));
 
     init_plist(nb->plist[InteractionLocality::Local]);
+    init_feplist(nb->feplist[InteractionLocality::Local]);
 
     /* set device info, just point it to the right GPU among the detected ones */
     nb->dev_info = deviceInfo;
@@ -451,6 +496,7 @@ gmx_nbnxn_cuda_t* gpu_init(const gmx_device_info_t*   deviceInfo,
     if (nb->bUseTwoStreams)
     {
         init_plist(nb->plist[InteractionLocality::NonLocal]);
+        init_feplist(nb->feplist[InteractionLocality::Local]);
 
         /* Note that the device we're running on does not have to support
          * priorities, because we are querying the priority range which in this
@@ -564,6 +610,74 @@ void gpu_init_pairlist(gmx_nbnxn_cuda_t* nb, const NbnxnPairlistGpu* h_plist, co
     d_plist->haveFreshList = true;
 }
 
+void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const InteractionLocality iloc)
+{
+    char         sbuf[STRLEN];
+    bool         bDoTime = (nb->bDoTime && !h_feplist->nri == 0);
+    cudaStream_t stream  = nb->stream[iloc];
+    cu_feplist_t* d_feplist = nb->feplist[iloc];
+
+    if (d_feplist->nri < 0)
+    {
+        d_feplist->nri = h_feplist->nri;
+    }
+    else
+    {
+        if (d_feplist->nri != h_feplist->nri)
+        {
+            sprintf(sbuf, "In cu_init_feplist: the #atoms per cell has changed (from %d to %d)",
+                    d_feplist->nri, h_feplist->nri);
+            gmx_incons(sbuf);
+        }
+    }
+
+    gpu_timers_t::Interaction& iTimers = nb->timers->interaction[iloc];
+
+    if (bDoTime)
+    {
+        iTimers.pl_h2d.openTimingRegion(stream);
+        iTimers.didPairlistH2D = true;
+    }
+
+    DeviceContext context = nullptr;
+
+    reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->iinr, h_feplist->iinr, 0, h_feplist->nri, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = 0;
+
+    reallocateDeviceBuffer(&d_feplist->gid, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->gid, h_feplist->gid, 0, h_feplist->nri, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = 0;
+
+    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri+1, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri+1, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = 0;
+
+    reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
+    copyToDeviceBuffer(&d_feplist->shift, h_feplist->shift, 0, h_feplist->nri, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    
+    reallocateDeviceBuffer(&d_feplist->jjnr, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
+    copyToDeviceBuffer(&d_feplist->jjnr, h_feplist->jjnr, 0, h_feplist->nrj, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnrj = 0;
+
+    reallocateDeviceBuffer(&d_feplist->excl_fep, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, context);
+    copyToDeviceBuffer(&d_feplist->excl_fep, h_feplist->excl_fep, 0, h_feplist->nrj, stream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+
+    if (bDoTime)
+    {
+        iTimers.pl_h2d.closeTimingRegion(stream);
+    }
+
+    /* the next use of thist list we be the first one, so we need to prune */
+    d_feplist->haveFreshList = true;
+}
+
 void gpu_upload_shiftvec(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbatom)
 {
     cu_atomdata_t* adat = nb->atdat;
@@ -620,6 +734,7 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
     int            nalloc, natoms;
     bool           realloced;
     bool           bDoTime = nb->bDoTime;
+    bool           bFEP    = nb->nbparam->bFEP;
     cu_timers_t*   timers  = nb->timers;
     cu_atomdata_t* d_atdat = nb->atdat;
     cudaStream_t   ls      = nb->stream[InteractionLocality::Local];
@@ -663,6 +778,28 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
             CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_types");
         }
 
+        if (bFEP)
+        {
+            stat = cudaMalloc((void**)&d_atdat->qA, nalloc * sizeof(*d_atdat->qA));
+            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->qA");
+            stat = cudaMalloc((void**)&d_atdat->qB, nalloc * sizeof(*d_atdat->qB));
+            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->qB");
+            if (useLjCombRule(nb->nbparam))
+            {
+                stat = cudaMalloc((void**)&d_atdat->lj_combA, nalloc * sizeof(*d_atdat->lj_combA));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->lj_combA");
+                stat = cudaMalloc((void**)&d_atdat->lj_combB, nalloc * sizeof(*d_atdat->lj_combB));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->lj_combB");
+            }
+            else
+            {
+                stat = cudaMalloc((void**)&d_atdat->atom_typesA, nalloc * sizeof(*d_atdat->atom_typesA));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_typesA");
+                stat = cudaMalloc((void**)&d_atdat->atom_typesB, nalloc * sizeof(*d_atdat->atom_typesB));
+                CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_typesB");
+            }
+        }
+
         d_atdat->nalloc = nalloc;
         realloced       = true;
     }
@@ -685,6 +822,28 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
     {
         cu_copy_H2D_async(d_atdat->atom_types, nbat->params().type.data(),
                           natoms * sizeof(*d_atdat->atom_types), ls);
+    }
+
+    if (bFEP)
+    {
+        cu_copy_H2D_async(d_atdat->qA, nbat->params().qA.data(),
+                          natoms * sizeof(*d_atdat->qA), ls);
+        cu_copy_H2D_async(d_atdat->qB, nbat->params().qB.data(),
+                          natoms * sizeof(*d_atdat->qB), ls);
+        if (useLjCombRule(nb->nbparam))
+        {
+            cu_copy_H2D_async(d_atdat->lj_combA, nbat->params().lj_combA.data(),
+                              natoms * sizeof(*d_atdat->lj_combA), ls);
+            cu_copy_H2D_async(d_atdat->lj_combB, nbat->params().lj_combB.data(),
+                              natoms * sizeof(*d_atdat->lj_combB), ls);
+        }
+        else
+        {
+            cu_copy_H2D_async(d_atdat->atom_typesA, nbat->params().typeA.data(),
+                              natoms * sizeof(*d_atdat->atom_typesA), ls);
+            cu_copy_H2D_async(d_atdat->atom_typesB, nbat->params().typeB.data(),
+                              natoms * sizeof(*d_atdat->atom_typesB), ls);
+        }
     }
 
     if (bDoTime)
@@ -846,6 +1005,62 @@ rvec* gpu_get_fshift(gmx_nbnxn_gpu_t* nb)
     assert(nb);
 
     return reinterpret_cast<rvec*>(nb->atdat->fshift);
+}
+
+void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gridSet, gmx_nbnxn_gpu_t* gpu_nbv)
+{
+    cudaStream_t stream        = gpu_nbv->stream[InteractionLocality::Local];
+    bool         bDoTime       = gpu_nbv->bDoTime;
+
+    gridSet.setAtomIndicesInverse();
+
+    for (unsigned int g = 0; g < gridSet.grids().size(); g++)
+    {
+
+        const Nbnxm::Grid& grid = gridSet.grids()[g];
+
+        const int  numColumns      = grid.numColumns();
+        const int* atomIndices     = gridSet.atomIndices().data();
+        const int  atomIndicesSize = gridSet.atomIndices().size();
+        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
+
+        printf("\n\natomIndices:\n");
+        for (int i = 0; i < atomIndicesSize; i++)
+        {
+            printf("%d ", atomIndices[i]);
+        }
+
+        printf("\n\natomIndicesInv:\n");
+        for (int i = 0; i < atomIndicesSize; i++)
+        {
+            printf("%d ", atomIndicesInv[i]);
+        }
+
+        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, nullptr);
+        gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, nullptr);
+        
+        if (atomIndicesSize > 0)
+        {
+
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(stream);
+            }
+
+            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, stream,
+                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, stream,
+                               GpuApiCallBehavior::Async, nullptr);
+
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.closeTimingRegion(stream);
+            }
+        }
+    }
 }
 
 /* Initialization for X buffer operations on GPU. */

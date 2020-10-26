@@ -112,6 +112,24 @@ public:
         }
     }
 
+    //! Returns a pointer to the FEP pairlist, nullptr when not present
+    const std::unique_ptr<t_nblist>* fepList() const
+    {
+        if (!fepLists_.empty())
+        {
+            return &fepLists_[0];
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    const PairlistParams params() const
+    {
+        return params_;
+    }
+
     //! Returns the lists of free-energy pairlists, empty when nonbonded interactions are not perturbed
     gmx::ArrayRef<const std::unique_ptr<t_nblist>> fepLists() const { return fepLists_; }
 

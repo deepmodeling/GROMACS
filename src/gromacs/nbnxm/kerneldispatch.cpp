@@ -457,6 +457,20 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
     nvtxRangePop();
 }
 
+void print_fep(t_nblist* nl)
+{
+	printf("igeometry: %d, ", nl->igeometry);
+	printf("ivdw: %d, ", nl->ivdw);
+	printf("ivdwmod: %d, ", nl->ivdwmod);
+	printf("ielecmod: %d, ", nl->ielecmod);
+	printf("maxnri: %d, ", nl->maxnri);
+	printf("maxnrj: %d, ", nl->maxnrj);
+	printf("nri: %d, ", nl->nri);
+	printf("nrj: %d, ", nl->nrj);
+	printf("type: %d, ", nl->type);
+	printf("\n\n");
+}
+
 void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLocality,
                                                   const t_forcerec*          fr,
                                                   rvec                       x[],
@@ -510,6 +524,8 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
 #pragma omp parallel for schedule(static) num_threads(nbl_fep.ssize())
     for (gmx::index th = 0; th < nbl_fep.ssize(); th++)
     {
+        printf("\n\nnbl_fep %d:\n", th);
+        print_fep(nbl_fep[th].get());
         try
         {
             gmx_nb_free_energy_kernel(nbl_fep[th].get(), x, forceWithShiftForces, fr, &mdatoms,

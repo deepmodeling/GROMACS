@@ -61,7 +61,18 @@ struct gmx_device_info_t;
 
 namespace Nbnxm
 {
+GPU_FUNC_QUALIFIER
+void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
+                               const bool        bFEP,
+                               const float       alpha_coul,
+                               const float       alpha_vdw,
+                               const float       sc_sigma6_def,
+                               const float       sc_sigma6_min);
 
+GPU_FUNC_QUALIFIER
+void cuda_copy_feplambda(gmx_nbnxn_cuda_t* nb,
+                                const float       lambda_q,
+                                const float       lambda_v);
 /** Initializes the data structures related to GPU nonbonded calculations. */
 GPU_FUNC_QUALIFIER
 gmx_nbnxn_gpu_t* gpu_init(const gmx_device_info_t gmx_unused* deviceInfo,
@@ -77,6 +88,12 @@ GPU_FUNC_QUALIFIER
 void gpu_init_pairlist(gmx_nbnxn_gpu_t gmx_unused*   nb,
                        const struct NbnxnPairlistGpu gmx_unused* h_nblist,
                        gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
+                       
+/** Initializes fep pair-list data for GPU, called at every pair search step. */
+GPU_FUNC_QUALIFIER
+void gpu_init_feppairlist(gmx_nbnxn_gpu_t gmx_unused*   nb,
+                          const struct t_nblist gmx_unused* h_nblist,
+                          gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
 
 /** Initializes atom-data on the GPU, called at every pair search step. */
 GPU_FUNC_QUALIFIER

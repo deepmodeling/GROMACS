@@ -86,6 +86,22 @@ static __forceinline__ __device__ void
     *c12   = *c6 * sigma6;
 }
 
+/*! Convert LJ C6,C12 parameters to sigma,epsilon. */
+static __forceinline__ __device__ void
+                       convert_c6_c12_to_sigma6_epsilon(const float c6, const float c12, float* sigma6)
+{
+    if ((c6 > 0) && (c12 > 0))
+    {
+        *sigma6  = c12 / c6 * 0.5;
+        // *epsilon = c6 / *sigma6;
+    }
+    else
+    {
+        *sigma6  = 0;
+        // *epsilon = 0;
+    }
+}
+
 /*! Apply force switch,  force + energy version. */
 static __forceinline__ __device__ void
                        calculate_force_switch_F(const cu_nbparam_t nbparam, float c6, float c12, float inv_r, float r2, float* F_invr)

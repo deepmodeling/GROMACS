@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2017,2019, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,54 +32,20 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+#include "gmxpre.h"
 
-/*! \internal \file
- *
- * \brief
- * Declares the GridSetData struct which holds grid data that is shared over all grids
- *
- * Also declares a struct for work data that is shared over grids.
- *
- * \author Berk Hess <hess@kth.se>
- * \ingroup module_nbnxm
+#include "gromacs/gpu_utils/cudautils.cuh"
+
+#include "nbnxm_cuda_kernel_utils.cuh"
+#include "nbnxm_cuda_types.h"
+
+/* Top-level kernel generation: will generate through multiple
+ * inclusion the following flavors for all kernel:
+ * force and energy output without pair list pruning;
  */
-
-#ifndef GMX_NBNXM_GRIDSETDATA_H
-#define GMX_NBNXM_GRIDSETDATA_H
-
-#include <vector>
-
-
-namespace Nbnxm
-{
-
-/*! \internal
- * \brief Struct that holds grid data that is shared over all grids
- *
- * To enable a single coordinate and force array, a single cell range
- * is needed which covers all grids.
- */
-struct GridSetData
-{
-    //! The cell indices for all atoms
-    gmx::HostVector<int> cells;
-    //! The atom indices for all atoms stored in cell order
-    gmx::HostVector<int> atomIndices;
-    //! The atom indices for all atoms stored in cell order
-    gmx::HostVector<int> atomIndicesInv;
-};
-
-/*! \internal
- * \brief Working arrays for constructing a grid
- */
-struct GridWork
-{
-    //! Number of atoms for each grid column
-    std::vector<int> numAtomsPerColumn;
-    //! Buffer for sorting integers
-    std::vector<int> sortBuffer;
-};
-
-} // namespace Nbnxm
-
-#endif
+#define CALC_ENERGIES
+#define FUNCTION_DECLARATION_ONLY
+#include "nbnxm_fep_cuda_kernels.cuh"
+#undef FUNCTION_DECLARATION_ONLY
+#include "nbnxm_fep_cuda_kernels.cuh"
+#undef CALC_ENERGIES

@@ -47,6 +47,7 @@
 
 #include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/timing/wallcycle.h"
+#include "gromacs/mdtypes/mdatom.h"
 
 #include "atomdata.h"
 #include "pairlistsets.h"
@@ -120,7 +121,13 @@ void nonbonded_verlet_t::setLocalAtomOrder()
 
 void nonbonded_verlet_t::setAtomProperties(const t_mdatoms& mdatoms, gmx::ArrayRef<const int> atomInfo)
 {
+    bool bFEP = mdatoms.nPerturbed != 0;
     nbnxn_atomdata_set(nbat.get(), pairSearch_->gridSet(), &mdatoms, atomInfo.data());
+    // bFEP = 0;
+    if (bFEP)
+    {
+        nbnxn_atomdata_setAB(nbat.get(), pairSearch_->gridSet(), &mdatoms, atomInfo.data());
+    }
 }
 
 void nonbonded_verlet_t::convertCoordinates(const gmx::AtomLocality        locality,
@@ -238,6 +245,11 @@ void nonbonded_verlet_t::changePairlistRadii(real rlistOuter, real rlistInner)
 void nonbonded_verlet_t::atomdata_init_copy_x_to_nbat_x_gpu()
 {
     Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv);
+}
+
+void nonbonded_verlet_t::atomdata_init_atomIndicesInv()
+{
+    Nbnxm::nbnxn_gpu_init_atomIndicesInv(pairSearch_->gridSet(), gpu_nbv);
 }
 
 void nonbonded_verlet_t::insertNonlocalGpuDependency(const gmx::InteractionLocality interactionLocality)

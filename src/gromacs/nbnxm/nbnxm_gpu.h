@@ -223,6 +223,9 @@ GPU_FUNC_QUALIFIER
 int nbnxn_gpu_pick_ewald_kernel_type(const interaction_const_t gmx_unused& ic)
         GPU_FUNC_TERM_WITH_RETURN(-1);
 
+CUDA_FUNC_QUALIFIER
+void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gmx_unused gridSet,
+                                   gmx_nbnxn_gpu_t gmx_unused* gpu_nbv) CUDA_FUNC_TERM;
 /*! \brief Initialization for X buffer operations on GPU.
  * Called on the NS step and performs (re-)allocations and memory copies. !*/
 CUDA_FUNC_QUALIFIER

@@ -88,6 +88,13 @@
 #include "nbnxm_cuda_kernels.cuh"
 #undef CALC_ENERGIES
 
+/** Force only **/
+#include "nbnxm_fep_cuda_kernels.cuh"
+/** Force & energy **/
+#define CALC_ENERGIES
+#include "nbnxm_fep_cuda_kernels.cuh"
+#undef CALC_ENERGIES
+
 /*** Pair-list pruning kernels ***/
 /** Force only **/
 #define PRUNE_NBL
@@ -108,6 +115,8 @@
 #    include "nbnxm_cuda_kernel_F_prune.cu"
 #    include "nbnxm_cuda_kernel_VF_noprune.cu"
 #    include "nbnxm_cuda_kernel_VF_prune.cu"
+#    include "nbnxm_fep_cuda_kernel_F.cu"
+#    include "nbnxm_fep_cuda_kernel_VF.cu"
 #    include "nbnxm_cuda_kernel_pruneonly.cu"
 #endif /* GMX_CUDA_NB_SINGLE_COMPILATION_UNIT */
 
@@ -331,6 +340,7 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
                                                 const cu_nbparam_t*                 nbp)
 {
     int shmem;
+    bool bFEP = nbp->bFEP;
 
     assert(dinfo);
 
@@ -338,6 +348,7 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
     /* NOTE: with the default kernel on sm3.0 we need shmem only for pre-loading */
     /* i-atom x+q in shared memory */
     shmem = c_numClPerSupercl * c_clSize * sizeof(float4);
+    if (bFEP) shmem += c_numClPerSupercl * c_clSize * sizeof(float);
     /* cj in shared memory, for each warp separately */
     shmem += num_threads_z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize * sizeof(int);
 
@@ -345,14 +356,122 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
     {
         /* i-atom LJ combination parameters in shared memory */
         shmem += c_numClPerSupercl * c_clSize * sizeof(float2);
+        if (bFEP) shmem += c_numClPerSupercl * c_clSize * sizeof(float2);
     }
     else
     {
         /* i-atom types in shared memory */
         shmem += c_numClPerSupercl * c_clSize * sizeof(int);
+        if (bFEP) shmem += c_numClPerSupercl * c_clSize * sizeof(int);
     }
 
     return shmem;
+}
+
+/*********************************/
+
+/*! Nonbonded FEP kernel function pointer type */
+typedef void (*nbnxn_fep_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_feplist_t, const int* __restrict__, bool);
+
+/*********************************/
+
+/* Constant arrays listing all kernel function pointers and enabling selection
+   of a kernel in an elegant manner. */
+
+/*! Pointers to the non-bonded kernels organized in 2-dim arrays by:
+ *  electrostatics and VDW type.
+ *
+ *  Note that the row- and column-order of function pointers has to match the
+ *  order of corresponding enumerated electrostatics and vdw types, resp.,
+ *  defined in nbnxn_cuda_types.h.
+ */
+
+/*! Force-only kernel function pointers. */
+static const nbnxn_fep_cu_kfunc_ptr_t nb_fep_kfunc_noener_ptr[eelCuNR][evdwCuNR] = {
+    { nbnxn_fep_kernel_ElecCut_VdwLJ_F_cuda, nbnxn_fep_kernel_ElecCut_VdwLJCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecCut_VdwLJCombLB_F_cuda, nbnxn_fep_kernel_ElecCut_VdwLJFsw_F_cuda,
+      nbnxn_fep_kernel_ElecCut_VdwLJPsw_F_cuda, nbnxn_fep_kernel_ElecCut_VdwLJEwCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecCut_VdwLJEwCombLB_F_cuda },
+    { nbnxn_fep_kernel_ElecRF_VdwLJ_F_cuda, nbnxn_fep_kernel_ElecRF_VdwLJCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecRF_VdwLJCombLB_F_cuda, nbnxn_fep_kernel_ElecRF_VdwLJFsw_F_cuda,
+      nbnxn_fep_kernel_ElecRF_VdwLJPsw_F_cuda, nbnxn_fep_kernel_ElecRF_VdwLJEwCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecRF_VdwLJEwCombLB_F_cuda },
+    { nbnxn_fep_kernel_ElecEwQSTab_VdwLJ_F_cuda, nbnxn_fep_kernel_ElecEwQSTab_VdwLJCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEwQSTab_VdwLJCombLB_F_cuda, nbnxn_fep_kernel_ElecEwQSTab_VdwLJFsw_F_cuda,
+      nbnxn_fep_kernel_ElecEwQSTab_VdwLJPsw_F_cuda, nbnxn_fep_kernel_ElecEwQSTab_VdwLJEwCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEwQSTab_VdwLJEwCombLB_F_cuda },
+    { nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJ_F_cuda, nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_F_cuda, nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJFsw_F_cuda,
+      nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJPsw_F_cuda, nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_F_cuda },
+    { nbnxn_fep_kernel_ElecEw_VdwLJ_F_cuda, nbnxn_fep_kernel_ElecEw_VdwLJCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEw_VdwLJCombLB_F_cuda, nbnxn_fep_kernel_ElecEw_VdwLJFsw_F_cuda,
+      nbnxn_fep_kernel_ElecEw_VdwLJPsw_F_cuda, nbnxn_fep_kernel_ElecEw_VdwLJEwCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEw_VdwLJEwCombLB_F_cuda },
+    { nbnxn_fep_kernel_ElecEwTwinCut_VdwLJ_F_cuda, nbnxn_fep_kernel_ElecEwTwinCut_VdwLJCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEwTwinCut_VdwLJCombLB_F_cuda, nbnxn_fep_kernel_ElecEwTwinCut_VdwLJFsw_F_cuda,
+      nbnxn_fep_kernel_ElecEwTwinCut_VdwLJPsw_F_cuda, nbnxn_fep_kernel_ElecEwTwinCut_VdwLJEwCombGeom_F_cuda,
+      nbnxn_fep_kernel_ElecEwTwinCut_VdwLJEwCombLB_F_cuda }
+};
+
+/*! Force + energy kernel function pointers. */
+static const nbnxn_fep_cu_kfunc_ptr_t nb_fep_kfunc_ener_ptr[eelCuNR][evdwCuNR] = {
+    { nbnxn_fep_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_fep_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_fep_kernel_ElecCut_VdwLJFsw_VF_cuda,
+      nbnxn_fep_kernel_ElecCut_VdwLJPsw_VF_cuda, nbnxn_fep_kernel_ElecCut_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecCut_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_fep_kernel_ElecRF_VdwLJ_VF_cuda, nbnxn_fep_kernel_ElecRF_VdwLJCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecRF_VdwLJCombLB_VF_cuda, nbnxn_fep_kernel_ElecRF_VdwLJFsw_VF_cuda,
+      nbnxn_fep_kernel_ElecRF_VdwLJPsw_VF_cuda, nbnxn_fep_kernel_ElecRF_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecRF_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_fep_kernel_ElecEwQSTab_VdwLJ_VF_cuda, nbnxn_fep_kernel_ElecEwQSTab_VdwLJCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEwQSTab_VdwLJCombLB_VF_cuda, nbnxn_fep_kernel_ElecEwQSTab_VdwLJFsw_VF_cuda,
+      nbnxn_fep_kernel_ElecEwQSTab_VdwLJPsw_VF_cuda, nbnxn_fep_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_cuda, nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_cuda, nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_cuda,
+      nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_cuda, nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_fep_kernel_ElecEw_VdwLJ_VF_cuda, nbnxn_fep_kernel_ElecEw_VdwLJCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEw_VdwLJCombLB_VF_cuda, nbnxn_fep_kernel_ElecEw_VdwLJFsw_VF_cuda,
+      nbnxn_fep_kernel_ElecEw_VdwLJPsw_VF_cuda, nbnxn_fep_kernel_ElecEw_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEw_VdwLJEwCombLB_VF_cuda },
+    { nbnxn_fep_kernel_ElecEwTwinCut_VdwLJ_VF_cuda, nbnxn_fep_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEwTwinCut_VdwLJCombLB_VF_cuda, nbnxn_fep_kernel_ElecEwTwinCut_VdwLJFsw_VF_cuda,
+      nbnxn_fep_kernel_ElecEwTwinCut_VdwLJPsw_VF_cuda, nbnxn_fep_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_cuda,
+      nbnxn_fep_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_cuda }
+};
+
+/*! Return a pointer to the kernel version to be executed at the current step. */
+static inline nbnxn_fep_cu_kfunc_ptr_t select_nbnxn_fep_kernel(int                     eeltype,
+                                                               int                     evdwtype,
+                                                               bool                    bDoEne,
+                                                               const gmx_device_info_t gmx_unused* devInfo)
+{
+    nbnxn_fep_cu_kfunc_ptr_t res;
+
+    GMX_ASSERT(eeltype < eelCuNR,
+               "The electrostatics type requested is not implemented in the CUDA kernels.");
+    GMX_ASSERT(evdwtype < evdwCuNR,
+               "The VdW type requested is not implemented in the CUDA kernels.");
+
+    /* assert assumptions made by the kernels */
+    GMX_ASSERT(c_nbnxnGpuClusterSize * c_nbnxnGpuClusterSize / c_nbnxnGpuClusterpairSplit
+                       == devInfo->prop.warpSize,
+               "The CUDA kernels require the "
+               "cluster_size_i*cluster_size_j/nbnxn_gpu_clusterpair_split to match the warp size "
+               "of the architecture targeted.");
+
+    if (bDoEne)
+    {
+        res = nb_fep_kfunc_ener_ptr[eeltype][evdwtype];
+    }
+    else
+    {
+        res = nb_fep_kfunc_noener_ptr[eeltype][evdwtype];
+    }
+
+    return res;
 }
 
 /*! \brief Sync the nonlocal stream with dependent tasks in the local queue.
@@ -484,6 +603,7 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
     cu_timers_t*   t      = nb->timers;
     cudaStream_t   stream = nb->stream[iloc];
 
+    bool bFEP = nb->nbparam->bFEP;
     bool bDoTime = nb->bDoTime;
 
     /* Don't launch the non-local kernel if there is no work to do.
@@ -562,6 +682,45 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
     const auto kernelArgs =
             prepareGpuKernelArguments(kernel, config, adat, nbp, plist, &stepWork.computeVirial);
     launchGpuKernel(kernel, config, timingEvent, "k_calc_nb", kernelArgs);
+
+    if (bFEP)
+    {
+        cu_feplist_t*    feplist  = nb->feplist[iloc];
+        const int* d_atomIndicesInv = nb->atomIndicesInv;
+        const int* d_atomIndices    = nb->atomIndices;
+        KernelLaunchConfig fep_config;
+        fep_config.blockSize[0]     = 64;
+        fep_config.blockSize[1]     = 1;
+        fep_config.blockSize[2]     = num_threads_z;
+
+        const int bsize = fep_config.blockSize[0] * fep_config.blockSize[1] * fep_config.blockSize[2];
+        nblock = (feplist->nri + bsize - 1) / bsize;
+        nblock = calc_nb_kernel_nblock(nblock, nb->dev_info);
+        fep_config.gridSize[0]      = nblock;
+        fep_config.gridSize[1]      = 1;
+        fep_config.gridSize[2]      = 1;
+        fep_config.sharedMemorySize = 0;
+        fep_config.stream           = stream;
+
+        if (debug)
+        {
+            fprintf(debug,
+                    "Non-bonded GPU launch configuration:\n\tThread block: %zux%zux%zu\n\t"
+                    "\tGrid: %zux%zu\n\t#Super-clusters/clusters: %d/%d (%d)\n"
+                    "\tShMem: %zu\n",
+                    config.blockSize[0], config.blockSize[1], config.blockSize[2], config.gridSize[0],
+                    config.gridSize[1], plist->nsci * c_numClPerSupercl, c_numClPerSupercl, plist->na_c,
+                    config.sharedMemorySize);
+        }
+
+        auto*      fep_timingEvent = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
+        const auto fep_kernel      = select_nbnxn_fep_kernel(
+                nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, nb->dev_info);
+        const auto fep_kernelArgs =
+                prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &d_atomIndicesInv, &stepWork.computeVirial);
+        printf("nri: %d, nrj: %d\n", feplist->nri, feplist->nrj);
+        launchGpuKernel(fep_kernel, fep_config, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
+    }
 
     if (bDoTime)
     {

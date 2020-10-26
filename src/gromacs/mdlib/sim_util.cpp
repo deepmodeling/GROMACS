@@ -1219,6 +1219,7 @@ void do_force(FILE*                               fplog,
         {
             nbv->atomdata_init_copy_x_to_nbat_x_gpu();
         }
+        nbv->atomdata_init_atomIndicesInv();
         // For force buffer ops, we use the below conditon rather than
         // useGpuFBufOps to ensure that init is performed even if this
         // NS step is also a virial step (on which f buf ops are deactivated).
@@ -1489,18 +1490,18 @@ void do_force(FILE*                               fplog,
         /* Calculate the local and non-local free energy interactions here.
          * Happens here on the CPU both with and without GPU.
          */
-        nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
-                                      as_rvec_array(x.unpaddedArrayRef().data()),
-                                      &forceOut.forceWithShiftForces(), *mdatoms, inputrec->fepvals,
-                                      lambda.data(), enerd, stepWork, nrnb);
+        // nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
+        //                               as_rvec_array(x.unpaddedArrayRef().data()),
+        //                               &forceOut.forceWithShiftForces(), *mdatoms, inputrec->fepvals,
+        //                               lambda.data(), enerd, stepWork, nrnb);
 
-        if (havePPDomainDecomposition(cr))
-        {
-            nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
-                                          as_rvec_array(x.unpaddedArrayRef().data()),
-                                          &forceOut.forceWithShiftForces(), *mdatoms,
-                                          inputrec->fepvals, lambda.data(), enerd, stepWork, nrnb);
-        }
+        // if (havePPDomainDecomposition(cr))
+        // {
+        //     nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
+        //                                   as_rvec_array(x.unpaddedArrayRef().data()),
+        //                                   &forceOut.forceWithShiftForces(), *mdatoms,
+        //                                   inputrec->fepvals, lambda.data(), enerd, stepWork, nrnb);
+        // }
     }
 
     if (!useOrEmulateGpuNb)

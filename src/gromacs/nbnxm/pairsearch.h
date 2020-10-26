@@ -207,6 +207,8 @@ public:
     //! Sets the order of the local atoms to the order grid atom ordering
     void setLocalAtomOrder() { gridSet_.setLocalAtomOrder(); }
 
+    void setAtomIndicesInverse() { gridSet_.setAtomIndicesInverse(); }
+
     //! Returns the set of search grids
     const Nbnxm::GridSet& gridSet() const { return gridSet_; }
 

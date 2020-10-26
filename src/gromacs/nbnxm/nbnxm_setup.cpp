@@ -436,6 +436,15 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlo
          */
         mimimumNumEnergyGroupNonbonded = 1;
     }
+
+    float lambda_q = 0.0;
+    float lambda_v = 0.0;
+    if (ir->efep != efepNO)
+    {
+        const int state = ir->fepvals->init_fep_state;
+        lambda_q = ir->fepvals->all_lambda[efptCOUL][state];
+        lambda_v = ir->fepvals->all_lambda[efptVDW][state];
+    }
     nbnxn_atomdata_init(mdlog, nbat.get(), kernelSetup.kernelType, enbnxninitcombrule, fr->ntype,
                         fr->nbfp, mimimumNumEnergyGroupNonbonded,
                         (useGpu || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
@@ -447,6 +456,8 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlo
         /* init the NxN GPU data; the last argument tells whether we'll have
          * both local and non-local NB calculation on GPU */
         gpu_nbv = gpu_init(deviceInfo, fr->ic, pairlistParams, nbat.get(), cr->nodeid, haveMultipleDomains);
+        cuda_copy_fepconst(gpu_nbv, pairlistParams.haveFep, fr->sc_alphacoul, fr->sc_alphavdw, fr->sc_sigma6_def, fr->sc_sigma6_min);
+        cuda_copy_feplambda(gpu_nbv, lambda_q, lambda_v);
 
         minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv);
     }
