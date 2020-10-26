@@ -187,7 +187,13 @@ struct nbnxn_atomdata_t
         // Charges per atom, not set with format nbatXYZQ
         gmx::HostVector<real> q;
 
-        // Added by CJH, 
+        // Added by CJH,
+        // Atom types of stateA per atom
+        gmx::HostVector<int> typeA;
+        // LJ parameters of stateA per atom for fast SIMD loading
+        gmx::HostVector<real> lj_combA;
+        // Charges of stateA per atom, not set with format nbatXYZQ
+        gmx::HostVector<real> qA;
         // Atom types of stateB per atom
         gmx::HostVector<int> typeB;
         // LJ parameters of stateB per atom for fast SIMD loading
