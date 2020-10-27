@@ -254,7 +254,7 @@ elseif(GMX_SIMD_ACTIVE STREQUAL "ARM_SVE")
     gmx_option_multichoice(
         GMX_SIMD_ARM_SVE_LENGTH
         "SVE vector length"
-        "512"
+        512
         128 256 512 1024 2048)
 
     gmx_find_simd_arm_sve_flags(SIMD_ARM_SVE_C_SUPPORTED SIMD_ARM_SVE_CXX_SUPPORTED
@@ -269,6 +269,8 @@ elseif(GMX_SIMD_ACTIVE STREQUAL "ARM_SVE")
     string(REPLACE " " ";" SIMD_CXX_FLAGS ${SIMD_ARM_SVE_CXX_FLAGS})
     set(GMX_SIMD_${GMX_SIMD_ACTIVE} 1)
     set(SIMD_STATUS_MESSAGE "Enabling ARM (AArch64) SVE Advanced SIMD instructions using CXX flags: ${SIMD_ARM_SVE_CXX_FLAGS}")
+
+    set(GMX_SIMD_ARM_SVE_LENGTH ${GMX_SIMD_ARM_SVE_LENGTH} PARENT_SCOPE)
 
 elseif(GMX_SIMD_ACTIVE STREQUAL "IBM_VMX")
 
