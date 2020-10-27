@@ -32,10 +32,10 @@ clang-tidy:configure-push-cuda:
     - .use-clang:base
     - .use-cuda
     - .rules:basic-push
-  image: gromacs/ci-ubuntu-18.04-llvm-9
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   variables:
     CMAKE: /usr/local/cmake-3.15.7/bin/cmake
-    COMPILER_MAJOR_VERSION: 9
+    COMPILER_MAJOR_VERSION: 8
     BUILD_DIR: build-clang-tidy
     CMAKE_EXTRA_OPTIONS: -DCLANG_TIDY=clang-tidy-$COMPILER_MAJOR_VERSION -DGMX_CLANG_TIDY=ON -DGMX_COMPILER_WARNINGS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
@@ -71,10 +71,10 @@ clang-tidy:configure-schedule-cuda:
     - .use-clang:base
     - .use-cuda
     - .rules:nightly-not-for-release
-  image: gromacs/ci-ubuntu-18.04-llvm-9
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   variables:
     CMAKE: /usr/local/cmake-3.15.7/bin/cmake
-    COMPILER_MAJOR_VERSION: 9
+    COMPILER_MAJOR_VERSION: 8
     BUILD_DIR: build-clang-tidy
     CMAKE_EXTRA_OPTIONS: -DCLANG_TIDY=clang-tidy-$COMPILER_MAJOR_VERSION -DGMX_CLANG_TIDY=ON -DGMX_COMPILER_WARNINGS=ON
 
@@ -113,7 +113,7 @@ clang-tidy:build-cuda:
     - .variables:default
     - .rules:nightly-not-for-release
   stage: source-check
-  image: gromacs/ci-ubuntu-18.04-llvm-9
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   needs:
     - job: clang-tidy:configure-schedule-cuda
   variables:
@@ -200,12 +200,12 @@ clang-tidy:test-cuda:
     - .variables:default
     - .rules:basic-push
   stage: source-check
-  image: gromacs/ci-ubuntu-18.04-llvm-9
+  image: gromacs/cmake-3.15.7-llvm-8-cuda-10.1-openmpi-master
   needs:
     - job: clang-tidy:configure-push-cuda
   variables:
     CMAKE: /usr/local/cmake-3.15.7/bin/cmake
-    COMPILER_MAJOR_VERSION: 9
+    COMPILER_MAJOR_VERSION: 8
     BUILD_DIR: build-clang-tidy
     EXTRA_INSTALLS: clang-tidy-$COMPILER_MAJOR_VERSION
     KUBERNETES_CPU_LIMIT: 4
