@@ -84,8 +84,8 @@ enum class NumTempScaleValues
  */
 enum class VelocityScalingType
 {
-    None,     //!< Do not apply velocity scaling (not a PR-coupling run or step)
-    Diagonal, //!< Apply velocity scaling using a diagonal matrix
+    None,    //!< Do not apply velocity scaling (not a PR-coupling run or step)
+    Diagonal //!< Apply velocity scaling using a diagonal matrix
 };
 
 class LeapFrogGpu
