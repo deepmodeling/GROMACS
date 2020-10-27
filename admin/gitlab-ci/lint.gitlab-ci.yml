@@ -117,7 +117,7 @@ clang-tidy:build-cuda:
   needs:
     - job: clang-tidy:configure-schedule-cuda
   variables:
-    CMAKE: /usr/local/cmake-3.15.7/bin/cmake
+    CMAKE: cmake
     BUILD_DIR: build-clang-tidy
 
 clang-tidy:test:
