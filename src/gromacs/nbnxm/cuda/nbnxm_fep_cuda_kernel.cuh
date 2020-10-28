@@ -655,7 +655,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     // }
                                     else
                                     {
-                                        rpinvC = 1.0f / (alpha_coul_eff * lfac_coul[k] + rp);
+                                        rpinvC = 1.0f / (alpha_coul_eff * lfac_coul[k] * sigma6[k] + rp);
                                     }
                                     r2C    = rcbrt(rpinvC);
                                     rinvC  = rsqrt(r2C);
@@ -950,7 +950,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                 f_lr = inv_r > 0 ? interpolate_coulomb_force_r(nbparam, r2 * inv_r) : 0;
 #        endif
 #    ifdef CALC_ENERGIES
-                printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%d\n", iinr[n], jjnr[j], r2, rinvC, -f_lr, v_lr, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2, Vcoul[0], Vcoul[1], Vvdw[0], Vvdw[1], feplist.excl_fep[j]);
+                // printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f], FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%d\n", iinr[n], jjnr[j], r2, rinvC, -f_lr, v_lr, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2, Vcoul[0], Vcoul[1], Vvdw[0], Vvdw[1], feplist.excl_fep[j]);
 #    endif
                 if (bFEP)
                 {
