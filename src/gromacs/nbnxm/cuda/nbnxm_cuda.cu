@@ -464,7 +464,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
 
     /* Don't launch the non-local H2D copy if there is no dependent
        work to do: neither non-local nor other (e.g. bonded) work
-       to do that has as input the nbnxn coordaintes.
+       to do that has as input the nbnxn coordinates.
        Doing the same for the local kernel is more complicated, since the
        local part of the force array also depends on the non-local kernel.
        So to avoid complicating the code and to reduce the risk of bugs,

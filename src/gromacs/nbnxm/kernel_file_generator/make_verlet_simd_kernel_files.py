@@ -47,7 +47,7 @@
 #
 #   Many C kernel files, each defining a single kernel function. These
 #   functions can take a noticeable time to compile, and should tend
-#   to be in seperate files to take advantage of make-time
+#   to be in separate files to take advantage of make-time
 #   parallelism.
 #
 # This script should be run from the directory in which it is

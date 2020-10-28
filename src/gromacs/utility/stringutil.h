@@ -394,7 +394,7 @@ std::vector<std::string> splitAndTrimDelimitedString(const std::string& str, cha
  * \p input, each match of \p from is replaced with \p to, and the search for
  * the next match begins after the end of the previous match.
  *
- * Compexity is O(N), where N is length of output.
+ * Complexity is O(N), where N is length of output.
  *
  * \see replaceAllWords()
  */

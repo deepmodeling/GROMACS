@@ -64,6 +64,58 @@ class GpuBonded;
 class StepWorkload;
 } // namespace gmx
 
+/*! \brief Nbnxm electrostatic GPU kernel flavors.
+ *
+ *  Types of electrostatics implementations available in the GPU non-bonded
+ *  force kernels. These represent both the electrostatics types implemented
+ *  by the kernels (cut-off, RF, and Ewald - a subset of what's defined in
+ *  enums.h) as well as encode implementation details analytical/tabulated
+ *  and single or twin cut-off (for Ewald kernels).
+ *  Note that the cut-off and RF kernels have only analytical flavor and unlike
+ *  in the CPU kernels, the tabulated kernels are ATM Ewald-only.
+ *
+ *  The row-order of pointers to different electrostatic kernels defined in
+ *  nbnxn_cuda.cu by the nb_*_kfunc_ptr function pointer table
+ *  should match the order of enumerated types below.
+ */
+enum class eelType : int
+{
+    Cut,          //! Plain cut-off
+    RF,           //! Reaction field
+    EwaldTab,     //! Tabulated Ewald with single cut-off
+    EwaldTabTwin, //! Tabulated Ewald with twin cut-off
+    EwaldAna,     //! Analytical Ewald with single cut-off
+    EwaldAnaTwin, //! Analytical Ewald with twin cut-off
+    Count         //! Number of valid values
+};
+
+//! Number of possible \ref eelType values.
+constexpr int eelTypeNR = static_cast<int>(eelType::Count);
+
+/*! \brief Nbnxm VdW GPU kernel flavors.
+ *
+ * The enumerates values correspond to the LJ implementations in the GPU non-bonded
+ * kernels.
+ *
+ * The column-order of pointers to different electrostatic kernels defined in
+ * nbnxn_cuda_ocl.cpp/.cu by the nb_*_kfunc_ptr function pointer table
+ * should match the order of enumerated types below.
+ */
+enum class evdwType : int
+{
+    Cut,         //! Twin range cut-off
+    CutCombGeom, //! Cut-off with geometric combination rules
+    CutCombLB,   //! Cut-off with Lorentz-Berthelot combination rules
+    FSwitch,     //! Smooth force switch
+    PSwitch,     //! Smooth potential switch
+    EwaldGeom,   //! Ewald with geometric combination rules
+    EwaldLB,     //! Ewald with Lorentz-Berthelot combination rules
+    Count        //! Number of valid values
+};
+
+//! Number of possible \ref evdwType values.
+constexpr int evdwTypeNR = static_cast<int>(evdwType::Count);
+
 namespace Nbnxm
 {
 

@@ -73,7 +73,7 @@ if [ "$filename" == "" ]; then
     exit 1
 fi
 
-# We cannot detect wether it is a C++ or C header. Should be fine to always use C++
+# We cannot detect whether it is a C++ or C header. Should be fine to always use C++
 if [ "${filename##*.}" == "h" ]; then
     cmd="$cmd -x c++"
 fi

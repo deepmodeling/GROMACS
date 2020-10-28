@@ -204,7 +204,7 @@ private:
 
     //! Whether we're doing single-value velocity scaling
     bool doSingleVelocityScaling_;
-    //! Wether we're doing group-wise velocity scaling
+    //! Whether we're doing group-wise velocity scaling
     bool doGroupVelocityScaling_;
     //! The vector of velocity scaling values
     std::vector<real> velocityScaling_;

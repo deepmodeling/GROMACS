@@ -107,7 +107,7 @@ static void init_atomdata_first(NBAtomData* ad, int ntypes, const DeviceContext&
     allocateDeviceBuffer(&ad->eLJ, 1, deviceContext);
     allocateDeviceBuffer(&ad->eElec, 1, deviceContext);
 
-    /* initialize to nullptr poiters to data that is not allocated here and will
+    /* initialize to nullptr pointers to data that is not allocated here and will
        need reallocation in nbnxn_cuda_init_atomdata */
     ad->xq = nullptr;
     ad->f  = nullptr;

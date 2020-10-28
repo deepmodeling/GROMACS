@@ -62,7 +62,6 @@
 
 #include "nbnxm_gpu_data_mgmt.h"
 
-#include "gromacs/hardware/device_information.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/timing/gpu_timing.h"
