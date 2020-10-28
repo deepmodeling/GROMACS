@@ -43,7 +43,7 @@ target_include_directories(modularsimulator SYSTEM BEFORE PRIVATE ${PROJECT_SOUR
 target_link_libraries(modularsimulator PRIVATE legacy_api)
 
 # Module dependencies.
-target_link_libraries(modularsimulator PRIVATE fileio)
+target_link_libraries(modularsimulator PRIVATE domdec fileio mdrunutility mdtypes)
 # TODO: Use explicit module dependencies.
 target_link_libraries(modularsimulator PRIVATE legacy_modules)
 

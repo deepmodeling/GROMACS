@@ -42,3 +42,4 @@ gmx_add_mpi_unit_test(DomDecMpiTests domdec-mpi-test 4 HARDWARE_DETECTION
     GPU_CPP_SOURCE_FILES
         haloexchange_mpi.cpp
         )
+target_link_libraries(domdec-mpi-test PRIVATE domdec)

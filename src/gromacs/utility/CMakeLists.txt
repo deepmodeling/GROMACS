@@ -42,23 +42,6 @@ set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${UTILITY_SOURCES} PARENT_SCOPE)
 set_source_files_properties(binaryinformation.cpp PRIVATE HAVE_CONFIG_H)
 set_source_files_properties(fatalerror.cpp PRIVATE HAVE_CONFIG_H)
 
-if(GMX_INSTALL_LEGACY_API)
-  install(FILES
-          baseversion.h
-          classhelpers.h
-          enumerationhelpers.h
-	  fileptr.h
-	  futil.h
-	  flags.h
-	  pleasecite.h
-          programcontext.h
-          range.h
-          smalloc.h
-	  stringutil.h
-          unique_cptr.h
-          DESTINATION include/gromacs/utility)
-endif()
-
 # This module provides interfaces to other library modules in the build tree.
 # The installed API it supports are exported through the legacy_api
 # and libgromacs targets.

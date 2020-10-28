@@ -63,5 +63,9 @@ target_link_libraries(test_selection PRIVATE
                       common
                       libgromacs
                       ${GMX_EXE_LINKER_FLAGS})
+
+# GROMACS module dependencies.
+target_link_libraries(test_selection PRIVATE utility)
 # TODO: Explicitly link to module dependencies.
-target_link_libraries(test_selection PRIVATE legacy_modules)
+target_link_libraries(test_selection PRIVATE
+                      legacy_modules)

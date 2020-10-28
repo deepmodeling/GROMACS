@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "pleasecite.h"
+#include "gromacs/utility/pleasecite.h"
 
 #include <cstring>
 

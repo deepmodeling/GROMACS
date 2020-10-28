@@ -57,6 +57,9 @@ else()
     gmx_target_warning_suppression(scanner -Wno-null-conversion HAS_NO_NULL_CONVERSIONS)
 endif()
 target_link_libraries(scanner PRIVATE legacy_api)
+
+# Module dependencies
+target_link_libraries(scanner PRIVATE utility)
 # TODO: Use explicit module dependencies.
 target_link_libraries(scanner PRIVATE legacy_modules)
 

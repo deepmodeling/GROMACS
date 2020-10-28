@@ -33,6 +33,7 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+add_library(ewald INTERFACE)
 gmx_add_libgromacs_sources(
     calculate_spline_moduli.cpp
     ewald.cpp
@@ -100,6 +101,9 @@ else()
         pme_gpu_program_impl.cpp
         )
 endif()
+
+# Gromacs module dependencies.
+target_link_libraries(ewald INTERFACE gpu_utils)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

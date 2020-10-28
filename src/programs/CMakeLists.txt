@@ -81,12 +81,20 @@ else()
     target_compile_definitions(view_objlib PRIVATE HAVE_CONFIG_H)
     target_include_directories(view_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
     target_link_libraries(view_objlib PRIVATE common legacy_api)
+
+    # Module dependencies
+    target_link_libraries(view_objlib PRIVATE utility)
     # TODO: Explicitly link specific modules.
     target_link_libraries(view_objlib PRIVATE legacy_modules)
+
     add_library(gmx_objlib OBJECT ${GMX_MAIN_SOURCES})
     target_link_libraries(gmx_objlib PRIVATE common legacy_api)
+
+    # Module dependencies
+    target_link_libraries(gmx_objlib PRIVATE tools)
     # TODO: Explicitly link specific modules.
     target_link_libraries(gmx_objlib PRIVATE legacy_modules)
+
     target_include_directories(gmx_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
     target_include_directories(gmx_objlib SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
     add_executable(gmx

@@ -41,4 +41,5 @@ gmx_add_gtest_executable(${exename}
         gmx_mindist.cpp
         gmx_msd.cpp
         )
+target_link_libraries(gmxana-test PRIVATE utility)
 gmx_register_gtest_test(GmxAnaTest ${exename} INTEGRATION_TEST IGNORE_LEAKS)

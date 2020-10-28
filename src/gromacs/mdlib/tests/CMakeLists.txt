@@ -57,4 +57,4 @@ gmx_add_unit_test(MdlibUnitTest mdlib-test HARDWARE_DETECTION
         constrtestrunners.cu
         settletestrunners.cu
         )
-target_link_libraries(mdlib-test PRIVATE fileio)
+target_link_libraries(mdlib-test PRIVATE fileio mdlib)

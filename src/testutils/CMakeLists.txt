@@ -113,6 +113,7 @@ target_link_libraries(testutils PUBLIC common)
 
 # GROMACS module dependencies.
 # Note that testutils conveys transitive dependencies on some modules.
+target_link_libraries(testutils PUBLIC utility)
 # TODO: Explicitly link specific modules with minimal exposure.
 target_link_libraries(testutils PUBLIC legacy_modules)
 

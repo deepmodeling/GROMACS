@@ -46,7 +46,7 @@ target_link_libraries(fileio PRIVATE common)
 # fileio interfaces convey transitive dependence on these modules.
 target_link_libraries(fileio PUBLIC utility)
 # Source files have the following private module dependencies.
-target_link_libraries(fileio PRIVATE tng_io)
+target_link_libraries(fileio PRIVATE gmxlib math mdtypes tng_io)
 # TODO: Explicitly link specific modules.
 target_link_libraries(fileio PRIVATE legacy_modules)
 

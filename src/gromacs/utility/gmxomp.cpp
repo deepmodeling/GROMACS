@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "gmxomp.h"
+#include "gromacs/utility/gmxomp.h"
 
 #include "config.h"
 

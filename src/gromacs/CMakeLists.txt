@@ -194,6 +194,9 @@ target_link_libraries(libgromacs PRIVATE common)
 add_library(legacy_modules INTERFACE)
 target_include_directories(legacy_modules INTERFACE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(libgromacs PRIVATE legacy_modules)
+target_link_libraries(libgromacs PRIVATE utility)
+# Temporary inclusion for private headers in utility module...
+target_include_directories(libgromacs PRIVATE ${CMAKE_SOURCE_DIR}/src/gromacs/utility)
 
 # Add these contents first because linking their tests can take a lot
 # of time, so we want lots of parallel work still available after

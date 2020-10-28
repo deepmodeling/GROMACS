@@ -36,6 +36,8 @@
 # the incidence of textual clashes when adding/moving files that
 # otherwise make the end of the list a hotspot.
 
+add_library(gpu_utils INTERFACE)
+target_link_libraries(gpu_utils INTERFACE math)
 gmx_add_libgromacs_sources(
         clfftinitializer.cpp
         device_stream_manager.cpp

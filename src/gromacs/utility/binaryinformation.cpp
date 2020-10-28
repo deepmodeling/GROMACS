@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "binaryinformation.h"
+#include "gromacs/utility/binaryinformation.h"
 
 #include "config.h"
 

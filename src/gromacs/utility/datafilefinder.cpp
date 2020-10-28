@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "datafilefinder.h"
+#include "gromacs/utility/datafilefinder.h"
 
 #include <cstdlib>
 

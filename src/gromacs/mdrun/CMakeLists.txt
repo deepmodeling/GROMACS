@@ -50,6 +50,8 @@ gmx_add_libgromacs_sources(
     simulatorbuilder.cpp
     tpi.cpp
     )
+add_library(mdrun INTERFACE)
+target_link_libraries(mdrun INTERFACE hardware)
 
 # TODO: Find a home for this header and a scheme for installation.
 # This header straddles the installed libraries and is a transitive interface

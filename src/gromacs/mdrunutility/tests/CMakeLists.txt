@@ -34,8 +34,11 @@
 
 gmx_add_unit_test_library(mdrunutility-test-shared
                           threadaffinitytest.cpp)
-target_link_libraries(mdrunutility-test-shared PRIVATE common)
 target_link_libraries(mdrunutility-test-shared PUBLIC legacy_api)
+
+# GROMACS module dependencies
+target_link_libraries(mdrunutility-test-shared PUBLIC hardware)
+target_link_libraries(mdrunutility-test-shared PRIVATE common mdrunutility)
 
 gmx_add_unit_test(MdrunUtilityUnitTests mdrunutility-test
     CPP_SOURCE_FILES
@@ -47,6 +50,7 @@ gmx_add_mpi_unit_test(MdrunUtilityMpiUnitTests mdrunutility-mpi-test 4
     CPP_SOURCE_FILES
         threadaffinity_mpi.cpp
         )
+target_link_libraries(mdrunutility-mpi-test PRIVATE utility)
 # TODO This target does not exist in a non-MPI build. It would be preferable
 # to change functions like gmx_add_mpi_unit_test to add link-time dependencies
 # as well as source files.

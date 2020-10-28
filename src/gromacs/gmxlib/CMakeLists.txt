@@ -40,6 +40,9 @@ add_subdirectory(nonbonded)
 file(GLOB GMXLIB_SOURCES *.cpp)
 
 set(GMXLIB_SOURCES ${GMXLIB_SOURCES} ${NONBONDED_SOURCES} PARENT_SCOPE)
+add_library(gmxlib INTERFACE)
+# gmxlib module conveys transitive dependencies on the following module headers.
+target_link_libraries(gmxlib INTERFACE utility)
 
 # if(BUILD_TESTING)
 #     add_subdirectory(tests)

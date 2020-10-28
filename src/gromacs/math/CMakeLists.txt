@@ -36,6 +36,9 @@
 file(GLOB MATH_SOURCES *.cpp)
 set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${MATH_SOURCES} PARENT_SCOPE)
 
+add_library(math INTERFACE)
+target_link_libraries(math INTERFACE utility)
+
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()

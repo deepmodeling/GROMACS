@@ -32,6 +32,7 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+add_library(hardware INTERFACE)
 gmx_add_libgromacs_sources(
     cpuinfo.cpp
     detecthardware.cpp
@@ -71,6 +72,8 @@ else()
         device_management.cpp
     )
 endif()
+# This module conveys transitive dependence on the utility module.
+target_link_libraries(hardware INTERFACE utility)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

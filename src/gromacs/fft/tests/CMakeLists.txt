@@ -36,3 +36,4 @@ gmx_add_unit_test(FFTUnitTests fft-test
     CPP_SOURCE_FILES
         fft.cpp
     )
+target_link_libraries(fft-test PRIVATE fft)

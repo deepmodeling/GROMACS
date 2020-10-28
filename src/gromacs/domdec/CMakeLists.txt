@@ -32,6 +32,11 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+# Note: Change target type when objects are actually provided.
+add_library(domdec INTERFACE)
+# domdec headers have transitive dependency on the mdtypes module.
+target_link_libraries(domdec INTERFACE utility)
+
 file(GLOB DOMDEC_SOURCES *.cpp)
 
 if(GMX_GPU_CUDA)

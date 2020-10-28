@@ -78,7 +78,9 @@ gmx_add_gtest_executable(${exename}
         # pseudo-library for code for mdrun
         $<TARGET_OBJECTS:mdrun_objlib>
     )
-target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
+target_link_libraries(${exename} PRIVATE
+                      mdrun_test_infrastructure
+                      utility)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
 
 set(testname "MdrunIOTests")
@@ -144,7 +146,7 @@ gmx_add_gtest_executable(${exename}
         # pseudo-library for code for mdrun
         $<TARGET_OBJECTS:mdrun_objlib>
         )
-target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
+target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure utility)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
 
 # TPI does not support OpenMP, so we need a separate test binary

@@ -34,6 +34,7 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 file(GLOB MDLIB_SOURCES *.cpp)
+add_library(mdlib INTERFACE)
 
 set(MDLIB_SOURCES ${MDLIB_SOURCES} PARENT_SCOPE)
 if (BUILD_TESTING)
@@ -49,3 +50,5 @@ if(GMX_GPU_CUDA)
        )
 endif()
 
+# This target conveys transitive dependence on math headers.
+target_link_libraries(mdlib INTERFACE math)

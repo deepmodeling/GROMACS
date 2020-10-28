@@ -46,6 +46,10 @@ file(GLOB MDTYPES_SOURCES
     observableshistory.cpp
     state.cpp)
 
+add_library(mdtypes INTERFACE)
+# mdtypes public headers have transitive dependency on utility module.
+target_link_libraries(mdtypes INTERFACE gpu_utils utility)
+
 if(GMX_GPU)
     gmx_add_libgromacs_sources(
        state_propagator_data_gpu_impl_gpu.cpp

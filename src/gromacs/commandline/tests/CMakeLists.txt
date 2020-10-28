@@ -63,4 +63,4 @@ gmx_add_unit_test(CommandLineUnitTests commandline-test
         filenm.cpp
         pargs.cpp
         )
-target_link_libraries(commandline-test PRIVATE onlinehelp-test-shared)
+target_link_libraries(commandline-test PRIVATE onlinehelp-test-shared utility)

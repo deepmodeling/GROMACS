@@ -69,6 +69,7 @@ endif()
 target_link_libraries(linearalgebra PRIVATE common legacy_api)
 
 # Module dependencies.
+target_link_libraries(linearalgebra PRIVATE utility)
 # TODO: Link specific modules.
 target_link_libraries(linearalgebra PRIVATE legacy_modules)
 

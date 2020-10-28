@@ -40,3 +40,4 @@ gmx_add_unit_test(EwaldUnitTests ewald-test HARDWARE_DETECTION
         pmesplinespreadtest.cpp
         pmetestcommon.cpp
 )
+target_link_libraries(ewald-test PRIVATE ewald)
