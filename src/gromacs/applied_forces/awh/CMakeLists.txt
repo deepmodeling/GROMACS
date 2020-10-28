@@ -46,6 +46,9 @@ gmx_add_libgromacs_sources(awh.cpp
                            histogramsize.cpp
                            pointstate.cpp
                            read_params.cpp)
+add_library(awh INTERFACE)
+# awh conveys transitive dependency on other modules.
+target_link_libraries(awh INTERFACE fileio)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

@@ -41,8 +41,10 @@ target_compile_definitions(mdrun_objlib PRIVATE HAVE_CONFIG_H)
 target_include_directories(mdrun_objlib SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
 # Should be possible to remove this when resolving #3290
 target_include_directories(mdrun_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
-target_link_libraries(mdrun_objlib PRIVATE common)
-target_link_libraries(mdrun_objlib PRIVATE legacy_api)
+target_link_libraries(mdrun_objlib PRIVATE common legacy_api)
+
+# Module dependencies
+target_link_libraries(mdrun_objlib PRIVATE fileio)
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
 
