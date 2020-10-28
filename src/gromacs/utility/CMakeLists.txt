@@ -33,11 +33,14 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+add_library(utility INTERFACE)
 file(GLOB UTILITY_SOURCES *.cpp)
 if (GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(cuda_version_information.cu)
 endif()
 set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${UTILITY_SOURCES} PARENT_SCOPE)
+set_source_files_properties(binaryinformation.cpp PRIVATE HAVE_CONFIG_H)
+set_source_files_properties(fatalerror.cpp PRIVATE HAVE_CONFIG_H)
 
 if(GMX_INSTALL_LEGACY_API)
   install(FILES
@@ -55,6 +58,17 @@ if(GMX_INSTALL_LEGACY_API)
           unique_cptr.h
           DESTINATION include/gromacs/utility)
 endif()
+
+# This module provides interfaces to other library modules in the build tree.
+# The installed API it supports are exported through the legacy_api
+# and libgromacs targets.
+target_include_directories(utility INTERFACE
+						   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+						   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
+# At least one public module header has a thread_mpi dependeny.
+target_include_directories(utility SYSTEM BEFORE INTERFACE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
+
+target_link_libraries(utility INTERFACE legacy_api)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

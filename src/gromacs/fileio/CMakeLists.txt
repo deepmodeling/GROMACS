@@ -32,22 +32,25 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-file(GLOB FILEIO_SOURCES *.cpp)
+add_library(fileio STATIC)
+add_subdirectory(cpp)
+set_target_properties(fileio PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(GMX_USE_PLUGINS)
-    add_library(vmddlopen OBJECT ${CMAKE_SOURCE_DIR}/src/external/vmd_molfile/vmddlopen.cpp)
-    gmx_target_compile_options(vmddlopen)
-    if (WIN32)
-        gmx_target_warning_suppression(vmddlopen /wd4996 HAS_NO_MSVC_UNSAFE_FUNCTION)
-    endif()
-    list(APPEND libgromacs_object_library_dependencies vmddlopen)
-    set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependencies} PARENT_SCOPE)
-else()
-    # Remove vmdio.cpp from sources since we do not have plugin support
-    list(FILTER FILEIO_SOURCES EXCLUDE REGEX ".*vmdio.cpp$")
-endif()
+target_include_directories(fileio PUBLIC
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
-target_sources(libgromacs PRIVATE ${FILEIO_SOURCES})
+target_link_libraries(fileio PUBLIC legacy_api)
+target_link_libraries(fileio PRIVATE common)
+
+# Module dependencies
+# fileio interfaces convey transitive dependence on these modules.
+target_link_libraries(fileio PUBLIC utility)
+# Source files have the following private module dependencies.
+target_link_libraries(fileio PRIVATE tng_io)
+# TODO: Explicitly link specific modules.
+target_link_libraries(fileio PRIVATE legacy_modules)
+
+target_link_libraries(libgromacs PRIVATE fileio)
 
 if (BUILD_TESTING)
      add_subdirectory(tests)

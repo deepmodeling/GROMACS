@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2014,2016,2020, by the GROMACS development team, led by
+# Copyright (c) 2013,2014,2015,2016,2019,2020, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -32,11 +32,50 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-gmx_add_unit_test(CorrelationsTest  correlations-test
-    CPP_SOURCE_FILES
-        autocorr.cpp
-        correlationdataset.cpp
-        expfit.cpp
-        manyautocorrelation.cpp
-        )
-target_link_libraries(correlations-test PRIVATE fileio)
+#TODO: Convert to an actual CMake target.
+target_sources(fileio PRIVATE
+    checkpoint.cpp
+    confio.cpp
+    enxio.cpp
+    espio.cpp
+    filetypes.cpp
+    g96io.cpp
+    gmx_internal_xdr.cpp
+    gmxfio.cpp
+    gmxfio_xdr.cpp
+    groio.cpp
+    libxdrf.cpp
+    matio.cpp
+    md5.cpp
+    mrcdensitymap.cpp
+    mrcdensitymapheader.cpp
+    mrcserializer.cpp
+    mtxio.cpp
+    oenv.cpp
+    pdbio.cpp
+    readinp.cpp
+    timecontrol.cpp
+    tngio.cpp
+    tpxio.cpp
+    trrio.cpp
+    trxio.cpp
+    warninp.cpp
+    writeps.cpp
+    xdrd.cpp
+    xtcio.cpp
+    xvgr.cpp)
+target_compile_definitions(fileio PRIVATE HAVE_CONFIG_H)
+
+target_include_directories(fileio PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+if(GMX_USE_PLUGINS)
+    target_sources(fileio vmdio.cpp)
+    add_library(vmddlopen OBJECT ${CMAKE_SOURCE_DIR}/src/external/vmd_molfile/vmddlopen.cpp)
+    gmx_target_compile_options(vmddlopen)
+    if (WIN32)
+        gmx_target_warning_suppression(vmddlopen /wd4996 HAS_NO_MSVC_UNSAFE_FUNCTION)
+    endif()
+    list(APPEND libgromacs_object_library_dependencies vmddlopen)
+    set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependencies} PARENT_SCOPE)
+endif()

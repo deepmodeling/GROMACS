@@ -39,3 +39,4 @@ gmx_add_unit_test(AwhTest awh-test
         biasstate.cpp
         bias_fep_lambda_state.cpp
         )
+target_link_libraries(awh-test PRIVATE awh)
