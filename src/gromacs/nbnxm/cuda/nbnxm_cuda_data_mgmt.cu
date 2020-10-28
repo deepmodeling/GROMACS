@@ -623,12 +623,12 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
     }
     else
     {
-        if (d_feplist->nri != h_feplist->nri)
-        {
-            sprintf(sbuf, "In cu_init_feplist: the #atoms per cell has changed (from %d to %d)",
-                    d_feplist->nri, h_feplist->nri);
-            gmx_incons(sbuf);
-        }
+        // if (d_feplist->nri != h_feplist->nri)
+        // {
+        //     sprintf(sbuf, "In cu_init_feplist: the #atoms per cell has changed (from %d to %d)",
+        //             d_feplist->nri, h_feplist->nri);
+        //     gmx_incons(sbuf);
+        // }
     }
 
     gpu_timers_t::Interaction& iTimers = nb->timers->interaction[iloc];
@@ -640,7 +640,7 @@ void gpu_init_feppairlist(gmx_nbnxn_cuda_t* nb, const t_nblist* h_feplist, const
     }
 
     DeviceContext context = nullptr;
-
+    d_feplist->maxnri = 0;
     reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, context);
     copyToDeviceBuffer(&d_feplist->iinr, h_feplist->iinr, 0, h_feplist->nri, stream,
                        GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
@@ -1024,17 +1024,17 @@ void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gridSet, gmx_nbnxn_gpu_t* gpu_
         const int  atomIndicesSize = gridSet.atomIndices().size();
         const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
 
-        printf("\n\natomIndices:\n");
-        for (int i = 0; i < atomIndicesSize; i++)
-        {
-            printf("%d ", atomIndices[i]);
-        }
+        // printf("\n\natomIndices:\n");
+        // for (int i = 0; i < atomIndicesSize; i++)
+        // {
+        //     printf("%d ", atomIndices[i]);
+        // }
 
-        printf("\n\natomIndicesInv:\n");
-        for (int i = 0; i < atomIndicesSize; i++)
-        {
-            printf("%d ", atomIndicesInv[i]);
-        }
+        // printf("\n\natomIndicesInv:\n");
+        // for (int i = 0; i < atomIndicesSize; i++)
+        // {
+        //     printf("%d ", atomIndicesInv[i]);
+        // }
 
         reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
                                &gpu_nbv->atomIndicesSize_alloc, nullptr);

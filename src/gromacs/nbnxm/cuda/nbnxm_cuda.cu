@@ -718,7 +718,7 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
                 nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, nb->dev_info);
         const auto fep_kernelArgs =
                 prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &d_atomIndicesInv, &stepWork.computeVirial);
-        printf("nri: %d, nrj: %d\n", feplist->nri, feplist->nrj);
+        // printf("nri: %d, nrj: %d\n", feplist->nri, feplist->nrj);
         launchGpuKernel(fep_kernel, fep_config, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
     }
 
