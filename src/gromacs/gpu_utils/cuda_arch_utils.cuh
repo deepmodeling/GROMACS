@@ -68,7 +68,7 @@ static const unsigned int c_fullWarpMask = 0xffffffff;
 /*! \brief Allow disabling CUDA textures using the GMX_DISABLE_CUDA_TEXTURES macro.
  *
  *  Only texture objects supported.
- *  Disable texture support missing in clang (all versions up to <=5.0-dev as of writing).
+ *  Disable texture support missing in clang (all versions up to at least 8.0 as of writing).
  *
  *  This option will not influence functionality. All features using textures ought
  *  to have fallback for texture-less reads (direct/LDG loads), all new code needs
