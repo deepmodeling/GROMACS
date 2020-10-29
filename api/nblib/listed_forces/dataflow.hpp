@@ -56,6 +56,7 @@
 #include "nblib/listed_forces/kernels.hpp"
 #include "nblib/pbc.hpp"
 #include "gromacs/math/vec.h"
+#include "gromacs/utility/arrayref.h"
 
 namespace nblib
 {
@@ -93,7 +94,7 @@ template <class Buffer, class TwoCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
 auto dispatchInteraction(const TwoCenterInteractionIndex& index,
                          const std::vector<TwoCenterType>& bondInstances,
-                         const std::vector<BasicVector>& x,
+                         gmx::ArrayRef<const BasicVector> x,
                          Buffer* forces,
                          const Pbc& pbc)
 {
@@ -180,7 +181,7 @@ template <class Buffer, class ThreeCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
 auto dispatchInteraction(const ThreeCenterInteractionIndex& index,
                          const std::vector<ThreeCenterType>& parameters,
-                         const std::vector<BasicVector>& x,
+                         gmx::ArrayRef<const BasicVector> x,
                          Buffer* forces,
                          const Pbc& pbc)
 {
@@ -262,7 +263,7 @@ template <class Buffer, class FourCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
 auto dispatchInteraction(const FourCenterInteractionIndex& index,
                          const std::vector<FourCenterType>& parameters,
-                         const std::vector<BasicVector>& x,
+                         gmx::ArrayRef<const BasicVector> x,
                          Buffer* forces,
                          const Pbc& pbc)
 {
@@ -318,7 +319,7 @@ template <class Buffer, class FiveCenterType, class BasicVector, class Pbc>
 inline NBLIB_ALWAYS_INLINE
 auto dispatchInteraction(const FiveCenterInteractionIndex& index,
                          const std::vector<FiveCenterType>& parameters,
-                         const std::vector<BasicVector>& x,
+                         gmx::ArrayRef<const BasicVector> x,
                          Buffer* forces,
                          const Pbc& pbc)
 {
@@ -360,14 +361,14 @@ auto dispatchInteraction(const FiveCenterInteractionIndex& index,
  * \param kernel unused for now
  * \return
  */
-template <class Index, class InteractionType, class BasicVector, class Buffer, class Pbc>
+template <class Index, class InteractionType, class Buffer, class Pbc>
 auto computeForces(const std::vector<Index>& indices,
                    const std::vector<InteractionType>& interactionParameters,
-                   const std::vector<BasicVector>& x,
+                   gmx::ArrayRef<const Vec3> x,
                    Buffer* forces,
                    const Pbc& pbc)
 {
-    KernelEnergy<BasicVectorValueType_t<BasicVector>> energy;
+    KernelEnergy<BasicVectorValueType_t<Vec3>> energy;
 
     for (const auto& index : indices)
     {
@@ -383,13 +384,13 @@ auto computeForces(const std::vector<Index>& indices,
  * \param x coordinate input
  * \param forces output force buffer
  */
-template<class Buffer, class BasicVector, class Pbc>
+template<class Buffer, class Pbc>
 auto reduceListedForces(const ListedInteractionData& interactions,
-                        const std::vector<BasicVector>& x,
+                        gmx::ArrayRef<const Vec3> x,
                         Buffer* forces,
                         const Pbc& pbc)
 {
-    using ValueType = BasicVectorValueType_t<BasicVector>;
+    using ValueType = BasicVectorValueType_t<Vec3>;
     std::array<ValueType, std::tuple_size<ListedInteractionData>::value> energies{0};
     energies.fill(0);
 

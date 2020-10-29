@@ -44,7 +44,7 @@
 #ifndef NBLIB_BOX_H
 #define NBLIB_BOX_H
 
-#include "nblib/basicdefinitions.h"
+#include "basicdefinitions.h"
 
 namespace nblib
 {

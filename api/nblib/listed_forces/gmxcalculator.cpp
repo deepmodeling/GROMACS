@@ -42,6 +42,7 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
+#include "nblib/exception.h"
 #include "nblib/listed_forces/gmxcalculator.h"
 #include "gromacs/listed_forces/listed_forces.cpp"
 #include "gromacs/listed_forces/manage_threading.h"
@@ -85,11 +86,17 @@ ListedGmxCalculator::ListedGmxCalculator(const ListedInteractionData& interactio
     fr.natoms_force = numParticles;
 }
 
-ListedForceCalculator::EnergyType ListedGmxCalculator::compute(const std::vector<gmx::RVec>& x)
+void ListedGmxCalculator::compute(const std::vector<gmx::RVec>&      x,
+                                  std::vector<gmx::RVec>&            forces,
+                                  ListedForceCalculator::EnergyType& energies)
 {
+    if (forces.size() != x.size() || forces.size() >= forceBuffer.size())
+    {
+        throw InputException("Provided force and/or coordinate buffers inconsistent");
+    }
+
     const rvec* xdata = &(x[0].as_vec());
 
-    ListedForceCalculator::EnergyType energies;
     energies.fill(0);
     std::fill(enerd.term, enerd.term + F_NRE, 0.0);
 
@@ -106,12 +113,11 @@ ListedForceCalculator::EnergyType ListedGmxCalculator::compute(const std::vector
     };
     for_each_tuple(transferEnergy, ListedInteractionData{});
 
-    return energies;
-}
-
-const std::vector<gmx::RVec>& ListedGmxCalculator::forces() const
-{
-    return forceBuffer;
+    // add forces to output force buffers
+    for (int pIndex = 0; pIndex < forces.size(); pIndex++)
+    {
+        forces[pIndex] += forceBuffer[pIndex];
+    }
 }
 
 const InteractionDefinitions& ListedGmxCalculator::getIdef() const

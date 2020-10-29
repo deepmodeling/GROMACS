@@ -60,6 +60,29 @@
  * prior written authorization from the authors.
  */
 
+/*! \inpublicapi \file
+ *  \brief
+ *  Provides MAP and MAP_LIST to apply a macro to a variadic argument list
+ *
+ *  The MAP and MAP_LIST macros implement calling a supplied macro with
+ *  all of the subsequent arguments. For example:
+ *  MAP(macro, x, y, z) expands to macro(x) macro(y) macro(z)  while
+ *  MAP_LIST(macro, x, y, z) expands to macro(x), macro(y), macro(z)
+ *
+ *  Due to the limitations of the preprocessor, it is unfortunately not
+ *  possible to implement this functionality in a more straight-forward way.
+ *  Since this use-case is not too uncommon, Boost for example implements
+ *  BOOST_PP_SEQ_FOR_EACH which provides equivalent functionality implemented
+ *  with the same technique, but is more comprehensive in scope,
+ *  beyond what's required here.
+ *
+ *  A discussion of how and why this macro works can be found here:
+ *  https://stackoverflow.com/questions/27765387/distributing-an-argument-in-a-variadic-macro
+ *  and the original repository of this implementation is this one:
+ *  https://github.com/swansontec/map-macro
+ *  It also contains some useful explanations of how it works.
+ */
+
 #ifndef NBLIB_PPMAP_H
 #define NBLIB_PPMAP_H
 

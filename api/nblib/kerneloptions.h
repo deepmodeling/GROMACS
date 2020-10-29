@@ -47,7 +47,7 @@
 
 #include <memory>
 
-#include "nblib/basicdefinitions.h"
+#include "basicdefinitions.h"
 
 namespace nblib
 {

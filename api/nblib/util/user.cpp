@@ -138,7 +138,7 @@ std::vector<Vec3> generateVelocity(real tempi, unsigned int seed, std::vector<re
 }
 
 //! Check within the container of gmx::RVecs for a NaN or inf
-bool checkNumericValues(const std::vector<Vec3>& values)
+bool isRealValued(const std::vector<Vec3>& values)
 {
     for (auto val : values)
     {
@@ -151,6 +151,11 @@ bool checkNumericValues(const std::vector<Vec3>& values)
         }
     }
     return true;
+}
+
+void zeroCartesianArray(gmx::ArrayRef<Vec3> cartesianArray)
+{
+    std::fill(cartesianArray.begin(), cartesianArray.end(), Vec3{ 0, 0, 0 });
 }
 
 } // namespace nblib

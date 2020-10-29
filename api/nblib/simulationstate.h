@@ -49,8 +49,8 @@
 #include <memory>
 #include <vector>
 
-#include "nblib/box.h"
-#include "nblib/topology.h"
+#include "box.h"
+#include "topology.h"
 
 namespace nblib
 {

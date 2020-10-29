@@ -58,83 +58,31 @@ namespace nblib
 namespace detail
 {
 
-struct TwoCenterCategoryTag
-{
-};
-struct ThreeCenterCategoryTag
-{
-};
-struct FourCenterCategoryTag
-{
-};
-struct FiveCenterCategoryTag
-{
-};
-
-template<class I>
-struct InteractionCategoryTrait
-{
-};
-//! \cond ignore_template_meta_helpers
-#define BOND_CAT_SPEC(x)                   \
-    template<>                             \
-    struct InteractionCategoryTrait<x>     \
-    {                                      \
-        typedef TwoCenterCategoryTag type; \
-    };
-MAP(BOND_CAT_SPEC, SUPPORTED_TWO_CENTER_TYPES)
-#undef BOND_CAT_SPEC
-
-#define ANGLE_CAT_SPEC(x)                    \
-    template<>                               \
-    struct InteractionCategoryTrait<x>       \
-    {                                        \
-        typedef ThreeCenterCategoryTag type; \
-    };
-MAP(ANGLE_CAT_SPEC, SUPPORTED_THREE_CENTER_TYPES)
-#undef ANGLE_CAT_SPEC
-
-#define FOUR_CENTER_CAT_SPEC(x)             \
-    template<>                              \
-    struct InteractionCategoryTrait<x>      \
-    {                                       \
-        typedef FourCenterCategoryTag type; \
-    };
-MAP(FOUR_CENTER_CAT_SPEC, SUPPORTED_FOUR_CENTER_TYPES)
-#undef FOUR_CENTER_CAT_SPEC
-
-#define FIVE_CENTER_CAT_SPEC(x)             \
-    template<>                              \
-    struct InteractionCategoryTrait<x>      \
-    {                                       \
-        typedef FiveCenterCategoryTag type; \
-    };
-MAP(FIVE_CENTER_CAT_SPEC, SUPPORTED_FIVE_CENTER_TYPES)
-#undef FIVE_CENTER_CAT_SPEC
-//! \endcond ignore_template_meta_helpers
-
-template<class InteractionCategory>
+template<class InteractionType, class = void>
 struct CoordinateIndex_
 {
 };
 
-template<>
-struct CoordinateIndex_<detail::TwoCenterCategoryTag>
+template<class InteractionType>
+struct CoordinateIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedTwoCenterTypes>{}>>
 {
     typedef std::array<int, 2> type;
 };
-template<>
-struct CoordinateIndex_<detail::ThreeCenterCategoryTag>
+
+template<class InteractionType>
+struct CoordinateIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedThreeCenterTypes>{}>>
 {
     typedef std::array<int, 3> type;
 };
-template<>
-struct CoordinateIndex_<detail::FourCenterCategoryTag>
+
+template<class InteractionType>
+struct CoordinateIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedFourCenterTypes>{}>>
 {
     typedef std::array<int, 4> type;
 };
-template<>
-struct CoordinateIndex_<detail::FiveCenterCategoryTag>
+
+template<class InteractionType>
+struct CoordinateIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedFiveCenterTypes>{}>>
 {
     typedef std::array<int, 5> type;
 };
@@ -147,35 +95,37 @@ struct CoordinateIndex_<detail::FiveCenterCategoryTag>
  * \tparam InteractionCategory
  */
 template<class InteractionType>
-using CoordinateIndex =
-        typename detail::CoordinateIndex_<typename detail::InteractionCategoryTrait<InteractionType>::type>::type;
+using CoordinateIndex = typename detail::CoordinateIndex_<InteractionType>::type;
 
 
 namespace detail
 {
 
-template<class InteractionCategory>
+template<class InteractionType, class = void>
 struct InteractionIndex_
 {
 };
 
-template<>
-struct InteractionIndex_<detail::TwoCenterCategoryTag>
+template<class InteractionType>
+struct InteractionIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedTwoCenterTypes>{}>>
 {
     typedef TwoCenterInteractionIndex type;
 };
-template<>
-struct InteractionIndex_<detail::ThreeCenterCategoryTag>
+
+template<class InteractionType>
+struct InteractionIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedThreeCenterTypes>{}>>
 {
     typedef ThreeCenterInteractionIndex type;
 };
-template<>
-struct InteractionIndex_<detail::FourCenterCategoryTag>
+
+template<class InteractionType>
+struct InteractionIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedFourCenterTypes>{}>>
 {
     typedef FourCenterInteractionIndex type;
 };
-template<>
-struct InteractionIndex_<detail::FiveCenterCategoryTag>
+
+template<class InteractionType>
+struct InteractionIndex_<InteractionType, std::enable_if_t<Contains<InteractionType, SupportedFiveCenterTypes>{}>>
 {
     typedef FiveCenterInteractionIndex type;
 };
@@ -188,8 +138,7 @@ struct InteractionIndex_<detail::FiveCenterCategoryTag>
  * \tparam InteractionType
  */
 template<class InteractionType>
-using InteractionIndex =
-        typename detail::InteractionIndex_<typename detail::InteractionCategoryTrait<InteractionType>::type>::type;
+using InteractionIndex = typename detail::InteractionIndex_<InteractionType>::type;
 
 
 template<class I, class = void>
@@ -258,34 +207,36 @@ struct ThreeCenterAggregateIndex<InteractionType, std::void_t<typename Interacti
  * \tparam T
  */
 template<class T>
-struct KernelEnergy : private std::array<T, 4>
+class KernelEnergy
 {
-    using Base = std::array<T, 4>;
+public:
+    KernelEnergy() : energies_{ 0, 0, 0, 0 } {}
 
-    KernelEnergy() : Base{ 0, 0, 0, 0 } {}
+    T&       carrier() { return energies_[0]; }
+    const T& carrier() const { return energies_[0]; }
 
-    T&       carrier() { return (*this)[0]; }
-    const T& carrier() const { return (*this)[0]; }
+    T&       twoCenterAggregate() { return energies_[1]; }
+    const T& twoCenterAggregate() const { return energies_[1]; }
 
-    T&       twoCenterAggregate() { return (*this)[1]; }
-    const T& twoCenterAggregate() const { return (*this)[1]; }
+    T&       threeCenterAggregate() { return energies_[2]; }
+    const T& threeCenterAggregate() const { return energies_[2]; }
 
-    T&       threeCenterAggregate() { return (*this)[2]; }
-    const T& threeCenterAggregate() const { return (*this)[2]; }
-
-    T&       freeEnergyDerivative() { return (*this)[3]; }
-    const T& freeEnergyDerivative() const { return (*this)[3]; }
+    T&       freeEnergyDerivative() { return energies_[3]; }
+    const T& freeEnergyDerivative() const { return energies_[3]; }
 
     KernelEnergy& operator+=(const KernelEnergy& other)
     {
-        for (size_t i = 0; i < this->size(); ++i)
+        for (size_t i = 0; i < energies_.size(); ++i)
         {
-            (*this)[i] += other[i];
+            energies_[i] += other.energies_[i];
         }
         return *this;
     }
 
-    operator T() const { return std::accumulate(this->begin(), this->end(), T{}); }
+    operator T() const { return std::accumulate(begin(energies_), end(energies_), T{}); }
+
+private:
+    std::array<T, 4> energies_;
 };
 
 template<class BasicVector>

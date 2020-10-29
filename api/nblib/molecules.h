@@ -83,39 +83,39 @@ struct ParticleData
 class Molecule final
 {
     //! \brief string based listed interaction data type used during construction
-    template<class TwoCenterType>
+    template<class TwoCenterInteractionType>
     struct TwoCenterData
     {
-        using type = TwoCenterType;
+        using type = TwoCenterInteractionType;
 
-        std::vector<TwoCenterType> interactionTypes_;
+        std::vector<TwoCenterInteractionType> interactionTypes_;
         std::vector<std::tuple<ParticleName, ResidueName, ParticleName, ResidueName>> interactions_;
     };
 
-    template<class ThreeCenterType>
+    template<class ThreeCenterInteractionType>
     struct ThreeCenterData
     {
-        using type = ThreeCenterType;
+        using type = ThreeCenterInteractionType;
 
-        std::vector<ThreeCenterType> interactionTypes_;
+        std::vector<ThreeCenterInteractionType> interactionTypes_;
         std::vector<std::tuple<ParticleName, ResidueName, ParticleName, ResidueName, ParticleName, ResidueName>> interactions_;
     };
 
-    template<class FourCenter>
-    struct FourCenterDataHolder
+    template<class FourCenterInteractionType>
+    struct FourCenterData
     {
-        using type = FourCenter;
+        using type = FourCenterInteractionType;
 
-        std::vector<FourCenter> interactionTypes_;
+        std::vector<FourCenterInteractionType> interactionTypes_;
         std::vector<std::tuple<ParticleName, ResidueName, ParticleName, ResidueName, ParticleName, ResidueName, ParticleName, ResidueName>> interactions_;
     };
 
-    template<class FiveCenter>
-    struct FiveCenterDataHolder
+    template<class FiveCenterInteractionType>
+    struct FiveCenterData
     {
-        using type = FiveCenter;
+        using type = FiveCenterInteractionType;
 
-        std::vector<FiveCenter> interactionTypes_;
+        std::vector<FiveCenterInteractionType> interactionTypes_;
         std::vector<std::tuple<ParticleName, ResidueName, ParticleName, ResidueName, ParticleName, ResidueName, ParticleName, ResidueName, ParticleName, ResidueName>>
                 interactions_;
     };
@@ -125,9 +125,9 @@ class Molecule final
 
     using ThreeCenterContainerTypes = Map<ThreeCenterData, SupportedThreeCenterTypes>;
 
-    using FourCenterContainerTypes = Map<FourCenterDataHolder, SupportedFourCenterTypes>;
+    using FourCenterContainerTypes = Map<FourCenterData, SupportedFourCenterTypes>;
 
-    using FiveCenterContainerTypes = Map<FiveCenterDataHolder, SupportedFiveCenterTypes>;
+    using FiveCenterContainerTypes = Map<FiveCenterData, SupportedFiveCenterTypes>;
 
     // InteractionTuple is std::tuple<TwoCenterData<HarmonicBondType>, ...>
     using InteractionTuple = decltype(std::tuple_cat(Reduce<std::tuple, TwoCenterContainerTypes>{},
@@ -159,11 +159,11 @@ public:
     void addExclusion(int particleIndex, int particleIndexToExclude);
 
     //! Specify an exclusion with particle and residue names that have been added to molecule
-    void addExclusion(std::tuple<std::string, std::string> particle,
-                      std::tuple<std::string, std::string> particleToExclude);
+    void addExclusion(std::tuple<ParticleName, ResidueName> particle,
+                      std::tuple<ParticleName, ResidueName> particleToExclude);
 
     //! Specify an exclusion with particle names that have been added to molecule
-    void addExclusion(const std::string& particleName, const std::string& particleNameToExclude);
+    void addExclusion(const ParticleName& particleName, const ParticleName& particleNameToExclude);
 
     //! Add various types of interactions to the molecule
     //! Note: adding an interaction type not listed in SUPPORTED_TWO_CENTER_TYPES results in a compilation error
@@ -197,6 +197,49 @@ public:
     void addInteraction(const ParticleName& particleNameI,
                         const ParticleName& particleNameJ,
                         const ParticleName& particleNameK,
+                        const Interaction&  interaction);
+
+    //! For 4-particle interactions such as (im)proper-dihedrals
+    template<class Interaction>
+    void addInteraction(const ParticleName& particleNameI,
+                        const ResidueName&  residueNameI,
+                        const ParticleName& particleNameJ,
+                        const ResidueName&  residueNameJ,
+                        const ParticleName& particleNameK,
+                        const ResidueName&  residueNameK,
+                        const ParticleName& particleNameL,
+                        const ResidueName&  residueNameL,
+                        const Interaction&  interaction);
+
+    //! Add 4-particle interactions with the default residue name
+    template<class Interaction>
+    void addInteraction(const ParticleName& particleNameI,
+                        const ParticleName& particleNameJ,
+                        const ParticleName& particleNameK,
+                        const ParticleName& particleNameL,
+                        const Interaction&  interaction);
+
+    //! For 5-particle interactions such as (im)proper-dihedrals
+    template<class Interaction>
+    void addInteraction(const ParticleName& particleNameI,
+                        const ResidueName&  residueNameI,
+                        const ParticleName& particleNameJ,
+                        const ResidueName&  residueNameJ,
+                        const ParticleName& particleNameK,
+                        const ResidueName&  residueNameK,
+                        const ParticleName& particleNameL,
+                        const ResidueName&  residueNameL,
+                        const ParticleName& particleNameM,
+                        const ResidueName&  residueNameM,
+                        const Interaction&  interaction);
+
+    //! Add 4-particle interactions with the default residue name
+    template<class Interaction>
+    void addInteraction(const ParticleName& particleNameI,
+                        const ParticleName& particleNameJ,
+                        const ParticleName& particleNameK,
+                        const ParticleName& particleNameL,
+                        const ParticleName& particleNameM,
                         const Interaction&  interaction);
 
     //! The number of molecules
@@ -275,6 +318,40 @@ MAP(ADD_INTERACTION_EXTERN_TEMPLATE, SUPPORTED_THREE_CENTER_TYPES)
             const ParticleName& particleNameI, const ParticleName& particleNameJ, \
             const ParticleName& particleNameK, const x& interaction);
 MAP(ADD_INTERACTION_EXTERN_TEMPLATE, SUPPORTED_THREE_CENTER_TYPES)
+#undef ADD_INTERACTION_EXTERN_TEMPLATE
+
+#define ADD_INTERACTION_EXTERN_TEMPLATE(x)                                      \
+    extern template void Molecule::addInteraction(                              \
+            const ParticleName& particleNameI, const ResidueName& residueNameI, \
+            const ParticleName& particleNameJ, const ResidueName& residueNameJ, \
+            const ParticleName& particleNameK, const ResidueName& residueNameK, \
+            const ParticleName& particleNameL, const ResidueName& residueNameL, const x& interaction);
+MAP(ADD_INTERACTION_EXTERN_TEMPLATE, SUPPORTED_FOUR_CENTER_TYPES)
+#undef ADD_INTERACTION_EXTERN_TEMPLATE
+
+#define ADD_INTERACTION_EXTERN_TEMPLATE(x)                                        \
+    extern template void Molecule::addInteraction(                                \
+            const ParticleName& particleNameI, const ParticleName& particleNameJ, \
+            const ParticleName& particleNameK, const ParticleName& particleNameL, const x& interaction);
+MAP(ADD_INTERACTION_EXTERN_TEMPLATE, SUPPORTED_FOUR_CENTER_TYPES)
+#undef ADD_INTERACTION_EXTERN_TEMPLATE
+
+#define ADD_INTERACTION_EXTERN_TEMPLATE(x)                                      \
+    extern template void Molecule::addInteraction(                              \
+            const ParticleName& particleNameI, const ResidueName& residueNameI, \
+            const ParticleName& particleNameJ, const ResidueName& residueNameJ, \
+            const ParticleName& particleNameK, const ResidueName& residueNameK, \
+            const ParticleName& particleNameL, const ResidueName& residueNameL, \
+            const ParticleName& particleNameM, const ResidueName& residueNameM, const x& interaction);
+MAP(ADD_INTERACTION_EXTERN_TEMPLATE, SUPPORTED_FIVE_CENTER_TYPES)
+#undef ADD_INTERACTION_EXTERN_TEMPLATE
+
+#define ADD_INTERACTION_EXTERN_TEMPLATE(x)                                        \
+    extern template void Molecule::addInteraction(                                \
+            const ParticleName& particleNameI, const ParticleName& particleNameJ, \
+            const ParticleName& particleNameK, const ParticleName& particleNameL, \
+            const ParticleName& particleNameM, const x& interaction);
+MAP(ADD_INTERACTION_EXTERN_TEMPLATE, SUPPORTED_FIVE_CENTER_TYPES)
 #undef ADD_INTERACTION_EXTERN_TEMPLATE
 //! \endcond
 

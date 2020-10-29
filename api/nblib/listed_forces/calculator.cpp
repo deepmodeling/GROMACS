@@ -44,6 +44,7 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
+#include "nblib/exception.h"
 #include "nblib/listed_forces/calculator.h"
 #include "nblib/listed_forces/dataflow.hpp"
 #include "nblib/listed_forces/helpers.hpp"
@@ -57,7 +58,7 @@ ListedForceCalculator::ListedForceCalculator(const ListedInteractionData& intera
                                              size_t                       bufferSize,
                                              int                          nthr,
                                              const Box&                   box) :
-    masterForceBuffer_(bufferSize, gmx::RVec{ 0, 0, 0 }),
+    masterForceBuffer_(bufferSize, Vec3{ 0, 0, 0 }),
     numThreads(nthr),
     pbcHolder_(box)
 {
@@ -76,15 +77,14 @@ ListedForceCalculator::ListedForceCalculator(const ListedInteractionData& intera
             rangeEnd = bufferSize;
         }
 
-        threadedForceBuffers_.push_back(std::make_unique<ForceBuffer<gmx::RVec>>(
+        threadedForceBuffers_.push_back(std::make_unique<ForceBuffer<Vec3>>(
                 masterForceBuffer_.data(), rangeStart, rangeEnd));
     }
 }
 
-ListedForceCalculator::EnergyType ListedForceCalculator::compute(const std::vector<gmx::RVec>& x, bool usePbc)
+void ListedForceCalculator::computeForcesAndEnergies(gmx::ArrayRef<const Vec3> x, bool usePbc)
 {
-    ListedForceCalculator::EnergyType energiesZeroed;
-    energiesZeroed.fill(0);
+    energyBuffer_.fill(0);
     std::vector<std::array<real, std::tuple_size<ListedInteractionData>::value>> energiesPerThread(numThreads);
 
 #pragma omp parallel for num_threads(numThreads) schedule(static)
@@ -105,16 +105,9 @@ ListedForceCalculator::EnergyType ListedForceCalculator::compute(const std::vect
     // reduce energies
     for (int thread = 0; thread < numThreads; ++thread)
     {
-        for (int type = 0; type < energiesZeroed.size(); ++type)
+        for (int type = 0; type < energyBuffer_.size(); ++type)
         {
-            energiesZeroed[type] += energiesPerThread[thread][type];
-        }
-
-        // add aggregate energies to harmonic bonds for now
-        // TODO: implement correct splitting of aggregate energy components
-        for (int type = energiesZeroed.size(); type < energiesPerThread[thread].size(); ++type)
-        {
-            energiesZeroed[0] += energiesPerThread[thread][type];
+            energyBuffer_[type] += energiesPerThread[thread][type];
         }
     }
 
@@ -139,13 +132,38 @@ ListedForceCalculator::EnergyType ListedForceCalculator::compute(const std::vect
             }
         }
     }
-
-    return energiesZeroed;
 }
 
-const std::vector<gmx::RVec>& ListedForceCalculator::forces() const
+void ListedForceCalculator::compute(gmx::ArrayRef<const Vec3> coordinates, gmx::ArrayRef<Vec3> forces, bool usePbc)
 {
-    return masterForceBuffer_;
+    if (coordinates.size() != forces.size())
+    {
+        throw InputException("Coordinates array and force buffer size mismatch");
+    }
+
+    // check if the force buffers have the same size
+    if (masterForceBuffer_.size() != forces.size())
+    {
+        throw InputException("Input force buffer size mismatch with listed forces buffer");
+    }
+
+    // compute forces and fill in local buffers
+    computeForcesAndEnergies(coordinates, usePbc);
+
+    // add forces to output force buffers
+    for (int pIndex = 0; pIndex < forces.size(); pIndex++)
+    {
+        forces[pIndex] += masterForceBuffer_[pIndex];
+    }
+}
+void ListedForceCalculator::compute(gmx::ArrayRef<const Vec3> coordinates,
+                                    gmx::ArrayRef<Vec3>       forces,
+                                    EnergyType&               energies,
+                                    bool                      usePbc)
+{
+    compute(coordinates, forces, usePbc);
+
+    energies = energyBuffer_;
 }
 
 } // namespace nblib

@@ -53,6 +53,21 @@ install(
         ${CMAKE_INSTALL_BINDIR}
 )
 
+add_executable(methane-water-integration "")
+
+target_sources(methane-water-integration
+        PRIVATE
+        methane-water-integration.cpp
+        )
+
+target_link_libraries(methane-water-integration PRIVATE nblib)
+install(
+        TARGETS
+        methane-water-integration
+        DESTINATION
+        ${CMAKE_INSTALL_BINDIR}
+)
+
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()

@@ -75,9 +75,9 @@ class ListedGmxCalculator
 public:
     ListedGmxCalculator(const ListedInteractionData& interactions, int nP, int nThr, const Box& box);
 
-    ListedForceCalculator::EnergyType compute(const std::vector<gmx::RVec>& x);
-
-    [[nodiscard]] const std::vector<gmx::RVec>& forces() const;
+    void compute(const std::vector<gmx::RVec>&      x,
+                 std::vector<gmx::RVec>&            forces,
+                 ListedForceCalculator::EnergyType& energies);
 
     [[nodiscard]] const InteractionDefinitions& getIdef() const;
 

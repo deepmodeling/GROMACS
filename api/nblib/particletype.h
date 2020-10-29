@@ -76,11 +76,15 @@ public:
      */
     ParticleType(ParticleTypeName name, Mass mass);
 
+    //! Force explicit use of correct types
+    template<typename T, typename U>
+    ParticleType(T name, U mass) = delete;
+
     //! Get the type name
-    [[nodiscard]] ParticleTypeName name() const;
+    ParticleTypeName name() const;
 
     //! Get the mass
-    [[nodiscard]] Mass mass() const;
+    Mass mass() const;
 
 private:
     //! The name

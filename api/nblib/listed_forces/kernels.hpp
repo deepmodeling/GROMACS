@@ -66,11 +66,11 @@ namespace nblib
 template <class T>
 inline std::tuple<T, T> harmonicScalarForce(T k, T x0, T x)
 {
-    real dx  = x - x0;
-    real dx2 = dx * dx;
+    T dx  = x - x0;
+    T dx2 = dx * dx;
 
-    real force = -k * dx;
-    real epot = 0.5 * k * dx2;
+    T force = -k * dx;
+    T epot = 0.5 * k * dx2;
 
     return std::make_tuple(force, epot);
 
@@ -94,16 +94,16 @@ inline std::tuple<T, T, T> harmonicScalarForce(T kA, T kB, T xA, T xB, T x, T la
 {
     // code unchanged relative to Gromacs
 
-    real L1 = 1.0 - lambda;
-    real kk = L1 * kA + lambda * kB;
-    real x0 = L1 * xA + lambda * xB;
+    T L1 = 1.0 - lambda;
+    T kk = L1 * kA + lambda * kB;
+    T x0 = L1 * xA + lambda * xB;
 
-    real dx  = x - x0;
-    real dx2 = dx * dx;
+    T dx  = x - x0;
+    T dx2 = dx * dx;
 
-    real force     = -kk * dx;
-    real epot      = 0.5 * kk * dx2;
-    real dvdlambda = 0.5 * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+    T force     = -kk * dx;
+    T epot      = 0.5 * kk * dx2;
+    T dvdlambda = 0.5 * (kB - kA) * dx2 + (xA - xB) * kk * dx;
 
     return std::make_tuple(force, epot, dvdlambda);
 
@@ -130,11 +130,11 @@ inline auto bondKernel(T dr, const HarmonicBondType& bond)
 template <class T>
 inline std::tuple<T, T> g96ScalarForce(T k, T x0, T x)
 {
-    real dx  = x - x0;
-    real dx2 = dx * dx;
+    T dx  = x - x0;
+    T dx2 = dx * dx;
 
-    real force = -k * dx * x;
-    real epot = 0.25 * k * dx2;
+    T force = -k * dx * x;
+    T epot = 0.25 * k * dx2;
 
     return std::make_tuple(force, epot);
 
@@ -156,17 +156,17 @@ inline std::tuple<T, T> g96ScalarForce(T k, T x0, T x)
 template <class T>
 inline std::tuple<T, T, T> g96ScalarForce(T kA, T kB, T xA, T xB, T x, T lambda)
 {
-    real L1 = 1.0 - lambda;
-    real kk = L1 * kA + lambda * kB;
-    real x0 = L1 * xA + lambda * xB;
+    T L1 = 1.0 - lambda;
+    T kk = L1 * kA + lambda * kB;
+    T x0 = L1 * xA + lambda * xB;
 
-    real dx  = x - x0;
-    real dx2 = dx * dx;
+    T dx  = x - x0;
+    T dx2 = dx * dx;
 
-    real force = -kk * dx * x;
-    real epot = 0.25 * kk * dx2;
+    T force = -kk * dx * x;
+    T epot = 0.25 * kk * dx2;
     // TODO: Check if this is 1/2 or 1/4
-    real dvdlambda = 0.5 * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+    T dvdlambda = 0.5 * (kB - kA) * dx2 + (xA - xB) * kk * dx;
 
     return std::make_tuple(force, epot, dvdlambda);
 
@@ -195,12 +195,12 @@ inline auto bondKernel(T dr, const G96BondType& bond)
 template <class T>
 inline std::tuple<T, T> morseScalarForce(T k, T beta, T x0, T x)
 {
-    real exponent = std::exp(-beta * (x - x0));      /* 12 */
-    real omexp = 1.0 - exponent;                     /*  1 */
-    real kexp = k * omexp;                           /*  1 */
+    T exponent = std::exp(-beta * (x - x0));      /* 12 */
+    T omexp = 1.0 - exponent;                     /*  1 */
+    T kexp = k * omexp;                           /*  1 */
 
-    real epot = kexp * omexp;                        /*  1 */
-    real force = -2.0 * beta * exponent * omexp;     /*  4 */
+    T epot = kexp * omexp;                        /*  1 */
+    T force = -2.0 * beta * exponent * omexp;     /*  4 */
 
     return std::make_tuple(force, epot);
 
@@ -224,19 +224,19 @@ inline std::tuple<T, T> morseScalarForce(T k, T beta, T x0, T x)
 template <class T>
 inline std::tuple<T, T, T> morseScalarForce(T kA, T kB, T betaA, T betaB, T xA, T xB, T x, T lambda)
 {
-    real L1 = 1.0 - lambda;                          /* 1 */
-    real x0 = L1 * xA + lambda * xB;                 /* 3 */
-    real beta = L1 * betaA + lambda * betaB;         /* 3 */
-    real k = L1 * kA + lambda * kB;                  /* 3 */
+    T L1 = 1.0 - lambda;                          /* 1 */
+    T x0 = L1 * xA + lambda * xB;                 /* 3 */
+    T beta = L1 * betaA + lambda * betaB;         /* 3 */
+    T k = L1 * kA + lambda * kB;                  /* 3 */
 
-    real exponent = std::exp(-beta * (x - x0));      /* 12 */
-    real omexp = 1.0 - exponent;                     /*  1 */
-    real kexp = k * omexp;                           /*  1 */
+    T exponent = std::exp(-beta * (x - x0));      /* 12 */
+    T omexp = 1.0 - exponent;                     /*  1 */
+    T kexp = k * omexp;                           /*  1 */
 
-    real epot = kexp * omexp;                        /*  1 */
-    real force = -2.0 * beta * exponent * omexp;     /*  4 */
+    T epot = kexp * omexp;                        /*  1 */
+    T force = -2.0 * beta * exponent * omexp;     /*  4 */
 
-    real dvdlambda = (kB - kA) * omexp * omexp
+    T dvdlambda = (kB - kA) * omexp * omexp
                     - (2.0 - 2.0 * omexp) * omexp * k
                     * ((xB - xA) * beta - (betaB - betaA) * (x - x0)); /* 15 */
 
@@ -265,13 +265,13 @@ inline auto bondKernel(T dr, const MorseBondType& bond)
 template <class T>
 inline std::tuple<T, T> FENEScalarForce(T k, T x0, T x)
 {
-    real x02 = x0 * x0;
-    real x2 = x * x;
+    T x02 = x0 * x0;
+    T x2 = x * x;
 
-    real omx2_ox02 = 1.0 - (x2 / x02);
+    T omx2_ox02 = 1.0 - (x2 / x02);
 
-    real epot = -0.5 * k * x02 * std::log(omx2_ox02);
-    real force = -k * x / omx2_ox02;
+    T epot = -0.5 * k * x02 * std::log(omx2_ox02);
+    T force = -k * x / omx2_ox02;
 
     return std::make_tuple(force, epot);
 
@@ -301,14 +301,14 @@ inline auto bondKernel(T dr, const FENEBondType& bond)
 template <class T>
 inline std::tuple<T, T> cubicScalarForce(T kc, T kq, T x0, T x)
 {
-    real dx = x - x0;
-    //real dx2 = dx * dx;
+    T dx = x - x0;
+    //T dx2 = dx * dx;
 
-    real kdist  = kq * dx;
-    real kdist2 = kdist * dx;
+    T kdist  = kq * dx;
+    T kdist2 = kdist * dx;
 
-    real epot = kdist2 + (kc * kdist2 * dx);
-    real force = -((2.0 * kdist) + (3.0 * kdist2 * kc));
+    T epot = kdist2 + (kc * kdist2 * dx);
+    T force = -((2.0 * kdist) + (3.0 * kdist2 * kc));
 
     return std::make_tuple(force, epot);
 
@@ -336,13 +336,13 @@ inline auto bondKernel(T dr, const CubicBondType& bond)
 template <class T>
 inline std::tuple<T, T> halfAttractiveScalarForce(T k, T x0, T x)
 {
-    real dx = x - x0;
-    real dx2 = dx * dx;
-    real dx3 = dx2 * dx;
-    real dx4 = dx2 * dx2;
+    T dx = x - x0;
+    T dx2 = dx * dx;
+    T dx3 = dx2 * dx;
+    T dx4 = dx2 * dx2;
 
-    real epot = -0.5 * k * dx4;
-    real force = -2.0 * k * dx3;
+    T epot = -0.5 * k * dx4;
+    T force = -2.0 * k * dx3;
 
     return std::make_tuple(force, epot);
 
@@ -364,18 +364,18 @@ inline std::tuple<T, T> halfAttractiveScalarForce(T k, T x0, T x)
 template <class T>
 inline std::tuple<T, T, T> halfAttractiveScalarForce(T kA, T kB, T xA, T xB, T x, T lambda)
 {
-    real L1 = 1.0 - lambda;
-    real kk = L1 * kA + lambda * kB;
-    real x0 = L1 * xA + lambda * xB;
+    T L1 = 1.0 - lambda;
+    T kk = L1 * kA + lambda * kB;
+    T x0 = L1 * xA + lambda * xB;
 
-    real dx  = x - x0;
-    real dx2 = dx * dx;
-    real dx3 = dx2 * dx;
-    real dx4 = dx2 * dx2;
+    T dx  = x - x0;
+    T dx2 = dx * dx;
+    T dx3 = dx2 * dx;
+    T dx4 = dx2 * dx2;
 
-    real epot = -0.5 * kk * dx4;
-    real force = -2.0 * kk * dx3;
-    real dvdlambda = 0.5 * (kB - kA) * dx4 + (2.0 * (xA - xB) * kk * dx3);
+    T epot = -0.5 * kk * dx4;
+    T force = -2.0 * kk * dx3;
+    T dvdlambda = 0.5 * (kB - kA) * dx4 + (2.0 * (xA - xB) * kk * dx3);
 
     return std::make_tuple(force, epot, dvdlambda);
 
@@ -407,9 +407,9 @@ inline auto threeCenterKernel(T dr, const DefaultAngle& angle)
 template <class T>
 inline auto fourCenterKernel(T phi, const ProperDihedral& properDihedral)
 {
-    const real deltaPhi = properDihedral.multiplicity() * phi - properDihedral.equilDistance();
-    const real force = -properDihedral.forceConstant() * properDihedral.multiplicity() * std::sin(deltaPhi);
-    const real ePot = properDihedral.forceConstant() * ( 1 + std::cos(deltaPhi) );
+    const T deltaPhi = properDihedral.multiplicity() * phi - properDihedral.equilDistance();
+    const T force = -properDihedral.forceConstant() * properDihedral.multiplicity() * std::sin(deltaPhi);
+    const T ePot = properDihedral.forceConstant() * ( 1 + std::cos(deltaPhi) );
     return std::make_tuple(force, ePot);
 }
 
@@ -443,11 +443,11 @@ static inline real dihedralPhi(rvec dxIJ, rvec dxKJ, rvec dxKL, rvec m, rvec n)
 template <class T>
 inline auto fourCenterKernel(T phi, const ImproperDihedral& improperDihedral)
 {
-    real deltaPhi = phi - improperDihedral.equilDistance();
+    T deltaPhi = phi - improperDihedral.equilDistance();
     /* delthPhi cannot be outside (-pi,pi) */
     makeAnglePeriodic(deltaPhi);
-    const real force = -improperDihedral.forceConstant()  * deltaPhi;
-    const real ePot = 0.5 * improperDihedral.forceConstant() * deltaPhi * deltaPhi;
+    const T force = -improperDihedral.forceConstant()  * deltaPhi;
+    const T ePot = 0.5 * improperDihedral.forceConstant() * deltaPhi * deltaPhi;
     return std::make_tuple(force, ePot);
 }
 
@@ -456,11 +456,11 @@ template <class T>
 inline auto fourCenterKernel(T phi, const RyckaertBellemanDihedral& ryckaertBellemanDihedral)
 {
     /* Change to polymer convention */
-    const real localPhi = (phi < 0) ? (phi += M_PI) : (phi -= M_PI);
-    real cos_phi = std::cos(localPhi);
-    real ePot = ryckaertBellemanDihedral[0];
-    real force = 0;
-    real cosineFactor = 1;
+    const T localPhi = (phi < 0) ? (phi += M_PI) : (phi -= M_PI);
+    T cos_phi = std::cos(localPhi);
+    T ePot = ryckaertBellemanDihedral[0];
+    T force = 0;
+    T cosineFactor = 1;
 
     for (int i = 1; i < int(ryckaertBellemanDihedral.size()); i++)
     {
@@ -479,14 +479,15 @@ inline auto fourCenterKernel(T phi, const RyckaertBellemanDihedral& ryckaertBell
  *
  * \p shiftIndex is used as the periodic shift.
  */
-inline void spreadTwoCenterForces(const real bondForce,
+template <class T>
+inline void spreadTwoCenterForces(const T bondForce,
                                   const gmx::RVec& dx,
                                   gmx::RVec* force_i,
                                   gmx::RVec* force_j)
 {
     for (int m = 0; m < dimSize; m++) /*  15          */
     {
-        const real fij = bondForce * dx[m];
+        const T fij = bondForce * dx[m];
         (*force_i)[m] += fij;
         (*force_j)[m] -= fij;
     }
@@ -545,7 +546,6 @@ inline void spreadThreeCenterForces(T cos_theta,
 }
 
 //! Four-center category common
-
 template <class T>
 inline void spreadFourCenterForces(T force, rvec dxIJ, rvec dxJK, rvec dxKL, rvec m, rvec n,
                             gmx::RVec* force_i,
@@ -555,22 +555,22 @@ inline void spreadFourCenterForces(T force, rvec dxIJ, rvec dxJK, rvec dxKL, rve
 {
     rvec f_i, f_j, f_k, f_l;
     rvec uvec, vvec, svec;
-    real iprm  = iprod(m, m);       /*  5    */
-    real iprn  = iprod(n, n);       /*  5	*/
-    real nrkj2 = iprod(dxJK, dxJK); /*  5	*/
-    real toler = nrkj2 * GMX_REAL_EPS;
+    T iprm  = iprod(m, m);       /*  5    */
+    T iprn  = iprod(n, n);       /*  5	*/
+    T nrkj2 = iprod(dxJK, dxJK); /*  5	*/
+    T toler = nrkj2 * GMX_REAL_EPS;
     if ((iprm > toler) && (iprn > toler))
     {
-        real nrkj_1 = gmx::invsqrt(nrkj2);  /* 10	*/
-        real nrkj_2 = nrkj_1 * nrkj_1;      /*  1	*/
-        real nrkj   = nrkj2 * nrkj_1;       /*  1	*/
-        real a      = -force * nrkj / iprm; /* 11	*/
+        T nrkj_1 = gmx::invsqrt(nrkj2);  /* 10	*/
+        T nrkj_2 = nrkj_1 * nrkj_1;      /*  1	*/
+        T nrkj   = nrkj2 * nrkj_1;       /*  1	*/
+        T a      = -force * nrkj / iprm; /* 11	*/
         svmul(a, m, f_i);              /*  3	*/
-        real b = force * nrkj / iprn;       /* 11	*/
+        T b = force * nrkj / iprn;       /* 11	*/
         svmul(b, n, f_l);              /*  3  */
-        real p = iprod(dxIJ, dxJK);         /*  5	*/
+        T p = iprod(dxIJ, dxJK);         /*  5	*/
         p *= nrkj_2;                   /*  1	*/
-        real q = iprod(dxKL, dxJK);         /*  5	*/
+        T q = iprod(dxKL, dxJK);         /*  5	*/
         q *= nrkj_2;                   /*  1	*/
         svmul(p, f_i, uvec);           /*  3	*/
         svmul(q, f_l, vvec);           /*  3	*/

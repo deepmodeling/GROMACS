@@ -32,23 +32,25 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \inpublicapi \file
+/*! \internal \file
  * \brief
- * Implements nblib Cartesian coordinate vector
+ * This tests that sample code can run
  *
  * \author Victor Holanda <victor.holanda@cscs.ch>
  * \author Joe Jordan <ejjordan@kth.se>
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
-#ifndef NBLIB_BASICVECTOR_H
-#define NBLIB_BASICVECTOR_H
+#include "gmxpre.h"
 
-#include "gromacs/math/vectypes.h"
-#include "basicdefinitions.h"
+#include "testutils/refdata.h"
+#include "testutils/testasserts.h"
 
-namespace nblib
+//! Google Test defines a main function so we rename the main function of the sample scripts
+#define main MethaneWaterSampleMain
+#include "nblib/samples/methane-water-integration.cpp"
+TEST(NBlibTest, MethaneWaterSampleDoesNotThrow)
 {
-using Vec3 = gmx::BasicVector<real>;
-} // namespace nblib
-#endif // NBLIB_BASICVECTOR_H
+    EXPECT_NO_FATAL_FAILURE(main());
+}
+#undef main

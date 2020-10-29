@@ -53,6 +53,12 @@
 #include "nblib/listed_forces/definitions.h"
 #include "nblib/pbc.hpp"
 
+namespace gmx
+{
+template<typename T>
+class ArrayRef;
+} // namespace gmx
+
 namespace nblib
 {
 
@@ -72,12 +78,26 @@ public:
                           int                          numThreads,
                           const Box&                   box);
 
+    /*! \brief Dispatch the listed force kernels and reduce the forces
+     *
+     * This function adds the computed listed forces to all values in the passed in forces buffer,
+     * so it can be regarded as an output only param. In case this is being used in a simulation
+     * that uses the same force buffer for both non-bonded and listed forces, this call should be
+     * made only after the compute() call from the non-bonded ForceCalculator
+     *
+     * This function also stores the forces and energies from listed interactions in the internal
+     * buffer of the ListedForceCalculator object
+     *
+     * \param[in] coordinates to be used for the force calculation
+     * \param[out] forces buffer to store the output forces
+     */
+    void compute(gmx::ArrayRef<const Vec3> coordinates, gmx::ArrayRef<Vec3> forces, bool usePbc = false);
 
-    //! compute listed forces, overwrites the internal buffer
-    EnergyType compute(const std::vector<gmx::RVec>& x, bool usePbc = false);
-
-    //! access the main force buffer
-    [[nodiscard]] const std::vector<gmx::RVec>& forces() const;
+    //! Alternative overload with the energies in an output buffer
+    void compute(gmx::ArrayRef<const Vec3> coordinates,
+                 gmx::ArrayRef<Vec3>       forces,
+                 EnergyType&               energies,
+                 bool                      usePbc = false);
 
     /*! \brief We need to declare the destructor here to move the (still default) implementation
      *  to the .cpp file. Omitting this declaration would mean an inline destructor
@@ -92,6 +112,9 @@ private:
     //! the main buffer to hold the final listed forces
     std::vector<gmx::RVec> masterForceBuffer_;
 
+    //! holds the array of energies computed
+    EnergyType energyBuffer_;
+
     //! holds the listed interactions split into groups for multithreading
     std::vector<ListedInteractionData> threadedInteractions_;
 
@@ -100,6 +123,9 @@ private:
 
     //! PBC objects
     PbcHolder pbcHolder_;
+
+    //! compute listed forces and energies, overwrites the internal buffers
+    void computeForcesAndEnergies(gmx::ArrayRef<const Vec3> x, bool usePbc = false);
 };
 
 } // namespace nblib
