@@ -46,10 +46,12 @@ gmx_add_gtest_executable(
     ${exename}
     CPP_SOURCE_FILES
     # files with code for tests
-        samples.cpp
+        argon-sample.cpp
+        methane-water-sample.cpp
     )
 #The following line is a not so nice hack to prevent compiler warnings that are not relevant for the sample scripts
-set_source_files_properties(samples.cpp PROPERTIES COMPILE_FLAGS "-Wno-header-hygiene")
+set_source_files_properties(argon-sample.cpp PROPERTIES COMPILE_FLAGS "-Wno-header-hygiene")
+set_source_files_properties(methane-water-sample.cpp PROPERTIES COMPILE_FLAGS "-Wno-header-hygiene")
 target_link_libraries(nblib-samples-test PRIVATE nblib)
 gmx_register_gtest_test(${testname} ${exename})
 add_dependencies(check-nblib ${exename})
