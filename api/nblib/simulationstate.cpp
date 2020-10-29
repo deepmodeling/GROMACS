@@ -70,12 +70,12 @@ SimulationState::Impl::Impl(const std::vector<Vec3>& coordinates,
     box_(box),
     topology_(std::move(topology))
 {
-    if (!checkNumericValues(coordinates))
+    if (!isRealValued(coordinates))
     {
         throw InputException("Input coordinates has at least one NaN");
     }
     coordinates_ = coordinates;
-    if (!checkNumericValues(velocities))
+    if (!isRealValued(velocities))
     {
         throw InputException("Input velocities has at least one NaN");
     }
