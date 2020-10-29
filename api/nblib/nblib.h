@@ -53,6 +53,7 @@
 #include "nblib/kerneloptions.h"
 #include "nblib/listed_forces/bondtypes.h"
 #include "nblib/listed_forces/definitions.h"
+#include "nblib/listed_forces/calculator.h"
 #include "nblib/listed_forces/traits.h"
 #include "nblib/molecules.h"
 #include "nblib/particletype.h"
