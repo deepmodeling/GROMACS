@@ -58,7 +58,7 @@ namespace test
 namespace
 {
 
-//! \brief compare whether the forces for LinearChainData matches up
+//! \brief compare whether the forces between a pair of gmx/nblib datasets match up
 template<class Data>
 void compareForces(const Data& nblibData, const Data& gmxData, int numThreads)
 {
@@ -66,11 +66,13 @@ void compareForces(const Data& nblibData, const Data& gmxData, int numThreads)
                                           *nblibData.box);
     ListedGmxCalculator gmxCalculator(gmxData.interactions, gmxData.x.size(), numThreads, *gmxData.box);
 
-    nblibCalculator.compute(nblibData.x);
-    gmxCalculator.compute(gmxData.x);
+    ListedForceCalculator::EnergyType nblibEnergies;
+    std::vector<gmx::RVec>            nblibForces(nblibData.x.size(), Vec3{ 0, 0, 0 });
+    nblibCalculator.compute(nblibData.x, nblibForces, nblibEnergies);
 
-    const std::vector<gmx::RVec>& nblibForces = nblibCalculator.forces();
-    const std::vector<gmx::RVec>& gmxForces   = gmxCalculator.forces();
+    ListedForceCalculator::EnergyType gmxEnergies;
+    std::vector<gmx::RVec>            gmxForces(gmxData.x.size(), Vec3{ 0, 0, 0 });
+    gmxCalculator.compute(gmxData.x, gmxForces, gmxEnergies);
 
     for (int i = 0; i < nblibForces.size(); ++i)
     {
@@ -96,6 +98,7 @@ public:
         data_(data),
         numThreads(nThr),
         reps(reps_),
+        forceBuffer_(data_.x.size()),
         lfCalculator(data_.interactions, data_.x.size(), numThreads, *data_.box),
         calculatorEnergies{ 0 }
     {
@@ -105,7 +108,7 @@ public:
     {
         for (int i = 0; i < reps; ++i)
         {
-            calculatorEnergies = lfCalculator.compute(data_.x);
+            lfCalculator.compute(data_.x, forceBuffer_, calculatorEnergies);
         }
     }
 
@@ -120,6 +123,7 @@ private:
 
     DataObject                        data_;
     Calculator                        lfCalculator;
+    std::vector<Vec3>                 forceBuffer_;
     ListedForceCalculator::EnergyType calculatorEnergies;
 };
 
@@ -161,17 +165,18 @@ void testGmx(const Data& data, int reps, int nThreads)
 
 int main()
 {
-    int nParticles = 500003;
+    int nParticles = 50003;
 
-    // nblib::LinearChainData nblibData(nParticles), gmxData(nParticles);
+    nblib::LinearChainData nblibData(nParticles), gmxData(nParticles);
     // nblibData.createAggregates();
-    // nblib::test::compareForces(nblibData, gmxData, 4);
+    nblib::test::compareForces(nblibData, gmxData, 4);
 
-    // testNblib(nblibData, 100, 4);
-    // testGmx(gmxData, 100, 4);
+    testNblib(nblibData, 100, 4);
+    testGmx(gmxData, 100, 4);
 
+    // Note: this test cases needs double precision for forces to match precisely
     nblib::PolyDimethylButene nbPolyData(100), gmxPolyData(100);
-    nbPolyData.createAggregates();
+    // nbPolyData.createAggregates();
     nblib::test::compareForces(nbPolyData, gmxPolyData, 4);
 
     testNblib(nbPolyData, 1, 4);

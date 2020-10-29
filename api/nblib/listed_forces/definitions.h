@@ -41,6 +41,24 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
+ *
+ * A note on the preprocessor (PP) usage in this file:
+ *
+ * The PP macros defined here are used exclusively to generate
+ * template instantiations declarations of the form "extern template function(X)"
+ * in header files and "template function(X)" in .cpp files.
+ * These declarations do not affect the program logic in any way and neither are they
+ * required to read and understand the behavior of the code as they do not
+ * result in any executable instructions.
+ * In fact, it would even be technically possible to omit these PP generated
+ * declarations in the header files and replace them with an unused static function
+ * in the .cpp file that calls the template function in question
+ * (e.g. Molecule::addInteraction) once with each type from the variadic template
+ * TypeLists declared in this file. This would be enough to create the required instantiations.
+ * It would, however, create more work for the compiler which then has to instantiate the
+ * templates in the header in each translation unit where the header is included.
+ * Doing this results in a compiler warning.
+ *
  */
 #ifndef NBLIB_LISTEDFORCES_DEFINITIONS_H
 #define NBLIB_LISTEDFORCES_DEFINITIONS_H
@@ -114,27 +132,27 @@ struct ThreeCenterData
 };
 
 //! \brief data type for four-center interactions, e.g. dihedrals
-template<class FourCenter>
+template<class FourCenterType>
 struct FourCenterData
 {
-    using type = FourCenter;
+    using type = FourCenterType;
 
     // tuple format: <particleID i, particleID j, particleID k, particleID l, FourCenterInstanceIndex>
     std::vector<FourCenterInteractionIndex> indices;
     // vector of unique FiveCenterType instances
-    std::vector<FourCenter> parameters;
+    std::vector<FourCenterType> parameters;
 };
 
 //! \brief data type for five-center interactions, e.g. CMAP
-template<class FiveCenter>
+template<class FiveCenterType>
 struct FiveCenterData
 {
-    using type = FiveCenter;
+    using type = FiveCenterType;
 
     // tuple format: <particleID i, particleID j, particleID k, particleID l, particleID m, FiveCenterInstanceIndex>
     std::vector<FiveCenterInteractionIndex> indices;
     // vector of unique FiveCenterType instances
-    std::vector<FiveCenter> parameters;
+    std::vector<FiveCenterType> parameters;
 };
 
 

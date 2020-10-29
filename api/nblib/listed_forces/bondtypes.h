@@ -36,6 +36,13 @@
  * \brief
  * Implements nblib supported bondtypes
  *
+ * We choose to forward comparison operations to the
+ * corresponding std::tuple comparison operations.
+ * In order to do that without temporary copies,
+ * we employ std::tie, which requires lvalues as input.
+ * For this reason, bond type parameter getters are implemented
+ * with a const lvalue reference return.
+ *
  * \author Victor Holanda <victor.holanda@cscs.ch>
  * \author Joe Jordan <ejjordan@kth.se>
  * \author Prashanth Kanduri <kanduri@cscs.ch>
