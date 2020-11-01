@@ -153,6 +153,8 @@ struct t_lambda
     int lambda_start_n;
     //! The last lambda +1 to calculate energies for
     int lambda_stop_n;
+    //! Free energy soft-bond parameter
+    real sb_alpha;
     //! Free energy soft-core parameter
     bool sc_gapsys;
     real sc_alpha;

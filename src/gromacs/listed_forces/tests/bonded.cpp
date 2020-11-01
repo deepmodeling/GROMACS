@@ -549,7 +549,7 @@ protected:
         output.energy = calculateSimpleBond(
                 input_.ftype, iatoms.size(), iatoms.data(), &input_.iparams,
                 as_rvec_array(x_.data()), output.f, output.fshift, &pbc_,
-                /* const struct t_graph *g */ nullptr, lambda, &output.dvdlambda, &mdatoms,
+                /* const struct t_graph *g */ nullptr, 0, lambda, &output.dvdlambda, &mdatoms,
                 /* struct t_fcdata * */ nullptr, ddgatindex.data(),
                 BondedKernelFlavor::ForcesAndVirialAndEnergy);
         // Internal consistency test of both test input
