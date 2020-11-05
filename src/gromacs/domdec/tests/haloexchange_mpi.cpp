@@ -66,6 +66,7 @@
 #endif
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/mdtypes/inputrec.h"
+#include "gromacs/utility/arrayref.h"
 
 #include "testutils/mpitest.h"
 #include "testutils/test_hardware_environment.h"
@@ -96,7 +97,7 @@ float encodedValue(const int sendRank, const int atomNumber, const int spatial3d
  * \param [in] numHomeAtoms   Number of home atoms
  * \param [in] numAtomsTotal  Total number of atoms, including halo
  */
-void initHaloData(RVec* x, const int numHomeAtoms, const int numAtomsTotal)
+void initHaloData(ArrayRef<RVec> x, const int numHomeAtoms, const int numAtomsTotal)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -420,14 +421,14 @@ void define2dHaloWith2PulsesInDim1(gmx_domdec_t* dd, std::vector<gmx_domdec_ind_
  * \param [in] dd            Domain decomposition object
  * \param [in] numHomeAtoms  Number of home atoms
  */
-void checkResults1dHaloWith1Pulse(const RVec* x, const gmx_domdec_t* dd, const int numHomeAtoms)
+void checkResults1dHaloWith1Pulse(ArrayRef<const RVec> x, const gmx_domdec_t& dd, const int numHomeAtoms)
 {
     // Check results are expected from values encoded in x data
     for (int j = 0; j < DIM; j++)
     {
         // First Pulse in first dim: atoms 1 and 3 from forward horizontal neighbour
-        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd->neighbor[0][0], 1, j));
-        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd->neighbor[0][0], 3, j));
+        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd.neighbor[0][0], 1, j));
+        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd.neighbor[0][0], 3, j));
     }
 }
 
@@ -437,18 +438,18 @@ void checkResults1dHaloWith1Pulse(const RVec* x, const gmx_domdec_t* dd, const i
  * \param [in] dd            Domain decomposition object
  * \param [in] numHomeAtoms  Number of home atoms
  */
-void checkResults1dHaloWith2Pulses(const RVec* x, const gmx_domdec_t* dd, const int numHomeAtoms)
+void checkResults1dHaloWith2Pulses(ArrayRef<const RVec> x, const gmx_domdec_t& dd, const int numHomeAtoms)
 {
     // Check results are expected from values encoded in x data
     for (int j = 0; j < DIM; j++)
     {
         // First Pulse in first dim: atoms 1 and 3 from forward horizontal neighbour
-        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd->neighbor[0][0], 1, j));
-        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd->neighbor[0][0], 3, j));
+        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd.neighbor[0][0], 1, j));
+        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd.neighbor[0][0], 3, j));
         // Second Pulse in first dim: atoms 4,5,7 from forward horizontal neighbour
-        EXPECT_EQ(x[numHomeAtoms + 2][j], encodedValue(dd->neighbor[0][0], 4, j));
-        EXPECT_EQ(x[numHomeAtoms + 3][j], encodedValue(dd->neighbor[0][0], 5, j));
-        EXPECT_EQ(x[numHomeAtoms + 4][j], encodedValue(dd->neighbor[0][0], 7, j));
+        EXPECT_EQ(x[numHomeAtoms + 2][j], encodedValue(dd.neighbor[0][0], 4, j));
+        EXPECT_EQ(x[numHomeAtoms + 3][j], encodedValue(dd.neighbor[0][0], 5, j));
+        EXPECT_EQ(x[numHomeAtoms + 4][j], encodedValue(dd.neighbor[0][0], 7, j));
     }
 }
 
@@ -458,17 +459,17 @@ void checkResults1dHaloWith2Pulses(const RVec* x, const gmx_domdec_t* dd, const 
  * \param [in] dd            Domain decomposition object
  * \param [in] numHomeAtoms  Number of home atoms
  */
-void checkResults2dHaloWith1PulseInEachDim(const RVec* x, const gmx_domdec_t* dd, const int numHomeAtoms)
+void checkResults2dHaloWith1PulseInEachDim(ArrayRef<const RVec> x, const gmx_domdec_t& dd, const int numHomeAtoms)
 {
     // Check results are expected from values encoded in x data
     for (int j = 0; j < DIM; j++)
     {
         // First Pulse in first dim: atoms 1 and 3 from forward horizontal neighbour
-        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd->neighbor[0][0], 1, j));
-        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd->neighbor[0][0], 3, j));
+        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd.neighbor[0][0], 1, j));
+        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd.neighbor[0][0], 3, j));
         // First Pulse in second dim: atoms 1 and 3 from forward vertical neighbour
-        EXPECT_EQ(x[numHomeAtoms + 2][j], encodedValue(dd->neighbor[1][0], 1, j));
-        EXPECT_EQ(x[numHomeAtoms + 3][j], encodedValue(dd->neighbor[1][0], 3, j));
+        EXPECT_EQ(x[numHomeAtoms + 2][j], encodedValue(dd.neighbor[1][0], 1, j));
+        EXPECT_EQ(x[numHomeAtoms + 3][j], encodedValue(dd.neighbor[1][0], 3, j));
     }
 }
 
@@ -478,21 +479,21 @@ void checkResults2dHaloWith1PulseInEachDim(const RVec* x, const gmx_domdec_t* dd
  * \param [in] dd            Domain decomposition object
  * \param [in] numHomeAtoms  Number of home atoms
  */
-void checkResults2dHaloWith2PulsesInDim1(const RVec* x, const gmx_domdec_t* dd, const int numHomeAtoms)
+void checkResults2dHaloWith2PulsesInDim1(ArrayRef<const RVec> x, const gmx_domdec_t& dd, const int numHomeAtoms)
 {
     // Check results are expected from values encoded in x data
     for (int j = 0; j < DIM; j++)
     {
         // First Pulse in first dim: atoms 1 and 3 from forward horizontal neighbour
-        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd->neighbor[0][0], 1, j));
-        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd->neighbor[0][0], 3, j));
+        EXPECT_EQ(x[numHomeAtoms][j], encodedValue(dd.neighbor[0][0], 1, j));
+        EXPECT_EQ(x[numHomeAtoms + 1][j], encodedValue(dd.neighbor[0][0], 3, j));
         // Second Pulse in first dim: atoms 4,5,7 from forward horizontal neighbour
-        EXPECT_EQ(x[numHomeAtoms + 2][j], encodedValue(dd->neighbor[0][0], 4, j));
-        EXPECT_EQ(x[numHomeAtoms + 3][j], encodedValue(dd->neighbor[0][0], 5, j));
-        EXPECT_EQ(x[numHomeAtoms + 4][j], encodedValue(dd->neighbor[0][0], 7, j));
+        EXPECT_EQ(x[numHomeAtoms + 2][j], encodedValue(dd.neighbor[0][0], 4, j));
+        EXPECT_EQ(x[numHomeAtoms + 3][j], encodedValue(dd.neighbor[0][0], 5, j));
+        EXPECT_EQ(x[numHomeAtoms + 4][j], encodedValue(dd.neighbor[0][0], 7, j));
         // First Pulse in second dim: atoms 1 and 3 from forward vertical neighbour
-        EXPECT_EQ(x[numHomeAtoms + 5][j], encodedValue(dd->neighbor[1][0], 1, j));
-        EXPECT_EQ(x[numHomeAtoms + 6][j], encodedValue(dd->neighbor[1][0], 3, j));
+        EXPECT_EQ(x[numHomeAtoms + 5][j], encodedValue(dd.neighbor[1][0], 1, j));
+        EXPECT_EQ(x[numHomeAtoms + 6][j], encodedValue(dd.neighbor[1][0], 3, j));
     }
 }
 
@@ -507,7 +508,7 @@ TEST(HaloExchangeTest, Coordinates1dHaloWith1Pulse)
     HostVector<RVec> h_x;
     h_x.resize(numAtomsTotal);
 
-    initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+    initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
     // Set up dd
     t_inputrec   ir;
@@ -531,7 +532,7 @@ TEST(HaloExchangeTest, Coordinates1dHaloWith1Pulse)
     dd_move_x(&dd, box, static_cast<ArrayRef<RVec>>(h_x), nullptr);
 
     // Check results
-    checkResults1dHaloWith1Pulse(h_x.data(), &dd, numHomeAtoms);
+    checkResults1dHaloWith1Pulse(h_x, dd, numHomeAtoms);
 
     if (GMX_GPU_CUDA && GMX_THREAD_MPI) // repeat with GPU halo codepath
     {
@@ -542,13 +543,13 @@ TEST(HaloExchangeTest, Coordinates1dHaloWith1Pulse)
         }
 
         // Re-initialize input
-        initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+        initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
         // Perform GPU halo exchange
         gpuHalo(&dd, box, &h_x, numAtomsTotal);
 
         // Check results
-        checkResults1dHaloWith1Pulse(h_x.data(), &dd, numHomeAtoms);
+        checkResults1dHaloWith1Pulse(h_x, dd, numHomeAtoms);
     }
 }
 
@@ -563,7 +564,7 @@ TEST(HaloExchangeTest, Coordinates1dHaloWith2Pulses)
     HostVector<RVec> h_x;
     h_x.resize(numAtomsTotal);
 
-    initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+    initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
     // Set up dd
     t_inputrec   ir;
@@ -587,7 +588,7 @@ TEST(HaloExchangeTest, Coordinates1dHaloWith2Pulses)
     dd_move_x(&dd, box, static_cast<ArrayRef<RVec>>(h_x), nullptr);
 
     // Check results
-    checkResults1dHaloWith2Pulses(h_x.data(), &dd, numHomeAtoms);
+    checkResults1dHaloWith2Pulses(h_x, dd, numHomeAtoms);
 
     if (GMX_GPU_CUDA && GMX_THREAD_MPI) // repeat with GPU halo codepath
     {
@@ -598,13 +599,13 @@ TEST(HaloExchangeTest, Coordinates1dHaloWith2Pulses)
         }
 
         // Re-initialize input
-        initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+        initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
         // Perform GPU halo exchange
         gpuHalo(&dd, box, &h_x, numAtomsTotal);
 
         // Check results
-        checkResults1dHaloWith2Pulses(h_x.data(), &dd, numHomeAtoms);
+        checkResults1dHaloWith2Pulses(h_x, dd, numHomeAtoms);
     }
 }
 
@@ -620,7 +621,7 @@ TEST(HaloExchangeTest, Coordinates2dHaloWith1PulseInEachDim)
     HostVector<RVec> h_x;
     h_x.resize(numAtomsTotal);
 
-    initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+    initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
     // Set up dd
     t_inputrec   ir;
@@ -644,7 +645,7 @@ TEST(HaloExchangeTest, Coordinates2dHaloWith1PulseInEachDim)
     dd_move_x(&dd, box, static_cast<ArrayRef<RVec>>(h_x), nullptr);
 
     // Check results
-    checkResults2dHaloWith1PulseInEachDim(h_x.data(), &dd, numHomeAtoms);
+    checkResults2dHaloWith1PulseInEachDim(h_x, dd, numHomeAtoms);
 
     if (GMX_GPU_CUDA && GMX_THREAD_MPI) // repeat with GPU halo codepath
     {
@@ -655,13 +656,13 @@ TEST(HaloExchangeTest, Coordinates2dHaloWith1PulseInEachDim)
         }
 
         // Re-initialize input
-        initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+        initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
         // Perform GPU halo exchange
         gpuHalo(&dd, box, &h_x, numAtomsTotal);
 
         // Check results
-        checkResults2dHaloWith1PulseInEachDim(h_x.data(), &dd, numHomeAtoms);
+        checkResults2dHaloWith1PulseInEachDim(h_x, dd, numHomeAtoms);
     }
 }
 
@@ -676,7 +677,7 @@ TEST(HaloExchangeTest, Coordinates2dHaloWith2PulsesInDim1)
     HostVector<RVec> h_x;
     h_x.resize(numAtomsTotal);
 
-    initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+    initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
     // Set up dd
     t_inputrec   ir;
@@ -700,7 +701,7 @@ TEST(HaloExchangeTest, Coordinates2dHaloWith2PulsesInDim1)
     dd_move_x(&dd, box, static_cast<ArrayRef<RVec>>(h_x), nullptr);
 
     // Check results
-    checkResults2dHaloWith2PulsesInDim1(h_x.data(), &dd, numHomeAtoms);
+    checkResults2dHaloWith2PulsesInDim1(h_x, dd, numHomeAtoms);
 
     if (GMX_GPU_CUDA && GMX_THREAD_MPI) // repeat with GPU halo codepath
     {
@@ -711,13 +712,13 @@ TEST(HaloExchangeTest, Coordinates2dHaloWith2PulsesInDim1)
         }
 
         // Re-initialize input
-        initHaloData(h_x.data(), numHomeAtoms, numAtomsTotal);
+        initHaloData(h_x, numHomeAtoms, numAtomsTotal);
 
         // Perform GPU halo exchange
         gpuHalo(&dd, box, &h_x, numAtomsTotal);
 
         // Check results
-        checkResults2dHaloWith2PulsesInDim1(h_x.data(), &dd, numHomeAtoms);
+        checkResults2dHaloWith2PulsesInDim1(h_x, dd, numHomeAtoms);
     }
 }
 
