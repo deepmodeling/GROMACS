@@ -316,6 +316,7 @@ real Awh::applyBiasForcesAndUpdateBias(PbcType                pbcType,
          * pull coordinates.
          */
         awh_dvec coordValue           = { 0, 0, 0, 0 };
+        awh_dvec coordMultiplier      = { 1, 1, 1, 1 };
         int      numLambdaDimsCounted = 0;
         for (int d = 0; d < biasCts.bias_.ndim(); d++)
         {
@@ -323,6 +324,12 @@ real Awh::applyBiasForcesAndUpdateBias(PbcType                pbcType,
             {
                 coordValue[d] = get_pull_coord_value(
                         pull_, biasCts.pullCoordIndex_[d - numLambdaDimsCounted], &pbc);
+                const bool isSymmetric = biasCts.bias_.grid().axis(d).isSymmetric();
+                if (isSymmetric && coordValue[d] < 0)
+                {
+                    coordMultiplier[d] = -1;
+                    coordValue[d] *= -1;
+                }
             }
             else
             {
@@ -358,8 +365,9 @@ real Awh::applyBiasForcesAndUpdateBias(PbcType                pbcType,
         {
             if (biasCts.bias_.dimParams()[d].isPullDimension())
             {
-                apply_external_pull_coord_force(pull_, biasCts.pullCoordIndex_[d - numLambdaDimsCounted],
-                                                biasForce[d], masses, forceWithVirial);
+                apply_external_pull_coord_force(
+                        pull_, biasCts.pullCoordIndex_[d - numLambdaDimsCounted],
+                        biasForce[d] * coordMultiplier[d], masses, forceWithVirial);
             }
             else
             {

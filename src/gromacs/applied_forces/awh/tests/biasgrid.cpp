@@ -73,13 +73,15 @@ TEST(biasGridTest, neighborhood)
     const int                 numDim = 2;
     std::vector<AwhDimParams> awhDimParams(numDim);
 
-    awhDimParams[0].origin = -5;
-    awhDimParams[0].end    = 5;
-    awhDimParams[0].period = 10;
+    awhDimParams[0].origin      = -5;
+    awhDimParams[0].end         = 5;
+    awhDimParams[0].period      = 10;
+    awhDimParams[0].isSymmetric = false;
 
-    awhDimParams[1].origin = 0.5;
-    awhDimParams[1].end    = 2.0;
-    awhDimParams[1].period = 0;
+    awhDimParams[1].origin      = 0.5;
+    awhDimParams[1].end         = 2.0;
+    awhDimParams[1].period      = 0;
+    awhDimParams[1].isSymmetric = false;
 
     const real conversionFactor = 1;
     const real beta             = 3.0;
