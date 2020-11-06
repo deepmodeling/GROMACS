@@ -151,6 +151,7 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
                                             deviceStream, pulse, nullptr);
             gpuHaloExchange.reinitHalo(d_x, nullptr);
             gpuHaloExchange.communicateHaloCoordinates(box, &coordinatesReadyOnDeviceEvent);
+            MPI_Barrier(MPI_COMM_WORLD);
         }
     }
 
