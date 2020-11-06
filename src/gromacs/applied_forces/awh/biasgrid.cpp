@@ -258,6 +258,28 @@ bool pointsHaveDifferentLambda(const BiasGrid& grid, int pointIndex1, int pointI
     return false;
 }
 
+double getDistanceToSymmetryProjectionAlongGridAxis(const BiasGrid& grid, const int dimIndex, const int pointIndex)
+{
+    const double coordValue = grid.point(pointIndex).coordValue[dimIndex];
+    const double dimEndValue = grid.axis(dimIndex).period() / 2; // Will be 0 if the axis is not periodic.
+    const double devToEnd    = dimEndValue - coordValue;
+    const double devToOrigin = coordValue;
+
+    double dev;
+    /* If the axis is not periodic only measure the distance to the symmetry projection across
+     * the origin (0). */
+    if (devToOrigin <= devToEnd || !grid.axis(dimIndex).isPeriodic())
+    {
+        dev = 2 * devToOrigin;
+    }
+    else
+    {
+        dev = 2 * -devToEnd;
+    }
+
+    return dev;
+}
+
 void linearArrayIndexToMultiDim(int indexLinear, int numDimensions, const awh_ivec numPointsDim, awh_ivec indexMulti)
 {
     for (int d = 0; d < numDimensions; d++)
@@ -732,6 +754,10 @@ void BiasGrid::initPoints()
             else
             {
                 point.coordValue[d] = axis_[d].origin() + indexWork[d] * axis_[d].spacing();
+                if (axis_[d].isSymmetric())
+                {
+                    point.coordValue[d] += axis_[d].spacing() / 2;
+                }
             }
 
             if (axis_[d].period() > 0)
@@ -747,7 +773,7 @@ void BiasGrid::initPoints()
     }
 }
 
-GridAxis::GridAxis(double origin, double end, double period, double pointDensity) :
+GridAxis::GridAxis(double origin, double end, double period, double pointDensity, bool isSymmetric) :
     origin_(origin),
     period_(period),
     isFepLambdaAxis_(false)
@@ -776,7 +802,7 @@ GridAxis::GridAxis(double origin, double end, double period, double pointDensity
     {
         /* Set the grid spacing so that a period is matched exactly by an integer number of points.
            The number of points in a period is equal to the number of grid spacings in a period
-           since the endpoints are connected.  */
+           since the endpoints are connected. */
         numPointsInPeriod_ =
                 length_ > 0 ? static_cast<int>(std::ceil(period / length_ * (numPoints_ - 1))) : 1;
         spacing_ = period_ / numPointsInPeriod_;
@@ -789,14 +815,23 @@ GridAxis::GridAxis(double origin, double end, double period, double pointDensity
         numPointsInPeriod_ = 0;
         spacing_           = numPoints_ > 1 ? length_ / (numPoints_ - 1) : 0;
     }
+    if (isSymmetric)
+    {
+        /* For a symmetric grid axis the number of points should be one fewer and the points
+           should be shifted half a spacing, i.e., no points at all in the ends. */
+        numPoints_ -= 1;
+        spacing_ = numPoints_ > 1 ? length_ / (numPoints_) : 0;
+    }
+    isSymmetric_ = isSymmetric;
 }
 
-GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis) :
+GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool isFepLambdaAxis, bool isSymmetric) :
     origin_(origin),
     period_(period),
     numPoints_(numPoints),
     isFepLambdaAxis_(isFepLambdaAxis)
 {
+    GMX_ASSERT(!(isFepLambdaAxis && isSymmetric), "A FEP lambda axis cannot be symmetric.");
     if (isFepLambdaAxis)
     {
         length_            = end - origin_;
@@ -805,9 +840,17 @@ GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool
     }
     else
     {
-        length_            = getIntervalLengthPeriodic(origin_, end, period_);
-        spacing_           = numPoints_ > 1 ? length_ / (numPoints_ - 1) : period_;
+        length_ = getIntervalLengthPeriodic(origin_, end, period_);
+        if (isSymmetric)
+        {
+            spacing_ = numPoints_ > 1 ? length_ / numPoints_ : period_;
+        }
+        else
+        {
+            spacing_ = numPoints_ > 1 ? length_ / (numPoints_ - 1) : period_;
+        }
         numPointsInPeriod_ = static_cast<int>(std::round(period_ / spacing_));
+        isSymmetric_       = isSymmetric;
     }
 }
 
@@ -828,11 +871,11 @@ BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* 
                     "The number of points per sigma should be at least 1.0 to get a uniformly "
                     "covering the reaction using Gaussians");
             double pointDensity = std::sqrt(dimParams[d].pullDimParams().betak) * c_numPointsPerSigma;
-            axis_.emplace_back(origin, end, period[d], pointDensity);
+            axis_.emplace_back(origin, end, period[d], pointDensity, awhDimParams->isSymmetric);
         }
         else
         {
-            axis_.emplace_back(origin, end, 0, dimParams[d].fepDimParams().numFepLambdaStates, true);
+            axis_.emplace_back(origin, end, 0, dimParams[d].fepDimParams().numFepLambdaStates, true, false);
         }
         numPoints *= axis_[d].numPoints();
     }
@@ -908,12 +951,12 @@ void mapGridToDataGrid(std::vector<int>*    gridpointToDatapoint,
     {
         if (isFepLambdaAxis[d])
         {
-            axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], 0, numPoints[d], true);
+            axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], 0, numPoints[d], true, false);
         }
         else
         {
             axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], grid.axis(d).period(),
-                               numPoints[d], false);
+                               numPoints[d], false, false);
         }
     }
 

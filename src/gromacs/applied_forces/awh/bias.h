@@ -290,6 +290,10 @@ public:
     //! Returns the index of the bias.
     inline int biasIndex() const { return params_.biasIndex; }
 
+    /*! \brief Returns the grid organizing the coordinate point locations.
+     */
+    inline const BiasGrid& grid() const { return grid_; }
+
     /*! \brief Return the coordinate value for a grid point.
      *
      * \param[in] gridPointIndex  The index of the grid point.

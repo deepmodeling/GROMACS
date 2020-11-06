@@ -2,10 +2,11 @@
 <?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
 <ReferenceData>
   <Sequence Name="Properties">
-    <Int Name="Length">3</Int>
+    <Int Name="Length">4</Int>
     <String>stage:           final</String>
     <String>convolve forces: no</String>
     <String>skip updates:    no</String>
+    <String>symmetric:       no</String>
   </Sequence>
   <Sequence Name="Force">
     <Int Name="Length">21</Int>

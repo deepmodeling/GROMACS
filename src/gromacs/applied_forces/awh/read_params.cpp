@@ -172,6 +172,17 @@ void checkPullDimParams(const std::string&   prefix,
         warning(wi, message);
     }
 
+    if (dimParams->isSymmetric)
+    {
+        if (dimParams->origin < 0 || dimParams->end < 0)
+        {
+            gmx_fatal(FARGS,
+                      "%s-start (%g) and %s-end (%g) must not be negative in a symmetric "
+                      "coordinate dimension. ",
+                      prefix.c_str(), dimParams->origin, prefix.c_str(), dimParams->end);
+        }
+    }
+
     if (dimParams->forceConstant <= 0)
     {
         warning_error(wi, "The force AWH bias force constant should be > 0");
@@ -367,6 +378,19 @@ void readDimParams(std::vector<t_inpfile>* inp,
     dimParams->origin = get_ereal(inp, opt, 0., wi);
     opt               = prefix + "-end";
     dimParams->end    = get_ereal(inp, opt, 0., wi);
+
+    if (bComment)
+    {
+        printStringNoNewline(inp, "Make the coordinate dimension symmetric around the origin (0).");
+        printStringNoNewline(inp,
+                             "Negative coordinate samples affect the bias in the positive "
+                             "coordinate range and ");
+        printStringNoNewline(inp,
+                             "are in turn affected by the same bias as positive coordinate "
+                             "samples.");
+    }
+    opt                    = prefix + "-symmetric";
+    dimParams->isSymmetric = (get_eeenum(inp, opt, yesno_names, wi) != 0);
 
     if (bComment)
     {
@@ -693,6 +717,12 @@ void checkInputConsistencyAwh(const AwhParams& awhParams, warninp_t wi)
                 {
                     continue;
                 }
+                if (awhBiasParams1.dimParams[d1].isSymmetric && awhParams.ePotential == eawhpotentialUMBRELLA)
+                {
+                    warning(wi,
+                            "An umbrella potential with a symmetric dimension will not cross "
+                            "symmetric (and periodic) boundaries as expected");
+                }
                 const AwhBiasParams& awhBiasParams2 = awhParams.awhBiasParams[k2];
 
                 /* d1 is the reference dimension of the reference AWH. d2 is the dim index of the AWH to compare with. */
@@ -848,9 +878,13 @@ void checkAwhParams(const AwhParams* awhParams, const t_inputrec* ir, warninp_t 
  * \param[in] pullCoordParams   The parameters for the pull coordinate.
  * \param[in] pbc               The PBC setup
  * \param[in] intervalLength    The length of the AWH interval for this pull coordinate
+ * \param[in] isSymmetric       True if this pull coordinate is symmetric.
  * \returns the period (or 0 if not periodic).
  */
-static double get_pull_coord_period(const t_pull_coord& pullCoordParams, const t_pbc& pbc, const real intervalLength)
+static double get_pull_coord_period(const t_pull_coord& pullCoordParams,
+                                    const t_pbc&        pbc,
+                                    const real          intervalLength,
+                                    const bool          isSymmetric)
 {
     double period = 0;
 
@@ -875,7 +909,8 @@ static double get_pull_coord_period(const t_pull_coord& pullCoordParams, const t
                               intervalLength, boxLength);
                 }
 
-                if (intervalLength > periodicFraction * boxLength)
+                if (intervalLength > periodicFraction * boxLength
+                    || (isSymmetric && intervalLength * 2 > periodicFraction * boxLength))
                 {
                     period = boxLength;
                 }
@@ -956,6 +991,7 @@ static void checkInputConsistencyInterval(const AwhParams* awhParams, warninp_t 
             int           coordIndex = dimParams->coordIndex;
             double origin = dimParams->origin, end = dimParams->end, period = dimParams->period;
             double coordValueInit = dimParams->coordValueInit;
+            bool   isSymmetric    = dimParams->isSymmetric;
 
             if ((period == 0) && (origin > end))
             {
@@ -986,7 +1022,8 @@ static void checkInputConsistencyInterval(const AwhParams* awhParams, warninp_t 
             }
 
             /* Warn if the pull initial coordinate value is not in the grid */
-            if (!valueIsInInterval(origin, end, period, coordValueInit))
+            if ((!isSymmetric && !valueIsInInterval(origin, end, period, coordValueInit))
+                || (isSymmetric && !valueIsInInterval(origin, end, period, fabs(coordValueInit))))
             {
                 auto message = formatString(
                         "The initial coordinate value (%.8g) for pull coordinate index %d falls "
@@ -1037,7 +1074,8 @@ static void setStateDependentAwhPullDimParams(AwhDimParams*        dimParams,
                   EPULLGEOM(epullgDIRPBC), EPULLGEOM(epullgDIR));
     }
 
-    dimParams->period = get_pull_coord_period(pullCoordParams, pbc, dimParams->end - dimParams->origin);
+    dimParams->period = get_pull_coord_period(
+            pullCoordParams, pbc, dimParams->end - dimParams->origin, dimParams->isSymmetric);
     // We would like to check for scaling, but we don't have the full inputrec available here
     if (dimParams->period > 0
         && !(pullCoordParams.eGeom == epullgANGLE || pullCoordParams.eGeom == epullgDIHEDRAL))
