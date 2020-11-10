@@ -55,7 +55,6 @@
 #include <vector>
 
 #include "nblib/basicdefinitions.h"
-#include "nblib/ppmap.h"
 #include "nblib/vector.h"
 
 namespace gmx
