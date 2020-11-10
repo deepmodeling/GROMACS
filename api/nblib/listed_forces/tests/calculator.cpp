@@ -117,13 +117,13 @@ protected:
         forces = std::vector<gmx::RVec>(3, gmx::RVec{ 0, 0, 0 });
 
         refBondForcesFloat =
-                std::valarray<gmx::BasicVector<float>>{ { -22.8980637, 128.801575, 363.505951 },
-                                                        { -43.2698593, -88.0130997, -410.639252 },
+                std::valarray<gmx::BasicVector<float>>{ { -22.8977299, 128.801575, 363.505951 },
+                                                        { -43.2698593, -88.0112076, -410.6339417 },
                                                         { 66.167923, -40.788475, 47.1333084 } };
         refAngleForcesFloat =
-                std::valarray<gmx::BasicVector<float>>{ { 54.7276611, -40.1688995, 17.6805191 },
+                std::valarray<gmx::BasicVector<float>>{ { 54.7276611, -40.1688957, 17.6805210 },
                                                         { -81.8118973, 86.1988525, 60.1752243 },
-                                                        { 27.0842342, -46.0299492, -77.8557434 } };
+                                                        { 27.0842342, -46.0299492, -77.8557358 } };
 
         refBondForcesDouble = std::valarray<gmx::BasicVector<double>>{
             { -22.89764839974935, 128.79927224858977, 363.50016834602064 },
@@ -136,7 +136,7 @@ protected:
             { 27.083574860242372, -46.028735599919159, -77.853732053731704 }
         };
 
-        refBondEnergyFloat  = 0.2113433;
+        refBondEnergyFloat  = 0.211337536;
         refAngleEnergyFloat = 0.112774156;
 
         refBondEnergyDouble  = 0.2113273434867636;
@@ -223,7 +223,6 @@ protected:
         interactions = data.interactions;
         box          = data.box;
         refForces    = data.forces;
-        // pbc.reset(new PbcHolder(*box));
 
         refEnergies = reduceListedForces(interactions, x, &refForces, NoPbc{});
     }
@@ -241,7 +240,6 @@ protected:
     std::vector<gmx::RVec> x;
     ListedInteractionData  interactions;
     std::shared_ptr<Box>   box;
-    // std::shared_ptr<PbcHolder> pbc;
 
 private:
     std::vector<gmx::RVec>            refForces;
