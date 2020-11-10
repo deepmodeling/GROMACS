@@ -267,7 +267,8 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
         {
             for (int i = 0; i < SHIFTS; i++)
             {
-                rvec_inc(fshift[i], nbst.fshift[i]);
+                rvec tmp = { nbst.fshift[i].x, nbst.fshift[i].y, nbst.fshift[i].z };
+                rvec_inc(fshift[i], tmp);
             }
         }
     }
