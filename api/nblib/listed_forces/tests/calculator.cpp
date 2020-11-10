@@ -169,7 +169,8 @@ TEST_F(ListedExampleData, ComputeHarmonicBondForces)
     real energy  = computeForces(indices, bonds, x, &forces, *pbc);
 
     EXPECT_FLOAT_DOUBLE_EQ_TOL(energy, refBondEnergyFloat, refBondEnergyDouble,
-                               gmx::test::relativeToleranceAsFloatingPoint(refBondEnergyDouble, 1e-5));
+                               gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(
+                                       refBondEnergyDouble, refBondEnergyFloat, 1e-5));
 
     compareVectors(forces, refBondForcesFloat, refBondForcesDouble);
 }
@@ -181,7 +182,8 @@ TEST_F(ListedExampleData, ComputeHarmonicAngleForces)
     real energy  = computeForces(indices, angles, x, &forces, *pbc);
 
     EXPECT_FLOAT_DOUBLE_EQ_TOL(energy, refAngleEnergyFloat, refAngleEnergyDouble,
-                               gmx::test::relativeToleranceAsFloatingPoint(refAngleEnergyDouble, 1e-5));
+                               gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(
+                                       refAngleEnergyDouble, refAngleEnergyFloat, 1e-5));
 
     compareVectors(forces, refAngleForcesFloat, refAngleForcesDouble);
 }
@@ -193,7 +195,8 @@ TEST_F(ListedExampleData, CanReduceForces)
 
     EXPECT_FLOAT_DOUBLE_EQ_TOL(totalEnergy, refBondEnergyFloat + refAngleEnergyFloat,
                                refBondEnergyDouble + refAngleEnergyDouble,
-                               gmx::test::relativeToleranceAsFloatingPoint(refBondEnergyDouble, 1e-5));
+                               gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(
+                                       refBondEnergyDouble, refBondEnergyFloat, 1e-5));
 
     compareVectors(forces, refBondForcesFloat + refAngleForcesFloat,
                    refBondForcesDouble + refAngleForcesDouble);
@@ -223,7 +226,6 @@ protected:
         interactions = data.interactions;
         box          = data.box;
         refForces    = data.forces;
-        // pbc.reset(new PbcHolder(*box));
 
         refEnergies = reduceListedForces(interactions, x, &refForces, NoPbc{});
     }
@@ -241,7 +243,6 @@ protected:
     std::vector<gmx::RVec> x;
     ListedInteractionData  interactions;
     std::shared_ptr<Box>   box;
-    // std::shared_ptr<PbcHolder> pbc;
 
 private:
     std::vector<gmx::RVec>            refForces;
