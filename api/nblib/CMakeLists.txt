@@ -128,6 +128,7 @@ target_link_libraries(nblib PUBLIC legacy_api)
 
 # GROMACS module dependencies.
 target_link_libraries(nblib PRIVATE utility)
+target_link_libraries(nblib INTERFACE utility)
 # TODO: Explicitly link specific modules.
 target_link_libraries(nblib PRIVATE legacy_modules)
 
