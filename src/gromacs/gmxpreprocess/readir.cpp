@@ -2224,6 +2224,7 @@ void get_ir(const char*     mdparin,
     fep->sc_r_power         = get_ereal(&inp, "sc-r-power", 6.0, wi);
     fep->sc_sigma           = get_ereal(&inp, "sc-sigma", 0.3, wi);
     fep->bScCoul            = (get_eeenum(&inp, "sc-coul", yesno_names, wi) != 0);
+    fep->sc_function        = get_eeenum(&inp, "sc-function", sc_function_names, wi);
     fep->dh_hist_size       = get_eint(&inp, "dh_hist_size", 0, wi);
     fep->dh_hist_spacing    = get_ereal(&inp, "dh_hist_spacing", 0.1, wi);
     fep->separate_dhdl_file = get_eeenum(&inp, "separate-dhdl-file", separate_dhdl_file_names, wi);

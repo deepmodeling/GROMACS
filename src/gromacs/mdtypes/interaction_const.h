@@ -124,6 +124,8 @@ struct interaction_const_t
         real sigma6WithInvalidSigma;
         // Minimum value for sigma^6, used when soft-core is applied to Coulomb interactions
         real sigma6Minimum;
+        // soft-core function
+        int softcoreType;
     };
 
     /* VdW */

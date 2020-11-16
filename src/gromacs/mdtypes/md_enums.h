@@ -595,6 +595,20 @@ extern const char* dhdl_derivatives_names[edhdlderivativesNR + 1];
 //! YAMM (Yet another monster macro)
 #define DHDLDERIVATIVESTYPE(e) enum_name(e, edhdlderivativesNR, dhdl_derivatives_names)
 
+/*! \brief soft-core function \
+ *
+ * NOTE: YES is the first one. Do NOT interpret this one as a gmx_bool
+ */
+enum eSoftcoreType
+{
+    escfunctionNONE,
+    escfunctionBEUTLER,
+    escfunctionGAPSYS,
+    escfunctionNR
+};
+//! String for DHDL derivatives
+extern const char* sc_function_names[escfunctionNR + 1];
+
 /*! \brief Solvent model
  *
  * Distinguishes classical water types with 3 or 4 particles

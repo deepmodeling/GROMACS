@@ -197,7 +197,7 @@ static inline RealType potSwitchPotentialMod(const RealType potentialInp,
 
 
 //! Templated free-energy non-bonded kernel
-template<typename DataTypes, bool useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald, bool elecInteractionTypeIsEwald, bool vdwModifierIsPotSwitch>
+template<typename DataTypes, eSoftcoreType useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald, bool elecInteractionTypeIsEwald, bool vdwModifierIsPotSwitch>
 static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                   rvec* gmx_restrict         xx,
                                   gmx::ForceWithShiftForces* forceWithShiftForces,
@@ -214,13 +214,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     using IntType  = typename DataTypes::IntType;
 
     /* FIXME: How should these be handled with SIMD? */
-    constexpr real onetwelfth = 1.0 / 12.0;
-    constexpr real onesixth   = 1.0 / 6.0;
-    constexpr real zero       = 0.0;
-    constexpr real half       = 0.5;
-    constexpr real one        = 1.0;
-    constexpr real two        = 2.0;
-    constexpr real six        = 6.0;
+    constexpr real onetwelfth        = 1.0 / 12.0;
+    constexpr real onesixth          = 1.0 / 6.0;
+    constexpr real zero              = 0.0;
+    constexpr real half              = 0.5;
+    constexpr real one               = 1.0;
+    constexpr real two               = 2.0;
+    constexpr real six               = 6.0;
+    constexpr real twentysix_seventh = 26.0 / 7.0;
 
     /* Extract pointer to non-bonded interaction constants */
     const interaction_const_t* ic = fr->ic;
@@ -399,6 +400,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
         real       fix   = 0;
         real       fiy   = 0;
         real       fiz   = 0;
+        printf("ix,iy,iz: %.3f, %.3f, %.3f\n", ix,iy,iz);
 
         for (int k = nj0; k < nj1; k++)
         {
@@ -415,6 +417,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             RealType       FscalC[NSTATES], FscalV[NSTATES];
             /* Check if this pair on the exlusions list.*/
             const bool bPairIncluded = nlist->excl_fep == nullptr || nlist->excl_fep[k];
+            printf(" jx,jy,jz (incl): %.3f, %.3f, %.3f, %d\n", x[j3],x[j3+1],x[j3+2], bPairIncluded);
 
             if (rsq >= rcutoff_max2 && bPairIncluded)
             {
@@ -452,7 +455,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 r    = 0;
             }
 
-            if (useSoftCore)
+            if (useSoftCore == escfunctionBEUTLER)
             {
                 rpm2 = rsq * rsq;  /* r4 */
                 rp   = rpm2 * rsq; /* r6 */
@@ -483,7 +486,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 for (int i = 0; i < NSTATES; i++)
                 {
                     c12[i] = nbfp[tj[i] + 1];
-                    if (useSoftCore)
+                    if (useSoftCore == escfunctionBEUTLER || useSoftCore == escfunctionGAPSYS)
                     {
                         if ((c6[i] > 0) && (c12[i] > 0))
                         {
@@ -499,9 +502,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             sigma6[i] = sigma6_def;
                         }
                     }
+printf("DEBUG: C6 : %.5g\n",c6[i]);
+printf("DEBUG: C12: %.5g\n",c12[i]);
                 }
 
-                if (useSoftCore)
+                if (useSoftCore == escfunctionBEUTLER || useSoftCore == escfunctionGAPSYS)
                 {
                     /* only use softcore if one of the states has a zero endstate - softcore is for avoiding infinities!*/
                     if ((c12[STATE_A] > 0) && (c12[STATE_B] > 0))
@@ -529,7 +534,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     if ((qq[i] != 0) || (c6[i] != 0) || (c12[i] != 0))
                     {
                         /* this section has to be inside the loop because of the dependence on sigma6 */
-                        if (useSoftCore)
+                        if (useSoftCore == escfunctionBEUTLER)
                         {
                             rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma6[i] + rp);
                             pthRoot(rpinvC, &rinvC, &rC);
@@ -576,6 +581,50 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                 Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
                                 FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
                             }
+
+                            /* prev. computed hardcore interactions might be overwritten now;
+                             * if its only a minor percentage it shouldn't matter too much, resp.
+                             * for simd one must compute both branches (r<r0Q<r) anyways,
+                             * so not too much effort at this point now prior to introducing simd
+                             * into this kernel.
+                             */
+                            if (useSoftCore == escfunctionGAPSYS)
+                            {
+                                RealType r0Q;
+                                r0Q = alpha_coul_eff * pow(twentysix_seventh *
+                                                           sigma6[i] * (one-LFC[i]),
+                                                           onesixth);
+printf("DEBUG: r0Q: %.5g\n", r0Q);
+                                if (r < r0Q)
+                                {
+                                    real rinvQ, rinv2Q, rinv3Q;
+                                    rinvQ  = one / r0Q;
+                                    rinv2Q = rinvQ * rinvQ;
+                                    rinv3Q = qq[i] * rinv2Q * rinvQ;
+                                    rinvQ *= qq[i];
+                                    rinv2Q *= qq[i];
+
+                                    real b_q, a_q, c_q;
+                                    a_q = rsq * rinv3Q;
+                                    b_q = r * rinv2Q;
+                                    c_q = rinvQ;
+
+                                    /* Computing Coulomb force and potential energy*/
+                                    FscalC[i] = -two * a_q + 3. * b_q; // note that later F will be multiplied by rpm2!
+
+                                    Vcoul[i] = a_q - 3. * (b_q - c_q);
+
+                                    if (LFC[i] != 1.0)
+                                    {
+                                        dvdl_coul += DLF[i] *
+                                            half * (LFC[i]/(1.-LFC[i])) *
+                                             (a_q - two * b_q + c_q);
+                                    }
+printf("DEBUG: FQ : %.5g\n",FscalC[i]);
+printf("DEBUG: VQ : %.5g\n",Vcoul[i]);
+printf("DEBUG: DVQ: %.5g\n",dvdl_coul);
+                                }
+                            }
                         }
 
                         /* Only process the VDW interactions if we have
@@ -588,7 +637,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         if ((c6[i] != 0 || c12[i] != 0) && computeVdwInteraction)
                         {
                             RealType rinv6;
-                            if (useSoftCore)
+                            if (useSoftCore == escfunctionBEUTLER)
                             {
                                 rinv6 = rpinvV;
                             }
@@ -602,6 +651,67 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             Vvdw[i] = lennardJonesPotential(Vvdw6, Vvdw12, c6[i], c12[i], repulsionShift,
                                                             dispersionShift, onesixth, onetwelfth);
                             FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
+
+                            /* prev. computed hardcore interactions might be overwritten now;
+                             * if its only a minor percentage it shouldn't matter too much, resp.
+                             * for simd one must compute both branches (r<r0Q<r) anyways,
+                             * so not too much effort at this point now prior to introducing simd
+                             * into this kernel.
+                             */
+                            if (useSoftCore == escfunctionGAPSYS)
+                            {
+                                RealType r0LJ;
+                                r0LJ = alpha_vdw_eff * pow(twentysix_seventh *
+                                                           sigma6[i] * (one-LFV[i]),
+                                                           onesixth);
+printf("DEBUG: r0L: %.5g\n", r0LJ);
+                                if (r < r0LJ)
+                                {
+                                    /* Temporary variables for scaled c6 and c12 */
+                                    real c6_scaled, c12_scaled;
+                                    c6_scaled = onesixth * c6[i];
+                                    c12_scaled = onetwelfth * c12[i];
+
+                                    /* Temporary variables for inverted values */
+                                    real rinv14C, rinv13C, rinv12C;
+                                    real rinv8C, rinv7C, rinv6C;
+                                    rinv8C  = one / r0LJ;
+                                    rinv8C = rinv8C * rinv8C;
+                                    rinv8C = rinv8C * rinv8C;
+                                    rinv8C = rinv8C * rinv8C;
+                                    rinv7C  = rinv8C * r0LJ;
+                                    rinv6C  = rinv7C * r0LJ;
+                                    rinv14C = c12_scaled * rinv7C * rinv7C * rsq;
+                                    rinv13C = c12_scaled * rinv7C * rinv6C * r;
+                                    rinv12C = c12_scaled * rinv6C * rinv6C;
+                                    rinv8C *= c6_scaled * rsq;
+                                    rinv7C *= c6_scaled * r;
+                                    rinv6C *= c6_scaled;
+
+                                    /* Temporary variables for A and B */
+                                    real a_lj, b_lj, c_lj;
+                                    a_lj = 156. * rinv14C - 42. * rinv8C;
+                                    b_lj = 168. * rinv13C - 48. * rinv7C;
+                                    c_lj =  91. * rinv12C - 28. * rinv6C;
+
+                                    /* Computing LJ force and potential energy*/
+                                    FscalV[i] = - a_lj + b_lj;
+
+                                    Vvdw[i] = half * a_lj - b_lj + c_lj;
+
+                                    if (LFC[i] != 1.0)
+                                    {
+                                        dvdl_vdw += DLF[i] * 28. * (LFC[i]/(1-LFC[i])) *
+                                             ( (6.5 * rinv14C - rinv8C) -
+                                               (13. * rinv13C - 2. * rinv7C) +
+                                               (6.5 * rinv12C - rinv6C)
+                                             );
+                                    }
+printf("DEBUG: FL : %.5g\n",FscalV[i]);
+printf("DEBUG: VL : %.5g\n",Vvdw[i]);
+printf("DEBUG: DVL: %.5g\n",dvdl_vdw);
+                                }
+                            }
 
                             if (vdwInteractionTypeIsEwald)
                             {
@@ -644,7 +754,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     Fscal += LFC[i] * FscalC[i] * rpm2;
                     Fscal += LFV[i] * FscalV[i] * rpm2;
 
-                    if (useSoftCore)
+                    if (useSoftCore == escfunctionBEUTLER)
                     {
                         dvdl_coul += Vcoul[i] * DLF[i]
                                      + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i] * sigma6[i];
@@ -664,6 +774,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * using the Verlet scheme, we don't use soft-core.
                  * As there is no singularity, there is no need for soft-core.
                  */
+                printf(" GMX_NBKERNEL_ELEC_REACTIONFIELD\n");
                 const real FF = -two * krf;
                 RealType   VV = krf * rsq - crf;
 
@@ -849,7 +960,7 @@ typedef void (*KernelFunction)(const t_nblist* gmx_restrict nlist,
                                nb_kernel_data_t* gmx_restrict kernel_data,
                                t_nrnb* gmx_restrict nrnb);
 
-template<bool useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald, bool elecInteractionTypeIsEwald, bool vdwModifierIsPotSwitch>
+template<eSoftcoreType useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald, bool elecInteractionTypeIsEwald, bool vdwModifierIsPotSwitch>
 static KernelFunction dispatchKernelOnUseSimd(const bool useSimd)
 {
     if (useSimd)
@@ -870,7 +981,7 @@ static KernelFunction dispatchKernelOnUseSimd(const bool useSimd)
     }
 }
 
-template<bool useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald, bool elecInteractionTypeIsEwald>
+template<eSoftcoreType useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald, bool elecInteractionTypeIsEwald>
 static KernelFunction dispatchKernelOnVdwModifier(const bool vdwModifierIsPotSwitch, const bool useSimd)
 {
     if (vdwModifierIsPotSwitch)
@@ -885,7 +996,7 @@ static KernelFunction dispatchKernelOnVdwModifier(const bool vdwModifierIsPotSwi
     }
 }
 
-template<bool useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald>
+template<eSoftcoreType useSoftCore, bool scLambdasOrAlphasDiffer, bool vdwInteractionTypeIsEwald>
 static KernelFunction dispatchKernelOnElecInteractionType(const bool elecInteractionTypeIsEwald,
                                                           const bool vdwModifierIsPotSwitch,
                                                           const bool useSimd)
@@ -902,7 +1013,7 @@ static KernelFunction dispatchKernelOnElecInteractionType(const bool elecInterac
     }
 }
 
-template<bool useSoftCore, bool scLambdasOrAlphasDiffer>
+template<eSoftcoreType useSoftCore, bool scLambdasOrAlphasDiffer>
 static KernelFunction dispatchKernelOnVdwInteractionType(const bool vdwInteractionTypeIsEwald,
                                                          const bool elecInteractionTypeIsEwald,
                                                          const bool vdwModifierIsPotSwitch,
@@ -920,7 +1031,7 @@ static KernelFunction dispatchKernelOnVdwInteractionType(const bool vdwInteracti
     }
 }
 
-template<bool useSoftCore>
+template<eSoftcoreType useSoftCore>
 static KernelFunction dispatchKernelOnScLambdasOrAlphasDifference(const bool scLambdasOrAlphasDiffer,
                                                                   const bool vdwInteractionTypeIsEwald,
                                                                   const bool elecInteractionTypeIsEwald,
@@ -948,15 +1059,24 @@ static KernelFunction dispatchKernel(const bool                 scLambdasOrAlpha
 {
     if (ic.softCoreParameters->alphaCoulomb == 0 && ic.softCoreParameters->alphaVdw == 0)
     {
-        return (dispatchKernelOnScLambdasOrAlphasDifference<false>(
+        return (dispatchKernelOnScLambdasOrAlphasDifference<escfunctionNONE>(
                 scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
                 vdwModifierIsPotSwitch, useSimd));
     }
     else
     {
-        return (dispatchKernelOnScLambdasOrAlphasDifference<true>(
-                scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                vdwModifierIsPotSwitch, useSimd));
+        if (ic.softCoreParameters->softcoreType == escfunctionBEUTLER)
+        {
+            return (dispatchKernelOnScLambdasOrAlphasDifference<escfunctionBEUTLER>(
+                    scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
+                    vdwModifierIsPotSwitch, useSimd));
+        }
+        else
+        {
+            return (dispatchKernelOnScLambdasOrAlphasDifference<escfunctionGAPSYS>(
+                    scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
+                    vdwModifierIsPotSwitch, useSimd));
+        }
     }
 }
 
