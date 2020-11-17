@@ -42,6 +42,7 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/device_stream_manager.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
@@ -51,51 +52,287 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 
-#include "nbnxm_sycl.h"
 #include "nbnxm_sycl_types.h"
 
 namespace Nbnxm
 {
 
-// SYCL-TODO: remove when functions are properly implemented
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-
-void gpu_clear_outputs(NbnxmGpu* /*nb*/, bool /*computeVirial*/)
+//! This function is documented in the header file
+void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
 {
-    GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
+    sycl_atomdata_t*    adat        = nb->atdat;
+    const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
+    // Clear forces
+    clearDeviceBufferAsync(&adat->f, 0, nb->atdat->numAtoms, localStream);
+    // Clear shift force array and energies if the outputs were used in the current step
+    if (computeVirial)
+    {
+        clearDeviceBufferAsync(&adat->fShift, 0, SHIFTS, localStream);
+        clearDeviceBufferAsync(&adat->eLJ, 0, 1, localStream);
+        clearDeviceBufferAsync(&adat->eElec, 0, 1, localStream);
+    }
 }
 
-NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& /*deviceStreamManager*/,
-                   const interaction_const_t* /*ic*/,
-                   const PairlistParams& /*listParams*/,
-                   const nbnxn_atomdata_t* /*nbat*/,
-                   const bool /*bLocalAndNonlocal*/)
+/*! Initializes the atomdata structure first time, it only gets filled at
+    pair-search. */
+static void initAtomdataFirst(sycl_atomdata_t* atomdata, int numTypes, const DeviceContext& deviceContext)
 {
-    GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
+    atomdata->numTypes = numTypes;
+    allocateDeviceBuffer(&atomdata->shiftVec, SHIFTS, deviceContext);
+    atomdata->shiftVecUploaded = false;
+
+    allocateDeviceBuffer(&atomdata->fShift, SHIFTS, deviceContext);
+    allocateDeviceBuffer(&atomdata->eLJ, 1, deviceContext);
+    allocateDeviceBuffer(&atomdata->eElec, 1, deviceContext);
+
+    /* initialize to nullptr pointers to data that is not allocated here and will
+       need reallocation in later */
+    atomdata->xq = nullptr;
+    atomdata->f  = nullptr;
+
+    /* size -1 indicates that the respective array hasn't been initialized yet */
+    atomdata->numAtoms = -1;
+    atomdata->numAlloc = -1;
 }
 
-void gpu_upload_shiftvec(NbnxmGpu* /*nb*/, const nbnxn_atomdata_t* /*nbatom*/)
+/*! Initializes the nonbonded parameter data structure. */
+static void initNbparam(NBParamGpu*                     nbp,
+                        const interaction_const_t&      ic,
+                        const PairlistParams&           listParams,
+                        const nbnxn_atomdata_t::Params& nbatParams,
+                        const DeviceContext&            deviceContext)
 {
-    GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
+    const int numTypes = nbatParams.numTypes;
+
+    set_cutoff_parameters(nbp, &ic, listParams);
+
+    nbp->vdwType  = nbnxmGpuPickVdwKernelType(&ic, nbatParams.comb_rule);
+    nbp->elecType = nbnxmGpuPickElectrostaticsKernelType(&ic);
+
+    /* generate table for PME */
+    nbp->coulomb_tab = nullptr;
+    if (nbp->elecType == ElecType::EwaldTab || nbp->elecType == ElecType::EwaldTabTwin)
+    {
+        GMX_RELEASE_ASSERT(ic.coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
+        init_ewald_coulomb_force_table(*ic.coulombEwaldTables, nbp, deviceContext);
+    }
+
+    /* set up LJ parameter lookup table */
+    if (!useLjCombRule(nbp->vdwType))
+    {
+        initParamLookupTable(&nbp->nbfp, &nbp->nbfp_texobj, nbatParams.nbfp.data(),
+                             2 * numTypes * numTypes, deviceContext);
+    }
+
+    /* set up LJ-PME parameter lookup table */
+    if (ic.vdwtype == evdwPME)
+    {
+        initParamLookupTable(&nbp->nbfp_comb, &nbp->nbfp_comb_texobj, nbatParams.nbfp_comb.data(),
+                             2 * numTypes, deviceContext);
+    }
 }
 
-void gpu_init_atomdata(NbnxmGpu* /*nb*/, const nbnxn_atomdata_t* /*nbat*/)
+/*! Initializes simulation constant data. */
+static void initConst(NbnxmGpu*                       nb,
+                      const interaction_const_t&      ic,
+                      const PairlistParams&           listParams,
+                      const nbnxn_atomdata_t::Params& nbatParams)
 {
-    GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
+    sycl_atomdata_t*    atomdata    = nb->atdat;
+    const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
+    initAtomdataFirst(atomdata, nbatParams.numTypes, *nb->deviceContext_);
+    initNbparam(nb->nbparam, ic, listParams, nbatParams, *nb->deviceContext_);
+
+    /* clear energy and shift force outputs */
+    clearDeviceBufferAsync(&atomdata->fShift, 0, SHIFTS, localStream);
+    clearDeviceBufferAsync(&atomdata->eElec, 0, 1, localStream);
+    clearDeviceBufferAsync(&atomdata->eLJ, 0, 1, localStream);
 }
 
-void gpu_free(NbnxmGpu* /*nb*/)
+NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
+                   const interaction_const_t*      ic,
+                   const PairlistParams&           listParams,
+                   const nbnxn_atomdata_t*         nbat,
+                   const bool                      bLocalAndNonlocal)
 {
-    // Not throwing here, so not to fail tests, and because it's harmless.
-    // SYCL-TODO: implement
+    auto* nb                              = new NbnxmGpu();
+    nb->deviceContext_                    = &deviceStreamManager.context();
+    nb->atdat                             = new sycl_atomdata_t;
+    nb->nbparam                           = new NBParamGpu;
+    nb->plist[InteractionLocality::Local] = new Nbnxm::gpu_plist;
+    if (bLocalAndNonlocal)
+    {
+        nb->plist[InteractionLocality::NonLocal] = new Nbnxm::gpu_plist;
+    }
+
+    nb->bUseTwoStreams = bLocalAndNonlocal;
+
+    nb->timers  = nullptr;
+    nb->timings = nullptr;
+
+    /* init nbst */
+    nb->nbst.e_el   = &nb->atdat->eElec;
+    nb->nbst.e_lj   = &nb->atdat->eLJ;
+    nb->nbst.fshift = &nb->atdat->fShift;
+
+    init_plist(nb->plist[InteractionLocality::Local]);
+
+    /* local/non-local GPU streams */
+    GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedLocal),
+                       "Local non-bonded stream should be initialized to use GPU for non-bonded.");
+    nb->deviceStreams[InteractionLocality::Local] =
+            &deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal);
+    // In general, it's not strictly necessary to use 2 streams for SYCL, since they are
+    // out-of-order. But for the time being, it will be less disruptive to keep them.
+    if (nb->bUseTwoStreams)
+    {
+        init_plist(nb->plist[InteractionLocality::NonLocal]);
+
+        GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedNonLocal),
+                           "Non-local non-bonded stream should be initialized to use GPU for "
+                           "non-bonded with domain decomposition.");
+        nb->deviceStreams[InteractionLocality::NonLocal] =
+                &deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal);
+    }
+
+    nb->xNonLocalCopyD2HDone = new GpuEventSynchronizer();
+
+    nb->bDoTime = false;
+
+    initConst(nb, *ic, listParams, nbat->params());
+
+    return nb;
 }
 
-int gpu_min_ci_balanced(NbnxmGpu* /*nb*/)
+void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
 {
-    GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
+    sycl_atomdata_t*    adat        = nb->atdat;
+    const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
+
+    /* only if we have a dynamic box */
+    if (nbatom->bDynamicBox || !adat->shiftVecUploaded)
+    {
+        GMX_ASSERT(adat->shiftVec.elementSize() == sizeof(nbatom->shift_vec[0]),
+                   "Sizes of host- and device-side shift vectors should be the same.");
+        copyToDeviceBuffer(&adat->shiftVec, reinterpret_cast<const float3*>(nbatom->shift_vec.data()),
+                           0, SHIFTS, localStream, GpuApiCallBehavior::Async, nullptr);
+        adat->shiftVecUploaded = true;
+    }
 }
 
-#pragma clang diagnostic pop // SYCL-TODO: remove when functions above are properly implemented
+void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
+{
+    GMX_ASSERT(!nb->bDoTime, "Timing on SYCL not supported yet");
+    sycl_atomdata_t*     atdat         = nb->atdat;
+    const DeviceContext& deviceContext = *nb->deviceContext_;
+    const DeviceStream&  localStream   = *nb->deviceStreams[InteractionLocality::Local];
+
+    int  numAtoms    = nbat->numAtoms();
+    bool reallocated = false;
+    if (numAtoms > atdat->numAlloc)
+    {
+        int numAlloc = over_alloc_small(numAtoms);
+
+        /* free up first if the arrays have already been initialized */
+        if (atdat->numAlloc != -1)
+        {
+            freeDeviceBuffer(&atdat->f);
+            freeDeviceBuffer(&atdat->xq);
+            freeDeviceBuffer(&atdat->atomTypes);
+            freeDeviceBuffer(&atdat->ljComb);
+        }
+
+        allocateDeviceBuffer(&atdat->f, numAlloc, deviceContext);
+        allocateDeviceBuffer(&atdat->xq, numAlloc, deviceContext);
+        if (useLjCombRule(nb->nbparam->vdwType))
+        {
+            allocateDeviceBuffer(&atdat->ljComb, numAlloc, deviceContext);
+        }
+        else
+        {
+            allocateDeviceBuffer(&atdat->atomTypes, numAlloc, deviceContext);
+        }
+
+        atdat->numAlloc = numAlloc;
+        reallocated     = true;
+    }
+
+    atdat->numAtoms      = numAtoms;
+    atdat->numAtomsLocal = nbat->natoms_local;
+
+    /* need to clear GPU f output if realloc happened */
+    if (reallocated)
+    {
+        clearDeviceBufferAsync(&atdat->f, 0, atdat->numAlloc, localStream);
+    }
+
+    if (useLjCombRule(nb->nbparam->vdwType))
+    {
+        GMX_ASSERT(atdat->ljComb.elementSize() == sizeof(float2),
+                   "Size of the LJ parameters element should be equal to the size of float2.");
+        copyToDeviceBuffer(&atdat->ljComb, reinterpret_cast<const float2*>(nbat->params().lj_comb.data()),
+                           0, numAtoms, localStream, GpuApiCallBehavior::Async, nullptr);
+    }
+    else
+    {
+        GMX_ASSERT(atdat->atomTypes.elementSize() == sizeof(nbat->params().type[0]),
+                   "Sizes of host- and device-side atom types should be the same.");
+        copyToDeviceBuffer(&atdat->atomTypes, nbat->params().type.data(), 0, numAtoms, localStream,
+                           GpuApiCallBehavior::Async, nullptr);
+    }
+}
+
+void gpu_free(NbnxmGpu* nb)
+{
+    if (nb == nullptr)
+    {
+        return;
+    }
+
+    sycl_atomdata_t* atdat   = nb->atdat;
+    NBParamGpu*      nbparam = nb->nbparam;
+
+    if ((!nbparam->coulomb_tab)
+        && (nbparam->elecType == ElecType::EwaldTab || nbparam->elecType == ElecType::EwaldTabTwin))
+    {
+        destroyParamLookupTable(&nbparam->coulomb_tab, nbparam->coulomb_tab_texobj);
+    }
+
+    if (!useLjCombRule(nb->nbparam->vdwType))
+    {
+        destroyParamLookupTable(&nbparam->nbfp, nbparam->nbfp_texobj);
+    }
+
+    if (nbparam->vdwType == VdwType::EwaldGeom || nbparam->vdwType == VdwType::EwaldLB)
+    {
+        destroyParamLookupTable(&nbparam->nbfp_comb, nbparam->nbfp_comb_texobj);
+    }
+
+    /* Free plist */
+    auto* plist = nb->plist[InteractionLocality::Local];
+    delete plist;
+    if (nb->bUseTwoStreams)
+    {
+        auto* plist_nl = nb->plist[InteractionLocality::NonLocal];
+        delete plist_nl;
+    }
+
+    delete atdat;
+    delete nbparam;
+    delete nb;
+}
+
+int gpu_min_ci_balanced(NbnxmGpu* nb)
+{
+    // SYCL-TODO: Logic and magic values taken from CUDA
+    static constexpr unsigned int balancedFactor = 44;
+    if (nb == nullptr)
+    {
+        return 0;
+    }
+    const cl::sycl::device device = nb->deviceContext_->deviceInfo().syclDevice;
+    const int numComputeUnits     = device.get_info<cl::sycl::info::device::max_compute_units>();
+    return balancedFactor * numComputeUnits;
+}
 
 } // namespace Nbnxm
