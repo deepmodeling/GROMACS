@@ -122,6 +122,8 @@ struct NbnxmGpu
     const DeviceContext* deviceContext_;
     /*! \brief true if doing both local/non-local NB work on GPU */
     bool bUseTwoStreams = false;
+    /*! \brief true indicates that the nonlocal_done event was enqueued */
+    bool bNonLocalStreamActive = false;
     /*! \brief atom data */
     sycl_atomdata_t* atdat = nullptr;
     /*! \brief f buf ops cell index mapping */
