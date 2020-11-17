@@ -400,7 +400,6 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
         real       fix   = 0;
         real       fiy   = 0;
         real       fiz   = 0;
-        printf("ix,iy,iz: %.3f, %.3f, %.3f\n", ix,iy,iz);
 
         for (int k = nj0; k < nj1; k++)
         {
@@ -417,7 +416,6 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             RealType       FscalC[NSTATES], FscalV[NSTATES];
             /* Check if this pair on the exlusions list.*/
             const bool bPairIncluded = nlist->excl_fep == nullptr || nlist->excl_fep[k];
-            printf(" jx,jy,jz (incl): %.3f, %.3f, %.3f, %d\n", x[j3],x[j3+1],x[j3+2], bPairIncluded);
 
             if (rsq >= rcutoff_max2 && bPairIncluded)
             {
@@ -502,8 +500,6 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             sigma6[i] = sigma6_def;
                         }
                     }
-printf("DEBUG: C6 : %.5g\n",c6[i]);
-printf("DEBUG: C12: %.5g\n",c12[i]);
                 }
 
                 if (useSoftCore == escfunctionBEUTLER || useSoftCore == escfunctionGAPSYS)
@@ -594,7 +590,6 @@ printf("DEBUG: C12: %.5g\n",c12[i]);
                                 r0Q = alpha_coul_eff * pow(twentysix_seventh *
                                                            sigma6[i] * (one-LFC[i]),
                                                            onesixth);
-printf("DEBUG: r0Q: %.5g\n", r0Q);
                                 if (r < r0Q)
                                 {
                                     real rinvQ, rinv2Q, rinv3Q;
@@ -620,9 +615,6 @@ printf("DEBUG: r0Q: %.5g\n", r0Q);
                                             half * (LFC[i]/(1.-LFC[i])) *
                                              (a_q - two * b_q + c_q);
                                     }
-printf("DEBUG: FQ : %.5g\n",FscalC[i]);
-printf("DEBUG: VQ : %.5g\n",Vcoul[i]);
-printf("DEBUG: DVQ: %.5g\n",dvdl_coul);
                                 }
                             }
                         }
@@ -664,7 +656,6 @@ printf("DEBUG: DVQ: %.5g\n",dvdl_coul);
                                 r0LJ = alpha_vdw_eff * pow(twentysix_seventh *
                                                            sigma6[i] * (one-LFV[i]),
                                                            onesixth);
-printf("DEBUG: r0L: %.5g\n", r0LJ);
                                 if (r < r0LJ)
                                 {
                                     /* Temporary variables for scaled c6 and c12 */
@@ -707,9 +698,6 @@ printf("DEBUG: r0L: %.5g\n", r0LJ);
                                                (6.5 * rinv12C - rinv6C)
                                              );
                                     }
-printf("DEBUG: FL : %.5g\n",FscalV[i]);
-printf("DEBUG: VL : %.5g\n",Vvdw[i]);
-printf("DEBUG: DVL: %.5g\n",dvdl_vdw);
                                 }
                             }
 
@@ -774,7 +762,6 @@ printf("DEBUG: DVL: %.5g\n",dvdl_vdw);
                  * using the Verlet scheme, we don't use soft-core.
                  * As there is no singularity, there is no need for soft-core.
                  */
-                printf(" GMX_NBKERNEL_ELEC_REACTIONFIELD\n");
                 const real FF = -two * krf;
                 RealType   VV = krf * rsq - crf;
 
