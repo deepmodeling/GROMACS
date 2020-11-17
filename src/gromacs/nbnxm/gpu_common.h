@@ -465,9 +465,12 @@ bool gpu_try_finish_task(NbnxmGpu*                nb,
         }
     }
 
-    /* Always reset both pruning flags (doesn't hurt doing it even when timing is off). */
-    nb->timers->interaction[iLocality].didPrune =
-            nb->timers->interaction[iLocality].didRollingPrune = false;
+    /* Reset both pruning flags. */
+    if (nb->bDoTime)
+    {
+        nb->timers->interaction[iLocality].didPrune =
+                nb->timers->interaction[iLocality].didRollingPrune = false;
+    }
 
     /* Turn off initial list pruning (doesn't hurt if this is not pair-search step). */
     nb->plist[iLocality]->haveFreshList = false;
