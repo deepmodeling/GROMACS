@@ -134,6 +134,7 @@ enum tpxv
     tpxv_StoreNonBondedInteractionExclusionGroup, /**< Store the non bonded interaction exclusion group in the topology */
     tpxv_VSite1,                                  /**< Added 1 type virtual site */
     tpxv_MTS,                                     /**< Added multiple time stepping */
+    tpxv_Softcore,                                 /**< Added softcore function */
     tpxv_Count                                    /**< the total number of tpxv versions */
 };
 
@@ -619,6 +620,14 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
     else
     {
         fepvals->edHdLPrintEnergy = edHdLPrintEnergyNO;
+    }
+    if (file_version >= 122)
+    {
+      serializer->doInt(&fepvals->sc_function);
+    }
+    else
+    {
+      fepvals->sc_function = escfunctionBEUTLER;
     }
 
     /* handle lambda_neighbors */

@@ -597,7 +597,7 @@ extern const char* dhdl_derivatives_names[edhdlderivativesNR + 1];
 
 /*! \brief soft-core function \
  *
- * NOTE: YES is the first one. Do NOT interpret this one as a gmx_bool
+ * Distinguishes between soft-core functions.
  */
 enum eSoftcoreType
 {
@@ -608,6 +608,7 @@ enum eSoftcoreType
 };
 //! String for DHDL derivatives
 extern const char* sc_function_names[escfunctionNR + 1];
+#define SCFUNCTIONNAMES(e) enum_name(e, escfunctionNR, sc_function_names)
 
 /*! \brief Solvent model
  *
