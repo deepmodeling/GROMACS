@@ -1,0 +1,71 @@
+
+;====================================================
+; Production MD
+;====================================================
+
+; RUN CONTROL
+;----------------------------------------------------
+integrator              = sd
+nsteps                  = 0
+dt                      = 0.002
+comm-mode               = Linear
+nstcomm                 = 100
+
+; OUTPUT CONTROL
+;----------------------------------------------------
+nstxout                  = 0
+nstvout                  = 0
+nstfout                  = 1
+nstlog                   = 1
+nstenergy                = 1
+nstcalcenergy            = 1
+
+; NEIGHBOR SEARCHING
+;----------------------------------------------------
+cutoff-scheme            = verlet
+nstlist                  = 10
+rlist                    = 1.2
+pbc                      = xyz
+
+; ELECTROSTATICS & EWALD
+;----------------------------------------------------
+coulombtype              = Cut-off
+rcoulomb                 = 1.0
+
+; VAN DER WAALS
+;----------------------------------------------------
+vdw-type                 = Cut-off
+vdw-modifier             = Potential-shift-Verlet
+rvdw                     = 1.0
+
+; TEMPERATURE COUPLING (SD ==> Langevin dynamics)
+;----------------------------------------------------
+tc_grps                  =  System
+tau_t                    =  1.0
+ref_t                    =  298.15
+
+; PRESSURE COUPLING
+;----------------------------------------------------
+pcoupl                   = no
+
+; VELOCITY GENERATION
+;----------------------------------------------------
+gen_vel                  = no
+
+; FREE ENERGY
+;----------------------------------------------------
+free-energy              = yes
+sc-alpha                 = 0.85
+sc-power                 = 1
+sc-sigma                 = 0.25
+sc-coul	                 = yes
+sc-function              = gapsys
+init-lambda              = -1
+init-lambda-state        = 1
+delta-lambda             = 0
+coul-lambdas             = 0.0 0.4 1.0
+vdw-lambdas              = 0.0 0.4 1.0
+nstdhdl                  = 1
+dhdl-derivatives         = yes
+dhdl-print-energy        = no
+separate-dhdl-file       = no

@@ -198,7 +198,8 @@ INSTANTIATE_TEST_CASE_P(
                 FreeEnergyReferenceTestParams{ "restraints", MaxNumWarnings(0), { F_DVDL_RESTRAINT } },
                 FreeEnergyReferenceTestParams{ "simtemp", MaxNumWarnings(0), {} },
                 FreeEnergyReferenceTestParams{ "transformAtoB", MaxNumWarnings(0), { F_DVDL } },
-                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0), { F_DVDL } }),
+                FreeEnergyReferenceTestParams{ "vdwalone", MaxNumWarnings(0), { F_DVDL } },
+                FreeEnergyReferenceTestParams{ "gapsyssoftcore", MaxNumWarnings(2), { F_DVDL_COUL, F_DVDL_VDW } }),
         FreeEnergyReferenceTest::PrintParametersToString());
 #else
 INSTANTIATE_TEST_CASE_P(

@@ -1,0 +1,23 @@
+#include "amber99sb.ff/forcefield.itp"
+
+[ atomtypes ]
+;name  bond_type          mass        charge  ptype   sigma      epsilon
+x            x          0.0000      0.0000  A   3.000e-01  5.000e-01
+y            y          0.0000      0.0000  A   0.000      0.000
+
+
+[ moleculetype ]
+; molname       nrexcl
+X              1
+
+[ atoms ]
+; id    at type         res nr  residu name     at name  cg nr  charge   mass         at type B   charge B   mass B
+   1    x                  1       X             x      1    0.50000    1.000          y   0.000    1.000
+
+
+[ system ]
+xx
+
+[ molecules ]
+;Compound        nmols
+X           2
