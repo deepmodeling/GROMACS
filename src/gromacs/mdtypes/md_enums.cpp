@@ -147,7 +147,7 @@ const char* separate_dhdl_file_names[esepdhdlfileNR + 1] = { "yes", "no", nullpt
 
 const char* dhdl_derivatives_names[edhdlderivativesNR + 1] = { "yes", "no", nullptr };
 
-const char* sc_function_names[escfunctionNR + 1] = { "none", "beutler", "gapsys", nullptr };
+const char* sc_function_names[escfunctionNR + 1] = { "beutler", "gapsys", "none", nullptr };
 
 const char* esol_names[esolNR + 1] = { "No", "SPC", "TIP4p", nullptr };
 

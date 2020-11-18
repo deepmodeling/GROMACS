@@ -601,9 +601,9 @@ extern const char* dhdl_derivatives_names[edhdlderivativesNR + 1];
  */
 enum eSoftcoreType
 {
-    escfunctionNONE,
     escfunctionBEUTLER,
     escfunctionGAPSYS,
+    escfunctionNONE,
     escfunctionNR
 };
 //! String for DHDL derivatives
