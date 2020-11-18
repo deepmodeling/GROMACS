@@ -74,7 +74,11 @@ public:
     //! Get the associated device information
     const DeviceInformation& deviceInfo() const { return deviceInfo_; }
 
+    //! Activate the context
     void activate() { setActiveDevice(deviceInfo_); }
+
+    //! Check if this context is currently active (i.e. corresponding device is set in CUDA)
+    bool isActive() const { return checkDeviceActive(deviceInfo_); }
 
 private:
     //! A reference to the device information used upon context creation

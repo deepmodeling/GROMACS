@@ -52,7 +52,8 @@
 
 DeviceStream::DeviceStream(const DeviceContext& deviceContext,
                            DeviceStreamPriority /* priority */,
-                           const bool useTiming)
+                           const bool useTiming) :
+    deviceContext_(deviceContext)
 {
     const DeviceInformation&    deviceInfo      = deviceContext.deviceInfo();
     cl_command_queue_properties queueProperties = useTiming ? CL_QUEUE_PROFILING_ENABLE : 0;

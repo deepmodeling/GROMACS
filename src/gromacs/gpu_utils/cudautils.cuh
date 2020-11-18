@@ -41,6 +41,7 @@
 #include <array>
 #include <string>
 
+#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/math/vec.h"
@@ -268,6 +269,9 @@ void launchGpuKernel(void (*kernel)(Args...),
                      const char*                               kernelName,
                      const std::array<void*, sizeof...(Args)>& kernelArgs)
 {
+    GMX_ASSERT(deviceStream.deviceContext().isActive(),
+               "Could not launch the device kernel: the provided stream is attached to a device "
+               "context that is not currently active.");
     dim3 blockSize(config.blockSize[0], config.blockSize[1], config.blockSize[2]);
     dim3 gridSize(config.gridSize[0], config.gridSize[1], config.gridSize[2]);
     cudaLaunchKernel((void*)kernel, gridSize, blockSize, const_cast<void**>(kernelArgs.data()),

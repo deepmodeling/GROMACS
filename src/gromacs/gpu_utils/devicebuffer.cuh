@@ -64,8 +64,12 @@
  * \param[in]     deviceContext        The buffer's dummy device  context - not managed explicitly in CUDA RT.
  */
 template<typename ValueType>
-void allocateDeviceBuffer(DeviceBuffer<ValueType>* buffer, size_t numValues, const DeviceContext& /* deviceContext */)
+void allocateDeviceBuffer(DeviceBuffer<ValueType>* buffer, size_t numValues, const DeviceContext& deviceContext)
 {
+    GMX_UNUSED_VALUE(deviceContext);
+    GMX_ASSERT(deviceContext.isActive(),
+               "Could not allocate device buffer in a provided device context because the latter "
+               "is not active.");
     GMX_ASSERT(buffer, "needs a buffer pointer");
     cudaError_t stat = cudaMalloc((void**)buffer, numValues * sizeof(ValueType));
     GMX_RELEASE_ASSERT(stat == cudaSuccess, "cudaMalloc failure");
@@ -117,6 +121,10 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
     }
     GMX_ASSERT(buffer, "needs a buffer pointer");
     GMX_ASSERT(hostBuffer, "needs a host buffer pointer");
+    GMX_ASSERT(deviceStream.deviceContext().isActive(),
+               "Could not copy to device buffer: provided stream is attached to a device context "
+               "that is not currently active.");
+
     cudaError_t  stat;
     const size_t bytes = numValues * sizeof(ValueType);
 
@@ -168,6 +176,9 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
     }
     GMX_ASSERT(buffer, "needs a buffer pointer");
     GMX_ASSERT(hostBuffer, "needs a host buffer pointer");
+    GMX_ASSERT(deviceStream.deviceContext().isActive(),
+               "Could not copy from device buffer: provided stream is attached to a device context "
+               "that is not currently active.");
 
     cudaError_t  stat;
     const size_t bytes = numValues * sizeof(ValueType);
@@ -207,6 +218,9 @@ void clearDeviceBufferAsync(DeviceBuffer<ValueType>* buffer,
                             const DeviceStream&      deviceStream)
 {
     GMX_ASSERT(buffer, "needs a buffer pointer");
+    GMX_ASSERT(deviceStream.deviceContext().isActive(),
+               "Could not clear device buffer: provided stream is attached to a device context "
+               "that is not currently active.");
     const size_t bytes   = numValues * sizeof(ValueType);
     const char   pattern = 0;
 

@@ -44,9 +44,10 @@
 
 #include "device_stream.h"
 
-DeviceStream::DeviceStream(const DeviceContext& /* deviceContext */,
+DeviceStream::DeviceStream(const DeviceContext& deviceContext,
                            DeviceStreamPriority /* priority */,
-                           const bool /* useTiming */)
+                           const bool /* useTiming */) :
+    deviceContext_(deviceContext)
 {
 }
 

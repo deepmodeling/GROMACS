@@ -44,15 +44,20 @@
 
 #include "device_stream.h"
 
+#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-DeviceStream::DeviceStream(const DeviceContext& /* deviceContext */,
+DeviceStream::DeviceStream(const DeviceContext& deviceContext,
                            DeviceStreamPriority priority,
-                           const bool /* useTiming */)
+                           const bool /* useTiming */) :
+    deviceContext_(deviceContext)
 {
     cudaError_t stat;
+
+    GMX_RELEASE_ASSERT(deviceContext.isActive(),
+                       "Could not create CUDA stream: the device is not active.");
 
     if (priority == DeviceStreamPriority::Normal)
     {

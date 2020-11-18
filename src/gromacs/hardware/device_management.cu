@@ -347,6 +347,20 @@ void setActiveDevice(const DeviceInformation& deviceInfo)
     }
 }
 
+bool checkDeviceActive(const DeviceInformation& deviceInfo)
+{
+    cudaError_t stat;
+    int         activeDeviceId = -1;
+
+    stat = cudaGetDevice(&activeDeviceId);
+    GMX_RELEASE_ASSERT(stat == cudaSuccess,
+                       gmx::formatString("CUDA API returned with an error while trying to get the "
+                                         "active device ID: %s: %s",
+                                         cudaGetErrorName(stat), cudaGetErrorString(stat))
+                               .c_str());
+    return deviceInfo.id == activeDeviceId;
+}
+
 void releaseDevice(DeviceInformation* deviceInfo)
 {
     // device was used is that deviceInfo will be non-null.

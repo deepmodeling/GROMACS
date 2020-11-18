@@ -109,6 +109,9 @@ public:
     //! Synchronize the stream
     void synchronize() const;
 
+    //! Get the underlying deviceContext
+    const DeviceContext& deviceContext() const { return deviceContext_; }
+
 #if GMX_GPU_CUDA
 
     //! Getter
@@ -146,6 +149,9 @@ private:
     cl_command_queue stream_ = nullptr;
 
 #endif
+
+private:
+    const DeviceContext& deviceContext_;
 
     GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceStream);
 };

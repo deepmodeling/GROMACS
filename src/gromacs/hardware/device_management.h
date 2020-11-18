@@ -183,6 +183,21 @@ bool deviceIdIsCompatible(const std::vector<std::unique_ptr<DeviceInformation>>&
  */
 void setActiveDevice(const DeviceInformation& deviceInfo);
 
+/*! \brief Check if the device is currently active.
+ *
+ * Checks if the device information corresponds to the active device.
+ *
+ * In CUDA, all the API calls go to the device that is currently set active and there is no explicit
+ * attachment of the device streams to the device context. This may lead to a condition when stream
+ * that was created for one device is used on another, which may cause an invalid resource handle error.
+ * This function allows one to check if the proper device was set before the API call is issued.
+ *
+ * \param[in] deviceInfo Information on the device to be checked.
+ *
+ * \return True if the provided device information corresponds to the active device.
+ */
+bool checkDeviceActive(const DeviceInformation& deviceInfo);
+
 /*! \brief Releases the GPU device used by the active context at the time of calling (CUDA only).
  *
  * If \c deviceInfo is nullptr, then it is understood that no device

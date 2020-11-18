@@ -48,7 +48,8 @@
 
 DeviceStream::DeviceStream(const DeviceContext& deviceContext,
                            DeviceStreamPriority /* priority */,
-                           const bool useTiming)
+                           const bool useTiming) :
+    deviceContext_(deviceContext)
 {
     const std::vector<cl::sycl::device> devicesInContext = deviceContext.context().get_devices();
     // The context is constructed to have exactly one device

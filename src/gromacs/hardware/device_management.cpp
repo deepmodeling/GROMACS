@@ -60,6 +60,11 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 
 void setActiveDevice(const DeviceInformation& /* deviceInfo */) {}
 
+bool checkDeviceActive(const DeviceInformation& /* deviceInfo */)
+{
+    return false;
+}
+
 void releaseDevice(DeviceInformation* /* deviceInfo */) {}
 
 std::string getDeviceInformationString(const DeviceInformation& /* deviceInfo */)
