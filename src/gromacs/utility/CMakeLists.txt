@@ -33,25 +33,62 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-add_library(utility INTERFACE)
-file(GLOB UTILITY_SOURCES *.cpp)
-if (GMX_GPU_CUDA)
-    gmx_add_libgromacs_sources(cuda_version_information.cu)
-endif()
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${UTILITY_SOURCES} PARENT_SCOPE)
-set_source_files_properties(binaryinformation.cpp PRIVATE HAVE_CONFIG_H)
-set_source_files_properties(fatalerror.cpp PRIVATE HAVE_CONFIG_H)
+# TODO: Generate a header instead that can be included from baseversion.cpp.
+# That probably simplifies things somewhat.
+gmx_configure_version_file(
+    baseversion-gen.cpp.cmakein baseversion-gen.cpp
+    REMOTE_HASH
+    EXTRA_VARS
+        GMX_SOURCE_DOI
+        GMX_RELEASE_HASH
+        GMX_SOURCE_HASH
+        )
+
+# Set up the module library
+file(GLOB TARGET_SOURCES *.cpp)
+add_library(utility OBJECT
+    # Normal source files
+    ${TARGET_SOURCES}
+    # Generated source files
+    ${CMAKE_CURRENT_BINARY_DIR}/baseversion-gen.cpp
+    )
+set_target_properties(utility PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+set_source_files_properties(
+    binaryinformation.cpp
+    fatalerror.cpp
+    PROPERTIES
+    COMPILE_DEFINITIONS HAVE_CONFIG_H
+    )
+
+# Set up dependencies that are internal to this module
+target_include_directories(utility PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+# Include directories for dependencies not yet made into an object
+# library.
+target_include_directories(utility SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include
+    )
+
+# Source files have the following private module dependencies.
+target_link_libraries(utility PRIVATE
+    common
+    legacy_api
+    ${FFT_LIBRARIES}
+    )
 
 # This module provides interfaces to other library modules in the build tree.
 # The installed API it supports are exported through the legacy_api
 # and libgromacs targets.
 target_include_directories(utility INTERFACE
-						   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-						   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
-# At least one public module header has a thread_mpi dependeny.
-target_include_directories(utility SYSTEM BEFORE INTERFACE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
-
-target_link_libraries(utility INTERFACE legacy_api)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+# TODO make this work better when improving GPU modules
+if (GMX_GPU_CUDA)
+    gmx_add_libgromacs_sources(cuda_version_information.cu)
+endif()
 
 if (BUILD_TESTING)
     add_subdirectory(tests)
