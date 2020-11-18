@@ -32,70 +32,25 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#include "gmxpre.h"
+/*! \internal \file
+ * \brief
+ * Declares nbnxn sycl helper functions
+ *
+ * \ingroup module_nbnxm
+ */
+#ifndef GMX_NBNXM_SYCL_NBNXM_SYCL_KERNEL_H
+#define GMX_NBNXM_SYCL_NBNXM_SYCL_KERNEL_H
 
-#include "gromacs/utility/template_mp.h"
+#include "gromacs/mdtypes/locality.h"
+#include "gromacs/mdtypes/simulation_workload.h"
 
-#include <gtest/gtest.h>
+#include "nbnxm_sycl_types.h"
 
-namespace gmx
+namespace Nbnxm
 {
-namespace
-{
 
-enum class Options
-{
-    Op0   = 0,
-    Op1   = 1,
-    Op2   = 2,
-    Count = 3
-};
+void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const InteractionLocality iloc);
 
-template<Options i, Options j>
-static int testEnumTwoIPlusJPlusK(int k)
-{
-    return 2 * int(i) + int(j) + k;
-}
+} // namespace Nbnxm
 
-template<bool doDoubling, Options i, Options j>
-static int testBoolEnumTwoIPlusJPlusK(int k)
-{
-    return (doDoubling ? 2 : 1) * int(i) + int(j) + k;
-}
-
-template<bool doDoubling>
-static int testBoolDoubleOrNot(int k)
-{
-    return (doDoubling ? 2 : 1) * k;
-}
-
-
-TEST(TemplateMPTest, DispatchTemplatedFunctionEnum)
-{
-    int five           = 5;
-    int two1plus2plus5 = dispatchTemplatedFunction(
-            [=](auto p1, auto p2) { return testEnumTwoIPlusJPlusK<p1, p2>(five); }, Options::Op1,
-            Options::Op2);
-    EXPECT_EQ(two1plus2plus5, 9);
-}
-
-TEST(TemplateMPTest, DispatchTemplatedFunctionBool)
-{
-    int five = 5;
-    int double5 = dispatchTemplatedFunction([=](auto p1) { return testBoolDoubleOrNot<p1>(five); }, true);
-    EXPECT_EQ(double5, 10);
-    int just5 = dispatchTemplatedFunction([=](auto p1) { return testBoolDoubleOrNot<p1>(five); }, false);
-    EXPECT_EQ(just5, 5);
-}
-
-TEST(TemplateMPTest, DispatchTemplatedFunctionEnumBool)
-{
-    int five           = 5;
-    int two1plus2plus5 = dispatchTemplatedFunction(
-            [=](auto p1, auto p2, auto p3) { return testBoolEnumTwoIPlusJPlusK<p1, p2, p3>(five); },
-            true, Options::Op1, Options::Op2);
-    EXPECT_EQ(two1plus2plus5, 9);
-}
-
-} // anonymous namespace
-} // namespace gmx
+#endif // GMX_NBNXM_SYCL_NBNXM_SYCL_KERNEL_H

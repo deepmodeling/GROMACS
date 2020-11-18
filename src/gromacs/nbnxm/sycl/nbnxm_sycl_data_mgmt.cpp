@@ -73,8 +73,7 @@ void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
     }
 }
 
-/*! Initializes the atomdata structure first time, it only gets filled at
-    pair-search. */
+/*! \brief Initialize \p atomdata first time; it only gets filled at pair-search. */
 static void initAtomdataFirst(sycl_atomdata_t* atomdata, int numTypes, const DeviceContext& deviceContext)
 {
     atomdata->numTypes = numTypes;
@@ -95,7 +94,7 @@ static void initAtomdataFirst(sycl_atomdata_t* atomdata, int numTypes, const Dev
     atomdata->numAlloc = -1;
 }
 
-/*! Initializes the nonbonded parameter data structure. */
+/*! \brief Initialize the nonbonded parameter data structure. */
 static void initNbparam(NBParamGpu*                     nbp,
                         const interaction_const_t&      ic,
                         const PairlistParams&           listParams,
@@ -132,7 +131,7 @@ static void initNbparam(NBParamGpu*                     nbp,
     }
 }
 
-/*! Initializes simulation constant data. */
+/*! \brief Initialize simulation constant data. */
 static void initConst(NbnxmGpu*                       nb,
                       const interaction_const_t&      ic,
                       const PairlistParams&           listParams,

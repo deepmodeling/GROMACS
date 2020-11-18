@@ -98,6 +98,18 @@ auto dispatchTemplatedFunction(Function&& f, Enum e, Enums... es)
             es...);
 }
 
+template<class Function, class... Enums>
+auto dispatchTemplatedFunction(Function&& f, bool e, Enums... es)
+{
+    return dispatchTemplatedFunction(
+            [&](auto... es_) {
+                return compat::mp_with_index<2>(size_t(e), [&](auto e_) {
+                    return std::forward<Function>(f)(std::bool_constant<static_cast<bool>(e_)>(), es_...);
+                });
+            },
+            es...);
+}
+
 } // namespace gmx
 
 #endif // GMX_UTILITY_TEMPLATE_MP_H
