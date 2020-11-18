@@ -32,25 +32,28 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-add_library(fileio STATIC)
+# Set up the module library
+add_library(fileio OBJECT)
 add_subdirectory(cpp)
 set_target_properties(fileio PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Source files have the following private module dependencies.
+target_link_libraries(fileio PRIVATE
+    common
+    gmxlib
+    legacy_modules
+    math
+    mdtypes
+    tng_io
+    )
+
+# Public interface for modules, including dependencies and interfaces
 target_include_directories(fileio PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-
-target_link_libraries(fileio PUBLIC legacy_api)
-target_link_libraries(fileio PRIVATE common)
-
-# Module dependencies
-# fileio interfaces convey transitive dependence on these modules.
-target_link_libraries(fileio PUBLIC utility)
-# Source files have the following private module dependencies.
-target_link_libraries(fileio PRIVATE gmxlib math mdtypes tng_io)
-# TODO: Explicitly link specific modules.
-target_link_libraries(fileio PRIVATE legacy_modules)
-
-target_link_libraries(libgromacs PRIVATE fileio)
+target_link_libraries(fileio PUBLIC
+    legacy_api
+    utility
+    )
 
 if (BUILD_TESTING)
      add_subdirectory(tests)

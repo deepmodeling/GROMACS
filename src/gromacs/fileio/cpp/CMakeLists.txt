@@ -32,7 +32,6 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-#TODO: Convert to an actual CMake target.
 target_sources(fileio PRIVATE
     checkpoint.cpp
     confio.cpp
@@ -66,8 +65,14 @@ target_sources(fileio PRIVATE
     xvgr.cpp)
 target_compile_definitions(fileio PRIVATE HAVE_CONFIG_H)
 
+# Set up dependencies that are internal to this module
 target_include_directories(fileio PRIVATE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+# Include directories for dependencies not yet made into an object
+# library.
+target_include_directories(fileio SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include
+    )
 
 if(GMX_USE_PLUGINS)
     target_sources(fileio vmdio.cpp)

@@ -187,14 +187,22 @@ if (GMX_GPU_CUDA)
 else()
     add_library(libgromacs ${LIBGROMACS_SOURCES})
 endif()
-target_link_libraries(libgromacs PRIVATE common)
 # As long as the libgromacs target has source files that reference headers from
 # modules that don't provide CMake targets, libgromacs needs to use `src/`
 # amongst its include directories (to support `#include "gromacs/module/header.h"`).
 add_library(legacy_modules INTERFACE)
 target_include_directories(legacy_modules INTERFACE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(libgromacs PRIVATE legacy_modules)
-target_link_libraries(libgromacs PRIVATE utility)
+# Set up the link-time dependencies of libgromacs on its modules.
+# Ordinarily one would use $<TARGET_OBJECTS:module_xyz> to refer
+# to the object files gathered in that library, but that is not
+# enough when libgromacs is to be built statically. Instead,
+# $<BUILD_INTERFACE:module_xyz> does all the necessary jobs.
+target_link_libraries(libgromacs PRIVATE
+    "$<BUILD_INTERFACE:common>"
+    "$<BUILD_INTERFACE:fileio>"
+    "$<BUILD_INTERFACE:legacy_modules>"
+    "$<BUILD_INTERFACE:utility>"
+    )
 # Temporary inclusion for private headers in utility module...
 target_include_directories(libgromacs PRIVATE ${CMAKE_SOURCE_DIR}/src/gromacs/utility)
 
