@@ -36,12 +36,6 @@
 add_library(fileio INTERFACE)
 file(GLOB FILEIO_SOURCES *.cpp)
 
-# Source files have the following dependencies on library infrastructure.
-#target_link_libraries(fileio PRIVATE
-#                      common
-#                      legacy_modules
-#)
-
 if(GMX_USE_PLUGINS)
     add_library(vmddlopen OBJECT ${CMAKE_SOURCE_DIR}/src/external/vmd_molfile/vmddlopen.cpp)
     gmx_target_compile_options(vmddlopen)
@@ -55,17 +49,32 @@ else()
     list(FILTER FILEIO_SOURCES EXCLUDE REGEX ".*vmdio.cpp$")
 endif()
 
+# Source files have the following private module dependencies.
+target_link_libraries(fileio PRIVATE
+#                      gmxlib
+#                      math
+#                      mdtypes
+#                      tng_io
+                      )
+
 # Public interface for modules, including dependencies and interfaces
+#target_include_directories(fileio PUBLIC
 target_include_directories(fileio INTERFACE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(fileio PUBLIC
 target_link_libraries(fileio INTERFACE
                       legacy_api
-                      utility
                       )
+
+# TODO: when fileio is an OBJECT target
+#target_link_libraries(fileio PUBLIC legacy_api)
+#target_link_libraries(fileio PRIVATE common)
 
 # Module dependencies
 # fileio interfaces convey transitive dependence on these modules.
+#target_link_libraries(fileio PUBLIC
 target_link_libraries(fileio INTERFACE
+#                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(fileio PRIVATE tng_io)
