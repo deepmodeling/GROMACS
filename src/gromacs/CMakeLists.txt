@@ -371,7 +371,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:selection>
                       $<BUILD_INTERFACE:simd>
 #                      $<BUILD_INTERFACE:statistics>
-#                      $<BUILD_INTERFACE:swap>
+                      $<BUILD_INTERFACE:swap>
                       $<BUILD_INTERFACE:tables>
                       $<BUILD_INTERFACE:taskassignment>
                       $<BUILD_INTERFACE:timing>
