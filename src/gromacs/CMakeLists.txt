@@ -339,7 +339,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:compat>
                       $<BUILD_INTERFACE:coordinateio>
                       $<BUILD_INTERFACE:correlationfunctions>
-#                      $<BUILD_INTERFACE:domdec>
+                      $<BUILD_INTERFACE:domdec>
 #                      $<BUILD_INTERFACE:energyanalysis>
                       $<BUILD_INTERFACE:essentialdynamics>
                       $<BUILD_INTERFACE:ewald>
@@ -359,7 +359,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:mdrunutility>
                       $<BUILD_INTERFACE:mdspan>
                       $<BUILD_INTERFACE:mdtypes>
-#                      $<BUILD_INTERFACE:mimic>
+                      $<BUILD_INTERFACE:mimic>
 #                      $<BUILD_INTERFACE:modularsimulator>
 #                      $<BUILD_INTERFACE:nbnxm>
                       $<BUILD_INTERFACE:onlinehelp>
@@ -368,7 +368,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:pulling>
                       $<BUILD_INTERFACE:random>
                       $<BUILD_INTERFACE:restraint>
-#                      $<BUILD_INTERFACE:selection>
+                      $<BUILD_INTERFACE:selection>
                       $<BUILD_INTERFACE:simd>
                       $<BUILD_INTERFACE:statistics>
                       $<BUILD_INTERFACE:swap>
