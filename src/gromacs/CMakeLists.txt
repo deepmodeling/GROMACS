@@ -366,7 +366,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:options>
 #                      $<BUILD_INTERFACE:pbcutil>
 #                      $<BUILD_INTERFACE:pulling>
-#                      $<BUILD_INTERFACE:random>
+                      $<BUILD_INTERFACE:random>
 #                      $<BUILD_INTERFACE:restraint>
 #                      $<BUILD_INTERFACE:selection>
                       $<BUILD_INTERFACE:simd>
