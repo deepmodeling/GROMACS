@@ -68,6 +68,10 @@ if(GMX_INSTALL_LEGACY_API)
             DESTINATION include/gromacs/options)
 endif()
 
+# Source files have the following private module dependencies.
+target_link_libraries(options PRIVATE
+		)
+
 # Public interface for modules, including dependencies and interfaces
 #target_include_directories(options PUBLIC
 target_include_directories(options INTERFACE
