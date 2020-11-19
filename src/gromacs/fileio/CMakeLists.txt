@@ -92,7 +92,7 @@ target_include_directories(fileio SYSTEM PRIVATE
 target_link_libraries(fileio PRIVATE
                       common
                       legacy_modules
-        mdtypes
+                      mdtypes
                       )
 
 # Source files have the following private module dependencies.
