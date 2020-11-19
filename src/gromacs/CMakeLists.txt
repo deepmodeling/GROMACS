@@ -374,7 +374,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:swap>
 #                      $<BUILD_INTERFACE:tables>
 #                      $<BUILD_INTERFACE:taskassignment>
-#                      $<BUILD_INTERFACE:timing>
+                      $<BUILD_INTERFACE:timing>
                       $<BUILD_INTERFACE:tools>
 #                      $<BUILD_INTERFACE:topology>
 #                      $<BUILD_INTERFACE:trajectory>
