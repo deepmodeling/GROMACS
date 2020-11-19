@@ -72,7 +72,8 @@ target_link_libraries(fileio INTERFACE
 # TODO: Explicitly link specific modules.
 #target_link_libraries(fileio PRIVATE legacy_modules)
 
-target_link_libraries(libgromacs PRIVATE fileio)
+target_link_libraries(libgromacs PRIVATE
+                      $<BUILD_INTERFACE:fileio>)
 
 target_sources(libgromacs PRIVATE ${FILEIO_SOURCES})
 
