@@ -108,6 +108,7 @@ target_link_libraries(gpu_utils INTERFACE
 # gpu_utils interfaces convey transitive dependence on these modules.
 #target_link_libraries(gpu_utils PUBLIC
 target_link_libraries(gpu_utils INTERFACE
+                      math
 #                      utility
                       )
 # Source files have the following private module dependencies.

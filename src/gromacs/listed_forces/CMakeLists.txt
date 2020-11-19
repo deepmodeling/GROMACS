@@ -77,6 +77,7 @@ target_link_libraries(listed_forces INTERFACE
 # listed_forces interfaces convey transitive dependence on these modules.
 #target_link_libraries(listed_forces PUBLIC
 target_link_libraries(listed_forces INTERFACE
+                      math
                       utility
                       )
 # Source files have the following private module dependencies.

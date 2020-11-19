@@ -49,7 +49,7 @@ target_link_libraries(math PRIVATE
 
 # Public interface for modules, including dependencies and interfaces
 #target_include_directories(math PUBLIC
-target_include_directories(math INTERFACE
+target_include_directories(math INTERFACE 
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 #target_link_libraries(math PUBLIC
 target_link_libraries(math INTERFACE

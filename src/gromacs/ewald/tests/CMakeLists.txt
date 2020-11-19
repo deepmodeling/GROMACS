@@ -42,4 +42,5 @@ gmx_add_unit_test(EwaldUnitTests ewald-test HARDWARE_DETECTION
 )
 
 target_link_libraries(ewald-test PRIVATE
-                      timing)
+                      ewald
+                      )

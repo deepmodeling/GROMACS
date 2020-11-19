@@ -365,7 +365,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:imd>
                       $<BUILD_INTERFACE:linearalgebra>
                       $<BUILD_INTERFACE:listed_forces>
-                      $<BUILD_INTERFACE:math>
+                      "$<BUILD_INTERFACE:math>"
                       $<BUILD_INTERFACE:mdlib>
                       $<BUILD_INTERFACE:mdrun>
                       $<BUILD_INTERFACE:mdrunutility>

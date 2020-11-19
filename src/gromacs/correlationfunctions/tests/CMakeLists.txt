@@ -39,4 +39,7 @@ gmx_add_unit_test(CorrelationsTest  correlations-test
         expfit.cpp
         manyautocorrelation.cpp
         )
-target_link_libraries(correlations-test PRIVATE fileio)
+target_link_libraries(correlations-test PRIVATE
+                      correlationfunctions
+                      fileio
+                      )

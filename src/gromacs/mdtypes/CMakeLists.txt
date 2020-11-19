@@ -94,6 +94,7 @@ target_link_libraries(mdtypes INTERFACE
 # fileio interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdtypes PUBLIC
 target_link_libraries(mdtypes INTERFACE
+                      math
                       utility
                       )
 # Source files have the following private module dependencies.

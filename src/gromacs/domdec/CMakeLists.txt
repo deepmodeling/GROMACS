@@ -65,6 +65,8 @@ target_link_libraries(domdec INTERFACE
 # domdec interfaces convey transitive dependence on these modules.
 #target_link_libraries(domdec PUBLIC
 target_link_libraries(domdec INTERFACE
+                      math
+                      timing
                       utility
                       )
 # Source files have the following private module dependencies.

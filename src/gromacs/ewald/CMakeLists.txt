@@ -128,6 +128,8 @@ target_link_libraries(ewald INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(ewald PUBLIC
 target_link_libraries(ewald INTERFACE
+                      math
+                      timing
                       #                      utility
                       )
 # Source files have the following private module dependencies.

@@ -36,6 +36,6 @@ gmx_add_unit_test(AppliedForcesUnitTest applied_forces-test
     CPP_SOURCE_FILES
         electricfield.cpp
         )
-
 target_link_libraries(applied_forces-test PRIVATE
-                      timing)
+                      applied_forces
+                      )

@@ -39,7 +39,7 @@
  */
 #include "gmxpre.h"
 
-#include "coordinatetransformation.h"
+#include "gromacs/math/coordinatetransformation.h"
 
 #include <vector>
 
@@ -47,7 +47,7 @@
 #include "gromacs/mdspan/extensions.h"
 #include "gromacs/utility/arrayref.h"
 
-#include "matrix.h"
+#include "gromacs/math/matrix.h"
 
 namespace gmx
 {

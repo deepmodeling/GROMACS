@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "vecdump.h"
+#include "gromacs/math/vecdump.h"
 
 #include <cstdio>
 #include <cstdlib>

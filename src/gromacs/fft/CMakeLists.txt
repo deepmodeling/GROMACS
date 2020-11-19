@@ -79,6 +79,7 @@ target_link_libraries(fft INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(fft PUBLIC
 target_link_libraries(fft INTERFACE
+                      math
                       #                      utility
                       )
 # Source files have the following private module dependencies.

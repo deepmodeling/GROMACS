@@ -97,7 +97,6 @@ target_link_libraries(fileio PRIVATE
 # Source files have the following private module dependencies.
 target_link_libraries(fileio PRIVATE
     gmxlib
-    math
     mdtypes
     tng_io
     )
@@ -114,6 +113,7 @@ target_link_libraries(fileio PRIVATE common)
 # Module dependencies
 # fileio interfaces convey transitive dependence on these modules.
 target_link_libraries(fileio PUBLIC
+                      math
                       mdspan
                       timing
                       utility

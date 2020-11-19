@@ -102,5 +102,6 @@ target_link_libraries(nbnxm INTERFACE
 # nbnxm interfaces convey transitive dependence on these modules.
 #target_link_libraries(nbnxm PUBLIC
 target_link_libraries(nbnxm INTERFACE
+        math
         utility
         )

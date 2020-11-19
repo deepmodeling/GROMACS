@@ -108,8 +108,17 @@ endif()
 gmx_target_compile_options(testutils)
 target_compile_definitions(testutils PRIVATE HAVE_CONFIG_H)
 target_include_directories(testutils SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
-target_link_libraries(testutils PRIVATE libgromacs ${GMX_COMMON_LIBRARIES} gmock)
-target_link_libraries(testutils PUBLIC common)
+target_link_libraries(testutils PRIVATE
+    libgromacs
+    ${GMX_COMMON_LIBRARIES}
+    gmock
+    )
+target_link_libraries(testutils PUBLIC
+                      common
+                      math
+                      $<BUILD_INTERFACE:math>
+                      )
+
 
 # GROMACS module dependencies.
 # Note that testutils conveys transitive dependencies on some modules.
