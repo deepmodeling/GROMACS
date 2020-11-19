@@ -83,23 +83,32 @@ else()
     )
 endif()
 
-# Source files have the following dependencies on library infrastructure.
-#target_link_libraries(gpu_utils PRIVATE
-#                      common
-#                      legacy_modules
-#)
+# Source files have the following private module dependencies.
+target_link_libraries(gpu_utils PRIVATE
+#                      gmxlib
+#                      math
+#                      mdtypes
+#                      tng_io
+                      )
 
 # Public interface for modules, including dependencies and interfaces
+#target_include_directories(gpu_utils PUBLIC
 target_include_directories(gpu_utils INTERFACE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(gpu_utils PUBLIC
 target_link_libraries(gpu_utils INTERFACE
                       legacy_api
-                      utility
                       )
+
+# TODO: when gpu_utils is an OBJECT target
+#target_link_libraries(gpu_utils PUBLIC legacy_api)
+#target_link_libraries(gpu_utils PRIVATE common)
 
 # Module dependencies
 # gpu_utils interfaces convey transitive dependence on these modules.
+#target_link_libraries(gpu_utils PUBLIC
 target_link_libraries(gpu_utils INTERFACE
+#                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(gpu_utils PRIVATE tng_io)
