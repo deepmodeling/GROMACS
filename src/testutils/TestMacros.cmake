@@ -77,6 +77,8 @@ endfunction ()
 #     All the C++ .cpp source files needed only with SYCL
 #   NON_GPU_CPP_SOURCE_FILES  file1.cpp file2.cpp ...
 #     All the other C++ .cpp source files needed only with neither OpenCL nor CUDA nor SYCL
+#   OBJECT_LIBRARY_DEPENDENCIES  library1 library2 ...
+#     All the object libraries upon which the test depends
 function (gmx_add_gtest_executable EXENAME)
     if (GMX_BUILD_UNITTESTS AND BUILD_TESTING)
         set(_options MPI HARDWARE_DETECTION)
@@ -87,6 +89,7 @@ function (gmx_add_gtest_executable EXENAME)
             OPENCL_CPP_SOURCE_FILES
             SYCL_CPP_SOURCE_FILES
             NON_GPU_CPP_SOURCE_FILES
+            OBJECT_LIBRARY_DEPENDENCIES
             )
         cmake_parse_arguments(ARG "${_options}" "" "${_multi_value_keywords}" ${ARGN})
 
@@ -168,6 +171,7 @@ function (gmx_add_gtest_executable EXENAME)
 
         target_link_libraries(${EXENAME} PRIVATE
             testutils common libgromacs gmock
+            ${OBJECT_LIBRARY_DEPENDENCIES}
             ${GMX_COMMON_LIBRARIES} ${GMX_EXE_LINKER_FLAGS})
 
         if(GMX_CLANG_TIDY)
