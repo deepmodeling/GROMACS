@@ -68,6 +68,7 @@ target_link_libraries(modularsimulator PRIVATE common)
 # TODO: Explicitly link specific modules.
 target_link_libraries(modularsimulator PRIVATE legacy_modules)
 target_link_libraries(modularsimulator PRIVATE
+                      fileio
                       gmxlib
                       math
                       mdtypes

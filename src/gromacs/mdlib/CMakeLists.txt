@@ -73,6 +73,7 @@ target_link_libraries(mdlib INTERFACE
 # mdlib interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdlib PUBLIC
 target_link_libraries(mdlib INTERFACE
+                      fileio
                       utility
                       )
 # Source files have the following private module dependencies.

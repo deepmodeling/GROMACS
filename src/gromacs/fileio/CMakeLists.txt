@@ -34,9 +34,41 @@
 
 # Set up the module library
 add_library(fileio OBJECT)
-add_subdirectory(cpp)
+target_sources(fileio PRIVATE
+               checkpoint.cpp
+               confio.cpp
+               enxio.cpp
+               espio.cpp
+               filetypes.cpp
+               g96io.cpp
+               gmx_internal_xdr.cpp
+               gmxfio.cpp
+               gmxfio_xdr.cpp
+               groio.cpp
+               libxdrf.cpp
+               matio.cpp
+               md5.cpp
+               mrcdensitymap.cpp
+               mrcdensitymapheader.cpp
+               mrcserializer.cpp
+               mtxio.cpp
+               oenv.cpp
+               pdbio.cpp
+               readinp.cpp
+               timecontrol.cpp
+               tngio.cpp
+               tpxio.cpp
+               trrio.cpp
+               trxio.cpp
+               warninp.cpp
+               writeps.cpp
+               xdrd.cpp
+               xtcio.cpp
+               xvgr.cpp)
+target_compile_definitions(fileio PRIVATE HAVE_CONFIG_H)
 
 if(GMX_USE_PLUGINS)
+    target_sources(fileio vmdio.cpp)
     add_library(vmddlopen OBJECT ${CMAKE_SOURCE_DIR}/src/external/vmd_molfile/vmddlopen.cpp)
     gmx_target_compile_options(vmddlopen)
     if (WIN32)
@@ -44,10 +76,16 @@ if(GMX_USE_PLUGINS)
     endif()
     list(APPEND libgromacs_object_library_dependencies vmddlopen)
     set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependencies} PARENT_SCOPE)
-else()
-    # Remove vmdio.cpp from sources since we do not have plugin support
-    list(FILTER FILEIO_SOURCES EXCLUDE REGEX ".*vmdio.cpp$")
 endif()
+
+# Set up dependencies that are internal to this module
+target_include_directories(fileio PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+# Include directories for dependencies not yet made into an object
+# library. Ref #3812
+target_include_directories(fileio SYSTEM PRIVATE
+                           ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include
+                           )
 
 # Source files have the following dependencies on library infrastructure.
 target_link_libraries(fileio PRIVATE
