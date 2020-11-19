@@ -343,7 +343,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:energyanalysis>
                       $<BUILD_INTERFACE:essentialdynamics>
                       $<BUILD_INTERFACE:ewald>
-#                      $<BUILD_INTERFACE:fft>
+                      $<BUILD_INTERFACE:fft>
                       $<BUILD_INTERFACE:fileio>
 #                      $<BUILD_INTERFACE:gmxana>
 #                      $<BUILD_INTERFACE:gmxlib>
