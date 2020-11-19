@@ -357,7 +357,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:mdlib>
 #                      $<BUILD_INTERFACE:mdrun>
 #                      $<BUILD_INTERFACE:mdrunutility>
-#                      $<BUILD_INTERFACE:mdspan>
+                      $<BUILD_INTERFACE:mdspan>
 #                      $<BUILD_INTERFACE:mdtypes>
 #                      $<BUILD_INTERFACE:mimic>
 #                      $<BUILD_INTERFACE:modularsimulator>
