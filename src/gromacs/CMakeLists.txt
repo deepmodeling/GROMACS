@@ -348,7 +348,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:gmxana>
 #                      $<BUILD_INTERFACE:gmxlib>
 #                      $<BUILD_INTERFACE:gmxpreprocess>
-#                      $<BUILD_INTERFACE:gpu_utils>
+                      $<BUILD_INTERFACE:gpu_utils>
 #                      $<BUILD_INTERFACE:hardware>
 #                      $<BUILD_INTERFACE:imd>
 #                      $<BUILD_INTERFACE:linearalgebra>
