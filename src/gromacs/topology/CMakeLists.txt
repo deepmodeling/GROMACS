@@ -69,7 +69,7 @@ target_link_libraries(topology INTERFACE
 # topology interfaces convey transitive dependence on these modules.
 #target_link_libraries(topology PUBLIC
 target_link_libraries(topology INTERFACE
-        #                      utility
+                      utility
         )
 
 if (BUILD_TESTING)

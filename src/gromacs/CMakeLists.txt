@@ -379,7 +379,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:topology>
 #                      $<BUILD_INTERFACE:trajectory>
 #                      $<BUILD_INTERFACE:trajectoryanalysis>
-#                      $<BUILD_INTERFACE:utility>
+                      $<BUILD_INTERFACE:utility>
                       )
 if (GMX_OPENMP)
     target_link_libraries(libgromacs PUBLIC OpenMP::OpenMP_CXX)

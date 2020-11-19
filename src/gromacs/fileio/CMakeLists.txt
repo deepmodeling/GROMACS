@@ -74,7 +74,7 @@ target_link_libraries(fileio INTERFACE
 # fileio interfaces convey transitive dependence on these modules.
 #target_link_libraries(fileio PUBLIC
 target_link_libraries(fileio INTERFACE
-#                      utility
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(fileio PRIVATE tng_io)

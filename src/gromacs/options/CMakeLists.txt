@@ -85,7 +85,7 @@ target_link_libraries(options INTERFACE
 # options interfaces convey transitive dependence on these modules.
 #target_link_libraries(options PUBLIC
 target_link_libraries(options INTERFACE
-		#                      utility
+                      utility
 		)
 
 if (BUILD_TESTING)
