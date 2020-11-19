@@ -328,6 +328,8 @@ target_link_libraries(libgromacs
                       ${GMX_PUBLIC_LIBRARIES}
                       )
 target_link_libraries(libgromacs PUBLIC legacy_api)
+target_link_libraries(libgromacs PRIVATE
+                      $<BUILD_INTERFACE:fileio>)
 
 if (GMX_OPENMP)
     target_link_libraries(libgromacs PUBLIC OpenMP::OpenMP_CXX)
