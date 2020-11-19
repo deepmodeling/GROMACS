@@ -50,3 +50,7 @@ gmx_add_unit_test(MathUnitTests math-test
         paddedvector.cpp
         vectypes.cpp
         )
+
+target_link_libraries(math-test PRIVATE
+    math
+    )
