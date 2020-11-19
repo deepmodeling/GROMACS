@@ -338,7 +338,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:commandline>
 #                      $<BUILD_INTERFACE:compat>
                       $<BUILD_INTERFACE:coordinateio>
-#                      $<BUILD_INTERFACE:correlationfunctions>
+                      $<BUILD_INTERFACE:correlationfunctions>
 #                      $<BUILD_INTERFACE:domdec>
 #                      $<BUILD_INTERFACE:energyanalysis>
                       $<BUILD_INTERFACE:essentialdynamics>
