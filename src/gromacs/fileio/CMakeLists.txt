@@ -32,7 +32,15 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+# Set up the module library
+add_library(fileio INTERFACE)
 file(GLOB FILEIO_SOURCES *.cpp)
+
+# Source files have the following dependencies on library infrastructure.
+#target_link_libraries(fileio PRIVATE
+#                      common
+#                      legacy_modules
+#)
 
 if(GMX_USE_PLUGINS)
     add_library(vmddlopen OBJECT ${CMAKE_SOURCE_DIR}/src/external/vmd_molfile/vmddlopen.cpp)
@@ -46,6 +54,25 @@ else()
     # Remove vmdio.cpp from sources since we do not have plugin support
     list(FILTER FILEIO_SOURCES EXCLUDE REGEX ".*vmdio.cpp$")
 endif()
+
+# Public interface for modules, including dependencies and interfaces
+target_include_directories(fileio INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_link_libraries(fileio INTERFACE
+                      legacy_api
+                      utility
+                      )
+
+# Module dependencies
+# fileio interfaces convey transitive dependence on these modules.
+target_link_libraries(fileio INTERFACE
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(fileio PRIVATE tng_io)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(fileio PRIVATE legacy_modules)
+
+target_link_libraries(libgromacs PRIVATE fileio)
 
 target_sources(libgromacs PRIVATE ${FILEIO_SOURCES})
 
