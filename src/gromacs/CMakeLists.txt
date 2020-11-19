@@ -360,7 +360,7 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:mdspan>
                       $<BUILD_INTERFACE:mdtypes>
                       $<BUILD_INTERFACE:mimic>
-#                      $<BUILD_INTERFACE:modularsimulator>
+                      $<BUILD_INTERFACE:modularsimulator>
 #                      $<BUILD_INTERFACE:nbnxm>
                       $<BUILD_INTERFACE:onlinehelp>
                       $<BUILD_INTERFACE:options>
