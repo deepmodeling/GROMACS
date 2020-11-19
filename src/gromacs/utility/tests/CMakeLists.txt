@@ -68,5 +68,3 @@ gmx_add_mpi_unit_test(UtilityMpiUnitTests utility-mpi-test 4
     OBJECT_LIBRARY_DEPENDENCIES
     utility
     )
-
-target_link_libraries(utility-mpi-test PRIVATE utility)
