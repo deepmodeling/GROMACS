@@ -333,7 +333,7 @@ target_link_libraries(libgromacs PUBLIC legacy_api)
 # responsibility for setting this up will move to the respective
 # modules.
 target_link_libraries(libgromacs PRIVATE
-#                      $<BUILD_INTERFACE:analysisdata>
+                      $<BUILD_INTERFACE:analysisdata>
                       $<BUILD_INTERFACE:applied_forces>
                       $<BUILD_INTERFACE:commandline>
                       $<BUILD_INTERFACE:compat>
