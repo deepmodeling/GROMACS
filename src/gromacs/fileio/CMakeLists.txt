@@ -65,6 +65,7 @@ target_sources(fileio PRIVATE
                xdrd.cpp
                xtcio.cpp
                xvgr.cpp)
+set_target_properties(fileio PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(fileio PRIVATE HAVE_CONFIG_H)
 
 if(GMX_USE_PLUGINS)
