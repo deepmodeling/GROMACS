@@ -93,10 +93,6 @@ target_link_libraries(fileio PRIVATE
                       common
                       legacy_modules
                       )
-# Source files have the following module dependencies.
-target_link_libraries(fileio PRIVATE
-                      mdtypes
-                      )
 
 # Source files have the following private module dependencies.
 target_link_libraries(fileio PRIVATE

@@ -41,7 +41,7 @@
 
 #include "gmxpre.h"
 
-#include "gromacs/mdtypes/checkpointdata.h"
+#include "checkpointdata.h"
 
 #include "gromacs/utility/iserializer.h"
 #include "gromacs/utility/keyvaluetreeserializer.h"

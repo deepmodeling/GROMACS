@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/mdtypes/inputrec.h"
+#include "inputrec.h"
 
 #include <cstdio>
 #include <cstdlib>

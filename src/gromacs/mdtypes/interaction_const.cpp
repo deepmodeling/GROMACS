@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/mdtypes/interaction_const.h"
+#include "interaction_const.h"
 
 #include <cstdio>
 

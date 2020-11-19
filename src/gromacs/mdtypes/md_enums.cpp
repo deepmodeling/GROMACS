@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/mdtypes/md_enums.h"
+#include "md_enums.h"
 
 const char* enum_name(int index, int max_index, const char* const names[])
 {
