@@ -38,4 +38,4 @@ gmx_add_unit_test(FFTUnitTests fft-test
     )
 
 target_link_libraries(fft-test PRIVATE
-                      timing)
+                      fft)

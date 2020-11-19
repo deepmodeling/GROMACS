@@ -80,6 +80,7 @@ target_link_libraries(fft INTERFACE
 #target_link_libraries(fft PUBLIC
 target_link_libraries(fft INTERFACE
                       math
+                      timing
                       #                      utility
                       )
 # Source files have the following private module dependencies.

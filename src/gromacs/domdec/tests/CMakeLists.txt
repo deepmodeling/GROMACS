@@ -38,7 +38,8 @@ gmx_add_unit_test(DomDecTests domdec-test
         localatomsetmanager.cpp
         )
 target_link_libraries(domdec-test PRIVATE
-                      timing)
+                      domdec
+                      )
 
 target_link_libraries(domdec-test PRIVATE
                       domdec
@@ -49,7 +50,9 @@ gmx_add_mpi_unit_test(DomDecMpiTests domdec-mpi-test 4 HARDWARE_DETECTION
         haloexchange_mpi.cpp
         )
 
-target_link_libraries(domdec-mpi-test PRIVATE
-                      domdec
-                      )
+if (GMX_MPI OR (GMX_THREAD_MPI AND GTEST_IS_THREADSAFE))
+    target_link_libraries(domdec-mpi-test PRIVATE
+                          domdec
+                          )
+endif()
 
