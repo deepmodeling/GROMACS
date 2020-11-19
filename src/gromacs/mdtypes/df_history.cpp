@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -35,7 +35,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "df_history.h"
+#include "gromacs/mdtypes/df_history.h"
 
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/utility/smalloc.h"

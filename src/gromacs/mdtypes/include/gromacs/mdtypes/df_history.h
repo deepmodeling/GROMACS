@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018, by the GROMACS development team, led by
+ * Copyright (c) 2015,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -33,52 +33,15 @@
  * the research papers on the package. Check out http://www.gromacs.org.
  */
 
-/*! \libinternal \file
- *
- * \brief
- * This file contains the definition of a container for history data
- * for simulation observables.
- *
- * The container is used for storing the simulation state data that needs
- * to be written to / read from checkpoint file. This struct should only
- * contain pure observable data. Microstate data should be in t_state.
- * The state of the mdrun machinery is also stored elsewhere.
- *
- * \author Berk Hess
- *
- * \inlibraryapi
- * \ingroup module_mdtypes
- */
+#ifndef GMX_GMXLIB_DF_HISTORY_H
+#define GMX_GMXLIB_DF_HISTORY_H
 
-#ifndef GMX_MDLIB_OBSERVABLESHISTORY_H
-#define GMX_MDLIB_OBSERVABLESHISTORY_H
+struct df_history_t;
 
-#include <memory>
+void init_df_history(df_history_t* dfhist, int nlambda);
 
-class energyhistory_t;
-class PullHistory;
-struct edsamhistory_t;
-struct swaphistory_t;
+void done_df_history(df_history_t* dfhist);
 
-/*! \libinternal \brief Observables history, for writing/reading to/from checkpoint file
- */
-struct ObservablesHistory
-{
-    //! History for energy observables, used for output only
-    std::unique_ptr<energyhistory_t> energyHistory;
-
-    //! History for pulling observables, used for output only
-    std::unique_ptr<PullHistory> pullHistory;
-
-    //! Essential dynamics and flooding history
-    std::unique_ptr<edsamhistory_t> edsamHistory;
-
-    //! Ion/water position swapping history
-    std::unique_ptr<swaphistory_t> swapHistory;
-
-    ObservablesHistory();
-
-    ~ObservablesHistory();
-};
+void copy_df_history(df_history_t* df_dest, df_history_t* df_source);
 
 #endif

@@ -38,7 +38,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "state.h"
+#include "gromacs/mdtypes/state.h"
 
 #include <cstring>
 
@@ -60,7 +60,7 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "checkpointdata.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 
 /* The source code in this file should be thread-safe.
       Please keep it that way. */
