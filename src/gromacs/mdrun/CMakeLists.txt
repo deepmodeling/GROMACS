@@ -78,6 +78,7 @@ target_link_libraries(mdrun INTERFACE
 #target_link_libraries(mdrun PUBLIC
 target_link_libraries(mdrun INTERFACE
                       utility
+                      mdtypes
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(mdrun PRIVATE tng_io)

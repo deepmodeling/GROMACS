@@ -55,13 +55,16 @@ target_link_libraries(timing PRIVATE
                       common
                       legacy_modules
                       )
+# Source files have the following module dependencies.
+target_link_libraries(timing PRIVATE
+                      mdtypes
+                      )
 
 # Public interface for modules, including dependencies and interfaces
 target_include_directories(timing PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(timing PUBLIC
                       legacy_api
-                      mdtypes
                       )
 
 target_link_libraries(timing PRIVATE common)
