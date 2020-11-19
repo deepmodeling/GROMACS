@@ -364,7 +364,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:nbnxm>
 #                      $<BUILD_INTERFACE:onlinehelp>
                       $<BUILD_INTERFACE:options>
-#                      $<BUILD_INTERFACE:pbcutil>
+                      $<BUILD_INTERFACE:pbcutil>
                       $<BUILD_INTERFACE:pulling>
                       $<BUILD_INTERFACE:random>
 #                      $<BUILD_INTERFACE:restraint>
