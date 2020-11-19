@@ -337,7 +337,7 @@ target_link_libraries(libgromacs PRIVATE
 #                      $<BUILD_INTERFACE:applied_forces>
 #                      $<BUILD_INTERFACE:commandline>
 #                      $<BUILD_INTERFACE:compat>
-#                      $<BUILD_INTERFACE:coordinateio>
+                      $<BUILD_INTERFACE:coordinateio>
 #                      $<BUILD_INTERFACE:correlationfunctions>
 #                      $<BUILD_INTERFACE:domdec>
 #                      $<BUILD_INTERFACE:energyanalysis>
