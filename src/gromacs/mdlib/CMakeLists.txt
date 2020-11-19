@@ -74,6 +74,7 @@ target_link_libraries(mdlib INTERFACE
 #target_link_libraries(mdlib PUBLIC
 target_link_libraries(mdlib INTERFACE
                       fileio
+                      timing
                       utility
                       )
 # Source files have the following private module dependencies.

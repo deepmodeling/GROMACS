@@ -115,6 +115,7 @@ target_link_libraries(fileio PRIVATE common)
 # fileio interfaces convey transitive dependence on these modules.
 target_link_libraries(fileio PUBLIC
                       mdspan
+                      timing
                       utility
                       )
 # Source files have the following private module dependencies.

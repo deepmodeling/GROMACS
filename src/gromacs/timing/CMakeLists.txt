@@ -33,39 +33,47 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 # Set up the module library
-add_library(timing INTERFACE)
-file(GLOB TIMING_SOURCES *.cpp)
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${TIMING_SOURCES} PARENT_SCOPE)
+add_library(timing OBJECT)
+target_sources(timing PRIVATE
+               cyclecounter.cpp
+               wallcycle.cpp
+               walltime_accounting.cpp)
+set_target_properties(timing PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(timing PRIVATE HAVE_CONFIG_H)
+
+# Set up dependencies that are internal to this module
+target_include_directories(timing PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+# Include directories for dependencies not yet made into an object
+# library. Ref #3812
+target_include_directories(timing SYSTEM PRIVATE
+                           ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include
+                           )
 
 # Source files have the following dependencies on library infrastructure.
-#target_link_libraries(timing PRIVATE
-#                      common
-#                      legacy_modules
-#)
+target_link_libraries(timing PRIVATE
+                      common
+                      legacy_modules
+                      )
 
 # Public interface for modules, including dependencies and interfaces
-#target_include_directories(timing PUBLIC
-target_include_directories(timing INTERFACE
+target_include_directories(timing PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(timing PUBLIC
-target_link_libraries(timing INTERFACE
+target_link_libraries(timing PUBLIC
                       legacy_api
                       )
 
-# TODO: when timing is an OBJECT target
-#target_link_libraries(timing PUBLIC legacy_api)
-#target_link_libraries(timing PRIVATE common)
+target_link_libraries(timing PRIVATE common)
 
 # Module dependencies
 # timing interfaces convey transitive dependence on these modules.
-#target_link_libraries(timing PUBLIC
-target_link_libraries(timing INTERFACE
+target_link_libraries(timing PUBLIC
                       utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(timing PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(timing PRIVATE legacy_modules)
+target_link_libraries(timing PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
 #    add_subdirectory(tests)
