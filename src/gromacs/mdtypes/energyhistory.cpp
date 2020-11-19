@@ -35,12 +35,12 @@
 
 #include "gmxpre.h"
 
-#include "energyhistory.h"
+#include "gromacs/mdtypes/energyhistory.h"
 
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "checkpointdata.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 
 //! \cond INTERNAL
 // mirroring the \cond from energyhistory.h to avoid Doxygen errors

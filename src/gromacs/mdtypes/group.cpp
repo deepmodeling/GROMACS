@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "group.h"
+#include "gromacs/mdtypes/group.h"
 
 gmx_ekindata_t::~gmx_ekindata_t()
 {

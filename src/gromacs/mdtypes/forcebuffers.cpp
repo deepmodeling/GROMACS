@@ -42,7 +42,7 @@
 
 #include "gmxpre.h"
 
-#include "forcebuffers.h"
+#include "gromacs/mdtypes/forcebuffers.h"
 
 #include "gromacs/gpu_utils/hostallocator.h"
 

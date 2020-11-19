@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "multipletimestepping.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 
 #include <optional>
 

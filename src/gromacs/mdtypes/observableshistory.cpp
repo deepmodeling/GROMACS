@@ -35,7 +35,7 @@
 
 #include "gmxpre.h"
 
-#include "observableshistory.h"
+#include "gromacs/mdtypes/observableshistory.h"
 
 #include "gromacs/mdtypes/edsamhistory.h"
 #include "gromacs/mdtypes/energyhistory.h"
