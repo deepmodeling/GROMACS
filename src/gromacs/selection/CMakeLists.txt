@@ -62,6 +62,9 @@ endif()
 target_link_libraries(scanner PRIVATE legacy_api)
 # TODO: Use explicit module dependencies.
 target_link_libraries(scanner PRIVATE legacy_modules)
+target_link_libraries(scanner PRIVATE
+                      utility
+                      )
 
 list(APPEND libgromacs_object_library_dependencies scanner)
 set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependencies} PARENT_SCOPE)

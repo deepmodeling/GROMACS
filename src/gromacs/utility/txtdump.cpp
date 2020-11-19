@@ -39,7 +39,7 @@
 
 /* This file is completely threadsafe - please keep it that way! */
 
-#include "txtdump.h"
+#include "gromacs/utility/txtdump.h"
 
 #include <cstdio>
 #include <cstdlib>

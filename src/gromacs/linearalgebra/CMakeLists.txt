@@ -72,6 +72,9 @@ target_link_libraries(linearalgebra PRIVATE common legacy_api)
 # Module dependencies.
 # TODO: Link specific modules.
 target_link_libraries(linearalgebra PRIVATE legacy_modules)
+target_link_libraries(linearalgebra PUBLIC
+                      utility
+                      )
 
 list(APPEND libgromacs_object_library_dependencies linearalgebra)
 set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependencies} PARENT_SCOPE)

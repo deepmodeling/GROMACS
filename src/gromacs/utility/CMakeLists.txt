@@ -33,47 +33,66 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-add_library(utility INTERFACE)
+# TODO: Generate a header instead that can be included from baseversion.cpp.
+# That probably simplifies things somewhat.
+gmx_configure_version_file(
+    baseversion-gen.cpp.cmakein baseversion-gen.cpp
+    REMOTE_HASH
+    EXTRA_VARS
+        GMX_SOURCE_DOI
+        GMX_RELEASE_HASH
+        GMX_SOURCE_HASH
+        )
 
-file(GLOB UTILITY_SOURCES *.cpp)
+# Set up the module library
+file(GLOB TARGET_SOURCES *.cpp)
+add_library(utility OBJECT
+    # Normal source files
+    ${TARGET_SOURCES}
+    # Generated source files
+    ${CMAKE_CURRENT_BINARY_DIR}/baseversion-gen.cpp
+    )
+set_target_properties(utility PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+set_source_files_properties(
+    binaryinformation.cpp
+    fatalerror.cpp
+    PROPERTIES
+    COMPILE_DEFINITIONS HAVE_CONFIG_H
+    )
+
+# Set up dependencies that are internal to this module
+target_include_directories(utility PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+# Include directories for dependencies not yet made into an object
+# library.
+target_include_directories(utility SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include
+    )
+
+# Source files have the following private module dependencies.
+target_link_libraries(utility PRIVATE
+    common
+    legacy_api
+    ${FFT_LIBRARIES}
+    )
+
+# This module provides interfaces to other library modules in the build tree.
+# The installed API it supports are exported through the legacy_api
+# and libgromacs targets.
+target_include_directories(utility INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+
+# MPI dependency needs to be satisifed
+target_link_libraries(utility INTERFACE "${MPI_C_LIBRARIES}")
+
+# TODO make this work better when improving GPU modules
 if (GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(cuda_version_information.cu)
 endif()
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${UTILITY_SOURCES} PARENT_SCOPE)
-
-if(GMX_INSTALL_LEGACY_API)
-  install(FILES
-          baseversion.h
-          classhelpers.h
-          enumerationhelpers.h
-	  fileptr.h
-	  futil.h
-	  flags.h
-	  pleasecite.h
-          programcontext.h
-          range.h
-          smalloc.h
-	  stringutil.h
-          unique_cptr.h
-          DESTINATION include/gromacs/utility)
-endif()
-
-# Public interface for modules, including dependencies and interfaces
-#target_include_directories(utility PUBLIC
-target_include_directories(utility INTERFACE
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(utility PUBLIC
-target_link_libraries(utility INTERFACE
-                      legacy_api
-                      )
-
-# TODO: when utility is an OBJECT target
-#target_link_libraries(utility PUBLIC legacy_api)
-#target_link_libraries(utility PRIVATE common)
-
-# Source files have the following private module dependencies.
-# TODO: Explicitly link specific modules.
-#target_link_libraries(utility PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

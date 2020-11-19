@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "futil.h"
+#include "gromacs/utility/futil.h"
 
 #include "config.h"
 

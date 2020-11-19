@@ -130,7 +130,9 @@ target_link_libraries(nblib PRIVATE
                       mdtypes
                       nbnxm
                       timing
-                      # utility
+                      )
+target_link_libraries(nblib INTERFACE
+                      utility
                       )
 
 install(TARGETS nblib

@@ -33,7 +33,7 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#include "gromacs/utility/baseversion_gen.h"
+#include "baseversion_gen.h"
 
 const char _gmx_ver_string[] = "@GMX_VERSION_STRING_FULL@";
 const char _gmx_full_git_hash[] = "@GMX_VERSION_FULL_HASH@";

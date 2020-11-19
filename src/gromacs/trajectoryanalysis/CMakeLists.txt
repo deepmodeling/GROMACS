@@ -61,6 +61,7 @@ target_link_libraries(trajectoryanalysis INTERFACE
 # trajectoryanalysis interfaces convey transitive dependence on these modules.
 #target_link_libraries(trajectoryanalysis PUBLIC
 target_link_libraries(trajectoryanalysis INTERFACE
+                      options
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -152,22 +152,6 @@ if(GMX_INSTALL_LEGACY_API)
           DESTINATION include/gromacs)
 endif()
 
-# This code is here instead of utility/CMakeLists.txt, because CMake
-# custom commands and source file properties can only be set in the directory
-# that contains the target that uses them.
-# TODO: Generate a header instead that can be included from baseversion.cpp.
-# That probably simplifies things somewhat.
-set(GENERATED_VERSION_FILE utility/baseversion-gen.cpp)
-gmx_configure_version_file(
-    utility/baseversion-gen.cpp.cmakein ${GENERATED_VERSION_FILE}
-    REMOTE_HASH
-    EXTRA_VARS
-        GMX_SOURCE_DOI
-        GMX_RELEASE_HASH
-        GMX_SOURCE_HASH
-        )
-list(APPEND LIBGROMACS_SOURCES ${GENERATED_VERSION_FILE})
-
 # Mark some shared GPU implementation files to compile with CUDA if needed
 if (GMX_GPU_CUDA)
     get_property(CUDA_SOURCES GLOBAL PROPERTY CUDA_SOURCES)
