@@ -79,12 +79,19 @@ struct SimdDataTypes
 };
 #endif
 
+//! Computes 1/r^(1/p) for the standard p=6
+template<class RealType>
+static inline void invPthRoot(const RealType r, RealType* iPthRoot)
+{
+    *iPthRoot = gmx::invsqrt(std::cbrt(r));
+}
+
 //! Computes r^(1/p) and 1/r^(1/p) for the standard p=6
 template<class RealType>
-static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* invPthRoot)
+static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* iPthRoot)
 {
-    *invPthRoot = gmx::invsqrt(std::cbrt(r));
-    *pthRoot    = 1 / (*invPthRoot);
+    invPthRoot(r, iPthRoot);
+    *pthRoot = 1 / (*iPthRoot);
 }
 
 template<class RealType>
@@ -586,34 +593,29 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                              */
                             if (useSoftCore == escfunctionGAPSYS)
                             {
-                                RealType r0Q;
-                                r0Q = alpha_coul_eff * pow(twentysix_seventh *
-                                                           sigma6[i] * (one-LFC[i]),
-                                                           onesixth);
-                                if (r < r0Q)
+
+                                /* only do this if necessary */
+                                if ( (0<LFC[i]) && (LFC[i]<1) )
                                 {
-                                    real rinvQ, rinv2Q, rinv3Q;
-                                    rinvQ  = one / r0Q;
-                                    rinv2Q = rinvQ * rinvQ;
-                                    rinv3Q = qq[i] * rinv2Q * rinvQ;
-                                    rinvQ *= qq[i];
-                                    rinv2Q *= qq[i];
+                                    RealType rinvQ;
+                                    invPthRoot(twentysix_seventh * sigma6[i] * (one-LFC[i]), &rinvQ);
+                                    rinvQ /= alpha_coul_eff;
 
-                                    real b_q, a_q, c_q;
-                                    a_q = rsq * rinv3Q;
-                                    b_q = r * rinv2Q;
-                                    c_q = rinvQ;
-
-                                    /* Computing Coulomb force and potential energy*/
-                                    FscalC[i] = -two * a_q + 3. * b_q; // note that later F will be multiplied by rpm2!
-
-                                    Vcoul[i] = a_q - 3. * (b_q - c_q);
-
-                                    if (LFC[i] != 1.0)
+                                    if (rinvQ < rinv)
                                     {
+                                        real a_q, b_q, c_q;
+                                        c_q = qq[i] * rinvQ;
+                                        b_q = c_q * r * rinvQ;
+                                        a_q = b_q * r * rinvQ;
+
+                                        /* Computing Coulomb force and potential energy*/
+                                        FscalC[i] = -2. * a_q + 3. * b_q; // note that later F will be multiplied by rpm2!
+
+                                        Vcoul[i] = a_q - 3. * (b_q - c_q);
+
                                         dvdl_coul += DLF[i] *
                                             half * (LFC[i]/(1.-LFC[i])) *
-                                             (a_q - two * b_q + c_q);
+                                             (a_q - 2. * b_q + c_q);
                                     }
                                 }
                             }
@@ -652,46 +654,44 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                              */
                             if (useSoftCore == escfunctionGAPSYS)
                             {
-                                RealType r0LJ;
-                                r0LJ = alpha_vdw_eff * pow(twentysix_seventh *
-                                                           sigma6[i] * (one-LFV[i]),
-                                                           onesixth);
-                                if (r < r0LJ)
+                                /* only do this if necessary */
+                                if ( (0<LFV[i]) && (LFV[i]<1) )
                                 {
-                                    /* Temporary variables for scaled c6 and c12 */
-                                    real c6_scaled, c12_scaled;
-                                    c6_scaled = onesixth * c6[i];
-                                    c12_scaled = onetwelfth * c12[i];
-
-                                    /* Temporary variables for inverted values */
-                                    real rinv14C, rinv13C, rinv12C;
-                                    real rinv8C, rinv7C, rinv6C;
-                                    rinv8C  = one / r0LJ;
-                                    rinv8C = rinv8C * rinv8C;
-                                    rinv8C = rinv8C * rinv8C;
-                                    rinv8C = rinv8C * rinv8C;
-                                    rinv7C  = rinv8C * r0LJ;
-                                    rinv6C  = rinv7C * r0LJ;
-                                    rinv14C = c12_scaled * rinv7C * rinv7C * rsq;
-                                    rinv13C = c12_scaled * rinv7C * rinv6C * r;
-                                    rinv12C = c12_scaled * rinv6C * rinv6C;
-                                    rinv8C *= c6_scaled * rsq;
-                                    rinv7C *= c6_scaled * r;
-                                    rinv6C *= c6_scaled;
-
-                                    /* Temporary variables for A and B */
-                                    real a_lj, b_lj, c_lj;
-                                    a_lj = 156. * rinv14C - 42. * rinv8C;
-                                    b_lj = 168. * rinv13C - 48. * rinv7C;
-                                    c_lj =  91. * rinv12C - 28. * rinv6C;
-
-                                    /* Computing LJ force and potential energy*/
-                                    FscalV[i] = - a_lj + b_lj;
-
-                                    Vvdw[i] = half * a_lj - b_lj + c_lj;
-
-                                    if (LFC[i] != 1.0)
+                                    RealType rinvQ;
+                                    invPthRoot(twentysix_seventh * sigma6[i] * (one-LFV[i]), &rinvQ);
+                                    rinvQ /= alpha_coul_eff;
+                                    if (rinvQ < rinv)
                                     {
+                                        /* Temporary variables for scaled c6 and c12 */
+                                        real c6s, c12s;
+                                        c6s = onesixth * c6[i];
+                                        c12s = onetwelfth * c12[i];
+
+                                        /* Temporary variables for inverted values */
+                                        real rinv14C, rinv13C, rinv12C;
+                                        real rinv8C, rinv7C, rinv6C;
+                                        rinv6C   = rinvQ * rinvQ * rinvQ;
+                                        rinv6C  *= rinv6C;
+                                        rinv7C   = rinv6C * rinvQ;
+                                        rinv8C   = rinv7C * rinvQ;
+                                        rinv14C  = c12s * rinv7C * rinv7C * rsq;
+                                        rinv13C  = c12s * rinv7C * rinv6C * r;
+                                        rinv12C  = c12s * rinv6C * rinv6C;
+                                        rinv8C  *= c6s * rsq;
+                                        rinv7C  *= c6s * r;
+                                        rinv6C  *= c6s;
+
+                                        /* Temporary variables for A and B */
+                                        real a_lj, b_lj, c_lj;
+                                        a_lj = 156. * rinv14C - 42. * rinv8C;
+                                        b_lj = 168. * rinv13C - 48. * rinv7C;
+                                        c_lj =  91. * rinv12C - 28. * rinv6C;
+
+                                        /* Computing LJ force and potential energy*/
+                                        FscalV[i] = - a_lj + b_lj;
+
+                                        Vvdw[i] = half * a_lj - b_lj + c_lj;
+
                                         dvdl_vdw += DLF[i] * 28. * (LFC[i]/(1-LFC[i])) *
                                              ( (6.5 * rinv14C - rinv8C) -
                                                (13. * rinv13C - 2. * rinv7C) +
