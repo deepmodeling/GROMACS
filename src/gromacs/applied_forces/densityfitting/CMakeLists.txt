@@ -41,6 +41,10 @@ gmx_add_libgromacs_sources(
     densityfittingparameters.cpp
     )
 
+add_library(densityfitting INTERFACE)
+# densityfitting conveys transitive dependency on other modules.
+target_link_libraries(densityfitting INTERFACE topology)
+
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()

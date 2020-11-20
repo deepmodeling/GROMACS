@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "atoms.h"
+#include "gromacs/topology/atoms.h"
 
 #include <cstdio>
 #include <cstring>

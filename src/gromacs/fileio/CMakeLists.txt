@@ -100,6 +100,7 @@ target_link_libraries(fileio PRIVATE
     gmxlib
     mdtypes
     tng_io
+    topology
     )
 
 # Public interface for modules, including dependencies and interfaces

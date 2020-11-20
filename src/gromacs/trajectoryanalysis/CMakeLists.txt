@@ -66,6 +66,7 @@ target_link_libraries(trajectoryanalysis PRIVATE
                       coordinateio
                       fileio
                       legacy_modules
+                      topology
 )
 
 # Public interface for modules, including dependencies and interfaces

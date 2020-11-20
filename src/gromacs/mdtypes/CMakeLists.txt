@@ -96,6 +96,7 @@ target_link_libraries(mdtypes INTERFACE
 target_link_libraries(mdtypes INTERFACE
                       math
                       utility
+                      topology
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(mdtypes PRIVATE tng_io)

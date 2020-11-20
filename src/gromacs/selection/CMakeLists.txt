@@ -63,6 +63,7 @@ target_link_libraries(scanner PRIVATE legacy_api)
 # TODO: Use explicit module dependencies.
 target_link_libraries(scanner PRIVATE legacy_modules)
 target_link_libraries(scanner PRIVATE
+                      topology
                       utility
                       )
 

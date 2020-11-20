@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "idef.h"
+#include "gromacs/topology/idef.h"
 
 #include <cstdio>
 

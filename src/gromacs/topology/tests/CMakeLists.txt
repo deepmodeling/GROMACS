@@ -39,4 +39,5 @@ gmx_add_unit_test(TopologyTest topology-test
         mtop.cpp
         symtab.cpp
         )
+target_link_libraries(topology-test PRIVATE topology)
 

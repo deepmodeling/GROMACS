@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "forcefieldparameters.h"
+#include "gromacs/topology/forcefieldparameters.h"
 
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/txtdump.h"

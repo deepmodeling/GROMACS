@@ -36,7 +36,7 @@
  */
 #include "gmxpre.h"
 
-#include "mtop_util.h"
+#include "gromacs/topology/mtop_util.h"
 
 #include <climits>
 #include <cstddef>

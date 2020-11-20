@@ -60,5 +60,6 @@ gmx_add_unit_test(MdlibUnitTest mdlib-test HARDWARE_DETECTION
 target_link_libraries(mdlib-test PRIVATE
                       fileio
                       math
+                      topology
                       )
 

@@ -33,10 +33,36 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 # Set up the module library
-add_library(topology INTERFACE)
+add_library(topology OBJECT)
+target_sources(topology PRIVATE
+               atomprop.cpp
+               atomsbuilder.cpp
+               atoms.cpp
+               block.cpp
+               exclusionblocks.cpp
+               forcefieldparameters.cpp
+               idef.cpp
+               ifunc.cpp
+               index.cpp
+               invblock.cpp
+               mtop_util.cpp
+               residuetypes.cpp
+               symtab.cpp
+               topology.cpp
+               topsort.cpp
+               )
+set_target_properties(topology PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-file(GLOB TOPOLOGY_SOURCES *.cpp)
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${TOPOLOGY_SOURCES} PARENT_SCOPE)
+# Set up dependencies that are internal to this module
+target_include_directories(topology PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+# Source files have the following dependencies on library infrastructure.
+target_link_libraries(topology PRIVATE
+                      common
+                      legacy_modules
+                      math
+                      )
 
 if(GMX_INSTALL_LEGACY_API)
   install(FILES
@@ -57,24 +83,22 @@ target_link_libraries(options PRIVATE
 		)
 
 # Public interface for modules, including dependencies and interfaces
-#target_include_directories(topology PUBLIC
-target_include_directories(topology INTERFACE
+target_include_directories(topology PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(topology PUBLIC
-target_link_libraries(topology INTERFACE
+target_link_libraries(topology PUBLIC
         legacy_api
         )
 
-# TODO: when topology is an OBJECT target
-#target_link_libraries(topology PUBLIC legacy_api)
-#target_link_libraries(topology PRIVATE common)
+target_link_libraries(topology PUBLIC legacy_api)
+target_link_libraries(topology PRIVATE common)
 
 # Module dependencies
 # topology interfaces convey transitive dependence on these modules.
-#target_link_libraries(topology PUBLIC
-target_link_libraries(topology INTERFACE
+target_link_libraries(topology PUBLIC
                       utility
         )
+# TODO: Explicitly link specific modules.
+target_link_libraries(topology PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
 	add_subdirectory(tests)

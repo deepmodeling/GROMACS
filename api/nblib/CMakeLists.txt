@@ -131,6 +131,7 @@ target_link_libraries(nblib PRIVATE
                       nbnxm
                       simd
                       timing
+                      topology
                       )
 target_link_libraries(nblib INTERFACE
                       utility
