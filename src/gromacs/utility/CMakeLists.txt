@@ -64,7 +64,6 @@ set_source_files_properties(
 # Set up dependencies that are internal to this module
 target_include_directories(utility PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
 # Include directories for dependencies not yet made into an object
 # library.
@@ -82,12 +81,12 @@ target_link_libraries(utility PRIVATE
 # This module provides interfaces to other library modules in the build tree.
 # The installed API it supports are exported through the legacy_api
 # and libgromacs targets.
-target_include_directories(utility INTERFACE
+target_include_directories(utility PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     )
 
 # MPI dependency needs to be satisifed
-target_link_libraries(utility INTERFACE "${MPI_C_LIBRARIES}")
+target_link_libraries(utility PUBLIC "${MPI_C_LIBRARIES}")
 
 # TODO make this work better when improving GPU modules
 if (GMX_GPU_CUDA)
