@@ -47,7 +47,7 @@
  */
 #include "gmxpre.h"
 
-#include "device_management.h"
+#include "gromacs/hardware/device_management.h"
 
 #include <assert.h>
 
@@ -59,7 +59,7 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "device_information.h"
+#include "gromacs/hardware/device_information.h"
 
 /*! \internal \brief
  * Max number of devices supported by CUDA (for consistency checking).

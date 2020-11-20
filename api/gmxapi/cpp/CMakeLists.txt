@@ -88,6 +88,7 @@ target_link_libraries(gmxapi PRIVATE common)
 target_link_libraries(gmxapi PRIVATE legacy_modules)
 target_link_libraries(gmxapi PRIVATE
                       # commandline
+                      hardware
                       # mdlib
                       mdtypes
                       topology

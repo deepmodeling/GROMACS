@@ -113,6 +113,7 @@ target_link_libraries(testutils PRIVATE
                       ${GMX_COMMON_LIBRARIES}
                       gmock
                       gpu_utils
+                      hardware
                       math
                       )
 target_link_libraries(testutils PUBLIC

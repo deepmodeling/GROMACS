@@ -77,6 +77,7 @@ target_link_libraries(mdrun INTERFACE
 # mdrun interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdrun PUBLIC
 target_link_libraries(mdrun INTERFACE
+                      hardware
                       utility
                       )
 # Source files have the following private module dependencies.

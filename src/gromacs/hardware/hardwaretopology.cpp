@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "hardwaretopology.h"
+#include "gromacs/hardware/hardwaretopology.h"
 
 #include "config.h"
 

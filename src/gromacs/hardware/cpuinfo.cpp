@@ -61,7 +61,7 @@
 #    include "gmxpre.h"
 #endif
 
-#include "cpuinfo.h"
+#include "gromacs/hardware/cpuinfo.h"
 
 #ifndef GMX_CPUINFO_STANDALONE
 #    include "config.h"

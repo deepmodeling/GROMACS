@@ -66,6 +66,7 @@ target_link_libraries(mdrunutility INTERFACE
 # mdrunutility interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdrunutility PUBLIC
 target_link_libraries(mdrunutility INTERFACE
+                      hardware
                       mdtypes
                       utility
                       )

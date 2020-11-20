@@ -35,7 +35,7 @@
  */
 #include "gmxpre.h"
 
-#include "printhardware.h"
+#include "gromacs/hardware/printhardware.h"
 
 #include "config.h"
 

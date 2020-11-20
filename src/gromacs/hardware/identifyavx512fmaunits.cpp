@@ -44,7 +44,7 @@
 #    include "gmxpre.h"
 #endif
 
-#include "identifyavx512fmaunits.h"
+#include "gromacs/hardware/identifyavx512fmaunits.h"
 
 #ifndef GMX_IDENTIFY_AVX512_FMA_UNITS_STANDALONE
 #    include "config.h"

@@ -54,7 +54,7 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 
-#include "device_information.h"
+#include "gromacs/hardware/device_information.h"
 
 bool canPerformDeviceDetection(std::string* errorMessage)
 {
