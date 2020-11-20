@@ -91,7 +91,7 @@ function(gmx_run_cpu_detection TYPE)
                 COMPILE_DEFINITIONS "${_compile_definitions}"
                 CMAKE_FLAGS
                     -DLINK_LIBRARIES=${LINK_LIBRARIES}
-                    -DINCLUDE_DIRECTORIES=${PROJECT_SOURCE_DIR}/src/gromacs/hardware/include/gromacs/hardware
+                    -DINCLUDE_DIRECTORIES=${PROJECT_SOURCE_DIR}/src/gromacs/hardware/include
                 OUTPUT_VARIABLE CPU_DETECTION_COMPILED_OUTPUT
                 COPY_FILE ${CPU_DETECTION_BINARY})
             if(NOT CPU_DETECTION_COMPILED AND NOT RUN_CPU_DETECTION_COMPILATION_QUIETLY)
