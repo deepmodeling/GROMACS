@@ -64,6 +64,7 @@ target_link_libraries(math INTERFACE
 # fileio interfaces convey transitive dependence on these modules.
 #target_link_libraries(math PUBLIC
 target_link_libraries(math INTERFACE
+                      linearalgebra
                       mdspan
                       utility
                       )

@@ -49,8 +49,7 @@ target_include_directories(gmxana INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 #target_link_libraries(gmxana PUBLIC
 target_link_libraries(gmxana INTERFACE
-        legacy_api
-        )
+                      )
 
 # TODO: when gmxana is an OBJECT target
 #target_link_libraries(gmxana PUBLIC legacy_api)
@@ -60,8 +59,9 @@ target_link_libraries(gmxana INTERFACE
 # gmxana interfaces convey transitive dependence on these modules.
 #target_link_libraries(gmxana PUBLIC
 target_link_libraries(gmxana INTERFACE
-        utility
-        )
+                      linearalgebra
+                      utility
+                      )
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

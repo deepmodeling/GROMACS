@@ -115,6 +115,7 @@ target_link_libraries(fileio PRIVATE common)
 # Module dependencies
 # fileio interfaces convey transitive dependence on these modules.
 target_link_libraries(fileio PUBLIC
+                      linearalgebra
                       math
                       mdspan
                       timing
