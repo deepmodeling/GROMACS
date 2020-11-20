@@ -46,6 +46,8 @@
 #include <string>
 #include <utility>
 
+#include "enums.h"
+
 #include "gromacs/coordinateio/ioutputadapter.h"
 #include "gromacs/coordinateio/outputadaptercontainer.h"
 #include "gromacs/math/vectypes.h"

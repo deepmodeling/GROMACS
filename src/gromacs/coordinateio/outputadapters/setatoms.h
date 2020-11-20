@@ -45,6 +45,7 @@
 
 #include <algorithm>
 
+#include "gromacs/coordinateio/enums.h"
 #include "gromacs/coordinateio/ioutputadapter.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/utility/gmxassert.h"

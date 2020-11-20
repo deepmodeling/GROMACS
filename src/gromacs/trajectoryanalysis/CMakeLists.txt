@@ -34,40 +34,59 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 # Set up the module library
-add_library(trajectoryanalysis INTERFACE)
-file(GLOB TRAJECTORYANALYSIS_SOURCES *.cpp modules/*.cpp)
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${TRAJECTORYANALYSIS_SOURCES} PARENT_SCOPE)
+add_library(trajectoryanalysis OBJECT)
+target_sources(trajectoryanalysis PRIVATE
+               analysismodule.cpp
+               analysissettings.cpp
+               cmdlinerunner.cpp
+               modules/angle.cpp
+               modules/convert_trj.cpp
+               modules.cpp
+               modules/distance.cpp
+               modules/extract_cluster.cpp
+               modules/freevolume.cpp
+               modules/pairdist.cpp
+               modules/rdf.cpp
+               modules/sasa.cpp
+               modules/select.cpp
+               modules/surfacearea.cpp
+               modules/trajectory.cpp
+               runnercommon.cpp
+               topologyinformation.cpp
+               )
+set_target_properties(trajectoryanalysis PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Set up dependencies that are internal to this module
+target_include_directories(trajectoryanalysis PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 # Source files have the following dependencies on library infrastructure.
-#target_link_libraries(trajectoryanalysis PRIVATE
-#                      common
-#                      legacy_modules
-#)
+target_link_libraries(trajectoryanalysis PRIVATE
+                      common
+                      coordinateio
+                      fileio
+                      legacy_modules
+)
 
 # Public interface for modules, including dependencies and interfaces
-#target_include_directories(trajectoryanalysis PUBLIC
-target_include_directories(trajectoryanalysis INTERFACE
+target_include_directories(trajectoryanalysis PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(trajectoryanalysis PUBLIC
-target_link_libraries(trajectoryanalysis INTERFACE
+target_link_libraries(trajectoryanalysis PUBLIC
                       legacy_api
                       )
 
-# TODO: when trajectoryanalysis is an OBJECT target
-#target_link_libraries(trajectoryanalysis PUBLIC legacy_api)
-#target_link_libraries(trajectoryanalysis PRIVATE common)
+target_link_libraries(trajectoryanalysis PRIVATE common)
 
 # Module dependencies
 # trajectoryanalysis interfaces convey transitive dependence on these modules.
-#target_link_libraries(trajectoryanalysis PUBLIC
-target_link_libraries(trajectoryanalysis INTERFACE
+target_link_libraries(trajectoryanalysis PUBLIC
                       options
                       utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(trajectoryanalysis PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(trajectoryanalysis PRIVATE legacy_modules)
+target_link_libraries(trajectoryanalysis PRIVATE legacy_modules)
 
 if(GMX_INSTALL_LEGACY_API)
     install(FILES

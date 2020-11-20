@@ -33,39 +33,49 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 # Set up the module library
-add_library(coordinateio INTERFACE)
-file(GLOB COORDINATEIO_SOURCES *.cpp outputadapters/*.cpp)
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${COORDINATEIO_SOURCES} PARENT_SCOPE)
+add_library(coordinateio OBJECT)
+target_sources(coordinateio PRIVATE
+               coordinatefile.cpp
+               outputadaptercontainer.cpp
+               outputadapters/outputselector.cpp
+               outputadapters/setatoms.cpp
+               outputadapters/setforces.cpp
+               outputadapters/setprecision.cpp
+               outputadapters/setstarttime.cpp
+               outputadapters/settimestep.cpp
+               outputadapters/setvelocities.cpp
+               requirements.cpp
+               )
+set_target_properties(coordinateio PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Set up dependencies that are internal to this module
+target_include_directories(coordinateio PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 # Source files have the following dependencies on library infrastructure.
-#target_link_libraries(coordinateio PRIVATE
-#                      common
-#                      legacy_modules
-#)
+target_link_libraries(coordinateio PRIVATE
+                      common
+                      legacy_modules
+)
 
 # Public interface for modules, including dependencies and interfaces
-#target_include_directories(coordinateio PUBLIC
-target_include_directories(coordinateio INTERFACE
+target_include_directories(coordinateio PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(coordinateio PUBLIC
-target_link_libraries(coordinateio INTERFACE
+target_link_libraries(coordinateio PUBLIC
                       legacy_api
                       )
 
-# TODO: when coordinateio is an OBJECT target
-#target_link_libraries(coordinateio PUBLIC legacy_api)
-#target_link_libraries(coordinateio PRIVATE common)
+target_link_libraries(coordinateio PRIVATE common)
 
 # Module dependencies
 # coordinateio interfaces convey transitive dependence on these modules.
-#target_link_libraries(coordinateio PUBLIC
-target_link_libraries(coordinateio INTERFACE
+target_link_libraries(coordinateio PUBLIC
                       utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(coordinateio PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(coordinateio PRIVATE legacy_modules)
+target_link_libraries(coordinateio PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
      add_subdirectory(tests)

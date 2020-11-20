@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "topologyinformation.h"
+#include "gromacs/trajectoryanalysis/topologyinformation.h"
 
 #include <memory>
 
