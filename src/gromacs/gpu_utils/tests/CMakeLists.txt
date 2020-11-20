@@ -67,4 +67,8 @@ gmx_add_unit_test(GpuUtilsUnitTests gpu_utils-test HARDWARE_DETECTION
 
 target_link_libraries(gpu_utils-test PRIVATE
                       gpu_utils
+                      hardware
+                      mdtypes
+                      testutils
+                      utility
                       )

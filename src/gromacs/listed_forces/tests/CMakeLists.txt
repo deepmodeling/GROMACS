@@ -39,5 +39,11 @@ gmx_add_unit_test(ListedForcesTest listed_forces-test
 
 target_link_libraries(listed_forces-test PRIVATE
                       listed_forces
+                      math
+                      mdtypes
+                      pbcutil
+                      testutils
+                      topology
+                      utility
                       )
 
