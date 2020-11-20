@@ -94,6 +94,7 @@ target_link_libraries(mdtypes INTERFACE
 # fileio interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdtypes PUBLIC
 target_link_libraries(mdtypes INTERFACE
+                      gpu_utils
                       math
                       utility
                       topology

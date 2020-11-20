@@ -47,6 +47,9 @@ target_link_libraries(mdrun_objlib PRIVATE common legacy_api)
 target_link_libraries(mdrun_objlib PRIVATE fileio)
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
+target_link_libraries(mdrun_objlib INTERFACE
+                      gpu_utils
+                      )
 
 if(GMX_FAHCORE)
     # The lack of a real source file here alongside the object library

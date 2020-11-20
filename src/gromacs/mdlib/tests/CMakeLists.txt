@@ -58,8 +58,6 @@ gmx_add_unit_test(MdlibUnitTest mdlib-test HARDWARE_DETECTION
         settletestrunners.cu
         )
 target_link_libraries(mdlib-test PRIVATE
-                      fileio
-                      math
-                      topology
+                      mdlib
                       )
 

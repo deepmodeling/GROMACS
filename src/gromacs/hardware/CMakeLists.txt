@@ -94,6 +94,7 @@ target_link_libraries(hardware INTERFACE
 # hardware interfaces convey transitive dependence on these modules.
 #target_link_libraries(hardware PUBLIC
 target_link_libraries(hardware INTERFACE
+                      gpu_utils
                       utility
                       )
 # Source files have the following private module dependencies.

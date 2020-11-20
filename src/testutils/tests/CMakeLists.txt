@@ -45,4 +45,4 @@ gmx_add_mpi_unit_test(TestUtilsMpiUnitTests testutils-mpi-test 2
     CPP_SOURCE_FILES
         mpitest.cpp
         )
-target_link_libraries(testutils-test PRIVATE testutils)
+target_link_libraries(testutils-mpi-test PRIVATE testutils)

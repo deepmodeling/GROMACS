@@ -49,6 +49,9 @@ target_include_directories(nblib_test_infrastructure SYSTEM PRIVATE ${PROJECT_SO
 target_link_libraries(nblib_test_infrastructure PRIVATE legacy_api)
 # TODO: Explicitly link specific modules: math,
 target_link_libraries(nblib_test_infrastructure PRIVATE legacy_modules)
+target_link_libraries(nblib_test_infrastructure INTERFACE
+                      nblib
+                      )
 
 set(testname "NbLibSetupTests")
 set(exename "nblib-setup-test")

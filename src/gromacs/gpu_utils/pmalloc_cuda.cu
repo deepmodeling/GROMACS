@@ -40,7 +40,7 @@
 
 #include "gmxpre.h"
 
-#include "pmalloc_cuda.h"
+#include "gromacs/gpu_utils/pmalloc_cuda.h"
 
 #include <stdlib.h>
 

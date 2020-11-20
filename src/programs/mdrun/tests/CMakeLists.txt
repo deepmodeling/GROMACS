@@ -43,11 +43,13 @@ gmx_add_unit_test_library(mdrun_test_infrastructure
     terminationhelper.cpp
     trajectorycomparison.cpp
     trajectoryreader.cpp
-    # pseudo-library for code for mdrun
-    $<TARGET_OBJECTS:mdrun_objlib>
     )
 target_include_directories(mdrun_test_infrastructure SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
-target_link_libraries(mdrun_test_infrastructure PUBLIC fileio legacy_api)
+target_link_libraries(mdrun_test_infrastructure PUBLIC
+                      fileio
+                      legacy_api
+                      mdrun_objlib
+                      )
 
 # To avoid running into test timeouts, some end-to-end tests of mdrun
 # functionality are split off. This can be rearranged in future as we
@@ -61,8 +63,6 @@ gmx_add_gtest_executable(${exename}
         helpwriting.cpp
         outputfiles.cpp
         trajectory_writing.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
     )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -75,8 +75,6 @@ gmx_add_gtest_executable(${exename}
         densityfittingmodule.cpp
         interactiveMD.cpp
         mimic.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
     )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -90,8 +88,6 @@ gmx_add_gtest_executable(${exename}
         grompp.cpp
         initialconstraints.cpp
         termination.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
     )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -110,8 +106,6 @@ gmx_add_gtest_executable(${exename}
         simulator.cpp
         swapcoords.cpp
         tabulated_bonded_interactions.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
     )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -123,8 +117,6 @@ set(exename "mdrun-pme-test")
 gmx_add_gtest_executable(${exename}
     CPP_SOURCE_FILES
         pmetest.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
     )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -141,8 +133,6 @@ gmx_add_gtest_executable(${exename}
         normalmodes.cpp
         rerun.cpp
         simple_mdrun.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
         )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -155,8 +145,6 @@ gmx_add_gtest_executable(${exename}
     CPP_SOURCE_FILES
         # files with code for tests
         tpitest.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
         )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} INTEGRATION_TEST IGNORE_LEAKS)
@@ -176,8 +164,6 @@ gmx_add_gtest_executable(${exename} MPI
         multisimtest.cpp
         replicaexchange.cpp
         pmetest.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
         )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} MPI_RANKS 2 OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -191,8 +177,6 @@ gmx_add_gtest_executable(${exename} MPI
     CPP_SOURCE_FILES
         # files with code for tests
         pmetest.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
         )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 gmx_register_gtest_test(${testname} ${exename} MPI_RANKS 2 OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
@@ -203,8 +187,6 @@ gmx_add_gtest_executable(${exename} MPI
     CPP_SOURCE_FILES
         # files with code for tests
         periodicactions.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
         )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 
@@ -227,8 +209,6 @@ gmx_add_gtest_executable(${exename}
         CPP_SOURCE_FILES
         # files with code for tests
         freeenergy.cpp
-        # pseudo-library for code for mdrun
-        $<TARGET_OBJECTS:mdrun_objlib>
 )
 target_link_libraries(${exename} PRIVATE mdrun_test_infrastructure)
 # TODO: Link specific modules: topology

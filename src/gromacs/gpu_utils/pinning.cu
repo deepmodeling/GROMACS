@@ -40,7 +40,7 @@
  */
 #include "gmxpre.h"
 
-#include "pinning.h"
+#include "gromacs/gpu_utils/pinning.h"
 
 #include <cstddef>
 

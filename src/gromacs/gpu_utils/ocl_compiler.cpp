@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "ocl_compiler.h"
+#include "gromacs/gpu_utils/ocl_compiler.h"
 
 #include "config.h"
 
@@ -65,7 +65,7 @@
 #include "gromacs/utility/textreader.h"
 #include "gromacs/utility/unique_cptr.h"
 
-#include "ocl_caching.h"
+#include "gromacs/gpu_utils/ocl_caching.h"
 
 namespace gmx
 {

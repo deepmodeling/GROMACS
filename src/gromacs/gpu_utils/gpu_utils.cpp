@@ -39,7 +39,7 @@
  */
 #include "gmxpre.h"
 
-#include "gpu_utils.h"
+#include "gromacs/gpu_utils/gpu_utils.h"
 
 #include "config.h"
 

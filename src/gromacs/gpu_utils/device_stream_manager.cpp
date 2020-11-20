@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "device_stream_manager.h"
+#include "gromacs/gpu_utils/device_stream_manager.h"
 
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"

@@ -40,7 +40,7 @@
  */
 #include "gmxpre.h"
 
-#include "oclutils.h"
+#include "gromacs/gpu_utils/oclutils.h"
 
 #include <stdlib.h>
 

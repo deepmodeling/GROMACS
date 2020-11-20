@@ -61,6 +61,7 @@ target_link_libraries(pbcutil INTERFACE
 #target_link_libraries(pbcutil PUBLIC
 target_link_libraries(pbcutil INTERFACE
                       utility
+                      topology
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(pbcutil PRIVATE NOTHING)

@@ -67,8 +67,6 @@ gmx_add_mpi_unit_test(UtilityMpiUnitTests utility-mpi-test 4
     physicalnodecommunicator_mpi.cpp
     )
 
-if(GMX_MPI)
-    target_link_libraries(utility-mpi-test PRIVATE
-                          utility
-                          )
-endif()
+target_link_libraries(utility-mpi-test PRIVATE
+                      utility
+                      )

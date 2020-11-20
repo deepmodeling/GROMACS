@@ -121,7 +121,8 @@ endfunction()
 # flags are known and present in a variable before creating the target
 # for the library. (Those get embedded in files that are generated at
 # the point of calling cuda_add_library, which does not create a
-# target that one could later call target_compile_options upon.) So,
+# target that one could later call target_compile_options() or
+# target_link_libraries() upon.) So,
 # this function instead returns appropriate content in
 # ${VARIABLE_NAME}, along with other such variables that are
 # specialized for the various build_types. Hopefully this will improve

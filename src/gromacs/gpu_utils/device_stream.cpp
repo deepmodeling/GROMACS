@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "device_stream.h"
+#include "gromacs/gpu_utils/device_stream.h"
 
 DeviceStream::DeviceStream(const DeviceContext& /* deviceContext */,
                            DeviceStreamPriority /* priority */,

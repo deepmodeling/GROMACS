@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "ocl_caching.h"
+#include "gromacs/gpu_utils/ocl_caching.h"
 
 #include <assert.h>
 

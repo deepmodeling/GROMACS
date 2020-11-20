@@ -41,3 +41,6 @@ gmx_add_unit_test(TopologyTest topology-test
         )
 target_link_libraries(topology-test PRIVATE topology)
 
+target_link_libraries(topology-test PRIVATE
+                      topology
+                      )

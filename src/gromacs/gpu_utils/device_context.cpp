@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "device_context.h"
+#include "gromacs/gpu_utils/device_context.h"
 
 //! Constructor.
 DeviceContext::DeviceContext(const DeviceInformation& deviceInfo) : deviceInfo_(deviceInfo) {}
