@@ -32,7 +32,8 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-file(GLOB MDRUN_SOURCES
+add_library(mdrun INTERFACE)
+gmx_add_libgromacs_sources(
     legacymdrunoptions.cpp
     legacysimulator.cpp
     md.cpp
@@ -50,7 +51,6 @@ file(GLOB MDRUN_SOURCES
     simulatorbuilder.cpp
     tpi.cpp
     )
-add_library(mdrun OBJECT ${MDRUN_SOURCES})
 
 # Source files have the following private module dependencies.
 target_link_libraries(mdrun PRIVATE
@@ -83,37 +83,6 @@ target_link_libraries(mdrun INTERFACE
 #target_link_libraries(mdrun PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
 #target_link_libraries(mdrun PRIVATE legacy_modules)
-
-target_include_directories(mdrun SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
-gmx_target_compile_options(mdrun)
-target_compile_definitions(mdrun PRIVATE HAVE_CONFIG_H)
-# Should be possible to remove this when resolving #3290
-target_include_directories(mdrun SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
-
-# Source files have the following private external dependencies.
-target_link_libraries(mdrun PRIVATE tng_io)
-
-# Source files have the following private infrastructure dependencies.
-target_link_libraries(mdrun PRIVATE common)
-
-# Source files have the following private module dependencies.
-# TODO: Explicitly link specific modules.
-target_link_libraries(mdrun PRIVATE legacy_modules)
-target_link_libraries(mdrun PRIVATE
-        fileio
-        gmxlib
-        math
-        mdtypes
-        swap
-        tng_io
-        )
-
-# Public interface for modules, including dependencies and interfaces
-target_include_directories(mdrun PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_link_libraries(mdrun PUBLIC
-        legacy_api
-        )
 
 # TODO: Find a home for this header and a scheme for installation.
 # This header straddles the installed libraries and is a transitive interface

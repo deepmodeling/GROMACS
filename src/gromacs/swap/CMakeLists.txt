@@ -33,36 +33,41 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 # Set up the module library
-add_library(swap INTERFACE)
-file(GLOB SWAP_SOURCES *.cpp)
-set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${SWAP_SOURCES} PARENT_SCOPE)
+add_library(swap OBJECT)
+set_target_properties(swap PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_sources(swap PRIVATE
+               swapcoords.cpp)
 
 # Source files have the following dependencies on library infrastructure.
-#target_link_libraries(swap PRIVATE
-#                      common
-#                      legacy_modules
-#)
+target_link_libraries(swap PRIVATE
+                      common
+)
+# Source files have the following private module dependencies.
+target_link_libraries(swap PRIVATE
+                      domdec
+                      fileio
+                      gmxlib
+                      mdlib
+                      mdrunutility
+                      mdtypes
+                      pbcutil
+                      timing
+                      topology)
+# TODO: remove legacy_modules dependency once depencies expose their headers correctly.
+target_link_libraries(swap PRIVATE
+                      legacy_modules)
 
 # Public interface for modules, including dependencies and interfaces
-#target_include_directories(swap PUBLIC
-target_include_directories(swap INTERFACE
+target_include_directories(swap PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(swap PUBLIC
-target_link_libraries(swap INTERFACE
+target_link_libraries(swap PUBLIC
                       legacy_api
                       )
 
-# TODO: when swap is an OBJECT target
-#target_link_libraries(swap PUBLIC legacy_api)
-#target_link_libraries(swap PRIVATE common)
-
 # Module dependencies
 # swap interfaces convey transitive dependence on these modules.
-#target_link_libraries(swap PUBLIC
-target_link_libraries(swap INTERFACE
+target_link_libraries(swap PUBLIC
+                      math
                       utility
                       )
-# Source files have the following private module dependencies.
-#target_link_libraries(swap PRIVATE NOTHING)
-# TODO: Explicitly link specific modules.
-#target_link_libraries(swap PRIVATE legacy_modules)

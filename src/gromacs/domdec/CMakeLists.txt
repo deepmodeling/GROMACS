@@ -57,6 +57,10 @@ target_link_libraries(domdec INTERFACE
                       legacy_api
                       )
 
+# Transitive dependencies on these headers.
+target_include_directories(domdec SYSTEM BEFORE INTERFACE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
+#target_include_directories(domdec SYSTEM BEFORE PUBLIC ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
+
 # TODO: when domdec is an OBJECT target
 #target_link_libraries(domdec PUBLIC legacy_api)
 #target_link_libraries(domdec PRIVATE common)
