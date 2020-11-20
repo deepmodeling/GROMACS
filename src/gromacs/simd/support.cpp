@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "support.h"
+#include "gromacs/simd/support.h"
 
 #include "config.h"
 

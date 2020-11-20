@@ -60,6 +60,7 @@ target_link_libraries(tables INTERFACE
 # tables interfaces convey transitive dependence on these modules.
 #target_link_libraries(tables PUBLIC
 target_link_libraries(tables INTERFACE
+                      simd
                       utility
                       )
 # Source files have the following private module dependencies.

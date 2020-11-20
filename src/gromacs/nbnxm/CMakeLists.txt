@@ -104,4 +104,5 @@ target_link_libraries(nbnxm INTERFACE
 target_link_libraries(nbnxm INTERFACE
         math
         utility
+        simd
         )
