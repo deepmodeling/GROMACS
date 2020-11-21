@@ -46,6 +46,7 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
 #include "gromacs/mdtypes/simulation_workload.h"
+#include "gromacs/pbcutil/ishift.h"
 #include "gromacs/utility/template_mp.h"
 
 #include "nbnxm_sycl_types.h"
@@ -53,22 +54,39 @@
 /*! \brief cluster size = number of atoms per cluster. */
 static constexpr int c_clSize = c_nbnxnGpuClusterSize;
 
+/*! \brief j-cluster size after split (4 in the current implementation). */
+static constexpr int c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
+
+/*! \brief Stride in the force accumulation buffer */
+static constexpr int c_fbufStride = c_clSize * c_clSize;
+
+/*! \brief 1/sqrt(pi), same value as \c M_FLOAT_1_SQRTPI in other NB kernels */
+static constexpr float c_OneOverSqrtPi = 0.564189583547756F;
+
+// TODO: tune
+#define NTHREAD_Z 1
+
 namespace Nbnxm
 {
 
+//! \bried Set of boolean constants mimicking preprocessor macros
 template<enum ElecType elecType, enum VdwType vdwType>
 struct EnergyFunctionProperties {
-    static constexpr bool elecCutoff = (elecType == ElecType::Cut);
-    static constexpr bool elecRF     = (elecType == ElecType::RF);
+    static constexpr bool elecCutoff = (elecType == ElecType::Cut); ///< EL_CUTOFF
+    static constexpr bool elecRF     = (elecType == ElecType::RF);  ///< EL_RF
     static constexpr bool elecEwaldAna =
             (elecType == ElecType::EwaldAna || elecType == ElecType::EwaldAnaTwin);
     static constexpr bool elecEwaldTab =
             (elecType == ElecType::EwaldTab || elecType == ElecType::EwaldTabTwin);
     static constexpr bool elecEwaldTwin =
             (elecType == ElecType::EwaldAnaTwin || elecType == ElecType::EwaldTabTwin);
-    static constexpr bool elecEwald = (elecEwaldAna || elecEwaldTab);
-    static constexpr bool vdwComb = (vdwType == VdwType::CutCombLB || vdwType == VdwType::CutCombGeom);
+    static constexpr bool elecEwald   = (elecEwaldAna || elecEwaldTab); ///< EL_EWALD_ANY
+    static constexpr bool vdwCombLB   = (vdwType == VdwType::CutCombLB);
+    static constexpr bool vdwCombGeom = (vdwType == VdwType::CutCombGeom); ///< LJ_COMB_GEOM
+    static constexpr bool vdwComb     = (vdwCombLB || vdwCombGeom);        ///< LJ_COMB
     static constexpr bool vdwEwald = (vdwType == VdwType::EwaldLB || vdwType == VdwType::EwaldGeom);
+    static constexpr bool vdwFSwitch = (vdwType == VdwType::FSwitch); ///< LJ_FORCE_SWITCH
+    static constexpr bool vdwPSwitch = (vdwType == VdwType::PSwitch); ///< LJ_POT_SWITCH
 };
 
 template<enum VdwType vdwType>
@@ -83,7 +101,11 @@ constexpr bool elecRF = EnergyFunctionProperties<elecType, VdwType::Count>().ele
 template<enum ElecType elecType>
 constexpr bool elecEwald = EnergyFunctionProperties<elecType, VdwType::Count>().elecEwald;
 
+static constexpr float c_oneSixth = 1.0F / 6.0F;
+
+using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
+using cl::sycl::access::target;
 
 /*! \brief Main kernel for NBNXM.
  *
@@ -101,12 +123,18 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  DeviceAccessor<nbnxn_excl_t, mode::read>              a_plistExcl,
                  OptionalAccessor<int, mode::read, !ljComb<vdwType>>   a_atomTypes,
                  OptionalAccessor<float2, mode::read, ljComb<vdwType>> a_ljComb,
+                 OptionalAccessor<float, mode::read, !ljComb<vdwType>> a_nbfp,
+                 OptionalAccessor<float, mode::read, doCalcEnergies>   a_nbfpComb,
                  const float gmx_unused rCoulombSq,
                  const float gmx_unused rVdwSq,
                  const float gmx_unused twoKRf,
                  const float gmx_unused ewaldBeta,
                  const float gmx_unused rlistOuterSq,
-                 const float gmx_unused ewaldShift)
+                 const float gmx_unused ewaldShift,
+                 const float            epsFac,
+                 const float            ewaldCoeffLJ,
+                 const int              numTypes,
+                 const float            c_rf)
 {
     static constexpr EnergyFunctionProperties<elecType, vdwType> props;
 
@@ -132,15 +160,268 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         cgh.require(a_atomTypes);
     }
 
+    // shmem buffer for i x+q pre-loading
+    cl::sycl::accessor<float4, 2, mode::read_write, target::local> xqib(
+            cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
+    // shmem buffer for cj, for each warp separately
+    // the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution
+    cl::sycl::accessor<int, 1, mode::read_write, target::local> cjs(
+            cl::sycl::range<1>(NTHREAD_Z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
+
+    auto atib = [&cgh]() {
+        if constexpr (!props.vdwComb)
+        {
+            return cl::sycl::accessor<int, 2, mode::read_write, target::local>(
+                    cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
+        }
+        else
+        {
+            return nullptr;
+        }
+    }();
+
+    auto ljcpib = [&cgh]() {
+        if constexpr (props.vdwComb)
+        {
+            return cl::sycl::accessor<float2, 2, mode::read_write, target::local>(
+                    cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
+        }
+        else
+        {
+            return nullptr;
+        }
+    }();
+
     /* Macro to control the calculation of exclusion forces in the kernel
      * We do that with Ewald (elec/vdw) and RF. Cut-off only has exclusion
      * energy terms.
      */
-    constexpr bool gmx_unused doExclusionForces =
+    constexpr bool doExclusionForces =
             (props.elecEwald || props.elecRF || props.vdwEwald || (props.elecCutoff && doCalcEnergies));
 
-    return [=](cl::sycl::nd_item<3> gmx_unused itemIdx) {
+    // i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set
+    constexpr unsigned superClInteractionMask = ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
 
+    return [=](cl::sycl::nd_item<3> itemIdx) {
+        /* thread/block/warp id-s */
+        const unsigned        tidxi = itemIdx.get_local_id(0);
+        const unsigned        tidxj = itemIdx.get_local_id(1);
+        const cl::sycl::id<2> tidxji(itemIdx.get_local_id(1), itemIdx.get_local_id(0));
+#if NTHREAD_Z == 1
+        const unsigned tidxz = 0;
+        const unsigned tidx  = itemIdx.get_local_linear_id();
+#else
+        const unsigned tidxz = itemIdx.get_local_id(2);
+        const unsigned tidx  = tidxj * itemIdx.get_local_range(0) + tidxi;
+#endif
+        const unsigned bidx = itemIdx.get_group(0);
+        // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
+        const sycl::ONEAPI::sub_group sg   = itemIdx.get_sub_group();
+        const unsigned                widx = sg.get_local_id(); // index in sub-group (warp)
+        float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster] = { { 0.0F, 0.0F, 0.0F } }; // i force buffer
+
+        const nbnxn_sci_t nb_sci     = a_plistSci[bidx];
+        const int         sci        = nb_sci.sci;
+        const int         cij4_start = nb_sci.cj4_ind_start;
+        const int         cij4_end   = nb_sci.cj4_ind_end;
+
+        float4 xqbuf;
+
+        if (tidxz == 0)
+        {
+            /* Pre-load i-atom x and q into shared memory */
+            const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj;
+            const int ai = ci * c_clSize + tidxi;
+
+            float3 shift = a_shiftVec[nb_sci.shift];
+            xqbuf        = a_xq[ai];
+            xqbuf += float4(shift[0], shift[1], shift[2], 0.0F);
+            xqbuf[3] *= epsFac;
+            xqib[tidxji] = xqbuf;
+
+            if constexpr (!props.vdwComb)
+            {
+                // Pre-load the i-atom types into shared memory
+                atib[tidxji] = a_atomTypes[ai];
+            }
+            else
+            {
+                // Pre-load the LJ combination parameters into shared memory
+                ljcpib[tidxji] = a_ljComb[ai];
+            }
+        }
+        itemIdx.barrier(fence_space::local_space);
+
+        float lje_coeff2, lje_coeff6_6; // Only needed if (props.vdwEwald)
+        if constexpr (props.vdwEwald)
+        {
+            lje_coeff2   = ewaldCoeffLJ * ewaldCoeffLJ;
+            lje_coeff6_6 = lje_coeff2 * lje_coeff2 * lje_coeff2 * c_oneSixth;
+        }
+
+        float E_lj, E_el; // Only needed if (doCalcEnergies)
+        if constexpr (doCalcEnergies)
+        {
+            E_lj = E_el = 0.0F;
+            if constexpr (doExclusionForces)
+            {
+                if (nb_sci.shift == CENTRAL
+                    && a_plistCJ4[cij4_start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
+                {
+                    // we have the diagonal: add the charge and LJ self interaction energy term
+                    for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                    {
+                        // TODO: Are there other options?
+                        if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
+                        {
+                            const float qi = xqib[cl::sycl::id<2>(i, tidxi)].w();
+                            E_el += qi * qi;
+                        }
+                        if constexpr (props.vdwEwald)
+                        {
+                            E_lj += a_nbfp[a_atomTypes[(sci * c_nbnxnGpuNumClusterPerSupercluster + i) * c_clSize + tidxi]
+                                           * (numTypes + 1) * 2];
+                        }
+                    }
+                    /* divide the self term(s) equally over the j-threads, then multiply with the coefficients. */
+                    if constexpr (props.vdwEwald)
+                    {
+                        E_lj /= c_clSize * NTHREAD_Z;
+                        E_lj *= 0.5f * c_oneSixth * lje_coeff6_6;
+                    }
+                    if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
+                    {
+                        // Correct for epsfac^2 due to adding qi^2 */
+                        E_el /= epsFac * c_clSize * NTHREAD_Z;
+                        if constexpr (props.elecRF || props.elecCutoff)
+                        {
+                            E_el *= -0.5f * c_rf;
+                        }
+                        else
+                        {
+                            E_el *= -ewaldBeta * c_OneOverSqrtPi; /* last factor 1/sqrt(pi) */
+                        }
+                    }
+                }
+            }
+        }
+
+        const bool nonSelfInteraction =
+                !(nb_sci.shift == CENTRAL & tidxj <= tidxi); // Only needed if (doExclusionForces)
+
+        /* loop over the j clusters = seen by any of the atoms in the current super-cluster;
+         * The loop stride NTHREAD_Z ensures that consecutive warps-pairs are assigned
+         * consecutive j4's entries. */
+        for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
+        {
+            const int wexcl_idx = a_plistCJ4[j4].imei[widx].excl_ind;
+            int       imask     = a_plistCJ4[j4].imei[widx].imask;
+            const int wexcl     = a_plistExcl[wexcl_idx].pair[sg.get_local_linear_id()];
+            if (doPruneNBL || imask)
+            {
+                /* Pre-load cj into shared memory on both warps separately */
+                if ((tidxj == 0 | tidxj == 4) & (tidxi < c_nbnxnGpuJgroupSize))
+                {
+                    cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
+                }
+                sg.barrier();
+
+                for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
+                {
+                    if (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
+                    {
+                        int mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        int cj      = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
+                        int aj      = cj * c_clSize + tidxj;
+
+                        /* load j atom data */
+                        xqbuf = a_xq[aj];
+                        const float3 xj(xqbuf[0], xqbuf[1], xqbuf[2]);
+                        const float  qj_f = xqbuf[3];
+                        int          typej;  // Only needed if (!props.vdwComb)
+                        float2       ljcp_j; // Only needed if (props.vdwComb)
+                        if constexpr (!props.vdwComb)
+                        {
+                            typej = a_atomTypes[aj];
+                        }
+                        else
+                        {
+                            ljcp_j = a_ljComb[aj];
+                        }
+
+                        float3 fcj_buf(0.0F, 0.0F, 0.0F);
+
+                        for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                        {
+                            if (imask & mask_ji)
+                            {
+                                int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i; /* i cluster index */
+
+                                /* all threads load an atom from i cluster ci into shmem! */
+                                xqbuf = xqib[cl::sycl::id<2>(i, tidxi)];
+                                float3 xi(xqbuf[0], xqbuf[1], xqbuf[2]);
+
+                                /* distance between i and j atoms */
+                                float3 rv = xi - xj;
+                                float  r2 = norm2(rv);
+                                if constexpr (doPruneNBL)
+                                {
+                                    /* If _none_ of the atoms pairs are in cutoff range,
+                                     * the bit corresponding to the current
+                                     * cluster-pair in imask gets set to 0. */
+                                    // sycl::group_any_of in SYCL2020 provisional
+                                    if (!sycl::ONEAPI::any_of(sg, r2 < rlistOuterSq))
+                                    {
+                                        imask &= ~mask_ji;
+                                    }
+                                }
+                                const float int_bit = (wexcl & mask_ji) ? 1.0f : 0.0f;
+
+                                // cutoff & exclusion check
+
+                                const bool notExcluded = doExclusionForces
+                                                                 ? (nonSelfInteraction | (ci != cj))
+                                                                 : (wexcl & mask_ji);
+                                if ((r2 < rCoulombSq) && notExcluded)
+                                {
+                                    float qi = xqbuf[3];
+                                    int   typei; // Only needed if (!props.vdwComb)
+                                    float c6, c12;
+                                    if constexpr (!props.vdwComb)
+                                    {
+                                        /* LJ 6*C6 and 12*C12 */
+                                        typei         = atib[cl::sycl::id<2>(i, tidxi)];
+                                        const int idx = (numTypes * typei + typej) * 2;
+                                        c6  = a_nbfp[idx]; // TODO: Make a_nbfm into float2
+                                        c12 = a_nbfp[idx + 1];
+                                    }
+                                    else
+                                    {
+                                        // ALAND: here
+                                        float2 ljcp_i = ljcpib[cl::sycl::id<2>(i, tidxi)];
+                                        if constexpr (props.vdwCombGeom)
+                                        {
+                                            c6  = ljcp_i[0] * ljcp_j[0];
+                                            c12 = ljcp_i[1] * ljcp_j[1];
+                                        }
+                                        else
+                                        {
+                                            // LJ 2^(1/6)*sigma and 12*epsilon
+                                            float sigma   = ljcp_i[0] + ljcp_j[0];
+                                            float epsilon = ljcp_i[1] * ljcp_j[1];
+                                            if constexpr (doCalcEnergies || props.vdwFSwitch || props.vdwPSwitch)
+                                            {
+                                                // TODO: Continue from here
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     };
 }
 
@@ -160,7 +441,7 @@ cl::sycl::event launchNbnxmKernel(const DeviceStream& deviceStream, const int nu
      * - The 1D block-grid contains as many blocks as super-clusters.
      */
     const int                   numBlocks = numSci;
-    const cl::sycl::range<3>    blockSize{ c_clSize, c_clSize, 1 };
+    const cl::sycl::range<3>    blockSize{ c_clSize, c_clSize, NTHREAD_Z };
     const cl::sycl::range<3>    globalSize{ numBlocks * blockSize[0], blockSize[1], blockSize[2] };
     const cl::sycl::nd_range<3> range{ globalSize, blockSize };
 
@@ -199,10 +480,11 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
-            doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
-            plist->nsci, adat->xq, adat->f, adat->shiftVec, adat->fShift, adat->eElec, adat->eLJ,
-            plist->cj4, plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->rcoulomb_sq,
-            nbp->rvdw_sq, nbp->two_k_rf, nbp->ewald_beta, nbp->rlistOuter_sq, nbp->sh_ewald);
+            doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream, plist->nsci,
+            adat->xq, adat->f, adat->shiftVec, adat->fShift, adat->eElec, adat->eLJ, plist->cj4,
+            plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->nbfp, nbp->nbfp_comb,
+            nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf, nbp->ewald_beta, nbp->rlistOuter_sq,
+            nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj, adat->numTypes, nbp->c_rf);
 }
 
 } // namespace Nbnxm
