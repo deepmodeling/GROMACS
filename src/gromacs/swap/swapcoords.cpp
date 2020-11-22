@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "swapcoords.h"
+#include "gromacs/swap/swapcoords.h"
 
 #include <cstdio>
 #include <cstdlib>
