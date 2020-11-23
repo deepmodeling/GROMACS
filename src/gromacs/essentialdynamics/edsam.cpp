@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "edsam.h"
+#include "gromacs/essentialdynamics/edsam.h"
 
 #include <cmath>
 #include <cstdio>
