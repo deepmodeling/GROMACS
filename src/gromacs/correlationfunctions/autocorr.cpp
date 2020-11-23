@@ -44,7 +44,7 @@
  */
 #include "gmxpre.h"
 
-#include "autocorr.h"
+#include "gromacs/correlationfunctions/autocorr.h"
 
 #include <cmath>
 #include <cstdio>
