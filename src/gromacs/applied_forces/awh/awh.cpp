@@ -45,7 +45,7 @@
 
 #include "gmxpre.h"
 
-#include "awh.h"
+#include "gromacs/applied_forces/awh/awh.h"
 
 #include <cassert>
 #include <cmath>

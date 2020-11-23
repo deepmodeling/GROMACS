@@ -35,7 +35,7 @@
 
 #include "gmxpre.h"
 
-#include "densityfittingparameters.h"
+#include "gromacs/applied_forces/densityfitting/densityfittingparameters.h"
 
 namespace gmx
 {

@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "read_params.h"
+#include "gromacs/applied_forces/awh/read_params.h"
 
 #include "gromacs/applied_forces/awh/awh.h"
 #include "gromacs/fileio/readinp.h"

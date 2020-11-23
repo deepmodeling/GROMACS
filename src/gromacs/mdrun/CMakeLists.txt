@@ -77,6 +77,7 @@ target_link_libraries(mdrun INTERFACE
 # mdrun interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdrun PUBLIC
 target_link_libraries(mdrun INTERFACE
+                      applied_forces
                       hardware
                       utility
                       )

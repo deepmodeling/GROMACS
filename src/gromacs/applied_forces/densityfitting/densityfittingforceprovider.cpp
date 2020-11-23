@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "densityfittingforceprovider.h"
+#include "gromacs/applied_forces/densityfitting/densityfittingforceprovider.h"
 
 #include <numeric>
 #include <optional>
@@ -59,8 +59,8 @@
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/utility/strconvert.h"
 
-#include "densityfittingamplitudelookup.h"
-#include "densityfittingparameters.h"
+#include "gromacs/applied_forces/densityfitting/densityfittingamplitudelookup.h"
+#include "gromacs/applied_forces/densityfitting/densityfittingparameters.h"
 
 namespace gmx
 {

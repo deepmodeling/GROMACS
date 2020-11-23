@@ -42,7 +42,8 @@
 
 #include "gmxpre.h"
 
-#include "densityfittingoutputprovider.h"
+#include "gromacs/applied_forces/densityfitting/densityfittingoutputprovider.h"
+
 namespace gmx
 {
 

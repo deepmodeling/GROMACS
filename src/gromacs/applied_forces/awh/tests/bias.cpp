@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/applied_forces/awh/bias.h"
+#include "../bias.h"
 
 #include <cmath>
 
