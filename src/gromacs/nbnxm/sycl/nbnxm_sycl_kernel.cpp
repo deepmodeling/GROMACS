@@ -101,11 +101,21 @@ constexpr bool elecRF = EnergyFunctionProperties<elecType, VdwType::Count>().ele
 template<enum ElecType elecType>
 constexpr bool elecEwald = EnergyFunctionProperties<elecType, VdwType::Count>().elecEwald;
 
-static constexpr float c_oneSixth = 1.0F / 6.0F;
+// Same values that are used in CUDA kernels.
+static constexpr float c_oneSixth   = 0.16666667f;
+static constexpr float c_oneTwelfth = 0.08333333f;
 
 using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
 using cl::sycl::access::target;
+
+static inline void convert_sigma_epsilon_to_c6_c12(const float sigma, const float epsilon, float* c6, float* c12)
+{
+    const float sigma2 = sigma * sigma;
+    const float sigma6 = sigma2 * sigma2 * sigma2;
+    *c6                = epsilon * sigma6;
+    *c12               = *c6 * sigma6;
+}
 
 /*! \brief Main kernel for NBNXM.
  *
@@ -134,7 +144,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  const float            epsFac,
                  const float            ewaldCoeffLJ,
                  const int              numTypes,
-                 const float            c_rf)
+                 const float            c_rf,
+                 const float            repulsionShiftPot)
 {
     static constexpr EnergyFunctionProperties<elecType, vdwType> props;
 
@@ -320,7 +331,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             if (doPruneNBL || imask)
             {
                 /* Pre-load cj into shared memory on both warps separately */
-                if ((tidxj == 0 | tidxj == 4) & (tidxi < c_nbnxnGpuJgroupSize))
+                if ((tidxj == 0 || tidxj == 4) && (tidxi < c_nbnxnGpuJgroupSize))
                 {
                     cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
                 }
@@ -386,7 +397,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                 {
                                     float qi = xqbuf[3];
                                     int   typei; // Only needed if (!props.vdwComb)
-                                    float c6, c12;
+                                    float c6, c12, sigma, epsilon;
                                     if constexpr (!props.vdwComb)
                                     {
                                         /* LJ 6*C6 and 12*C12 */
@@ -397,7 +408,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     else
                                     {
-                                        // ALAND: here
                                         float2 ljcp_i = ljcpib[cl::sycl::id<2>(i, tidxi)];
                                         if constexpr (props.vdwCombGeom)
                                         {
@@ -407,21 +417,57 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         else
                                         {
                                             // LJ 2^(1/6)*sigma and 12*epsilon
-                                            float sigma   = ljcp_i[0] + ljcp_j[0];
-                                            float epsilon = ljcp_i[1] * ljcp_j[1];
+                                            sigma   = ljcp_i[0] + ljcp_j[0];
+                                            epsilon = ljcp_i[1] * ljcp_j[1];
                                             if constexpr (doCalcEnergies || props.vdwFSwitch || props.vdwPSwitch)
                                             {
-                                                // TODO: Continue from here
+                                                convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
                                             }
+                                        } // props.vdwCombGeom
+                                    }     // !props.vdwComb
+                                    // Ensure distance do not become so small that r^-12 overflows
+                                    r2                 = std::max(r2, c_nbnxnMinDistanceSquared);
+                                    const float inv_r  = 1.0F / std::sqrt(r2);
+                                    const float inv_r2 = inv_r * inv_r;
+                                    float       inv_r6, F_invr, E_lj_p;
+                                    if constexpr (!props.vdwCombLB || doCalcEnergies)
+                                    {
+                                        inv_r6 = inv_r2 * inv_r2 * inv_r2;
+                                        if constexpr (doExclusionForces)
+                                        {
+                                            // SYCL-TODO: Check if true for SYCL
+                                            /* We could mask inv_r2, but with Ewald masking both
+                                             * inv_r6 and F_invr is faster */
+                                            inv_r6 *= int_bit;
+                                        }
+                                        F_invr = inv_r6 * (c12 * inv_r6 - c6) * inv_r2;
+                                        if constexpr (doCalcEnergies || props.vdwPSwitch)
+                                        {
+                                            E_lj_p = int_bit
+                                                     * (c12 * (inv_r6 * inv_r6 + repulsionShiftPot) * c_oneTwelfth
+                                                        - c6 * (inv_r6 + repulsionShiftPot) * c_oneSixth);
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                                    else
+                                    {
+                                        float sig_r  = sigma * inv_r;
+                                        float sig_r2 = sig_r * sig_r;
+                                        float sig_r6 = sig_r2 * sig_r2 * sig_r2;
+                                        if constexpr (doExclusionForces)
+                                        {
+                                            sig_r6 *= int_bit;
+                                        }
+                                        F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
+                                    } // (!props.vdwCombLB || doCalcEnergies)
+
+                                    // TODO: Continue from here
+                                } // (r2 < rCoulombSq) && notExcluded
+                            }     // (imask & mask_ji)
+                        }         // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                    } // (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
+                } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
+            }     // (doPruneNBL || imask)
+        }         // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
     };
 }
 
@@ -480,11 +526,12 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
-            doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream, plist->nsci,
-            adat->xq, adat->f, adat->shiftVec, adat->fShift, adat->eElec, adat->eLJ, plist->cj4,
-            plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->nbfp, nbp->nbfp_comb,
-            nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf, nbp->ewald_beta, nbp->rlistOuter_sq,
-            nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj, adat->numTypes, nbp->c_rf);
+            doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
+            plist->nsci, adat->xq, adat->f, adat->shiftVec, adat->fShift, adat->eElec, adat->eLJ,
+            plist->cj4, plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->nbfp,
+            nbp->nbfp_comb, nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf, nbp->ewald_beta,
+            nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj, adat->numTypes,
+            nbp->c_rf, nbp->repulsion_shift.cpot);
 }
 
 } // namespace Nbnxm
