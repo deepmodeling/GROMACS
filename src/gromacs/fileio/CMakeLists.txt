@@ -91,6 +91,7 @@ target_include_directories(fileio SYSTEM PRIVATE
 # Source files have the following dependencies on library infrastructure.
 target_link_libraries(fileio PRIVATE
                       common
+                      compat
                       legacy_modules
                       mdtypes
                       )

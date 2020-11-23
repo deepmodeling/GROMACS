@@ -86,8 +86,10 @@ target_include_directories(utility PUBLIC
     )
 
 # MPI dependency needs to be satisifed
-target_link_libraries(utility PUBLIC "${MPI_C_LIBRARIES}")
-
+target_link_libraries(utility PUBLIC
+                      compat
+                      "${MPI_C_LIBRARIES}"
+                      )
 # TODO make this work better when improving GPU modules
 if (GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(cuda_version_information.cu)

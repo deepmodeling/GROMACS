@@ -46,3 +46,7 @@ if (GMX_BUILD_UNITTESTS)
     # caveats have been handled in the past (for borrowed code that has since
     # been removed when it became unnecessary).
 endif()
+
+target_link_libraries(compat-test PRIVATE
+                      compat
+                      )

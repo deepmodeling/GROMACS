@@ -65,6 +65,7 @@ target_link_libraries(domdec INTERFACE
 # domdec interfaces convey transitive dependence on these modules.
 #target_link_libraries(domdec PUBLIC
 target_link_libraries(domdec INTERFACE
+                      compat
                       gpu_utils
                       hardware
                       math

@@ -78,6 +78,7 @@ target_link_libraries(mdrun INTERFACE
 #target_link_libraries(mdrun PUBLIC
 target_link_libraries(mdrun INTERFACE
                       applied_forces
+                      compat
                       domdec
                       hardware
                       utility

@@ -73,6 +73,7 @@ target_link_libraries(mdlib INTERFACE
 # mdlib interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdlib PUBLIC
 target_link_libraries(mdlib INTERFACE
+                      compat
                       domdec
                       fileio
                       hardware
