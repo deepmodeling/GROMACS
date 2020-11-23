@@ -36,3 +36,6 @@ gmx_add_unit_test(EnergyAnalysisUnitTests energyanalysis-test
     CPP_SOURCE_FILES
         legacyenergy.cpp
         )
+target_link_libraries(energyanalysis-test PRIVATE
+#                      energyanalysis
+                      )
