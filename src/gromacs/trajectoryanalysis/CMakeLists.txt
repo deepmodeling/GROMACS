@@ -62,6 +62,7 @@ target_include_directories(trajectoryanalysis PRIVATE
 
 # Source files have the following dependencies on library infrastructure.
 target_link_libraries(trajectoryanalysis PRIVATE
+                      analysisdata
                       common
                       coordinateio
                       fileio

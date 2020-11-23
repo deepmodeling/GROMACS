@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "lifetime.h"
+#include "gromacs/analysisdata/modules/lifetime.h"
 
 #include <cmath>
 
