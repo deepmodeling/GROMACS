@@ -36,7 +36,7 @@
  */
 #include "gmxpre.h"
 
-#include "fft.h"
+#include "gromacs/fft/fft.h"
 
 #include "config.h"
 

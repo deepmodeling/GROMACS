@@ -66,6 +66,7 @@ target_link_libraries(gmxpreprocess INTERFACE
 target_link_libraries(gmxpreprocess INTERFACE
                       domdec
                       ewald
+                      fft
                       #                      utility
                       )
 # Source files have the following private module dependencies.

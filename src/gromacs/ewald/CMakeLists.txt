@@ -129,6 +129,7 @@ target_link_libraries(ewald INTERFACE
 #target_link_libraries(ewald PUBLIC
 target_link_libraries(ewald INTERFACE
                       domdec
+                      fft
                       gpu_utils
                       hardware
                       math

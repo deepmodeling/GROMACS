@@ -61,6 +61,7 @@ target_link_libraries(tools INTERFACE
 #target_link_libraries(tools PUBLIC
 target_link_libraries(tools INTERFACE
                       ewald
+                      fft
                       mdtypes
                       utility
                       )

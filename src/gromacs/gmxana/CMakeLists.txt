@@ -50,6 +50,7 @@ target_include_directories(gmxana INTERFACE
 #target_link_libraries(gmxana PUBLIC
 target_link_libraries(gmxana INTERFACE
                       correlationfunctions
+                      fft
                       )
 
 # TODO: when gmxana is an OBJECT target
