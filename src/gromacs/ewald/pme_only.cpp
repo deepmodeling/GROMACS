@@ -60,7 +60,7 @@
 
 #include "gmxpre.h"
 
-#include "pme_only.h"
+#include "gromacs/ewald/pme_only.h"
 
 #include "config.h"
 

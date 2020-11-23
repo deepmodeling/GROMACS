@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "long_range_correction.h"
+#include "gromacs/ewald/long_range_correction.h"
 
 #include <cmath>
 

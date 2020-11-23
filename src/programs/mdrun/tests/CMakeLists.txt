@@ -46,6 +46,7 @@ gmx_add_unit_test_library(mdrun_test_infrastructure
     )
 target_include_directories(mdrun_test_infrastructure SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
 target_link_libraries(mdrun_test_infrastructure PUBLIC
+                      ewald
                       fileio
                       hardware
                       legacy_api

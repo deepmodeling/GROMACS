@@ -70,6 +70,7 @@ target_link_libraries(modularsimulator PRIVATE legacy_modules)
 target_link_libraries(modularsimulator PRIVATE
                       compat
                       domdec
+                      ewald
                       fileio
                       gmxlib
                       math

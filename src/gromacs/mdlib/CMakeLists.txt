@@ -75,6 +75,7 @@ target_link_libraries(mdlib INTERFACE
 target_link_libraries(mdlib INTERFACE
                       compat
                       domdec
+                      ewald
                       fileio
                       hardware
                       mdtypes

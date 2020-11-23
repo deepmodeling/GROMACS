@@ -60,6 +60,7 @@ target_link_libraries(tools INTERFACE
 # tools interfaces convey transitive dependence on these modules.
 #target_link_libraries(tools PUBLIC
 target_link_libraries(tools INTERFACE
+                      ewald
                       mdtypes
                       utility
                       )

@@ -48,7 +48,7 @@
  */
 #include "gmxpre.h"
 
-#include "ewald.h"
+#include "gromacs/ewald/ewald.h"
 
 #include <cmath>
 #include <cstdio>
