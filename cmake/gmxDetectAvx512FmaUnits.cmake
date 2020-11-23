@@ -62,6 +62,8 @@ function(gmx_detect_avx_512_fma_units RESULT)
                 try_compile(AVX_512_FMA_UNIT_DETECTION_COMPILED
                     "${PROJECT_BINARY_DIR}"
                     "${PROJECT_SOURCE_DIR}/src/gromacs/hardware/identifyavx512fmaunits.cpp"
+                    CMAKE_FLAGS
+                        -DINCLUDE_DIRECTORIES=${PROJECT_SOURCE_DIR}/src/gromacs/hardware/include
                     COMPILE_DEFINITIONS "${_compile_definitions}"
                     OUTPUT_VARIABLE AVX_512_FMA_UNIT_DETECTION_COMPILED_OUTPUT
                     COPY_FILE ${AVX_512_FMA_UNIT_DETECTION_BINARY})
