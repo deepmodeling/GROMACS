@@ -159,7 +159,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif /* CALC_ENERGIES */
 #endif     /* PRUNE_NBL */
                 (const cu_atomdata_t atdat, const NBParamGpu nbparam, const Nbnxm::gpu_plist plist, bool bCalcFshift)
-#ifndef FUNCTION_DECLARATION_ONLY
+#ifdef FUNCTION_DECLARATION_ONLY
                         ; /* Only do function declaration, omit the function body. */
 #else
 {
@@ -470,7 +470,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 sigma   = ljcp_i.x + ljcp_j.x;
                                 epsilon = ljcp_i.y * ljcp_j.y;
 #            if defined CALC_ENERGIES || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH
-
                                 convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
 #            endif
 #        endif /* LJ_COMB_GEOM */
@@ -506,7 +505,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
 #    endif     /* !LJ_COMB_LB || CALC_ENERGIES */
 
-                                //TODO: Continue from here
 #    ifdef LJ_FORCE_SWITCH
 #        ifdef CALC_ENERGIES
                                 calculate_force_switch_F_E(nbparam, c6, c12, inv_r, r2, &F_invr, &E_lj_p);

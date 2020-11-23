@@ -57,9 +57,6 @@ static constexpr int c_clSize = c_nbnxnGpuClusterSize;
 /*! \brief j-cluster size after split (4 in the current implementation). */
 static constexpr int c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
 
-/*! \brief Stride in the force accumulation buffer */
-static constexpr int c_fbufStride = c_clSize * c_clSize;
-
 /*! \brief 1/sqrt(pi), same value as \c M_FLOAT_1_SQRTPI in other NB kernels */
 static constexpr float c_OneOverSqrtPi = 0.564189583547756F;
 
@@ -69,7 +66,7 @@ static constexpr float c_OneOverSqrtPi = 0.564189583547756F;
 namespace Nbnxm
 {
 
-//! \bried Set of boolean constants mimicking preprocessor macros
+//! \brief Set of boolean constants mimicking preprocessor macros
 template<enum ElecType elecType, enum VdwType vdwType>
 struct EnergyFunctionProperties {
     static constexpr bool elecCutoff = (elecType == ElecType::Cut); ///< EL_CUTOFF
@@ -80,13 +77,15 @@ struct EnergyFunctionProperties {
             (elecType == ElecType::EwaldTab || elecType == ElecType::EwaldTabTwin);
     static constexpr bool elecEwaldTwin =
             (elecType == ElecType::EwaldAnaTwin || elecType == ElecType::EwaldTabTwin);
-    static constexpr bool elecEwald   = (elecEwaldAna || elecEwaldTab); ///< EL_EWALD_ANY
-    static constexpr bool vdwCombLB   = (vdwType == VdwType::CutCombLB);
-    static constexpr bool vdwCombGeom = (vdwType == VdwType::CutCombGeom); ///< LJ_COMB_GEOM
-    static constexpr bool vdwComb     = (vdwCombLB || vdwCombGeom);        ///< LJ_COMB
-    static constexpr bool vdwEwald = (vdwType == VdwType::EwaldLB || vdwType == VdwType::EwaldGeom);
-    static constexpr bool vdwFSwitch = (vdwType == VdwType::FSwitch); ///< LJ_FORCE_SWITCH
-    static constexpr bool vdwPSwitch = (vdwType == VdwType::PSwitch); ///< LJ_POT_SWITCH
+    static constexpr bool elecEwald        = (elecEwaldAna || elecEwaldTab); ///< EL_EWALD_ANY
+    static constexpr bool vdwCombLB        = (vdwType == VdwType::CutCombLB);
+    static constexpr bool vdwCombGeom      = (vdwType == VdwType::CutCombGeom); ///< LJ_COMB_GEOM
+    static constexpr bool vdwComb          = (vdwCombLB || vdwCombGeom);        ///< LJ_COMB
+    static constexpr bool vdwEwaldCombGeom = (vdwType == VdwType::EwaldGeom); ///< LJ_EWALD_COMB_GEOM
+    static constexpr bool vdwEwaldCombLB   = (vdwType == VdwType::EwaldLB);   ///< LJ_EWALD_COMB_LB
+    static constexpr bool vdwEwald         = (vdwEwaldCombGeom || vdwEwaldCombLB); ///< LJ_EWALD
+    static constexpr bool vdwFSwitch       = (vdwType == VdwType::FSwitch); ///< LJ_FORCE_SWITCH
+    static constexpr bool vdwPSwitch       = (vdwType == VdwType::PSwitch); ///< LJ_POT_SWITCH
 };
 
 template<enum VdwType vdwType>
@@ -100,6 +99,12 @@ constexpr bool elecRF = EnergyFunctionProperties<elecType, VdwType::Count>().ele
 
 template<enum ElecType elecType>
 constexpr bool elecEwald = EnergyFunctionProperties<elecType, VdwType::Count>().elecEwald;
+
+template<enum ElecType elecType>
+constexpr bool elecEwaldTab = EnergyFunctionProperties<elecType, VdwType::Count>().elecEwaldTab;
+
+template<enum VdwType vdwType>
+constexpr bool ljEwald = EnergyFunctionProperties<ElecType::Count, vdwType>().vdwEwald;
 
 // Same values that are used in CUDA kernels.
 static constexpr float c_oneSixth   = 0.16666667f;
@@ -117,24 +122,393 @@ static inline void convert_sigma_epsilon_to_c6_c12(const float sigma, const floa
     *c12               = *c6 * sigma6;
 }
 
+// SYCL-TODO: Merge with calculate_force_switch_F_E by the means of template
+static inline void calculate_force_switch_F(const shift_consts_t dispersionShift,
+                                            const shift_consts_t repulsionShift,
+                                            const float          rVdwSwitch,
+                                            const float          c6,
+                                            const float          c12,
+                                            const float          inv_r,
+                                            const float          r2,
+                                            float*               F_invr)
+{
+    /* force switch constants */
+    const float dispShiftV2 = dispersionShift.c2;
+    const float dispShiftV3 = dispersionShift.c3;
+    const float repuShiftV2 = repulsionShift.c2;
+    const float repuShiftV3 = repulsionShift.c3;
+
+    const float r       = r2 * inv_r;
+    float       rSwitch = r - rVdwSwitch;
+    rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
+
+    *F_invr += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r
+               + c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r;
+}
+
+static inline void calculate_force_switch_F_E(const shift_consts_t dispersionShift,
+                                              const shift_consts_t repulsionShift,
+                                              const float          rVdwSwitch,
+                                              const float          c6,
+                                              const float          c12,
+                                              const float          inv_r,
+                                              const float          r2,
+                                              float*               F_invr,
+                                              float*               E_lj)
+{
+    /* force switch constants */
+    const float dispShiftV2 = dispersionShift.c2;
+    const float dispShiftV3 = dispersionShift.c3;
+    const float repuShiftV2 = repulsionShift.c2;
+    const float repuShiftV3 = repulsionShift.c3;
+
+    const float dispShiftF2 = dispShiftV2 / 3;
+    const float dispShiftF3 = dispShiftV3 / 4;
+    const float repuShiftF2 = repuShiftV2 / 3;
+    const float repuShiftF3 = repuShiftV3 / 4;
+
+    const float r       = r2 * inv_r;
+    float       rSwitch = r - rVdwSwitch;
+    rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
+
+    *F_invr += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r
+               + c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r;
+    *E_lj += c6 * (dispShiftF2 + dispShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch
+             - c12 * (repuShiftF2 + repuShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch;
+}
+
+/*! \brief Fetch C6 grid contribution coefficients and return the product of these.
+ */
+static inline float calculate_lj_ewald_c6grid(const DeviceAccessor<float, mode::read> a_nbfpComb,
+                                              const int                               typei,
+                                              const int                               typej)
+{
+    // SYCL-TODO: Pass by const reference?
+    return a_nbfpComb[2 * typei] * a_nbfpComb[2 * typej];
+}
+
+
+/*! Calculate LJ-PME grid force contribution with
+ *  geometric combination rule.
+ */
+static inline void calculate_lj_ewald_comb_geom_F(const DeviceAccessor<float, mode::read> a_nbfpComb,
+                                                  const int                               typei,
+                                                  const int                               typej,
+                                                  const float                             r2,
+                                                  const float                             inv_r2,
+                                                  const float lje_coeff2,
+                                                  const float lje_coeff6_6,
+                                                  float*      F_invr)
+{
+    // SYCL-TODO: Merge with calculate_lj_ewald_comb_geom_F_E by templating on doCalcEnergies
+    const float c6grid = calculate_lj_ewald_c6grid(std::move(a_nbfpComb), typei, typej);
+
+    /* Recalculate inv_r6 without exclusion mask */
+    const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
+    const float cr2       = lje_coeff2 * r2;
+    const float expmcr2   = expf(-cr2);
+    const float poly      = 1.0f + cr2 + 0.5f * cr2 * cr2;
+
+    /* Subtract the grid force from the total LJ force */
+    *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
+}
+
+
+/*! Calculate LJ-PME grid force + energy contribution with
+ *  geometric combination rule.
+ */
+static inline void calculate_lj_ewald_comb_geom_F_E(const DeviceAccessor<float, mode::read> a_nbfpComb,
+                                                    const float sh_lj_ewald,
+                                                    const int   typei,
+                                                    const int   typej,
+                                                    const float r2,
+                                                    const float inv_r2,
+                                                    const float lje_coeff2,
+                                                    const float lje_coeff6_6,
+                                                    const float int_bit,
+                                                    float*      F_invr,
+                                                    float*      E_lj)
+{
+    const float c6grid = calculate_lj_ewald_c6grid(std::move(a_nbfpComb), typei, typej);
+
+    /* Recalculate inv_r6 without exclusion mask */
+    const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
+    const float cr2       = lje_coeff2 * r2;
+    const float expmcr2   = expf(-cr2);
+    const float poly      = 1.0f + cr2 + 0.5f * cr2 * cr2;
+
+    /* Subtract the grid force from the total LJ force */
+    *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
+
+    /* Shift should be applied only to real LJ pairs */
+    const float sh_mask = sh_lj_ewald * int_bit;
+    *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0f - expmcr2 * poly) + sh_mask);
+}
+
+/*! Calculate LJ-PME grid force + energy contribution (if E_lj != nullptr) with
+ *  Lorentz-Berthelot combination rule.
+ *  We use a single F+E kernel with conditional because the performance impact
+ *  of this is pretty small and LB on the CPU is anyway very slow.
+ */
+static inline void calculate_lj_ewald_comb_LB_F_E(const DeviceAccessor<float, mode::read> a_nbfpComb,
+                                                  const float sh_lj_ewald,
+                                                  const int   typei,
+                                                  const int   typej,
+                                                  const float r2,
+                                                  const float inv_r2,
+                                                  const float lje_coeff2,
+                                                  const float lje_coeff6_6,
+                                                  const float int_bit,
+                                                  float*      F_invr,
+                                                  float*      E_lj)
+{
+    /* sigma and epsilon are scaled to give 6*C6 */
+    const float c6_i  = a_nbfpComb[2 * typei];
+    const float c12_i = a_nbfpComb[2 * typei + 1];
+    const float c6_j  = a_nbfpComb[2 * typej];
+    const float c12_j = a_nbfpComb[2 * typej + 1];
+
+    const float sigma   = c6_i + c6_j;
+    const float epsilon = c12_i * c12_j;
+
+    const float sigma2 = sigma * sigma;
+    const float c6grid = epsilon * sigma2 * sigma2 * sigma2;
+
+    /* Recalculate inv_r6 without exclusion mask */
+    const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
+    const float cr2       = lje_coeff2 * r2;
+    const float expmcr2   = expf(-cr2);
+    const float poly      = 1.0f + cr2 + 0.5f * cr2 * cr2;
+
+    /* Subtract the grid force from the total LJ force */
+    *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
+
+    if (E_lj != nullptr)
+    {
+        /* Shift should be applied only to real LJ pairs */
+        const float sh_mask = sh_lj_ewald * int_bit;
+        *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0f - expmcr2 * poly) + sh_mask);
+    }
+}
+
+/*! Apply potential switch, force-only version. */
+static inline void calculate_potential_switch_F(const switch_consts_t vdw_switch,
+                                                const float           rVdwSwitch,
+                                                const float           inv_r,
+                                                const float           r2,
+                                                float*                F_invr,
+                                                float*                E_lj)
+{
+    /* potential switch constants */
+    const float switch_V3 = vdw_switch.c3;
+    const float switch_V4 = vdw_switch.c4;
+    const float switch_V5 = vdw_switch.c5;
+    const float switch_F2 = 3 * vdw_switch.c3;
+    const float switch_F3 = 4 * vdw_switch.c4;
+    const float switch_F4 = 5 * vdw_switch.c5;
+
+    const float r       = r2 * inv_r;
+    const float rSwitch = r - rVdwSwitch;
+
+    // SYCL-TODO: The comment below is true for CUDA only
+    // Unlike in the F+E kernel, conditional is faster here
+    if (rSwitch > 0.0F)
+    {
+        const float sw =
+                1.0F + (switch_V3 + (switch_V4 + switch_V5 * rSwitch) * rSwitch) * rSwitch * rSwitch * rSwitch;
+        const float dsw = (switch_F2 + (switch_F3 + switch_F4 * rSwitch) * rSwitch) * rSwitch * rSwitch;
+
+        *F_invr = (*F_invr) * sw - inv_r * (*E_lj) * dsw;
+    }
+}
+
+/*! Apply potential switch, force + energy version. */
+static inline void calculate_potential_switch_F_E(const switch_consts_t vdw_switch,
+                                                  const float           rVdwSwitch,
+                                                  float                 inv_r,
+                                                  float                 r2,
+                                                  float*                F_invr,
+                                                  float*                E_lj)
+{
+    /* potential switch constants */
+    const float switch_V3 = vdw_switch.c3;
+    const float switch_V4 = vdw_switch.c4;
+    const float switch_V5 = vdw_switch.c5;
+    const float switch_F2 = 3 * vdw_switch.c3;
+    const float switch_F3 = 4 * vdw_switch.c4;
+    const float switch_F4 = 5 * vdw_switch.c5;
+
+    const float r       = r2 * inv_r;
+    float       rSwitch = r - rVdwSwitch;
+    rSwitch             = rSwitch >= 0.0f ? rSwitch : 0.0f;
+
+    const float sw =
+            1.0f + (switch_V3 + (switch_V4 + switch_V5 * rSwitch) * rSwitch) * rSwitch * rSwitch * rSwitch;
+    const float dsw = (switch_F2 + (switch_F3 + switch_F4 * rSwitch) * rSwitch) * rSwitch * rSwitch;
+
+    *F_invr = (*F_invr) * sw - inv_r * (*E_lj) * dsw;
+    *E_lj *= sw;
+}
+
+
+/*! Calculate analytical Ewald correction term. */
+static inline float pmecorrF(const float z2)
+{
+    constexpr float FN6 = -1.7357322914161492954e-8f;
+    constexpr float FN5 = 1.4703624142580877519e-6f;
+    constexpr float FN4 = -0.000053401640219807709149f;
+    constexpr float FN3 = 0.0010054721316683106153f;
+    constexpr float FN2 = -0.019278317264888380590f;
+    constexpr float FN1 = 0.069670166153766424023f;
+    constexpr float FN0 = -0.75225204789749321333f;
+
+    constexpr float FD4 = 0.0011193462567257629232f;
+    constexpr float FD3 = 0.014866955030185295499f;
+    constexpr float FD2 = 0.11583842382862377919f;
+    constexpr float FD1 = 0.50736591960530292870f;
+    constexpr float FD0 = 1.0f;
+
+    float z4;
+    float polyFN0, polyFN1, polyFD0, polyFD1;
+
+    z4 = z2 * z2;
+
+    polyFD0 = FD4 * z4 + FD2;
+    polyFD1 = FD3 * z4 + FD1;
+    polyFD0 = polyFD0 * z4 + FD0;
+    polyFD0 = polyFD1 * z2 + polyFD0;
+
+    polyFD0 = 1.0f / polyFD0;
+
+    polyFN0 = FN6 * z4 + FN4;
+    polyFN1 = FN5 * z4 + FN3;
+    polyFN0 = polyFN0 * z4 + FN2;
+    polyFN1 = polyFN1 * z4 + FN1;
+    polyFN0 = polyFN0 * z4 + FN0;
+    polyFN0 = polyFN1 * z2 + polyFN0;
+
+    return polyFN0 * polyFD0;
+}
+
+/*! Linear interpolation using exactly two FMA operations.
+ *
+ *  Implements numeric equivalent of: (1-t)*d0 + t*d1.
+ */
+template<typename T>
+static inline T lerp(T d0, T d1, T t)
+{
+    return fma(t, d1, fma(-t, d0, d0));
+}
+
+/*! Interpolate Ewald coulomb force correction using the F*r table.
+ */
+static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode::read> a_coulombTab,
+                                                const float coulombTabScale,
+                                                const float r)
+{
+    const float normalized = coulombTabScale * r;
+    const int   index      = (int)normalized;
+    const float fraction   = normalized - index;
+
+    const float left  = a_coulombTab[index];
+    const float right = a_coulombTab[index + 1];
+
+    return lerp(left, right, fraction);
+}
+
+template<cl::sycl::access::mode Mode>
+static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const int idx, const float val)
+{
+    sycl::ONEAPI::atomic_ref<float, sycl::ONEAPI::memory_order_relaxed, sycl::ONEAPI::memory_scope_work_group,
+                             cl::sycl::access::address_space::global_space>
+            fout_atomic(acc[idx]);
+    fout_atomic.fetch_add(val);
+}
+
+/*! Final j-force reduction; this implementation only with power of two
+ *  array sizes.
+ */
+static inline void reduce_force_j(cl::sycl::accessor<float3, 1, mode::read_write, target::local> shmemBuf,
+                                  const float3                                                   f,
+                                  DeviceAccessor<float, mode::read_write> fout,
+                                  const cl::sycl::nd_item<3>              itemIdx,
+                                  const int                               aidx)
+{
+    // Extremely dumb and not-optimized version of reduce_force_j_warp_shfl
+    const int tid = itemIdx.get_local_linear_id();
+    shmemBuf[tid] = f;
+    // SYCL-TODO: Synchronizing only sub-group should be enough
+    itemIdx.barrier(fence_space::local_space);
+    const int idInCluster = (tid % c_clSize);
+    if (idInCluster == 0)
+    {
+        for (int dim = 0; dim < 3; dim++)
+        {
+            float acc = 0.0F;
+            for (int j = 0; j < c_clSize; j++)
+            {
+                acc += shmemBuf[tid + j][dim];
+            }
+            atomic_fetch_add(fout, 3 * aidx + dim, acc);
+        }
+    }
+}
+
+/*! Final i-force reduction; this implementation works only with power of two
+ *  array sizes.
+ */
+static inline float3 reduce_force_i(cl::sycl::accessor<float3, 1, mode::read_write, target::local> shmemBuf,
+                                    const float3                            f,
+                                    DeviceAccessor<float, mode::read_write> fout,
+                                    bool                                    bCalcFshift,
+                                    const cl::sycl::nd_item<3>              itemIdx,
+                                    const int                               aidx)
+{
+    float3 fshift_buf(0.0F, 0.0F, 0.0F);
+    // Extremely dumb and not-optimized version of reduce_force_i_warp_shfl
+    const int tid = itemIdx.get_local_linear_id();
+    shmemBuf[tid] = f;
+    itemIdx.barrier(fence_space::local_space);
+    const int idInCluster = (tid / c_clSize);
+    if (idInCluster == 0)
+    {
+        for (int dim = 0; dim < 3; dim++)
+        {
+            float acc = 0.0F;
+            for (int j = 0; j < c_clSize; j++)
+            {
+                acc += shmemBuf[tid + j * c_clSize][dim];
+            }
+            // SYCL-TODO: Change to sycl::atomic when moving to SYCL2020
+            atomic_fetch_add(fout, 3 * aidx + dim, acc);
+            if (bCalcFshift)
+            {
+                fshift_buf[dim] += acc;
+            }
+        }
+    }
+    return fshift_buf;
+}
+
 /*! \brief Main kernel for NBNXM.
  *
  */
 template<bool doPruneNBL, bool doCalcEnergies, enum ElecType elecType, enum VdwType vdwType>
 auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  DeviceAccessor<float4, mode::read>                        a_xq,
-                 DeviceAccessor<float3, mode::read_write>                  a_f,
+                 DeviceAccessor<float, mode::read_write>                   a_f,
                  DeviceAccessor<float3, mode::read>                        a_shiftVec,
-                 DeviceAccessor<float3, mode::read_write>                  a_fShift,
+                 DeviceAccessor<float, mode::read_write>                   a_fShift,
                  OptionalAccessor<float, mode::read_write, doCalcEnergies> a_elecEnergy,
                  OptionalAccessor<float, mode::read_write, doCalcEnergies> a_vdwEnergy,
                  DeviceAccessor<nbnxn_cj4_t, doPruneNBL ? mode::read_write : mode::read> a_plistCJ4,
                  DeviceAccessor<nbnxn_sci_t, mode::read>                                 a_plistSci,
-                 DeviceAccessor<nbnxn_excl_t, mode::read>              a_plistExcl,
-                 OptionalAccessor<int, mode::read, !ljComb<vdwType>>   a_atomTypes,
-                 OptionalAccessor<float2, mode::read, ljComb<vdwType>> a_ljComb,
-                 OptionalAccessor<float, mode::read, !ljComb<vdwType>> a_nbfp,
-                 OptionalAccessor<float, mode::read, doCalcEnergies>   a_nbfpComb,
+                 DeviceAccessor<nbnxn_excl_t, mode::read>                    a_plistExcl,
+                 OptionalAccessor<int, mode::read, !ljComb<vdwType>>         a_atomTypes,
+                 OptionalAccessor<float2, mode::read, ljComb<vdwType>>       a_ljComb,
+                 OptionalAccessor<float, mode::read, !ljComb<vdwType>>       a_nbfp,
+                 OptionalAccessor<float, mode::read, ljEwald<vdwType>>       a_nbfpComb,
+                 OptionalAccessor<float, mode::read, elecEwaldTab<elecType>> a_coulombType,
                  const float gmx_unused rCoulombSq,
                  const float gmx_unused rVdwSq,
                  const float gmx_unused twoKRf,
@@ -145,7 +519,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  const float            ewaldCoeffLJ,
                  const int              numTypes,
                  const float            c_rf,
-                 const float            repulsionShiftPot)
+                 const shift_consts_t   dispersion_shift,
+                 const shift_consts_t   repulsion_shift,
+                 const switch_consts_t  vdw_switch,
+                 const float            rVdwSwitch,
+                 const float            sh_lj_ewald,
+                 const float            coulombTabScale,
+                 const bool             calcShift)
 {
     static constexpr EnergyFunctionProperties<elecType, vdwType> props;
 
@@ -179,7 +559,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     cl::sycl::accessor<int, 1, mode::read_write, target::local> cjs(
             cl::sycl::range<1>(NTHREAD_Z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
 
-    auto atib = [&cgh]() {
+    // shmem buffer for j- and i-forces
+    cl::sycl::accessor<float3, 1, mode::read_write, target::local> force_j_buf_shmem(
+            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z), cgh);
+    cl::sycl::accessor<float3, 1, mode::read_write, target::local> force_i_buf_shmem(
+            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z), cgh);
+
+    auto atib = [&]() {
         if constexpr (!props.vdwComb)
         {
             return cl::sycl::accessor<int, 2, mode::read_write, target::local>(
@@ -191,7 +577,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         }
     }();
 
-    auto ljcpib = [&cgh]() {
+    auto ljcpib = [&]() {
         if constexpr (props.vdwComb)
         {
             return cl::sycl::accessor<float2, 2, mode::read_write, target::local>(
@@ -227,14 +613,20 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 #endif
         const unsigned bidx = itemIdx.get_group(0);
         // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
-        const sycl::ONEAPI::sub_group sg   = itemIdx.get_sub_group();
-        const unsigned                widx = sg.get_local_id(); // index in sub-group (warp)
+        const sycl::ONEAPI::sub_group sg                    = itemIdx.get_sub_group();
+        const unsigned                widx                  = sg.get_group_id(); // warp index
         float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster] = { { 0.0F, 0.0F, 0.0F } }; // i force buffer
 
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx];
         const int         sci        = nb_sci.sci;
         const int         cij4_start = nb_sci.cj4_ind_start;
         const int         cij4_end   = nb_sci.cj4_ind_end;
+
+        // Only needed if props.elecEwaldAna
+        const float beta2 = ewaldBeta * ewaldBeta;
+        const float beta3 = beta2 * ewaldBeta;
+
+        bool doCalcShift = calcShift;
 
         float4 xqbuf;
 
@@ -444,8 +836,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         if constexpr (doCalcEnergies || props.vdwPSwitch)
                                         {
                                             E_lj_p = int_bit
-                                                     * (c12 * (inv_r6 * inv_r6 + repulsionShiftPot) * c_oneTwelfth
-                                                        - c6 * (inv_r6 + repulsionShiftPot) * c_oneSixth);
+                                                     * (c12 * (inv_r6 * inv_r6 + repulsion_shift.cpot) * c_oneTwelfth
+                                                        - c6 * (inv_r6 + repulsion_shift.cpot) * c_oneSixth);
                                         }
                                     }
                                     else
@@ -459,15 +851,191 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         }
                                         F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
                                     } // (!props.vdwCombLB || doCalcEnergies)
+                                    if constexpr (props.vdwFSwitch)
+                                    {
+                                        if constexpr (doCalcEnergies)
+                                        {
+                                            calculate_force_switch_F_E(
+                                                    dispersion_shift, repulsion_shift, rVdwSwitch,
+                                                    c6, c12, inv_r, r2, &F_invr, &E_lj_p);
+                                        }
+                                        else
+                                        {
+                                            calculate_force_switch_F(dispersion_shift,
+                                                                     repulsion_shift, rVdwSwitch,
+                                                                     c6, c12, inv_r, r2, &F_invr);
+                                        }
+                                    }
+                                    if constexpr (props.vdwEwald)
+                                    {
+                                        if constexpr (props.vdwEwaldCombGeom)
+                                        {
+                                            if constexpr (doCalcEnergies)
+                                            {
+                                                calculate_lj_ewald_comb_geom_F_E(
+                                                        a_nbfpComb, sh_lj_ewald, typei, typej, r2,
+                                                        inv_r2, lje_coeff2, lje_coeff6_6, int_bit,
+                                                        &F_invr, &E_lj_p);
+                                            }
+                                            else
+                                            {
+                                                calculate_lj_ewald_comb_geom_F(
+                                                        a_nbfpComb, typei, typej, r2, inv_r2,
+                                                        lje_coeff2, lje_coeff6_6, &F_invr);
+                                            }
+                                        }
+                                        else if constexpr (props.vdwEwaldCombLB)
+                                        {
+                                            calculate_lj_ewald_comb_LB_F_E(
+                                                    a_nbfpComb, sh_lj_ewald, typei, typej, r2,
+                                                    inv_r2, lje_coeff2, lje_coeff6_6,
+                                                    (doCalcEnergies ? int_bit : 0), &F_invr,
+                                                    (doCalcEnergies ? &E_lj_p : nullptr));
+                                        }
+                                    } // (props.vdwEwald)
+                                    if constexpr (props.vdwPSwitch)
+                                    {
+                                        if constexpr (doCalcEnergies)
+                                        {
+                                            calculate_potential_switch_F_E(vdw_switch, rVdwSwitch,
+                                                                           inv_r, r2, &F_invr, &E_lj_p);
+                                        }
+                                        else
+                                        {
+                                            calculate_potential_switch_F(vdw_switch, rVdwSwitch,
+                                                                         inv_r, r2, &F_invr, &E_lj_p);
+                                        }
+                                    }
+                                    if constexpr (vdwCutoffCheck<elecType>)
+                                    {
+                                        /* Separate VDW cut-off check to enable twin-range cut-offs
+                                         * (rvdw < rcoulomb <= rlist) */
+                                        const float vdwInRange = (r2 < rVdwSq) ? 1.0F : 0.0F;
+                                        F_invr *= vdwInRange;
+                                        if constexpr (doCalcEnergies)
+                                        {
+                                            E_lj_p *= vdwInRange;
+                                        }
+                                    }
+                                    if constexpr (doCalcEnergies)
+                                    {
+                                        E_lj += E_lj_p;
+                                    }
 
-                                    // TODO: Continue from here
+                                    if constexpr (props.elecCutoff)
+                                    {
+                                        if constexpr (doExclusionForces)
+                                        {
+                                            F_invr += qi * qj_f * int_bit * inv_r2 * inv_r;
+                                        }
+                                        else
+                                        {
+                                            F_invr += qi * qj_f * inv_r2 * inv_r;
+                                        }
+                                    }
+                                    if constexpr (props.elecRF)
+                                    {
+                                        F_invr += qi * qj_f * (int_bit * inv_r2 * inv_r - twoKRf);
+                                    }
+                                    if constexpr (props.elecEwaldAna)
+                                    {
+                                        F_invr += qi * qj_f
+                                                  * (int_bit * inv_r2 * inv_r + pmecorrF(beta2 * r2) * beta3);
+                                    }
+                                    else if constexpr (props.elecEwaldTab)
+                                    {
+                                        F_invr += qi * qj_f
+                                                  * (int_bit * inv_r2
+                                                     - interpolate_coulomb_force_r(
+                                                               a_coulombType, coulombTabScale, r2 * inv_r))
+                                                  * inv_r;
+                                    }
+
+                                    if constexpr (doCalcEnergies)
+                                    {
+                                        if constexpr (props.elecCutoff)
+                                        {
+                                            E_el += qi * qj_f * (int_bit * inv_r - c_rf);
+                                        }
+                                        if constexpr (props.elecRF)
+                                        {
+                                            E_el += qi * qj_f
+                                                    * (int_bit * inv_r + 0.5f * twoKRf * r2 - c_rf);
+                                        }
+                                        if constexpr (props.elecEwald)
+                                        {
+                                            E_el += qi * qj_f
+                                                    * (inv_r * (int_bit - erff(r2 * inv_r * ewaldBeta))
+                                                       - int_bit * ewaldShift);
+                                        }
+                                    }
+
+                                    const float3 f_ij = rv * F_invr;
+
+                                    /* accumulate j forces in registers */
+                                    fcj_buf -= f_ij;
+
+                                    /* accumulate i forces in registers */
+                                    fci_buf[i] += f_ij;
                                 } // (r2 < rCoulombSq) && notExcluded
                             }     // (imask & mask_ji)
-                        }         // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                            /* shift the mask bit by 1 */
+                            mask_ji += mask_ji;
+                        } // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                        // Replace with group_reduce in SYCL2020
+                        /* reduce j forces */
+                        reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, aj);
                     } // (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                 } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
-            }     // (doPruneNBL || imask)
-        }         // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
+                if constexpr (doPruneNBL)
+                {
+                    /* Update the imask with the new one which does not contain the
+                     * out of range clusters anymore. */
+                    a_plistCJ4[j4].imei[widx].imask = imask;
+                }
+            } // (doPruneNBL || imask)
+
+            // avoid shared memory WAR hazards between loop iterations
+            sg.barrier();
+        } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
+
+        /* skip central shifts when summing shift forces */
+
+        if (nb_sci.shift == CENTRAL)
+        {
+            doCalcShift = false;
+        }
+
+        float3 fshift_buf(0.0F, 0.0F, 0.0F);
+
+        /* reduce i forces */
+        for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+        {
+            const int ai = (sci * c_nbnxnGpuNumClusterPerSupercluster + i) * c_clSize + tidxi;
+            fshift_buf += reduce_force_i(force_j_buf_shmem, fci_buf[i], a_f, doCalcShift, itemIdx, ai);
+        }
+
+        /* add up local shift forces into global mem, tidxj indexes x,y,z */
+        if (doCalcShift && (tidxj / c_clSize == 0))
+        {
+            for (int dim = 0; dim < 3; dim++)
+            {
+                atomic_fetch_add(a_fShift, nb_sci.shift * 3 + dim, fshift_buf[dim]);
+            }
+        }
+
+        if constexpr (doCalcEnergies)
+        {
+            const float E_lj_wg =
+                    sycl::ONEAPI::reduce(itemIdx.get_group(), E_lj, sycl::ONEAPI::plus<float>());
+            const float E_el_wg =
+                    sycl::ONEAPI::reduce(itemIdx.get_group(), E_el, sycl::ONEAPI::plus<float>());
+            if (tidx == 0)
+            {
+                atomic_fetch_add(a_vdwEnergy, 0, E_lj_wg);
+                atomic_fetch_add(a_elecEnergy, 0, E_el_wg);
+            }
+        }
     };
 }
 
@@ -525,13 +1093,20 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     const bool          doPruneNBL   = (plist->haveFreshList && !nb->didPrune[iloc]);
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
+    // Casting to float simplifies using atomic ops in the kernel
+    cl::sycl::buffer<float3, 1> f(*adat->f.buffer_);
+    auto                        f_as_float = f.reinterpret<float, 1>(f.get_count() * 3);
+    cl::sycl::buffer<float3, 1> fShift(*adat->fShift.buffer_);
+    auto                        fShift_as_float = f.reinterpret<float, 1>(fShift.get_count() * 3);
+
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
             doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
-            plist->nsci, adat->xq, adat->f, adat->shiftVec, adat->fShift, adat->eElec, adat->eLJ,
-            plist->cj4, plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->nbfp,
-            nbp->nbfp_comb, nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf, nbp->ewald_beta,
-            nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj, adat->numTypes,
-            nbp->c_rf, nbp->repulsion_shift.cpot);
+            plist->nsci, adat->xq, f_as_float, adat->shiftVec, fShift_as_float, adat->eElec,
+            adat->eLJ, plist->cj4, plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->nbfp,
+            nbp->nbfp_comb, nbp->coulomb_tab, nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf,
+            nbp->ewald_beta, nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj,
+            adat->numTypes, nbp->c_rf, nbp->dispersion_shift, nbp->repulsion_shift, nbp->vdw_switch,
+            nbp->rvdw_switch, nbp->sh_lj_ewald, nbp->coulomb_tab_scale, stepWork.computeVirial);
 }
 
 } // namespace Nbnxm
