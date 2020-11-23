@@ -64,6 +64,7 @@ target_link_libraries(gmxpreprocess INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(gmxpreprocess PUBLIC
 target_link_libraries(gmxpreprocess INTERFACE
+                      domdec
                       #                      utility
                       )
 # Source files have the following private module dependencies.

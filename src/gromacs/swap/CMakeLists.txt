@@ -60,6 +60,7 @@ target_link_libraries(swap INTERFACE
 # swap interfaces convey transitive dependence on these modules.
 #target_link_libraries(swap PUBLIC
 target_link_libraries(swap INTERFACE
+                      domdec
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -44,7 +44,11 @@ target_include_directories(mdrun_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src
 target_link_libraries(mdrun_objlib PRIVATE common legacy_api)
 
 # Module dependencies
-target_link_libraries(mdrun_objlib PRIVATE fileio hardware)
+target_link_libraries(mdrun_objlib PRIVATE
+                      domdec
+                      fileio
+                      hardware
+                      )
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
 target_link_libraries(mdrun_objlib INTERFACE

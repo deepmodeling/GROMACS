@@ -43,7 +43,7 @@
 
 #include "gmxpre.h"
 
-#include "partition.h"
+#include "gromacs/domdec/partition.h"
 
 #include "config.h"
 

@@ -38,7 +38,7 @@
 
 #include "gmxpre.h"
 
-#include "domdec.h"
+#include "gromacs/domdec/domdec.h"
 
 #include "config.h"
 

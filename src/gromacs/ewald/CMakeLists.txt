@@ -128,6 +128,7 @@ target_link_libraries(ewald INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(ewald PUBLIC
 target_link_libraries(ewald INTERFACE
+                      domdec
                       gpu_utils
                       hardware
                       math

@@ -60,6 +60,7 @@ target_link_libraries(restraint INTERFACE
 # restraint interfaces convey transitive dependence on these modules.
 #target_link_libraries(restraint PUBLIC
 target_link_libraries(restraint INTERFACE
+                      domdec
                       utility
                       )
 # Source files have the following private module dependencies.

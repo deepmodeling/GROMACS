@@ -42,7 +42,7 @@
 
 #include "gmxpre.h"
 
-#include "collect.h"
+#include "gromacs/domdec/collect.h"
 
 #include "config.h"
 

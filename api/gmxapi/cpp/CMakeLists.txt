@@ -90,6 +90,7 @@ target_link_libraries(gmxapi PRIVATE
                       # commandline
                       hardware
                       # mdlib
+                      mdrun
                       mdtypes
                       topology
                       # utility

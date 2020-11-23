@@ -65,6 +65,7 @@ target_link_libraries(taskassignment INTERFACE
 # taskassignment interfaces convey transitive dependence on these modules.
 #target_link_libraries(taskassignment PUBLIC
 target_link_libraries(taskassignment INTERFACE
+                      domdec
                       hardware
                       utility
                       )

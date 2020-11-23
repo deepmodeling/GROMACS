@@ -60,6 +60,7 @@ target_link_libraries(applied_forces INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(applied_forces PUBLIC
 target_link_libraries(applied_forces INTERFACE
+                      domdec
                       fileio
                       math
                       mdtypes

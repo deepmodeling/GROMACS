@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "mdsetup.h"
+#include "gromacs/domdec/mdsetup.h"
 
 #include "gromacs/domdec/domdec.h"
 #include "gromacs/domdec/domdec_struct.h"

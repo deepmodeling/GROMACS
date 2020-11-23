@@ -60,6 +60,7 @@ target_link_libraries(imd INTERFACE
 # imd interfaces convey transitive dependence on these modules.
 #target_link_libraries(imd PUBLIC
 target_link_libraries(imd INTERFACE
+                      domdec
                       utility
                       )
 # Source files have the following private module dependencies.
