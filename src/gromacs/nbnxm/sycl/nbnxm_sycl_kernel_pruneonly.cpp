@@ -60,6 +60,17 @@ static constexpr int c_syclPruneKernelJ4Concurrency = GMX_NBNXN_PRUNE_KERNEL_J4_
 
 /*! \brief cluster size = number of atoms per cluster. */
 static constexpr int c_clSize = c_nbnxnGpuClusterSize;
+/*! \brief j-cluster size after split (4 in the current implementation). */
+static constexpr int c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
+/*! \brief i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set */
+static constexpr unsigned superClInteractionMask = ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
+
+// TODO: tune
+#define NTHREAD_Z 1
+
+using cl::sycl::access::fence_space;
+using cl::sycl::access::mode;
+using cl::sycl::access::target;
 
 namespace Nbnxm
 {
@@ -70,23 +81,154 @@ using cl::sycl::access::mode;
  *
  */
 template<bool haveFreshList>
-auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
-                          DeviceAccessor<float4, mode::read>            a_xq,
-                          DeviceAccessor<float3, mode::read>            a_shiftVec,
-                          DeviceAccessor<nbnxn_cj4_t, mode::read_write> a_plistCJ4,
-                          DeviceAccessor<nbnxn_sci_t, mode::read>       a_plistSci,
-                          const float gmx_unused rlistOuterSq,
-                          const float gmx_unused rlistInnerSq,
-                          const int gmx_unused numParts,
-                          const int gmx_unused part)
+auto nbnxmKernelPruneOnly(cl::sycl::handler&                             cgh,
+                          DeviceAccessor<float4, mode::read>             a_xq,
+                          DeviceAccessor<float3, mode::read>             a_shiftVec,
+                          DeviceAccessor<nbnxn_cj4_t, mode::read_write>  a_plistCJ4,
+                          DeviceAccessor<nbnxn_sci_t, mode::read>        a_plistSci,
+                          DeviceAccessor<unsigned int, mode::read_write> a_plistIMask,
+                          const float                                    rlistOuterSq,
+                          const float                                    rlistInnerSq,
+                          const int                                      numParts,
+                          const int                                      part)
 {
     cgh.require(a_xq);
     cgh.require(a_shiftVec);
     cgh.require(a_plistCJ4);
     cgh.require(a_plistSci);
 
-    return [=](cl::sycl::nd_item<3> gmx_unused itemIdx) {
+    /* shmem buffer for i x+q pre-loading */
+    cl::sycl::accessor<float4, 2, mode::read_write, target::local> xib(
+            cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
+    /* the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution */
+    cl::sycl::accessor<int, 1, mode::read_write, target::local> cjs(
+            cl::sycl::range<1>(NTHREAD_Z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
+
+    return [=](cl::sycl::nd_item<3> itemIdx) {
+        // thread/block/warp id-s
+        const unsigned        tidxi = itemIdx.get_local_id(0);
+        const unsigned        tidxj = itemIdx.get_local_id(1);
+        const cl::sycl::id<2> tidxji(itemIdx.get_local_id(1), itemIdx.get_local_id(0));
+#if NTHREAD_Z == 1
+        const unsigned tidxz = 0;
+#else
+        const unsigned tidxz = itemIdx.get_local_id(2);
+#endif
+        const unsigned bidx = itemIdx.get_group(0);
+        // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
+        const sycl::ONEAPI::sub_group sg = itemIdx.get_sub_group();
+        const unsigned widx = (tidxj * c_clSize) / sg.get_local_range()[0]; /* warp index */
+
+        // my i super-cluster's index = sciOffset + current bidx * numParts + part
+        const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
+        const int         sci        = nb_sci.sci;           /* super-cluster */
+        const int         cij4_start = nb_sci.cj4_ind_start; /* first ...*/
+        const int         cij4_end   = nb_sci.cj4_ind_end;   /* and last index of j clusters */
+
+        if (tidxz == 0)
+        {
+            /* Pre-load i-atom x and q into shared memory */
+            const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj;
+            const int ai = ci * c_clSize + tidxi;
+
+            /* We don't need q, but using float4 in shmem avoids bank conflicts.
+               (but it also wastes L2 bandwidth). */
+            const float4 xq    = a_xq[ai];
+            const float3 shift = a_shiftVec[nb_sci.shift];
+            const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], 0.0F);
+            xib[tidxji] = xi;
+        }
+        itemIdx.barrier(fence_space::local_space);
+
+        /* loop over the j clusters = seen by any of the atoms in the current super-cluster.
+         * The loop stride NTHREAD_Z ensures that consecutive warps-pairs are assigned
+         * consecutive j4's entries. */
+        for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
+        {
+            unsigned int imaskFull, imaskCheck, imaskNew;
+
+            if (haveFreshList)
+            {
+                /* Read the mask from the list transferred from the CPU */
+                imaskFull = a_plistCJ4[j4].imei[widx].imask;
+                /* We attempt to prune all pairs present in the original list */
+                imaskCheck = imaskFull;
+                imaskNew   = 0;
+            }
+            else
+            {
+                /* Read the mask from the "warp-pruned" by rlistOuter mask array */
+                imaskFull = a_plistIMask[j4 * c_nbnxnGpuClusterpairSplit + widx];
+                /* Read the old rolling pruned mask, use as a base for new */
+                imaskNew = a_plistCJ4[j4].imei[widx].imask;
+                /* We only need to check pairs with different mask */
+                imaskCheck = (imaskNew ^ imaskFull);
+            }
+
+            if (imaskCheck)
+            {
+                /* Pre-load cj into shared memory on both warps separately */
+                if ((tidxj == 0 || tidxj == 4) && tidxi < c_nbnxnGpuJgroupSize)
+                {
+                    cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
+                }
+                itemIdx.barrier(fence_space::local_space);
+
+                // TODO: Continue here
+                for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
+                {
+                    if (imaskCheck & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
+                    {
+                        unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+
+                        const int cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
+                        const int aj = cj * c_clSize + tidxj;
+
+                        /* load j atom data */
+                        const float4 tmp = a_xq[aj];
+                        const float3 xj(tmp[0], tmp[1], tmp[2]);
+
+                        for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                        {
+                            if (imaskCheck & mask_ji)
+                            {
+                                // load i-cluster coordinates from shmem
+                                const float4 xi = xib[cl::sycl::id<2>(i, tidxi)];
+                                // distance between i and j atoms
+                                float3 rv(xi[0], xi[1], xi[2]);
+                                rv -= xj;
+                                const float r2 = norm2(rv);
+                                /* If _none_ of the atoms pairs are in rlistOuter
+                                 * range, the bit corresponding to the current
+                                 * cluster-pair in imask gets set to 0. */
+                                if (haveFreshList && !(sycl::ONEAPI::any_of(sg, r2 < rlistOuterSq)))
+                                {
+                                    imaskFull &= ~mask_ji;
+                                }
+                                /* If any atom pair is within range, set the bit
+                                 * corresponding to the current cluster-pair. */
+                                if (sycl::ONEAPI::any_of(sg, r2 < rlistInnerSq))
+                                {
+                                    imaskNew |= mask_ji;
+                                }
+                            } // (imaskCheck & mask_ji)
+
+                            /* shift the mask bit by 1 */
+                            mask_ji += mask_ji;
+                        } // (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+                    } // (imaskCheck & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
+                } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
+                if constexpr (haveFreshList)
+                {
+                    /* copy the list pruned to rlistOuter to a separate buffer */
+                    a_plistIMask[j4 * c_nbnxnGpuClusterpairSplit + widx] = imaskFull;
+                }
+                /* update the imask with only the pairs up to rlistInner */
+                a_plistCJ4[j4].imei[widx].imask = imaskNew;
+            } // (imaskCheck)
+            itemIdx.barrier(fence_space::local_space);
+        } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
     };
 }
 
@@ -146,7 +288,7 @@ void launchNbnxmKernelPruneOnly(NbnxmGpu*                 nb,
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernelPruneOnly(
             haveFreshList, deviceStream, numSciInPart, adat->xq, adat->shiftVec, plist->cj4,
-            plist->sci, nbp->rlistOuter_sq, nbp->rlistInner_sq, numParts, part);
+            plist->sci, plist->imask, nbp->rlistOuter_sq, nbp->rlistInner_sq, numParts, part);
 }
 
 } // namespace Nbnxm
