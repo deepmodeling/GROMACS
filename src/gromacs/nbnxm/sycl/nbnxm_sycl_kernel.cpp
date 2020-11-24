@@ -107,8 +107,8 @@ template<enum VdwType vdwType>
 constexpr bool ljEwald = EnergyFunctionProperties<ElecType::Count, vdwType>().vdwEwald;
 
 // Same values that are used in CUDA kernels.
-static constexpr float c_oneSixth   = 0.16666667f;
-static constexpr float c_oneTwelfth = 0.08333333f;
+static constexpr float c_oneSixth   = 0.16666667F;
+static constexpr float c_oneTwelfth = 0.08333333F;
 
 using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
@@ -207,7 +207,7 @@ static inline void calculate_lj_ewald_comb_geom_F(const DeviceAccessor<float, mo
     const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
     const float cr2       = lje_coeff2 * r2;
     const float expmcr2   = expf(-cr2);
-    const float poly      = 1.0f + cr2 + 0.5f * cr2 * cr2;
+    const float poly      = 1.0F + cr2 + 0.5F * cr2 * cr2;
 
     /* Subtract the grid force from the total LJ force */
     *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
@@ -235,14 +235,14 @@ static inline void calculate_lj_ewald_comb_geom_F_E(const DeviceAccessor<float, 
     const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
     const float cr2       = lje_coeff2 * r2;
     const float expmcr2   = expf(-cr2);
-    const float poly      = 1.0f + cr2 + 0.5f * cr2 * cr2;
+    const float poly      = 1.0F + cr2 + 0.5F * cr2 * cr2;
 
     /* Subtract the grid force from the total LJ force */
     *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
 
     /* Shift should be applied only to real LJ pairs */
     const float sh_mask = sh_lj_ewald * int_bit;
-    *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0f - expmcr2 * poly) + sh_mask);
+    *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0F - expmcr2 * poly) + sh_mask);
 }
 
 /*! Calculate LJ-PME grid force + energy contribution (if E_lj != nullptr) with
@@ -278,7 +278,7 @@ static inline void calculate_lj_ewald_comb_LB_F_E(const DeviceAccessor<float, mo
     const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
     const float cr2       = lje_coeff2 * r2;
     const float expmcr2   = expf(-cr2);
-    const float poly      = 1.0f + cr2 + 0.5f * cr2 * cr2;
+    const float poly      = 1.0F + cr2 + 0.5F * cr2 * cr2;
 
     /* Subtract the grid force from the total LJ force */
     *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
@@ -287,7 +287,7 @@ static inline void calculate_lj_ewald_comb_LB_F_E(const DeviceAccessor<float, mo
     {
         /* Shift should be applied only to real LJ pairs */
         const float sh_mask = sh_lj_ewald * int_bit;
-        *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0f - expmcr2 * poly) + sh_mask);
+        *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0F - expmcr2 * poly) + sh_mask);
     }
 }
 
@@ -340,10 +340,10 @@ static inline void calculate_potential_switch_F_E(const switch_consts_t vdw_swit
 
     const float r       = r2 * inv_r;
     float       rSwitch = r - rVdwSwitch;
-    rSwitch             = rSwitch >= 0.0f ? rSwitch : 0.0f;
+    rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
 
     const float sw =
-            1.0f + (switch_V3 + (switch_V4 + switch_V5 * rSwitch) * rSwitch) * rSwitch * rSwitch * rSwitch;
+            1.0F + (switch_V3 + (switch_V4 + switch_V5 * rSwitch) * rSwitch) * rSwitch * rSwitch * rSwitch;
     const float dsw = (switch_F2 + (switch_F3 + switch_F4 * rSwitch) * rSwitch) * rSwitch * rSwitch;
 
     *F_invr = (*F_invr) * sw - inv_r * (*E_lj) * dsw;
@@ -419,8 +419,8 @@ static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode
 template<cl::sycl::access::mode Mode>
 static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const int idx, const float val)
 {
-    sycl::ONEAPI::atomic_ref<float, sycl::ONEAPI::memory_order_relaxed, sycl::ONEAPI::memory_scope_work_group,
-                             cl::sycl::access::address_space::global_space>
+    sycl_pf::atomic_ref<float, sycl_pf::memory_order::relaxed, sycl_pf::memory_scope::work_group,
+                        cl::sycl::access::address_space::global_space>
             fout_atomic(acc[idx]);
     fout_atomic.fetch_add(val);
 }
@@ -509,23 +509,23 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  OptionalAccessor<float, mode::read, !ljComb<vdwType>>       a_nbfp,
                  OptionalAccessor<float, mode::read, ljEwald<vdwType>>       a_nbfpComb,
                  OptionalAccessor<float, mode::read, elecEwaldTab<elecType>> a_coulombType,
-                 const float gmx_unused rCoulombSq,
-                 const float gmx_unused rVdwSq,
-                 const float gmx_unused twoKRf,
-                 const float gmx_unused ewaldBeta,
-                 const float gmx_unused rlistOuterSq,
-                 const float gmx_unused ewaldShift,
-                 const float            epsFac,
-                 const float            ewaldCoeffLJ,
-                 const int              numTypes,
-                 const float            c_rf,
-                 const shift_consts_t   dispersion_shift,
-                 const shift_consts_t   repulsion_shift,
-                 const switch_consts_t  vdw_switch,
-                 const float            rVdwSwitch,
-                 const float            sh_lj_ewald,
-                 const float            coulombTabScale,
-                 const bool             calcShift)
+                 const float                                                 rCoulombSq,
+                 const float                                                 rVdwSq,
+                 const float                                                 twoKRf,
+                 const float                                                 ewaldBeta,
+                 const float                                                 rlistOuterSq,
+                 const float                                                 ewaldShift,
+                 const float                                                 epsFac,
+                 const float                                                 ewaldCoeffLJ,
+                 const int                                                   numTypes,
+                 const float                                                 c_rf,
+                 const shift_consts_t                                        dispersion_shift,
+                 const shift_consts_t                                        repulsion_shift,
+                 const switch_consts_t                                       vdw_switch,
+                 const float                                                 rVdwSwitch,
+                 const float                                                 sh_lj_ewald,
+                 const float                                                 coulombTabScale,
+                 const bool                                                  calcShift)
 {
     static constexpr EnergyFunctionProperties<elecType, vdwType> props;
 
@@ -613,8 +613,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 #endif
         const unsigned bidx = itemIdx.get_group(0);
         // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
-        const sycl::ONEAPI::sub_group sg                    = itemIdx.get_sub_group();
-        const unsigned                widx                  = sg.get_group_id(); // warp index
+        const sycl_pf::sub_group sg                         = itemIdx.get_sub_group();
+        const unsigned           widx                       = sg.get_group_id(); // warp index
         float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster] = { { 0.0F, 0.0F, 0.0F } }; // i force buffer
 
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx];
@@ -733,9 +733,9 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 {
                     if (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
-                        int mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
-                        int cj      = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
-                        int aj      = cj * c_clSize + tidxj;
+                        int       mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        const int cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
+                        const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
                         xqbuf = a_xq[aj];
@@ -773,7 +773,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                      * the bit corresponding to the current
                                      * cluster-pair in imask gets set to 0. */
                                     // sycl::group_any_of in SYCL2020 provisional
-                                    if (!sycl::ONEAPI::any_of(sg, r2 < rlistOuterSq))
+                                    if (!sycl_pf::any_of(sg, r2 < rlistOuterSq))
                                     {
                                         imask &= ~mask_ji;
                                     }
@@ -849,7 +849,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         {
                                             sig_r6 *= int_bit;
                                         }
-                                        F_invr = epsilon * sig_r6 * (sig_r6 - 1.0f) * inv_r2;
+                                        F_invr = epsilon * sig_r6 * (sig_r6 - 1.0F) * inv_r2;
                                     } // (!props.vdwCombLB || doCalcEnergies)
                                     if constexpr (props.vdwFSwitch)
                                     {
@@ -1026,10 +1026,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         if constexpr (doCalcEnergies)
         {
-            const float E_lj_wg =
-                    sycl::ONEAPI::reduce(itemIdx.get_group(), E_lj, sycl::ONEAPI::plus<float>());
-            const float E_el_wg =
-                    sycl::ONEAPI::reduce(itemIdx.get_group(), E_el, sycl::ONEAPI::plus<float>());
+            const float E_lj_wg = sycl_pf::reduce(itemIdx.get_group(), E_lj, sycl_pf::plus<float>());
+            const float E_el_wg = sycl_pf::reduce(itemIdx.get_group(), E_el, sycl_pf::plus<float>());
             if (tidx == 0)
             {
                 atomic_fetch_add(a_vdwEnergy, 0, E_lj_wg);

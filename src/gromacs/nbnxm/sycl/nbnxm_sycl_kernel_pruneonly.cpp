@@ -117,8 +117,8 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                             cgh,
 #endif
         const unsigned bidx = itemIdx.get_group(0);
         // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
-        const sycl::ONEAPI::sub_group sg = itemIdx.get_sub_group();
-        const unsigned widx = (tidxj * c_clSize) / sg.get_local_range()[0]; /* warp index */
+        const sycl_pf::sub_group sg = itemIdx.get_sub_group();
+        const unsigned widx         = (tidxj * c_clSize) / sg.get_local_range()[0]; /* warp index */
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
@@ -202,13 +202,13 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                             cgh,
                                 /* If _none_ of the atoms pairs are in rlistOuter
                                  * range, the bit corresponding to the current
                                  * cluster-pair in imask gets set to 0. */
-                                if (haveFreshList && !(sycl::ONEAPI::any_of(sg, r2 < rlistOuterSq)))
+                                if (haveFreshList && !(sycl_pf::any_of(sg, r2 < rlistOuterSq)))
                                 {
                                     imaskFull &= ~mask_ji;
                                 }
                                 /* If any atom pair is within range, set the bit
                                  * corresponding to the current cluster-pair. */
-                                if (sycl::ONEAPI::any_of(sg, r2 < rlistInnerSq))
+                                if (sycl_pf::any_of(sg, r2 < rlistInnerSq))
                                 {
                                     imaskNew |= mask_ji;
                                 }

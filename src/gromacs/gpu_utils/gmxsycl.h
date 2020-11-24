@@ -58,4 +58,25 @@
 #    include <CL/sycl.hpp>
 #endif
 
+namespace sycl_pf
+{
+#if __SYCL_COMPILER_VERSION >= 20201005 // 2021.1-beta10 or newer
+using cl::sycl::ONEAPI::any_of;
+using cl::sycl::ONEAPI::atomic_ref;
+using cl::sycl::ONEAPI::memory_order;
+using cl::sycl::ONEAPI::memory_scope;
+using cl::sycl::ONEAPI::plus;
+using cl::sycl::ONEAPI::reduce;
+using cl::sycl::ONEAPI::sub_group;
+#elif __SYCL_COMPILER_VERSION == 20200827 // 2021.1-beta09
+using cl::sycl::intel::any_of;
+using cl::sycl::intel::atomic_ref;
+using cl::sycl::intel::memory_order;
+using cl::sycl::intel::memory_scope;
+using cl::sycl::intel::plus;
+using cl::sycl::intel::reduce;
+using cl::sycl::intel::sub_group;
+#endif
+} // namespace sycl_pf
+
 #endif
