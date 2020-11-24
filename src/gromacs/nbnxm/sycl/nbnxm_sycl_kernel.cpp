@@ -1097,7 +1097,7 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     cl::sycl::buffer<float3, 1> f(*adat->f.buffer_);
     auto                        f_as_float = f.reinterpret<float, 1>(f.get_count() * 3);
     cl::sycl::buffer<float3, 1> fShift(*adat->fShift.buffer_);
-    auto                        fShift_as_float = f.reinterpret<float, 1>(fShift.get_count() * 3);
+    auto fShift_as_float = fShift.reinterpret<float, 1>(fShift.get_count() * 3);
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
             doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
