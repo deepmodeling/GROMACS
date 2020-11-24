@@ -103,6 +103,7 @@ target_link_libraries(nbnxm INTERFACE
 #target_link_libraries(nbnxm PUBLIC
 target_link_libraries(nbnxm INTERFACE
                       domdec
+                      gmxlib
                       gpu_utils
                       hardware
                       math

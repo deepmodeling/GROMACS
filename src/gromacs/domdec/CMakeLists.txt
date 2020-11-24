@@ -67,6 +67,7 @@ target_link_libraries(domdec INTERFACE
 target_link_libraries(domdec INTERFACE
                       compat
                       ewald
+                      gmxlib
                       gpu_utils
                       hardware
                       math

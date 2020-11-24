@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "nb_free_energy.h"
+#include "gromacs/gmxlib/nonbonded/nb_free_energy.h"
 
 #include "config.h"
 

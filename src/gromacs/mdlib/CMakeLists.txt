@@ -77,6 +77,7 @@ target_link_libraries(mdlib INTERFACE
                       domdec
                       ewald
                       fileio
+                      gmxlib
                       hardware
                       mdtypes
                       timing

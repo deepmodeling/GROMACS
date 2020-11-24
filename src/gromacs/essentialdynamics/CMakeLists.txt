@@ -62,6 +62,7 @@ target_link_libraries(essentialdynamics INTERFACE
 #target_link_libraries(essentialdynamics PUBLIC
 target_link_libraries(essentialdynamics INTERFACE
                       domdec
+                      gmxlib
                       linearalgebra
                       utility
                       )

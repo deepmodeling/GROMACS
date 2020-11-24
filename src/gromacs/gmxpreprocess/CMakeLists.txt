@@ -68,6 +68,7 @@ target_link_libraries(gmxpreprocess INTERFACE
                       ewald
                       fft
                       gmxana
+                      gmxlib
                       #                      utility
                       )
 # Source files have the following private module dependencies.

@@ -61,6 +61,7 @@ target_link_libraries(pulling INTERFACE
 #target_link_libraries(pulling PUBLIC
 target_link_libraries(pulling INTERFACE
                       domdec
+                      gmxlib
                       linearalgebra
                       mdtypes
                       utility

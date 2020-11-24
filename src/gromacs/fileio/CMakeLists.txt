@@ -92,6 +92,7 @@ target_include_directories(fileio SYSTEM PRIVATE
 target_link_libraries(fileio PRIVATE
                       common
                       compat
+                      gmxlib
                       legacy_modules
                       mdtypes
                       )

@@ -67,6 +67,7 @@ target_link_libraries(taskassignment INTERFACE
 target_link_libraries(taskassignment INTERFACE
                       domdec
                       ewald
+                      gmxlib
                       hardware
                       utility
                       )

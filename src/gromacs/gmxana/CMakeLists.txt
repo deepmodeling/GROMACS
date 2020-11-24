@@ -61,6 +61,7 @@ target_link_libraries(gmxana INTERFACE
 # gmxana interfaces convey transitive dependence on these modules.
 #target_link_libraries(gmxana PUBLIC
 target_link_libraries(gmxana INTERFACE
+                      gmxlib
                       linearalgebra
                       utility
                       )

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2010,2014,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,13 +34,20 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_GMXLIB_NONBONDED_NONBONDED_H
-#define GMX_GMXLIB_NONBONDED_NONBONDED_H
+#ifndef GMX_CONFORMATION_UTILITIES_H
+#define GMX_CONFORMATION_UTILITIES_H
 
-#define GMX_NONBONDED_DO_FORCE (1 << 1)
-#define GMX_NONBONDED_DO_SHIFTFORCE (1 << 2)
-#define GMX_NONBONDED_DO_FOREIGNLAMBDA (1 << 3)
-#define GMX_NONBONDED_DO_POTENTIAL (1 << 4)
-#define GMX_NONBONDED_DO_SR (1 << 5)
+#include "gromacs/math/vectypes.h"
+#include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/real.h"
+
+void rotate_conf(int natom, rvec* x, rvec* v, real alfa, real beta, real gamma);
+/*rotate() rotates a configuration alfa degrees around the x_axis and beta degrees around the y_axis, *v can be NULL */
+
+void make_new_box(int natoms, rvec* x, matrix box, const rvec box_space, gmx_bool bCenter);
+/* Generates a box around a configuration, box_space is optional extra
+ * space around it. If bCenter then coordinates will be centered in
+ * the generated box
+ */
 
 #endif

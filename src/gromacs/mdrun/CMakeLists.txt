@@ -81,6 +81,7 @@ target_link_libraries(mdrun INTERFACE
                       compat
                       domdec
                       ewald
+                      gmxlib
                       hardware
                       utility
                       )

@@ -63,6 +63,7 @@ target_link_libraries(applied_forces INTERFACE
 target_link_libraries(applied_forces INTERFACE
                       domdec
                       fileio
+                      gmxlib
                       math
                       mdtypes
                       timing

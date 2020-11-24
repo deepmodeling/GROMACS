@@ -67,6 +67,7 @@ target_link_libraries(mdrunutility INTERFACE
 #target_link_libraries(mdrunutility PUBLIC
 target_link_libraries(mdrunutility INTERFACE
                       hardware
+                      gmxlib
                       mdtypes
                       utility
                       )
