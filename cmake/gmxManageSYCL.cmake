@@ -115,6 +115,7 @@ gmx_find_flag_for_source(SYCL_CXX_FLAGS_RESULT
 if(NOT CHECK_SYCL_CXX_FLAGS_QUIETLY)
     if(SYCL_CXX_FLAGS_RESULT)
         message(STATUS "Checking for flags to enable SYCL - ${SYCL_CXX_FLAGS}")
+        set(SYCL_LINKER_FLAGS "-fsycl")
     endif()
     set(CHECK_SYCL_CXX_FLAGS_QUIETLY 1 CACHE INTERNAL "Keep quiet on future calls to detect SYCL flags" FORCE)
 endif()
