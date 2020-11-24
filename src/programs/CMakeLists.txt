@@ -53,6 +53,7 @@ target_link_libraries(mdrun_objlib PRIVATE
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
 target_link_libraries(mdrun_objlib INTERFACE
+                      gmxana
                       )
 
 if(GMX_FAHCORE)
@@ -98,6 +99,7 @@ else()
     # TODO: Explicitly link specific modules.
     target_link_libraries(gmx_objlib PRIVATE legacy_modules)
     target_link_libraries(gmx_objlib PRIVATE
+                          gmxana
                           utility
                           )
     target_include_directories(gmx_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)

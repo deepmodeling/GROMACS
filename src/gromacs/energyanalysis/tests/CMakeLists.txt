@@ -38,4 +38,5 @@ gmx_add_unit_test(EnergyAnalysisUnitTests energyanalysis-test
         )
 target_link_libraries(energyanalysis-test PRIVATE
 #                      energyanalysis
+                      gmxana
                       )
