@@ -1067,7 +1067,7 @@ cl::sycl::event launchNbnxmKernel(const DeviceStream& deviceStream, const int nu
         cgh.parallel_for<kernelNameType>(range, kernel);
     });
 
-    GMX_THROW(gmx::NotImplementedError("Not yet implemented for SYCL"));
+    return e;
 }
 
 template<class... Args>
@@ -1107,6 +1107,8 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
             nbp->ewald_beta, nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj,
             adat->numTypes, nbp->c_rf, nbp->dispersion_shift, nbp->repulsion_shift, nbp->vdw_switch,
             nbp->rvdw_switch, nbp->sh_lj_ewald, nbp->coulomb_tab_scale, stepWork.computeVirial);
+
+    e.wait_and_throw(); // SYCL-TODO: remove
 }
 
 } // namespace Nbnxm

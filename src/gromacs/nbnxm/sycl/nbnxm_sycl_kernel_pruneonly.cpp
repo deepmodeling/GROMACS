@@ -261,7 +261,7 @@ cl::sycl::event launchNbnxmKernelPruneOnly(const DeviceStream& deviceStream,
         cgh.parallel_for<kernelNameType>(range, kernel);
     });
 
-    GMX_THROW(gmx::NotImplementedError("Not yet implemented for SYCL"));
+    return e;
 }
 
 template<class... Args>
@@ -289,6 +289,8 @@ void launchNbnxmKernelPruneOnly(NbnxmGpu*                 nb,
     cl::sycl::event e = chooseAndLaunchNbnxmKernelPruneOnly(
             haveFreshList, deviceStream, numSciInPart, adat->xq, adat->shiftVec, plist->cj4,
             plist->sci, plist->imask, nbp->rlistOuter_sq, nbp->rlistInner_sq, numParts, part);
+
+    e.wait_and_throw(); // SYCL-TODO: remove
 }
 
 } // namespace Nbnxm
