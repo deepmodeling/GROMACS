@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,66 +34,75 @@
  */
 /*! \file
  * \brief
- * Declares gmx::IOptionsBehavior.
+ * Declares gmx::OptionSection and gmx::OptionSectionInfo.
  *
  * \author Teemu Murtola <teemu.murtola@gmail.com>
  * \inpublicapi
  * \ingroup module_options
  */
-#ifndef GMX_OPTIONS_IOPTIONSBEHAVIOR_H
-#define GMX_OPTIONS_IOPTIONSBEHAVIOR_H
+#ifndef GMX_OPTIONS_OPTIONSECTION_H
+#define GMX_OPTIONS_OPTIONSECTION_H
+
+#include "gromacs/utility/classhelpers.h"
+
+#include "abstractsection.h"
 
 namespace gmx
 {
 
-class Options;
+class OptionSectionHandle;
 
 /*! \brief
- * Interface to provide extension points for options parsing.
+ * Declares a simple option section.
  *
- * Currently, this is only used in the context of ICommandLineOptionsModule and
- * some other command-line handling, but it is declared in the options module
- * for the lack of a better place: most implementations of the interface are in
- * modules that do not otherwise depend on the commandline module.
- *
- * \if libapi
- * Any code that wants to support these extension points needs to use
- * OptionsBehaviorCollection and call the methods there at appropriate points.
- * This is not (at least, not currently) integrated in any automatic way to the
- * actual Options object.
- * \endif
+ * This class declares a simple section that only provides structure for
+ * grouping the options, but does not otherwise influence the behavior of the
+ * contained options.
  *
  * \inpublicapi
  * \ingroup module_options
  */
-class IOptionsBehavior
+class OptionSection : public AbstractOptionSection
 {
 public:
-    virtual ~IOptionsBehavior();
+    //! AbstractOptionSectionHandle corresponding to this option type.
+    typedef OptionSectionHandle HandleType;
 
-    /*! \brief
-     * Called when the behavior is associated with an options object.
-     *
-     * This method can, e.g., use Options::addManager() to associate
-     * managers with the options object.
-     */
-    virtual void initBehavior(Options* options) = 0;
-    /*! \brief
-     * Called when all option values have been assigned.
-     *
-     * This is called just before Options::finish(), and can, e.g., do
-     * operations that still influence the option values.
-     */
-    virtual void optionsFinishing(Options* options) = 0;
-    /*! \brief
-     * Called when all option values have been processed.
-     *
-     * This is called after Options::finish() (and typically after
-     * higher-level optionsFinished() methods, such as that in
-     * ICommandLineOptionsModule).  This can add behavior that performs
-     * tasks based on the option values provided.
-     */
-    virtual void optionsFinished() = 0;
+    //! Creates a section with the given name.
+    explicit OptionSection(const char* name) : AbstractOptionSection(name) {}
+
+private:
+    std::unique_ptr<IOptionSectionStorage> createStorage() const override;
+};
+
+/*! \brief
+ * Allows adding options to an OptionSection.
+ *
+ * An instance of this class is returned from
+ * IOptionsContainerWithSections::addSection(), and supports adding options and
+ * subsections to a section created with OptionSection.
+ *
+ * \inpublicapi
+ * \ingroup module_options
+ */
+class OptionSectionHandle : public AbstractOptionSectionHandle
+{
+public:
+    //! Wraps a given section storage object.
+    explicit OptionSectionHandle(internal::OptionSectionImpl* section) :
+        AbstractOptionSectionHandle(section)
+    {
+    }
+};
+
+class OptionSectionInfo : public AbstractOptionSectionInfo
+{
+public:
+    //! Wraps a given section storage object.
+    explicit OptionSectionInfo(internal::OptionSectionImpl* section) :
+        AbstractOptionSectionInfo(section)
+    {
+    }
 };
 
 } // namespace gmx

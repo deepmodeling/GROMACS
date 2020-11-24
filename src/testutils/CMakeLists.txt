@@ -115,6 +115,7 @@ target_link_libraries(testutils PRIVATE
                       gpu_utils
                       hardware
                       math
+                      options
                       )
 target_link_libraries(testutils PUBLIC
                       common

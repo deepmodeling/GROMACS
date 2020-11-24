@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2010-2017, The GROMACS development team.
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "abstractoption.h"
+#include "gromacs/options/abstractoption.h"
 
 #include "gromacs/options/abstractoptionstorage.h"
 #include "gromacs/utility/any.h"
@@ -50,7 +50,7 @@
 #include "gromacs/utility/gmxassert.h"
 
 #include "basicoptionstorage.h"
-#include "optionflags.h"
+#include "gromacs/options/optionflags.h"
 
 namespace gmx
 {

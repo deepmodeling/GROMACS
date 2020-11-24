@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "optionsvisitor.h"
+#include "gromacs/options/optionsvisitor.h"
 
 #include "gromacs/options/abstractoptionstorage.h"
 #include "gromacs/options/options.h"

@@ -34,22 +34,27 @@
 # the research papers on the package. Check out http://www.gromacs.org.
 
 # Set up the module library
-add_library(options INTERFACE)
+add_library(options OBJECT)
+target_sources(options PRIVATE
+               abstractoption.cpp
+               abstractsection.cpp
+               basicoptions.cpp
+               behaviorcollection.cpp
+               filenameoption.cpp
+               filenameoptionmanager.cpp
+               options.cpp
+               optionsassigner.cpp
+               optionsection.cpp
+               optionsvisitor.cpp
+               timeunitmanager.cpp
+               treesupport.cpp
+               )
+set_target_properties(options PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-gmx_add_libgromacs_sources(
-    abstractoption.cpp
-    abstractsection.cpp
-    basicoptions.cpp
-    behaviorcollection.cpp
-    filenameoption.cpp
-    filenameoptionmanager.cpp
-    options.cpp
-    optionsassigner.cpp
-    optionsection.cpp
-    optionsvisitor.cpp
-    timeunitmanager.cpp
-    treesupport.cpp
-    )
+# Set up dependencies that are internal to this module
+target_include_directories(options PRIVATE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
 
 if(GMX_INSTALL_LEGACY_API)
     install(FILES
@@ -70,27 +75,25 @@ endif()
 
 # Source files have the following private module dependencies.
 target_link_libraries(options PRIVATE
-		)
+		      )
 
 # Public interface for modules, including dependencies and interfaces
-#target_include_directories(options PUBLIC
-target_include_directories(options INTERFACE
+target_include_directories(options PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-#target_link_libraries(options PUBLIC
-target_link_libraries(options INTERFACE
+target_link_libraries(options PUBLIC
 		legacy_api
 		)
 
-# TODO: when options is an OBJECT target
-#target_link_libraries(options PUBLIC legacy_api)
-#target_link_libraries(options PRIVATE common)
+target_link_libraries(options PRIVATE common)
 
 # Module dependencies
 # options interfaces convey transitive dependence on these modules.
-#target_link_libraries(options PUBLIC
-target_link_libraries(options INTERFACE
+target_link_libraries(options PUBLIC
                       utility
-		)
+                      )
+# Source files have the following private module dependencies.
+# TODO: Explicitly link specific modules.
+target_link_libraries(options PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

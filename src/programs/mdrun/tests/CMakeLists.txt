@@ -51,6 +51,7 @@ target_link_libraries(mdrun_test_infrastructure PUBLIC
                       hardware
                       legacy_api
                       mdrun_objlib
+                      options
                       )
 
 # To avoid running into test timeouts, some end-to-end tests of mdrun

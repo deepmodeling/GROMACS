@@ -50,6 +50,7 @@ target_include_directories(applied_forces INTERFACE
 #target_link_libraries(applied_forces PUBLIC
 target_link_libraries(applied_forces INTERFACE
                       legacy_api
+                      options
                       )
 
 # TODO: when fileio is an OBJECT target

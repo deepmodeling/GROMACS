@@ -66,4 +66,5 @@ gmx_add_unit_test(CommandLineUnitTests commandline-test
 target_link_libraries(commandline-test PRIVATE
                       commandline
                       onlinehelp-test-shared
+                      options
                       )

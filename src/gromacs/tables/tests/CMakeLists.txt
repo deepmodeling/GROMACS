@@ -38,4 +38,5 @@ gmx_add_unit_test(TablesUnitTests tables-test
         )
 
 target_link_libraries(tables-test PRIVATE
+                      options
                       tables)

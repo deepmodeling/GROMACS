@@ -56,6 +56,7 @@ target_include_directories(coordinateio PRIVATE
 target_link_libraries(coordinateio PRIVATE
                       common
                       legacy_modules
+                      options
                       topology
 )
 

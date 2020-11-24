@@ -53,4 +53,5 @@ gmx_add_unit_test(SimdUnitTests simd-test
         )
 
 target_link_libraries(simd-test PRIVATE
+                      options
                       simd)

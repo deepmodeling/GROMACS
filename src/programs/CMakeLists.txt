@@ -48,6 +48,7 @@ target_link_libraries(mdrun_objlib PRIVATE
                       domdec
                       fileio
                       hardware
+                      options
                       )
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
