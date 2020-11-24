@@ -116,33 +116,38 @@ static inline RealType calculateVdw12(const RealType c12, const RealType rinv6)
 /* reaction-field electrostatics */
 template<class RealType>
 static inline RealType reactionFieldScalarForce(const RealType qq,
-                                                const RealType rinv,
                                                 const RealType r,
                                                 const real     krf,
                                                 const real     two)
 {
-    return (qq * (rinv - two * krf * r * r));
+    return - (qq * two * krf * r * r);
 }
 template<class RealType>
 static inline RealType reactionFieldPotential(const RealType qq,
-                                              const RealType rinv,
                                               const RealType r,
                                               const real     krf,
-                                              const real     potentialShift)
+                                              const real     crf)
 {
-    return (qq * (rinv + krf * r * r - potentialShift));
+    return (qq * (krf * r * r - crf));
 }
 
 /* Ewald electrostatics */
 template<class RealType>
-static inline RealType ewaldScalarForce(const RealType coulomb, const RealType rinv)
+static inline RealType coulombScalarForce(const RealType coulomb, const RealType rinv)
 {
     return (coulomb * rinv);
 }
+
 template<class RealType>
-static inline RealType ewaldPotential(const RealType coulomb, const RealType rinv, const real potentialShift)
+static inline RealType coulombPotential(const RealType coulomb, const RealType rinv)
 {
-    return (coulomb * (rinv - potentialShift));
+    return (coulomb * rinv);
+}
+
+template<class RealType>
+static inline RealType ewaldPotentialShift(const RealType coulomb, const real potentialShift)
+{
+    return - (coulomb * potentialShift);
 }
 
 /* cutoff LJ */
@@ -154,14 +159,21 @@ static inline RealType lennardJonesScalarForce(const RealType v6, const RealType
 template<class RealType>
 static inline RealType lennardJonesPotential(const RealType v6,
                                              const RealType v12,
-                                             const RealType c6,
-                                             const RealType c12,
-                                             const real     repulsionShift,
-                                             const real     dispersionShift,
                                              const real     onesixth,
                                              const real     onetwelfth)
 {
-    return ((v12 + c12 * repulsionShift) * onetwelfth - (v6 + c6 * dispersionShift) * onesixth);
+    return (v12 * onetwelfth - v6 * onesixth);
+}
+
+template<class RealType>
+static inline RealType lennardJonesPotentialShift(const RealType c6,
+                                                 const RealType c12,
+                                                 const real repulsionShift,
+                                                 const real dispersionShift,
+                                                 const real onesixth,
+                                                 const real onetwelth)
+{
+  return (c12 * repulsionShift * onetwelth - c6 * dispersionShift * onesixth);
 }
 
 /* Ewald LJ */
@@ -574,16 +586,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                         if ((qq[i] != 0) && computeElecInteraction)
                         {
-                            if (elecInteractionTypeIsEwald)
-                            {
-                                Vcoul[i]  = ewaldPotential(qq[i], rinvC, sh_ewald);
-                                FscalC[i] = ewaldScalarForce(qq[i], rinvC);
-                            }
-                            else
-                            {
-                                Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
-                                FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
-                            }
+                            Vcoul[i]  = coulombPotential(qq[i], rinvC);
+                            FscalC[i] = coulombScalarForce(qq[i], rinvC);
 
                             /* prev. computed hardcore interactions might be overwritten now;
                              * if its only a minor percentage it shouldn't matter too much, resp.
@@ -619,6 +623,16 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                     }
                                 }
                             }
+
+                            if (elecInteractionTypeIsEwald)
+                            {
+                                Vcoul[i]  += ewaldPotentialShift(qq[i], sh_ewald);
+                            }
+                            else
+                            {
+                                Vcoul[i]  += reactionFieldPotential(qq[i], rC, krf, crf);
+                                FscalC[i] += reactionFieldScalarForce(qq[i], rC, krf, two);
+                            }
                         }
 
                         /* Only process the VDW interactions if we have
@@ -642,8 +656,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             RealType Vvdw6  = calculateVdw6(c6[i], rinv6);
                             RealType Vvdw12 = calculateVdw12(c12[i], rinv6);
 
-                            Vvdw[i] = lennardJonesPotential(Vvdw6, Vvdw12, c6[i], c12[i], repulsionShift,
-                                                            dispersionShift, onesixth, onetwelfth);
+                            Vvdw[i]   = lennardJonesPotential(Vvdw6, Vvdw12,
+                                                              onesixth, onetwelfth);
                             FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
 
                             /* prev. computed hardcore interactions might be overwritten now;
@@ -700,6 +714,10 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                     }
                                 }
                             }
+
+                            Vvdw[i] += lennardJonesPotentialShift(c6[i], c12[i],
+                                                                  repulsionShift, dispersionShift,
+                                                                  onesixth, onetwelfth);
 
                             if (vdwInteractionTypeIsEwald)
                             {

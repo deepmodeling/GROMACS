@@ -2,23 +2,23 @@
 <?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
 <ReferenceData>
   <Energy Name="dVvdw/dl">
-    <Real Name="Time 0.000000 Step 0 in frame 0">-843.10002555103688</Real>
+    <Real Name="Time 0.000000 Step 0 in frame 0">-843.10148248815722</Real>
   </Energy>
   <Energy Name="Potential">
-    <Real Name="Time 0.000000 Step 0 in frame 0">258.70006139350625</Real>
+    <Real Name="Time 0.000000 Step 0 in frame 0">237.86061690912015</Real>
   </Energy>
   <Energy Name="dVcoul/dl">
-    <Real Name="Time 0.000000 Step 0 in frame 0">-262.86170435468756</Real>
+    <Real Name="Time 0.000000 Step 0 in frame 0">-228.12783994359214</Real>
   </Energy>
   <Sequence Name="Time 0.000000 Step 0 F">
     <Int Name="Length">2</Int>
     <Vector>
-      <Real Name="X">-1933.8874570773241</Real>
+      <Real Name="X">-1933.8874570773289</Real>
       <Real Name="Y">0</Real>
       <Real Name="Z">0</Real>
     </Vector>
     <Vector>
-      <Real Name="X">1933.8874570773241</Real>
+      <Real Name="X">1933.8874570773289</Real>
       <Real Name="Y">0</Real>
       <Real Name="Z">0</Real>
     </Vector>
