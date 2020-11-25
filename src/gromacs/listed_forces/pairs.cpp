@@ -44,7 +44,7 @@
  */
 #include "gmxpre.h"
 
-#include "pairs.h"
+#include "gromacs/listed_forces/pairs.h"
 
 #include <cmath>
 

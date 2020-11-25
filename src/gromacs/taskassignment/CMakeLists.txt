@@ -69,6 +69,7 @@ target_link_libraries(taskassignment INTERFACE
                       ewald
                       gmxlib
                       hardware
+                      listed_forces
                       utility
                       )
 # Source files have the following private module dependencies.

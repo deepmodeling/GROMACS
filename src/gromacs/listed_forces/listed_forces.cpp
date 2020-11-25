@@ -44,7 +44,7 @@
  */
 #include "gmxpre.h"
 
-#include "listed_forces.h"
+#include "gromacs/listed_forces/listed_forces.h"
 
 #include <cassert>
 

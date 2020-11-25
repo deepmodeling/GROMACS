@@ -64,6 +64,7 @@ target_link_libraries(tools INTERFACE
                       fft
                       gmxlib
                       gmxpreprocess
+                      listed_forces
                       mdtypes
                       utility
                       )

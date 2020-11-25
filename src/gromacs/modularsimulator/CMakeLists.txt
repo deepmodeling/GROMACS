@@ -73,6 +73,7 @@ target_link_libraries(modularsimulator PRIVATE
                       ewald
                       fileio
                       gmxlib
+                      listed_forces
                       math
                       mdtypes
                       tng_io

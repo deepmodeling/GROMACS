@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "orires.h"
+#include "gromacs/listed_forces/orires.h"
 
 #include <climits>
 #include <cmath>

@@ -71,6 +71,7 @@ target_link_libraries(domdec INTERFACE
                       gpu_utils
                       hardware
                       imd
+                      listed_forces
                       math
                       timing
                       utility

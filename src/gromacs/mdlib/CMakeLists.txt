@@ -80,6 +80,7 @@ target_link_libraries(mdlib INTERFACE
                       gmxlib
                       hardware
                       imd
+                      listed_forces
                       mdtypes
                       timing
                       utility

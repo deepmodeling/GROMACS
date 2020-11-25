@@ -84,6 +84,7 @@ target_link_libraries(mdrun INTERFACE
                       gmxlib
                       hardware
                       imd
+                      listed_forces
                       utility
                       )
 # Source files have the following private module dependencies.

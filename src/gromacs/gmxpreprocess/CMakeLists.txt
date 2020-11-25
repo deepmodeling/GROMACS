@@ -70,6 +70,7 @@ target_link_libraries(gmxpreprocess INTERFACE
                       gmxana
                       gmxlib
                       imd
+                      listed_forces
                       #                      utility
                       )
 # Source files have the following private module dependencies.

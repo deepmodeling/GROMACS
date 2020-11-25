@@ -38,7 +38,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "disre.h"
+#include "gromacs/listed_forces/disre.h"
 
 #include "config.h"
 

@@ -106,6 +106,7 @@ target_link_libraries(nbnxm INTERFACE
                       gmxlib
                       gpu_utils
                       hardware
+                      listed_forces
                       math
                       utility
                       simd
