@@ -112,7 +112,7 @@
 #include "gromacs/utility/smalloc.h"
 
 #include "legacysimulator.h"
-#include "shellfc.h"
+#include "gromacs/mdrun/shellfc.h"
 
 using gmx::ArrayRef;
 using gmx::MdrunScheduleWorkload;

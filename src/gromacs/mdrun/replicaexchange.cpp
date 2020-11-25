@@ -45,7 +45,7 @@
  */
 #include "gmxpre.h"
 
-#include "replicaexchange.h"
+#include "gromacs/mdrun/replicaexchange.h"
 
 #include "config.h"
 

@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "mdmodules.h"
+#include "gromacs/mdrun/mdmodules.h"
 
 #include <memory>
 

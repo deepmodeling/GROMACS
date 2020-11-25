@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "runner.h"
+#include "gromacs/mdrun/runner.h"
 
 #include "config.h"
 
@@ -167,9 +167,9 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "isimulator.h"
+#include "gromacs/mdrun/isimulator.h"
 #include "membedholder.h"
-#include "replicaexchange.h"
+#include "gromacs/mdrun/replicaexchange.h"
 #include "simulatorbuilder.h"
 
 namespace gmx

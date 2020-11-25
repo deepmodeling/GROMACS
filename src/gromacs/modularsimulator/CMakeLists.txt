@@ -76,6 +76,7 @@ target_link_libraries(modularsimulator PRIVATE
                       listed_forces
                       math
                       mdlib
+                      mdrun
                       mdtypes
                       tng_io
                       topology

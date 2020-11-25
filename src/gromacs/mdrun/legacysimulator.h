@@ -49,7 +49,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
-#include "isimulator.h"
+#include "gromacs/mdrun/isimulator.h"
 
 namespace gmx
 {

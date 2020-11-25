@@ -72,6 +72,7 @@ target_link_libraries(gmxpreprocess INTERFACE
                       imd
                       listed_forces
                       mdlib
+                      mdrun
                       #                      utility
                       )
 # Source files have the following private module dependencies.

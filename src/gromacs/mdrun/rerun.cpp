@@ -132,8 +132,8 @@
 #include "gromacs/utility/real.h"
 
 #include "legacysimulator.h"
-#include "replicaexchange.h"
-#include "shellfc.h"
+#include "gromacs/mdrun/replicaexchange.h"
+#include "gromacs/mdrun/shellfc.h"
 
 using gmx::SimulationSignaller;
 using gmx::VirtualSitesHandler;

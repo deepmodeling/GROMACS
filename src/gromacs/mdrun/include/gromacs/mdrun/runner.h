@@ -61,7 +61,7 @@
 #include "gromacs/utility/gmxmpi.h"
 #include "gromacs/utility/real.h"
 
-#include "replicaexchange.h"
+#include "gromacs/mdrun/replicaexchange.h"
 
 struct gmx_multisim_t;
 struct gmx_output_env_t;

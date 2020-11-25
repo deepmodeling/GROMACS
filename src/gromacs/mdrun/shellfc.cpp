@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "shellfc.h"
+#include "gromacs/mdrun/shellfc.h"
 
 #include <cmath>
 #include <cstdint>

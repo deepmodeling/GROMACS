@@ -55,7 +55,7 @@
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/mdtypes/mdrunoptions.h"
 
-#include "replicaexchange.h"
+#include "gromacs/mdrun/replicaexchange.h"
 
 namespace gmx
 {

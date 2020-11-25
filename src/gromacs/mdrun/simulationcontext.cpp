@@ -35,7 +35,7 @@
 
 #include "gmxpre.h"
 
-#include "simulationcontext.h"
+#include "gromacs/mdrun/simulationcontext.h"
 
 #include "config.h"
 
@@ -45,7 +45,7 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/gmxmpi.h"
 
-#include "runner.h"
+#include "gromacs/mdrun/runner.h"
 
 namespace gmx
 {
