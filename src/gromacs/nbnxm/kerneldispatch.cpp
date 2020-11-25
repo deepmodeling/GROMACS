@@ -60,11 +60,11 @@
 #include "gromacs/utility/real.h"
 
 #include "kernel_common.h"
-#include "nbnxm_gpu.h"
+#include "gromacs/nbnxm/nbnxm_gpu.h"
 #include "nbnxm_gpu_data_mgmt.h"
-#include "nbnxm_simd.h"
-#include "pairlistset.h"
-#include "pairlistsets.h"
+#include "gromacs/nbnxm/nbnxm_simd.h"
+#include "gromacs/nbnxm/pairlistset.h"
+#include "gromacs/nbnxm/pairlistsets.h"
 #include "kernels_reference/kernel_gpu_ref.h"
 #define INCLUDE_KERNELFUNCTION_TABLES
 #include "kernels_reference/kernel_ref.h"

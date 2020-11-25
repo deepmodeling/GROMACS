@@ -57,8 +57,8 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/range.h"
 
-#include "grid.h"
-#include "gridsetdata.h"
+#include "gromacs/nbnxm/grid.h"
+#include "gromacs/nbnxm/gridsetdata.h"
 
 
 struct nbnxn_atomdata_t;

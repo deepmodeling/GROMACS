@@ -135,6 +135,7 @@ target_link_libraries(ewald INTERFACE
                       hardware
                       math
                       mdlib
+                      nbnxm
                       timing
                       #                      utility
                       )

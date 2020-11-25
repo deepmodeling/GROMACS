@@ -62,8 +62,8 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/real.h"
 
-#include "gridset.h"
-#include "pairlist.h"
+#include "gromacs/nbnxm/gridset.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 struct gmx_domdec_zones_t;
 struct PairsearchWork;

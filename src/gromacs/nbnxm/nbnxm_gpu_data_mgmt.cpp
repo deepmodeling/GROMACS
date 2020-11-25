@@ -63,8 +63,8 @@
 #include "gromacs/timing/gpu_timing.h"
 #include "gromacs/utility/cstringutil.h"
 
-#include "nbnxm_gpu.h"
-#include "pairlistsets.h"
+#include "gromacs/nbnxm/nbnxm_gpu.h"
+#include "gromacs/nbnxm/pairlistsets.h"
 
 namespace Nbnxm
 {

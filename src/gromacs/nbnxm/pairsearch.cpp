@@ -43,12 +43,12 @@
 
 #include "gmxpre.h"
 
-#include "pairsearch.h"
+#include "gromacs/nbnxm/pairsearch.h"
 
 #include "gromacs/mdtypes/nblist.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "pairlist.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 
 void SearchCycleCounting::printCycles(FILE* fp, gmx::ArrayRef<const PairsearchWork> work) const

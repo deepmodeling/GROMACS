@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "pairlistset.h"
+#include "gromacs/nbnxm/pairlistset.h"
 
 #include "gromacs/mdtypes/nblist.h"
 

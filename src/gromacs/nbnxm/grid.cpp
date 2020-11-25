@@ -45,7 +45,7 @@
 
 #include "gmxpre.h"
 
-#include "grid.h"
+#include "gromacs/nbnxm/grid.h"
 
 #include <cmath>
 #include <cstring>
@@ -62,9 +62,9 @@
 #include "gromacs/simd/vector_operations.h"
 
 #include "boundingboxes.h"
-#include "gridsetdata.h"
-#include "nbnxm_geometry.h"
-#include "pairlistparams.h"
+#include "gromacs/nbnxm/gridsetdata.h"
+#include "gromacs/nbnxm/nbnxm_geometry.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 
 namespace Nbnxm
 {

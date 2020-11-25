@@ -51,7 +51,7 @@
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/utility/real.h"
 
-#include "pairlist.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 struct interaction_const_t;
 

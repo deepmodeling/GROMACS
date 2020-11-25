@@ -52,7 +52,7 @@
 
 #include "gromacs/mdtypes/locality.h"
 
-#include "pairlistparams.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 
 struct nbnxn_atomdata_t;
 class PairlistSet;

@@ -57,7 +57,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
-#include "pairlist.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 struct nbnxn_atomdata_t;
 struct PairlistParams;

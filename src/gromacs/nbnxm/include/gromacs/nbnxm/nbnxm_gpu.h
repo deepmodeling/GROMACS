@@ -51,7 +51,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
-#include "nbnxm.h"
+#include "gromacs/nbnxm/nbnxm.h"
 
 struct interaction_const_t;
 struct nbnxn_atomdata_t;

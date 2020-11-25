@@ -83,6 +83,7 @@ target_link_libraries(mdlib INTERFACE
                       listed_forces
                       mdrunutility
                       mdtypes
+                      nbnxm
                       timing
                       utility
                       )

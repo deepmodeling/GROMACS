@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "gridset.h"
+#include "gromacs/nbnxm/gridset.h"
 
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdlib/updategroupscog.h"

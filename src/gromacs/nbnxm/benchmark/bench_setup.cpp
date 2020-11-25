@@ -43,7 +43,7 @@
 
 #include "gmxpre.h"
 
-#include "bench_setup.h"
+#include "gromacs/nbnxm/benchmark/bench_setup.h"
 
 #include <optional>
 

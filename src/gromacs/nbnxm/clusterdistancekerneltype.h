@@ -49,7 +49,7 @@
 #include "gromacs/simd/simd.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "pairlistparams.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 
 //! The types of kernel for calculating the distance between pairs of atom clusters
 enum class ClusterDistanceKernelType : int

@@ -74,6 +74,7 @@ target_link_libraries(domdec INTERFACE
                       listed_forces
                       math
                       mdlib
+                      nbnxm
                       timing
                       utility
                       )

@@ -47,7 +47,7 @@
 #include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/real.h"
 
-#include "pairlistparams.h"
+#include "gromacs/nbnxm/pairlistparams.h"
 
 struct NbnxnPairlistCpuWork;
 struct NbnxnPairlistGpuWork;

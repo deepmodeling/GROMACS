@@ -36,7 +36,7 @@
 
 #include "gmxpre.h"
 
-#include "atomdata.h"
+#include "gromacs/nbnxm/atomdata.h"
 
 #include <cassert>
 #include <cmath>
@@ -64,11 +64,11 @@
 #include "gromacs/utility/strconvert.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "grid.h"
-#include "gridset.h"
-#include "nbnxm_geometry.h"
-#include "nbnxm_gpu.h"
-#include "pairlist.h"
+#include "gromacs/nbnxm/grid.h"
+#include "gromacs/nbnxm/gridset.h"
+#include "gromacs/nbnxm/nbnxm_geometry.h"
+#include "gromacs/nbnxm/nbnxm_gpu.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 

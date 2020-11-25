@@ -67,7 +67,7 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "gpu_common_utils.h"
-#include "nbnxm_gpu.h"
+#include "gromacs/nbnxm/nbnxm_gpu.h"
 
 namespace gmx
 {

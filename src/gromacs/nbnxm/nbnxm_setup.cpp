@@ -59,13 +59,13 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/logger.h"
 
-#include "grid.h"
-#include "nbnxm_geometry.h"
-#include "nbnxm_simd.h"
-#include "pairlist.h"
-#include "pairlistset.h"
-#include "pairlistsets.h"
-#include "pairsearch.h"
+#include "gromacs/nbnxm/grid.h"
+#include "gromacs/nbnxm/nbnxm_geometry.h"
+#include "gromacs/nbnxm/nbnxm_simd.h"
+#include "gromacs/nbnxm/pairlist.h"
+#include "gromacs/nbnxm/pairlistset.h"
+#include "gromacs/nbnxm/pairlistsets.h"
+#include "gromacs/nbnxm/pairsearch.h"
 
 namespace Nbnxm
 {

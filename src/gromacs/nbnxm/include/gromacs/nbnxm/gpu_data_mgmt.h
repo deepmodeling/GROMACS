@@ -50,7 +50,7 @@
 #include "gromacs/gpu_utils/gpu_macros.h"
 #include "gromacs/mdtypes/locality.h"
 
-#include "nbnxm.h"
+#include "gromacs/nbnxm/nbnxm.h"
 
 struct NbnxmGpu;
 struct DeviceInformation;

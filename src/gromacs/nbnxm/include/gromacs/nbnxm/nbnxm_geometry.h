@@ -49,7 +49,7 @@
 #include "gromacs/simd/simd.h"
 #include "gromacs/utility/fatalerror.h"
 
-#include "pairlist.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 
 /*! \brief Returns the base-2 log of n.

@@ -36,7 +36,7 @@
 
 #include "gmxpre.h"
 
-#include "pairlist.h"
+#include "gromacs/nbnxm/pairlist.h"
 
 #include "config.h"
 
@@ -69,13 +69,13 @@
 
 #include "boundingboxes.h"
 #include "clusterdistancekerneltype.h"
-#include "gridset.h"
-#include "nbnxm_geometry.h"
-#include "nbnxm_simd.h"
-#include "pairlistset.h"
-#include "pairlistsets.h"
+#include "gromacs/nbnxm/gridset.h"
+#include "gromacs/nbnxm/nbnxm_geometry.h"
+#include "gromacs/nbnxm/nbnxm_simd.h"
+#include "gromacs/nbnxm/pairlistset.h"
+#include "gromacs/nbnxm/pairlistsets.h"
 #include "pairlistwork.h"
-#include "pairsearch.h"
+#include "gromacs/nbnxm/pairsearch.h"
 
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 

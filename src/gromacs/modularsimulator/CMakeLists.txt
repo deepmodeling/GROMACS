@@ -79,6 +79,7 @@ target_link_libraries(modularsimulator PRIVATE
                       mdrun
                       mdrunutility
                       mdtypes
+                      nbnxm
                       tng_io
                       topology
                       )
