@@ -46,7 +46,7 @@
 
 #include "gromacs/math/vectypes.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 #include "propagator.h"
 
 struct t_inputrec;

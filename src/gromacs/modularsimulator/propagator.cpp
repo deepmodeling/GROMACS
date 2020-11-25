@@ -54,7 +54,7 @@
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/fatalerror.h"
 
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
 

@@ -56,7 +56,7 @@
 #include "checkpointhelper.h"
 #include "domdechelper.h"
 #include "freeenergyperturbationdata.h"
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 #include "pmeloadbalancehelper.h"
 #include "signallers.h"
 #include "topologyholder.h"

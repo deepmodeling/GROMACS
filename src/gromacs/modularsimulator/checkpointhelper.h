@@ -50,7 +50,7 @@
 #include "gromacs/mdlib/checkpointhandler.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 struct gmx_walltime_accounting;
 struct ObservablesHistory;

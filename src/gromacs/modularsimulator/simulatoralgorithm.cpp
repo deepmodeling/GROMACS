@@ -76,9 +76,9 @@
 
 #include "checkpointhelper.h"
 #include "domdechelper.h"
-#include "energydata.h"
+#include "gromacs/modularsimulator/energydata.h"
 #include "freeenergyperturbationdata.h"
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "parrinellorahmanbarostat.h"
 #include "pmeloadbalancehelper.h"
 #include "propagator.h"

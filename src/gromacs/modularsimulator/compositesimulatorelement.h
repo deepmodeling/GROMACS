@@ -47,7 +47,7 @@
 
 #include "gromacs/compat/pointers.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 namespace gmx
 {

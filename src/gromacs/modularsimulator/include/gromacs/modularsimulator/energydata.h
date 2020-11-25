@@ -47,7 +47,7 @@
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/state.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 struct gmx_ekindata_t;
 struct gmx_enerdata_t;

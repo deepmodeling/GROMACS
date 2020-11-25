@@ -55,8 +55,8 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/pbcutil/boxutilities.h"
 
-#include "energydata.h"
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/energydata.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
 

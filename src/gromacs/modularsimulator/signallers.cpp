@@ -47,7 +47,7 @@
 #include "gromacs/mdlib/stat.h"
 #include "gromacs/mdlib/stophandler.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 namespace gmx
 {

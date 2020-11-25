@@ -44,7 +44,7 @@
 #ifndef GMX_MODULARSIMULATOR_DOMDECHELPER_H
 #define GMX_MODULARSIMULATOR_DOMDECHELPER_H
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 struct gmx_localtop_t;
 struct gmx_wallcycle;

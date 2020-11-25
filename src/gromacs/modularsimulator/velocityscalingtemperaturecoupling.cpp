@@ -57,7 +57,7 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/utility/fatalerror.h"
 
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "simulatoralgorithm.h"
 
 namespace gmx

@@ -53,7 +53,7 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/mdtypes/state.h"
 
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "simulatoralgorithm.h"
 
 namespace gmx

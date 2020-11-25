@@ -44,7 +44,7 @@
 #ifndef GMX_MODULARSIMULATOR_PMELOADBALANCEHELPER_H
 #define GMX_MODULARSIMULATOR_PMELOADBALANCEHELPER_H
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 struct gmx_wallcycle;
 struct pme_load_balancing_t;

@@ -53,7 +53,7 @@
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/utility/real.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 #include "topologyholder.h"
 
 struct gmx_enfrot;

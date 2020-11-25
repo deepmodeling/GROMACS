@@ -51,7 +51,7 @@
 #include "gromacs/mdtypes/forcebuffers.h"
 #include "gromacs/utility/keyvaluetree.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 #include "topologyholder.h"
 
 struct gmx_mdoutf;

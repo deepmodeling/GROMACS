@@ -66,7 +66,7 @@
 #include "gromacs/topology/topology.h"
 
 #include "freeenergyperturbationdata.h"
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "simulatoralgorithm.h"
 
 namespace gmx

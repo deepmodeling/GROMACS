@@ -57,9 +57,9 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/pbcutil/pbc.h"
 
-#include "energydata.h"
+#include "gromacs/modularsimulator/energydata.h"
 #include "freeenergyperturbationdata.h"
-#include "modularsimulator.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
 

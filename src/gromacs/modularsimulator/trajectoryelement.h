@@ -48,7 +48,7 @@
 
 #include "gromacs/compat/pointers.h"
 
-#include "modularsimulatorinterfaces.h"
+#include "gromacs/modularsimulator/modularsimulatorinterfaces.h"
 
 struct gmx_mtop_t;
 struct gmx_output_env_t;
