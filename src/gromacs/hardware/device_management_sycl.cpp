@@ -98,6 +98,12 @@ static DeviceStatus isDeviceCompatible(const cl::sycl::device& syclDevice)
         return DeviceStatus::Incompatible;
     }
 
+    if (syclDevice.is_host())
+    {
+        // Some kernels rely on sub_groups, which are not available on host
+        return DeviceStatus::Incompatible;
+    }
+
     if (syclDevice.is_accelerator()) // FPGAs and FPGA emulators
     {
         return DeviceStatus::Incompatible;
