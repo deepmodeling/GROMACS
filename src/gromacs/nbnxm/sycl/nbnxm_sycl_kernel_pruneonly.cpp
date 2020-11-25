@@ -81,16 +81,16 @@ using cl::sycl::access::mode;
  *
  */
 template<bool haveFreshList>
-auto nbnxmKernelPruneOnly(cl::sycl::handler&                             cgh,
-                          DeviceAccessor<float4, mode::read>             a_xq,
-                          DeviceAccessor<float3, mode::read>             a_shiftVec,
-                          DeviceAccessor<nbnxn_cj4_t, mode::read_write>  a_plistCJ4,
-                          DeviceAccessor<nbnxn_sci_t, mode::read>        a_plistSci,
-                          DeviceAccessor<unsigned int, mode::read_write> a_plistIMask,
-                          const float                                    rlistOuterSq,
-                          const float                                    rlistInnerSq,
-                          const int                                      numParts,
-                          const int                                      part)
+auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
+                          DeviceAccessor<float4, mode::read>            a_xq,
+                          DeviceAccessor<float3, mode::read>            a_shiftVec,
+                          DeviceAccessor<nbnxn_cj4_t, mode::read_write> a_plistCJ4,
+                          DeviceAccessor<nbnxn_sci_t, mode::read>       a_plistSci,
+                          DeviceAccessor<unsigned int, haveFreshList ? mode::write : mode::read> a_plistIMask,
+                          const float rlistOuterSq,
+                          const float rlistInnerSq,
+                          const int   numParts,
+                          const int   part)
 {
     cgh.require(a_xq);
     cgh.require(a_shiftVec);
