@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "pdb2gmx.h"
+#include "gromacs/gmxpreprocess/pdb2gmx.h"
 
 #include <cctype>
 #include <cstdlib>

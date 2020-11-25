@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "genion.h"
+#include "gromacs/gmxpreprocess/genion.h"
 
 #include <cctype>
 #include <cmath>

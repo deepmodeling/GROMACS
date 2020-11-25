@@ -63,6 +63,7 @@ target_link_libraries(tools INTERFACE
                       ewald
                       fft
                       gmxlib
+                      gmxpreprocess
                       mdtypes
                       utility
                       )

@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "x2top.h"
+#include "gromacs/gmxpreprocess/x2top.h"
 
 #include <cmath>
 #include <cstring>

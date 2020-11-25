@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "genrestr.h"
+#include "gromacs/gmxpreprocess/genrestr.h"
 
 #include <cmath>
 #include <cstring>

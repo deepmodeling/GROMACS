@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "solvate.h"
+#include "gromacs/gmxpreprocess/solvate.h"
 
 #include <cstring>
 

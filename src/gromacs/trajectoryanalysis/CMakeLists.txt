@@ -83,6 +83,7 @@ target_link_libraries(trajectoryanalysis PRIVATE common)
 # trajectoryanalysis interfaces convey transitive dependence on these modules.
 target_link_libraries(trajectoryanalysis PUBLIC
                       gmxana
+                      gmxpreprocess
                       options
                       utility
                       )

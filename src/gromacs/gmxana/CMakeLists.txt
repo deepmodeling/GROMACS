@@ -62,6 +62,7 @@ target_link_libraries(gmxana INTERFACE
 #target_link_libraries(gmxana PUBLIC
 target_link_libraries(gmxana INTERFACE
                       gmxlib
+                      gmxpreprocess
                       linearalgebra
                       utility
                       )

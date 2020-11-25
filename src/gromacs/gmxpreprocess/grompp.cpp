@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "grompp.h"
+#include "gromacs/gmxpreprocess/grompp.h"
 
 #include <cerrno>
 #include <climits>

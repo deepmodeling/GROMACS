@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "editconf.h"
+#include "gromacs/gmxpreprocess/editconf.h"
 
 #include <cmath>
 #include <cstring>

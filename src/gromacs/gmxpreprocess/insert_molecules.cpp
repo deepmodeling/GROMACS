@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "insert_molecules.h"
+#include "gromacs/gmxpreprocess/insert_molecules.h"
 
 #include <algorithm>
 #include <memory>

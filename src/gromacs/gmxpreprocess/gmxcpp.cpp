@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "gmxcpp.h"
+#include "gromacs/gmxpreprocess/gmxcpp.h"
 
 #include <cctype>
 #include <cerrno>

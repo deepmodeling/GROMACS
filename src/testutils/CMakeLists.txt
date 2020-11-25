@@ -112,6 +112,7 @@ target_link_libraries(testutils PRIVATE
                       libgromacs
                       ${GMX_COMMON_LIBRARIES}
                       gmock
+                      gmxpreprocess
                       gpu_utils
                       hardware
                       math
