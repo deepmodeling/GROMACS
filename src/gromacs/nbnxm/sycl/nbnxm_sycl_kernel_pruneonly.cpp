@@ -116,10 +116,9 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 #else
         const unsigned tidxz = itemIdx.get_local_id(2);
 #endif
-        const unsigned bidx = itemIdx.get_group(0);
-        // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
-        const sycl_pf::sub_group sg = itemIdx.get_sub_group();
-        const unsigned widx         = (tidxj * c_clSize) / sg.get_local_range()[0]; /* warp index */
+        const unsigned           bidx = itemIdx.get_group(0);
+        const sycl_pf::sub_group sg   = itemIdx.get_sub_group();
+        const unsigned widx = (tidxj * c_clSize + tidxi) / sg.get_local_range()[0]; /* warp index */
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
@@ -129,16 +128,19 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
         if (tidxz == 0)
         {
-            /* Pre-load i-atom x and q into shared memory */
-            const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj;
-            const int ai = ci * c_clSize + tidxi;
+            for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i += c_clSize)
+            {
+                /* Pre-load i-atom x and q into shared memory */
+                const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj + i;
+                const int ai = ci * c_clSize + tidxi;
 
-            /* We don't need q, but using float4 in shmem avoids bank conflicts.
-               (but it also wastes L2 bandwidth). */
-            const float4 xq    = a_xq[ai];
-            const float3 shift = a_shiftVec[nb_sci.shift];
-            const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], 0.0F);
-            xib[tidxji] = xi;
+                /* We don't need q, but using float4 in shmem avoids bank conflicts.
+                   (but it also wastes L2 bandwidth). */
+                const float4 xq    = a_xq[ai];
+                const float3 shift = a_shiftVec[nb_sci.shift];
+                const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], 0.0F);
+                xib[cl::sycl::id<2>(tidxj + i, tidxi)] = xi;
+            }
         }
         itemIdx.barrier(fence_space::local_space);
 
@@ -167,23 +169,23 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 imaskCheck = (imaskNew ^ imaskFull);
             }
 
+            if ((tidxj == 0 || tidxj == c_splitClSize) && tidxi < c_nbnxnGpuJgroupSize)
+            {
+                cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
+            }
+            itemIdx.barrier(fence_space::local_space);
+
             if (imaskCheck)
             {
-                /* Pre-load cj into shared memory on both warps separately */
-                if ((tidxj == 0 || tidxj == 4) && tidxi < c_nbnxnGpuJgroupSize)
-                {
-                    cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
-                }
-                itemIdx.barrier(fence_space::local_space);
-
-                // TODO: Continue here
                 for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
                 {
                     if (imaskCheck & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
                         unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
 
-                        const int cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
+                        const int loadOffset =
+                                (tidxj & c_splitClSize) * c_nbnxnGpuJgroupSize / c_splitClSize;
+                        const int cj = cjs[jm + loadOffset];
                         const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
