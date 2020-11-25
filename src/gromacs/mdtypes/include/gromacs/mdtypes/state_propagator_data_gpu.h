@@ -59,7 +59,7 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/classhelpers.h"
 
-#include "locality.h"
+#include "gromacs/mdtypes/locality.h"
 
 class DeviceContext;
 class DeviceStream;
