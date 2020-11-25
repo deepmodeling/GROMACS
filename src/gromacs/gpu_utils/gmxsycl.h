@@ -60,16 +60,7 @@
 
 namespace sycl_pf
 {
-#if (defined(CL_SYCL_LANGUAGE_VERSION) && CL_SYCL_LANGUAGE_VERSION >= 202000) \
-        || (defined(SYCL_LANGUAGE_VERSION) && SYCL_LANGUAGE_VERSION >= 202000)
-using sycl::atomic_ref;
-using sycl::group_any_of;
-using sycl::memory_order;
-using sycl::memory_scope;
-using sycl::plus;
-using sycl::reduce;
-using sycl::sub_group;
-#elif __SYCL_COMPILER_VERSION == 20201005 // 2021.1-beta10
+#if __SYCL_COMPILER_VERSION >= 20201005 // 2021.1-beta10
 template<typename... Args>
 bool group_any_of(Args&&... args)
 {
