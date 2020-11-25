@@ -92,6 +92,12 @@ static DeviceStatus isDeviceCompatible(const cl::sycl::device& syclDevice)
         return DeviceStatus::Compatible;
     }
 
+    if (syclDevice.get_info<cl::sycl::info::device::local_mem_type>() == cl::sycl::info::local_mem_type::none)
+    {
+        // While some kernels (leapgrog) can run without shared/local memory, this is a bad sign
+        return DeviceStatus::Incompatible;
+    }
+
     if (syclDevice.is_accelerator()) // FPGAs and FPGA emulators
     {
         return DeviceStatus::Incompatible;
