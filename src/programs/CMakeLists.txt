@@ -71,6 +71,7 @@ elseif(GMX_BUILD_MDRUN_ONLY)
                           common
                           legacy_modules
                           libgromacs
+                          utility
                           ${GMX_COMMON_LIBRARIES}
                           ${GMX_EXE_LINKER_FLAGS}
                           )
