@@ -404,16 +404,22 @@ def main():
     tree.find_define_file_uses()
     if options.ignore_cycles:
         tree.load_cycle_suppression_list(options.ignore_cycles)
-    if not options.quiet:
-        sys.stderr.write('Reading Doxygen XML files...\n')
-    tree.load_xml()
+    # Disabled because the checks that the XML supports has been
+    # superseded by the new module layout
+    #
+    # if not options.quiet:
+    #     sys.stderr.write('Reading Doxygen XML files...\n')
+    # tree.load_xml()
 
     reporter.write_pending()
 
     if not options.quiet:
         sys.stderr.write('Checking...\n')
 
-    check_all(tree, reporter, options.check_ignored)
+    # Disabled because these checks have been superseded by the
+    # new module layout
+    #
+    # check_all(tree, reporter, options.check_ignored)
 
     reporter.write_pending()
     reporter.report_unused_filters()
