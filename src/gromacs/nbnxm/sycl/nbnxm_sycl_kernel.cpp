@@ -533,22 +533,30 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     cgh.require(a_f);
     cgh.require(a_shiftVec);
     cgh.require(a_fShift);
-    cgh.require(a_f);
     if constexpr (doCalcEnergies)
     {
         cgh.require(a_elecEnergy);
         cgh.require(a_vdwEnergy);
     }
-    cgh.require(a_plistSci);
     cgh.require(a_plistCJ4);
+    cgh.require(a_plistSci);
     cgh.require(a_plistExcl);
-    if constexpr (props.vdwComb)
+    if constexpr (!props.vdwComb)
     {
-        cgh.require(a_ljComb);
+        cgh.require(a_atomTypes);
+        cgh.require(a_nbfp);
     }
     else
     {
-        cgh.require(a_atomTypes);
+        cgh.require(a_ljComb);
+    }
+    if constexpr (props.vdwEwald)
+    {
+        cgh.require(a_nbfpComb);
+    }
+    if constexpr (props.elecEwaldTab)
+    {
+        cgh.require(a_coulombType);
     }
 
     // shmem buffer for i x+q pre-loading
