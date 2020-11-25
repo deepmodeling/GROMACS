@@ -81,16 +81,6 @@ if(CMAKE_CXX_COMPILER MATCHES "dpcpp")
     endif()
 endif()
 
-gmx_option_multichoice(GMX_SYCL_AOT_ARCH "Architecture for AOT compilation" "CPU" NONE CPU GEN9 GEN11)
-set(SYCL_CXX_FLAGS_EXTRA "")
-if (GMX_SYCL_AOT_ARCH STREQUAL "CPU")
-    set(SYCL_CXX_FLAGS_EXTRA "-fsycl-targets=spir64_x86_64-unknown-unknown-sycldevice")
-elseif(GMX_SYCL_AOT_ARCH STREQUAL "GEN9")
-    set(SYCL_CXX_FLAGS_EXTRA "-fsycl-targets=spir64_gen-unknown-unknown-sycldevice -Xsycl-target-backend '-device gen9'")
-elseif(GMX_SYCL_AOT_ARCH STREQUAL "GEN11")
-    set(SYCL_CXX_FLAGS_EXTRA "-fsycl-targets=spir64_gen-unknown-unknown-sycldevice -Xsycl-target-backend '-device gen11'")
-endif()
-
 # Find the flags to enable (or re-enable) SYCL with Intel extensions. In case we turned it off above,
 # it's important that we check the combination of both flags, to make sure the second one re-enables SYCL.
 if(NOT CHECK_SYCL_CXX_FLAGS_QUIETLY)
@@ -110,7 +100,7 @@ gmx_find_flag_for_source(SYCL_CXX_FLAGS_RESULT
          q.parallel_for<class whatever>(sycl::range<1>{length}, [=, ptr = v.data()] (sycl::id<1> i){ ptr[i] *= 2; }).wait();
          return 0;
      }
-     " "CXX" DISABLE_SYCL_CXX_FLAGS SYCL_CXX_FLAGS "-fsycl ${SYCL_CXX_FLAGS_EXTRA}")
+     " "CXX" DISABLE_SYCL_CXX_FLAGS SYCL_CXX_FLAGS "-fsycl -fsycl-device-code-split=per_kernel")
 
 if(NOT CHECK_SYCL_CXX_FLAGS_QUIETLY)
     if(SYCL_CXX_FLAGS_RESULT)
