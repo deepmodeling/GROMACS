@@ -60,8 +60,21 @@
 
 namespace sycl_pf
 {
-#if __SYCL_COMPILER_VERSION >= 20201005 // 2021.1-beta10 or newer
-using cl::sycl::ONEAPI::any_of;
+#if (defined(CL_SYCL_LANGUAGE_VERSION) && CL_SYCL_LANGUAGE_VERSION >= 202000) \
+        || (defined(SYCL_LANGUAGE_VERSION) && SYCL_LANGUAGE_VERSION >= 202000)
+using sycl::atomic_ref;
+using sycl::group_any_of;
+using sycl::memory_order;
+using sycl::memory_scope;
+using sycl::plus;
+using sycl::reduce;
+using sycl::sub_group;
+#elif __SYCL_COMPILER_VERSION == 20201005 // 2021.1-beta10
+template<typename... Args>
+bool group_any_of(Args&&... args)
+{
+    return cl::sycl::ONEAPI::any_of(std::forward<Args>(args)...);
+}
 using cl::sycl::ONEAPI::atomic_ref;
 using cl::sycl::ONEAPI::memory_order;
 using cl::sycl::ONEAPI::memory_scope;
@@ -69,7 +82,11 @@ using cl::sycl::ONEAPI::plus;
 using cl::sycl::ONEAPI::reduce;
 using cl::sycl::ONEAPI::sub_group;
 #elif __SYCL_COMPILER_VERSION == 20200827 // 2021.1-beta09
-using cl::sycl::intel::any_of;
+template<typename... Args>
+bool group_any_of(Args&&... args)
+{
+    return cl::sycl::intel::any_of(std::forward<Args>(args)...);
+}
 using cl::sycl::intel::atomic_ref;
 using cl::sycl::intel::memory_order;
 using cl::sycl::intel::memory_scope;

@@ -772,8 +772,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     /* If _none_ of the atoms pairs are in cutoff range,
                                      * the bit corresponding to the current
                                      * cluster-pair in imask gets set to 0. */
-                                    // sycl::group_any_of in SYCL2020 provisional
-                                    if (!sycl_pf::any_of(sg, r2 < rlistOuterSq))
+                                    if (!sycl_pf::group_any_of(sg, r2 < rlistOuterSq))
                                     {
                                         imask &= ~mask_ji;
                                     }
