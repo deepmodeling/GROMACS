@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "communicator.h"
+#include "gromacs/mimic/communicator.h"
 
 #include "config.h"
 
