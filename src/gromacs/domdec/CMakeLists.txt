@@ -70,6 +70,7 @@ target_link_libraries(domdec INTERFACE
                       gmxlib
                       gpu_utils
                       hardware
+                      imd
                       math
                       timing
                       utility

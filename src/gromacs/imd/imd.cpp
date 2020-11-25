@@ -48,7 +48,7 @@
  */
 #include "gmxpre.h"
 
-#include "imd.h"
+#include "gromacs/imd/imd.h"
 
 #include "config.h"
 

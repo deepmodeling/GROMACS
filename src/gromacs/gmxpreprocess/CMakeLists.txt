@@ -69,6 +69,7 @@ target_link_libraries(gmxpreprocess INTERFACE
                       fft
                       gmxana
                       gmxlib
+                      imd
                       #                      utility
                       )
 # Source files have the following private module dependencies.

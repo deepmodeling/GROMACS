@@ -83,6 +83,7 @@ target_link_libraries(mdrun INTERFACE
                       ewald
                       gmxlib
                       hardware
+                      imd
                       utility
                       )
 # Source files have the following private module dependencies.

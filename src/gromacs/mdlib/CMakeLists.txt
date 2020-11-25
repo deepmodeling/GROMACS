@@ -79,6 +79,7 @@ target_link_libraries(mdlib INTERFACE
                       fileio
                       gmxlib
                       hardware
+                      imd
                       mdtypes
                       timing
                       utility
