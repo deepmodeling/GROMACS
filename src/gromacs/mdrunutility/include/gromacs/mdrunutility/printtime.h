@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,42 +34,40 @@
  */
 /*! \libinternal \file
  *
- * \brief Declares the MD log file handling routines.
+ * \brief Declares functions that write timestamps to e.g. log files.
  *
- * \author Mark Abraham <mark.j.abraham@gmail.com>
- * \inlibraryapi
  * \ingroup module_mdrunutility
+ * \inlibraryapi
  */
-#ifndef GMX_MDRUNUTILITY_LOGGING_H
-#define GMX_MDRUNUTILITY_LOGGING_H
+#ifndef GMX_MDRUNUTILITY_PRINTTIME_H
+#define GMX_MDRUNUTILITY_PRINTTIME_H
 
-#include <memory>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
-#include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/unique_cptr.h"
+struct gmx_walltime_accounting;
+struct t_commrec;
+struct t_inputrec;
 
-struct t_fileio;
+//! Print time to \c out.
+void print_time(FILE*                    out,
+                gmx_walltime_accounting* walltime_accounting,
+                int64_t                  step,
+                const t_inputrec*        ir,
+                const t_commrec*         cr);
 
-namespace gmx
-{
-
-/*! \brief Close the log file */
-void closeLogFile(t_fileio* logfio);
-
-//! Simple guard pointer See unique_cptr for details.
-using LogFilePtr = std::unique_ptr<t_fileio, functor_wrapper<t_fileio, closeLogFile>>;
-
-/*! \brief Open the log file for writing/appending.
+/*! \brief Print date, time, MPI rank and a description of this point
+ * in time.
  *
- * \throws FileIOError when the log file cannot be opened. */
-LogFilePtr openLogFile(const char* lognm, bool appendFiles);
-
-/*! \brief Prepare to use the open log file when appending.
- *
- * Does not throw.
+ * \param[in] log       logfile, or NULL to suppress output
+ * \param[in] rank      MPI rank to include in the output
+ * \param[in] title     Description to include in the output
+ * \param[in] the_time  Seconds since the epoch, e.g. as reported by gmx_gettime
  */
-void prepareLogAppending(FILE* fplog);
+void print_date_and_time(FILE* log, int rank, const char* title, double the_time);
 
-} // namespace gmx
+//! Print start time to \c fplog.
+void print_start(FILE* fplog, const t_commrec* cr, gmx_walltime_accounting* walltime_accounting, const char* name);
 
 #endif

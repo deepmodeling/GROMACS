@@ -64,6 +64,7 @@ target_link_libraries(pulling INTERFACE
                       gmxlib
                       linearalgebra
                       mdlib
+                      mdrunutility
                       mdtypes
                       utility
                       )

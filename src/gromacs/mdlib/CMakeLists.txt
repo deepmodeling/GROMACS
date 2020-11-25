@@ -81,6 +81,7 @@ target_link_libraries(mdlib INTERFACE
                       hardware
                       imd
                       listed_forces
+                      mdrunutility
                       mdtypes
                       timing
                       utility

@@ -67,6 +67,7 @@ target_link_libraries(applied_forces INTERFACE
                       math
                       mdlib
                       mdtypes
+                      mdrunutility
                       timing
 #                      utility
                       )

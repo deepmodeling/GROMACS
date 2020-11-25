@@ -77,6 +77,7 @@ target_link_libraries(modularsimulator PRIVATE
                       math
                       mdlib
                       mdrun
+                      mdrunutility
                       mdtypes
                       tng_io
                       topology

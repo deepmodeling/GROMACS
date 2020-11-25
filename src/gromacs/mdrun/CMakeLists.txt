@@ -86,6 +86,7 @@ target_link_libraries(mdrun INTERFACE
                       imd
                       listed_forces
                       mdlib
+                      mdrunutility
                       utility
                       )
 # Source files have the following private module dependencies.

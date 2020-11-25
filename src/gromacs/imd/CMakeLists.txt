@@ -63,6 +63,7 @@ target_link_libraries(imd INTERFACE
                       domdec
                       gmxlib
                       mdlib
+                      mdrunutility
                       utility
                       )
 # Source files have the following private module dependencies.

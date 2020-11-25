@@ -35,7 +35,7 @@
  */
 #include "gmxpre.h"
 
-#include "threadaffinity.h"
+#include "gromacs/mdrunutility/threadaffinity.h"
 
 #include "config.h"
 

@@ -49,6 +49,7 @@ target_link_libraries(mdrun_objlib PRIVATE
                       fileio
                       hardware
                       mdrun
+                      mdrunutility
                       options
                       )
 # TODO: Explicitly link specific modules.

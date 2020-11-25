@@ -49,7 +49,7 @@
 
 #include "gmxpre.h"
 
-#include "handlerestart.h"
+#include "gromacs/mdrunutility/handlerestart.h"
 
 #include "config.h"
 
