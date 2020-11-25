@@ -78,6 +78,7 @@ target_link_libraries(listed_forces INTERFACE
 #target_link_libraries(listed_forces PUBLIC
 target_link_libraries(listed_forces INTERFACE
                       math
+                      mdlib
                       utility
                       )
 # Source files have the following private module dependencies.

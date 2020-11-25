@@ -35,7 +35,7 @@
  */
 #include "gmxpre.h"
 
-#include "trajectory_writing.h"
+#include "gromacs/mdlib/trajectory_writing.h"
 
 #include "gromacs/commandline/filenm.h"
 #include "gromacs/fileio/confio.h"

@@ -44,7 +44,7 @@
 
 #include "gmxpre.h"
 
-#include "vsite.h"
+#include "gromacs/mdlib/vsite.h"
 
 #include <cstdio>
 

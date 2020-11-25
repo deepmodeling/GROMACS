@@ -42,7 +42,7 @@
 
 #include "gmxpre.h"
 
-#include "updategroups.h"
+#include "gromacs/mdlib/updategroups.h"
 
 #include <cmath>
 

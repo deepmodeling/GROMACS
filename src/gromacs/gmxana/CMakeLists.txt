@@ -65,6 +65,7 @@ target_link_libraries(gmxana INTERFACE
                       gmxpreprocess
                       linearalgebra
                       listed_forces
+                      mdlib
                       utility
                       )
 

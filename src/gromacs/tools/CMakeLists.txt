@@ -65,6 +65,7 @@ target_link_libraries(tools INTERFACE
                       gmxlib
                       gmxpreprocess
                       listed_forces
+                      mdlib
                       mdtypes
                       utility
                       )

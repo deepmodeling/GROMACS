@@ -41,7 +41,7 @@
 
 #include "gmxpre.h"
 
-#include "freeenergyparameters.h"
+#include "gromacs/mdlib/freeenergyparameters.h"
 
 #include "gromacs/mdtypes/inputrec.h"
 

@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "enerdata_utils.h"
+#include "gromacs/mdlib/enerdata_utils.h"
 
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/mdtypes/commrec.h"

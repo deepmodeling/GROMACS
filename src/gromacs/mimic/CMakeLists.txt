@@ -50,6 +50,7 @@ target_include_directories(mimic INTERFACE
 #target_link_libraries(mimic PUBLIC
 target_link_libraries(mimic INTERFACE
                       legacy_api
+                      mdlib
 )
 
 # TODO: when mimic is an OBJECT target

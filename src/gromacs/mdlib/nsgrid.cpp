@@ -38,7 +38,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "nsgrid.h"
+#include "gromacs/mdlib/nsgrid.h"
 
 #include <cmath>
 #include <cstdio>

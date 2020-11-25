@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "checkpointhandler.h"
+#include "gromacs/mdlib/checkpointhandler.h"
 
 #include "gromacs/timing/walltime_accounting.h"
 

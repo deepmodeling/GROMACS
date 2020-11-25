@@ -44,7 +44,7 @@
  */
 #include "gmxpre.h"
 
-#include "constr.h"
+#include "gromacs/mdlib/constr.h"
 
 #include <cassert>
 #include <cmath>

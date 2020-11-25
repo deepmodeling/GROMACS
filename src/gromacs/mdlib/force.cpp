@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "force.h"
+#include "gromacs/mdlib/force.h"
 
 #include <cassert>
 #include <cmath>

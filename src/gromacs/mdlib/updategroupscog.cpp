@@ -42,7 +42,7 @@
 
 #include "gmxpre.h"
 
-#include "updategroupscog.h"
+#include "gromacs/mdlib/updategroupscog.h"
 
 #include "gromacs/mdlib/updategroups.h"
 #include "gromacs/topology/block.h"

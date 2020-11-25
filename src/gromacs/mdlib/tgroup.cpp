@@ -38,7 +38,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "tgroup.h"
+#include "gromacs/mdlib/tgroup.h"
 
 #include <cmath>
 

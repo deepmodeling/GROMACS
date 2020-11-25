@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "stat.h"
+#include "gromacs/mdlib/stat.h"
 
 #include <cstdio>
 #include <cstring>

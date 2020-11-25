@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "perf_est.h"
+#include "gromacs/mdlib/perf_est.h"
 
 #include <cmath>
 

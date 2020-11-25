@@ -73,6 +73,7 @@ target_link_libraries(domdec INTERFACE
                       imd
                       listed_forces
                       math
+                      mdlib
                       timing
                       utility
                       )

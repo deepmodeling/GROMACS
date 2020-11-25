@@ -46,7 +46,7 @@
  */
 #include "gmxpre.h"
 
-#include "energyoutput.h"
+#include "gromacs/mdlib/energyoutput.h"
 
 #include <cfloat>
 #include <cstdlib>

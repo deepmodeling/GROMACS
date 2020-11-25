@@ -42,7 +42,7 @@
 
 #include "gmxpre.h"
 
-#include "resethandler.h"
+#include "gromacs/mdlib/resethandler.h"
 
 #include "gromacs/domdec/domdec.h"
 #include "gromacs/ewald/pme.h"

@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "groupcoord.h"
+#include "gromacs/mdlib/groupcoord.h"
 
 #include "gromacs/domdec/ga2la.h"
 #include "gromacs/gmxlib/network.h"

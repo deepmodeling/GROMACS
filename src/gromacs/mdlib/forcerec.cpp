@@ -36,7 +36,7 @@
  */
 #include "gmxpre.h"
 
-#include "forcerec.h"
+#include "gromacs/mdlib/forcerec.h"
 
 #include "config.h"
 
@@ -99,7 +99,7 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/strconvert.h"
 
-#include "gpuforcereduction.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 
 ForceHelperBuffers::ForceHelperBuffers(bool haveDirectVirialContributions) :
     haveDirectVirialContributions_(haveDirectVirialContributions)

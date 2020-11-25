@@ -63,6 +63,7 @@ target_link_libraries(pulling INTERFACE
                       domdec
                       gmxlib
                       linearalgebra
+                      mdlib
                       mdtypes
                       utility
                       )

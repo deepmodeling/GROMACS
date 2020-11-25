@@ -64,6 +64,7 @@ target_link_libraries(essentialdynamics INTERFACE
                       domdec
                       gmxlib
                       linearalgebra
+                      mdlib
                       utility
                       )
 # Source files have the following private module dependencies.

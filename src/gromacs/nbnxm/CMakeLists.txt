@@ -108,6 +108,7 @@ target_link_libraries(nbnxm INTERFACE
                       hardware
                       listed_forces
                       math
+                      mdlib
                       utility
                       simd
                       )

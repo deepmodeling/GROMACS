@@ -48,7 +48,7 @@
  */
 #include "gmxpre.h"
 
-#include "boxdeformation.h"
+#include "gromacs/mdlib/boxdeformation.h"
 
 #include <memory>
 

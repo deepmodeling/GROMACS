@@ -123,7 +123,7 @@
 #include "gromacs/utility/strconvert.h"
 #include "gromacs/utility/sysinfo.h"
 
-#include "gpuforcereduction.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 
 using gmx::ArrayRef;
 using gmx::AtomLocality;

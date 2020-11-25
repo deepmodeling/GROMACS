@@ -62,6 +62,7 @@ target_link_libraries(swap INTERFACE
 target_link_libraries(swap INTERFACE
                       domdec
                       gmxlib
+                      mdlib
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "update.h"
+#include "gromacs/mdlib/update.h"
 
 #include <cmath>
 #include <cstdio>

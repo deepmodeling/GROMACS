@@ -38,7 +38,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "broadcaststructs.h"
+#include "gromacs/mdlib/broadcaststructs.h"
 
 #include "gromacs/fileio/tpxio.h"
 #include "gromacs/mdtypes/state.h"

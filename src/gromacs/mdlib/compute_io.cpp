@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "compute_io.h"
+#include "gromacs/mdlib/compute_io.h"
 
 #include <csignal>
 #include <cstdlib>

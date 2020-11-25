@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "coupling.h"
+#include "gromacs/mdlib/coupling.h"
 
 #include <cassert>
 #include <cmath>

@@ -38,7 +38,7 @@
 /* This file is completely threadsafe - keep it that way! */
 #include "gmxpre.h"
 
-#include "ebin.h"
+#include "gromacs/mdlib/ebin.h"
 
 #include <cmath>
 #include <cstring>

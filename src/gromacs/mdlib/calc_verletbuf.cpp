@@ -35,7 +35,7 @@
  */
 #include "gmxpre.h"
 
-#include "calc_verletbuf.h"
+#include "gromacs/mdlib/calc_verletbuf.h"
 
 #include <cmath>
 #include <cstdlib>

@@ -134,6 +134,7 @@ target_link_libraries(ewald INTERFACE
                       gpu_utils
                       hardware
                       math
+                      mdlib
                       timing
                       #                      utility
                       )

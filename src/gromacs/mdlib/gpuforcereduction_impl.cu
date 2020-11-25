@@ -56,7 +56,7 @@
 #include "gromacs/gpu_utils/vectype_ops.cuh"
 #include "gromacs/utility/gmxassert.h"
 
-#include "gpuforcereduction.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 
 namespace gmx
 {

@@ -65,6 +65,7 @@ target_link_libraries(applied_forces INTERFACE
                       fileio
                       gmxlib
                       math
+                      mdlib
                       mdtypes
                       timing
 #                      utility

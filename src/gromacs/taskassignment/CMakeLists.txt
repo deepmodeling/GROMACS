@@ -70,6 +70,7 @@ target_link_libraries(taskassignment INTERFACE
                       gmxlib
                       hardware
                       listed_forces
+                      mdlib
                       utility
                       )
 # Source files have the following private module dependencies.

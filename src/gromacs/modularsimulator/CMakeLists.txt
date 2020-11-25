@@ -75,6 +75,7 @@ target_link_libraries(modularsimulator PRIVATE
                       gmxlib
                       listed_forces
                       math
+                      mdlib
                       mdtypes
                       tng_io
                       topology

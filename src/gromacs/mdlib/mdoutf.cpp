@@ -35,7 +35,7 @@
  */
 #include "gmxpre.h"
 
-#include "mdoutf.h"
+#include "gromacs/mdlib/mdoutf.h"
 
 #include "config.h"
 
