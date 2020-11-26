@@ -70,6 +70,7 @@ target_link_libraries(tools INTERFACE
                       mdtypes
                       pbcutil
                       random
+                      taskassignment
                       utility
                       )
 # Source files have the following private module dependencies.

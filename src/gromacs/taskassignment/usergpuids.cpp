@@ -40,7 +40,7 @@
  */
 #include "gmxpre.h"
 
-#include "usergpuids.h"
+#include "gromacs/taskassignment/usergpuids.h"
 
 #include <cctype>
 
