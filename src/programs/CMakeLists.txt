@@ -101,6 +101,7 @@ else()
     # TODO: Explicitly link specific modules.
     target_link_libraries(view_objlib PRIVATE legacy_modules)
     target_link_libraries(view_objlib PRIVATE
+                          fileio
                           utility
                           )
     add_library(gmx_objlib OBJECT ${GMX_MAIN_SOURCES})
@@ -127,7 +128,7 @@ else()
                           ${GMX_COMMON_LIBRARIES}
                           ${GMX_EXE_LINKER_FLAGS})
     if(GMX_X11)
-        target_link_libraries(gmx ${X11_LIBRARIES})
+        target_link_libraries(gmx PRIVATE ${X11_LIBRARIES})
     endif()
     set(BINARY_NAME "gmx${GMX_BINARY_SUFFIX}")
     set_target_properties(gmx PROPERTIES
