@@ -67,6 +67,7 @@ target_link_libraries(gmxana INTERFACE
                       listed_forces
                       mdlib
                       pbcutil
+                      pulling
                       utility
                       )
 

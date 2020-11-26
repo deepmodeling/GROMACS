@@ -72,6 +72,7 @@ target_link_libraries(taskassignment INTERFACE
                       listed_forces
                       mdlib
                       mdrunutility
+                      pulling
                       utility
                       )
 # Source files have the following private module dependencies.

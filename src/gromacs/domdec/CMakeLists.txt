@@ -76,6 +76,7 @@ target_link_libraries(domdec INTERFACE
                       mdlib
                       nbnxm
                       pbcutil
+                      pulling
                       timing
                       utility
                       )

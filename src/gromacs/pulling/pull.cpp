@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "pull.h"
+#include "gromacs/pulling/pull.h"
 
 #include "config.h"
 

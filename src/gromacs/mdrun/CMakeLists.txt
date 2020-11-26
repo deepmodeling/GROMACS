@@ -90,6 +90,7 @@ target_link_libraries(mdrun INTERFACE
                       mimic
                       modularsimulator
                       pbcutil
+                      pulling
                       nbnxm
                       utility
                       )

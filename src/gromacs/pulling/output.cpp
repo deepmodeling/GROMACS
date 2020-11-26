@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "output.h"
+#include "gromacs/pulling/output.h"
 
 #include <cstdio>
 
