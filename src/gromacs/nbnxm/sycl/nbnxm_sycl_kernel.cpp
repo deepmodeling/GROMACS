@@ -575,15 +575,14 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         }
     }();
 
-    /* Macro to control the calculation of exclusion forces in the kernel
+    /* Flag to control the calculation of exclusion forces in the kernel
      * We do that with Ewald (elec/vdw) and RF. Cut-off only has exclusion
-     * energy terms.
-     */
+     * energy terms. */
     constexpr bool doExclusionForces =
             (props.elecEwald || props.elecRF || props.vdwEwald || (props.elecCutoff && doCalcEnergies));
 
-
-    return [=](cl::sycl::nd_item<1> itemIdx) {
+    return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(8)]]
+    {
         /* thread/block/warp id-s */
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         const unsigned        tidxi   = localId[0];

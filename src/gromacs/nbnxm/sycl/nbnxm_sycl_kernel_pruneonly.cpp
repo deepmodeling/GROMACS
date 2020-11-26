@@ -94,7 +94,8 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
     /* Requirements:
      * Work group (block) must have range (c_clSize, c_clSize, ...) (for localId calculation, easy
      * to change) Sub group (warp) must have length 8 (more complicated to change) */
-    return [=](cl::sycl::nd_item<1> itemIdx) {
+    return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(8)]]
+    {
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         // thread/block/warp id-s
         const unsigned        tidxi = localId[0];
@@ -147,7 +148,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         {
             unsigned int imaskFull, imaskCheck, imaskNew;
 
-            if (haveFreshList)
+            if constexpr (haveFreshList)
             {
                 /* Read the mask from the list transferred from the CPU */
                 imaskFull = a_plistCJ4[j4].imei[widx].imask;
