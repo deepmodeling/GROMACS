@@ -94,6 +94,7 @@ target_link_libraries(mdrun INTERFACE
                       pulling
                       random
                       restraint
+                      swap
                       taskassignment
                       tools
                       trajectory
