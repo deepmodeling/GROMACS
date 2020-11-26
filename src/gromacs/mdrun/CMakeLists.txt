@@ -80,6 +80,7 @@ target_link_libraries(mdrun INTERFACE
                       applied_forces
                       compat
                       domdec
+                      essentialdynamics
                       ewald
                       gmxlib
                       hardware
