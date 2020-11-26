@@ -542,8 +542,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
     // shmem buffer for cj, for each warp separately
     // the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution
-    cl::sycl::accessor<int, 1, mode::read_write, target::local> cjs(
-            cl::sycl::range<1>(NTHREAD_Z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
+    cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
+            cl::sycl::range<2>(NTHREAD_Z, c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
 
     // shmem buffer for j- and i-forces
     cl::sycl::accessor<float3, 1, mode::read_write, target::local> force_j_buf_shmem(
@@ -615,25 +615,29 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         if (tidxz == 0)
         {
-            /* Pre-load i-atom x and q into shared memory */
-            const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj;
-            const int ai = ci * c_clSize + tidxi;
-
-            float3 shift = a_shiftVec[nb_sci.shift];
-            xqbuf        = a_xq[ai];
-            xqbuf += float4(shift[0], shift[1], shift[2], 0.0F);
-            xqbuf[3] *= epsFac;
-            xqib[tidxji] = xqbuf;
-
-            if constexpr (!props.vdwComb)
+            for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i += c_clSize)
             {
-                // Pre-load the i-atom types into shared memory
-                atib[tidxji] = a_atomTypes[ai];
-            }
-            else
-            {
-                // Pre-load the LJ combination parameters into shared memory
-                ljcpib[tidxji] = a_ljComb[ai];
+                /* Pre-load i-atom x and q into shared memory */
+                const int             ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj + i;
+                const int             ai = ci * c_clSize + tidxi;
+                const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
+
+                float3 shift = a_shiftVec[nb_sci.shift];
+                xqbuf        = a_xq[ai];
+                xqbuf += float4(shift[0], shift[1], shift[2], 0.0F);
+                xqbuf[3] *= epsFac;
+                xqib[cacheIdx] = xqbuf;
+
+                if constexpr (!props.vdwComb)
+                {
+                    // Pre-load the i-atom types into shared memory
+                    atib[cacheIdx] = a_atomTypes[ai];
+                }
+                else
+                {
+                    // Pre-load the LJ combination parameters into shared memory
+                    ljcpib[cacheIdx] = a_ljComb[ai];
+                }
             }
         }
         itemIdx.barrier(fence_space::local_space);
@@ -708,7 +712,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 /* Pre-load cj into shared memory on both warps separately */
                 if ((tidxj == 0 || tidxj == 4) && (tidxi < c_nbnxnGpuJgroupSize))
                 {
-                    cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
+                    cjs[cl::sycl::id<2>(tidxz, tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize)] =
+                            a_plistCJ4[j4].cj[tidxi];
                 }
                 sg.barrier();
 
@@ -717,7 +722,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                     if (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
                         int       mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
-                        const int cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
+                        const int cj =
+                                cjs[cl::sycl::id<2>(tidxz, jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize)];
                         const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
