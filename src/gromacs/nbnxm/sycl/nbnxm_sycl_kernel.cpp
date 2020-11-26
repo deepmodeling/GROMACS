@@ -46,19 +46,11 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
 #include "gromacs/mdtypes/simulation_workload.h"
+#include "gromacs/nbnxm/sycl/nbnxm_sycl_kernel_utils.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/utility/template_mp.h"
 
 #include "nbnxm_sycl_types.h"
-
-/*! \brief cluster size = number of atoms per cluster. */
-static constexpr int c_clSize = c_nbnxnGpuClusterSize;
-
-/*! \brief j-cluster size after split (4 in the current implementation). */
-static constexpr int c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
-
-/*! \brief 1/sqrt(pi), same value as \c M_FLOAT_1_SQRTPI in other NB kernels */
-static constexpr float c_OneOverSqrtPi = 0.564189583547756F;
 
 // TODO: tune
 #define NTHREAD_Z 1
@@ -105,10 +97,6 @@ constexpr bool elecEwaldTab = EnergyFunctionProperties<elecType, VdwType::Count>
 
 template<enum VdwType vdwType>
 constexpr bool ljEwald = EnergyFunctionProperties<ElecType::Count, vdwType>().vdwEwald;
-
-// Same values that are used in CUDA kernels.
-static constexpr float c_oneSixth   = 0.16666667F;
-static constexpr float c_oneTwelfth = 0.08333333F;
 
 using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
@@ -416,22 +404,13 @@ static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode
     return lerp(left, right, fraction);
 }
 
-template<cl::sycl::access::mode Mode>
-static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const int idx, const float val)
-{
-    sycl_pf::atomic_ref<float, sycl_pf::memory_order::relaxed, sycl_pf::memory_scope::work_group,
-                        cl::sycl::access::address_space::global_space>
-            fout_atomic(acc[idx]);
-    fout_atomic.fetch_add(val);
-}
-
 /*! Final j-force reduction; this implementation only with power of two
  *  array sizes.
  */
 static inline void reduce_force_j(cl::sycl::accessor<float3, 1, mode::read_write, target::local> shmemBuf,
                                   const float3                                                   f,
                                   DeviceAccessor<float, mode::read_write> fout,
-                                  const cl::sycl::nd_item<3>              itemIdx,
+                                  const cl::sycl::nd_item<1>              itemIdx,
                                   const int                               aidx)
 {
     // Extremely dumb and not-optimized version of reduce_force_j_warp_shfl
@@ -461,7 +440,7 @@ static inline float3 reduce_force_i(cl::sycl::accessor<float3, 1, mode::read_wri
                                     const float3                            f,
                                     DeviceAccessor<float, mode::read_write> fout,
                                     bool                                    bCalcFshift,
-                                    const cl::sycl::nd_item<3>              itemIdx,
+                                    const cl::sycl::nd_item<1>              itemIdx,
                                     const int                               aidx)
 {
     float3 fshift_buf(0.0F, 0.0F, 0.0F);
@@ -479,7 +458,6 @@ static inline float3 reduce_force_i(cl::sycl::accessor<float3, 1, mode::read_wri
             {
                 acc += shmemBuf[tid + j * c_clSize][dim];
             }
-            // SYCL-TODO: Change to sycl::atomic when moving to SYCL2020
             atomic_fetch_add(fout, 3 * aidx + dim, acc);
             if (bCalcFshift)
             {
@@ -604,23 +582,21 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     constexpr bool doExclusionForces =
             (props.elecEwald || props.elecRF || props.vdwEwald || (props.elecCutoff && doCalcEnergies));
 
-    // i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set
-    constexpr unsigned superClInteractionMask = ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
 
-    return [=](cl::sycl::nd_item<3> itemIdx) {
+    return [=](cl::sycl::nd_item<1> itemIdx) {
         /* thread/block/warp id-s */
-        const unsigned        tidxi = itemIdx.get_local_id(0);
-        const unsigned        tidxj = itemIdx.get_local_id(1);
-        const cl::sycl::id<2> tidxji(itemIdx.get_local_id(1), itemIdx.get_local_id(0));
+        const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
+        const unsigned        tidxi   = localId[0];
+        const unsigned        tidxj   = localId[1];
+        const cl::sycl::id<2> tidxji(localId[0], localId[1]);
+        const unsigned        tidx = tidxj * itemIdx.get_group_range(0) + tidxi;
 #if NTHREAD_Z == 1
         const unsigned tidxz = 0;
-        const unsigned tidx  = itemIdx.get_local_linear_id();
 #else
-        const unsigned tidxz = itemIdx.get_local_id(2);
-        const unsigned tidx  = tidxj * itemIdx.get_local_range(0) + tidxi;
+        const unsigned tidxz = localId[2];
 #endif
         const unsigned bidx = itemIdx.get_group(0);
-        // Relies on sub_group from SYCL2020 provisional spec / Intel implementation
+
         const sycl_pf::sub_group sg                         = itemIdx.get_sub_group();
         const unsigned           widx                       = sg.get_group_id(); // warp index
         float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster] = { { 0.0F, 0.0F, 0.0F } }; // i force buffer
@@ -1069,7 +1045,7 @@ cl::sycl::event launchNbnxmKernel(const DeviceStream& deviceStream, const int nu
     cl::sycl::event e = q.submit([&](cl::sycl::handler& cgh) {
         auto kernel = nbnxmKernel<doPruneNBL, doCalcEnergies, elecType, vdwType>(
                 cgh, std::forward<Args>(args)...);
-        cgh.parallel_for<kernelNameType>(range, kernel);
+        cgh.parallel_for<kernelNameType>(flattenNDRange(range), kernel);
     });
 
     return e;

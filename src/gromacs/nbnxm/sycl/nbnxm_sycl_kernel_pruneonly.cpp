@@ -45,25 +45,10 @@
 
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
+#include "gromacs/nbnxm/sycl/nbnxm_sycl_kernel_utils.h"
 #include "gromacs/utility/template_mp.h"
 
 #include "nbnxm_sycl_types.h"
-
-/*! \brief Macro defining default for the prune kernel's j4 processing concurrency.
- *
- *  The GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro allows compile-time override.
- */
-#ifndef GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
-#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY 4
-#endif
-static constexpr int c_syclPruneKernelJ4Concurrency = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY;
-
-/*! \brief cluster size = number of atoms per cluster. */
-static constexpr int c_clSize = c_nbnxnGpuClusterSize;
-/*! \brief j-cluster size after split (4 in the current implementation). */
-static constexpr int c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
-/*! \brief i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set */
-static constexpr unsigned superClInteractionMask = ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
 
 // TODO: tune
 #define NTHREAD_Z 1
@@ -74,8 +59,6 @@ using cl::sycl::access::target;
 
 namespace Nbnxm
 {
-
-using cl::sycl::access::mode;
 
 /*! \brief Prune-only kernel for NBNXM.
  *
@@ -103,22 +86,30 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
     /* the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution */
-    cl::sycl::accessor<int, 1, mode::read_write, target::local> cjs(
-            cl::sycl::range<1>(NTHREAD_Z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
+    cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
+            cl::sycl::range<2>(NTHREAD_Z, c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
 
-    return [=](cl::sycl::nd_item<3> itemIdx) {
+    cl::sycl::stream debug(10240, 128, cgh);
+
+    /* Requirements:
+     * Work group (block) must have range (c_clSize, c_clSize, ...) (for localId calculation, easy
+     * to change) Sub group (warp) must have length 8 (more complicated to change) */
+    return [=](cl::sycl::nd_item<1> itemIdx) {
+        const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         // thread/block/warp id-s
-        const unsigned        tidxi = itemIdx.get_local_id(0);
-        const unsigned        tidxj = itemIdx.get_local_id(1);
-        const cl::sycl::id<2> tidxji(itemIdx.get_local_id(1), itemIdx.get_local_id(0));
+        const unsigned        tidxi = localId[0];
+        const unsigned        tidxj = localId[1];
+        const cl::sycl::id<2> tidxji(localId[0], localId[1]);
+        const int             tidx = tidxj * itemIdx.get_group_range(0) + tidxi;
 #if NTHREAD_Z == 1
         const unsigned tidxz = 0;
 #else
-        const unsigned tidxz = itemIdx.get_local_id(2);
+        const unsigned tidxz = localId[2];
 #endif
-        const unsigned           bidx = itemIdx.get_group(0);
+        const unsigned bidx = itemIdx.get_group(0);
+
         const sycl_pf::sub_group sg   = itemIdx.get_sub_group();
-        const unsigned widx = (tidxj * c_clSize + tidxi) / sg.get_local_range()[0]; /* warp index */
+        const unsigned           widx = tidx / sg.get_local_range()[0]; /* warp index */
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
@@ -133,6 +124,11 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 /* Pre-load i-atom x and q into shared memory */
                 const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj + i;
                 const int ai = ci * c_clSize + tidxi;
+
+                /*
+                debug << "tidxi=" << tidxi << " tidxj=" << tidxj << " ci=" << ci <<
+                        " ai=" << ai << cl::sycl::endl;
+                        */
 
                 /* We don't need q, but using float4 in shmem avoids bank conflicts.
                    (but it also wastes L2 bandwidth). */
@@ -171,7 +167,8 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
             if ((tidxj == 0 || tidxj == c_splitClSize) && tidxi < c_nbnxnGpuJgroupSize)
             {
-                cjs[tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] = a_plistCJ4[j4].cj[tidxi];
+                cjs[cl::sycl::id<2>(tidxz, tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize)] =
+                        a_plistCJ4[j4].cj[tidxi];
             }
             itemIdx.barrier(fence_space::local_space);
 
@@ -185,7 +182,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
                         const int loadOffset =
                                 (tidxj & c_splitClSize) * c_nbnxnGpuJgroupSize / c_splitClSize;
-                        const int cj = cjs[jm + loadOffset];
+                        const int cj = cjs[cl::sycl::id<2>(tidxz, jm + loadOffset)];
                         const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
@@ -261,7 +258,7 @@ cl::sycl::event launchNbnxmKernelPruneOnly(const DeviceStream& deviceStream,
 
     cl::sycl::event e = q.submit([&](cl::sycl::handler& cgh) {
         auto kernel = nbnxmKernelPruneOnly<haveFreshList>(cgh, std::forward<Args>(args)...);
-        cgh.parallel_for<kernelNameType>(range, kernel);
+        cgh.parallel_for<kernelNameType>(flattenNDRange(range), kernel);
     });
 
     return e;
