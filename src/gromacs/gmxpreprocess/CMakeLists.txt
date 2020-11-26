@@ -75,6 +75,7 @@ target_link_libraries(gmxpreprocess INTERFACE
                       mdrun
                       pbcutil
                       pulling
+                      random
                       #                      utility
                       )
 # Source files have the following private module dependencies.

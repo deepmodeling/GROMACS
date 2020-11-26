@@ -68,6 +68,7 @@ target_link_libraries(gmxana INTERFACE
                       mdlib
                       pbcutil
                       pulling
+                      random
                       utility
                       )
 

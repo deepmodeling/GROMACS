@@ -70,6 +70,7 @@ target_link_libraries(applied_forces INTERFACE
                       mdrunutility
                       pbcutil
                       pulling
+                      random
                       timing
 #                      utility
                       )

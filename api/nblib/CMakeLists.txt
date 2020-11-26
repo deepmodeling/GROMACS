@@ -130,6 +130,7 @@ target_link_libraries(nblib PRIVATE
                       mdtypes
                       nbnxm
                       pbcutil
+                      random
                       simd
                       timing
                       topology

@@ -95,6 +95,7 @@ target_link_libraries(selection INTERFACE
 target_link_libraries(selection INTERFACE
                       onlinehelp
                       pbcutil
+                      random
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -43,4 +43,6 @@ gmx_add_unit_test(SelectionUnitTests selection-test
         )
 target_link_libraries(selection-test PRIVATE
                       fileio
-                      options)
+                      options
+                      selection
+                      )

@@ -69,6 +69,7 @@ target_link_libraries(trajectoryanalysis PRIVATE
                       fileio
                       legacy_modules
                       pbcutil
+                      random
                       topology
 )
 

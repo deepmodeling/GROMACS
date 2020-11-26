@@ -35,7 +35,7 @@
 
 #include "gmxpre.h"
 
-#include "seed.h"
+#include "gromacs/random/seed.h"
 
 #include <time.h>
 

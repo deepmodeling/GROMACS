@@ -86,6 +86,7 @@ target_link_libraries(mdlib INTERFACE
                       nbnxm
                       pbcutil
                       pulling
+                      random
                       timing
                       utility
                       )

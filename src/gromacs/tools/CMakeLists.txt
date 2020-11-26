@@ -69,6 +69,7 @@ target_link_libraries(tools INTERFACE
                       mdrun
                       mdtypes
                       pbcutil
+                      random
                       utility
                       )
 # Source files have the following private module dependencies.
