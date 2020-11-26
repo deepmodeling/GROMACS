@@ -89,10 +89,11 @@ target_link_libraries(mdrun INTERFACE
                       mdrunutility
                       mimic
                       modularsimulator
+                      nbnxm
                       pbcutil
                       pulling
                       random
-                      nbnxm
+                      restraint
                       utility
                       )
 # Source files have the following private module dependencies.

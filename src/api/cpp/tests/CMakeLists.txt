@@ -65,7 +65,12 @@ gmx_add_gtest_executable(gmxapi-test
         )
 
 # Link against the gmxapi libraries and get access to its public (installed) headers.
-target_link_libraries(gmxapi-test PRIVATE Gromacs::gmxapi gmxapi-testsupport mdrun_test_infrastructure)
+target_link_libraries(gmxapi-test PRIVATE
+                      Gromacs::gmxapi
+                      gmxapi-testsupport
+                      mdrun_test_infrastructure
+                      restraint
+                      )
 
 gmx_register_gtest_test(GmxapiExternalInterfaceTests gmxapi-test OPENMP_THREADS 2 INTEGRATION_TEST IGNORE_LEAKS)
 
