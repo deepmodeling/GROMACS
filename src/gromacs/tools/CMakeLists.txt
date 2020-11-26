@@ -71,6 +71,7 @@ target_link_libraries(tools INTERFACE
                       pbcutil
                       random
                       taskassignment
+                      trajectory
                       utility
                       )
 # Source files have the following private module dependencies.

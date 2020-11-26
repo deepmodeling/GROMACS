@@ -76,6 +76,7 @@ target_link_libraries(gmxpreprocess INTERFACE
                       pbcutil
                       pulling
                       random
+                      trajectory
                       #                      utility
                       )
 # Source files have the following private module dependencies.

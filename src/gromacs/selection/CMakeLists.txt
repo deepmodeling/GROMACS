@@ -96,6 +96,7 @@ target_link_libraries(selection INTERFACE
                       onlinehelp
                       pbcutil
                       random
+                      trajectory
                       utility
                       )
 # Source files have the following private module dependencies.

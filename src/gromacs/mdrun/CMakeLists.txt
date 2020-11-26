@@ -96,6 +96,7 @@ target_link_libraries(mdrun INTERFACE
                       restraint
                       taskassignment
                       tools
+                      trajectory
                       utility
                       )
 # Source files have the following private module dependencies.

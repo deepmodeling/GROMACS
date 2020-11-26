@@ -58,6 +58,7 @@ target_link_libraries(coordinateio PRIVATE
                       legacy_modules
                       options
                       topology
+                      trajectory
 )
 
 # Public interface for modules, including dependencies and interfaces

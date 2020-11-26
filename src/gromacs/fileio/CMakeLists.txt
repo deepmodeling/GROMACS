@@ -94,6 +94,7 @@ target_link_libraries(fileio PRIVATE
                       compat
                       legacy_modules
                       mdtypes
+                      trajectory
                       # The following cyclic dependencies should be removed
                       gmxlib
                       )

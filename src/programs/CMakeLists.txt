@@ -52,6 +52,7 @@ target_link_libraries(mdrun_objlib PRIVATE
                       mdrunutility
                       options
                       tools
+                      trajectory
                       )
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
@@ -103,6 +104,7 @@ else()
     target_link_libraries(view_objlib PRIVATE legacy_modules)
     target_link_libraries(view_objlib PRIVATE
                           fileio
+                          trajectory
                           utility
                           )
     add_library(gmx_objlib OBJECT ${GMX_MAIN_SOURCES})

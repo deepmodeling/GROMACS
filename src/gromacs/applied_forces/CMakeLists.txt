@@ -72,6 +72,7 @@ target_link_libraries(applied_forces INTERFACE
                       pulling
                       random
                       timing
+                      trajectory
 #                      utility
                       )
 # Source files have the following private module dependencies.

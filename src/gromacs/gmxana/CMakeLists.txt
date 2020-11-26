@@ -69,6 +69,7 @@ target_link_libraries(gmxana INTERFACE
                       pbcutil
                       pulling
                       random
+                      trajectory
                       utility
                       )
 

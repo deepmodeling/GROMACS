@@ -86,6 +86,7 @@ target_link_libraries(mdlib INTERFACE
                       random
                       tables
                       timing
+                      trajectory
                       utility
                       # The following cyclic dependencies should be removed
                       applied_forces # awh has dependencies in mdlib and pulling that need resolving.
