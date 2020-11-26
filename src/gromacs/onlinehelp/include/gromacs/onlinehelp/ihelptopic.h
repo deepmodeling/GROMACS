@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2012,2014,2015,2019, by the GROMACS development team, led by
+ * Copyright (c) 2012,2014,2015,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,72 +34,79 @@
  */
 /*! \libinternal \file
  * \brief
- * Declares gmx::HelpManager.
+ * Declares gmx::IHelpTopic.
  *
  * \author Teemu Murtola <teemu.murtola@gmail.com>
  * \inlibraryapi
  * \ingroup module_onlinehelp
  */
-#ifndef GMX_ONLINEHELP_HELPMANAGER_H
-#define GMX_ONLINEHELP_HELPMANAGER_H
+#ifndef GMX_ONLINEHELP_IHELPTOPIC_H
+#define GMX_ONLINEHELP_IHELPTOPIC_H
 
-#include <string>
-
-#include "gromacs/utility/classhelpers.h"
+#include <memory>
 
 namespace gmx
 {
 
 class HelpWriterContext;
-class IHelpTopic;
 
 /*! \libinternal \brief
- * Helper for providing interactive online help.
+ * Provides a single online help topic.
+ *
+ * Implementations of these methods should not throw, except that writeHelp()
+ * is allowed to throw on out-of-memory or I/O errors since those it cannot
+ * avoid.
+ *
+ * Header helptopic.h contains classes that implement this interface and make
+ * it simple to write concrete help topic classes.
  *
  * \inlibraryapi
  * \ingroup module_onlinehelp
  */
-class HelpManager
+class IHelpTopic
 {
 public:
+    virtual ~IHelpTopic() {}
+
     /*! \brief
-     * Creates a manager that uses a given root topic.
+     * Returns the name of the topic.
      *
-     * \param[in] rootTopic  Help topic that can be accessed through this
-     *      manager.
-     * \param[in] context    Context object for writing the help.
+     * This should be a single lowercase word, used to identify the topic.
+     * It is not used for the root of the help topic tree.
+     */
+    virtual const char* name() const = 0;
+    /*! \brief
+     * Returns a title for the topic.
+     *
+     * May return NULL, in which case the topic is omitted from normal
+     * subtopic lists and no title is printed by the methods provided in
+     * helptopic.h.
+     */
+    virtual const char* title() const = 0;
+
+    //! Returns whether the topic has any subtopics.
+    virtual bool hasSubTopics() const = 0;
+    /*! \brief
+     * Finds a subtopic by name.
+     *
+     * \param[in] name  Name of subtopic to find.
+     * \returns   Pointer to the found subtopic, or NULL if matching topic
+     *      is not found.
+     */
+    virtual const IHelpTopic* findSubTopic(const char* name) const = 0;
+
+    /*! \brief
+     * Prints the help text for this topic.
+     *
+     * \param[in] context  Context object for writing the help.
      * \throws    std::bad_alloc if out of memory.
-     *
-     * The provided topic and context objects must remain valid for the
-     * lifetime of this manager object.
+     * \throws    FileIOError on any I/O error.
      */
-    HelpManager(const IHelpTopic& rootTopic, const HelpWriterContext& context);
-    ~HelpManager();
-
-    /*! \brief
-     * Enters a subtopic with the given name under the active topic.
-     *
-     * \param[in] name  Subtopic name to enter.
-     * \throws    std::bad_allod if out of memory.
-     * \throws    InvalidInputError if topic with \p name is not found.
-     */
-    void enterTopic(const char* name);
-    //! \copydoc enterTopic(const char *)
-    void enterTopic(const std::string& name);
-
-    /*! \brief
-     * Writes out the help for the currently active topic.
-     *
-     * \throws  std::bad_alloc if out of memory.
-     * \throws  FileIOError on any I/O error.
-     */
-    void writeCurrentTopic() const;
-
-private:
-    class Impl;
-
-    PrivateImplPointer<Impl> impl_;
+    virtual void writeHelp(const HelpWriterContext& context) const = 0;
 };
+
+//! Smart pointer type to manage a IHelpTopic object.
+typedef std::unique_ptr<IHelpTopic> HelpTopicPointer;
 
 } // namespace gmx
 

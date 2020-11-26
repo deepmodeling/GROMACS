@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "helpwritercontext.h"
+#include "gromacs/onlinehelp/helpwritercontext.h"
 
 #include <cctype>
 

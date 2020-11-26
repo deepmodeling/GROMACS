@@ -61,6 +61,7 @@ target_link_libraries(commandline INTERFACE
 # commandline interfaces convey transitive dependence on these modules.
 #target_link_libraries(commandline PUBLIC
 target_link_libraries(commandline INTERFACE
+                      onlinehelp
                       utility
                       )
 # Source files have the following private module dependencies.

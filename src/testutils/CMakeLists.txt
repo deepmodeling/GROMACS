@@ -116,6 +116,7 @@ target_link_libraries(testutils PRIVATE
                       gpu_utils
                       hardware
                       math
+                      onlinehelp
                       options
                       )
 target_link_libraries(testutils PUBLIC

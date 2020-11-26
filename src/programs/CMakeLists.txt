@@ -107,6 +107,7 @@ else()
     # TODO: Explicitly link specific modules.
     target_link_libraries(gmx_objlib PRIVATE legacy_modules)
     target_link_libraries(gmx_objlib PRIVATE
+                          commandline
                           gmxana
                           utility
                           )

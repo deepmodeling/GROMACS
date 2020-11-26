@@ -42,5 +42,6 @@ gmx_add_gtest_executable(tools-test
 gmx_register_gtest_test(ToolUnitTests tools-test SLOW_TEST)
 
 target_link_libraries(tools-test PRIVATE
+                      commandline
                       tools
                       )
