@@ -73,20 +73,24 @@ target_link_libraries(mdlib INTERFACE
 # mdlib interfaces convey transitive dependence on these modules.
 #target_link_libraries(mdlib PUBLIC
 target_link_libraries(mdlib INTERFACE
+                      commandline
                       compat
                       domdec
-                      essentialdynamics
                       fileio
                       gmxlib
+                      gpu_utils
                       hardware
                       listed_forces
+                      math
                       mdrunutility
                       mdtypes
                       nbnxm
                       pbcutil
                       random
+                      simd
                       tables
                       timing
+                      topology
                       trajectory
                       utility
                       # The following cyclic dependencies should be removed

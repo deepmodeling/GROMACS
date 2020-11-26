@@ -97,8 +97,8 @@ target_link_libraries(mdtypes INTERFACE
                       gpu_utils
                       math
                       pbcutil
-                      utility
                       topology
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(mdtypes PRIVATE tng_io)

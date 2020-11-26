@@ -95,6 +95,7 @@ target_link_libraries(hardware INTERFACE
 #target_link_libraries(hardware PUBLIC
 target_link_libraries(hardware INTERFACE
                       gpu_utils
+                      simd
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -78,26 +78,35 @@ target_link_libraries(mdrun INTERFACE
 #target_link_libraries(mdrun PUBLIC
 target_link_libraries(mdrun INTERFACE
                       applied_forces
+                      commandline
                       compat
                       domdec
                       essentialdynamics
                       ewald
+                      fileio
                       gmxlib
+                      gpu_utils
                       hardware
                       imd
+                      linearalgebra
                       listed_forces
+                      math
                       mdlib
                       mdrunutility
+                      mdtypes
                       mimic
                       modularsimulator
                       nbnxm
+                      options
                       pbcutil
                       pulling
                       random
                       restraint
                       swap
                       taskassignment
+                      timing
                       tools
+                      topology
                       trajectory
                       utility
                       )

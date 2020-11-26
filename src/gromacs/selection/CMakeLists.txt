@@ -93,7 +93,9 @@ target_link_libraries(selection INTERFACE
 # selection interfaces convey transitive dependence on these modules.
 #target_link_libraries(selection PUBLIC
 target_link_libraries(selection INTERFACE
+                      math
                       onlinehelp
+                      options
                       pbcutil
                       random
                       trajectory

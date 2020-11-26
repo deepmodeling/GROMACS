@@ -61,6 +61,7 @@ target_link_libraries(trajectoryanalysis-test PRIVATE common topology trajectory
 add_executable(test_selection ${UNITTEST_TARGET_OPTIONS} test_selection.cpp)
 target_link_libraries(test_selection PRIVATE
                       common
+                      gmxana
                       libgromacs
                       trajectoryanalysis
                       ${GMX_EXE_LINKER_FLAGS})

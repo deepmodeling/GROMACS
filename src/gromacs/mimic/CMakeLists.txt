@@ -61,6 +61,9 @@ target_link_libraries(mimic INTERFACE
 # mimic interfaces convey transitive dependence on these modules.
 #target_link_libraries(mimic PUBLIC
 target_link_libraries(mimic INTERFACE
+                      gpu_utils
+                      math
+                      topology
                       utility
                       )
 # Source files have the following private module dependencies.

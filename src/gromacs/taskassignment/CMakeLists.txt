@@ -68,11 +68,15 @@ target_link_libraries(taskassignment INTERFACE
                       domdec
                       ewald
                       gmxlib
+                      gpu_utils
                       hardware
                       listed_forces
+                      math
                       mdlib
                       mdrunutility
+                      mdtypes
                       pulling
+                      topology
                       utility
                       )
 # Source files have the following private module dependencies.

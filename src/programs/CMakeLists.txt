@@ -104,6 +104,7 @@ else()
     target_link_libraries(view_objlib PRIVATE legacy_modules)
     target_link_libraries(view_objlib PRIVATE
                           fileio
+                          mdtypes
                           trajectory
                           utility
                           )

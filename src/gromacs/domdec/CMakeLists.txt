@@ -66,14 +66,17 @@ target_link_libraries(domdec INTERFACE
 #target_link_libraries(domdec PUBLIC
 target_link_libraries(domdec INTERFACE
                       compat
+                      fileio
                       gmxlib
                       gpu_utils
                       hardware
                       listed_forces
                       math
+                      mdtypes
                       nbnxm
                       pbcutil
                       timing
+                      topology
                       utility
                       # The following cyclic dependencies should be removed
                       ewald

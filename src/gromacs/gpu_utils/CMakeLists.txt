@@ -109,6 +109,7 @@ target_link_libraries(gpu_utils INTERFACE
 #target_link_libraries(gpu_utils PUBLIC
 target_link_libraries(gpu_utils INTERFACE
                       math
+                      mdtypes
                       utility
                       # The following cyclic dependencies should be removed
                       hardware

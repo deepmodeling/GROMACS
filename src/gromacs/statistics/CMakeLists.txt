@@ -55,6 +55,7 @@ target_link_libraries(statistics INTERFACE
 # statistics interfaces convey transitive dependence on these modules.
 #target_link_libraries(statistics PUBLIC
 target_link_libraries(statistics INTERFACE
+                      math
                       utility
                       )
 # Source files have the following private module dependencies.

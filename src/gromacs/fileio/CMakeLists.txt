@@ -99,14 +99,6 @@ target_link_libraries(fileio PRIVATE
                       gmxlib
                       )
 
-# Source files have the following private module dependencies.
-target_link_libraries(fileio PRIVATE
-    gmxlib
-    mdtypes
-    tng_io
-    topology
-    )
-
 # Public interface for modules, including dependencies and interfaces
 target_include_directories(fileio PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
@@ -123,7 +115,6 @@ target_link_libraries(fileio PUBLIC
                       math
                       mdspan
                       pbcutil
-                      timing
                       utility
                       )
 # Source files have the following private module dependencies.

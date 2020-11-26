@@ -60,6 +60,7 @@ target_link_libraries(random INTERFACE
 # random interfaces convey transitive dependence on these modules.
 #target_link_libraries(random PUBLIC
 target_link_libraries(random INTERFACE
+                      math
                       utility
                       )
 # Source files have the following private module dependencies.

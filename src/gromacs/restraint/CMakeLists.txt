@@ -61,6 +61,9 @@ target_link_libraries(restraint INTERFACE
 #target_link_libraries(restraint PUBLIC
 target_link_libraries(restraint INTERFACE
                       domdec
+                      gmxlib
+                      math
+                      mdtypes
                       pbcutil
                       utility
                       )

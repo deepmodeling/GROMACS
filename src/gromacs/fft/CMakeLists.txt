@@ -82,7 +82,7 @@ target_link_libraries(fft INTERFACE
                       gpu_utils
                       math
                       timing
-                      #                      utility
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(fft PRIVATE tng_io)

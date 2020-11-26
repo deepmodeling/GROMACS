@@ -64,9 +64,11 @@ target_link_libraries(correlationfunctions INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(correlationfunctions PUBLIC
 target_link_libraries(correlationfunctions INTERFACE
+                      commandline
                       fft
+                      fileio
                       math
-#                      utility
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(correlationfunctions PRIVATE tng_io)

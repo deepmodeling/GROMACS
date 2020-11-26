@@ -60,17 +60,24 @@ target_link_libraries(tools INTERFACE
 # tools interfaces convey transitive dependence on these modules.
 #target_link_libraries(tools PUBLIC
 target_link_libraries(tools INTERFACE
+                      commandline
                       ewald
                       fft
+                      fileio
                       gmxlib
                       gmxpreprocess
                       listed_forces
+                      math
                       mdlib
                       mdrun
                       mdtypes
+                      options
                       pbcutil
                       random
+                      selection
                       taskassignment
+                      timing
+                      topology
                       trajectory
                       utility
                       )

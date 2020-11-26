@@ -77,10 +77,17 @@ target_link_libraries(listed_forces INTERFACE
 # listed_forces interfaces convey transitive dependence on these modules.
 #target_link_libraries(listed_forces PUBLIC
 target_link_libraries(listed_forces INTERFACE
+                      gmxlib
+                      gpu_utils
+                      linearalgebra
                       math
                       mdrunutility
+                      mdtypes
                       pbcutil
+                      simd
                       tables
+                      timing
+                      topology
                       utility
                       # The following cyclic dependencies should be removed
                       mdlib

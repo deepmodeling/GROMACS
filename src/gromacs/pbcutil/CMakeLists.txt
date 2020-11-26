@@ -60,9 +60,12 @@ target_link_libraries(pbcutil INTERFACE
 # pbcutil interfaces convey transitive dependence on these modules.
 #target_link_libraries(pbcutil PUBLIC
 target_link_libraries(pbcutil INTERFACE
-                      utility
+                      gpu_utils
+                      math
+                      simd
                       topology
                       trajectory
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(pbcutil PRIVATE NOTHING)

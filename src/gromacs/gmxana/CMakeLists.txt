@@ -61,16 +61,28 @@ target_link_libraries(gmxana INTERFACE
 # gmxana interfaces convey transitive dependence on these modules.
 #target_link_libraries(gmxana PUBLIC
 target_link_libraries(gmxana INTERFACE
+                      commandline
+                      fileio
                       gmxlib
                       gmxpreprocess
                       linearalgebra
                       listed_forces
+                      math
                       mdlib
+                      mdtypes
                       pbcutil
                       pulling
                       random
+                      statistics
+                      topology
                       trajectory
                       utility
+                      # This module is a dependency of gmxana but expressing it
+                      # leads CMake to claim the existence of a circular dependency
+                      # between trajectoryanalysis and modularsimulator. But there
+                      # is not even a transitive circular dependency between those
+                      # two modules. So perhaps this is a CMake bug?
+#                      trajectoryanalysis #UNKNOWN CIRCULARITY
                       )
 
 if(BUILD_TESTING)

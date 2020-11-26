@@ -64,20 +64,28 @@ target_link_libraries(gmxpreprocess INTERFACE
 # This module convey transitive dependence on these modules.
 #target_link_libraries(gmxpreprocess PUBLIC
 target_link_libraries(gmxpreprocess INTERFACE
+                      applied_forces
+                      commandline
                       domdec
                       ewald
                       fft
+                      fileio
                       gmxana
                       gmxlib
                       imd
                       listed_forces
+                      math
                       mdlib
                       mdrun
+                      mdtypes
+                      options
                       pbcutil
                       pulling
                       random
+                      selection
+                      topology
                       trajectory
-                      #                      utility
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(gmxpreprocess PRIVATE tng_io)

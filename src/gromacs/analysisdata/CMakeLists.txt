@@ -72,6 +72,10 @@ target_link_libraries(analysisdata INTERFACE
 # analysisdata interfaces convey transitive dependence on these modules.
 #target_link_libraries(analysisdata PUBLIC
 target_link_libraries(analysisdata INTERFACE
+                      fileio
+                      math
+                      options
+                      selection
                       utility
                       )
 # Source files have the following private module dependencies.

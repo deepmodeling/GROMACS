@@ -60,6 +60,10 @@ target_link_libraries(tables INTERFACE
 # tables interfaces convey transitive dependence on these modules.
 #target_link_libraries(tables PUBLIC
 target_link_libraries(tables INTERFACE
+                      fileio
+                      math
+                      mdspan
+                      mdtypes
                       simd
                       utility
                       )

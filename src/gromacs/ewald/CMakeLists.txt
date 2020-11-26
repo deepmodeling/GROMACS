@@ -129,16 +129,20 @@ target_link_libraries(ewald INTERFACE
 #target_link_libraries(ewald PUBLIC
 target_link_libraries(ewald INTERFACE
                       domdec
-                      gmxlib
                       fft
+                      fileio
+                      gmxlib
                       gpu_utils
                       hardware
                       math
                       mdlib
+                      mdtypes
                       nbnxm
                       pbcutil
+                      simd
                       timing
-                      #                      utility
+                      topology
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(ewald PRIVATE tng_io)

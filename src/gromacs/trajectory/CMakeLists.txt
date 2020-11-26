@@ -60,6 +60,8 @@ target_link_libraries(trajectory INTERFACE
 # trajectory interfaces convey transitive dependence on these modules.
 #target_link_libraries(trajectory PUBLIC
 target_link_libraries(trajectory INTERFACE
+                      math
+                      topology
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -106,10 +106,14 @@ target_link_libraries(nbnxm INTERFACE
                       gpu_utils
                       hardware
                       listed_forces
-                      pbcutil
                       math
-                      utility
+                      mdlib
+                      mdtypes
+                      pbcutil
                       simd
+                      timing
+                      topology
+                      utility
                       # The following cyclic dependencies should be removed
                       domdec
                       mdlib
