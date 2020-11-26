@@ -1702,10 +1702,10 @@ void gmx::LegacySimulator::do_md()
     {
         if (ir->nstcalcenergy > 0)
         {
-            energyOutput.printEnergyConservation(fplog, ir->simulation_part, EI_MD(ir->eI));
-
             gmx::EnergyOutput::printAnnealingTemperatures(fplog, groups, &(ir->opts));
             energyOutput.printAverages(fplog, groups);
+
+            energyOutput.printEnergyConservation(fplog, ir->simulation_part, EI_MD(ir->eI));
         }
     }
     done_mdoutf(outf);
