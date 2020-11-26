@@ -63,7 +63,7 @@ void pmalloc(void** h_ptr, size_t nbytes)
         return;
     }
 
-    CU_CHECK_PREV_ERR();
+    gmx::ensureNoPendingDeviceError("Could not allocate page-locked memory.");
 
     stat = cudaMallocHost(h_ptr, nbytes, flag);
     sprintf(strbuf, "cudaMallocHost of size %d bytes failed", (int)nbytes);
@@ -86,7 +86,7 @@ void pmalloc_wc(void** h_ptr, size_t nbytes)
         return;
     }
 
-    CU_CHECK_PREV_ERR();
+    gmx::ensureNoPendingDeviceError("Could not allocate page-locked memory with write-combining.");
 
     stat = cudaMallocHost(h_ptr, nbytes, flag);
     sprintf(strbuf, "cudaMallocHost of size %d bytes failed", (int)nbytes);
@@ -106,7 +106,7 @@ void pfree(void* h_ptr)
         return;
     }
 
-    CU_CHECK_PREV_ERR();
+    gmx::ensureNoPendingDeviceError("Could not free page-locked memory.");
 
     stat = cudaFreeHost(h_ptr);
     CU_RET_ERR(stat, "cudaFreeHost failed");

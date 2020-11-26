@@ -307,6 +307,7 @@ static inline SimdDouble gmx_simdcall trunc(SimdDouble x)
     return { vrndq_f64(x.simdInternal_) };
 }
 
+template<MathOptimization opt = MathOptimization::Safe>
 static inline SimdDouble frexp(SimdDouble value, SimdDInt32* exponent)
 {
     const float64x2_t exponentMask = float64x2_t(vdupq_n_s64(0x7FF0000000000000LL));

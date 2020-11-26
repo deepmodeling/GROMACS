@@ -94,6 +94,36 @@ target_link_libraries(trajectoryanalysis PUBLIC
 # TODO: Explicitly link specific modules.
 target_link_libraries(trajectoryanalysis PRIVATE legacy_modules)
 
+# Source files have the following dependencies on library infrastructure.
+#target_link_libraries(trajectoryanalysis PRIVATE
+#                      common
+#                      legacy_modules
+#)
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(trajectoryanalysis PUBLIC
+target_include_directories(trajectoryanalysis INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(trajectoryanalysis PUBLIC
+target_link_libraries(trajectoryanalysis INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when trajectoryanalysis is an OBJECT target
+#target_link_libraries(trajectoryanalysis PUBLIC legacy_api)
+#target_link_libraries(trajectoryanalysis PRIVATE common)
+
+# Module dependencies
+# trajectoryanalysis interfaces convey transitive dependence on these modules.
+#target_link_libraries(trajectoryanalysis PUBLIC
+target_link_libraries(trajectoryanalysis INTERFACE
+                      utility
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(trajectoryanalysis PRIVATE NOTHING)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(trajectoryanalysis PRIVATE legacy_modules)
+
 if(GMX_INSTALL_LEGACY_API)
     install(FILES
 	    analysismodule.h

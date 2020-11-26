@@ -49,7 +49,7 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "device_information.h"
+#include "gromacs/hardware/device_information.h"
 
 
 bool isDeviceDetectionFunctional(std::string* errorMessage)

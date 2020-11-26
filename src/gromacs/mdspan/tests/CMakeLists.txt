@@ -44,3 +44,4 @@ gmx_add_unit_test(MDSpanTests mdspan-test
 target_link_libraries(mdspan-test PRIVATE
     mdspan
     )
+

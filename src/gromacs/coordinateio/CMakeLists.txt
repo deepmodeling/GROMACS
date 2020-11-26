@@ -80,6 +80,36 @@ target_link_libraries(coordinateio PUBLIC
 # TODO: Explicitly link specific modules.
 target_link_libraries(coordinateio PRIVATE legacy_modules)
 
+# Source files have the following dependencies on library infrastructure.
+#target_link_libraries(coordinateio PRIVATE
+#                      common
+#                      legacy_modules
+#)
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(coordinateio PUBLIC
+target_include_directories(coordinateio INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(coordinateio PUBLIC
+target_link_libraries(coordinateio INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when coordinateio is an OBJECT target
+#target_link_libraries(coordinateio PUBLIC legacy_api)
+#target_link_libraries(coordinateio PRIVATE common)
+
+# Module dependencies
+# coordinateio interfaces convey transitive dependence on these modules.
+#target_link_libraries(coordinateio PUBLIC
+target_link_libraries(coordinateio INTERFACE
+                      utility
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(coordinateio PRIVATE NOTHING)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(coordinateio PRIVATE legacy_modules)
+
 if (BUILD_TESTING)
      add_subdirectory(tests)
 endif()

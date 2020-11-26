@@ -339,15 +339,15 @@ target_link_libraries(libgromacs PRIVATE
                       $<BUILD_INTERFACE:ewald>
                       $<BUILD_INTERFACE:fft>
                       $<BUILD_INTERFACE:fileio>
-                      $<BUILD_INTERFACE:gmxlib>
                       $<BUILD_INTERFACE:gmxana>
+                      $<BUILD_INTERFACE:gmxlib>
                       $<BUILD_INTERFACE:gmxpreprocess>
                       $<BUILD_INTERFACE:gpu_utils>
                       $<BUILD_INTERFACE:hardware>
                       $<BUILD_INTERFACE:imd>
                       $<BUILD_INTERFACE:linearalgebra>
                       $<BUILD_INTERFACE:listed_forces>
-                      "$<BUILD_INTERFACE:math>"
+                      $<BUILD_INTERFACE:math>
                       $<BUILD_INTERFACE:mdlib>
                       $<BUILD_INTERFACE:mdrun>
                       $<BUILD_INTERFACE:mdrunutility>

@@ -55,7 +55,6 @@ set_target_properties(options PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(options PRIVATE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-
 if(GMX_INSTALL_LEGACY_API)
     install(FILES
 	    abstractoption.h

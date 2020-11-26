@@ -343,6 +343,7 @@ static inline SimdFloat gmx_simdcall min(SimdFloat a, SimdFloat b)
 // Round and trunc operations are defined at the end of this file, since they
 // need to use float-to-integer and integer-to-float conversions.
 
+template<MathOptimization opt = MathOptimization::Safe>
 static inline SimdFloat gmx_simdcall frexp(SimdFloat value, SimdFInt32* exponent)
 {
     const int32x4_t exponentMask = vdupq_n_s32(0x7F800000);

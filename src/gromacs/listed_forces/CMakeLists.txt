@@ -91,6 +91,7 @@ target_link_libraries(listed_forces INTERFACE
                       utility
                       # The following cyclic dependencies should be removed
                       mdlib
+                      utility
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(listed_forces PRIVATE tng_io)

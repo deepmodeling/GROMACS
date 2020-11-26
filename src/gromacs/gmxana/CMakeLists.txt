@@ -51,6 +51,7 @@ target_include_directories(gmxana INTERFACE
 target_link_libraries(gmxana INTERFACE
                       correlationfunctions
                       fft
+                      legacy_api
                       )
 
 # TODO: when gmxana is an OBJECT target
