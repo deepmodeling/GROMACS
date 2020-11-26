@@ -46,26 +46,27 @@
 namespace Nbnxm
 {
 
+#ifndef GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY 4
+#endif
 /*! \brief Macro defining default for the prune kernel's j4 processing concurrency.
  *
  *  The GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro allows compile-time override.
  */
-#ifndef GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
-#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY 4
-#endif
 static constexpr int c_syclPruneKernelJ4Concurrency = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY;
 
-/*! \brief cluster size = number of atoms per cluster. */
+//! \brief cluster size = number of atoms per cluster.
 static constexpr int c_clSize = c_nbnxnGpuClusterSize;
-/*! \brief j-cluster size after split (4 in the current implementation). */
+//! \brief j-cluster size after split (4 in the current implementation).
 static constexpr int c_splitClSize = c_clSize / c_nbnxnGpuClusterpairSplit;
-/*! \brief i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set */
+//! \brief i-cluster interaction mask for a super-cluster with all c_nbnxnGpuNumClusterPerSupercluster=8 bits set.
 static constexpr unsigned superClInteractionMask = ((1U << c_nbnxnGpuNumClusterPerSupercluster) - 1U);
 
-/*! \brief 1/sqrt(pi), same value as \c M_FLOAT_1_SQRTPI in other NB kernels */
+//! \brief 1/sqrt(pi), same value as \c M_FLOAT_1_SQRTPI in other NB kernels.
 static constexpr float c_OneOverSqrtPi = 0.564189583547756F;
-// Same values that are used in CUDA kernels.
-static constexpr float c_oneSixth   = 0.16666667F;
+//! \brief 1/6, same value as in other NB kernels.
+static constexpr float c_oneSixth = 0.16666667F;
+//! \brief 1/12, same value as in other NB kernels.
 static constexpr float c_oneTwelfth = 0.08333333F;
 
 /* The following functions are necessary because on some versions of Intel OpenCL RT, subgroups
