@@ -515,8 +515,8 @@ def main():
                       help='Source tree root directory')
     parser.add_option('-B', '--build-root',
                       help='Build tree root directory')
-    parser.add_option('--ignore-cycles',
-                      help='Set file with module dependencies to ignore in cycles')
+    # parser.add_option('--ignore-cycles',
+    #                   help='Set file with module dependencies to ignore in cycles')
     parser.add_option('-o', '--outdir', default='.',
                       help='Specify output directory for graphs')
     parser.add_option('-q', '--quiet', action='store_true',
@@ -531,8 +531,8 @@ def main():
     if not options.quiet:
         sys.stderr.write('Reading source files...\n')
     tree.scan_files()
-    if options.ignore_cycles:
-        tree.load_cycle_suppression_list(options.ignore_cycles)
+    # if options.ignore_cycles:
+    #     tree.load_cycle_suppression_list(options.ignore_cycles)
     if not options.quiet:
         sys.stderr.write('Reading Doxygen XML files...\n')
     tree.load_xml(only_files=True)

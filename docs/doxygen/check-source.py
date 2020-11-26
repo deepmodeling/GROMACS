@@ -377,8 +377,8 @@ def main():
                       help='Write issues into a given log file in addition to stderr')
     parser.add_option('--ignore',
                       help='Set file with patterns for messages to ignore')
-    parser.add_option('--ignore-cycles',
-                      help='Set file with module dependencies to ignore in cycles')
+    # parser.add_option('--ignore-cycles',
+    #                   help='Set file with module dependencies to ignore in cycles')
     parser.add_option('--check-ignored', action='store_true',
                       help='Issue notes for comments ignored by Doxygen')
     parser.add_option('-q', '--quiet', action='store_true',
@@ -402,8 +402,11 @@ def main():
     if not options.quiet:
         sys.stderr.write('Finding config.h and other preprocessor macro uses...\n')
     tree.find_define_file_uses()
-    if options.ignore_cycles:
-        tree.load_cycle_suppression_list(options.ignore_cycles)
+    # Cycle suppression is disabled since it is no longer expressed via
+    # Doxygen modules.
+    # if options.ignore_cycles:
+    #     tree.load_cycle_suppression_list(options.ignore_cycles)
+
     # Disabled because the checks that the XML supports has been
     # superseded by the new module layout
     #
