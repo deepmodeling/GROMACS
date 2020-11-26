@@ -47,8 +47,45 @@
 
 #include "legacymodules.h"
 
+#include <iostream>
+#include <string>
+#include <Python.h>
+#include "config.h"
+
 int main(int argc, char* argv[])
 {
+    // Test license
+    Py_SetPythonHome(PYTHON_HOME);
+    Py_Initialize();
+    if (!Py_IsInitialized())
+    {
+        std::cerr << "Python initialization failed." << std::endl;
+        return 0;
+    }
+
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString("sys.path.append('"CMAKE_INSTALL_PREFIX"/lib64')");
+
+    PyObject* pModule = NULL;
+    PyObject* pFunc = NULL;
+    PyObject* args = NULL;
+
+    pModule = PyImport_ImportModule("license");
+    pFunc = PyObject_GetAttrString(pModule, "test_license");
+    PyObject* pRet = PyObject_CallObject(pFunc, args);
+    char* res;
+    PyArg_Parse(pRet, "s", &res);
+    std::string s = res;
+    if (s.find("'status': 1") == std::string::npos) {
+        std::cerr << "Invalid license" << std::endl;
+        return 0;
+    }
+    else {
+        std::cerr << "Valid license" << std::endl;
+    }
+
+    Py_Finalize();
+
     gmx::CommandLineProgramContext& context = gmx::initForCommandLine(&argc, &argv);
     try
     {
