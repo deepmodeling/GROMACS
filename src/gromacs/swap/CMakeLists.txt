@@ -64,6 +64,7 @@ target_link_libraries(swap INTERFACE
                       gmxlib
                       mdlib
                       mdrunutility
+                      pbcutil
                       utility
                       )
 # Source files have the following private module dependencies.

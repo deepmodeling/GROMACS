@@ -129,6 +129,7 @@ target_link_libraries(nblib PRIVATE legacy_modules)
 target_link_libraries(nblib PRIVATE
                       mdtypes
                       nbnxm
+                      pbcutil
                       simd
                       timing
                       topology

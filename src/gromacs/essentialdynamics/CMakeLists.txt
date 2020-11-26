@@ -66,6 +66,7 @@ target_link_libraries(essentialdynamics INTERFACE
                       linearalgebra
                       mdlib
                       mdrunutility
+                      pbcutil
                       utility
                       )
 # Source files have the following private module dependencies.

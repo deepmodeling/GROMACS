@@ -51,6 +51,7 @@ target_link_libraries(nblib_test_infrastructure PRIVATE legacy_api)
 target_link_libraries(nblib_test_infrastructure PRIVATE legacy_modules)
 target_link_libraries(nblib_test_infrastructure INTERFACE
                       nblib
+                      pbcutil
                       )
 
 set(testname "NbLibSetupTests")

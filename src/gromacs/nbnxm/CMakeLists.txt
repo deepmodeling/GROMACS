@@ -107,6 +107,7 @@ target_link_libraries(nbnxm INTERFACE
                       gpu_utils
                       hardware
                       listed_forces
+                      pbcutil
                       math
                       mdlib
                       utility

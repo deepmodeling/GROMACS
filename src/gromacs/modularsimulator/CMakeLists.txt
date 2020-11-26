@@ -80,6 +80,7 @@ target_link_libraries(modularsimulator PRIVATE
                       mdrunutility
                       mdtypes
                       nbnxm
+                      pbcutil
                       tng_io
                       topology
                       )

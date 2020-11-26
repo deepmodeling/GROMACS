@@ -61,6 +61,7 @@ target_link_libraries(restraint INTERFACE
 #target_link_libraries(restraint PUBLIC
 target_link_libraries(restraint INTERFACE
                       domdec
+                      pbcutil
                       utility
                       )
 # Source files have the following private module dependencies.

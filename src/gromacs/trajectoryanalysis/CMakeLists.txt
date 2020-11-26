@@ -68,6 +68,7 @@ target_link_libraries(trajectoryanalysis PRIVATE
                       coordinateio
                       fileio
                       legacy_modules
+                      pbcutil
                       topology
 )
 

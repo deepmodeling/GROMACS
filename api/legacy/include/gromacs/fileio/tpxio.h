@@ -43,7 +43,6 @@
 #include <vector>
 
 #include "gromacs/math/vectypes.h"
-#include "gromacs/pbcutil/pbc.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
@@ -53,6 +52,8 @@ struct t_block;
 struct t_inputrec;
 class t_state;
 struct t_topology;
+
+enum class PbcType : int;
 
 namespace gmx
 {
@@ -115,7 +116,7 @@ struct PartialDeserializedTprFile
     //! The file body.
     std::vector<char> body;
     //! Flag for PBC needed by legacy implementation.
-    PbcType pbcType = PbcType::Unset;
+    PbcType pbcType;
 };
 
 /*

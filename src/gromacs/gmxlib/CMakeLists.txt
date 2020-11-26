@@ -68,6 +68,7 @@ target_link_libraries(gmxlib INTERFACE
 # fileio interfaces convey transitive dependence on these modules.
 #target_link_libraries(gmxlib PUBLIC
 target_link_libraries(gmxlib INTERFACE
+                      pbcutil
                       utility
                       )
 # Source files have the following private module dependencies.

@@ -84,6 +84,7 @@ target_link_libraries(mdlib INTERFACE
                       mdrunutility
                       mdtypes
                       nbnxm
+                      pbcutil
                       timing
                       utility
                       )

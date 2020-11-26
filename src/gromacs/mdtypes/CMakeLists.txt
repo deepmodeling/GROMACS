@@ -96,6 +96,7 @@ target_link_libraries(mdtypes INTERFACE
 target_link_libraries(mdtypes INTERFACE
                       gpu_utils
                       math
+                      pbcutil
                       utility
                       topology
                       )

@@ -68,6 +68,7 @@ target_link_libraries(applied_forces INTERFACE
                       mdlib
                       mdtypes
                       mdrunutility
+                      pbcutil
                       timing
 #                      utility
                       )

@@ -44,7 +44,7 @@
  */
 #include "gmxpre.h"
 
-#include "pbc.h"
+#include "gromacs/pbcutil/pbc.h"
 
 #include <cmath>
 

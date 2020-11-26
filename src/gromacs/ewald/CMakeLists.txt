@@ -136,6 +136,7 @@ target_link_libraries(ewald INTERFACE
                       math
                       mdlib
                       nbnxm
+                      pbcutil
                       timing
                       #                      utility
                       )

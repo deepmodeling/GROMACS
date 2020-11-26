@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "pbc_simd.h"
+#include "gromacs/pbcutil/pbc_simd.h"
 
 #include "gromacs/math/vec.h"
 #include "gromacs/pbcutil/pbc.h"

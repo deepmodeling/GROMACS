@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "mshift.h"
+#include "gromacs/pbcutil/mshift.h"
 
 #include <cstring>
 

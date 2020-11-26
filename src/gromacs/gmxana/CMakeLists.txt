@@ -66,6 +66,7 @@ target_link_libraries(gmxana INTERFACE
                       linearalgebra
                       listed_forces
                       mdlib
+                      pbcutil
                       utility
                       )
 

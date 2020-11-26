@@ -1,7 +1,9 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
+ * Copyright (c) 2001-2004, The GROMACS development team.
+ * Copyright (c) 2010,2014,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,33 +34,23 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_PBCUTIL_BOXUTILITIES_H
-#define GMX_PBCUTIL_BOXUTILITIES_H
+#ifndef GMX_PBCUTIL_ISHIFT_H
+#define GMX_PBCUTIL_ISHIFT_H
 
-#include <stdio.h>
+#define D_BOX_Z 1
+#define D_BOX_Y 1
+#define D_BOX_X 2
+#define N_BOX_Z (2 * D_BOX_Z + 1)
+#define N_BOX_Y (2 * D_BOX_Y + 1)
+#define N_BOX_X (2 * D_BOX_X + 1)
+#define N_IVEC (N_BOX_Z * N_BOX_Y * N_BOX_X)
+#define CENTRAL (N_IVEC / 2)
+#define SHIFTS N_IVEC
 
-#include "gromacs/math/vectypes.h"
-
-/*! \brief Change box components to preserve the relative box shape
- *
- * Change box components to box[XX][XX]*box_rel to preserve the relative box shape
- */
-void do_box_rel(int ndim, const matrix deform, matrix box_rel, matrix b, bool bInit);
-
-namespace gmx
-{
-
-/*! \brief
- * Returns whether two boxes are of equal size and shape (within reasonable
- * tolerance).
- */
-bool boxesAreEqual(const matrix box1, const matrix box2);
-
-/*! \brief
- * Returns whether a box is only initialised to zero or not.
- */
-bool boxIsZero(const matrix box);
-
-} // namespace gmx
+#define XYZ2IS(x, y, z) (N_BOX_X * (N_BOX_Y * ((z) + D_BOX_Z) + (y) + D_BOX_Y) + (x) + D_BOX_X)
+#define IVEC2IS(iv) (XYZ2IS((iv)[XX], (iv)[YY], (iv)[ZZ]))
+#define IS2X(iv) (((iv) % N_BOX_X) - D_BOX_X)
+#define IS2Y(iv) ((((iv) / N_BOX_X) % N_BOX_Y) - D_BOX_Y)
+#define IS2Z(iv) ((iv) / (N_BOX_X * N_BOX_Y) - D_BOX_Z)
 
 #endif

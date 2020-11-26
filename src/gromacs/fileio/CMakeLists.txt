@@ -120,6 +120,7 @@ target_link_libraries(fileio PUBLIC
                       linearalgebra
                       math
                       mdspan
+                      pbcutil
                       timing
                       utility
                       )

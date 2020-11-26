@@ -80,6 +80,7 @@ target_link_libraries(listed_forces INTERFACE
                       math
                       mdlib
                       mdrunutility
+                      pbcutil
                       utility
                       )
 # Source files have the following private module dependencies.
