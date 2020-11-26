@@ -84,6 +84,7 @@ target_link_libraries(mdlib INTERFACE
                       nbnxm
                       pbcutil
                       random
+                      tables
                       timing
                       utility
                       # The following cyclic dependencies should be removed

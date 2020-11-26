@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "forcetable.h"
+#include "gromacs/tables/forcetable.h"
 
 #include <cmath>
 

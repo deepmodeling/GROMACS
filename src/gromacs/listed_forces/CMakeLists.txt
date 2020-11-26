@@ -80,6 +80,7 @@ target_link_libraries(listed_forces INTERFACE
                       math
                       mdrunutility
                       pbcutil
+                      tables
                       utility
                       # The following cyclic dependencies should be removed
                       mdlib
