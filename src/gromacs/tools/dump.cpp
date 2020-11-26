@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "dump.h"
+#include "gromacs/tools/dump.h"
 
 #include "config.h"
 

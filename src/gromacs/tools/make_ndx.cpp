@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "make_ndx.h"
+#include "gromacs/tools/make_ndx.h"
 
 #include <cctype>
 #include <cstring>

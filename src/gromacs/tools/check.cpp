@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "check.h"
+#include "gromacs/tools/check.h"
 
 #include <cmath>
 #include <cstdio>

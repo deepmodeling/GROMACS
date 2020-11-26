@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "trjcat.h"
+#include "gromacs/tools/trjcat.h"
 
 #include <cmath>
 #include <cstdlib>

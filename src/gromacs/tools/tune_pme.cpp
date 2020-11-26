@@ -35,7 +35,7 @@
  */
 #include "gmxpre.h"
 
-#include "tune_pme.h"
+#include "gromacs/tools/tune_pme.h"
 
 #include "config.h"
 

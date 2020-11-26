@@ -51,6 +51,7 @@ target_link_libraries(mdrun_objlib PRIVATE
                       mdrun
                       mdrunutility
                       options
+                      tools
                       )
 # TODO: Explicitly link specific modules.
 target_link_libraries(mdrun_objlib PRIVATE legacy_modules)

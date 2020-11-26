@@ -95,6 +95,7 @@ target_link_libraries(mdrun INTERFACE
                       random
                       restraint
                       taskassignment
+                      tools
                       utility
                       )
 # Source files have the following private module dependencies.

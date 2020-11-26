@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "trjconv.h"
+#include "gromacs/tools/trjconv.h"
 
 #include <cmath>
 #include <cstdlib>

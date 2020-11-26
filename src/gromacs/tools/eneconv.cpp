@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "eneconv.h"
+#include "gromacs/tools/eneconv.h"
 
 #include <cmath>
 #include <cstdlib>

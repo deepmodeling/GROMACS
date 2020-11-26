@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "convert_tpr.h"
+#include "gromacs/tools/convert_tpr.h"
 
 #include <cmath>
 

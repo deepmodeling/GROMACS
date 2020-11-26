@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,23 +32,14 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_TOOLS_DUMP_H
-#define GMX_TOOLS_DUMP_H
+#ifndef GMX_TOOLS_MK_ANGNDX_H
+#define GMX_TOOLS_MK_ANGNDX_H
 
-#include "gromacs/commandline/cmdlineoptionsmodule.h"
-
-namespace gmx
-{
-
-class DumpInfo
-{
-
-public:
-    static const char                       name[];
-    static const char                       shortDescription[];
-    static ICommandLineOptionsModulePointer create();
-};
-
-} // namespace gmx
+/*! \brief Implements gmx mk_angndx
+ *
+ * \param[in] argc  argc value passed to main().
+ * \param[in] argv  argv array passed to main().
+ */
+int gmx_mk_angndx(int argc, char* argv[]);
 
 #endif

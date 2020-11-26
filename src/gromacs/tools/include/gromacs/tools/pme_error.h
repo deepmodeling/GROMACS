@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,14 +32,14 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_TOOLS_TUNE_PME_H
-#define GMX_TOOLS_TUNE_PME_H
+#ifndef GMX_TOOLS_PME_ERROR_H
+#define GMX_TOOLS_PME_ERROR_H
 
-/*! \brief Implements gmx tune_pme
+/*! \brief Implements gmx pme_error
  *
  * \param[in] argc  argc value passed to main().
  * \param[in] argv  argv array passed to main().
  */
-int gmx_tune_pme(int argc, char* argv[]);
+int gmx_pme_error(int argc, char* argv[]);
 
 #endif
