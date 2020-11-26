@@ -46,6 +46,7 @@ target_link_libraries(simd PRIVATE
 
 # Source files have the following private module dependencies.
 target_link_libraries(simd PRIVATE
+                      # The following cyclic dependencies should be removed
                       hardware
                       )
 

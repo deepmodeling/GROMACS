@@ -109,7 +109,9 @@ target_link_libraries(gpu_utils INTERFACE
 #target_link_libraries(gpu_utils PUBLIC
 target_link_libraries(gpu_utils INTERFACE
                       math
-#                      utility
+                      utility
+                      # The following cyclic dependencies should be removed
+                      hardware
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(gpu_utils PRIVATE tng_io)

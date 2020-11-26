@@ -102,14 +102,15 @@ target_link_libraries(nbnxm INTERFACE
 # nbnxm interfaces convey transitive dependence on these modules.
 #target_link_libraries(nbnxm PUBLIC
 target_link_libraries(nbnxm INTERFACE
-                      domdec
                       gmxlib
                       gpu_utils
                       hardware
                       listed_forces
                       pbcutil
                       math
-                      mdlib
                       utility
                       simd
+                      # The following cyclic dependencies should be removed
+                      domdec
+                      mdlib
                       )

@@ -66,19 +66,20 @@ target_link_libraries(domdec INTERFACE
 #target_link_libraries(domdec PUBLIC
 target_link_libraries(domdec INTERFACE
                       compat
-                      ewald
                       gmxlib
                       gpu_utils
                       hardware
-                      imd
                       listed_forces
                       math
-                      mdlib
                       nbnxm
                       pbcutil
-                      pulling
                       timing
                       utility
+                      # The following cyclic dependencies should be removed
+                      ewald
+                      imd
+                      mdlib
+                      pulling
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(domdec PRIVATE NOTHING)

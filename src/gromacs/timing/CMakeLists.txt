@@ -61,7 +61,10 @@ target_include_directories(timing PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(timing PUBLIC
                       legacy_api
-                      mdtypes
+                      # The following cyclic dependencies should be removed
+                      mdtypes # Cycle counters in timing use commrec for the set up, which is in the mdtypes. This introduces
+                              # cyclic dependencies if the cycle counting is used anywhere in mdtypes.
+
                       )
 
 target_link_libraries(timing PRIVATE common)

@@ -92,9 +92,10 @@ target_include_directories(fileio SYSTEM PRIVATE
 target_link_libraries(fileio PRIVATE
                       common
                       compat
-                      gmxlib
                       legacy_modules
                       mdtypes
+                      # The following cyclic dependencies should be removed
+                      gmxlib
                       )
 
 # Source files have the following private module dependencies.

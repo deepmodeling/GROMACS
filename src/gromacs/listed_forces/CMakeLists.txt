@@ -78,10 +78,11 @@ target_link_libraries(listed_forces INTERFACE
 #target_link_libraries(listed_forces PUBLIC
 target_link_libraries(listed_forces INTERFACE
                       math
-                      mdlib
                       mdrunutility
                       pbcutil
                       utility
+                      # The following cyclic dependencies should be removed
+                      mdlib
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(listed_forces PRIVATE tng_io)

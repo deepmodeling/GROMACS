@@ -76,13 +76,14 @@ target_link_libraries(modularsimulator PRIVATE
                       listed_forces
                       math
                       mdlib
-                      mdrun
                       mdrunutility
                       mdtypes
                       nbnxm
                       pbcutil
                       tng_io
                       topology
+                      # The following cyclic dependencies should be removed
+                      mdrun # modularsimulator uses shellfc from mdrun, but is later included in mdrun by simulator builder
                       )
 
 # Public interface for modules, including dependencies and interfaces

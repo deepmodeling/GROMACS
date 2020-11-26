@@ -75,20 +75,23 @@ target_link_libraries(mdlib INTERFACE
 target_link_libraries(mdlib INTERFACE
                       compat
                       domdec
-                      ewald
                       fileio
                       gmxlib
                       hardware
-                      imd
                       listed_forces
                       mdrunutility
                       mdtypes
                       nbnxm
                       pbcutil
-                      pulling
                       random
                       timing
                       utility
+                      # The following cyclic dependencies should be removed
+                      applied_forces # awh has dependencies in mdlib and pulling that need resolving.
+                      essentialdynamics
+                      ewald
+                      imd
+                      pulling
                       )
 # Source files have the following private module dependencies.
 #target_link_libraries(mdlib PRIVATE tng_io)
