@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "filenm.h"
+#include "gromacs/commandline/filenm.h"
 
 #include <cctype>
 #include <cstdio>

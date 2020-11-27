@@ -76,8 +76,8 @@
 
 #include "gromacs/domdec/domdec.h"
 #include "gromacs/ewald/pme.h"
-#include "gromacs/ewald/pme_coordinate_receiver_gpu.h"
-#include "gromacs/ewald/pme_force_sender_gpu.h"
+#include "pme_coordinate_receiver_gpu.h"
+#include "pme_force_sender_gpu.h"
 #include "gromacs/fft/parallel_3dfft.h"
 #include "gromacs/fileio/pdbio.h"
 #include "gromacs/gmxlib/network.h"

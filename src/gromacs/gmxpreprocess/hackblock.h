@@ -47,7 +47,7 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/gmxpreprocess/notset.h"
+#include "notset.h"
 #include "gromacs/topology/ifunc.h"
 
 struct t_atom;

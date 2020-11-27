@@ -41,7 +41,7 @@
 
 #include <string>
 
-#include "gromacs/gmxpreprocess/notset.h"
+#include "notset.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/topology/block.h"
 #include "gromacs/topology/idef.h"

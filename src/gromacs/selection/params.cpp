@@ -57,7 +57,7 @@
 #include "gromacs/utility/unique_cptr.h"
 
 #include "parsetree.h"
-#include "position.h"
+#include "gromacs/selection/position.h"
 #include "scanner.h"
 #include "selelem.h"
 #include "selmethod.h"

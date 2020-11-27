@@ -35,7 +35,7 @@
 
 #include "gmxpre.h"
 
-#include "simulationinput.h"
+#include "gromacs/mdrun/simulationinput.h"
 
 #include "gromacs/fileio/checkpoint.h"
 #include "gromacs/fileio/tpxio.h"

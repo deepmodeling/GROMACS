@@ -42,12 +42,12 @@
 #include <cctype>
 #include <cmath>
 
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/notset.h"
-#include "gromacs/gmxpreprocess/readir.h"
-#include "gromacs/gmxpreprocess/topdirs.h"
-#include "gromacs/gmxpreprocess/toppush.h"
-#include "gromacs/gmxpreprocess/toputil.h"
+#include "grompp_impl.h"
+#include "notset.h"
+#include "readir.h"
+#include "topdirs.h"
+#include "toppush.h"
+#include "toputil.h"
 #include "gromacs/math/units.h"
 #include "gromacs/topology/ifunc.h"
 #include "gromacs/utility/fatalerror.h"

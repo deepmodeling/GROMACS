@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "update_vv.h"
+#include "gromacs/mdlib/update_vv.h"
 
 #include <cmath>
 #include <cstdio>

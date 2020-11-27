@@ -50,7 +50,7 @@
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "isectionstorage.h"
+#include "gromacs/options/isectionstorage.h"
 
 namespace gmx
 {

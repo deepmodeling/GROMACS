@@ -50,7 +50,7 @@
 #include "gromacs/fileio/filetypes.h"
 #include "gromacs/fileio/xvgr.h"
 #include "gromacs/gmxlib/conformation_utilities.h"
-#include "gromacs/gmxpreprocess/makeexclusiondistances.h"
+#include "makeexclusiondistances.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"

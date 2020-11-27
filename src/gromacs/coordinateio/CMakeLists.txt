@@ -57,6 +57,7 @@ target_link_libraries(coordinateio PRIVATE
                       common
                       legacy_modules
                       options
+                      selection
                       topology
                       trajectory
 )

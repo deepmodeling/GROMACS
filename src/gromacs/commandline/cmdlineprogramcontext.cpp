@@ -45,7 +45,7 @@
  */
 #include "gmxpre.h"
 
-#include "cmdlineprogramcontext.h"
+#include "gromacs/commandline/cmdlineprogramcontext.h"
 
 #include "config.h"
 

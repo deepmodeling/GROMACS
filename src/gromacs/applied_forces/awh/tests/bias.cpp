@@ -45,8 +45,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "gromacs/applied_forces/awh/correlationgrid.h"
-#include "gromacs/applied_forces/awh/pointstate.h"
+#include "../correlationgrid.h"
+#include "../pointstate.h"
 #include "gromacs/mdtypes/awh_params.h"
 #include "gromacs/utility/stringutil.h"
 

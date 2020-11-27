@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "cmdlineoptionsmodule.h"
+#include "gromacs/commandline/cmdlineoptionsmodule.h"
 
 #include <memory>
 #include <utility>

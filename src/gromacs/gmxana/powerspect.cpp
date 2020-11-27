@@ -39,7 +39,7 @@
 #include "powerspect.h"
 
 #include "gromacs/fft/fft.h"
-#include "gromacs/gmxana/interf.h"
+#include "interf.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"

@@ -48,7 +48,7 @@
 #include "gromacs/correlationfunctions/integrate.h"
 #include "gromacs/fileio/xvgr.h"
 #include "gromacs/gmxana/gmx_ana.h"
-#include "gromacs/gmxana/gstat.h"
+#include "gstat.h"
 #include "gromacs/linearalgebra/matrix.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"

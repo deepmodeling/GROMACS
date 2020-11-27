@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,7 +34,7 @@
  */
 /*! \file
  * \brief
- * Public API convenience header for accessing outputadapters.
+ * Convenience header for accessing outputadapters.
  *
  * \author Paul Bauer <paul.bauer.q@gmail.com>
  * \inpublicapi
@@ -43,13 +43,13 @@
 #ifndef GMX_COORDINATEIO_OUTPUTADAPTERS_H
 #define GMX_COORDINATEIO_OUTPUTADAPTERS_H
 
-#include "gromacs/coordinateio/outputadapters/outputselector.h"
-#include "gromacs/coordinateio/outputadapters/setatoms.h"
-#include "gromacs/coordinateio/outputadapters/setbox.h"
-#include "gromacs/coordinateio/outputadapters/setforces.h"
-#include "gromacs/coordinateio/outputadapters/setprecision.h"
-#include "gromacs/coordinateio/outputadapters/setstarttime.h"
-#include "gromacs/coordinateio/outputadapters/settimestep.h"
-#include "gromacs/coordinateio/outputadapters/setvelocities.h"
+#include "outputadapters/outputselector.h"
+#include "outputadapters/setatoms.h"
+#include "outputadapters/setbox.h"
+#include "outputadapters/setforces.h"
+#include "outputadapters/setprecision.h"
+#include "outputadapters/setstarttime.h"
+#include "outputadapters/settimestep.h"
+#include "outputadapters/setvelocities.h"
 
 #endif

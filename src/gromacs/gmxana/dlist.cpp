@@ -40,7 +40,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "gromacs/gmxana/gstat.h"
+#include "gstat.h"
 #include "gromacs/topology/residuetypes.h"
 #include "gromacs/topology/topology.h"
 #include "gromacs/utility/fatalerror.h"

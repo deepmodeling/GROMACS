@@ -60,8 +60,9 @@ gmx_add_unit_test(UtilityUnitTests utility-test
         typetraits.cpp
         )
 
-target_link_libraries(utility-test PRIVATE utility)
-
+target_link_libraries(utility-test PRIVATE
+                      utility
+                      )
 gmx_add_mpi_unit_test(UtilityMpiUnitTests utility-mpi-test 4
     CPP_SOURCE_FILES
     physicalnodecommunicator_mpi.cpp

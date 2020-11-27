@@ -56,7 +56,7 @@
 #endif
 
 #if HAVE_GPU_LEAPFROG
-#    include "gromacs/mdlib/leapfrog_gpu.h"
+#    include "../leapfrog_gpu.h"
 #endif
 
 #include "gromacs/hardware/device_information.h"

@@ -51,16 +51,16 @@
 
 #include <gtest/gtest.h>
 
-#include "gromacs/coordinateio/outputadapters/outputselector.h"
-#include "gromacs/coordinateio/outputadapters/setatoms.h"
-#include "gromacs/coordinateio/outputadapters/setbox.h"
-#include "gromacs/coordinateio/outputadapters/setforces.h"
-#include "gromacs/coordinateio/outputadapters/setprecision.h"
-#include "gromacs/coordinateio/outputadapters/setstarttime.h"
-#include "gromacs/coordinateio/outputadapters/settimestep.h"
-#include "gromacs/coordinateio/outputadapters/setvelocities.h"
+#include "../outputadapters/outputselector.h"
+#include "../outputadapters/setatoms.h"
+#include "../outputadapters/setbox.h"
+#include "../outputadapters/setforces.h"
+#include "../outputadapters/setprecision.h"
+#include "../outputadapters/setstarttime.h"
+#include "../outputadapters/settimestep.h"
+#include "../outputadapters/setvelocities.h"
 
-#include "gromacs/coordinateio/tests/coordinate_test.h"
+#include "coordinate_test.h"
 
 namespace gmx
 {

@@ -49,9 +49,9 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
-#include "gromacs/mdlib/leapfrog_gpu.h"
-#include "gromacs/mdlib/lincs_gpu.cuh"
-#include "gromacs/mdlib/settle_gpu.cuh"
+#include "leapfrog_gpu.h"
+#include "lincs_gpu.cuh"
+#include "settle_gpu.cuh"
 #include "gromacs/mdlib/update_constrain_gpu.h"
 #include "gromacs/mdtypes/inputrec.h"
 

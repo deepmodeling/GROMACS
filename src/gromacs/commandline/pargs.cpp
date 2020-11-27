@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "pargs.h"
+#include "gromacs/commandline/pargs.h"
 
 #include <cstdlib>
 #include <cstring>

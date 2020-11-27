@@ -53,7 +53,7 @@
 #include "gromacs/options/ioptionscontainer.h"
 #include "gromacs/selection/selectionoption.h"
 #include "gromacs/topology/index.h"
-#include "gromacs/trajectoryanalysis/analysissettings.h"
+#include "../analysissettings.h"
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 #include "gromacs/utility/path.h"
 #include "gromacs/utility/stringutil.h"

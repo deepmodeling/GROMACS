@@ -62,7 +62,7 @@
 #include "gromacs/utility/gmxmpi.h"
 #include "gromacs/utility/physicalnodecommunicator.h"
 #include "gromacs/utility/textwriter.h"
-#include "programs/mdrun/mdrun_main.h"
+#include "../mdrun_main.h"
 
 #include "testutils/cmdlinetest.h"
 #include "testutils/mpitest.h"

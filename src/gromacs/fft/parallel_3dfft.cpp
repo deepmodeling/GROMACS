@@ -42,7 +42,7 @@
 #include <cstring>
 
 #include "gromacs/fft/fft.h"
-#include "gromacs/fft/fft5d.h"
+#include "fft5d.h"
 #include "gromacs/math/gmxcomplex.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxmpi.h"

@@ -49,12 +49,12 @@
 #include <numeric>
 
 #include "gromacs/fileio/confio.h"
-#include "gromacs/gmxpreprocess/gpp_nextnb.h"
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/notset.h"
-#include "gromacs/gmxpreprocess/pgutil.h"
-#include "gromacs/gmxpreprocess/topio.h"
-#include "gromacs/gmxpreprocess/toputil.h"
+#include "gpp_nextnb.h"
+#include "grompp_impl.h"
+#include "notset.h"
+#include "pgutil.h"
+#include "topio.h"
+#include "toputil.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/topology/ifunc.h"
 #include "gromacs/utility/cstringutil.h"

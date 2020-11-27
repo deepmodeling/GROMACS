@@ -45,7 +45,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/gmxpreprocess/readir.h"
+#include "../readir.h"
 
 #include <string>
 

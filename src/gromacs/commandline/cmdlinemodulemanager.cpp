@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "cmdlinemodulemanager.h"
+#include "gromacs/commandline/cmdlinemodulemanager.h"
 
 #include <cstdio>
 

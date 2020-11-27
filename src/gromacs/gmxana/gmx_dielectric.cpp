@@ -50,7 +50,7 @@
 #include "gromacs/fft/fft.h"
 #include "gromacs/fileio/xvgr.h"
 #include "gromacs/gmxana/gmx_ana.h"
-#include "gromacs/gmxana/gstat.h"
+#include "gstat.h"
 #include "gromacs/math/gmxcomplex.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/utility/arraysize.h"

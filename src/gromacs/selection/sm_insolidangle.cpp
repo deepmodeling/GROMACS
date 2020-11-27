@@ -130,7 +130,7 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "position.h"
+#include "gromacs/selection/position.h"
 #include "selelem.h"
 #include "selmethod.h"
 #include "selmethod_impl.h"

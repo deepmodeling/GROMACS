@@ -42,7 +42,7 @@
 
 #include <cstring>
 
-#include "gromacs/gmxpreprocess/notset.h"
+#include "notset.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/topology/atoms.h"

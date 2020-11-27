@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "selectionoptionbehavior.h"
+#include "gromacs/selection/selectionoptionbehavior.h"
 
 #include <cstdio>
 
@@ -52,7 +52,7 @@
 #include "gromacs/options/options.h"
 #include "gromacs/selection/indexutil.h"
 #include "gromacs/selection/selectioncollection.h"
-#include "gromacs/selection/selectionfileoption.h"
+#include "selectionfileoption.h"
 #include "gromacs/selection/selectionoptionmanager.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/topology/topology.h"

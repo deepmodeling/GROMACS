@@ -40,7 +40,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/mdlib/energydrifttracker.h"
+#include "../energydrifttracker.h"
 
 #include <gtest/gtest.h>
 

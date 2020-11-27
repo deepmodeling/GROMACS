@@ -34,6 +34,8 @@
 
 gmx_add_unit_test_library(onlinehelp-test-shared
                           mock_helptopic.cpp)
+target_include_directories(onlinehelp-test-shared INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 target_link_libraries(onlinehelp-test-shared PUBLIC
                       common
                       onlinehelp

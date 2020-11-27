@@ -54,6 +54,8 @@ target_link_libraries(mdrun_test_infrastructure PUBLIC
                       mdrun_objlib
                       options
                       )
+target_include_directories(mdrun_test_infrastructure INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 # To avoid running into test timeouts, some end-to-end tests of mdrun
 # functionality are split off. This can be rearranged in future as we

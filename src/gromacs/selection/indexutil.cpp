@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "indexutil.h"
+#include "gromacs/selection/indexutil.h"
 
 #include <cstdlib>
 #include <cstring>

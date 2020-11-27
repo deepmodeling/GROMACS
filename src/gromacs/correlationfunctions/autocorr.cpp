@@ -54,8 +54,8 @@
 
 #include "gromacs/correlationfunctions/expfit.h"
 #include "gromacs/correlationfunctions/integrate.h"
-#include "gromacs/correlationfunctions/manyautocorrelation.h"
-#include "gromacs/correlationfunctions/polynomials.h"
+#include "manyautocorrelation.h"
+#include "polynomials.h"
 #include "gromacs/fileio/xvgr.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/vec.h"

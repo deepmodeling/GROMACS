@@ -48,7 +48,7 @@
 
 #include <gtest/gtest.h>
 
-#include "gromacs/mdlib/settle.h"
+#include "../settle.h"
 
 #include "testutils/testasserts.h"
 

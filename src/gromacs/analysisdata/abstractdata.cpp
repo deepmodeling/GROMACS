@@ -42,14 +42,14 @@
  */
 #include "gmxpre.h"
 
-#include "abstractdata.h"
+#include "gromacs/analysisdata/abstractdata.h"
 
 #include <utility>
 #include <vector>
 
 #include "gromacs/analysisdata/dataframe.h"
 #include "gromacs/analysisdata/datamodule.h"
-#include "gromacs/analysisdata/datamodulemanager.h"
+#include "datamodulemanager.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 

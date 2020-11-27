@@ -72,6 +72,7 @@ elseif(GMX_BUILD_MDRUN_ONLY)
     target_compile_definitions(mdrun-only PRIVATE HAVE_CONFIG_H)
     target_include_directories(mdrun-only SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
     target_link_libraries(mdrun-only PRIVATE
+                          commandline
                           common
                           legacy_modules
                           libgromacs
@@ -103,6 +104,7 @@ else()
     # TODO: Explicitly link specific modules.
     target_link_libraries(view_objlib PRIVATE legacy_modules)
     target_link_libraries(view_objlib PRIVATE
+                          commandline
                           fileio
                           mdtypes
                           trajectory
@@ -115,6 +117,7 @@ else()
     target_link_libraries(gmx_objlib PRIVATE
                           commandline
                           gmxana
+                          trajectoryanalysis
                           utility
                           )
     target_include_directories(gmx_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)

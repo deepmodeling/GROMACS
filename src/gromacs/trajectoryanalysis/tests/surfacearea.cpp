@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/trajectoryanalysis/modules/surfacearea.h"
+#include "../modules/surfacearea.h"
 
 #include <cstdlib>
 

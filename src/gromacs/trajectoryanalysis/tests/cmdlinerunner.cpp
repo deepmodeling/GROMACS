@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/trajectoryanalysis/cmdlinerunner.h"
+#include "../cmdlinerunner.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -51,8 +51,8 @@
 #include "gromacs/options/basicoptions.h"
 #include "gromacs/options/ioptionscontainer.h"
 #include "gromacs/trajectory/trajectoryframe.h"
-#include "gromacs/trajectoryanalysis/analysismodule.h"
-#include "gromacs/trajectoryanalysis/analysissettings.h"
+#include "../analysismodule.h"
+#include "../analysissettings.h"
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 #include "gromacs/utility/exceptions.h"
 

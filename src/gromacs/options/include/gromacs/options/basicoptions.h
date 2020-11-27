@@ -57,7 +57,7 @@
 #include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "ivaluestore.h"
+#include "gromacs/options/ivaluestore.h"
 
 namespace gmx
 {

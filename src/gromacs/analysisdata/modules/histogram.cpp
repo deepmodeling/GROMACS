@@ -50,8 +50,8 @@
 #include <vector>
 
 #include "gromacs/analysisdata/dataframe.h"
-#include "gromacs/analysisdata/datastorage.h"
-#include "gromacs/analysisdata/framelocaldata.h"
+#include "../datastorage.h"
+#include "../framelocaldata.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/exceptions.h"

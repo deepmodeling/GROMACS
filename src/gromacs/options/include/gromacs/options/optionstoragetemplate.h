@@ -56,8 +56,8 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "valueconverter.h"
-#include "valuestore.h"
+#include "gromacs/options/valueconverter.h"
+#include "gromacs/options/valuestore.h"
 
 namespace gmx
 {

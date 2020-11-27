@@ -50,7 +50,7 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
 #include "gromacs/math/vec.h"
-#include "gromacs/mdlib/leapfrog_gpu.h"
+#include "leapfrog_gpu.h"
 #include "gromacs/mdtypes/group.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/fatalerror.h"

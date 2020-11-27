@@ -45,7 +45,7 @@
 
 #include "gromacs/utility/classhelpers.h"
 
-#include "abstractsection.h"
+#include "gromacs/options/abstractsection.h"
 
 namespace gmx
 {

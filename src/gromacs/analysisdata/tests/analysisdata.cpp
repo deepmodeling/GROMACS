@@ -56,8 +56,8 @@
 #include "gromacs/analysisdata/paralleloptions.h"
 #include "gromacs/utility/exceptions.h"
 
-#include "gromacs/analysisdata/tests/datatest.h"
-#include "gromacs/analysisdata/tests/mock_datamodule.h"
+#include "datatest.h"
+#include "mock_datamodule.h"
 #include "testutils/testasserts.h"
 
 using gmx::test::AnalysisDataTestInput;

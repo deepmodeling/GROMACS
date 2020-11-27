@@ -46,7 +46,7 @@
 
 #include "gromacs/utility/arrayref.h"
 
-#include "ivaluestore.h"
+#include "gromacs/options/ivaluestore.h"
 
 namespace gmx
 {

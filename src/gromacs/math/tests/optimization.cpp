@@ -41,7 +41,7 @@
 
 #include "gmxpre.h"
 
-#include "gromacs/math/optimization.h"
+#include "../optimization.h"
 
 #include <vector>
 

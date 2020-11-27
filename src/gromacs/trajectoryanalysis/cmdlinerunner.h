@@ -47,7 +47,7 @@
 #include <functional>
 #include <memory>
 
-#include "gromacs/trajectoryanalysis/analysismodule.h"
+#include "analysismodule.h"
 
 namespace gmx
 {

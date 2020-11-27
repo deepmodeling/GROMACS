@@ -61,6 +61,15 @@ target_include_directories(gmxapi PRIVATE
                            ${CMAKE_CURRENT_SOURCE_DIR}
                            )
 
+target_link_libraries(gmxapi PRIVATE common)
+target_link_libraries(gmxapi PRIVATE
+                      commandline
+                      hardware
+                      mdrun
+                      mdtypes
+                      topology
+                      )
+
 ###############################
 # Install the public interface.
 #
@@ -83,17 +92,7 @@ set_target_properties(gmxapi PROPERTIES
                       VERSION ${GMXAPI_RELEASE}
                       )
 
-target_link_libraries(gmxapi PRIVATE libgromacs)
-target_link_libraries(gmxapi PRIVATE common)
-target_link_libraries(gmxapi PRIVATE legacy_modules)
-target_link_libraries(gmxapi PRIVATE
-                      # commandline
-                      hardware
-                      # mdlib
-                      mdrun
-                      mdtypes
-                      topology
-                      # utility
+target_link_libraries(gmxapi INTERFACE
                       )
 
 

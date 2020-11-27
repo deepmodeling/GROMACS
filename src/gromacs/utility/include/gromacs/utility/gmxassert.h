@@ -46,7 +46,7 @@
 
 #include "gromacs/utility/basedefinitions.h"
 
-#include "current_function.h"
+#include "gromacs/utility/current_function.h"
 
 //! \addtogroup module_utility
 //! \{

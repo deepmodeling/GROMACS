@@ -51,7 +51,7 @@
 
 #include "gromacs/math/vec.h"
 #include "gromacs/pbcutil/pbc.h"
-#include "gromacs/pulling/pull_internal.h"
+#include "../pull_internal.h"
 #include "gromacs/utility/smalloc.h"
 
 #include "testutils/refdata.h"

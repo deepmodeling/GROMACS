@@ -69,7 +69,7 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "listed_internal.h"
+#include "gromacs/listed_forces/listed_internal.h"
 
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 

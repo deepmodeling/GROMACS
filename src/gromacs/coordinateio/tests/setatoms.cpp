@@ -46,12 +46,12 @@
 
 #include <utility>
 
-#include "gromacs/coordinateio/outputadapters/setatoms.h"
+#include "../outputadapters/setatoms.h"
 #include "gromacs/fileio/trxio.h"
 #include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 
-#include "gromacs/coordinateio/tests/coordinate_test.h"
+#include "coordinate_test.h"
 #include "testutils/testfilemanager.h"
 
 namespace gmx

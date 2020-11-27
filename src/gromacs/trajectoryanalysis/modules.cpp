@@ -42,10 +42,10 @@
  */
 #include "gmxpre.h"
 
-#include "modules.h"
+#include "gromacs/trajectoryanalysis/modules.h"
 
 #include "gromacs/commandline/cmdlinemodulemanager.h"
-#include "gromacs/trajectoryanalysis/cmdlinerunner.h"
+#include "cmdlinerunner.h"
 
 #include "modules/angle.h"
 #include "modules/convert_trj.h"

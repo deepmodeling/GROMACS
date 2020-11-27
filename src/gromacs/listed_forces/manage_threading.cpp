@@ -45,7 +45,7 @@
  */
 #include "gmxpre.h"
 
-#include "manage_threading.h"
+#include "gromacs/listed_forces/manage_threading.h"
 
 #include "config.h"
 
@@ -64,7 +64,7 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "listed_internal.h"
+#include "gromacs/listed_forces/listed_internal.h"
 #include "utilities.h"
 
 /*! \brief struct for passing all data required for a function type */

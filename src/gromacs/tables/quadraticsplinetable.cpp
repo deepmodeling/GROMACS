@@ -52,7 +52,7 @@
 #include <utility>
 #include <vector>
 
-#include "gromacs/tables/tableinput.h"
+#include "tableinput.h"
 #include "gromacs/utility/alignedallocator.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"

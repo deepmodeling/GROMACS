@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,7 +44,7 @@
 #include "gromacs/commandline/cmdlinehelpcontext.h"
 #include "gromacs/utility/stringstream.h"
 #include "gromacs/utility/textwriter.h"
-#include "programs/mdrun/mdrun_main.h"
+#include "../mdrun_main.h"
 
 #include "testutils/cmdlinetest.h"
 #include "testutils/refdata.h"

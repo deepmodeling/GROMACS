@@ -47,7 +47,7 @@
 
 #include "gromacs/analysisdata/modules/plot.h"
 #include "gromacs/options/timeunitmanager.h"
-#include "gromacs/trajectoryanalysis/analysissettings.h"
+#include "analysissettings.h"
 
 namespace gmx
 {

@@ -42,7 +42,7 @@
 #include "gromacs/fileio/readinp.h"
 #include "gromacs/fileio/trrio.h"
 #include "gromacs/fileio/warninp.h"
-#include "gromacs/gmxpreprocess/readir.h"
+#include "readir.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vecdump.h"
 #include "gromacs/mdtypes/inputrec.h"

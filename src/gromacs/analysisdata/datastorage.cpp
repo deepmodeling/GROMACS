@@ -52,7 +52,7 @@
 
 #include "gromacs/analysisdata/abstractdata.h"
 #include "gromacs/analysisdata/dataframe.h"
-#include "gromacs/analysisdata/datamodulemanager.h"
+#include "datamodulemanager.h"
 #include "gromacs/analysisdata/paralleloptions.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"

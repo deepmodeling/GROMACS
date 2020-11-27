@@ -48,7 +48,7 @@
 #include "gromacs/utility/stringutil.h"
 #include "gromacs/utility/textwriter.h"
 
-#include "programs/mdrun/tests/moduletest.h"
+#include "moduletest.h"
 #include "testutils/cmdlinetest.h"
 #include "testutils/testfilemanager.h"
 

@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/mdlib/shake.h"
+#include "../shake.h"
 
 #include <assert.h>
 

@@ -52,7 +52,7 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "gromacs/analysisdata/tests/datatest.h"
+#include "datatest.h"
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"
 

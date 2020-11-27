@@ -45,9 +45,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "gromacs/gmxpreprocess/gpp_atomtype.h"
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/toputil.h"
+#include "gpp_atomtype.h"
+#include "grompp_impl.h"
+#include "toputil.h"
 #include "gromacs/topology/ifunc.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/fatalerror.h"

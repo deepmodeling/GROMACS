@@ -52,7 +52,7 @@
 #include "gromacs/options/filenameoption.h"
 #include "gromacs/options/ioptionscontainer.h"
 #include "gromacs/selection/selectionoption.h"
-#include "gromacs/trajectoryanalysis/analysissettings.h"
+#include "../analysissettings.h"
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 
 namespace gmx

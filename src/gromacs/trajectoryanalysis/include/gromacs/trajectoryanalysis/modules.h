@@ -1,9 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
- * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2019, by the GROMACS development team, led by
+ * Copyright (c) 2010,2011,2012,2014,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -34,33 +32,37 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \file
+/*! \libinternal \file
  * \brief
- * Provides function to open output files automatically (with some X11
- * programs).
+ * Generic interface for accessing trajectory analysis modules.
  *
- * \inpublicapi
- * \ingroup module_commandline
+ * \author Teemu Murtola <teemu.murtola@gmail.com>
+ * \inlibraryapi
+ * \ingroup module_trajectoryanalysis
  */
-#ifndef GMX_COMMANDLINE_VIEWIT_H
-#define GMX_COMMANDLINE_VIEWIT_H
+#ifndef GMX_TRAJECTORYANALYSIS_MODULES_H
+#define GMX_TRAJECTORYANALYSIS_MODULES_H
 
-struct gmx_output_env_t;
-struct t_filenm;
+namespace gmx
+{
 
+class CommandLineModuleManager;
+
+//! \cond libapi
 /*! \brief
- * Executes an external (X11) command to view a file.
+ * Registers all trajectory analysis command-line modules.
  *
- * Currently eps, xpm, xvg and pdb are supported.
- * Default programs are provided, can be overriden with environment vars
- * (but note that if the caller provides program-specific \p opts, setting the
- * environment variable most likely breaks things).
+ * \param[in] manager  Command-line module manager to receive the modules.
+ * \throws    std::bad_alloc if out of memory.
+ *
+ * Registers all trajectory analysis modules declared in the library such that
+ * they can be run through \p manager.
+ *
+ * \ingroup module_trajectoryanalysis
  */
-void do_view(const gmx_output_env_t* oenv, const char* fn, const char* opts);
+void registerTrajectoryAnalysisModules(CommandLineModuleManager* manager);
+//! \endcond
 
-/*! \brief
- * Calls do_view() for all viewable output files.
- */
-void view_all(const gmx_output_env_t* oenv, int nf, t_filenm fnm[]);
+} // namespace gmx
 
 #endif

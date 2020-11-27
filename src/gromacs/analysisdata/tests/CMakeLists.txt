@@ -41,6 +41,8 @@ target_link_libraries(analysisdata-test-shared PRIVATE
 target_link_libraries(analysisdata-test-shared PUBLIC
                       analysisdata
                       )
+target_include_directories(analysisdata-test-shared INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 gmx_add_unit_test(AnalysisDataUnitTests analysisdata-test
     CPP_SOURCE_FILES

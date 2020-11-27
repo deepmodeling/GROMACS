@@ -43,7 +43,6 @@
 
 #include "propagator.h"
 
-#include "gromacs/utility.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"

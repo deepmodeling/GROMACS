@@ -53,7 +53,7 @@
  */
 #include "gmxpre.h"
 
-#include "nbsearch.h"
+#include "gromacs/selection/nbsearch.h"
 
 #include <cmath>
 #include <cstring>
@@ -71,7 +71,7 @@
 #include "gromacs/utility/mutex.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "position.h"
+#include "gromacs/selection/position.h"
 
 namespace gmx
 {

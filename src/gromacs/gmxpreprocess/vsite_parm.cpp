@@ -45,11 +45,11 @@
 
 #include <algorithm>
 
-#include "gromacs/gmxpreprocess/add_par.h"
-#include "gromacs/gmxpreprocess/gpp_atomtype.h"
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/notset.h"
-#include "gromacs/gmxpreprocess/toputil.h"
+#include "add_par.h"
+#include "gpp_atomtype.h"
+#include "grompp_impl.h"
+#include "notset.h"
+#include "toputil.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/units.h"
 #include "gromacs/math/vec.h"

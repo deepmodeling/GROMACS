@@ -67,7 +67,7 @@
 #include "gromacs/math/vec.h"
 #include "gromacs/mdlib/constr.h"
 #include "gromacs/mdlib/ebin.h"
-#include "gromacs/mdlib/mdebin_bar.h"
+#include "mdebin_bar.h"
 #include "gromacs/mdrunutility/handlerestart.h"
 #include "gromacs/mdtypes/energyhistory.h"
 #include "gromacs/mdtypes/fcdata.h"

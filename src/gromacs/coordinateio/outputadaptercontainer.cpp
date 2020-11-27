@@ -45,7 +45,7 @@
 
 #include "gromacs/coordinateio/enums.h"
 
-#include "outputadaptercontainer.h"
+#include "gromacs/coordinateio/outputadaptercontainer.h"
 
 #include <algorithm>
 

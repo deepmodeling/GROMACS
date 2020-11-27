@@ -53,7 +53,7 @@
 
 #include "gromacs/gpu_utils/devicebuffer.cuh"
 #include "gromacs/hardware/device_information.h"
-#include "gromacs/mdlib/settle_gpu.cuh"
+#include "../settle_gpu.cuh"
 #include "gromacs/utility/unique_cptr.h"
 
 #include "testutils/test_device.h"

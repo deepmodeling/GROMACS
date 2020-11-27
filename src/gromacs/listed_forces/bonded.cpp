@@ -76,7 +76,7 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "listed_internal.h"
+#include "gromacs/listed_forces/listed_internal.h"
 #include "restcbt.h"
 
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace

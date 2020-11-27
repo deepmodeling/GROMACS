@@ -52,8 +52,8 @@
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxassert.h"
 
-#include "position.h"
-#include "selectionenums.h"
+#include "gromacs/selection/position.h"
+#include "gromacs/selection/selectionenums.h"
 
 struct gmx_mtop_t;
 

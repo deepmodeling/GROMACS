@@ -49,7 +49,7 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "position.h"
+#include "gromacs/selection/position.h"
 #include "selmethod.h"
 #include "selmethod_impl.h"
 

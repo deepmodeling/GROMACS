@@ -34,7 +34,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/utility/template_mp.h"
+#include "../template_mp.h"
 
 #include <gtest/gtest.h>
 

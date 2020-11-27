@@ -51,7 +51,7 @@
 #include "gromacs/options/basicoptions.h"
 #include "gromacs/options/options.h"
 #include "gromacs/options/optionsection.h"
-#include "gromacs/options/repeatingsection.h"
+#include "../repeatingsection.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/inmemoryserializer.h"
 #include "gromacs/utility/keyvaluetree.h"

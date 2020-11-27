@@ -57,8 +57,8 @@
 #include "keywords.h"
 #include "mempool.h"
 #include "poscalc.h"
-#include "position.h"
-#include "selectionenums.h"
+#include "gromacs/selection/position.h"
+#include "gromacs/selection/selectionenums.h"
 #include "selmethod.h"
 
 /*!

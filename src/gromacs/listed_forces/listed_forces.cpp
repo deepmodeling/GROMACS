@@ -58,7 +58,7 @@
 #include "gromacs/listed_forces/disre.h"
 #include "gromacs/listed_forces/orires.h"
 #include "gromacs/listed_forces/pairs.h"
-#include "gromacs/listed_forces/position_restraints.h"
+#include "position_restraints.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdlib/enerdata_utils.h"
 #include "gromacs/mdlib/force.h"
@@ -77,8 +77,8 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 
-#include "listed_internal.h"
-#include "manage_threading.h"
+#include "gromacs/listed_forces/listed_internal.h"
+#include "gromacs/listed_forces/manage_threading.h"
 #include "utilities.h"
 
 ListedForces::ListedForces(const gmx_ffparams_t&      ffparams,

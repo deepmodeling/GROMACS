@@ -44,9 +44,9 @@
 
 #include <algorithm>
 
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/notset.h"
-#include "gromacs/gmxpreprocess/toputil.h"
+#include "grompp_impl.h"
+#include "notset.h"
+#include "toputil.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"

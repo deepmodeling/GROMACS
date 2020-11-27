@@ -40,7 +40,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/gmxana/thermochemistry.h"
+#include "../thermochemistry.h"
 #include "gromacs/utility/arrayref.h"
 
 #include "testutils/refdata.h"

@@ -45,7 +45,7 @@
 #include "gromacs/fileio/matio.h"
 #include "gromacs/fileio/trxio.h"
 #include "gromacs/fileio/xvgr.h"
-#include "gromacs/gmxana/eigio.h"
+#include "eigio.h"
 #include "gromacs/gmxana/gmx_ana.h"
 #include "gromacs/linearalgebra/eigensolver.h"
 #include "gromacs/math/do_fit.h"

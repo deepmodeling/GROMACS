@@ -47,12 +47,12 @@
 #include <vector>
 
 #include "gromacs/fileio/confio.h"
-#include "gromacs/gmxpreprocess/fflibutil.h"
-#include "gromacs/gmxpreprocess/gpp_atomtype.h"
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/notset.h"
-#include "gromacs/gmxpreprocess/pdb2top.h"
-#include "gromacs/gmxpreprocess/toppush.h"
+#include "fflibutil.h"
+#include "gpp_atomtype.h"
+#include "grompp_impl.h"
+#include "notset.h"
+#include "pdb2top.h"
+#include "toppush.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdtypes/md_enums.h"

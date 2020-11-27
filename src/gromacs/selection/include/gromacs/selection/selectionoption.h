@@ -47,7 +47,7 @@
 #include "gromacs/options/abstractoption.h"
 #include "gromacs/selection/selection.h"
 
-#include "selectionenums.h"
+#include "gromacs/selection/selectionenums.h"
 
 namespace gmx
 {

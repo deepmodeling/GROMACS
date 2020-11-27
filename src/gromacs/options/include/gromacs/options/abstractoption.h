@@ -60,7 +60,7 @@
 
 #include "gromacs/utility/classhelpers.h"
 
-#include "optionflags.h"
+#include "gromacs/options/optionflags.h"
 
 namespace gmx
 {

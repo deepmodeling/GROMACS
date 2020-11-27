@@ -48,7 +48,7 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "position.h"
+#include "gromacs/selection/position.h"
 
 void _gmx_selvalue_clear(gmx_ana_selvalue_t* val)
 {

@@ -44,7 +44,7 @@
 #ifndef GMX_NBNXM_KERNELS_REFERENCE_KERNEL_REF_H
 #define GMX_NBNXM_KERNELS_REFERENCE_KERNEL_REF_H
 
-#include "gromacs/nbnxm/kernel_common.h"
+#include "../kernel_common.h"
 
 //! All the different CPU reference kernel functions.
 //! \{

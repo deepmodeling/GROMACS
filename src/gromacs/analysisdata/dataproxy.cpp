@@ -45,7 +45,7 @@
 #include "dataproxy.h"
 
 #include "gromacs/analysisdata/dataframe.h"
-#include "gromacs/analysisdata/datamodulemanager.h"
+#include "datamodulemanager.h"
 #include "gromacs/utility/gmxassert.h"
 
 namespace gmx

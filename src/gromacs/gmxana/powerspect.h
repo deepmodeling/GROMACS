@@ -40,7 +40,7 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/gmxana/interf.h"
+#include "interf.h"
 #include "gromacs/utility/real.h"
 
 namespace gmx

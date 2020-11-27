@@ -48,8 +48,8 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/gmxpreprocess/fflibutil.h"
-#include "gromacs/gmxpreprocess/notset.h"
+#include "fflibutil.h"
+#include "notset.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/utility/arraysize.h"
 #include "gromacs/utility/cstringutil.h"

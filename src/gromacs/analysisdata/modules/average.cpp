@@ -50,7 +50,7 @@
 #include <vector>
 
 #include "gromacs/analysisdata/dataframe.h"
-#include "gromacs/analysisdata/datastorage.h"
+#include "../datastorage.h"
 
 #include "frameaverager.h"
 

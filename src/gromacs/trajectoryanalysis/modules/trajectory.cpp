@@ -54,7 +54,7 @@
 #include "gromacs/selection/selection.h"
 #include "gromacs/selection/selectionoption.h"
 #include "gromacs/trajectory/trajectoryframe.h"
-#include "gromacs/trajectoryanalysis/analysissettings.h"
+#include "../analysissettings.h"
 
 namespace gmx
 {

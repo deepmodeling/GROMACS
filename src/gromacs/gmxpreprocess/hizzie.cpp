@@ -45,8 +45,8 @@
 #include <cstring>
 
 #include "gromacs/fileio/pdbio.h"
-#include "gromacs/gmxpreprocess/pdb2top.h"
-#include "gromacs/gmxpreprocess/toputil.h"
+#include "pdb2top.h"
+#include "toputil.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/units.h"
 #include "gromacs/math/vec.h"

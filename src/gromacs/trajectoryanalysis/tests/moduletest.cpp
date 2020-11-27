@@ -49,10 +49,11 @@
 #include <vector>
 
 #include "gromacs/commandline/cmdlineoptionsmodule.h"
-#include "gromacs/trajectoryanalysis/analysismodule.h"
-#include "gromacs/trajectoryanalysis/cmdlinerunner.h"
+#include "../analysismodule.h"
+#include "../cmdlinerunner.h"
 
-#include "gromacs/analysisdata/tests/datatest.h"
+// TODO this comes from analysisdata. Find a better way to express this
+#include "datatest.h"
 #include "testutils/cmdlinetest.h"
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"

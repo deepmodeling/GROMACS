@@ -47,7 +47,7 @@
 
 #include "config.h"
 
-#include "gromacs/ewald/pme_force_sender_gpu.h"
+#include "pme_force_sender_gpu.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/gmxassert.h"
 

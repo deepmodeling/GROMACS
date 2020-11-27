@@ -41,7 +41,7 @@
 
 #include "gmxpre.h"
 
-#include "gromacs/math/neldermead.h"
+#include "../neldermead.h"
 
 #include <gtest/gtest.h>
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -40,12 +40,12 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/gmxpreprocess/gpp_bond_atomtype.h"
+#include "../gpp_bond_atomtype.h"
 
 #include <gtest/gtest.h>
 
-#include "gromacs/gmxpreprocess/grompp_impl.h"
-#include "gromacs/gmxpreprocess/notset.h"
+#include "../grompp_impl.h"
+#include "../notset.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/topology/symtab.h"
 #include "gromacs/utility/enumerationhelpers.h"

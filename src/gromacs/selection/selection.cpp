@@ -43,7 +43,7 @@
  */
 #include "gmxpre.h"
 
-#include "selection.h"
+#include "gromacs/selection/selection.h"
 
 #include <string>
 
@@ -55,7 +55,7 @@
 #include "gromacs/utility/stringutil.h"
 #include "gromacs/utility/textwriter.h"
 
-#include "position.h"
+#include "gromacs/selection/position.h"
 #include "selelem.h"
 #include "selvalue.h"
 

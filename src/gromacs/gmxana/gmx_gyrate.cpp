@@ -47,7 +47,7 @@
 #include "gromacs/fileio/trxio.h"
 #include "gromacs/fileio/xvgr.h"
 #include "gromacs/gmxana/gmx_ana.h"
-#include "gromacs/gmxana/gstat.h"
+#include "gstat.h"
 #include "gromacs/gmxana/princ.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"

@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/selection/poscalc.h"
+#include "../poscalc.h"
 
 #include <memory>
 #include <vector>

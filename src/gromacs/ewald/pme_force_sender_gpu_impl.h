@@ -43,7 +43,7 @@
 #ifndef GMX_PMEFORCESENDERGPU_IMPL_H
 #define GMX_PMEFORCESENDERGPU_IMPL_H
 
-#include "gromacs/ewald/pme_force_sender_gpu.h"
+#include "pme_force_sender_gpu.h"
 #include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/utility/arrayref.h"
 

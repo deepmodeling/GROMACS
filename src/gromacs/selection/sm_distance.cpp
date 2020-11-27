@@ -51,7 +51,7 @@
 #include "gromacs/utility/arraysize.h"
 #include "gromacs/utility/exceptions.h"
 
-#include "position.h"
+#include "gromacs/selection/position.h"
 #include "selmethod.h"
 #include "selmethod_impl.h"
 

@@ -50,7 +50,7 @@
 
 #include "keywords.h"
 #include "poscalc.h"
-#include "position.h"
+#include "gromacs/selection/position.h"
 #include "selelem.h"
 #include "selmethod.h"
 #include "selmethod_impl.h"

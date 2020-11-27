@@ -42,7 +42,7 @@
 
 #include "gromacs/commandline/pargs.h"
 #include "gromacs/gmxana/gmx_ana.h"
-#include "gromacs/gmxana/sfactor.h"
+#include "sfactor.h"
 #include "gromacs/utility/arraysize.h"
 #include "gromacs/utility/pleasecite.h"
 #include "gromacs/utility/smalloc.h"

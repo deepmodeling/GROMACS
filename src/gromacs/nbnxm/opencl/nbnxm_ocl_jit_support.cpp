@@ -52,7 +52,7 @@
 #include "gromacs/gpu_utils/ocl_compiler.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/md_enums.h"
-#include "gromacs/nbnxm/gpu_jit_support.h"
+#include "../gpu_jit_support.h"
 #include "gromacs/nbnxm/nbnxm_gpu.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/utility/cstringutil.h"

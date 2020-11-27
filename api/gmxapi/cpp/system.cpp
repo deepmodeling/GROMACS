@@ -38,7 +38,7 @@
 #include <array>
 #include <memory>
 
-#include "gromacs/utility.h"
+#include "gromacs/utility/gmxassert.h"
 #include "gromacs/mdrun/runner.h"
 
 #include "gmxapi/context.h"

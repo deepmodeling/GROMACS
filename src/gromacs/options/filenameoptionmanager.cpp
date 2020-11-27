@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "filenameoptionmanager.h"
+#include "gromacs/options/filenameoptionmanager.h"
 
 #include <cstring>
 

@@ -79,7 +79,7 @@
 #include "gromacs/utility/smalloc.h"
 
 #include "centerofmass.h"
-#include "position.h"
+#include "gromacs/selection/position.h"
 
 namespace gmx
 {

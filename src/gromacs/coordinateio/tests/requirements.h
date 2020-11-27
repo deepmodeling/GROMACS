@@ -54,7 +54,7 @@
 #include "gromacs/utility/any.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "gromacs/coordinateio/tests/coordinate_test.h"
+#include "coordinate_test.h"
 
 namespace gmx
 {
