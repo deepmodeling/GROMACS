@@ -70,7 +70,8 @@ static constexpr float c_oneSixth = 0.16666667F;
 static constexpr float c_oneTwelfth = 0.08333333F;
 
 /* The following functions are necessary because on some versions of Intel OpenCL RT, subgroups
- * do not properly work (segfault) if used in kernels with non-1-dimensional workgroup */
+ * do not properly work (segfault or create subgroups of size 1) if used in kernels
+ * with non-1-dimensional workgroup. */
 //! \brief Convert 3D range to 1D
 static inline cl::sycl::range<1> flattenRange(cl::sycl::range<3> range3d)
 {

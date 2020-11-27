@@ -70,7 +70,11 @@ using cl::sycl::ONEAPI::atomic_ref;
 using cl::sycl::ONEAPI::memory_order;
 using cl::sycl::ONEAPI::memory_scope;
 using cl::sycl::ONEAPI::plus;
-using cl::sycl::ONEAPI::reduce;
+template<typename... Args>
+auto group_reduce(Args&&... args) -> decltype(cl::sycl::ONEAPI::reduce(std::forward<Args>(args)...))
+{
+    return cl::sycl::ONEAPI::reduce(std::forward<Args>(args)...);
+}
 using cl::sycl::ONEAPI::sub_group;
 #elif __SYCL_COMPILER_VERSION == 20200827 // 2021.1-beta09
 template<typename... Args>
@@ -82,7 +86,11 @@ using cl::sycl::intel::atomic_ref;
 using cl::sycl::intel::memory_order;
 using cl::sycl::intel::memory_scope;
 using cl::sycl::intel::plus;
-using cl::sycl::intel::reduce;
+template<typename... Args>
+auto group_reduce(Args&&... args) -> decltype(cl::sycl::ONEAPI::reduce(std::forward<Args>(args)...))
+{
+    return cl::sycl::intel::reduce(std::forward<Args>(args)...);
+}
 using cl::sycl::intel::sub_group;
 #endif
 } // namespace sycl_pf

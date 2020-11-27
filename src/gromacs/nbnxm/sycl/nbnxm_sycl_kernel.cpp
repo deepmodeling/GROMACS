@@ -1068,8 +1068,10 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         if constexpr (doCalcEnergies)
         {
-            const float E_lj_wg = sycl_pf::reduce(itemIdx.get_group(), E_lj, sycl_pf::plus<float>());
-            const float E_el_wg = sycl_pf::reduce(itemIdx.get_group(), E_el, sycl_pf::plus<float>());
+            const float E_lj_wg =
+                    sycl_pf::group_reduce(itemIdx.get_group(), E_lj, 0.0F, sycl_pf::plus<float>());
+            const float E_el_wg =
+                    sycl_pf::group_reduce(itemIdx.get_group(), E_el, 0.0F, sycl_pf::plus<float>());
             if (tidx == 0)
             {
                 atomic_fetch_add(a_vdwEnergy, 0, E_lj_wg);
