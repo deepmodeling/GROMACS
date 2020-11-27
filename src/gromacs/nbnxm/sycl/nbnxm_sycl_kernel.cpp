@@ -677,7 +677,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                     if constexpr (props.vdwEwald)
                     {
                         E_lj /= c_clSize * NTHREAD_Z;
-                        E_lj *= 0.5f * c_oneSixth * lje_coeff6_6;
+                        E_lj *= 0.5F * c_oneSixth * lje_coeff6_6; // c_OneTwelfth?
                     }
                     if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
                     {
@@ -685,16 +685,16 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         E_el /= epsFac * c_clSize * NTHREAD_Z;
                         if constexpr (props.elecRF || props.elecCutoff)
                         {
-                            E_el *= -0.5f * c_rf;
+                            E_el *= -0.5F * c_rf;
                         }
                         else
                         {
                             E_el *= -ewaldBeta * c_OneOverSqrtPi; /* last factor 1/sqrt(pi) */
                         }
                     }
-                }
-            }
-        }
+                } // (nb_sci.shift == CENTRAL && a_plistCJ4[cij4_start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
+            }     // (doExclusionForces)
+        }         // (doCalcEnergies)
 
         const bool nonSelfInteraction =
                 !(nb_sci.shift == CENTRAL & tidxj <= tidxi); // Only needed if (doExclusionForces)
@@ -710,20 +710,25 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             if (doPruneNBL || imask)
             {
                 /* Pre-load cj into shared memory on both warps separately */
+                /*
                 if ((tidxj == 0 || tidxj == 4) && (tidxi < c_nbnxnGpuJgroupSize))
                 {
-                    cjs[cl::sycl::id<2>(tidxz, tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize)] =
-                            a_plistCJ4[j4].cj[tidxi];
+                    cjs[cl::sycl::id<2>(tidxz, tidxi + tidxj * c_nbnxnGpuJgroupSize /
+                c_splitClSize)] = a_plistCJ4[j4].cj[tidxi];
                 }
                 sg.barrier();
+                 */
 
                 for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
                 {
                     if (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
-                        int       mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        /*
                         const int cj =
                                 cjs[cl::sycl::id<2>(tidxz, jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize)];
+                                */
+                        const int cj = a_plistCJ4[j4].cj[jm];
                         const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
