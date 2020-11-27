@@ -42,6 +42,7 @@ if(FIND_PACKAGE_MESSAGE_DETAILS_Python3)
     set(Python3_FIND_QUIETLY ON)
     set(PythonInterp_FIND_QUIETLY ON)
 endif()
+# TODO: Simplify if we #3708 updates required CMake version.
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.15)
     if (NOT Python3_FIND_STRATEGY)
         # If the user provides a hint for the Python installation with Python3_ROOT_DIR,
@@ -65,12 +66,13 @@ else()
     set(CMAKE_FIND_FRAMEWORK LAST)
 endif ()
 if(GMX_PYTHON_PACKAGE)
-    find_package(Python3 3.6 COMPONENTS Interpreter Development)
+    find_package(Python3 3.7 COMPONENTS Interpreter Development)
     if (NOT Python3_FOUND OR NOT Python3_Development_FOUND)
         message(FATAL_ERROR "Could not locate Python development requirements. \
                 Provide appropriate CMake hints or set GMX_PYTHON_PACKAGE=OFF")
     endif ()
 else()
+    # TODO: #3716
     find_package(Python3 3.6 COMPONENTS Interpreter)
 endif()
 
