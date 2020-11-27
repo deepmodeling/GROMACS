@@ -407,65 +407,130 @@ static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode
 /*! Final j-force reduction; this implementation only with power of two
  *  array sizes.
  */
-static inline void reduce_force_j(cl::sycl::accessor<float3, 1, mode::read_write, target::local> shmemBuf,
-                                  const float3                                                   f,
+static inline void reduce_force_j(cl::sycl::accessor<float, 1, mode::read_write, target::local> shmemBuf,
+                                  const float3                                                  f,
                                   DeviceAccessor<float, mode::read_write> fout,
                                   const cl::sycl::nd_item<1>              itemIdx,
+                                  const int                               tidxi,
+                                  const int                               tidxj,
                                   const int                               aidx)
 {
-    // Extremely dumb and not-optimized version of reduce_force_j_warp_shfl
-    const int tid = itemIdx.get_local_linear_id();
-    shmemBuf[tid] = f;
-    // SYCL-TODO: Synchronizing only sub-group should be enough
+    // SYCL-TODO: Check for NTHREAD_Z > 1
+    static constexpr int bufStride = c_clSize * c_clSize;
+    const int            tid       = tidxi + tidxj * c_clSize; // itemIdx.get_local_linear_id();
+    shmemBuf[tid]                  = f[0];
+    shmemBuf[tid + bufStride]      = f[1];
+    shmemBuf[tid + 2 * bufStride]  = f[2];
+    // SYCL-TODO: Synchronizing only sub-group should be enough?
     itemIdx.barrier(fence_space::local_space);
-    const int idInCluster = (tid % c_clSize);
-    if (idInCluster == 0)
+    if (tidxi < 3)
     {
-        for (int dim = 0; dim < 3; dim++)
+        float acc = 0.0F;
+        for (int j = tidxj * c_clSize; j < (tidxj + 1) * c_clSize; j++)
         {
-            float acc = 0.0F;
-            for (int j = 0; j < c_clSize; j++)
-            {
-                acc += shmemBuf[tid + j][dim];
-            }
-            atomic_fetch_add(fout, 3 * aidx + dim, acc);
+            acc += shmemBuf[bufStride * tidxi + j];
         }
+
+        atomic_fetch_add(fout, 3 * aidx + tidxi, acc);
+    }
+    itemIdx.barrier(fence_space::local_space);
+}
+
+static constexpr int log2i(const int v)
+{
+    if (v == 1)
+    {
+        return 0;
+    }
+    else
+    {
+        assert(v % 2 == 0);
+        return log2i(v / 2) + 1;
     }
 }
 
 /*! Final i-force reduction; this implementation works only with power of two
  *  array sizes.
  */
-static inline float3 reduce_force_i(cl::sycl::accessor<float3, 1, mode::read_write, target::local> shmemBuf,
-                                    const float3                            f,
-                                    DeviceAccessor<float, mode::read_write> fout,
-                                    bool                                    bCalcFshift,
-                                    const cl::sycl::nd_item<1>              itemIdx,
-                                    const int                               aidx)
+static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::read_write, target::local> shmemBuf,
+                                            const float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster],
+                                            DeviceAccessor<float, mode::read_write> fout,
+                                            const bool                              bCalcFshift,
+                                            const cl::sycl::nd_item<1>              itemIdx,
+                                            const int                               tidxi,
+                                            const int                               tidxj,
+                                            const int                               sci,
+                                            const int                               shift,
+                                            DeviceAccessor<float, mode::read_write> fshift)
 {
-    float3 fshift_buf(0.0F, 0.0F, 0.0F);
-    // Extremely dumb and not-optimized version of reduce_force_i_warp_shfl
-    const int tid = itemIdx.get_local_linear_id();
-    shmemBuf[tid] = f;
-    itemIdx.barrier(fence_space::local_space);
-    const int idInCluster = (tid / c_clSize);
-    if (idInCluster == 0)
+    // SYCL-TODO: Check for NTHREAD_Z > 1
+    static constexpr int bufStride  = c_clSize * c_clSize;
+    static constexpr int clSizeLog2 = log2i(c_clSize);
+    float                fshift_buf = 0;
+    for (int ci_offset = 0; ci_offset < c_nbnxnGpuNumClusterPerSupercluster; ci_offset++)
     {
-        for (int dim = 0; dim < 3; dim++)
+        int aidx = (sci * c_nbnxnGpuNumClusterPerSupercluster + ci_offset) * c_clSize + tidxi;
+        int tidx = tidxi + tidxj * c_clSize;
+        /* store i forces in shmem */
+        shmemBuf[tidx]                 = fci_buf[ci_offset][0];
+        shmemBuf[bufStride + tidx]     = fci_buf[ci_offset][1];
+        shmemBuf[2 * bufStride + tidx] = fci_buf[ci_offset][2];
+        itemIdx.barrier(fence_space::local_space);
+
+        /* Reduce the initial CL_SIZE values for each i atom to half
+         * every step by using CL_SIZE * i threads.
+         * Can't just use i as loop variable because than nvcc refuses to unroll.
+         */
+        int i = c_clSize / 2;
+        for (int j = clSizeLog2 - 1; j > 0; j--)
         {
-            float acc = 0.0F;
-            for (int j = 0; j < c_clSize; j++)
+            if (tidxj < i)
             {
-                acc += shmemBuf[tid + j * c_clSize][dim];
+                shmemBuf[tidxj * c_clSize + tidxi] += shmemBuf[(tidxj + i) * c_clSize + tidxi];
+                shmemBuf[bufStride + tidxj * c_clSize + tidxi] +=
+                        shmemBuf[bufStride + (tidxj + i) * c_clSize + tidxi];
+                shmemBuf[2 * bufStride + tidxj * c_clSize + tidxi] +=
+                        shmemBuf[2 * bufStride + (tidxj + i) * c_clSize + tidxi];
             }
-            atomic_fetch_add(fout, 3 * aidx + dim, acc);
+            i >>= 1;
+        }
+        /* needed because
+         * a) for c_clSize<8: id 2 (doing z in next block) is in 2nd warp
+         * b) for all c_clSize a barrier is needed before f_buf is reused by next reduce_force_i call
+         */
+        itemIdx.barrier(fence_space::local_space);
+
+        /* i == 1, last reduction step, writing to global mem */
+        /* Split the reduction between the first 3 line threads
+           Threads with line id 0 will do the reduction for (float3).x components
+           Threads with line id 1 will do the reduction for (float3).y components
+           Threads with line id 2 will do the reduction for (float3).z components. */
+        if (tidxj < 3)
+        {
+            float f = shmemBuf[tidxj * bufStride + tidxi]
+                      + shmemBuf[tidxj * bufStride + i * c_clSize + tidxi];
+
+            atomic_fetch_add(fout, 3 * aidx + tidxj, f);
+
             if (bCalcFshift)
             {
-                fshift_buf[dim] += acc;
+                fshift_buf += f;
             }
         }
     }
-    return fshift_buf;
+    itemIdx.barrier(fence_space::local_space);
+    /* add up local shift forces into global mem */
+    if (bCalcFshift)
+    {
+        /* Only threads with tidxj < 3 will update fshift.
+           The threads performing the update, must be the same as the threads
+           storing the reduction result above.
+         */
+        if (tidxj < 3)
+        {
+            atomic_fetch_add(fshift, 3 * shift + tidxj, fshift_buf);
+        }
+    }
 }
 
 /*! \brief Main kernel for NBNXM.
@@ -546,10 +611,9 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             cl::sycl::range<2>(NTHREAD_Z, c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
 
     // shmem buffer for j- and i-forces
-    cl::sycl::accessor<float3, 1, mode::read_write, target::local> force_j_buf_shmem(
-            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z), cgh);
-    cl::sycl::accessor<float3, 1, mode::read_write, target::local> force_i_buf_shmem(
-            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z), cgh);
+    // SYCL-TODO: Make into 3D
+    cl::sycl::accessor<float, 1, mode::read_write, target::local> force_j_buf_shmem(
+            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z * 3), cgh); // 3 for float3
 
     auto atib = [&]() {
         if constexpr (!props.vdwComb)
@@ -977,7 +1041,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         } // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                         // Replace with group_reduce in SYCL2020
                         /* reduce j forces */
-                        reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, aj);
+                        reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
                     } // (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                 } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
                 if constexpr (doPruneNBL)
@@ -999,23 +1063,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             doCalcShift = false;
         }
 
-        float3 fshift_buf(0.0F, 0.0F, 0.0F);
-
-        /* reduce i forces */
-        for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
-        {
-            const int ai = (sci * c_nbnxnGpuNumClusterPerSupercluster + i) * c_clSize + tidxi;
-            fshift_buf += reduce_force_i(force_j_buf_shmem, fci_buf[i], a_f, doCalcShift, itemIdx, ai);
-        }
-
-        /* add up local shift forces into global mem, tidxj indexes x,y,z */
-        if (doCalcShift && (tidxj / c_clSize == 0))
-        {
-            for (int dim = 0; dim < 3; dim++)
-            {
-                atomic_fetch_add(a_fShift, nb_sci.shift * 3 + dim, fshift_buf[dim]);
-            }
-        }
+        reduce_force_i_and_shift(force_j_buf_shmem, fci_buf, a_f, doCalcShift, itemIdx, tidxi,
+                                 tidxj, sci, nb_sci.shift, a_fShift);
 
         if constexpr (doCalcEnergies)
         {
