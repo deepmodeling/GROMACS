@@ -100,7 +100,7 @@ static inline cl::sycl::id<3> unflattenId(cl::sycl::id<1> id1d)
 template<cl::sycl::access::mode Mode, class IndexType>
 static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const IndexType idx, const float val)
 {
-    sycl_pf::atomic_ref<float, sycl_pf::memory_order::relaxed, sycl_pf::memory_scope::work_group,
+    sycl_pf::atomic_ref<float, sycl_pf::memory_order::relaxed, sycl_pf::memory_scope::device,
                         cl::sycl::access::address_space::global_space>
             fout_atomic(acc[idx]);
     fout_atomic.fetch_add(val);

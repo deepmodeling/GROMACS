@@ -517,8 +517,8 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
                 fshift_buf += f;
             }
         }
+        itemIdx.barrier(fence_space::local_space);
     }
-    itemIdx.barrier(fence_space::local_space);
     /* add up local shift forces into global mem */
     if (bCalcFshift)
     {
@@ -605,13 +605,15 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     // shmem buffer for i x+q pre-loading
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> xqib(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
+    /*
     // shmem buffer for cj, for each warp separately
     // the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution
     cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
             cl::sycl::range<2>(NTHREAD_Z, c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
+    */
 
     // shmem buffer for j- and i-forces
-    // SYCL-TODO: Make into 3D
+    // SYCL-TODO: Make into 3D; section 4.7.6.11 of SYCL2020 specs
     cl::sycl::accessor<float, 1, mode::read_write, target::local> force_j_buf_shmem(
             cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z * 3), cgh); // 3 for float3
 
@@ -1053,7 +1055,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             } // (doPruneNBL || imask)
 
             // avoid shared memory WAR hazards between loop iterations
-            sg.barrier();
+            itemIdx.barrier(fence_space::local_space); // sg.barrier();
         } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
 
         /* skip central shifts when summing shift forces */
