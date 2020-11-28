@@ -30,14 +30,6 @@
     - job: gromacs:gcc-7:build
       artifacts: true
 
-sample_restraint:gcc-7:gmx2021:py-3.6.10:
-  extends:
-    - .sample_restraint:gcc-7:gmx2021
-    - .rules:merge-requests:master
-  variables:
-    VENVPATH: "/root/venv/py3.6"
-    PY_VER: "3.6.10"
-
 sample_restraint:gcc-7:gmx2021:py-3.7.7:
   extends:
     - .sample_restraint:gcc-7:gmx2021
