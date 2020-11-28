@@ -388,9 +388,12 @@ def prepare_venv(version: StrictVersion) -> typing.Sequence[str]:
             'networkx>=2.0' \
             'numpy>=1' \
             'pip>=10.1' \
+            'Pygments>=2.2.0' \
             'pytest>=3.9' \
             'setuptools>=42' \
-            'scikit-build>=0.10'""".format(path=venv_path))
+            'scikit-build>=0.10' \
+            'Sphinx>=1.6.3' \
+            'sphinxcontrib-plantuml>=0.14'""".format(path=venv_path))
 
     # TODO: Remove 'importlib_resources' dependency when Python >=3.7 is required.
     if minor == 6:
@@ -477,7 +480,6 @@ def add_documentation_dependencies(input_args,
         return
     output_stages['main'] += hpccm.primitives.shell(
         commands=['sed -i \'/\"XPS\"/d;/\"PDF\"/d;/\"PS\"/d;/\"EPS\"/d;/disable ghostscript format types/d\' /etc/ImageMagick-6/policy.xml'])
-    output_stages['main'] += hpccm.building_blocks.pip(pip='pip3', packages=['sphinx==1.6.1', 'gcovr'])
     if input_args.doxygen == '1.8.5':
         doxygen_commit = 'ed4ed873ab0e7f15116e2052119a6729d4589f7a'
         output_stages['main'] += hpccm.building_blocks.generic_autotools(
@@ -575,9 +577,7 @@ def build_stages(args) -> typing.Iterable[hpccm.Stage]:
             stages['main'] += bb
 
     # We always add Python3 and Pip
-    stages['main'] += hpccm.building_blocks.python(python3=True, python2=False, devel=True)
-    stages['main'] += hpccm.building_blocks.pip(upgrade=True, pip='pip3',
-                                                packages=['pytest', 'networkx', 'numpy'])
+    stages['main'] += hpccm.building_blocks.python(python3=True, python2=False)
 
     # Add documentation requirements (doxygen and sphinx + misc).
     if args.doxygen is not None:

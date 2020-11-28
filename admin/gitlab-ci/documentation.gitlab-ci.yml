@@ -6,7 +6,7 @@
     - .gromacs:base:configure
     - .before_script:default
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs:3716
   stage: configure-build
   cache: {}
   variables:
@@ -19,7 +19,7 @@
     CMAKE_PRECISION_OPTIONS: "-DGMX_DOUBLE=OFF"
     CMAKE_BUILD_TYPE_OPTIONS: "-DCMAKE_BUILD_TYPE=Debug"
     CMAKE_GPU_OPTIONS: "-DGMX_GPU=OFF"
-    CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=ON -DPython3_ROOT_DIR=$HOME/venv/py3.7"
+    CMAKE_GMXAPI_OPTIONS: "-DGMX_PYTHON_PACKAGE=ON"
   script:
     - if [[ ! -z $GROMACS_RELEASE && $GROMACS_RELEASE == "true" ]] ; then
       REL_OPTION="-DGMX_BUILD_TARBALL=ON" ;
@@ -42,6 +42,11 @@
       mkdir $BUILD_DIR ;
       fi
     - cd $BUILD_DIR
+    # Running CMake with the venv activated should not be strictly necessary,
+    # but helps to find and cache self-consistent Python and Sphinx details
+    # without additional hinting. Once CMakeCache.txt exists, the later stages
+    # should work fine without reactivating the venv.
+    - source /root/venv/py3.8/bin/activate
     - cmake ..
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       $CMAKE_COMPILER_SCRIPT
@@ -72,7 +77,7 @@
     - .before_script:default
     - .rules:nightly-only-for-release
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs:3716
   stage: release-configure
   cache: {}
   variables:
@@ -182,7 +187,7 @@ docs:configure:
 
 .docs:build:
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs:3716
   script:
     - cd $BUILD_DIR
     - cmake --build . --target gmx -- -j8
@@ -222,7 +227,7 @@ docs:build:
     - .gromacs:base:build
     - .before_script:default
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs:3716
   cache: {}
   variables:
     KUBERNETES_CPU_LIMIT: 4
