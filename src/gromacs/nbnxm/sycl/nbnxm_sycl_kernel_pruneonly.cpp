@@ -50,9 +50,6 @@
 
 #include "nbnxm_sycl_types.h"
 
-// TODO: tune
-#define NTHREAD_Z 1
-
 using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
 using cl::sycl::access::target;
@@ -87,7 +84,9 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
     /* the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution */
     cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
-            cl::sycl::range<2>(NTHREAD_Z, c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
+            cl::sycl::range<2>(c_syclPruneKernelJ4Concurrency,
+                               c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize),
+            cgh);
 
     cl::sycl::stream debug(10240, 128, cgh);
 
@@ -101,13 +100,9 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const unsigned        tidxi = localId[0];
         const unsigned        tidxj = localId[1];
         const cl::sycl::id<2> tidxji(localId[0], localId[1]);
-        const int             tidx = tidxj * itemIdx.get_group_range(0) + tidxi;
-#if NTHREAD_Z == 1
-        const unsigned tidxz = 0;
-#else
-        const unsigned tidxz = localId[2];
-#endif
-        const unsigned bidx = itemIdx.get_group(0);
+        const int             tidx  = tidxj * itemIdx.get_group_range(0) + tidxi;
+        const unsigned        tidxz = localId[2];
+        const unsigned        bidx  = itemIdx.get_group(0);
 
         const sycl_pf::sub_group sg   = itemIdx.get_sub_group();
         const unsigned           widx = tidx / sg.get_local_range()[0]; /* warp index */
@@ -135,18 +130,18 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                    (but it also wastes L2 bandwidth). */
                 const float4 xq    = a_xq[ai];
                 const float3 shift = a_shiftVec[nb_sci.shift];
-                const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], 0.0F);
-                xib[cl::sycl::id<2>(tidxj + i, tidxi)] = xi;
+                const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], xq[3]);
+                xib[tidxj + i][tidxi] = xi;
             }
         }
         itemIdx.barrier(fence_space::local_space);
 
         /* loop over the j clusters = seen by any of the atoms in the current super-cluster.
-         * The loop stride NTHREAD_Z ensures that consecutive warps-pairs are assigned
-         * consecutive j4's entries. */
-        for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
+         * The loop stride c_syclPruneKernelJ4Concurrency ensures that consecutive warps-pairs are
+         * assigned consecutive j4's entries. */
+        for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += c_syclPruneKernelJ4Concurrency)
         {
-            unsigned int imaskFull, imaskCheck, imaskNew;
+            unsigned imaskFull, imaskCheck, imaskNew;
 
             if constexpr (haveFreshList)
             {
@@ -168,7 +163,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
             if ((tidxj == 0 || tidxj == c_splitClSize) && tidxi < c_nbnxnGpuJgroupSize)
             {
-                cjs[cl::sycl::id<2>(tidxz, tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize)] =
+                cjs[tidxz][tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] =
                         a_plistCJ4[j4].cj[tidxi];
             }
             itemIdx.barrier(fence_space::local_space);
@@ -183,7 +178,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
                         const int loadOffset =
                                 (tidxj & c_splitClSize) * c_nbnxnGpuJgroupSize / c_splitClSize;
-                        const int cj = cjs[cl::sycl::id<2>(tidxz, jm + loadOffset)];
+                        const int cj = cjs[tidxz][jm + loadOffset];
                         const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
@@ -195,7 +190,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                             if (imaskCheck & mask_ji)
                             {
                                 // load i-cluster coordinates from shmem
-                                const float4 xi = xib[cl::sycl::id<2>(i, tidxi)];
+                                const float4 xi = xib[i][tidxi];
                                 // distance between i and j atoms
                                 float3 rv(xi[0], xi[1], xi[2]);
                                 rv -= xj;
@@ -229,7 +224,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 a_plistCJ4[j4].imei[widx].imask = imaskNew;
             } // (imaskCheck)
             itemIdx.barrier(fence_space::local_space);
-        } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
+        } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += c_syclPruneKernelJ4Concurrency)
     };
 }
 
