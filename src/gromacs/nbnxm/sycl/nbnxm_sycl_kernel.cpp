@@ -102,12 +102,15 @@ using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
 using cl::sycl::access::target;
 
-static inline void convert_sigma_epsilon_to_c6_c12(const float sigma, const float epsilon, float* c6, float* c12)
+static inline void convert_sigma_epsilon_to_c6_c12(const float                  sigma,
+                                                   const float                  epsilon,
+                                                   cl::sycl::private_ptr<float> c6,
+                                                   cl::sycl::private_ptr<float> c12)
 {
     const float sigma2 = sigma * sigma;
     const float sigma6 = sigma2 * sigma2 * sigma2;
     *c6                = epsilon * sigma6;
-    *c12               = *c6 * sigma6;
+    *c12               = (*c6) * sigma6;
 }
 
 // SYCL-TODO: Merge with calculate_force_switch_F_E by the means of template
@@ -127,7 +130,7 @@ static inline void calculate_force_switch_F(const shift_consts_t dispersionShift
     const float repuShiftV3 = repulsionShift.c3;
 
     const float r       = r2 * inv_r;
-    float       rSwitch = r - rVdwSwitch;
+    float       rSwitch = r - rVdwSwitch; // TODO: use cl::sycl::fdim
     rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
 
     *F_invr += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r
@@ -401,7 +404,7 @@ static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode
     const float left  = a_coulombTab[index];
     const float right = a_coulombTab[index + 1];
 
-    return lerp(left, right, fraction);
+    return lerp(left, right, fraction); // TODO: cl::sycl::mix
 }
 
 /*! Final j-force reduction; this implementation only with power of two
@@ -730,7 +733,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         // TODO: Are there other options?
                         if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
                         {
-                            const float qi = xqib[cl::sycl::id<2>(i, tidxi)].w();
+                            const float qi = xqib[i][tidxi].w();
                             E_el += qi * qi;
                         }
                         if constexpr (props.vdwEwald)
@@ -771,8 +774,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += NTHREAD_Z)
         {
             const int wexcl_idx = a_plistCJ4[j4].imei[widx].excl_ind;
-            int       imask     = a_plistCJ4[j4].imei[widx].imask;
-            const int wexcl     = a_plistExcl[wexcl_idx].pair[sg.get_local_linear_id()];
+            unsigned  imask     = a_plistCJ4[j4].imei[widx].imask;
+            const unsigned wexcl = a_plistExcl[wexcl_idx].pair[tidx & (subGroupSize - 1)]; // sg.get_local_linear_id()
             if (doPruneNBL || imask)
             {
                 /* Pre-load cj into shared memory on both warps separately */
@@ -821,7 +824,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                 int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i; /* i cluster index */
 
                                 /* all threads load an atom from i cluster ci into shmem! */
-                                xqbuf = xqib[cl::sycl::id<2>(i, tidxi)];
+                                xqbuf = xqib[i][tidxi];
                                 float3 xi(xqbuf[0], xqbuf[1], xqbuf[2]);
 
                                 /* distance between i and j atoms */
@@ -852,14 +855,14 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     if constexpr (!props.vdwComb)
                                     {
                                         /* LJ 6*C6 and 12*C12 */
-                                        typei         = atib[cl::sycl::id<2>(i, tidxi)];
+                                        typei         = atib[i][tidxi];
                                         const int idx = (numTypes * typei + typej) * 2;
                                         c6  = a_nbfp[idx]; // TODO: Make a_nbfm into float2
                                         c12 = a_nbfp[idx + 1];
                                     }
                                     else
                                     {
-                                        float2 ljcp_i = ljcpib[cl::sycl::id<2>(i, tidxi)];
+                                        float2 ljcp_i = ljcpib[i][tidxi];
                                         if constexpr (props.vdwCombGeom)
                                         {
                                             c6  = ljcp_i[0] * ljcp_j[0];
@@ -867,9 +870,11 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         }
                                         else
                                         {
+                                            static_assert(props.vdwCombLB);
                                             // LJ 2^(1/6)*sigma and 12*epsilon
                                             sigma   = ljcp_i[0] + ljcp_j[0];
                                             epsilon = ljcp_i[1] * ljcp_j[1];
+                                            // TODO: We're in this branch iff vdwCombGeom. Can't have props.vdw?Switch?
                                             if constexpr (doCalcEnergies || props.vdwFSwitch || props.vdwPSwitch)
                                             {
                                                 convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
@@ -877,8 +882,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         } // props.vdwCombGeom
                                     }     // !props.vdwComb
                                     // Ensure distance do not become so small that r^-12 overflows
-                                    r2                 = std::max(r2, c_nbnxnMinDistanceSquared);
-                                    const float inv_r  = 1.0F / std::sqrt(r2);
+                                    r2 = std::max(r2, c_nbnxnMinDistanceSquared);
+                                    const float inv_r = cl::sycl::rsqrt(r2); // TODO: sycl::native::rsqrt?
                                     const float inv_r2 = inv_r * inv_r;
                                     float       inv_r6, F_invr, E_lj_p;
                                     if constexpr (!props.vdwCombLB || doCalcEnergies)

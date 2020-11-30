@@ -123,6 +123,7 @@ namespace gmx::internal
 template<class T, enum cl::sycl::access::mode mode>
 using PlaceholderAccessor =
         cl::sycl::accessor<T, 1, mode, cl::sycl::access::target::global_buffer, cl::sycl::access::placeholder::true_t>;
+// SYCL-TODO: no_alias, no_offset properties from Intel extensions?
 } // namespace gmx::internal
 
 /** \brief
