@@ -47,6 +47,7 @@
 #define GMX_MDTYPES_MD_ENUMS_H
 
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/enumerationhelpers.h"
 
 /*! \brief Return a string from a list of strings
  *
@@ -599,16 +600,15 @@ extern const char* dhdl_derivatives_names[edhdlderivativesNR + 1];
  *
  * Distinguishes between soft-core functions.
  */
-enum eSoftcoreType
+enum class SoftcoreType
 {
-    escfunctionBEUTLER,
-    escfunctionGAPSYS,
-    escfunctionNONE,
-    escfunctionNR
+    Beutler,
+    Gapsys,
+    None,
+    Count
 };
-//! String for DHDL derivatives
-extern const char* sc_function_names[escfunctionNR + 1];
-#define SCFUNCTIONNAMES(e) enum_name(e, escfunctionNR, sc_function_names)
+//! Strings for softcore function names
+extern const gmx::EnumerationArray<SoftcoreType, std::string> c_SoftcoreTypeNames;
 
 /*! \brief Solvent model
  *

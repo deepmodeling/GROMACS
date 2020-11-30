@@ -150,7 +150,7 @@ struct t_lambda
     //! Use softcore for the coulomb portion as well (default FALSE)
     gmx_bool bScCoul;
     //! The specific soft-core function to use
-    int sc_function;
+    SoftcoreType sc_function;
     //! Whether to print the dvdl term associated with this term; if it is not specified as separate, it is lumped with the FEP term
     gmx_bool separate_dvdl[efptNR];
     //! Whether to write a separate dhdl.xvg file note: NOT a gmx_bool, but an enum
