@@ -79,19 +79,12 @@ struct SimdDataTypes
 };
 #endif
 
-//! Computes 1/r^(1/p) for the standard p=6
-template<class RealType>
-static inline void invPthRoot(const RealType r, RealType* iPthRoot)
-{
-    *iPthRoot = gmx::invsqrt(std::cbrt(r));
-}
-
 //! Computes r^(1/p) and 1/r^(1/p) for the standard p=6
 template<class RealType>
-static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* iPthRoot)
+static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* invPthRoot)
 {
-    invPthRoot(r, iPthRoot);
-    *pthRoot = 1 / (*iPthRoot);
+    *invPthRoot = gmx::invsqrt(std::cbrt(r));
+    *pthRoot    = 1 / (*invPthRoot);
 }
 
 template<class RealType>
@@ -116,38 +109,117 @@ static inline RealType calculateVdw12(const RealType c12, const RealType rinv6)
 /* reaction-field electrostatics */
 template<class RealType>
 static inline RealType reactionFieldScalarForce(const RealType qq,
+                                                const RealType rinv,
                                                 const RealType r,
                                                 const real     krf,
                                                 const real     two)
 {
-    return - (qq * two * krf * r * r);
+    return (qq * (rinv - two * krf * r * r));
 }
 template<class RealType>
 static inline RealType reactionFieldPotential(const RealType qq,
+                                              const RealType rinv,
                                               const RealType r,
                                               const real     krf,
-                                              const real     crf)
+                                              const real     potentialShift)
 {
-    return (qq * (krf * r * r - crf));
+    return (qq * (rinv + krf * r * r - potentialShift));
 }
 
 /* Ewald electrostatics */
 template<class RealType>
-static inline RealType coulombScalarForce(const RealType coulomb, const RealType rinv)
+static inline RealType ewaldScalarForce(const RealType coulomb, const RealType rinv)
 {
     return (coulomb * rinv);
 }
-
 template<class RealType>
-static inline RealType coulombPotential(const RealType coulomb, const RealType rinv)
+static inline RealType ewaldPotential(const RealType coulomb, const RealType rinv, const real potentialShift)
 {
-    return (coulomb * rinv);
+    return (coulomb * (rinv - potentialShift));
 }
 
+/* linearized electrostatics */
 template<class RealType>
-static inline RealType ewaldPotentialShift(const RealType coulomb, const real potentialShift)
+static inline void quadraticApproximationCoulomb(const RealType qq,
+                                                 const RealType rInv,
+                                                 const RealType r,
+                                                 const RealType lambdaFac,
+                                                 const RealType dLambdaFac,
+                                                 const RealType sigma6,
+                                                 const RealType alphaEff,
+                                                 RealType*      force,
+                                                 RealType*      potential,
+                                                 RealType*      dvdl)
 {
-    return - (coulomb * potentialShift);
+    constexpr real c_twentySixSeventh = 26.0 / 7.0;
+    RealType       rInvQ, rQ;
+
+    pthRoot(c_twentySixSeventh * sigma6 * (1. - lambdaFac), &rQ, &rInvQ);
+    rInvQ /= alphaEff;
+
+    if (rInvQ < rInv)
+    {
+        real quadrFac, linFac, constFac;
+        constFac = qq * rInvQ;
+        linFac   = constFac * r * rInvQ;
+        quadrFac = linFac * r * rInvQ;
+
+        /* Computing Coulomb force and potential energy */
+        /* note that later F will be multiplied by rpm2! */
+        *force = -2. * quadrFac + 3. * linFac;
+
+        *potential = quadrFac - 3. * (linFac - constFac);
+
+        *dvdl += dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac);
+    }
+}
+
+/* reaction-field linearized electrostatics */
+template<class RealType>
+static inline void reactionFieldQuadraticPotential(const RealType qq,
+                                                   const RealType rInv,
+                                                   const RealType r,
+                                                   const RealType lambdaFac,
+                                                   const RealType dLambdaFac,
+                                                   const RealType sigma6,
+                                                   const RealType alphaEff,
+                                                   const RealType krf,
+                                                   const RealType potentialShift,
+                                                   RealType*      force,
+                                                   RealType*      potential,
+                                                   RealType*      dvdl)
+{
+    if ((0 < lambdaFac) && (lambdaFac < 1))
+    {
+        quadraticApproximationCoulomb(qq, rInv, r, lambdaFac, dLambdaFac, sigma6, alphaEff, force,
+                                      potential, dvdl);
+        *force     -= (qq * 2.0 * krf * r * r);
+        *potential += (qq * (krf * r * r - potentialShift));
+    }
+}
+
+/* ewald linearized electrostatics */
+template<class RealType>
+static inline void ewaldQuadraticPotential(const RealType qq,
+                                           const RealType rInv,
+                                           const RealType r,
+                                           const RealType lambdaFac,
+                                           const RealType dLambdaFac,
+                                           const RealType sigma6,
+                                           const RealType alphaEff,
+                                           const RealType potentialShift,
+                                           RealType*      force,
+                                           RealType*      potential,
+                                           RealType*      dvdl)
+{
+
+    if ((0 < lambdaFac) && (lambdaFac < 1))
+    {
+        quadraticApproximationCoulomb(qq, rInv, r, lambdaFac, dLambdaFac, sigma6, alphaEff, force,
+                                      potential, dvdl);
+
+        *potential -= qq*potentialShift;
+    }
 }
 
 /* cutoff LJ */
@@ -159,21 +231,83 @@ static inline RealType lennardJonesScalarForce(const RealType v6, const RealType
 template<class RealType>
 static inline RealType lennardJonesPotential(const RealType v6,
                                              const RealType v12,
+                                             const RealType c6,
+                                             const RealType c12,
+                                             const real     repulsionShift,
+                                             const real     dispersionShift,
                                              const real     onesixth,
                                              const real     onetwelfth)
 {
-    return (v12 * onetwelfth - v6 * onesixth);
+    return ((v12 + c12 * repulsionShift) * onetwelfth - (v6 + c6 * dispersionShift) * onesixth);
 }
 
+/* cutoff LJ with quadratic appximation of lj-potential */
 template<class RealType>
-static inline RealType lennardJonesPotentialShift(const RealType c6,
-                                                 const RealType c12,
-                                                 const real repulsionShift,
-                                                 const real dispersionShift,
-                                                 const real onesixth,
-                                                 const real onetwelth)
+static inline void lennardJonesQuadraticPotential(const RealType c6,
+                                                  const RealType c12,
+                                                  const RealType rInv,
+                                                  const RealType r,
+                                                  const RealType rsq,
+                                                  const RealType lambdaFac,
+                                                  const RealType dLambdaFac,
+                                                  const RealType sigma6,
+                                                  const RealType alphaEff,
+                                                  const RealType repulsionShift,
+                                                  const RealType dispersionShift,
+                                                  RealType*      force,
+                                                  RealType*      potential,
+                                                  RealType*      dvdl)
 {
-  return (c12 * repulsionShift * onetwelth - c6 * dispersionShift * onesixth);
+    constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
+    constexpr RealType c_oneSixth         = 1.0 / 6.0;
+    constexpr RealType c_oneTwelth        = 1.0 / 12.0;
+
+    /* only do this if necessary */
+    if ((0 < lambdaFac) && (lambdaFac < 1))
+    {
+        RealType rInvQ, rQ;
+        pthRoot(c_twentySixSeventh * sigma6 * (1. - lambdaFac), &rQ, &rInvQ);
+        rInvQ /= alphaEff;
+
+        // scaled values for c6 and c12
+        RealType c6s, c12s;
+        c6s  = c_oneSixth * c6;
+        c12s = c_oneTwelth * c12;
+
+        if (rInvQ < rInv)
+        {
+            /* Temporary variables for inverted values */
+            RealType rInv14C, rInv13C, rInv12C;
+            RealType rInv8C, rInv7C, rInv6C;
+            rInv6C = rInvQ * rInvQ * rInvQ;
+            rInv6C *= rInv6C;
+            rInv7C  = rInv6C * rInvQ;
+            rInv8C  = rInv7C * rInvQ;
+            rInv14C = c12s * rInv7C * rInv7C * rsq;
+            rInv13C = c12s * rInv7C * rInv6C * r;
+            rInv12C = c12s * rInv6C * rInv6C;
+            rInv8C *= c6s * rsq;
+            rInv7C *= c6s * r;
+            rInv6C *= c6s;
+
+            /* Temporary variables for A and B */
+            RealType quadrFac, linearFac, constFac;
+            quadrFac  = 156. * rInv14C - 42. * rInv8C;
+            linearFac = 168. * rInv13C - 48. * rInv7C;
+            constFac  = 91. * rInv12C - 28. * rInv6C;
+
+            /* Computing LJ force and potential energy*/
+            *force = -quadrFac + linearFac;
+
+            *potential = 0.5 * quadrFac - linearFac + constFac;
+
+            *dvdl += dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
+                        * ((6.5 * rInv14C - rInv8C) - (13. * rInv13C - 2. * rInv7C)
+                           + (6.5 * rInv12C - rInv6C));
+        }
+
+        *potential += ((c12s * repulsionShift) - (c6s * dispersionShift));
+    }
 }
 
 /* Ewald LJ */
@@ -233,14 +367,13 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     using IntType  = typename DataTypes::IntType;
 
     /* FIXME: How should these be handled with SIMD? */
-    constexpr real onetwelfth        = 1.0 / 12.0;
-    constexpr real onesixth          = 1.0 / 6.0;
-    constexpr real zero              = 0.0;
-    constexpr real half              = 0.5;
-    constexpr real one               = 1.0;
-    constexpr real two               = 2.0;
-    constexpr real six               = 6.0;
-    constexpr real twentysix_seventh = 26.0 / 7.0;
+    constexpr real onetwelfth = 1.0 / 12.0;
+    constexpr real onesixth   = 1.0 / 6.0;
+    constexpr real zero       = 0.0;
+    constexpr real half       = 0.5;
+    constexpr real one        = 1.0;
+    constexpr real two        = 2.0;
+    constexpr real six        = 6.0;
 
     /* Extract pointer to non-bonded interaction constants */
     const interaction_const_t* ic = fr->ic;
@@ -586,52 +719,38 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                         if ((qq[i] != 0) && computeElecInteraction)
                         {
-                            Vcoul[i]  = coulombPotential(qq[i], rinvC);
-                            FscalC[i] = coulombScalarForce(qq[i], rinvC);
-
-                            /* prev. computed hardcore interactions might be overwritten now;
-                             * if its only a minor percentage it shouldn't matter too much, resp.
-                             * for simd one must compute both branches (r<r0Q<r) anyways,
-                             * so not too much effort at this point now prior to introducing simd
-                             * into this kernel.
-                             */
-                            if (softcoreType == SoftcoreType::Gapsys)
-                            {
-
-                                /* only do this if necessary */
-                                if ( (0<LFC[i]) && (LFC[i]<1) )
-                                {
-                                    RealType rinvQ;
-                                    invPthRoot(twentysix_seventh * sigma6[i] * (one-LFC[i]), &rinvQ);
-                                    rinvQ /= alpha_coul_eff;
-
-                                    if (rinvQ < rinv)
-                                    {
-                                        real a_q, b_q, c_q;
-                                        c_q = qq[i] * rinvQ;
-                                        b_q = c_q * r * rinvQ;
-                                        a_q = b_q * r * rinvQ;
-
-                                        /* Computing Coulomb force and potential energy*/
-                                        FscalC[i] = -2. * a_q + 3. * b_q; // note that later F will be multiplied by rpm2!
-
-                                        Vcoul[i] = a_q - 3. * (b_q - c_q);
-
-                                        dvdl_coul += DLF[i] *
-                                            half * (LFC[i]/(1.-LFC[i])) *
-                                             (a_q - 2. * b_q + c_q);
-                                    }
-                                }
-                            }
-
                             if (elecInteractionTypeIsEwald)
                             {
-                                Vcoul[i]  += ewaldPotentialShift(qq[i], sh_ewald);
+                                Vcoul[i]  = ewaldPotential(qq[i], rinvC, sh_ewald);
+                                FscalC[i] = ewaldScalarForce(qq[i], rinvC);
                             }
                             else
                             {
-                                Vcoul[i]  += reactionFieldPotential(qq[i], rC, krf, crf);
-                                FscalC[i] += reactionFieldScalarForce(qq[i], rC, krf, two);
+                                Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
+                                FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
+                            }
+
+                            /* prev. computed hardcore interactions might be
+                             * overwritten now; if its only a minor percentage
+                             * it shouldn't matter too much, resp. for simd one
+                             * must compute both branches (r<r0Q<r) anyways,
+                             * so not too much effort at this point now prior
+                             * to introducing simd into this kernel.
+                             */
+                            if (softcoreType == SoftcoreType::Gapsys)
+                            {
+                                if (elecInteractionTypeIsEwald)
+                                {
+                                    ewaldQuadraticPotential(qq[i], rinvC, rC, LFC[i], DLF[i],
+                                                            sigma6[i], alpha_coul_eff, sh_ewald,
+                                                            &FscalC[i], &Vcoul[i], &dvdl_coul);
+                                }
+                                else
+                                {
+                                    reactionFieldQuadraticPotential(qq[i], rinvC, rC, LFC[i], DLF[i],
+                                                                    sigma6[i], alpha_coul_eff, krf,
+                                                                    crf, &FscalC[i], &Vcoul[i], &dvdl_coul);
+                                }
                             }
                         }
 
@@ -656,68 +775,24 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             RealType Vvdw6  = calculateVdw6(c6[i], rinv6);
                             RealType Vvdw12 = calculateVdw12(c12[i], rinv6);
 
-                            Vvdw[i]   = lennardJonesPotential(Vvdw6, Vvdw12,
-                                                              onesixth, onetwelfth);
+                            Vvdw[i] = lennardJonesPotential(Vvdw6, Vvdw12, c6[i], c12[i], repulsionShift,
+                                                            dispersionShift, onesixth, onetwelfth);
                             FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
 
-                            /* prev. computed hardcore interactions might be overwritten now;
-                             * if its only a minor percentage it shouldn't matter too much, resp.
-                             * for simd one must compute both branches (r<r0Q<r) anyways,
-                             * so not too much effort at this point now prior to introducing simd
-                             * into this kernel.
+                            /* prev. computed hardcore interactions might be
+                             * overwritten now; if its only a minor percentage
+                             * it shouldn't matter too much, resp. for simd one
+                             * must compute both branches (r<r0Q<r) anyways,
+                             * so not too much effort at this point now prior
+                             * to introducing simd into this kernel.
                              */
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
-                                /* only do this if necessary */
-                                if ( (0<LFV[i]) && (LFV[i]<1) )
-                                {
-                                    RealType rinvQ;
-                                    invPthRoot(twentysix_seventh * sigma6[i] * (one-LFV[i]), &rinvQ);
-                                    rinvQ /= alpha_coul_eff;
-                                    if (rinvQ < rinv)
-                                    {
-                                        /* Temporary variables for scaled c6 and c12 */
-                                        real c6s, c12s;
-                                        c6s = onesixth * c6[i];
-                                        c12s = onetwelfth * c12[i];
-
-                                        /* Temporary variables for inverted values */
-                                        real rinv14C, rinv13C, rinv12C;
-                                        real rinv8C, rinv7C, rinv6C;
-                                        rinv6C   = rinvQ * rinvQ * rinvQ;
-                                        rinv6C  *= rinv6C;
-                                        rinv7C   = rinv6C * rinvQ;
-                                        rinv8C   = rinv7C * rinvQ;
-                                        rinv14C  = c12s * rinv7C * rinv7C * rsq;
-                                        rinv13C  = c12s * rinv7C * rinv6C * r;
-                                        rinv12C  = c12s * rinv6C * rinv6C;
-                                        rinv8C  *= c6s * rsq;
-                                        rinv7C  *= c6s * r;
-                                        rinv6C  *= c6s;
-
-                                        /* Temporary variables for A and B */
-                                        real a_lj, b_lj, c_lj;
-                                        a_lj = 156. * rinv14C - 42. * rinv8C;
-                                        b_lj = 168. * rinv13C - 48. * rinv7C;
-                                        c_lj =  91. * rinv12C - 28. * rinv6C;
-
-                                        /* Computing LJ force and potential energy*/
-                                        FscalV[i] = - a_lj + b_lj;
-
-                                        Vvdw[i] = half * a_lj - b_lj + c_lj;
-
-                                        dvdl_vdw += DLF[i] * 28. * (LFC[i]/(1-LFC[i])) *
-                                             ( (6.5 * rinv14C - rinv8C) -
-                                               (13. * rinv13C - 2. * rinv7C) +
-                                               (6.5 * rinv12C - rinv6C)
-                                             );
-                                    }
-                                }
+                                lennardJonesQuadraticPotential(c6[i], c12[i], rinv, r, rsq, LFV[i],
+                                                               DLF[i], sigma6[i], alpha_coul_eff,
+                                                               repulsionShift, dispersionShift,
+                                                               &FscalV[i], &Vvdw[i], &dvdl_vdw);
                             }
-
-                            Vvdw[i] += lennardJonesPotentialShift(c6[i], c12[i],
-                                                                  repulsionShift, dispersionShift,
-                                                                  onesixth, onetwelfth);
 
                             if (vdwInteractionTypeIsEwald)
                             {
