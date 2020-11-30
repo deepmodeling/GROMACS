@@ -621,7 +621,7 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
     {
         fepvals->edHdLPrintEnergy = edHdLPrintEnergyNO;
     }
-    if (file_version >= 122)
+    if (file_version >= 123)
     {
       serializer->doInt(reinterpret_cast<int*>(&fepvals->sc_function));
     }
