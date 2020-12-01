@@ -147,7 +147,7 @@ const char* separate_dhdl_file_names[esepdhdlfileNR + 1] = { "yes", "no", nullpt
 
 const char* dhdl_derivatives_names[edhdlderivativesNR + 1] = { "yes", "no", nullptr };
 
-const gmx::EnumerationArray<SoftcoreType, std::string> c_SoftcoreTypeNames = { { "beutler", "gapsys", "none" } };
+const gmx::EnumerationArray<SoftcoreType, std::string> c_softcoreTypeNames = { { "beutler", "gapsys", "none" } };
 
 const char* esol_names[esolNR + 1] = { "No", "SPC", "TIP4p", nullptr };
 

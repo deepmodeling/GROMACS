@@ -600,7 +600,7 @@ static void pr_fepvals(FILE* fp, int indent, const t_lambda* fep, gmx_bool bMDPf
     PD("dh-hist-spacing", fep->dh_hist_spacing);
     PS("separate-dhdl-file", SEPDHDLFILETYPE(fep->separate_dhdl_file));
     PS("dhdl-derivatives", DHDLDERIVATIVESTYPE(fep->dhdl_derivatives));
-    PS("sc-function", c_SoftcoreTypeNames[fep->sc_function].c_str());
+    PS("sc-function", c_softcoreTypeNames[fep->sc_function].c_str());
 };
 
 static void pr_pull(FILE* fp, int indent, const pull_params_t& pull)

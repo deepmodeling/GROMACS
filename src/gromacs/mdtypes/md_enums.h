@@ -608,7 +608,7 @@ enum class SoftcoreType
     Count
 };
 //! Strings for softcore function names
-extern const gmx::EnumerationArray<SoftcoreType, std::string> c_SoftcoreTypeNames;
+extern const gmx::EnumerationArray<SoftcoreType, std::string> c_softcoreTypeNames;
 
 /*! \brief Solvent model
  *
