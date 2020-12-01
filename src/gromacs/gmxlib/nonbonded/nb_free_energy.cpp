@@ -730,12 +730,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                 FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
                             }
 
-                            /* prev. computed hardcore interactions might be
-                             * overwritten now; if its only a minor percentage
-                             * it shouldn't matter too much, resp. for simd one
-                             * must compute both branches (r<r0Q<r) anyways,
-                             * so not too much effort at this point now prior
-                             * to introducing simd into this kernel.
+                            /* some prev. computed hardcore interactions might be
+                             * overwritten now; in case only a minor percentage
+                             * of pairs is affected, performance shouldn't be
+                             * degraded too much. For simd one must compute both
+                             * branches in the gapsys kernel (r<r0Q<r) anyways,
+                             * so not too much effort in code optimization at
+                             * this point now prior to introducing simd into
+                             * this kernel.
                              */
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
@@ -779,12 +781,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                                             dispersionShift, onesixth, onetwelfth);
                             FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
 
-                            /* prev. computed hardcore interactions might be
-                             * overwritten now; if its only a minor percentage
-                             * it shouldn't matter too much, resp. for simd one
-                             * must compute both branches (r<r0Q<r) anyways,
-                             * so not too much effort at this point now prior
-                             * to introducing simd into this kernel.
+                            /* some prev. computed hardcore interactions might be
+                             * overwritten now; in case only a minor percentage
+                             * of pairs is affected, performance shouldn't be
+                             * degraded too much. For simd one must compute both
+                             * branches in the gapsys kernel (r<r0Q<r) anyways,
+                             * so not too much effort in code optimization at
+                             * this point now prior to introducing simd into
+                             * this kernel.
                              */
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
