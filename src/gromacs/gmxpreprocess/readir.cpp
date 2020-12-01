@@ -2230,7 +2230,7 @@ void get_ir(const char*     mdparin,
     {
         softcoreTypeNamesChar.push_back(softcoreTypeName.c_str());
     }
-    fep->sc_function = static_cast<SoftcoreType>(get_eeenum(&inp, "sc-function", softcoreTypeNamesChar.data(), wi));
+    fep->softcoreFunction   = static_cast<SoftcoreType>(get_eeenum(&inp, "sc-function", softcoreTypeNamesChar.data(), wi));
     fep->dh_hist_size       = get_eint(&inp, "dh_hist_size", 0, wi);
     fep->dh_hist_spacing    = get_ereal(&inp, "dh_hist_spacing", 0.1, wi);
     fep->separate_dhdl_file = get_eeenum(&inp, "separate-dhdl-file", separate_dhdl_file_names, wi);

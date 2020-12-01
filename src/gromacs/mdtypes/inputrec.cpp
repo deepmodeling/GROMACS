@@ -600,7 +600,7 @@ static void pr_fepvals(FILE* fp, int indent, const t_lambda* fep, gmx_bool bMDPf
     PD("dh-hist-spacing", fep->dh_hist_spacing);
     PS("separate-dhdl-file", SEPDHDLFILETYPE(fep->separate_dhdl_file));
     PS("dhdl-derivatives", DHDLDERIVATIVESTYPE(fep->dhdl_derivatives));
-    PS("sc-function", c_softcoreTypeNames[fep->sc_function].c_str());
+    PS("sc-function", c_softcoreTypeNames[fep->softcoreFunction].c_str());
 };
 
 static void pr_pull(FILE* fp, int indent, const pull_params_t& pull)
@@ -1284,7 +1284,7 @@ static void cmp_fepvals(FILE* fp, const t_lambda* fep1, const t_lambda* fep2, re
     cmp_bool(fp, "inputrec->fepvals->bScCoul", -1, fep1->bScCoul, fep1->bScCoul);
     cmp_int(fp, "inputrec->separate_dhdl_file", -1, fep1->separate_dhdl_file, fep2->separate_dhdl_file);
     cmp_int(fp, "inputrec->dhdl_derivatives", -1, fep1->dhdl_derivatives, fep2->dhdl_derivatives);
-    cmp_int(fp, "inputrec->sc_function", -1, static_cast<int>(fep1->sc_function), static_cast<int>(fep2->sc_function));
+    cmp_int(fp, "inputrec->softcoreFunction", -1, static_cast<int>(fep1->softcoreFunction), static_cast<int>(fep2->softcoreFunction));
     cmp_int(fp, "inputrec->dh_hist_size", -1, fep1->dh_hist_size, fep2->dh_hist_size);
     cmp_double(fp, "inputrec->dh_hist_spacing", -1, fep1->dh_hist_spacing, fep2->dh_hist_spacing,
                ftol, abstol);

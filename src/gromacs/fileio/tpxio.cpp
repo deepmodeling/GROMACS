@@ -623,11 +623,11 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
     }
     if (file_version >= tpxv_Softcore)
     {
-      serializer->doInt(reinterpret_cast<int*>(&fepvals->sc_function));
+      serializer->doInt(reinterpret_cast<int*>(&fepvals->softcoreFunction));
     }
     else
     {
-      fepvals->sc_function = SoftcoreType::Beutler;
+      fepvals->softcoreFunction = SoftcoreType::Beutler;
     }
 
     /* handle lambda_neighbors */
