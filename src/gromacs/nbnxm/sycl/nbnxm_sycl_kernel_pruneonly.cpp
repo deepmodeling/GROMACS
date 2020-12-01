@@ -90,6 +90,9 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
     cl::sycl::stream debug(10240, 128, cgh);
 
+    cl::sycl::accessor<int, 1, mode::read_write, target::local> warp_vote_buf(
+            cl::sycl::range<1>(c_syclPruneKernelJ4Concurrency * c_nbnxnGpuNumClusterPerSupercluster), cgh);
+
     /* Requirements:
      * Work group (block) must have range (c_clSize, c_clSize, ...) (for localId calculation, easy
      * to change) Sub group (warp) must have length 8 (more complicated to change) */
@@ -198,13 +201,18 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                                 /* If _none_ of the atoms pairs are in rlistOuter
                                  * range, the bit corresponding to the current
                                  * cluster-pair in imask gets set to 0. */
-                                if (haveFreshList && !(sycl_pf::group_any_of(sg, r2 < rlistOuterSq)))
+                                if (haveFreshList
+                                    && !(any_of(itemIdx, warp_vote_buf,
+                                                tidxz * c_nbnxnGpuNumClusterPerSupercluster + widx,
+                                                sg, r2 < rlistOuterSq)))
                                 {
                                     imaskFull &= ~mask_ji;
                                 }
                                 /* If any atom pair is within range, set the bit
                                  * corresponding to the current cluster-pair. */
-                                if (sycl_pf::group_any_of(sg, r2 < rlistInnerSq))
+                                if (any_of(itemIdx, warp_vote_buf,
+                                           tidxz * c_nbnxnGpuNumClusterPerSupercluster + widx, sg,
+                                           r2 < rlistInnerSq))
                                 {
                                     imaskNew |= mask_ji;
                                 }

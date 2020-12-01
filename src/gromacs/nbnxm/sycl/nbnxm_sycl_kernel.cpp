@@ -644,6 +644,9 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         }
     }();
 
+    cl::sycl::accessor<int, 1, mode::read_write, target::local> warp_vote_buf(
+            cl::sycl::range<1>(c_nbnxnGpuNumClusterPerSupercluster), cgh);
+
     /* Flag to control the calculation of exclusion forces in the kernel
      * We do that with Ewald (elec/vdw) and RF. Cut-off only has exclusion
      * energy terms. */
@@ -665,8 +668,12 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 #endif
         const unsigned bidx = itemIdx.get_group(0);
 
-        const sycl_pf::sub_group sg                         = itemIdx.get_sub_group();
-        const unsigned           widx                       = sg.get_group_id(); // warp index
+        const sycl_pf::sub_group sg = itemIdx.get_sub_group();
+        static constexpr int     subGroupSize =
+                8; // Better use sg.get_group_range, but too much of the logic relies on it anyway
+        const unsigned widx =
+                tidx / subGroupSize; // sg.get_group_id(); // warp index // SYCL_TODO: account for NTHREAD_Z > 1
+
         float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster] = { { 0.0F, 0.0F, 0.0F } }; // i force buffer
 
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx];
@@ -691,8 +698,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 const int             ai = ci * c_clSize + tidxi;
                 const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
 
-                float3 shift = a_shiftVec[nb_sci.shift];
-                xqbuf        = a_xq[ai];
+                const float3 shift = a_shiftVec[nb_sci.shift];
+                xqbuf              = a_xq[ai];
                 xqbuf += float4(shift[0], shift[1], shift[2], 0.0F);
                 xqbuf[3] *= epsFac;
                 xqib[cacheIdx] = xqbuf;
@@ -835,18 +842,20 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     /* If _none_ of the atoms pairs are in cutoff range,
                                      * the bit corresponding to the current
                                      * cluster-pair in imask gets set to 0. */
-                                    if (!sycl_pf::group_any_of(sg, r2 < rlistOuterSq))
+                                    // if (!sycl_pf::group_any_of(sg, r2 < rlistOuterSq))
+                                    if (!any_of(itemIdx, warp_vote_buf, widx, sg, r2 < rlistOuterSq))
                                     {
                                         imask &= ~mask_ji;
                                     }
                                 }
-                                const float int_bit = (wexcl & mask_ji) ? 1.0f : 0.0f;
+                                const float int_bit = (wexcl & mask_ji) ? 1.0F : 0.0F;
 
                                 // cutoff & exclusion check
 
                                 const bool notExcluded = doExclusionForces
                                                                  ? (nonSelfInteraction | (ci != cj))
                                                                  : (wexcl & mask_ji);
+
                                 if ((r2 < rCoulombSq) && notExcluded)
                                 {
                                     float qi = xqbuf[3];
