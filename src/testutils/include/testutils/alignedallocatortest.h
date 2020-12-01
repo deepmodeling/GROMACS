@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -64,7 +64,7 @@ namespace test
 /*! \libinternal
  * \brief Templated test fixture. */
 template<typename T>
-class AllocatorTest : public ::testing::Test
+class AlignedAllocatorTest : public ::testing::Test
 {
 public:
     /*! \brief Return a bitmask for testing the alignment.
@@ -75,9 +75,10 @@ public:
     std::size_t mask(const T& allocator) { return allocator.alignment() - 1; }
 };
 
-// NB need to use this->mask() because of GoogleTest quirks
+// NB need to use this->mask() because of C++ requirements when using
+// template classes for test fixtures.
 
-TYPED_TEST(AllocatorTest, AllocatorAlignAllocatesWithAlignment) //NOLINT(misc-definitions-in-headers)
+TYPED_TEST(AlignedAllocatorTest, AllocatorAlignAllocatesWithAlignment) //NOLINT(misc-definitions-in-headers)
 {
     using pointer = typename TypeParam::value_type*;
     TypeParam a;
@@ -88,7 +89,7 @@ TYPED_TEST(AllocatorTest, AllocatorAlignAllocatesWithAlignment) //NOLINT(misc-de
 }
 
 
-TYPED_TEST(AllocatorTest, VectorAllocatesAndResizesWithAlignment) //NOLINT(misc-definitions-in-headers)
+TYPED_TEST(AlignedAllocatorTest, VectorAllocatesAndResizesWithAlignment) //NOLINT(misc-definitions-in-headers)
 {
     using value_type = typename TypeParam::value_type;
     std::vector<value_type, TypeParam> v(10);
@@ -104,7 +105,7 @@ TYPED_TEST(AllocatorTest, VectorAllocatesAndResizesWithAlignment) //NOLINT(misc-
     }
 }
 
-TYPED_TEST(AllocatorTest, VectorAllocatesAndReservesWithAlignment) //NOLINT(misc-definitions-in-headers)
+TYPED_TEST(AlignedAllocatorTest, VectorAllocatesAndReservesWithAlignment) //NOLINT(misc-definitions-in-headers)
 {
     using value_type = typename TypeParam::value_type;
     std::vector<value_type, TypeParam> v(10);
@@ -120,7 +121,7 @@ TYPED_TEST(AllocatorTest, VectorAllocatesAndReservesWithAlignment) //NOLINT(misc
     }
 }
 
-TYPED_TEST(AllocatorTest, Move) //NOLINT(misc-definitions-in-headers)
+TYPED_TEST(AlignedAllocatorTest, Move) //NOLINT(misc-definitions-in-headers)
 {
     using value_type = typename TypeParam::value_type;
     std::vector<value_type, TypeParam> v1(1);

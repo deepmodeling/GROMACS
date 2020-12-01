@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2017,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -64,7 +64,7 @@ using AllocatorTypesToTest = ::testing::Types<AlignedAllocator<real>,
                                               AlignedAllocator<RVec>,
                                               PageAlignedAllocator<RVec>>;
 
-TYPED_TEST_CASE(AllocatorTest, AllocatorTypesToTest);
+TYPED_TEST_CASE(AlignedAllocatorTest, AllocatorTypesToTest);
 
 } // namespace test
 } // namespace gmx
@@ -72,14 +72,14 @@ TYPED_TEST_CASE(AllocatorTest, AllocatorTypesToTest);
 #endif
 
 // Includes tests common to all allocation policies.
-#include "gromacs/utility/tests/alignedallocator_impl.h"
+#include "testutils/alignedallocatortest.h"
 
 namespace gmx
 {
 namespace test
 {
 
-TYPED_TEST(AllocatorTest, StatelessAllocatorUsesNoMemory)
+TYPED_TEST(AlignedAllocatorTest, StatelessAllocatorUsesNoMemory)
 {
     using value_type = typename TypeParam::value_type;
     EXPECT_EQ(sizeof(std::vector<value_type>), sizeof(std::vector<value_type, TypeParam>));

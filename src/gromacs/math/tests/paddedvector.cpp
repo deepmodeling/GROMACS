@@ -56,7 +56,7 @@
 #include "gromacs/utility/alignedallocator.h"
 #include "gromacs/utility/basedefinitions.h"
 
-#include "gromacs/math/tests/testarrayrefs.h"
+#include "testutils/testarrayrefs.h"
 
 namespace gmx
 {

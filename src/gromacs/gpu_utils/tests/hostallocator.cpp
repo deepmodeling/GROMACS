@@ -55,7 +55,7 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/real.h"
 
-#include "gromacs/math/tests/testarrayrefs.h"
+#include "testutils/testarrayrefs.h"
 #include "testutils/test_hardware_environment.h"
 
 #include "devicetransfers.h"
@@ -370,10 +370,10 @@ TEST(HostAllocatorUntypedTest, Comparison)
 using AllocatorTypesToTest =
         ::testing::Types<HostAllocator<real>, HostAllocator<int32_t>, HostAllocator<RVec>, HostAllocator<MoveOnly>>;
 
-TYPED_TEST_CASE(AllocatorTest, AllocatorTypesToTest);
+TYPED_TEST_CASE(AlignedAllocatorTest, AllocatorTypesToTest);
 
 } // namespace test
 } // namespace gmx
 
 // Includes tests common to all allocation policies.
-#include "gromacs/utility/tests/alignedallocator_impl.h"
+#include "testutils/alignedallocatortest.h"
