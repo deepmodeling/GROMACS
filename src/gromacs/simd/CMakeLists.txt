@@ -41,7 +41,6 @@ target_compile_definitions(simd PRIVATE HAVE_CONFIG_H)
 # Source files have the following dependencies on library infrastructure.
 target_link_libraries(simd PRIVATE
                       common
-                      legacy_modules
                       )
 
 # Source files have the following private module dependencies.

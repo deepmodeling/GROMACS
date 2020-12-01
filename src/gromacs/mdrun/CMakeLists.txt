@@ -113,7 +113,6 @@ target_link_libraries(mdrun INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(mdrun PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(mdrun PRIVATE legacy_modules)
 
 # TODO: Find a home for this header and a scheme for installation.
 # This header straddles the installed libraries and is a transitive interface

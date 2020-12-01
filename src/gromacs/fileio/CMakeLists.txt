@@ -92,7 +92,6 @@ target_include_directories(fileio SYSTEM PRIVATE
 target_link_libraries(fileio PRIVATE
                       common
                       compat
-                      legacy_modules
                       mdtypes
                       trajectory
                       # The following cyclic dependencies should be removed
@@ -120,7 +119,6 @@ target_link_libraries(fileio PUBLIC
 # Source files have the following private module dependencies.
 target_link_libraries(fileio PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-target_link_libraries(fileio PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
      add_subdirectory(tests)

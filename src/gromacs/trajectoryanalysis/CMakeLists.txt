@@ -67,7 +67,6 @@ target_link_libraries(trajectoryanalysis PRIVATE
                       common
                       coordinateio
                       fileio
-                      legacy_modules
                       pbcutil
                       random
                       topology
@@ -92,12 +91,10 @@ target_link_libraries(trajectoryanalysis PUBLIC
 # Source files have the following private module dependencies.
 #target_link_libraries(trajectoryanalysis PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-target_link_libraries(trajectoryanalysis PRIVATE legacy_modules)
 
 # Source files have the following dependencies on library infrastructure.
 #target_link_libraries(trajectoryanalysis PRIVATE
 #                      common
-#                      legacy_modules
 #)
 
 # Public interface for modules, including dependencies and interfaces
@@ -122,7 +119,6 @@ target_link_libraries(trajectoryanalysis INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(trajectoryanalysis PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(trajectoryanalysis PRIVATE legacy_modules)
 
 if(GMX_INSTALL_LEGACY_API)
     install(FILES

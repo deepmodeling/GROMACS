@@ -76,4 +76,3 @@ target_link_libraries(imd INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(imd PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(imd PRIVATE legacy_modules)

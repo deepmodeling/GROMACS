@@ -87,7 +87,6 @@ target_link_libraries(fft INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(fft PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(fft PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

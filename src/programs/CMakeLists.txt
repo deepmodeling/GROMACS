@@ -55,7 +55,6 @@ target_link_libraries(mdrun_objlib PRIVATE
                       trajectory
                       )
 # TODO: Explicitly link specific modules.
-target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
 target_link_libraries(mdrun_objlib INTERFACE
                       gmxana
                       )
@@ -74,7 +73,6 @@ elseif(GMX_BUILD_MDRUN_ONLY)
     target_link_libraries(mdrun-only PRIVATE
                           commandline
                           common
-                          legacy_modules
                           libgromacs
                           onlinehelp
                           utility
@@ -102,7 +100,6 @@ else()
     target_include_directories(view_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
     target_link_libraries(view_objlib PRIVATE common legacy_api)
     # TODO: Explicitly link specific modules.
-    target_link_libraries(view_objlib PRIVATE legacy_modules)
     target_link_libraries(view_objlib PRIVATE
                           commandline
                           fileio
@@ -113,7 +110,6 @@ else()
     add_library(gmx_objlib OBJECT ${GMX_MAIN_SOURCES})
     target_link_libraries(gmx_objlib PRIVATE common legacy_api)
     # TODO: Explicitly link specific modules.
-    target_link_libraries(gmx_objlib PRIVATE legacy_modules)
     target_link_libraries(gmx_objlib PRIVATE
                           commandline
                           gmxana

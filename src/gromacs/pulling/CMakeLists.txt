@@ -40,7 +40,6 @@ set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${PULLING_SOURCES} PARENT_SCOPE)
 # Source files have the following dependencies on library infrastructure.
 #target_link_libraries(pulling PRIVATE
 #                      common
-#                      legacy_modules
 #)
 
 # Public interface for modules, including dependencies and interfaces
@@ -77,7 +76,6 @@ target_link_libraries(pulling INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(pulling PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(pulling PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

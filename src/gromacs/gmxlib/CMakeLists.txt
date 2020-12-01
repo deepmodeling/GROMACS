@@ -77,7 +77,6 @@ target_link_libraries(gmxlib INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(gmxlib PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(gmxlib PRIVATE legacy_modules)
 
 # if(BUILD_TESTING)
 #     add_subdirectory(tests)

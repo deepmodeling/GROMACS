@@ -40,7 +40,6 @@ set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${MIMIC_SOURCES} PARENT_SCOPE)
 # Source files have the following dependencies on library infrastructure.
 #target_link_libraries(mimic PRIVATE
 #                      common
-#                      legacy_modules
 #)
 
 # Public interface for modules, including dependencies and interfaces
@@ -69,5 +68,4 @@ target_link_libraries(mimic INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(mimic PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(mimic PRIVATE legacy_modules)
 

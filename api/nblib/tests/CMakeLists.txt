@@ -48,7 +48,6 @@ target_include_directories(nblib_test_infrastructure PRIVATE ${PROJECT_SOURCE_DI
 target_include_directories(nblib_test_infrastructure SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
 target_link_libraries(nblib_test_infrastructure PRIVATE legacy_api)
 # TODO: Explicitly link specific modules: math,
-target_link_libraries(nblib_test_infrastructure PRIVATE legacy_modules)
 target_link_libraries(nblib_test_infrastructure INTERFACE
                       nblib
                       pbcutil

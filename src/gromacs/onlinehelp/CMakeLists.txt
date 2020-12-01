@@ -40,7 +40,6 @@ set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${ONLINEHELP_SOURCES} PARENT_SCOPE)
 # Source files have the following dependencies on library infrastructure.
 #target_link_libraries(onlinehelp PRIVATE
 #                      common
-#                      legacy_modules
 #)
 
 # Public interface for modules, including dependencies and interfaces
@@ -65,7 +64,6 @@ target_link_libraries(onlinehelp INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(onlinehelp PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(onlinehelp PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

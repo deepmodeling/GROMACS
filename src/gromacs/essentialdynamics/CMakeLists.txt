@@ -77,7 +77,6 @@ target_link_libraries(essentialdynamics INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(essentialdynamics PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(essentialdynamics PRIVATE legacy_modules)
 
 set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${ESSENTIALDYNAMICS_SOURCES} PARENT_SCOPE)
 

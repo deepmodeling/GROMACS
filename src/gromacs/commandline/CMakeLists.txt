@@ -70,7 +70,6 @@ target_link_libraries(commandline INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(commandline PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(commandline PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

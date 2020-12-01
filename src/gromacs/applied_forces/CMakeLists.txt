@@ -83,7 +83,6 @@ target_link_libraries(applied_forces INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(applied_forces PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(applied_forces PRIVATE legacy_modules)
 
 gmx_add_libgromacs_sources(
     electricfield.cpp

@@ -61,7 +61,6 @@ else()
 endif()
 target_link_libraries(scanner PRIVATE legacy_api)
 # TODO: Use explicit module dependencies.
-target_link_libraries(scanner PRIVATE legacy_modules)
 target_link_libraries(scanner PRIVATE
                       selection
                       topology
@@ -74,7 +73,6 @@ set(libgromacs_object_library_dependencies ${libgromacs_object_library_dependenc
 # Source files have the following dependencies on library infrastructure.
 #target_link_libraries(selection PRIVATE
 #                      common
-#                      legacy_modules
 #)
 
 # Public interface for modules, including dependencies and interfaces
@@ -105,7 +103,6 @@ target_link_libraries(selection INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(selection PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(selection PRIVATE legacy_modules)
 
 if(GMX_INSTALL_LEGACY_API)
     install(FILES

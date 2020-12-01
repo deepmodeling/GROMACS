@@ -110,7 +110,6 @@ target_link_libraries(utility INTERFACE
 
 # Source files have the following private module dependencies.
 # TODO: Explicitly link specific modules.
-#target_link_libraries(utility PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

@@ -96,7 +96,6 @@ target_link_libraries(listed_forces INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(listed_forces PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(listed_forces PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
      add_subdirectory(tests)

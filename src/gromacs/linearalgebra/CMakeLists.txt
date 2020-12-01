@@ -71,7 +71,6 @@ target_link_libraries(linearalgebra PRIVATE common legacy_api)
 
 # Module dependencies.
 # TODO: Link specific modules.
-target_link_libraries(linearalgebra PRIVATE legacy_modules)
 target_link_libraries(linearalgebra PUBLIC
                       utility
                       )

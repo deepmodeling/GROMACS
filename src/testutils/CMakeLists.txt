@@ -122,15 +122,14 @@ target_link_libraries(testutils PRIVATE
 target_link_libraries(testutils PUBLIC
                       common
                       )
-target_link_libraries(testutils PUBLIC
-                      utility
-                      )
 
 
 # GROMACS module dependencies.
 # Note that testutils conveys transitive dependencies on some modules.
 # TODO: Explicitly link specific modules with minimal exposure.
-target_link_libraries(testutils PUBLIC legacy_modules)
+target_link_libraries(testutils PUBLIC
+                      utility
+                      )
 
 # TODO Use gmx_add_missing_tests_notice() instead of the messages below.
 set(GMX_CAN_RUN_MPI_TESTS 1)

@@ -40,7 +40,6 @@ set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${PBCUTIL_SOURCES} PARENT_SCOPE)
 # Source files have the following dependencies on library infrastructure.
 #target_link_libraries(pbcutil PRIVATE
 #                      common
-#                      legacy_modules
 #)
 
 # Public interface for modules, including dependencies and interfaces
@@ -70,7 +69,6 @@ target_link_libraries(pbcutil INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(pbcutil PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(pbcutil PRIVATE legacy_modules)
 
 if(GMX_INSTALL_LEGACY_API)
   install(FILES

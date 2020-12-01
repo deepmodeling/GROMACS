@@ -66,7 +66,6 @@ target_link_libraries(modularsimulator PRIVATE common)
 
 # Source files have the following private module dependencies.
 # TODO: Explicitly link specific modules.
-target_link_libraries(modularsimulator PRIVATE legacy_modules)
 target_link_libraries(modularsimulator PRIVATE
                       compat
                       domdec

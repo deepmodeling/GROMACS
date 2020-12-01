@@ -114,7 +114,6 @@ include_directories(BEFORE ${CMAKE_SOURCE_DIR}/api)
 target_link_libraries(nblib PRIVATE common)
 # There are transitive dependencies on the legacy GROMACS headers.
 target_link_libraries(nblib PUBLIC legacy_api)
-target_link_libraries(nblib PRIVATE legacy_modules)
 target_link_libraries(nblib PRIVATE
                       mdtypes
                       nbnxm

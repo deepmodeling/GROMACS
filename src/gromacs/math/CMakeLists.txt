@@ -71,7 +71,6 @@ target_link_libraries(math INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(math PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(math PRIVATE legacy_modules)
 
 
 if (BUILD_TESTING)

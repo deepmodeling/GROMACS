@@ -61,4 +61,3 @@ target_link_libraries(statistics INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(statistics PRIVATE NOTHING)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(statistics PRIVATE legacy_modules)

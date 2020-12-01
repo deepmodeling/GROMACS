@@ -60,7 +60,6 @@ target_include_directories(topology PRIVATE
 # Source files have the following dependencies on library infrastructure.
 target_link_libraries(topology PRIVATE
                       common
-                      legacy_modules
                       math
                       )
 
@@ -98,7 +97,6 @@ target_link_libraries(topology PUBLIC
                       utility
         )
 # TODO: Explicitly link specific modules.
-target_link_libraries(topology PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
 	add_subdirectory(tests)

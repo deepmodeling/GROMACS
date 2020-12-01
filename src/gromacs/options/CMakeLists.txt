@@ -92,7 +92,6 @@ target_link_libraries(options PUBLIC
                       )
 # Source files have the following private module dependencies.
 # TODO: Explicitly link specific modules.
-target_link_libraries(options PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

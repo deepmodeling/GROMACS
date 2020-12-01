@@ -81,7 +81,6 @@ target_link_libraries(analysisdata INTERFACE
 # Source files have the following private module dependencies.
 #target_link_libraries(analysisdata PRIVATE tng_io)
 # TODO: Explicitly link specific modules.
-#target_link_libraries(analysisdata PRIVATE legacy_modules)
 
 add_subdirectory(modules)
 
