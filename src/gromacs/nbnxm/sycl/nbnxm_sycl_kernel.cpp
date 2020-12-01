@@ -660,13 +660,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         const unsigned        tidxi   = localId[0];
         const unsigned        tidxj   = localId[1];
         const cl::sycl::id<2> tidxji(localId[0], localId[1]);
-        const unsigned        tidx = tidxj * itemIdx.get_group_range(0) + tidxi;
+        const unsigned        tidx = tidxj * c_clSize + tidxi;
 #if NTHREAD_Z == 1
         const unsigned tidxz = 0;
 #else
         const unsigned tidxz = localId[2];
 #endif
-        const unsigned bidx = itemIdx.get_group(0);
+        const unsigned bidx = itemIdx.get_group(0); // Group indexing was flat originally, no need to unflatten it.
 
         const sycl_pf::sub_group sg = itemIdx.get_sub_group();
         static constexpr int     subGroupSize =
@@ -890,6 +890,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                             }
                                         } // props.vdwCombGeom
                                     }     // !props.vdwComb
+
                                     // Ensure distance do not become so small that r^-12 overflows
                                     r2 = std::max(r2, c_nbnxnMinDistanceSquared);
                                     const float inv_r = cl::sycl::rsqrt(r2); // TODO: sycl::native::rsqrt?

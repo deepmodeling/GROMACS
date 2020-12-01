@@ -103,12 +103,13 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const unsigned        tidxi = localId[0];
         const unsigned        tidxj = localId[1];
         const cl::sycl::id<2> tidxji(localId[0], localId[1]);
-        const int             tidx  = tidxj * itemIdx.get_group_range(0) + tidxi;
+        const int             tidx  = tidxj * c_clSize + tidxi;
         const unsigned        tidxz = localId[2];
         const unsigned        bidx  = itemIdx.get_group(0);
 
-        const sycl_pf::sub_group sg   = itemIdx.get_sub_group();
-        const unsigned           widx = tidx / sg.get_local_range()[0]; /* warp index */
+        const sycl_pf::sub_group sg           = itemIdx.get_sub_group();
+        static constexpr int     subGroupSize = 8;
+        const unsigned           widx         = tidx / subGroupSize;
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
@@ -198,6 +199,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                                 float3 rv(xi[0], xi[1], xi[2]);
                                 rv -= xj;
                                 const float r2 = norm2(rv);
+
                                 /* If _none_ of the atoms pairs are in rlistOuter
                                  * range, the bit corresponding to the current
                                  * cluster-pair in imask gets set to 0. */
