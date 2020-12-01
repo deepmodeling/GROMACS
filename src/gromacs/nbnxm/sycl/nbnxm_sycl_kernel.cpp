@@ -482,10 +482,9 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
 
         /* Reduce the initial CL_SIZE values for each i atom to half
          * every step by using CL_SIZE * i threads.
-         * Can't just use i as loop variable because than nvcc refuses to unroll.
          */
-        int i = c_clSize / 2;
-        for (int j = clSizeLog2 - 1; j > 0; j--)
+        unsigned i = c_clSize / 2;
+        for (unsigned j = clSizeLog2 - 1; j > 0; j--)
         {
             if (tidxj < i)
             {
@@ -496,6 +495,7 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
                         shmemBuf[2 * bufStride + (tidxj + i) * c_clSize + tidxi];
             }
             i >>= 1;
+            itemIdx.barrier(fence_space::local_space);
         }
         /* needed because
          * a) for c_clSize<8: id 2 (doing z in next block) is in 2nd warp
