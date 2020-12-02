@@ -122,7 +122,7 @@ target_link_libraries(mdrun INTERFACE
 # between the libraries. It can be moved to a separate interface-only target,
 # but that is beyond the scope of issue #3379, which introduces the header.
 # Ref #3152 and #3652
-install(FILES simulationinputhandle.h
+install(FILES include/gromacs/mdrun/simulationinputhandle.h
         DESTINATION include/gromacs/mdrun)
 
 if (BUILD_TESTING)
