@@ -46,8 +46,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Providing a default value >=10.14 helps to find modern C++ compatibility,
     # such as by defaulting to the Clang libc++ instead of libstdc++.
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14 CACHE STRING
-        "OS X deployment target affects default SDK version and compiler flags."
-        FORCE)
+        "OS X deployment target affects default SDK version and compiler flags.")
     # By default, limit the binary architecture to a single 64-bit build.
     set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
         "OS X architecture affects the compatibility of the (potentially fat) binaries produced."
@@ -90,13 +89,14 @@ include(gmxBuildTypeProfile)
 include(gmxBuildTypeTSAN)
 include(gmxBuildTypeASAN)
 include(gmxBuildTypeMSAN)
+include(gmxBuildTypeUBSAN)
 include(gmxBuildTypeReleaseWithAssert)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel Reference RelWithAssert Profile TSAN ASAN MSAN." FORCE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel Reference RelWithAssert Profile TSAN ASAN MSAN UBSAN." FORCE)
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-        "MinSizeRel" "RelWithDebInfo" "Reference" "RelWithAssert" "Profile" "TSAN" "ASAN" "MSAN")
+        "MinSizeRel" "RelWithDebInfo" "Reference" "RelWithAssert" "Profile" "TSAN" "ASAN" "MSAN" "UBSAN")
 endif()
 if(CMAKE_CONFIGURATION_TYPES)
     # Add appropriate GROMACS-specific build types for the Visual
@@ -198,43 +198,19 @@ option(GMX_COOL_QUOTES "Enable GROMACS cool quotes" ON)
 mark_as_advanced(GMX_COOL_QUOTES)
 gmx_add_cache_dependency(GMX_COOL_QUOTES BOOL "NOT GMX_FAHCORE" OFF)
 
-option(GMX_USE_OPENCL "Enable OpenCL acceleration" OFF)
-
 option(GMX_INSTALL_LEGACY_API "Install legacy headers" OFF)
 
-# The earliest version of the CUDA toolkit that supports c++14 is 9.0
-set(REQUIRED_CUDA_VERSION 9.0)
-set(REQUIRED_CUDA_COMPUTE_CAPABILITY 3.0)
-
-# OpenCL required version: 1.2 or newer
-set(REQUIRED_OPENCL_MIN_VERSION_MAJOR 1)
-set(REQUIRED_OPENCL_MIN_VERSION_MINOR 2)
-set(REQUIRED_OPENCL_MIN_VERSION ${REQUIRED_OPENCL_MIN_VERSION_MAJOR}.${REQUIRED_OPENCL_MIN_VERSION_MINOR})
-
-if(NOT GMX_USE_OPENCL)
-    # CUDA detection is done only if GMX_USE_OPENCL is OFF.
-    include(gmxManageGPU)
-    set(GMX_USE_CUDA ${GMX_GPU})
-    if(GMX_GPU)
-        set(GMX_GPU_ACCELERATION_FRAMEWORK "GMX_GPU_CUDA")
-    else()
-        set(GMX_GPU_ACCELERATION_FRAMEWORK "GMX_GPU_NONE")
-    endif()
-else()
-    #Now the OpenCL path (for both AMD and NVIDIA)
-    if(GMX_GPU)
-        include(gmxManageOpenCL)
-        set(GMX_GPU_ACCELERATION_FRAMEWORK "GMX_GPU_OPENCL")
-    else()
-        message(FATAL_ERROR "OpenCL requested but GPU option is not enabled (try -DGMX_GPU=on) ")
-    endif()
-endif()
+gmx_option_multichoice(
+    GMX_GPU
+    "Framework for GPU acceleration"
+    OFF
+    OFF CUDA OpenCL SYCL)
 
 gmx_option_multichoice(
     GMX_SIMD
     "SIMD instruction set for CPU kernels and compiler optimization"
     "AUTO"
-    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
+    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD ARM_SVE IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
 
 if(GMX_TARGET_MIC)
     set(GMX_FFT_LIBRARY_DEFAULT "mkl")
@@ -393,7 +369,7 @@ check_cxx_source_compiles("int main(){ return __builtin_clz(1);}"   HAVE_BUILTIN
 check_cxx_source_compiles("int main(){ return __builtin_clzll(1);}" HAVE_BUILTIN_CLZLL)
 if(MSVC)
     check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned long i=1;_BitScanReverse(&r,i);return r;}" HAVE_BITSCANREVERSE)
-    check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned __int64 i=1;_BitScanReverse(&r,i);return r;}" HAVE_BITSCANREVERSE64)
+    check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned __int64 i=1;_BitScanReverse64(&r,i);return r;}" HAVE_BITSCANREVERSE64)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "XL")
     check_cxx_source_compiles("int main(){ return __cntlz4(1);}" HAVE_CNTLZ4)
     check_cxx_source_compiles("int main(){ return __cntlz8(1);}" HAVE_CNTLZ8)
@@ -453,6 +429,31 @@ include(gmxManageSharedLibraries)
 
 
 ########################################################################
+# Specify install locations
+########################################################################
+# Use GNUInstallDirs to set paths on multiarch systems.
+include(GNUInstallDirs)
+
+set(GMX_INSTALL_DATASUBDIR "gromacs" CACHE STRING "Subdirectory for GROMACS data under CMAKE_INSTALL_DATADIR")
+mark_as_advanced(GMX_INSTALL_DATASUBDIR)
+
+# Internal convenience so we do not have to join two path segments in the code
+set(GMX_INSTALL_GMXDATADIR ${CMAKE_INSTALL_DATADIR}/${GMX_INSTALL_DATASUBDIR})
+
+# If the nesting level wrt. the installation root is changed,
+# gromacs-config.cmake.cmakein needs to be adapted.
+set(GMX_INSTALL_CMAKEDIR  ${CMAKE_INSTALL_DATAROOTDIR}/cmake)
+
+# TODO: Make GMXRC adapt if this is changed
+set(GMX_INSTALL_PKGCONFIGDIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+list(APPEND INSTALLED_HEADER_INCLUDE_DIRS ${CMAKE_INSTALL_INCLUDEDIR})
+
+# Binary and library suffix options
+include(gmxManageSuffixes)
+
+
+########################################################################
 # Find external packages                                               #
 ########################################################################
 
@@ -479,10 +480,7 @@ include(gmxManageSharedLibraries)
 #    set(XML_LIBRARIES ${LIBXML2_LIBRARIES})
 #endif()
 
-gmx_option_trivalue(
-    GMX_HWLOC
-    "Use hwloc portable hardware locality library"
-    "AUTO")
+option(GMX_HWLOC "Use hwloc portable hardware locality library" OFF)
 
 if (GMX_HWLOC)
     # Find quietly the second time.
@@ -570,12 +568,19 @@ include(gmxManageTNG)
 include(gmxManageLmfit)
 
 if(GMX_GPU)
-    # now that we have detected the dependencies, do the second configure pass
-    gmx_gpu_setup()
-    if (GMX_CLANG_CUDA)
-        list(APPEND GMX_EXTRA_LIBRARIES ${GMX_CUDA_CLANG_LINK_LIBS})
-        link_directories("${GMX_CUDA_CLANG_LINK_DIRS}")
+
+    string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
+    if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
+        include(gmxManageCuda)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
+        include(gmxManageOpenCL)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
+        include(gmxManageSYCL)
     endif()
+    if(NOT GMX_OPENMP)
+        message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
+    endif()
+
 endif()
 
 if(CYGWIN)
@@ -597,9 +602,7 @@ gmx_add_cache_dependency(GMX_BUILD_UNITTESTS BOOL BUILD_TESTING OFF)
 # Our own GROMACS tests
 ########################################################################
 
-include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src)
-# Required for config.h, maybe should only be set in src/CMakeLists.txt
-include_directories(BEFORE ${CMAKE_BINARY_DIR}/src)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/external)
 
 include(gmxTestInlineASM)
 gmx_test_inline_asm_gcc_x86(GMX_X86_GCC_INLINE_ASM)
@@ -607,50 +610,10 @@ gmx_test_inline_asm_gcc_x86(GMX_X86_GCC_INLINE_ASM)
 include(gmxSetBuildInformation)
 gmx_set_build_information()
 
-gmx_option_multichoice(
-    GMX_USE_RDTSCP
-    "Use low-latency RDTSCP instruction for CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments)"
-    "AUTO"
-    OFF ON AUTO DETECT)
+# Anything but truly ancient x86 hardware should support rdtscp, so we enable it by default.
+# The inline assembly calling it is only ever compiled on x86, so defaulting to ON is OK.
+option(GMX_USE_RDTSCP "Use low-latency RDTSCP instruction for x86 CPU-based timers for mdrun execution; might need to be off when compiling for heterogeneous environments" ON)
 mark_as_advanced(GMX_USE_RDTSCP)
-
-macro(gmx_check_rdtscp)
-    if (CPU_DETECTION_FEATURES MATCHES "rdtscp")
-        set(HAVE_RDTSCP 1)
-        set(RDTSCP_DETECTION_MESSAGE " - detected on the build host")
-    else()
-        set(RDTSCP_DETECTION_MESSAGE " - not detected on the build host")
-    endif()
-endmacro()
-
-set(HAVE_RDTSCP 0)
-if (GMX_USE_RDTSCP STREQUAL "ON")
-    set(HAVE_RDTSCP 1)
-elseif(GMX_USE_RDTSCP STREQUAL "DETECT")
-    gmx_check_rdtscp()
-elseif(GMX_USE_RDTSCP STREQUAL "AUTO")
-    # If the user specified automated SIMD selection, that the choice
-    # is made based on detection on the build host. If so, then RDTSCP
-    # should be chosen the same way.
-    #
-    # If the user specified an AVX SIMD level (e.g. when
-    # cross-compiling GROMACS) then they will get our best guess, ie
-    # that in practice AVX mostly correlates with rdtscp (and anyway
-    # is only relevant in rather old x86 hardware).
-    if (GMX_SIMD STREQUAL "AUTO")
-        gmx_check_rdtscp()
-    elseif (GMX_SIMD MATCHES "AVX")
-        set(HAVE_RDTSCP 1)
-    endif()
-endif()
-gmx_check_if_changed(HAVE_RDTSCP_CHANGED HAVE_RDTSCP)
-if (HAVE_RDTSCP_CHANGED)
-    if (HAVE_RDTSCP)
-        message(STATUS "Enabling RDTSCP support${RDTSCP_DETECTION_MESSAGE}")
-    else()
-        message(STATUS "Disabling RDTSCP support${RDTSCP_DETECTION_MESSAGE}")
-    endif()
-endif()
 
 include(gmxTestLargeFiles)
 gmx_test_large_files(GMX_LARGEFILES)
@@ -696,12 +659,19 @@ include(gmxManageFFTLibraries)
 include(gmxManageLinearAlgebraLibraries)
 
 include(gmxManagePluginSupport)
+gmx_manage_plugin_support()
 
-if (GMX_USE_PLUGINS)
+if(GMX_USE_PLUGINS)
     if(NOT GMX_VMD_PLUGIN_PATH)
         find_package(VMD)
     endif()
 endif()
+
+# People might want to customize the default location for the DSSP binary
+set(GMX_DSSP_PROGRAM_PATH "/usr/local/bin/dssp"
+    CACHE PATH
+    "The default location to use for the DSSP binary")
+mark_as_advanced(GMX_DSSP_PROGRAM_PATH)
 
 # Link real-time library for POSIX timers. The check for clock_gettime
 # confirms the linkability of rt.
@@ -730,13 +700,7 @@ if(GMX_FAHCORE)
   include_directories(${COREWRAP_INCLUDE_DIR})
 endif()
 
-# Value of GMX_BUILD_HELP=AUTO tries to generate things, but will only
-# produce warnings if that fails.
-set(build_help_default AUTO)
-if (SOURCE_IS_SOURCE_DISTRIBUTION OR CMAKE_CROSSCOMPILING)
-    set(build_help_default OFF)
-endif()
-gmx_option_trivalue(GMX_BUILD_HELP "Build completions automatically (requires that compiled binaries can be executed on the build host) and install man pages if built (requires building the 'man' target manually)" ${build_help_default})
+option(GMX_BUILD_HELP "Build completions (requires that compiled binaries can be executed on build host) and install man pages if built (requires building the 'man' target manually)" OFF)
 mark_as_advanced(GMX_BUILD_HELP)
 if (GMX_BUILD_HELP AND SOURCE_IS_SOURCE_DISTRIBUTION AND BUILD_IS_INSOURCE)
     message(FATAL_ERROR
@@ -748,8 +712,8 @@ endif()
 # # # # # # # # # # NO MORE TESTS AFTER THIS LINE! # # # # # # # # # # #
 # these are set after everything else
 if (NOT GMX_SKIP_DEFAULT_CFLAGS)
-    set(CMAKE_EXE_LINKER_FLAGS "${FFT_LINKER_FLAGS} ${MPI_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS}")
-    set(CMAKE_SHARED_LINKER_FLAGS "${FFT_LINKER_FLAGS} ${MPI_LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${FFT_LINKER_FLAGS} ${MPI_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS} ${DISABLE_SYCL_CXX_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${FFT_LINKER_FLAGS} ${MPI_LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS} ${DISABLE_SYCL_CXX_FLAGS}")
 else()
     message("Recommended flags which are not added because GMX_SKIP_DEFAULT_CFLAGS=yes:")
     message("CMAKE_C_FLAGS: ${SIMD_C_FLAGS};${MPI_COMPILE_FLAGS};${EXTRA_C_FLAGS};${GMXC_CFLAGS}")
@@ -765,31 +729,6 @@ else()
 endif()
 # Allow `admin` directory to be easily conveyed to nested CMake commands.
 set(GMX_ADMIN_DIR ${CMAKE_SOURCE_DIR}/admin)
-
-########################################################################
-# Specify install locations
-########################################################################
-# Use GNUInstallDirs to set paths on multiarch systems.
-include(GNUInstallDirs)
-
-set(GMX_INSTALL_DATASUBDIR "gromacs" CACHE STRING "Subdirectory for GROMACS data under CMAKE_INSTALL_DATADIR")
-mark_as_advanced(GMX_INSTALL_DATASUBDIR)
-
-# Internal convenience so we do not have to join two path segments in the code
-set(GMX_INSTALL_GMXDATADIR ${CMAKE_INSTALL_DATADIR}/${GMX_INSTALL_DATASUBDIR})
-
-# If the nesting level wrt. the installation root is changed,
-# gromacs-config.cmake.cmakein needs to be adapted.
-set(GMX_INSTALL_CMAKEDIR  ${CMAKE_INSTALL_DATAROOTDIR}/cmake)
-
-# TODO: Make GMXRC adapt if this is changed
-set(GMX_INSTALL_PKGCONFIGDIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
-set(GMX_INSTALL_OCLDIR       ${GMX_INSTALL_GMXDATADIR}/opencl)
-
-list(APPEND INSTALLED_HEADER_INCLUDE_DIRS ${CMAKE_INSTALL_INCLUDEDIR})
-
-# Binary and library suffix options
-include(gmxManageSuffixes)
 
 ################################################################
 # Shared library load path settings
@@ -851,6 +790,7 @@ if (NOT GMX_BUILD_MDRUN_ONLY)
     add_subdirectory(share)
     add_subdirectory(scripts)
 endif()
+add_subdirectory(api)
 add_subdirectory(src)
 
 if (BUILD_TESTING)
@@ -862,13 +802,6 @@ if(GMX_PYTHON_PACKAGE AND NOT GMX_BUILD_MDRUN_ONLY)
 endif()
 
 gmx_cpack_write_config()
-
-# Issue a warning if NVIDIA GPUs were detected, but CUDA was not found.
-# Don't bother the user after the first configure pass.
-if ((CUDA_NOTFOUND_AUTO AND GMX_DETECT_GPU_AVAILABLE) AND NOT GMX_GPU_DETECTION_DONE)
-    message(WARNING "${CUDA_NOTFOUND_MESSAGE}")
-endif()
-set(GMX_GPU_DETECTION_DONE TRUE CACHE INTERNAL "Whether GPU detection has already been done")
 
 #######################
 ## uninstall target

@@ -339,15 +339,15 @@ private:
  * Thus all options should be internally consistent and consistent
  * with the hardware, except that ntmpi could be larger than #GPU.
  */
-int get_nthreads_mpi(const gmx_hw_info_t*    hwinfo,
-                     gmx_hw_opt_t*           hw_opt,
-                     const std::vector<int>& gpuIdsToUse,
-                     bool                    nonbondedOnGpu,
-                     bool                    pmeOnGpu,
-                     const t_inputrec*       inputrec,
-                     const gmx_mtop_t*       mtop,
-                     const gmx::MDLogger&    mdlog,
-                     bool                    doMembed)
+int get_nthreads_mpi(const gmx_hw_info_t* hwinfo,
+                     gmx_hw_opt_t*        hw_opt,
+                     const int            numDevicesToUse,
+                     bool                 nonbondedOnGpu,
+                     bool                 pmeOnGpu,
+                     const t_inputrec*    inputrec,
+                     const gmx_mtop_t*    mtop,
+                     const gmx::MDLogger& mdlog,
+                     bool                 doMembed)
 {
     int nthreads_hw, nthreads_tot_max, nrank, ngpu;
     int min_atoms_per_mpi_rank;
@@ -360,7 +360,7 @@ int get_nthreads_mpi(const gmx_hw_info_t*    hwinfo,
         GMX_RELEASE_ASSERT((EEL_PME(inputrec->coulombtype) || EVDW_PME(inputrec->vdwtype))
                                    && pme_gpu_supports_build(nullptr)
                                    && pme_gpu_supports_hardware(*hwinfo, nullptr)
-                                   && pme_gpu_supports_input(*inputrec, *mtop, nullptr),
+                                   && pme_gpu_supports_input(*inputrec, nullptr),
                            "PME can't be on GPUs unless we are using PME");
 
         // PME on GPUs supports a single PME rank with PP running on the same or few other ranks.
@@ -432,7 +432,7 @@ int get_nthreads_mpi(const gmx_hw_info_t*    hwinfo,
 
     /* nonbondedOnGpu might be false e.g. because this simulation
      * is a rerun with energy groups. */
-    ngpu = (nonbondedOnGpu ? gmx::ssize(gpuIdsToUse) : 0);
+    ngpu = (nonbondedOnGpu ? numDevicesToUse : 0);
 
     nrank = get_tmpi_omp_thread_division(hwinfo, *hw_opt, nthreads_tot_max, ngpu);
 
@@ -909,7 +909,7 @@ void checkAndUpdateRequestedNumOpenmpThreads(gmx_hw_opt_t*         hw_opt,
          * all detected ncore_tot physical cores. We are currently not
          * checking for that here.
          */
-        int numRanksTot     = cr->nnodes * (isMultiSim(ms) ? ms->nsim : 1);
+        int numRanksTot     = cr->nnodes * (isMultiSim(ms) ? ms->numSimulations_ : 1);
         int numAtomsPerRank = mtop.natoms / cr->nnodes;
         int numCoresPerRank = hwinfo.ncore_tot / numRanksTot;
         if (numAtomsPerRank < c_numAtomsPerCoreSquaredSmtThreshold * gmx::square(numCoresPerRank))

@@ -154,13 +154,14 @@ cmake_args = [cmake_platform_hints, cmake_gmxapi_hint]
 setup(
     name='gmxapi',
 
-    # TODO: single-source version information (currently repeated in gmxapi/version.py)
-    version='0.2.0b1',
-    python_requires='>=3.6, <3.9',
+    # TODO: single-source version information (currently repeated in gmxapi/version.py and CMakeLists.txt)
+    version='0.3.0a1',
+    python_requires='>=3.6',
     install_requires=['networkx>=2.0',
                       'numpy>=1'],
 
     packages=['gmxapi', 'gmxapi.simulation'],
+    package_data={'gmxapi': ['gmxconfig.json']},
 
     cmake_args=cmake_args,
 

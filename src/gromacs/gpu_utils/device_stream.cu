@@ -44,30 +44,21 @@
 
 #include "device_stream.h"
 
-#include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-DeviceStream::DeviceStream()
-{
-    stream_ = nullptr;
-}
-
-void DeviceStream::init(const DeviceContext& /* deviceContext */,
-                        DeviceStreamPriority priority,
-                        const bool /* useTiming */)
+DeviceStream::DeviceStream(const DeviceContext& /* deviceContext */,
+                           DeviceStreamPriority priority,
+                           const bool /* useTiming */)
 {
     cudaError_t stat;
 
     if (priority == DeviceStreamPriority::Normal)
     {
         stat = cudaStreamCreate(&stream_);
-        if (stat != cudaSuccess)
-        {
-            GMX_THROW(gmx::InternalError(gmx::formatString(
-                    "Could not create CUDA stream (CUDA error %d: %s).", stat, cudaGetErrorString(stat))));
-        }
+        gmx::checkDeviceError(stat, "Could not create CUDA stream.");
     }
     else if (priority == DeviceStreamPriority::High)
     {
@@ -76,20 +67,10 @@ void DeviceStream::init(const DeviceContext& /* deviceContext */,
         // range, which in that case will be a single value.
         int highestPriority;
         stat = cudaDeviceGetStreamPriorityRange(nullptr, &highestPriority);
-        if (stat != cudaSuccess)
-        {
-            GMX_THROW(gmx::InternalError(gmx::formatString(
-                    "Could not query CUDA stream priority range (CUDA error %d: %s).", stat,
-                    cudaGetErrorString(stat))));
-        }
+        gmx::checkDeviceError(stat, "Could not query CUDA stream priority range.");
 
         stat = cudaStreamCreateWithPriority(&stream_, cudaStreamDefault, highestPriority);
-        if (stat != cudaSuccess)
-        {
-            GMX_THROW(gmx::InternalError(gmx::formatString(
-                    "Could not create CUDA stream with high priority (CUDA error %d: %s).", stat,
-                    cudaGetErrorString(stat))));
-        }
+        gmx::checkDeviceError(stat, "Could not create CUDA stream with high priority.");
     }
 }
 
@@ -99,9 +80,7 @@ DeviceStream::~DeviceStream()
     {
         cudaError_t stat = cudaStreamDestroy(stream_);
         GMX_RELEASE_ASSERT(stat == cudaSuccess,
-                           gmx::formatString("Failed to release CUDA stream (CUDA error %d: %s).",
-                                             stat, cudaGetErrorString(stat))
-                                   .c_str());
+                           ("Failed to release CUDA stream. " + gmx::getDeviceErrorString(stat)).c_str());
         stream_ = nullptr;
     }
 }
@@ -120,7 +99,5 @@ void DeviceStream::synchronize() const
 {
     cudaError_t stat = cudaStreamSynchronize(stream_);
     GMX_RELEASE_ASSERT(stat == cudaSuccess,
-                       gmx::formatString("cudaStreamSynchronize failed  (CUDA error %d: %s).", stat,
-                                         cudaGetErrorString(stat))
-                               .c_str());
+                       ("cudaStreamSynchronize failed. " + gmx::getDeviceErrorString(stat)).c_str());
 }

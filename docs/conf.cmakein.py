@@ -205,7 +205,7 @@ rst_epilog += """
 .. _gmx-manual-parent-dir: ../manual-{gmx_version_string}.pdf
 .. |gmx-source-package-ftp| replace:: As ftp ftp://ftp.gromacs.org/pub/gromacs/gromacs-{gmx_version_string}.tar.gz
 .. |gmx-source-package-http| replace:: As http http://ftp.gromacs.org/pub/gromacs/gromacs-{gmx_version_string}.tar.gz
-.. |gmx-regressiontests-package| replace:: http://gerrit.gromacs.org/download/regressiontests-{regressiontest_version}.tar.gz
+.. |gmx-regressiontests-package| replace:: http://ftp.gromacs.org/pub/regressiontests/regressiontests-{regressiontest_version}.tar.gz
 .. _up-to-date installation instructions: http://manual.gromacs.org/documentation/current/install-guide/index.html
 .. _CUDA: http://www.nvidia.com/object/cuda_home_new.html
 .. _OpenCL: https://www.khronos.org/opencl/
@@ -223,16 +223,11 @@ rst_epilog += """
 .. _MKL: https://software.intel.com/en-us/intel-mkl
 .. _VMD: http://www.ks.uiuc.edu/Research/vmd/
 .. _PyMOL: http://www.pymol.org
-.. _continuous integration server used by GROMACS: http://jenkins.gromacs.org
-.. _Jenkins: http://jenkins-ci.org
 .. _webpage: http://www.gromacs.org
 .. _ftp site: ftp://ftp.gromacs.org/pub/gromacs/
 .. _tutorials: http://www.gromacs.org/Documentation/Tutorials
 .. _issue tracker: https://gitlab.com/gromacs/gromacs/-/issues/
-.. _issues: https://gitlab.com/gromacs/gromacs/-/issues/
 .. _gitlab: https://gitlab.com/gromacs/gromacs/
-.. _redmine: http://redmine.gromacs.org
-.. _gerrit: http://gerrit.gromacs.org
 .. _download: ../download.html
 .. |thisyear| replace:: {thisyear_string}
 """.format(gmx_version_string=gmx_version_string, regressiontest_version=regressiontest_version, thisyear_string=thisyear_string)

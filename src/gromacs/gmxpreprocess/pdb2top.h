@@ -40,17 +40,19 @@
 
 #include <cstdio>
 
+#include <string>
 #include <vector>
 
 #include "gromacs/math/vectypes.h"
-#include "gromacs/utility/arrayref.h"
 
 class PreprocessingAtomTypes;
 
 namespace gmx
 {
+template<typename>
+class ArrayRef;
 class MDLogger;
-}
+} // namespace gmx
 
 struct t_atoms;
 struct t_excls;
@@ -166,6 +168,7 @@ void pdb2top(FILE*                                  top_file,
              bool                                   bCmap,
              bool                                   bRenumRes,
              bool                                   bRTPresname,
+             gmx::ArrayRef<const int>               cyclicBondsIndex,
              const gmx::MDLogger&                   logger);
 /* Create a topology ! */
 

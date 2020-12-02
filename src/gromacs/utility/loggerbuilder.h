@@ -113,7 +113,7 @@ private:
  *
  * This class is responsible of managing all memory allocated by LoggerBuilder
  * that is needed for operation of the actual logger.  Also the actual logger
- * instance is owned by this class.  This allows keeing the actual logger simple
+ * instance is owned by this class.  This allows keeping the actual logger simple
  * and streamlined.
  *
  * This class supports move construction and assignment, which allows

@@ -47,9 +47,12 @@
 
 #include "config.h"
 
-#include "gromacs/domdec/gpuhaloexchange.h"
+#include <utility>
 
-#if GMX_GPU != GMX_GPU_CUDA
+#include "gromacs/domdec/gpuhaloexchange.h"
+#include "gromacs/utility/gmxassert.h"
+
+#if !GMX_GPU_CUDA
 
 namespace gmx
 {
@@ -61,11 +64,13 @@ class GpuHaloExchange::Impl
 
 /*!\brief Constructor stub. */
 GpuHaloExchange::GpuHaloExchange(gmx_domdec_t* /* dd */,
+                                 int /* dimIndex */,
                                  MPI_Comm /* mpi_comm_mysim */,
                                  const DeviceContext& /* deviceContext */,
                                  const DeviceStream& /*streamLocal */,
                                  const DeviceStream& /*streamNonLocal */,
-                                 int /*pulse */) :
+                                 int /*pulse */,
+                                 gmx_wallcycle* /*wcycle*/) :
     impl_(nullptr)
 {
     GMX_ASSERT(false,
@@ -73,6 +78,14 @@ GpuHaloExchange::GpuHaloExchange(gmx_domdec_t* /* dd */,
 }
 
 GpuHaloExchange::~GpuHaloExchange() = default;
+
+GpuHaloExchange::GpuHaloExchange(GpuHaloExchange&&) noexcept = default;
+
+GpuHaloExchange& GpuHaloExchange::operator=(GpuHaloExchange&& other) noexcept
+{
+    std::swap(impl_, other.impl_);
+    return *this;
+}
 
 /*!\brief init halo exhange stub. */
 void GpuHaloExchange::reinitHalo(DeviceBuffer<RVec> /* d_coordinatesBuffer */,
@@ -108,4 +121,4 @@ GpuEventSynchronizer* GpuHaloExchange::getForcesReadyOnDeviceEvent()
 
 } // namespace gmx
 
-#endif /* GMX_GPU != GMX_GPU_CUDA */
+#endif // !GMX_GPU_CUDA

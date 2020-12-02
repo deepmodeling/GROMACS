@@ -44,6 +44,7 @@
 #include <cassert>
 
 #include "gromacs/gpu_utils/cuda_kernel_utils.cuh"
+#include "gromacs/gpu_utils/vectype_ops.cuh"
 
 #include "pme.cuh"
 #include "pme_grid.h"
@@ -123,7 +124,7 @@ template<typename T>
 __device__ inline void assertIsFinite(T arg);
 
 template<>
-__device__ inline void assertIsFinite(float3 arg)
+__device__ inline void assertIsFinite(float3 gmx_unused arg)
 {
     assert(isfinite(float(arg.x)));
     assert(isfinite(float(arg.y)));
@@ -131,7 +132,7 @@ __device__ inline void assertIsFinite(float3 arg)
 }
 
 template<typename T>
-__device__ inline void assertIsFinite(T arg)
+__device__ inline void assertIsFinite(T gmx_unused arg)
 {
     assert(isfinite(float(arg)));
 }
@@ -139,13 +140,13 @@ __device__ inline void assertIsFinite(T arg)
 /*! \brief
  * General purpose function for loading atom-related data from global to shared memory.
  *
- * \tparam[in] T                 Data type (float/int/...)
- * \tparam[in] atomsPerBlock     Number of atoms processed by a block - should be
- *                               accounted for in the size of the shared memory array.
- * \tparam[in] dataCountPerAtom  Number of data elements per single atom (e.g. DIM for
- *                               an rvec coordinates array).
- * \param[out] sm_destination    Shared memory array for output.
- * \param[in]  gm_source         Global memory array for input.
+ * \tparam[in] T                  Data type (float/int/...)
+ * \tparam[in] atomsPerBlock      Number of atoms processed by a block - should be accounted for in
+ * the size of the shared memory array.
+ * \tparam[in] dataCountPerAtom   Number of data elements per single atom (e.g. DIM for an rvec
+ * coordinates array).
+ * \param[out] sm_destination     Shared memory array for output.
+ * \param[in]  gm_source          Global memory array for input.
  */
 template<typename T, int atomsPerBlock, int dataCountPerAtom>
 __device__ __forceinline__ void pme_gpu_stage_atom_data(T* __restrict__ sm_destination,

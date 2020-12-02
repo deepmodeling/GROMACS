@@ -303,7 +303,7 @@ void runTest(TestFileManager*            fileManager,
 
     // Build the functor that will compare energy frames on the chosen
     // energy terms.
-    EnergyComparison energyComparison(energyTermsToCompare);
+    EnergyComparison energyComparison(energyTermsToCompare, MaxNumFrames::compareAllFrames());
 
     // Build the manager that will present matching pairs of frames to compare.
     //
@@ -359,7 +359,8 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     // TODO: Update this as modular simulator gains functionality
     const bool isModularSimulatorExplicitlyDisabled = (getenv("GMX_DISABLE_MODULAR_SIMULATOR") != nullptr);
     const bool isTCouplingCompatibleWithModularSimulator =
-            (temperatureCoupling == "no" || temperatureCoupling == "v-rescale");
+            (temperatureCoupling == "no" || temperatureCoupling == "v-rescale"
+             || temperatureCoupling == "berendsen");
     if (integrator == "md-vv" && pressureCoupling == "parrinello-rahman"
         && (isModularSimulatorExplicitlyDisabled || !isTCouplingCompatibleWithModularSimulator))
     {
@@ -398,7 +399,7 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     {
         // Somehow, the bd integrator has never been as reproducible
         // as the others, either in continuations or reruns.
-        ulpToleranceInMixed = 128;
+        ulpToleranceInMixed = 200;
     }
     EnergyTermsToCompare energyTermsToCompare{
         { { interaction_function[F_EPOT].longname,
@@ -435,7 +436,7 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
 // TODO The time for OpenCL kernel compilation means these tests time
 // out. Once that compilation is cached for the whole process, these
 // tests can run in such configurations.
-#if GMX_GPU != GMX_GPU_OPENCL
+#if !GMX_GPU_OPENCL
 
 INSTANTIATE_TEST_CASE_P(
         NormalIntegrators,
@@ -460,12 +461,13 @@ INSTANTIATE_TEST_CASE_P(
                            ::testing::Values("berendsen", "v-rescale", "nose-hoover"),
                            ::testing::Values("no")));
 
-INSTANTIATE_TEST_CASE_P(NPH,
-                        MdrunNoAppendContinuationIsExact,
-                        ::testing::Combine(::testing::Values("argon12"),
-                                           ::testing::Values("md", "md-vv"),
-                                           ::testing::Values("no"),
-                                           ::testing::Values("berendsen", "parrinello-rahman")));
+INSTANTIATE_TEST_CASE_P(
+        NPH,
+        MdrunNoAppendContinuationIsExact,
+        ::testing::Combine(::testing::Values("argon12"),
+                           ::testing::Values("md", "md-vv"),
+                           ::testing::Values("no"),
+                           ::testing::Values("berendsen", "parrinello-rahman", "C-rescale")));
 
 INSTANTIATE_TEST_CASE_P(
         NPT,
@@ -473,7 +475,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Combine(::testing::Values("argon12"),
                            ::testing::Values("md", "md-vv"),
                            ::testing::Values("berendsen", "v-rescale", "nose-hoover"),
-                           ::testing::Values("berendsen", "parrinello-rahman")));
+                           ::testing::Values("berendsen", "parrinello-rahman", "C-rescale")));
 
 INSTANTIATE_TEST_CASE_P(MTTK,
                         MdrunNoAppendContinuationIsExact,

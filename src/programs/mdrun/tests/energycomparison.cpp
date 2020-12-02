@@ -77,8 +77,10 @@ EnergyTermsToCompare EnergyComparison::defaultEnergyTermsToCompare()
     };
 };
 
-EnergyComparison::EnergyComparison(const EnergyTermsToCompare& energyTermsToCompare) :
-    energyTermsToCompare_(energyTermsToCompare)
+EnergyComparison::EnergyComparison(const EnergyTermsToCompare& energyTermsToCompare,
+                                   MaxNumFrames                maxNumFrames) :
+    energyTermsToCompare_(energyTermsToCompare),
+    maxNumFrames_(maxNumFrames)
 {
 }
 
@@ -95,6 +97,12 @@ std::vector<std::string> EnergyComparison::getEnergyNames() const
 
 void EnergyComparison::operator()(const EnergyFrame& reference, const EnergyFrame& test) const
 {
+    if (numComparedFrames_ >= maxNumFrames_)
+    {
+        // Nothing should be compared
+        return;
+    }
+
     SCOPED_TRACE("Comparing energy reference frame " + reference.frameName() + " and test frame "
                  + test.frameName());
     for (auto referenceIt = reference.begin(); referenceIt != reference.end(); ++referenceIt)
@@ -114,17 +122,19 @@ void EnergyComparison::operator()(const EnergyFrame& reference, const EnergyFram
             ADD_FAILURE() << "Could not find energy component from reference frame in test frame";
         }
     }
+    numComparedFrames_++;
 }
 
 void checkEnergiesAgainstReferenceData(const std::string&          energyFilename,
                                        const EnergyTermsToCompare& energyTermsToCompare,
-                                       TestReferenceChecker*       checker)
+                                       TestReferenceChecker*       checker,
+                                       MaxNumFrames                maxNumEnergyFrames)
 {
     const bool thisRankChecks = (gmx_node_rank() == 0);
 
     if (thisRankChecks)
     {
-        EnergyComparison energyComparison(energyTermsToCompare);
+        EnergyComparison energyComparison(energyTermsToCompare, maxNumEnergyFrames);
         auto energyReader = openEnergyFileToReadTerms(energyFilename, energyComparison.getEnergyNames());
 
         std::unordered_map<std::string, TestReferenceChecker> checkers;
@@ -141,11 +151,12 @@ void checkEnergiesAgainstReferenceData(const std::string&          energyFilenam
         // frames with the same step number. But we need a unique
         // identifier so we match the intended reference data, so we
         // keep track of the number of the frame read from the file.
-        int frameNumber = 0;
-        while (energyReader->readNextFrame())
+        unsigned int frameNumber = 0;
+        while (frameNumber < maxNumEnergyFrames && energyReader->readNextFrame())
         {
-            const EnergyFrame& frame     = energyReader->frame();
-            const std::string  frameName = frame.frameName() + " in frame " + toString(frameNumber);
+            const EnergyFrame& frame = energyReader->frame();
+            const std::string  frameName =
+                    frame.frameName() + " in frame " + toString(static_cast<int64_t>(frameNumber));
 
             SCOPED_TRACE("Comparing frame " + frameName);
             for (const auto& energyTermToCompare : energyTermsToCompare)
@@ -158,11 +169,24 @@ void checkEnergiesAgainstReferenceData(const std::string&          energyFilenam
             }
             ++frameNumber;
         }
+        if (frameNumber == maxNumEnergyFrames && energyReader->readNextFrame())
+        {
+            // There would have been at least one more frame!
+            checker->disableUnusedEntriesCheck();
+        }
     }
     else
     {
         EXPECT_NONFATAL_FAILURE(checker->checkUnusedEntries(), ""); // skip checks on other ranks
     }
+}
+
+void checkEnergiesAgainstReferenceData(const std::string&          energyFilename,
+                                       const EnergyTermsToCompare& energyTermsToCompare,
+                                       TestReferenceChecker*       checker)
+{
+    checkEnergiesAgainstReferenceData(energyFilename, energyTermsToCompare, checker,
+                                      MaxNumFrames::compareAllFrames());
 }
 
 } // namespace test

@@ -46,7 +46,7 @@
  */
 #include "gmxpre.h"
 
-#include "leapfrog_gpu.cuh"
+#include "leapfrog_gpu.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -59,6 +59,7 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
 #include "gromacs/math/vec.h"
+#include "gromacs/mdtypes/group.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/pbcutil/pbc_aiuc_cuda.cuh"
 #include "gromacs/utility/arrayref.h"
@@ -68,35 +69,11 @@ namespace gmx
 
 /*!\brief Number of CUDA threads in a block
  *
- * \todo Check if using smaller block size will lead to better prformance.
+ * \todo Check if using smaller block size will lead to better performance.
  */
 constexpr static int c_threadsPerBlock = 256;
 //! Maximum number of threads in a block (for __launch_bounds__)
 constexpr static int c_maxThreadsPerBlock = c_threadsPerBlock;
-
-/*! \brief Sets the number of different temperature coupling values
- *
- *  This is needed to template the kernel
- *  \todo Unify with similar enum in CPU update module
- */
-enum class NumTempScaleValues
-{
-    None,    //!< No temperature coupling
-    Single,  //!< Single T-scaling value (one group)
-    Multiple //!< Multiple T-scaling values, need to use T-group indices
-};
-
-/*! \brief Different variants of the Parrinello-Rahman velocity scaling
- *
- *  This is needed to template the kernel
- *  \todo Unify with similar enum in CPU update module
- */
-enum class VelocityScalingType
-{
-    None,     //!< Do not apply velocity scaling (not a PR-coupling run or step)
-    Diagonal, //!< Apply velocity scaling using a diagonal matrix
-    Full      //!< Apply velocity scaling using a full matrix
-};
 
 /*! \brief Main kernel for Leap-Frog integrator.
  *
@@ -120,7 +97,6 @@ enum class VelocityScalingType
  * \param[in]     dt                               Timestep.
  * \param[in]     gm_lambdas                       Temperature scaling factors (one per group)
  * \param[in]     gm_tempScaleGroups               Mapping of atoms into groups.
- * \param[in]     dtPressureCouple                 Time step for pressure coupling
  * \param[in]     prVelocityScalingMatrixDiagonal  Diagonal elements of Parrinello-Rahman velocity scaling matrix
  */
 template<NumTempScaleValues numTempScaleValues, VelocityScalingType velocityScaling>
@@ -161,6 +137,7 @@ __launch_bounds__(c_maxThreadsPerBlock) __global__
         // Swapping places for xp and x so that the x will contain the updated coordinates and xp - the
         // coordinates before update. This should be taken into account when (if) constraints are applied
         // after the update: x and xp have to be passed to constraints in the 'wrong' order.
+        // TODO: Issue #3727
         gm_xp[threadIndex] = x;
 
         if (numTempScaleValues != NumTempScaleValues::None || velocityScaling != VelocityScalingType::None)
@@ -260,10 +237,10 @@ inline auto selectLeapFrogKernelPtr(bool                doTemperatureScaling,
     return kernelPtr;
 }
 
-void LeapFrogGpu::integrate(const float3*                     d_x,
-                            float3*                           d_xp,
-                            float3*                           d_v,
-                            const float3*                     d_f,
+void LeapFrogGpu::integrate(const DeviceBuffer<float3>        d_x,
+                            DeviceBuffer<float3>              d_xp,
+                            DeviceBuffer<float3>              d_v,
+                            const DeviceBuffer<float3>        d_f,
                             const real                        dt,
                             const bool                        doTemperatureScaling,
                             gmx::ArrayRef<const t_grp_tcstat> tcstat,
@@ -272,7 +249,7 @@ void LeapFrogGpu::integrate(const float3*                     d_x,
                             const matrix                      prVelocityScalingMatrix)
 {
 
-    ensureNoPendingCudaError("In CUDA version of Leap-Frog integrator");
+    ensureNoPendingDeviceError("In CUDA version of Leap-Frog integrator");
 
     auto kernelPtr = leapfrog_kernel<NumTempScaleValues::None, VelocityScalingType::None>;
     if (doTemperatureScaling || doParrinelloRahman)
@@ -335,16 +312,19 @@ LeapFrogGpu::~LeapFrogGpu()
     freeDeviceBuffer(&d_inverseMasses_);
 }
 
-void LeapFrogGpu::set(const t_mdatoms& md, const int numTempScaleValues, const unsigned short* tempScaleGroups)
+void LeapFrogGpu::set(const int             numAtoms,
+                      const real*           inverseMasses,
+                      const int             numTempScaleValues,
+                      const unsigned short* tempScaleGroups)
 {
-    numAtoms_                       = md.nr;
+    numAtoms_                       = numAtoms;
     kernelLaunchConfig_.gridSize[0] = (numAtoms_ + c_threadsPerBlock - 1) / c_threadsPerBlock;
 
     numTempScaleValues_ = numTempScaleValues;
 
     reallocateDeviceBuffer(&d_inverseMasses_, numAtoms_, &numInverseMasses_,
                            &numInverseMassesAlloc_, deviceContext_);
-    copyToDeviceBuffer(&d_inverseMasses_, (float*)md.invmass, 0, numAtoms_, deviceStream_,
+    copyToDeviceBuffer(&d_inverseMasses_, (float*)inverseMasses, 0, numAtoms_, deviceStream_,
                        GpuApiCallBehavior::Sync, nullptr);
 
     // Temperature scale group map only used if there are more then one group

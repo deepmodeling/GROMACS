@@ -52,11 +52,15 @@ gmx_add_unit_test(UtilityUnitTests utility-test
         path.cpp
         physicalnodecommunicator.cpp
         range.cpp
+        strconvert.cpp
         stringutil.cpp
+        template_mp.cpp
         textreader.cpp
         textwriter.cpp
         typetraits.cpp
         )
+# TODO: Explicitly link specific modules.
+target_link_libraries(utility-test PRIVATE legacy_modules)
 
 gmx_add_mpi_unit_test(UtilityMpiUnitTests utility-mpi-test 4
     CPP_SOURCE_FILES

@@ -41,7 +41,7 @@
  */
 #include "gmxpre.h"
 
-#include "loggertest.h"
+#include "testutils/loggertest.h"
 
 #include <gmock/gmock.h>
 

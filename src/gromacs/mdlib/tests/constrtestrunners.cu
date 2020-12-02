@@ -52,7 +52,7 @@
 #include <vector>
 
 #include "gromacs/gpu_utils/devicebuffer.cuh"
-#include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/mdlib/lincs_gpu.cuh"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/utility/unique_cptr.h"
@@ -62,17 +62,11 @@ namespace gmx
 namespace test
 {
 
-/*! \brief
- * Initialize and apply LINCS constraints on GPU.
- *
- * \param[in] testData        Test data structure.
- * \param[in] pbc             Periodic boundary data.
- */
-void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc)
+void LincsDeviceConstraintsRunner::applyConstraints(ConstraintsTestData* testData, t_pbc pbc)
 {
-    DeviceInformation   deviceInfo;
-    const DeviceContext deviceContext(deviceInfo);
-    const DeviceStream  deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    const DeviceContext& deviceContext = testDevice_.deviceContext();
+    const DeviceStream&  deviceStream  = testDevice_.deviceStream();
+    setActiveDevice(testDevice_.deviceInfo());
 
     auto lincsGpu = std::make_unique<LincsGpu>(testData->ir_.nLincsIter, testData->ir_.nProjOrder,
                                                deviceContext, deviceStream);
@@ -81,7 +75,7 @@ void applyLincsGpu(ConstraintsTestData* testData, t_pbc pbc)
     int     numAtoms         = testData->numAtoms_;
     float3 *d_x, *d_xp, *d_v;
 
-    lincsGpu->set(*testData->idef_, testData->md_);
+    lincsGpu->set(*testData->idef_, testData->numAtoms_, testData->invmass_.data());
     PbcAiuc pbcAiuc;
     setPbcAiuc(pbc.ndim_ePBC, pbc.box, &pbcAiuc);
 

@@ -42,7 +42,6 @@
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/locality.h"
-#include "gromacs/mdtypes/nblist.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/defaultinitializationallocator.h"
 #include "gromacs/utility/enumerationhelpers.h"
@@ -52,6 +51,7 @@
 
 struct NbnxnPairlistCpuWork;
 struct NbnxnPairlistGpuWork;
+struct t_nblist;
 
 
 //! Convenience type for vector with aligned memory
@@ -171,7 +171,7 @@ struct nbnxn_ci_t
 };
 
 //! Grouped pair-list i-unit
-typedef struct
+typedef struct nbnxn_sci
 {
     //! Returns the number of j-cluster groups in this entry
     int numJClusterGroups() const { return cj4_ind_end - cj4_ind_start; }

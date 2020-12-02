@@ -11,13 +11,11 @@ mdlib -> essentialdynamics
 mdlib -> imd
 mdlib -> ewald
 mdlib -> pulling
-mdlib -> awh
 nbnxm -> domdec
 nbnxm -> mdlib
 simd -> hardware
 gpu_utils -> hardware
 listed_forces -> mdlib
-utility -> math
 
 # modular simulator uses shellfc from mdrun, but is later included in mdrun by simulator builder
 modularsimulator -> mdrun
@@ -25,3 +23,6 @@ modularsimulator -> mdrun
 # Cycle counters in timing use comrec for the set up, which is in the mdtypes. This introduces
 # cyclic dependencies if the cycle counting is used anywhere in mdtypes.
 timing -> mdtypes
+
+# awh has dependencies in mdlib and pulling that need resolving.
+mdlib -> applied_forces
