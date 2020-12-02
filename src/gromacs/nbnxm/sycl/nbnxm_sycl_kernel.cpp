@@ -652,6 +652,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     constexpr bool doExclusionForces =
             (props.elecEwald || props.elecRF || props.vdwEwald || (props.elecCutoff && doCalcEnergies));
 
+    cl::sycl::stream debug(2024000, 128, cgh);
+
     return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(8)]]
     {
         /* thread/block/warp id-s */
@@ -701,6 +703,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 const int             ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj + i;
                 const int             ai = ci * c_clSize + tidxi;
                 const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
+                // debug << "{" << bidx << ";" << tidxi << "," << tidxj << "," << tidxz << "} loading " << ai << cl::sycl::endl;
 
                 const float3 shift = a_shiftVec[nb_sci.shift];
                 xqbuf              = a_xq[ai];
@@ -988,8 +991,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     if constexpr (vdwCutoffCheck<elecType>)
                                     {
-                                        /* Separate VDW cut-off check to enable twin-range cut-offs
-                                         * (rvdw < rcoulomb <= rlist) */
+                                        // Separate VDW cut-off check to enable twin-range cut-offs
+                                        // (rvdw < rcoulomb <= rlist)
                                         const float vdwInRange = (r2 < rVdwSq) ? 1.0F : 0.0F;
                                         F_invr *= vdwInRange;
                                         if constexpr (doCalcEnergies)
@@ -1063,6 +1066,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         } // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                         // Replace with group_reduce in SYCL2020
                         /* reduce j forces */
+                        // debug << ":: " << itemIdx << " {" << j4 << "/" << jm << " }" <<" !j " << fcj_buf[0] << " " << fcj_buf[1] << " " << fcj_buf[2] << cl::sycl::endl;
                         reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
                     } // (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                 } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
@@ -1084,11 +1088,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             doCalcShift = false;
         }
 
+        // debug << ":: " << itemIdx << " !i " << fci_buf[0] << "," << fci_buf[1] << cl::sycl::endl;
         reduce_force_i_and_shift(force_j_buf_shmem, fci_buf, a_f, doCalcShift, itemIdx, tidxi,
                                  tidxj, sci, nb_sci.shift, a_fShift);
 
         if constexpr (doCalcEnergies)
         {
+            // debug << ":: " << itemIdx << " !e " << _ftz(E_lj) << "," << _ftz(E_el) << cl::sycl::endl;
             const float E_lj_wg =
                     sycl_pf::group_reduce(itemIdx.get_group(), E_lj, 0.0F, sycl_pf::plus<float>());
             const float E_el_wg =
@@ -1140,6 +1146,8 @@ cl::sycl::event chooseAndLaunchNbnxmKernel(bool          doPruneNBL,
                                            enum VdwType  vdwType,
                                            Args&&... args)
 {
+    printf(">>> Launching NBNXM < %d %d %d %d > \n", doPruneNBL, doCalcEnergies,
+           static_cast<int>(elecType), static_cast<int>(vdwType));
     return gmx::dispatchTemplatedFunction(
             [&](auto doPruneNBL_, auto doCalcEnergies_, auto elecType_, auto vdwType_) {
                 return launchNbnxmKernel<doPruneNBL_, doCalcEnergies_, elecType_, vdwType_>(

@@ -88,7 +88,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                                c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize),
             cgh);
 
-    cl::sycl::stream debug(10240, 128, cgh);
+    cl::sycl::stream debug(8024000, 128, cgh);
 
     cl::sycl::accessor<int, 1, mode::read_write, target::local> warp_vote_buf(
             cl::sycl::range<1>(c_syclPruneKernelJ4Concurrency * c_nbnxnGpuNumClusterPerSupercluster), cgh);
@@ -117,6 +117,9 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const int         cij4_start = nb_sci.cj4_ind_start; /* first ...*/
         const int         cij4_end   = nb_sci.cj4_ind_end;   /* and last index of j clusters */
 
+        /* debug << "{" << bidx << ";" << tidxi << "," << tidxj << "," << tidxz << "} sci="<< sci <<
+                " ["<<cij4_start << "," << cij4_end << "]" << cl::sycl::endl; */
+
         if (tidxz == 0)
         {
             for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i += c_clSize)
@@ -124,11 +127,6 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 /* Pre-load i-atom x and q into shared memory */
                 const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj + i;
                 const int ai = ci * c_clSize + tidxi;
-
-                /*
-                debug << "tidxi=" << tidxi << " tidxj=" << tidxj << " ci=" << ci <<
-                        " ai=" << ai << cl::sycl::endl;
-                        */
 
                 /* We don't need q, but using float4 in shmem avoids bank conflicts.
                    (but it also wastes L2 bandwidth). */
@@ -231,6 +229,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                     a_plistIMask[j4 * c_nbnxnGpuClusterpairSplit + widx] = imaskFull;
                 }
                 /* update the imask with only the pairs up to rlistInner */
+                // debug << "plist.cj4[" << j4 << "].imei[" << widx << "].imask = " << imaskNew << cl::sycl::endl;
                 a_plistCJ4[j4].imei[widx].imask = imaskNew;
             } // (imaskCheck)
             itemIdx.barrier(fence_space::local_space);
@@ -273,6 +272,8 @@ cl::sycl::event launchNbnxmKernelPruneOnly(const DeviceStream& deviceStream,
 template<class... Args>
 cl::sycl::event chooseAndLaunchNbnxmKernelPruneOnly(bool haveFreshList, Args&&... args)
 {
+
+    printf(">>> Launching NBNXM PruneOnly < %d > \n", haveFreshList);
     return gmx::dispatchTemplatedFunction(
             [&](auto haveFreshList_) {
                 return launchNbnxmKernelPruneOnly<haveFreshList_>(std::forward<Args>(args)...);
