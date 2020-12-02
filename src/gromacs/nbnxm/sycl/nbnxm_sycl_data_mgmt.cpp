@@ -323,8 +323,8 @@ void gpu_free(NbnxmGpu* nb)
 
 int gpu_min_ci_balanced(NbnxmGpu* nb)
 {
-    // SYCL-TODO: Logic and magic values taken from CUDA
-    static constexpr unsigned int balancedFactor = 44;
+    // SYCL-TODO: Logic and magic values taken from OpenCL
+    static constexpr unsigned int balancedFactor = 50;
     if (nb == nullptr)
     {
         return 0;
