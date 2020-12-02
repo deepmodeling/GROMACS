@@ -87,7 +87,7 @@ using cl::sycl::intel::memory_order;
 using cl::sycl::intel::memory_scope;
 using cl::sycl::intel::plus;
 template<typename... Args>
-auto group_reduce(Args&&... args) -> decltype(cl::sycl::ONEAPI::reduce(std::forward<Args>(args)...))
+auto group_reduce(Args&&... args) -> decltype(cl::sycl::intel::reduce(std::forward<Args>(args)...))
 {
     return cl::sycl::intel::reduce(std::forward<Args>(args)...);
 }
