@@ -915,10 +915,10 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                              * inv_r6 and F_invr is faster */
                                             inv_r6 *= int_bit;
                                         }
-                                        F_invr = 0 * inv_r6 * (c12 * inv_r6 - c6) * inv_r2;
+                                        F_invr = inv_r6 * (c12 * inv_r6 - c6) * inv_r2;
                                         if constexpr (doCalcEnergies || props.vdwPSwitch)
                                         {
-                                            E_lj_p = 0 * int_bit
+                                            E_lj_p = int_bit
                                                      * (c12 * (inv_r6 * inv_r6 + repulsion_shift.cpot) * c_oneTwelfth
                                                         - c6 * (inv_r6 + repulsion_shift.cpot) * c_oneSixth);
                                         }
@@ -932,9 +932,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         {
                                             sig_r6 *= int_bit;
                                         }
-                                        F_invr = 0 * epsilon * sig_r6 * (sig_r6 - 1.0F) * inv_r2;
+                                        F_invr = epsilon * sig_r6 * (sig_r6 - 1.0F) * inv_r2;
                                     } // (!props.vdwCombLB || doCalcEnergies)
-                                    /*
                                     if constexpr (props.vdwFSwitch)
                                     {
                                         if constexpr (doCalcEnergies)
@@ -1005,7 +1004,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     {
                                         E_lj += E_lj_p;
                                     }
-                                     */
+
                                     if constexpr (props.elecCutoff)
                                     {
                                         if constexpr (doExclusionForces)
@@ -1149,12 +1148,9 @@ cl::sycl::event chooseAndLaunchNbnxmKernel(bool          doPruneNBL,
 {
     printf(">>> Launching NBNXM < %d %d %d %d > \n", doPruneNBL, doCalcEnergies,
            static_cast<int>(elecType), static_cast<int>(vdwType));
-    assert(elecType == ElecType::EwaldAna);
-    assert(vdwType == VdwType::CutCombGeom);
     return gmx::dispatchTemplatedFunction(
             [&](auto doPruneNBL_, auto doCalcEnergies_, auto elecType_, auto vdwType_) {
-                return launchNbnxmKernel<doPruneNBL_, doCalcEnergies_, ElecType::EwaldAna, VdwType::CutCombGeom>(
-                        // return launchNbnxmKernel<doPruneNBL_, doCalcEnergies_, elecType_, vdwType_>(
+                return launchNbnxmKernel<doPruneNBL_, doCalcEnergies_, elecType_, vdwType_>(
                         std::forward<Args>(args)...);
             },
             doPruneNBL, doCalcEnergies, elecType, vdwType);
