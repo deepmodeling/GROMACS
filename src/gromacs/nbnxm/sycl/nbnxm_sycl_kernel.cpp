@@ -64,9 +64,9 @@ struct EnergyFunctionProperties {
     static constexpr bool elecCutoff = (elecType == ElecType::Cut); ///< EL_CUTOFF
     static constexpr bool elecRF     = (elecType == ElecType::RF);  ///< EL_RF
     static constexpr bool elecEwaldAna =
-            (elecType == ElecType::EwaldAna || elecType == ElecType::EwaldAnaTwin);
+            (elecType == ElecType::EwaldAna || elecType == ElecType::EwaldAnaTwin); ///< EL_EWALD_ANA
     static constexpr bool elecEwaldTab =
-            (elecType == ElecType::EwaldTab || elecType == ElecType::EwaldTabTwin);
+            (elecType == ElecType::EwaldTab || elecType == ElecType::EwaldTabTwin); ///< EL_EWALD_TAB
     static constexpr bool elecEwaldTwin =
             (elecType == ElecType::EwaldAnaTwin || elecType == ElecType::EwaldTabTwin);
     static constexpr bool elecEwald        = (elecEwaldAna || elecEwaldTab); ///< EL_EWALD_ANY
@@ -510,8 +510,7 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
            Threads with line id 2 will do the reduction for (float3).z components. */
         if (tidxj < 3)
         {
-            float f = shmemBuf[tidxj * bufStride + tidxi]
-                      + shmemBuf[tidxj * bufStride + i * c_clSize + tidxi];
+            float f = shmemBuf[tidxj * bufStride + tidxi] + shmemBuf[tidxj * bufStride + c_clSize + tidxi];
 
             atomic_fetch_add(fout, 3 * aidx + tidxj, f);
 
@@ -554,7 +553,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  OptionalAccessor<float2, mode::read, ljComb<vdwType>>       a_ljComb,
                  OptionalAccessor<float, mode::read, !ljComb<vdwType>>       a_nbfp,
                  OptionalAccessor<float, mode::read, ljEwald<vdwType>>       a_nbfpComb,
-                 OptionalAccessor<float, mode::read, elecEwaldTab<elecType>> a_coulombType,
+                 OptionalAccessor<float, mode::read, elecEwaldTab<elecType>> a_coulombTab,
                  const float                                                 rCoulombSq,
                  const float                                                 rVdwSq,
                  const float                                                 twoKRf,
@@ -602,7 +601,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     }
     if constexpr (props.elecEwaldTab)
     {
-        cgh.require(a_coulombType);
+        cgh.require(a_coulombTab);
     }
 
     // shmem buffer for i x+q pre-loading
@@ -675,7 +674,11 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         const unsigned widx =
                 tidx / subGroupSize; // sg.get_group_id(); // warp index // SYCL_TODO: account for NTHREAD_Z > 1
 
-        float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster] = { { 0.0F, 0.0F, 0.0F } }; // i force buffer
+        float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster]; // i force buffer
+        for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
+        {
+            fci_buf[i] = float3(0.0F, 0.0F, 0.0F);
+        }
 
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx];
         const int         sci        = nb_sci.sci;
@@ -684,7 +687,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         // Only needed if props.elecEwaldAna
         const float beta2 = ewaldBeta * ewaldBeta;
-        const float beta3 = beta2 * ewaldBeta;
+        const float beta3 = ewaldBeta * ewaldBeta * ewaldBeta;
 
         bool doCalcShift = calcShift;
 
@@ -741,7 +744,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         // TODO: Are there other options?
                         if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
                         {
-                            const float qi = xqib[i][tidxi].w();
+                            const float qi = xqib[i][tidxi][3];
                             E_el += qi * qi;
                         }
                         if constexpr (props.vdwEwald)
@@ -810,6 +813,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
                         /* load j atom data */
                         xqbuf = a_xq[aj];
+
                         const float3 xj(xqbuf[0], xqbuf[1], xqbuf[2]);
                         const float  qj_f = xqbuf[3];
                         int          typej;  // Only needed if (!props.vdwComb)
@@ -837,6 +841,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                 /* distance between i and j atoms */
                                 float3 rv = xi - xj;
                                 float  r2 = norm2(rv);
+
                                 if constexpr (doPruneNBL)
                                 {
                                     /* If _none_ of the atoms pairs are in cutoff range,
@@ -1022,7 +1027,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         F_invr += qi * qj_f
                                                   * (int_bit * inv_r2
                                                      - interpolate_coulomb_force_r(
-                                                               a_coulombType, coulombTabScale, r2 * inv_r))
+                                                               a_coulombTab, coulombTabScale, r2 * inv_r))
                                                   * inv_r;
                                     }
 
@@ -1040,7 +1045,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         if constexpr (props.elecEwald)
                                         {
                                             E_el += qi * qj_f
-                                                    * (inv_r * (int_bit - erff(r2 * inv_r * ewaldBeta))
+                                                    * (inv_r * (int_bit - cl::sycl::erf(r2 * inv_r * ewaldBeta))
                                                        - int_bit * ewaldShift);
                                         }
                                     }
@@ -1049,7 +1054,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
                                     /* accumulate j forces in registers */
                                     fcj_buf -= f_ij;
-
                                     /* accumulate i forces in registers */
                                     fci_buf[i] += f_ij;
                                 } // (r2 < rCoulombSq) && notExcluded
