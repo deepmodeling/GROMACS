@@ -107,7 +107,7 @@ public:
      * \param[in]  md               MD atoms data.
      * \param[in]  state            System state object.
      * \param[in]  f                Buffer with atomic forces for home particles.
-     * \param[in]  fcd              Force calculation data to update distance and orientation restraints.
+     * \param[in]  fcdata           Force calculation data to update distance and orientation restraints.
      * \param[in]  ekind            Kinetic energy data (for temperature coupling, energy groups, etc.).
      * \param[in]  M                Parrinello-Rahman velocity scaling matrix.
      * \param[in]  updatePart       What should be updated, coordinates or velocities. This enum only used in VV integrator.
@@ -119,7 +119,7 @@ public:
                        const t_mdatoms*                                 md,
                        t_state*                                         state,
                        const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
-                       const t_fcdata*                                  fcd,
+                       const t_fcdata&                                  fcdata,
                        const gmx_ekindata_t*                            ekind,
                        const matrix                                     M,
                        int                                              updatePart,
@@ -148,12 +148,17 @@ public:
      *
      * \param[in]  inputRecord  Input record.
      * \param[in]  step         Current timestep.
-     * \param[in]  dvdlambda    Free energy derivative. Contribution to be added to the bonded
-     * interactions. \param[in]  md           MD atoms data. \param[in]  state        System state
-     * object. \param[in]  cr           Comunication record. \param[in]  nrnb         Cycle
-     * counters. \param[in]  wcycle       Wall-clock cycle counter. \param[in]  constr Constraints
-     * object. The constraints are applied on coordinates after update. \param[in]  do_log       If
-     * this is logging step. \param[in]  do_ene       If this is an energy evaluation step.
+     * \param[in]  dvdlambda    Free energy derivative. Contribution to be added to
+     *                          the bonded interactions.
+     * \param[in]  md           MD atoms data.
+     * \param[in]  state        System state object.
+     * \param[in]  cr           Comunication record.
+     * \param[in]  nrnb         Cycle counters.
+     * \param[in]  wcycle       Wall-clock cycle counter.
+     * \param[in]  constr       Constraints object. The constraints are applied
+     *                          on coordinates after update.
+     * \param[in]  do_log       If this is logging step.
+     * \param[in]  do_ene       If this is an energy evaluation step.
      */
     void update_sd_second_half(const t_inputrec& inputRecord,
                                int64_t           step,
@@ -166,6 +171,16 @@ public:
                                gmx::Constraints* constr,
                                bool              do_log,
                                bool              do_ene);
+
+    /*! \brief Performs a leap-frog update without updating \p state so the constrain virial
+     * can be computed.
+     */
+    void update_for_constraint_virial(const t_inputrec&                                inputRecord,
+                                      const t_mdatoms&                                 md,
+                                      const t_state&                                   state,
+                                      const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
+                                      const gmx_ekindata_t&                            ekind);
+
     /*! \brief Update pre-computed constants that depend on the reference temperature for coupling.
      *
      * This could change e.g. in simulated annealing.

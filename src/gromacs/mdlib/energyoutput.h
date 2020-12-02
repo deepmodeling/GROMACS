@@ -47,6 +47,8 @@
 
 #include <cstdio>
 
+#include <memory>
+
 #include "gromacs/mdtypes/enerdata.h"
 
 class energyhistory_t;
@@ -97,6 +99,24 @@ enum
 
 namespace gmx
 {
+class EnergyDriftTracker;
+
+/*! \internal
+ * \brief Arrays connected to Pressure and Temperature coupling
+ */
+struct PTCouplingArrays
+{
+    //! Box velocities for Parrinello-Rahman P-coupling.
+    const rvec* boxv;
+    //! Nose-Hoover coordinates.
+    ArrayRef<const double> nosehoover_xi;
+    //! Nose-Hoover velocities.
+    ArrayRef<const double> nosehoover_vxi;
+    //! Pressure Nose-Hoover coordinates.
+    ArrayRef<const double> nhpres_xi;
+    //! Pressure Nose-Hoover velocities.
+    ArrayRef<const double> nhpres_vxi;
+};
 
 /* Energy output class
  *
@@ -119,6 +139,7 @@ public:
      * \param[in] fp_dhdl    FEP file.
      * \param[in] isRerun    Is this is a rerun instead of the simulations.
      * \param[in] startingBehavior  Run starting behavior.
+     * \param[in] simulationsShareState  Tells whether the physical state is shared over simulations
      * \param[in] mdModulesNotifier Notifications to MD modules.
      */
     EnergyOutput(ener_file*               fp_ene,
@@ -128,6 +149,7 @@ public:
                  FILE*                    fp_dhdl,
                  bool                     isRerun,
                  StartingBehavior         startingBehavior,
+                 bool                     simulationsShareState,
                  const MdModulesNotifier& mdModulesNotifier);
 
     ~EnergyOutput();
@@ -136,32 +158,34 @@ public:
      *
      * Called every step on which the thermodynamic values are evaluated.
      *
-     * \param[in] bDoDHDL  Whether the FEP is enabled.
-     * \param[in] bSum     If this stepshould be recorded to compute sums and averaes.
-     * \param[in] time     Current simulation time.
-     * \param[in] tmass    Total mass
-     * \param[in] enerd    Energy data object.
-     * \param[in] state    System state.
-     * \param[in] fep      FEP data.
-     * \param[in] expand   Expanded ensemble (for FEP).
-     * \param[in] lastbox  PBC data.
-     * \param[in] svir     Constraint virial.
-     * \param[in] fvir     Force virial.
-     * \param[in] vir      Total virial.
-     * \param[in] pres     Pressure.
-     * \param[in] ekind    Kinetic energy data.
-     * \param[in] mu_tot   Total dipole.
-     * \param[in] constr   Constraints object to get RMSD from (for LINCS only).
+     * \param[in] bDoDHDL           Whether the FEP is enabled.
+     * \param[in] bSum              If this stepshould be recorded to compute sums and averages.
+     * \param[in] time              Current simulation time.
+     * \param[in] tmass             Total mass
+     * \param[in] enerd             Energy data object.
+     * \param[in] fep               FEP data.
+     * \param[in] expand            Expanded ensemble (for FEP).
+     * \param[in] lastbox           PBC data.
+     * \param[in] ptCouplingArrays  Arrays connected to pressure and temperature coupling.
+     * \param[in] fep_state         The current alchemical state we are in.
+     * \param[in] svir              Constraint virial.
+     * \param[in] fvir              Force virial.
+     * \param[in] vir               Total virial.
+     * \param[in] pres              Pressure.
+     * \param[in] ekind             Kinetic energy data.
+     * \param[in] mu_tot            Total dipole.
+     * \param[in] constr            Constraints object to get RMSD from (for LINCS only).
      */
     void addDataAtEnergyStep(bool                    bDoDHDL,
                              bool                    bSum,
                              double                  time,
                              real                    tmass,
                              const gmx_enerdata_t*   enerd,
-                             const t_state*          state,
                              const t_lambda*         fep,
                              const t_expanded*       expand,
                              const matrix            lastbox,
+                             PTCouplingArrays        ptCouplingArrays,
+                             int                     fep_state,
                              const tensor            svir,
                              const tensor            fvir,
                              const tensor            vir,
@@ -257,6 +281,15 @@ public:
 
     //! Print an output header to the log file.
     static void printHeader(FILE* log, int64_t steps, double time);
+
+    /*! \brief Print conserved energy drift message to \p fplog
+     *
+     * Note that this is only over the current run (times are printed),
+     * this is not from the original start time for runs with continuation.
+     * This has the advantage that one can find if conservation issues are
+     * from the current run with the current settings on the current hardware.
+     */
+    void printEnergyConservation(FILE* fplog, int simulationPart, bool usingMdIntegrator) const;
 
 private:
     //! Timestep
@@ -392,6 +425,9 @@ private:
     real* temperatures_ = nullptr;
     //! Number of temperatures actually saved
     int numTemperatures_ = 0;
+
+    //! For tracking the conserved or total energy
+    std::unique_ptr<EnergyDriftTracker> conservedEnergyTracker_;
 };
 
 } // namespace gmx

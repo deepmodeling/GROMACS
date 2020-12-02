@@ -45,9 +45,10 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
-#include "gromacs/awh/read_params.h"
+#include "gromacs/applied_forces/awh/read_params.h"
 #include "gromacs/fileio/readinp.h"
 #include "gromacs/fileio/warninp.h"
 #include "gromacs/gmxlib/network.h"
@@ -59,6 +60,7 @@
 #include "gromacs/mdrun/mdmodules.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/options/options.h"
 #include "gromacs/options/treesupport.h"
@@ -109,8 +111,6 @@ struct gmx_inputrec_strings
     std::vector<std::string> pullGroupNames;
     std::vector<std::string> rotateGroupNames;
     char anneal[STRLEN], anneal_npoints[STRLEN], anneal_time[STRLEN], anneal_temp[STRLEN];
-    char QMmethod[STRLEN], QMbasis[STRLEN], QMcharge[STRLEN], QMmult[STRLEN], bSH[STRLEN],
-            CASorbitals[STRLEN], CASelectrons[STRLEN], SAon[STRLEN], SAoff[STRLEN], SAsteps[STRLEN];
 };
 
 static gmx_inputrec_strings* inputrecStrings = nullptr;
@@ -254,6 +254,19 @@ void check_ir(const char*                   mdparin,
     t_expanded* expand = ir->expandedvals;
 
     set_warning_line(wi, mdparin, -1);
+
+    /* We cannot check MTS requirements with an invalid MTS setup
+     * and we will already have generated errors with an invalid MTS setup.
+     */
+    if (gmx::haveValidMtsSetup(*ir))
+    {
+        std::vector<std::string> errorMessages = gmx::checkMtsRequirements(*ir);
+
+        for (const auto& errorMessage : errorMessages)
+        {
+            warning_error(wi, errorMessage.c_str());
+        }
+    }
 
     if (ir->coulombtype == eelRF_NEC_UNSUPPORTED)
     {
@@ -536,6 +549,12 @@ void check_ir(const char*                   mdparin,
             if (ir->nstpcouple < 0)
             {
                 ir->nstpcouple = ir_optimal_nstpcouple(ir);
+            }
+            if (ir->useMts && ir->nstpcouple % ir->mtsLevels.back().stepFactor != 0)
+            {
+                warning_error(wi,
+                              "With multiple time stepping, nstpcouple should be a mutiple of "
+                              "mts-factor");
             }
         }
 
@@ -1883,6 +1902,23 @@ void get_ir(const char*     mdparin,
     printStringNoNewline(
             &inp, "Part index is updated automatically on checkpointing (keeps files separate)");
     ir->simulation_part = get_eint(&inp, "simulation-part", 1, wi);
+    printStringNoNewline(&inp, "Multiple time-stepping");
+    ir->useMts = (get_eeenum(&inp, "mts", yesno_names, wi) != 0);
+    if (ir->useMts)
+    {
+        gmx::GromppMtsOpts& mtsOpts = opts->mtsOpts;
+        mtsOpts.numLevels           = get_eint(&inp, "mts-levels", 2, wi);
+        ir->mtsLevels.resize(2);
+        mtsOpts.level2Forces = setStringEntry(&inp, "mts-level2-forces",
+                                              "longrange-nonbonded nonbonded pair dihedral");
+        mtsOpts.level2Factor = get_eint(&inp, "mts-level2-factor", 2, wi);
+
+        // We clear after reading without dynamics to not force the user to remove MTS mdp options
+        if (!EI_DYNAMICS(ir->eI))
+        {
+            ir->useMts = false;
+        }
+    }
     printStringNoNewline(&inp, "mode for center of mass motion removal");
     ir->comm_mode = get_eeenum(&inp, "comm-mode", ecm_names, wi);
     printStringNoNewline(&inp, "number of steps for center of mass motion removal");
@@ -2023,29 +2059,8 @@ void get_ir(const char*     mdparin,
     /* QMMM */
     printStringNewline(&inp, "OPTIONS FOR QMMM calculations");
     ir->bQMMM = (get_eeenum(&inp, "QMMM", yesno_names, wi) != 0);
-    printStringNoNewline(&inp, "Groups treated Quantum Mechanically");
+    printStringNoNewline(&inp, "Groups treated with MiMiC");
     setStringEntry(&inp, "QMMM-grps", inputrecStrings->QMMM, nullptr);
-    printStringNoNewline(&inp, "QM method");
-    setStringEntry(&inp, "QMmethod", inputrecStrings->QMmethod, nullptr);
-    printStringNoNewline(&inp, "QMMM scheme");
-    const char* noQMMMSchemeName = "normal";
-    get_eeenum(&inp, "QMMMscheme", &noQMMMSchemeName, wi);
-    printStringNoNewline(&inp, "QM basisset");
-    setStringEntry(&inp, "QMbasis", inputrecStrings->QMbasis, nullptr);
-    printStringNoNewline(&inp, "QM charge");
-    setStringEntry(&inp, "QMcharge", inputrecStrings->QMcharge, nullptr);
-    printStringNoNewline(&inp, "QM multiplicity");
-    setStringEntry(&inp, "QMmult", inputrecStrings->QMmult, nullptr);
-    printStringNoNewline(&inp, "Surface Hopping");
-    setStringEntry(&inp, "SH", inputrecStrings->bSH, nullptr);
-    printStringNoNewline(&inp, "CAS space options");
-    setStringEntry(&inp, "CASorbitals", inputrecStrings->CASorbitals, nullptr);
-    setStringEntry(&inp, "CASelectrons", inputrecStrings->CASelectrons, nullptr);
-    setStringEntry(&inp, "SAon", inputrecStrings->SAon, nullptr);
-    setStringEntry(&inp, "SAoff", inputrecStrings->SAoff, nullptr);
-    setStringEntry(&inp, "SAsteps", inputrecStrings->SAsteps, nullptr);
-    printStringNoNewline(&inp, "Scale factor for MM charges");
-    get_ereal(&inp, "MMChargeScaleFactor", 1.0, wi);
 
     /* Simulated annealing */
     printStringNewline(&inp, "SIMULATED ANNEALING");
@@ -2111,12 +2126,26 @@ void get_ir(const char*     mdparin,
     ir->bPull = (get_eeenum(&inp, "pull", yesno_names, wi) != 0);
     if (ir->bPull)
     {
-        snew(ir->pull, 1);
-        inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull, wi);
+        ir->pull                        = std::make_unique<pull_params_t>();
+        inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull.get(), wi);
+
+        if (ir->useMts)
+        {
+            for (int c = 0; c < ir->pull->ncoord; c++)
+            {
+                if (ir->pull->coord[c].eType == epullCONSTRAINT)
+                {
+                    warning_error(wi,
+                                  "Constraint COM pulling is not supported in combination with "
+                                  "multiple time stepping");
+                    break;
+                }
+            }
+        }
     }
 
     /* AWH biasing
-       NOTE: needs COM pulling input */
+       NOTE: needs COM pulling or free energy input */
     printStringNewline(&inp, "AWH biasing");
     ir->bDoAwh = (get_eeenum(&inp, "awh", yesno_names, wi) != 0);
     if (ir->bDoAwh)
@@ -2487,7 +2516,7 @@ void get_ir(const char*     mdparin,
     /* FREE ENERGY AND EXPANDED ENSEMBLE OPTIONS */
     if (ir->efep != efepNO)
     {
-        if (fep->delta_lambda > 0)
+        if (fep->delta_lambda != 0)
         {
             ir->efep = efepSLOWGROWTH;
         }
@@ -2636,6 +2665,18 @@ void get_ir(const char*     mdparin,
         if (ir->swap->threshold < 1.0)
         {
             warning_error(wi, "Ion count threshold must be at least 1.\n");
+        }
+    }
+
+    /* Set up MTS levels, this needs to happen before checking AWH parameters */
+    if (ir->useMts)
+    {
+        std::vector<std::string> errorMessages;
+        ir->mtsLevels = gmx::setupMtsLevels(opts->mtsOpts, &errorMessages);
+
+        for (const auto& errorMessage : errorMessages)
+        {
+            warning_error(wi, errorMessage.c_str());
         }
     }
 
@@ -2954,7 +2995,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
          * belong to different TC or VCM groups it is anyhow difficult
          * to determine the optimal nrdf assignment.
          */
-        pull = ir->pull;
+        pull = ir->pull.get();
 
         for (int i = 0; i < pull->ncoord; i++)
         {
@@ -2971,7 +3012,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
 
                 pgrp = &pull->group[pull->coord[i].group[j]];
 
-                if (pgrp->nat > 0)
+                if (!pgrp->ind.empty())
                 {
                     /* Subtract 1/2 dof from each group */
                     int ai = pgrp->ind[0];
@@ -3234,11 +3275,12 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
             if (numFrozenDims == DIM)
             {
                 /* Do not remove COM motion for this fully frozen atom */
-                if (groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
+                if (groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
                 {
-                    groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].resize(numAtoms, 0);
+                    groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval].resize(
+                            numAtoms, 0);
                 }
-                groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval][a] = vcmRestGroup;
+                groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval][a] = vcmRestGroup;
                 numFullyFrozenVcmAtoms++;
             }
             else if (numFrozenDims > 0)
@@ -3637,9 +3679,9 @@ void do_index(const char*                   mdparin,
 
     if (ir->bPull)
     {
-        make_pull_groups(ir->pull, inputrecStrings->pullGroupNames, defaultIndexGroups, gnames);
+        process_pull_groups(ir->pull->group, inputrecStrings->pullGroupNames, defaultIndexGroups, gnames);
 
-        make_pull_coords(ir->pull);
+        checkPullCoords(ir->pull->group, ir->pull->coord);
     }
 
     if (ir->bRot)
@@ -4061,6 +4103,9 @@ static void check_combination_rules(const t_inputrec* ir, const gmx_mtop_t* mtop
 
 void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_t wi)
 {
+    // Not meeting MTS requirements should have resulted in a fatal error, so we can assert here
+    GMX_ASSERT(gmx::checkMtsRequirements(*ir).empty(), "All MTS requirements should be met here");
+
     char                      err_buf[STRLEN];
     int                       i, m, c, nmol;
     bool                      bCharge, bAcc;

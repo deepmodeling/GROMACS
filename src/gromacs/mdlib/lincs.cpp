@@ -2132,6 +2132,9 @@ void set_lincs(const InteractionDefinitions& idef,
     }
 
     set_lincs_matrix(li, invmass, lambda);
+
+    li->rmsdData[0] = 0.0;
+    li->rmsdData[1] = 0.0;
 }
 
 //! Issues a warning when LINCS constraints cannot be satisfied.
@@ -2410,7 +2413,7 @@ bool constrain_lincs(bool                            computeRmsd,
                     std::string simMesg;
                     if (isMultiSim(ms))
                     {
-                        simMesg += gmx::formatString(" in simulation %d", ms->sim);
+                        simMesg += gmx::formatString(" in simulation %d", ms->simulationIndex_);
                     }
                     fprintf(stderr,
                             "\nStep %" PRId64

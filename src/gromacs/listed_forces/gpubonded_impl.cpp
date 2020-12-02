@@ -120,11 +120,11 @@ bool buildSupportsGpuBondeds(std::string* error)
     {
         errorReasons.emplace_back("not supported with double precision");
     }
-    if (GMX_GPU == GMX_GPU_OPENCL)
+    if (GMX_GPU_OPENCL)
     {
         errorReasons.emplace_back("not supported with OpenCL build of GROMACS");
     }
-    else if (GMX_GPU == GMX_GPU_NONE)
+    else if (!GMX_GPU)
     {
         errorReasons.emplace_back("not supported with CPU-only build of GROMACS");
     }
@@ -149,6 +149,10 @@ bool inputSupportsGpuBondeds(const t_inputrec& ir, const gmx_mtop_t& mtop, std::
     {
         errorReasons.emplace_back("MiMiC");
     }
+    if (ir.useMts)
+    {
+        errorReasons.emplace_back("Cannot run with multiple time stepping");
+    }
     if (ir.opts.ngener > 1)
     {
         errorReasons.emplace_back("Cannot run with multiple energy groups");
@@ -156,7 +160,7 @@ bool inputSupportsGpuBondeds(const t_inputrec& ir, const gmx_mtop_t& mtop, std::
     return addMessageIfNotSupported(errorReasons, error);
 }
 
-#if GMX_GPU != GMX_GPU_CUDA
+#if !GMX_GPU_CUDA
 
 class GpuBonded::Impl
 {
@@ -205,6 +209,6 @@ void GpuBonded::waitAccumulateEnergyTerms(gmx_enerdata_t* /* enerd */) {}
 
 void GpuBonded::clearEnergies() {}
 
-#endif /* GMX_GPU != GMX_GPU_CUDA */
+#endif // !GMX_GPU_CUDA
 
 } // namespace gmx

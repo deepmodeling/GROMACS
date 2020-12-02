@@ -33,34 +33,47 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+add_library(utility INTERFACE)
+
 file(GLOB UTILITY_SOURCES *.cpp)
-if (GMX_USE_CUDA)
+if (GMX_GPU_CUDA)
     gmx_add_libgromacs_sources(cuda_version_information.cu)
 endif()
 set(LIBGROMACS_SOURCES ${LIBGROMACS_SOURCES} ${UTILITY_SOURCES} PARENT_SCOPE)
 
-# TODO: (https://gitlab.com/gromacs/gromacs/-/issues/988) Find a new convention for defining public API.
-install(FILES
-        basedefinitions.h
-        current_function.h
-        gmxassert.h
-        real.h
-        DESTINATION include/gromacs/utility)
-
 if(GMX_INSTALL_LEGACY_API)
   install(FILES
-          arrayref.h
           baseversion.h
           classhelpers.h
           enumerationhelpers.h
-          exceptions.h
-          listoflists.h
+	  fileptr.h
+	  futil.h
+	  flags.h
+	  pleasecite.h
           programcontext.h
           range.h
           smalloc.h
+	  stringutil.h
           unique_cptr.h
           DESTINATION include/gromacs/utility)
 endif()
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(utility PUBLIC
+target_include_directories(utility INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(utility PUBLIC
+target_link_libraries(utility INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when utility is an OBJECT target
+#target_link_libraries(utility PUBLIC legacy_api)
+#target_link_libraries(utility PRIVATE common)
+
+# Source files have the following private module dependencies.
+# TODO: Explicitly link specific modules.
+#target_link_libraries(utility PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

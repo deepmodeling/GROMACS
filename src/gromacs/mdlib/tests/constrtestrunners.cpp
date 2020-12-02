@@ -80,13 +80,7 @@ namespace gmx
 namespace test
 {
 
-/*! \brief
- * Initialize and apply SHAKE constraints.
- *
- * \param[in] testData        Test data structure.
- * \param[in] pbc             Periodic boundary data.
- */
-void applyShake(ConstraintsTestData* testData, t_pbc gmx_unused pbc)
+void ShakeConstraintsRunner::applyConstraints(ConstraintsTestData* testData, t_pbc /* pbc */)
 {
     shakedata shaked;
     make_shake_sblock_serial(&shaked, testData->idef_.get(), testData->numAtoms_);
@@ -98,13 +92,7 @@ void applyShake(ConstraintsTestData* testData, t_pbc gmx_unused pbc)
     EXPECT_TRUE(success) << "Test failed with a false return value in SHAKE.";
 }
 
-/*! \brief
- * Initialize and apply LINCS constraints.
- *
- * \param[in] testData        Test data structure.
- * \param[in] pbc             Periodic boundary data.
- */
-void applyLincs(ConstraintsTestData* testData, t_pbc pbc)
+void LincsConstraintsRunner::applyConstraints(ConstraintsTestData* testData, t_pbc pbc)
 {
 
     Lincs* lincsd;
@@ -118,7 +106,7 @@ void applyLincs(ConstraintsTestData* testData, t_pbc pbc)
     cr.dd     = nullptr;
 
     // Multi-sim record
-    gmx_multisim_t ms;
+    gmx_multisim_t ms{ 1, 0, MPI_COMM_NULL, MPI_COMM_NULL };
 
     // Make blocka structure for faster LINCS setup
     std::vector<ListOfLists<int>> at2con_mt;
@@ -149,18 +137,13 @@ void applyLincs(ConstraintsTestData* testData, t_pbc pbc)
     done_lincs(lincsd);
 }
 
-#if GMX_GPU != GMX_GPU_CUDA
-/*! \brief
- * Stub for GPU version of LINCS constraints to satisfy compiler.
- *
- * \param[in] testData        Test data structure.
- * \param[in] pbc             Periodic boundary data.
- */
-void applyLincsGpu(ConstraintsTestData gmx_unused* testData, t_pbc gmx_unused pbc)
+#if !GMX_GPU_CUDA
+void LincsDeviceConstraintsRunner::applyConstraints(ConstraintsTestData* /* testData */, t_pbc /* pbc */)
 {
+    GMX_UNUSED_VALUE(testDevice_);
     FAIL() << "Dummy LINCS CUDA function was called instead of the real one.";
 }
-#endif
+#endif // !GMX_GPU_CUDA
 
 } // namespace test
 } // namespace gmx

@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2018,2019, by the GROMACS development team, led by
+# Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -32,11 +32,13 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+add_library(mdrun INTERFACE)
 gmx_add_libgromacs_sources(
     legacymdrunoptions.cpp
     legacysimulator.cpp
     md.cpp
     mdmodules.cpp
+    membedholder.cpp
     mimic.cpp
     minimize.cpp
     replicaexchange.cpp
@@ -44,8 +46,54 @@ gmx_add_libgromacs_sources(
     runner.cpp
     shellfc.cpp
     simulationcontext.cpp
+    simulationinput.cpp
+    simulationinputhandle.cpp
+    simulatorbuilder.cpp
     tpi.cpp
     )
+
+# Source files have the following private module dependencies.
+target_link_libraries(mdrun PRIVATE
+#                      gmxlib
+#                      math
+#                      mdtypes
+#                      tng_io
+                      )
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(mdrun PUBLIC
+target_include_directories(mdrun INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(mdrun PUBLIC
+target_link_libraries(mdrun INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when mdrun is an OBJECT target
+#target_link_libraries(mdrun PUBLIC legacy_api)
+#target_link_libraries(mdrun PRIVATE common)
+
+# Module dependencies
+# mdrun interfaces convey transitive dependence on these modules.
+#target_link_libraries(mdrun PUBLIC
+target_link_libraries(mdrun INTERFACE
+                      utility
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(mdrun PRIVATE tng_io)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(mdrun PRIVATE legacy_modules)
+
+# TODO: Find a home for this header and a scheme for installation.
+# This header straddles the installed libraries and is a transitive interface
+# from libgromacs to libgmxapi to libgmxapi clients. Near term efforts are
+# planned to consolidate these libraries and refine the public interface.
+# In the mean time, this is kept out of the gmxapi to avoid circular dependencies
+# between the libraries. It can be moved to a separate interface-only target,
+# but that is beyond the scope of issue #3379, which introduces the header.
+# Ref #3152 and #3652
+install(FILES simulationinputhandle.h
+        DESTINATION include/gromacs/mdrun)
 
 if (BUILD_TESTING)
 # TODO import this from src/programs/mdrun/tests

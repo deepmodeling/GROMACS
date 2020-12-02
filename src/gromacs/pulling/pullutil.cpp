@@ -519,8 +519,9 @@ static void sum_com_part_cosweight(const pull_group_work_t* pgrp,
 
 /* calculates center of mass of selection index from all coordinates x */
 // Compiler segfault with 2019_update_5 and 2020_initial
-#if defined(__INTEL_COMPILER) \
-        && ((__INTEL_COMPILER == 1900 && __INTEL_COMPILER_UPDATE >= 5) || __INTEL_COMPILER >= 1910)
+#if defined(__INTEL_COMPILER)                                          \
+        && ((__INTEL_COMPILER == 1900 && __INTEL_COMPILER_UPDATE >= 5) \
+            || (__INTEL_COMPILER >= 1910 && __INTEL_COMPILER < 2021))
 #    pragma intel optimization_level 2
 #endif
 void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc* pbc, double t, const rvec x[], rvec* xp)
@@ -610,7 +611,7 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
                  * Note that with constraint pulling the mass does matter, but
                  * in that case a check group mass != 0 has been done before.
                  */
-                if (pgrp->params.nat == 1 && pgrp->atomSet.numAtomsLocal() == 1
+                if (pgrp->params.ind.size() == 1 && pgrp->atomSet.numAtomsLocal() == 1
                     && masses[pgrp->atomSet.localIndex()[0]] == 0)
                 {
                     GMX_ASSERT(xp == nullptr,
@@ -724,7 +725,7 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
         pgrp = &pull->group[g];
         if (pgrp->needToCalcCom)
         {
-            GMX_ASSERT(pgrp->params.nat > 0,
+            GMX_ASSERT(!pgrp->params.ind.empty(),
                        "Normal pull groups should have atoms, only group 0, which should have "
                        "bCalcCom=FALSE has nat=0");
 
@@ -1049,7 +1050,7 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
 
         if (pgrp->needToCalcCom && pgrp->epgrppbc == epgrppbcPREVSTEPCOM)
         {
-            GMX_ASSERT(pgrp->params.nat > 1,
+            GMX_ASSERT(pgrp->params.ind.size() > 1,
                        "Groups with no atoms, or only one atom, should not "
                        "use the COM from the previous step as reference.");
 

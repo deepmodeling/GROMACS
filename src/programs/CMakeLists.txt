@@ -41,16 +41,21 @@ target_compile_definitions(mdrun_objlib PRIVATE HAVE_CONFIG_H)
 target_include_directories(mdrun_objlib SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
 # Should be possible to remove this when resolving #3290
 target_include_directories(mdrun_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
+target_link_libraries(mdrun_objlib PRIVATE common)
+target_link_libraries(mdrun_objlib PRIVATE legacy_api)
+# TODO: Explicitly link specific modules.
+target_link_libraries(mdrun_objlib PRIVATE legacy_modules)
 
 if(GMX_FAHCORE)
     # The lack of a real source file here alongside the object library
     # may break some generators, according to CMake documentation. If
     # so, we can consider adding some dummy file to make it work.
     add_library(fahcore $<TARGET_OBJECTS:mdrun_objlib>)
-    target_link_libraries(fahcore PRIVATE ${GMX_COMMON_LIBRARIES})
+    target_link_libraries(fahcore PRIVATE ${GMX_COMMON_LIBRARIES} legacy_api)
 elseif(GMX_BUILD_MDRUN_ONLY)
     add_executable(mdrun $<TARGET_OBJECTS:mdrun_objlib> mdrun_main.cpp)
     gmx_target_compile_options(mdrun)
+    target_include_directories(mdrun SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
     target_compile_definitions(mdrun PRIVATE HAVE_CONFIG_H)
     target_link_libraries(mdrun libgromacs
         ${GMX_COMMON_LIBRARIES}
@@ -74,24 +79,41 @@ else()
     gmx_target_compile_options(view_objlib)
     target_compile_definitions(view_objlib PRIVATE HAVE_CONFIG_H)
     target_include_directories(view_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
+    target_link_libraries(view_objlib PRIVATE common legacy_api)
+    # TODO: Explicitly link specific modules.
+    target_link_libraries(view_objlib PRIVATE legacy_modules)
     add_library(gmx_objlib OBJECT ${GMX_MAIN_SOURCES})
+    target_link_libraries(gmx_objlib PRIVATE common legacy_api)
+    # TODO: Explicitly link specific modules.
+    target_link_libraries(gmx_objlib PRIVATE legacy_modules)
     target_include_directories(gmx_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
+    target_include_directories(gmx_objlib SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
     add_executable(gmx
         $<TARGET_OBJECTS:gmx_objlib>
         $<TARGET_OBJECTS:mdrun_objlib>
         $<TARGET_OBJECTS:view_objlib>)
+    add_executable(Gromacs::gmx ALIAS gmx)
     gmx_target_compile_options(gmx)
     target_compile_definitions(gmx PRIVATE HAVE_CONFIG_H)
-    target_link_libraries(gmx libgromacs
-        ${GMX_COMMON_LIBRARIES}
-        ${GMX_EXE_LINKER_FLAGS})
+    target_link_libraries(gmx PRIVATE
+                          common
+                          libgromacs
+                          ${GMX_COMMON_LIBRARIES}
+                          ${GMX_EXE_LINKER_FLAGS})
     if(GMX_X11)
         target_link_libraries(gmx ${X11_LIBRARIES})
     endif()
     set(BINARY_NAME "gmx${GMX_BINARY_SUFFIX}")
     set_target_properties(gmx PROPERTIES
         OUTPUT_NAME "${BINARY_NAME}")
+    # Add the executable to the INSTALL target and to the libgromacs EXPORT configuration.
+    # The GROMACS installation then provides an importable (e.g. find_package(GROMACS))
+    # Gromacs::gmx target, which may be used as the executable COMMAND argument for functions like
+    # add_custom_command() or add_test(). The full path to the installed binary may retrieved
+    # from the LOCATION property or with a $<TARGET_FILE:Gromacs:gmx> generator expression
+    # (where generator expressions are allowed).
     install(TARGETS gmx
+            EXPORT libgromacs
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     ########################

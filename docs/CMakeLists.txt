@@ -363,6 +363,15 @@ if (SPHINX_FOUND)
         how-to/visualize.rst
         install-guide/index.rst
         release-notes/index.rst
+        release-notes/2022/major/highlights.rst
+        release-notes/2022/major/features.rst
+        release-notes/2022/major/performance.rst
+        release-notes/2022/major/tools.rst
+        release-notes/2022/major/bugs-fixed.rst
+        release-notes/2022/major/removed-functionality.rst
+        release-notes/2022/major/deprecated-functionality.rst
+        release-notes/2022/major/portability.rst
+        release-notes/2022/major/miscellaneous.rst
         release-notes/2021/major/highlights.rst
         release-notes/2021/major/features.rst
         release-notes/2021/major/performance.rst
@@ -375,6 +384,8 @@ if (SPHINX_FOUND)
         release-notes/2020/2020.1.rst
         release-notes/2020/2020.2.rst
         release-notes/2020/2020.3.rst
+        release-notes/2020/2020.4.rst
+        release-notes/2020/2020.5.rst
         release-notes/2020/major/highlights.rst
         release-notes/2020/major/features.rst
         release-notes/2020/major/performance.rst
@@ -549,6 +560,12 @@ if (SPHINX_FOUND)
             FILES pythonreference.rst 
             )
     endif ()
+
+    gmx_add_sphinx_source_files(
+            FILES
+            nblib/index.rst
+            nblib/guide-to-writing-MD-programs.rst
+    )
 
     gmx_add_sphinx_source_files(
         FILES

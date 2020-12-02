@@ -49,7 +49,9 @@
 #include "gromacs/gpu_utils/gmxopencl.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/utility/exceptions.h"
+#include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
+#include "gromacs/utility/stringutil.h"
 
 enum class GpuApiCallBehavior;
 
@@ -77,19 +79,6 @@ void pfree(void* h_ptr);
 
 /*! \brief Convert error code to diagnostic string */
 std::string ocl_get_error_string(cl_int error);
-
-//! A debug checker to track cl_events being released correctly
-inline void ensureReferenceCount(const cl_event& event, unsigned int refCount)
-{
-#ifndef NDEBUG
-    cl_int clError = clGetEventInfo(event, CL_EVENT_REFERENCE_COUNT, sizeof(refCount), &refCount, nullptr);
-    GMX_ASSERT(CL_SUCCESS == clError, ocl_get_error_string(clError).c_str());
-    GMX_ASSERT(refCount == refCount, "Unexpected reference count");
-#else
-    GMX_UNUSED_VALUE(event);
-    GMX_UNUSED_VALUE(refCount);
-#endif
-}
 
 /*! \brief Pretend to synchronize an OpenCL stream (dummy implementation).
  *
@@ -149,11 +138,10 @@ void prepareGpuKernelArgument(cl_kernel                 kernel,
 
     // Assert on types not allowed to be passed to a kernel
     // (as per section 6.9 of the OpenCL spec).
-    static_assert(!std::is_same<CurrentArg, bool>::value && !std::is_same<CurrentArg, size_t>::value
-                          && !std::is_same<CurrentArg, ptrdiff_t>::value
-                          && !std::is_same<CurrentArg, intptr_t>::value
-                          && !std::is_same<CurrentArg, uintptr_t>::value,
-                  "Invalid type passed to OpenCL kernel functions (see OpenCL spec section 6.9).");
+    static_assert(
+            !std::is_same_v<CurrentArg,
+                            bool> && !std::is_same_v<CurrentArg, size_t> && !std::is_same_v<CurrentArg, ptrdiff_t> && !std::is_same_v<CurrentArg, intptr_t> && !std::is_same_v<CurrentArg, uintptr_t>,
+            "Invalid type passed to OpenCL kernel functions (see OpenCL spec section 6.9).");
 
     prepareGpuKernelArgument(kernel, config, argIndex + 1, otherArgsPtrs...);
 }

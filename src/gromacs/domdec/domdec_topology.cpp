@@ -121,11 +121,11 @@ struct thread_work_t
      */
     thread_work_t(const gmx_ffparams_t& ffparams) : idef(ffparams) {}
 
-    InteractionDefinitions         idef;       /**< Partial local topology */
-    std::unique_ptr<gmx::VsitePbc> vsitePbc;   /**< vsite PBC structure */
-    int                            nbonded;    /**< The number of bondeds in this struct */
-    ListOfLists<int>               excl;       /**< List of exclusions */
-    int                            excl_count; /**< The total exclusion count for \p excl */
+    InteractionDefinitions         idef;               /**< Partial local topology */
+    std::unique_ptr<gmx::VsitePbc> vsitePbc = nullptr; /**< vsite PBC structure */
+    int                            nbonded  = 0;       /**< The number of bondeds in this struct */
+    ListOfLists<int>               excl;               /**< List of exclusions */
+    int                            excl_count = 0;     /**< The total exclusion count for \p excl */
 };
 
 /*! \brief Struct for the reverse topology: links bonded interactions to atomsx */
@@ -1088,7 +1088,6 @@ static inline void check_assign_interactions_atom(int                       i,
             {
                 add_vsite(*dd->ga2la, index, rtil, ftype, nral, TRUE, i, i_gl, i_mol, iatoms.data(), idef);
             }
-            j += 1 + nral + 2;
         }
         else
         {
@@ -1248,8 +1247,8 @@ static inline void check_assign_interactions_atom(int                       i,
                     (*nbonded_local)++;
                 }
             }
-            j += 1 + nral;
         }
+        j += 1 + nral_rt(ftype);
     }
 }
 

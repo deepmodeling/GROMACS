@@ -156,13 +156,6 @@ bool ddHaveSplitConstraints(const gmx_domdec_t& dd);
 /*! \brief Return whether update groups are used */
 bool ddUsesUpdateGroups(const gmx_domdec_t& dd);
 
-/*! \brief Return whether the DD has a single dimension
- *
- * The GPU halo exchange code requires a 1D DD, and its setup code can
- * use the returned value to understand what it should do.
- */
-bool is1D(const gmx_domdec_t& dd);
-
 /*! \brief Initialize data structures for bonded interactions */
 void dd_init_bondeds(FILE*                           fplog,
                      gmx_domdec_t*                   dd,
@@ -318,10 +311,12 @@ void dd_bonded_cg_distance(const gmx::MDLogger&           mdlog,
  * \param[in] mdlog               The logger object.
  * \param[in] cr                  The commrec object.
  * \param[in] deviceStreamManager Manager of the GPU context and streams.
+ * \param[in] wcycle              The wallclock counter.
  */
 void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
                               const t_commrec&                cr,
-                              const gmx::DeviceStreamManager& deviceStreamManager);
+                              const gmx::DeviceStreamManager& deviceStreamManager,
+                              gmx_wallcycle*                  wcycle);
 
 /*! \brief
  * (Re-) Initialization for GPU halo exchange

@@ -39,8 +39,12 @@
 #ifndef GMX_GMXPREPROCESS_READIR_H
 #define GMX_GMXPREPROCESS_READIR_H
 
+#include <string>
+
 #include "gromacs/fileio/readinp.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/real.h"
 
 namespace gmx
@@ -57,6 +61,8 @@ struct t_blocka;
 struct t_grpopts;
 struct t_inpfile;
 struct t_inputrec;
+struct t_pull_group;
+struct t_pull_coord;
 struct t_rot;
 struct warninp;
 typedef warninp* warninp_t;
@@ -82,21 +88,22 @@ enum
 
 struct t_gromppopts
 {
-    int   warnings;
-    int   nshake;
-    char* include;
-    char* define;
-    bool  bGenVel;
-    bool  bGenPairs;
-    real  tempi;
-    int   seed;
-    bool  bOrire;
-    bool  bMorse;
-    char* wall_atomtype[2];
-    char* couple_moltype;
-    int   couple_lam0;
-    int   couple_lam1;
-    bool  bCoupleIntra;
+    int                warnings  = 0;
+    int                nshake    = 0;
+    char*              include   = nullptr;
+    char*              define    = nullptr;
+    bool               bGenVel   = false;
+    bool               bGenPairs = false;
+    real               tempi     = 0;
+    int                seed      = 0;
+    gmx::GromppMtsOpts mtsOpts;
+    bool               bOrire           = false;
+    bool               bMorse           = false;
+    char*              wall_atomtype[2] = { nullptr, nullptr };
+    char*              couple_moltype   = nullptr;
+    int                couple_lam0      = 0;
+    int                couple_lam1      = 0;
+    bool               bCoupleIntra     = false;
 };
 
 /*! \brief Initialise object to hold strings parsed from an .mdp file */
@@ -148,14 +155,14 @@ void do_index(const char*                   mdparin,
 
 std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_params_t* pull, warninp_t wi);
 /* Reads the pull parameters, returns a list of the pull group names */
-
-void make_pull_groups(pull_params_t*                   pull,
-                      gmx::ArrayRef<const std::string> pullGroupNames,
-                      const t_blocka*                  grps,
-                      char**                           gnames);
+void process_pull_groups(gmx::ArrayRef<t_pull_group>      pullGroups,
+                         gmx::ArrayRef<const std::string> pullGroupNames,
+                         const t_blocka*                  grps,
+                         char**                           gnames);
 /* Process the pull group parameters after reading the index groups */
 
-void make_pull_coords(pull_params_t* pull);
+void checkPullCoords(gmx::ArrayRef<const t_pull_group> pullGroups,
+                     gmx::ArrayRef<const t_pull_coord> pullCoords);
 /* Process the pull coordinates after reading the pull groups */
 
 pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix box, real lambda, warninp_t wi);

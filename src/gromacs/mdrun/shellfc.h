@@ -54,7 +54,6 @@ struct gmx_mtop_t;
 class history_t;
 struct pull_t;
 struct t_forcerec;
-struct t_fcdata;
 struct t_inputrec;
 struct t_mdatoms;
 struct t_nrnb;
@@ -67,19 +66,29 @@ class ArrayRef;
 template<typename>
 class ArrayRefWithPadding;
 class Constraints;
+class ForceBuffersView;
 class ImdSession;
 class MdrunScheduleWorkload;
 class VirtualSitesHandler;
 } // namespace gmx
 
-/* Initialization function, also predicts the initial shell postions.
- * Returns a pointer to an initialized shellfc object.
+/*! \brief Initialization function, also predicts the initial shell positions.
+ *
+ * \param fplog Pointer to the log stream. Can be set to \c nullptr to disable verbose log.
+ * \param mtop Pointer to a global system topology object.
+ * \param nflexcon Number of flexible constraints.
+ * \param nstcalcenergy How often are energies calculated. Must be provided for sanity check.
+ * \param usingDomainDecomposition Whether domain decomposition is used. Must be provided for sanity check.
+ * \param usingPmeOnGpu Set to true if GPU will be used for PME calculations. Necessary for proper buffer initialization.
+ *
+ * \returns a pointer to an initialized \c shellfc object.
  */
 gmx_shellfc_t* init_shell_flexcon(FILE*             fplog,
                                   const gmx_mtop_t* mtop,
                                   int               nflexcon,
                                   int               nstcalcenergy,
-                                  bool              usingDomainDecomposition);
+                                  bool              usingDomainDecomposition,
+                                  bool              usingPmeOnGpu);
 
 /* Optimize shell positions */
 void relax_shell_flexcon(FILE*                               log,
@@ -96,14 +105,13 @@ void relax_shell_flexcon(FILE*                               log,
                          const gmx_localtop_t*               top,
                          gmx::Constraints*                   constr,
                          gmx_enerdata_t*                     enerd,
-                         t_fcdata*                           fcd,
                          int                                 natoms,
                          gmx::ArrayRefWithPadding<gmx::RVec> x,
                          gmx::ArrayRefWithPadding<gmx::RVec> v,
                          const matrix                        box,
                          gmx::ArrayRef<real>                 lambda,
                          history_t*                          hist,
-                         gmx::ArrayRefWithPadding<gmx::RVec> f,
+                         gmx::ForceBuffersView*              f,
                          tensor                              force_vir,
                          const t_mdatoms*                    md,
                          t_nrnb*                             nrnb,

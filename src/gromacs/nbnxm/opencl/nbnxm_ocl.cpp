@@ -73,6 +73,7 @@
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/gpu_utils/oclutils.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/nbnxm/atomdata.h"
@@ -161,7 +162,7 @@ static inline void validate_global_work_size(const KernelLaunchConfig& config,
  */
 
 /*! \brief Force-only kernel function names. */
-static const char* nb_kfunc_noener_noprune_ptr[eelTypeNR][evdwTypeNR] = {
+static const char* nb_kfunc_noener_noprune_ptr[c_numElecTypes][c_numVdwTypes] = {
     { "nbnxn_kernel_ElecCut_VdwLJ_F_opencl", "nbnxn_kernel_ElecCut_VdwLJCombGeom_F_opencl",
       "nbnxn_kernel_ElecCut_VdwLJCombLB_F_opencl", "nbnxn_kernel_ElecCut_VdwLJFsw_F_opencl",
       "nbnxn_kernel_ElecCut_VdwLJPsw_F_opencl", "nbnxn_kernel_ElecCut_VdwLJEwCombGeom_F_opencl",
@@ -195,7 +196,7 @@ static const char* nb_kfunc_noener_noprune_ptr[eelTypeNR][evdwTypeNR] = {
 };
 
 /*! \brief Force + energy kernel function pointers. */
-static const char* nb_kfunc_ener_noprune_ptr[eelTypeNR][evdwTypeNR] = {
+static const char* nb_kfunc_ener_noprune_ptr[c_numElecTypes][c_numVdwTypes] = {
     { "nbnxn_kernel_ElecCut_VdwLJ_VF_opencl", "nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_opencl",
       "nbnxn_kernel_ElecCut_VdwLJCombLB_VF_opencl", "nbnxn_kernel_ElecCut_VdwLJFsw_VF_opencl",
       "nbnxn_kernel_ElecCut_VdwLJPsw_VF_opencl", "nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_opencl",
@@ -230,7 +231,7 @@ static const char* nb_kfunc_ener_noprune_ptr[eelTypeNR][evdwTypeNR] = {
 };
 
 /*! \brief Force + pruning kernel function pointers. */
-static const char* nb_kfunc_noener_prune_ptr[eelTypeNR][evdwTypeNR] = {
+static const char* nb_kfunc_noener_prune_ptr[c_numElecTypes][c_numVdwTypes] = {
     { "nbnxn_kernel_ElecCut_VdwLJ_F_prune_opencl",
       "nbnxn_kernel_ElecCut_VdwLJCombGeom_F_prune_opencl",
       "nbnxn_kernel_ElecCut_VdwLJCombLB_F_prune_opencl",
@@ -271,7 +272,7 @@ static const char* nb_kfunc_noener_prune_ptr[eelTypeNR][evdwTypeNR] = {
 };
 
 /*! \brief Force + energy + pruning kernel function pointers. */
-static const char* nb_kfunc_ener_prune_ptr[eelTypeNR][evdwTypeNR] = {
+static const char* nb_kfunc_ener_prune_ptr[c_numElecTypes][c_numVdwTypes] = {
     { "nbnxn_kernel_ElecCut_VdwLJ_VF_prune_opencl",
       "nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_prune_opencl",
       "nbnxn_kernel_ElecCut_VdwLJCombLB_VF_prune_opencl",
@@ -340,49 +341,54 @@ static inline cl_kernel selectPruneKernel(cl_kernel kernel_pruneonly[], bool fir
  *  OpenCL kernel objects are cached in nb. If the requested kernel is not
  *  found in the cache, it will be created and the cache will be updated.
  */
-static inline cl_kernel select_nbnxn_kernel(NbnxmGpu* nb, int eeltype, int evdwtype, bool bDoEne, bool bDoPrune)
+static inline cl_kernel
+select_nbnxn_kernel(NbnxmGpu* nb, enum ElecType elecType, enum VdwType vdwType, bool bDoEne, bool bDoPrune)
 {
     const char* kernel_name_to_run;
     cl_kernel*  kernel_ptr;
     cl_int      cl_error;
 
-    GMX_ASSERT(eeltype < eelTypeNR,
+    const int elecTypeIdx = static_cast<int>(elecType);
+    const int vdwTypeIdx  = static_cast<int>(vdwType);
+
+    GMX_ASSERT(elecTypeIdx < c_numElecTypes,
                "The electrostatics type requested is not implemented in the OpenCL kernels.");
-    GMX_ASSERT(evdwtype < evdwTypeNR,
+    GMX_ASSERT(vdwTypeIdx < c_numVdwTypes,
                "The VdW type requested is not implemented in the OpenCL kernels.");
 
     if (bDoEne)
     {
         if (bDoPrune)
         {
-            kernel_name_to_run = nb_kfunc_ener_prune_ptr[eeltype][evdwtype];
-            kernel_ptr         = &(nb->kernel_ener_prune_ptr[eeltype][evdwtype]);
+            kernel_name_to_run = nb_kfunc_ener_prune_ptr[elecTypeIdx][vdwTypeIdx];
+            kernel_ptr         = &(nb->kernel_ener_prune_ptr[elecTypeIdx][vdwTypeIdx]);
         }
         else
         {
-            kernel_name_to_run = nb_kfunc_ener_noprune_ptr[eeltype][evdwtype];
-            kernel_ptr         = &(nb->kernel_ener_noprune_ptr[eeltype][evdwtype]);
+            kernel_name_to_run = nb_kfunc_ener_noprune_ptr[elecTypeIdx][vdwTypeIdx];
+            kernel_ptr         = &(nb->kernel_ener_noprune_ptr[elecTypeIdx][vdwTypeIdx]);
         }
     }
     else
     {
         if (bDoPrune)
         {
-            kernel_name_to_run = nb_kfunc_noener_prune_ptr[eeltype][evdwtype];
-            kernel_ptr         = &(nb->kernel_noener_prune_ptr[eeltype][evdwtype]);
+            kernel_name_to_run = nb_kfunc_noener_prune_ptr[elecTypeIdx][vdwTypeIdx];
+            kernel_ptr         = &(nb->kernel_noener_prune_ptr[elecTypeIdx][vdwTypeIdx]);
         }
         else
         {
-            kernel_name_to_run = nb_kfunc_noener_noprune_ptr[eeltype][evdwtype];
-            kernel_ptr         = &(nb->kernel_noener_noprune_ptr[eeltype][evdwtype]);
+            kernel_name_to_run = nb_kfunc_noener_noprune_ptr[elecTypeIdx][vdwTypeIdx];
+            kernel_ptr         = &(nb->kernel_noener_noprune_ptr[elecTypeIdx][vdwTypeIdx]);
         }
     }
 
     if (nullptr == kernel_ptr[0])
     {
         *kernel_ptr = clCreateKernel(nb->dev_rundata->program, kernel_name_to_run, &cl_error);
-        GMX_ASSERT(cl_error == CL_SUCCESS,
-                   ("clCreateKernel failed: " + ocl_get_error_string(cl_error)).c_str());
+        GMX_ASSERT(cl_error == CL_SUCCESS, ("clCreateKernel failed: " + ocl_get_error_string(cl_error)
+                                            + " for kernel named " + kernel_name_to_run)
+                                                   .c_str());
     }
 
     return *kernel_ptr;
@@ -390,7 +396,7 @@ static inline cl_kernel select_nbnxn_kernel(NbnxmGpu* nb, int eeltype, int evdwt
 
 /*! \brief Calculates the amount of shared memory required by the nonbonded kernel in use.
  */
-static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjParam)
+static inline int calc_shmem_required_nonbonded(enum VdwType vdwType, bool bPrefetchLjParam)
 {
     int shmem;
 
@@ -431,12 +437,12 @@ static inline int calc_shmem_required_nonbonded(int vdwType, bool bPrefetchLjPar
  *
  *  This function is called before the launch of both nbnxn and prune kernels.
  */
-static void fillin_ocl_structures(cl_nbparam_t* nbp, cl_nbparam_params_t* nbparams_params)
+static void fillin_ocl_structures(NBParamGpu* nbp, cl_nbparam_params_t* nbparams_params)
 {
     nbparams_params->coulomb_tab_scale = nbp->coulomb_tab_scale;
     nbparams_params->c_rf              = nbp->c_rf;
     nbparams_params->dispersion_shift  = nbp->dispersion_shift;
-    nbparams_params->eeltype           = nbp->eeltype;
+    nbparams_params->elecType          = nbp->elecType;
     nbparams_params->epsfac            = nbp->epsfac;
     nbparams_params->ewaldcoeff_lj     = nbp->ewaldcoeff_lj;
     nbparams_params->ewald_beta        = nbp->ewald_beta;
@@ -449,7 +455,7 @@ static void fillin_ocl_structures(cl_nbparam_t* nbp, cl_nbparam_params_t* nbpara
     nbparams_params->sh_ewald          = nbp->sh_ewald;
     nbparams_params->sh_lj_ewald       = nbp->sh_lj_ewald;
     nbparams_params->two_k_rf          = nbp->two_k_rf;
-    nbparams_params->vdwtype           = nbp->vdwtype;
+    nbparams_params->vdwType           = nbp->vdwType;
     nbparams_params->vdw_switch        = nbp->vdw_switch;
 }
 
@@ -484,7 +490,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     int adat_begin, adat_len;
 
     cl_atomdata_t*      adat         = nb->atdat;
-    cl_plist_t*         plist        = nb->plist[iloc];
+    gpu_plist*          plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -585,8 +591,8 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
 void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nbnxm::InteractionLocality iloc)
 {
     cl_atomdata_t*      adat         = nb->atdat;
-    cl_nbparam_t*       nbp          = nb->nbparam;
-    cl_plist_t*         plist        = nb->plist[iloc];
+    NBParamGpu*         nbp          = nb->nbparam;
+    gpu_plist*          plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
@@ -635,7 +641,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     /* kernel launch config */
 
     KernelLaunchConfig config;
-    config.sharedMemorySize = calc_shmem_required_nonbonded(nbp->vdwtype, nb->bPrefetchLjParam);
+    config.sharedMemorySize = calc_shmem_required_nonbonded(nbp->vdwType, nb->bPrefetchLjParam);
     config.blockSize[0]     = c_clSize;
     config.blockSize[1]     = c_clSize;
     config.gridSize[0]      = plist->nsci;
@@ -658,19 +664,19 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     auto*          timingEvent  = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
     constexpr char kernelName[] = "k_calc_nb";
     const auto     kernel =
-            select_nbnxn_kernel(nb, nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy,
+            select_nbnxn_kernel(nb, nbp->elecType, nbp->vdwType, stepWork.computeEnergy,
                                 (plist->haveFreshList && !nb->timers->interaction[iloc].didPrune));
 
 
     // The OpenCL kernel takes int as second to last argument because bool is
     // not supported as a kernel argument type (sizeof(bool) is implementation defined).
     const int computeFshift = static_cast<int>(stepWork.computeVirial);
-    if (useLjCombRule(nb->nbparam->vdwtype))
+    if (useLjCombRule(nb->nbparam->vdwType))
     {
         const auto kernelArgs = prepareGpuKernelArguments(
                 kernel, config, &nbparams_params, &adat->xq, &adat->f, &adat->e_lj, &adat->e_el,
-                &adat->fshift, &adat->lj_comb, &adat->shift_vec, &nbp->nbfp_climg2d, &nbp->nbfp_comb_climg2d,
-                &nbp->coulomb_tab_climg2d, &plist->sci, &plist->cj4, &plist->excl, &computeFshift);
+                &adat->fshift, &adat->lj_comb, &adat->shift_vec, &nbp->nbfp, &nbp->nbfp_comb,
+                &nbp->coulomb_tab, &plist->sci, &plist->cj4, &plist->excl, &computeFshift);
 
         launchGpuKernel(kernel, config, deviceStream, timingEvent, kernelName, kernelArgs);
     }
@@ -678,9 +684,8 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nb
     {
         const auto kernelArgs = prepareGpuKernelArguments(
                 kernel, config, &adat->ntypes, &nbparams_params, &adat->xq, &adat->f, &adat->e_lj,
-                &adat->e_el, &adat->fshift, &adat->atom_types, &adat->shift_vec, &nbp->nbfp_climg2d,
-                &nbp->nbfp_comb_climg2d, &nbp->coulomb_tab_climg2d, &plist->sci, &plist->cj4,
-                &plist->excl, &computeFshift);
+                &adat->e_el, &adat->fshift, &adat->atom_types, &adat->shift_vec, &nbp->nbfp, &nbp->nbfp_comb,
+                &nbp->coulomb_tab, &plist->sci, &plist->cj4, &plist->excl, &computeFshift);
         launchGpuKernel(kernel, config, deviceStream, timingEvent, kernelName, kernelArgs);
     }
 
@@ -723,8 +728,8 @@ static inline int calc_shmem_required_prune(const int num_threads_z)
 void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, const int numParts)
 {
     cl_atomdata_t*      adat         = nb->atdat;
-    cl_nbparam_t*       nbp          = nb->nbparam;
-    cl_plist_t*         plist        = nb->plist[iloc];
+    NBParamGpu*         nbp          = nb->nbparam;
+    gpu_plist*          plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
     bool                bDoTime      = nb->bDoTime;
@@ -898,7 +903,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* DtoH f */
     GMX_ASSERT(sizeof(*nbatom->out[0].f.data()) == sizeof(float),
                "The host force buffer should be in single precision to match device data size.");
-    copyFromDeviceBuffer(&nbatom->out[0].f.data()[adat_begin * DIM], &adat->f, adat_begin * DIM,
+    copyFromDeviceBuffer(&nbatom->out[0].f[adat_begin * DIM], &adat->f, adat_begin * DIM,
                          adat_len * DIM, deviceStream, GpuApiCallBehavior::Async,
                          bDoTime ? t->xf[aloc].nb_d2h.fetchNextEvent() : nullptr);
 
@@ -950,63 +955,6 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     {
         t->xf[aloc].nb_d2h.closeTimingRegion(deviceStream);
     }
-}
-
-
-/*! \brief Selects the Ewald kernel type, analytical or tabulated, single or twin cut-off. */
-int nbnxn_gpu_pick_ewald_kernel_type(const interaction_const_t& ic)
-{
-    bool bTwinCut = (ic.rcoulomb != ic.rvdw);
-    bool bUseAnalyticalEwald, bForceAnalyticalEwald, bForceTabulatedEwald;
-    int  kernel_type;
-
-    /* Benchmarking/development environment variables to force the use of
-       analytical or tabulated Ewald kernel. */
-    bForceAnalyticalEwald = (getenv("GMX_OCL_NB_ANA_EWALD") != nullptr);
-    bForceTabulatedEwald  = (getenv("GMX_OCL_NB_TAB_EWALD") != nullptr);
-
-    if (bForceAnalyticalEwald && bForceTabulatedEwald)
-    {
-        gmx_incons(
-                "Both analytical and tabulated Ewald OpenCL non-bonded kernels "
-                "requested through environment variables.");
-    }
-
-    /* OpenCL: By default, use analytical Ewald
-     * TODO: tabulated does not work, it needs fixing, see init_nbparam() in nbnxn_ocl_data_mgmt.cpp
-     *
-     */
-    /* By default use analytical Ewald. */
-    bUseAnalyticalEwald = true;
-    if (bForceAnalyticalEwald)
-    {
-        if (debug)
-        {
-            fprintf(debug, "Using analytical Ewald OpenCL kernels\n");
-        }
-    }
-    else if (bForceTabulatedEwald)
-    {
-        bUseAnalyticalEwald = false;
-
-        if (debug)
-        {
-            fprintf(debug, "Using tabulated Ewald OpenCL kernels\n");
-        }
-    }
-
-    /* Use twin cut-off kernels if requested by bTwinCut or the env. var.
-       forces it (use it for debugging/benchmarking only). */
-    if (!bTwinCut && (getenv("GMX_OCL_NB_EWALD_TWINCUT") == nullptr))
-    {
-        kernel_type = bUseAnalyticalEwald ? eelTypeEWALD_ANA : eelTypeEWALD_TAB;
-    }
-    else
-    {
-        kernel_type = bUseAnalyticalEwald ? eelTypeEWALD_ANA_TWIN : eelTypeEWALD_TAB_TWIN;
-    }
-
-    return kernel_type;
 }
 
 } // namespace Nbnxm

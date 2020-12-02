@@ -46,6 +46,7 @@
  */
 
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/gpu_utils.h" //only for GpuApiCallBehavior
 #include "gromacs/gpu_utils/gputraits_ocl.h"
@@ -59,7 +60,7 @@
  *
  * \tparam        ValueType            Raw value type of the \p buffer.
  * \param[in,out] buffer               Pointer to the device-side buffer.
- * \param[in]     numValues            Number of values to accomodate.
+ * \param[in]     numValues            Number of values to accommodate.
  * \param[in]     deviceContext        The buffer's device context-to-be.
  */
 template<typename ValueType>
@@ -267,13 +268,14 @@ void clearDeviceBufferAsync(DeviceBuffer<ValueType>* buffer,
 template<typename T>
 static bool checkDeviceBuffer(DeviceBuffer<T> buffer, int requiredSize)
 {
-    size_t size;
-    int    retval = clGetMemObjectInfo(buffer, CL_MEM_SIZE, sizeof(size), &size, nullptr);
+    const size_t requiredSizeBytes = requiredSize * sizeof(T);
+    size_t       sizeBytes;
+    cl_int retval = clGetMemObjectInfo(buffer, CL_MEM_SIZE, sizeof(sizeBytes), &sizeBytes, nullptr);
     GMX_ASSERT(retval == CL_SUCCESS,
                gmx::formatString("clGetMemObjectInfo failed with error code #%d", retval).c_str());
-    GMX_ASSERT(static_cast<int>(size) >= requiredSize,
+    GMX_ASSERT(sizeBytes >= requiredSizeBytes,
                "Number of atoms in device buffer is smaller then required size.");
-    return retval == CL_SUCCESS && static_cast<int>(size) >= requiredSize;
+    return retval == CL_SUCCESS && sizeBytes >= requiredSizeBytes;
 }
 
 //! Device texture wrapper.
@@ -319,7 +321,7 @@ void initParamLookupTable(DeviceBuffer<ValueType>* deviceBuffer,
  * \param[in,out] deviceBuffer  Device buffer to store data in.
  */
 template<typename ValueType>
-void destroyParamLookupTable(DeviceBuffer<ValueType>* deviceBuffer, DeviceTexture& /* deviceTexture*/)
+void destroyParamLookupTable(DeviceBuffer<ValueType>* deviceBuffer, const DeviceTexture& /* deviceTexture*/)
 {
     freeDeviceBuffer(deviceBuffer);
 }

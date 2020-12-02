@@ -2624,27 +2624,27 @@ void print_dd_statistics(const t_commrec* cr, const t_inputrec* ir, FILE* fplog)
 }
 
 //!\brief TODO Remove fplog when group scheme and charge groups are gone
-void dd_partition_system(FILE*                        fplog,
-                         const gmx::MDLogger&         mdlog,
-                         int64_t                      step,
-                         const t_commrec*             cr,
-                         gmx_bool                     bMasterState,
-                         int                          nstglobalcomm,
-                         t_state*                     state_global,
-                         const gmx_mtop_t&            top_global,
-                         const t_inputrec*            ir,
-                         gmx::ImdSession*             imdSession,
-                         pull_t*                      pull_work,
-                         t_state*                     state_local,
-                         PaddedHostVector<gmx::RVec>* f,
-                         gmx::MDAtoms*                mdAtoms,
-                         gmx_localtop_t*              top_local,
-                         t_forcerec*                  fr,
-                         gmx::VirtualSitesHandler*    vsite,
-                         gmx::Constraints*            constr,
-                         t_nrnb*                      nrnb,
-                         gmx_wallcycle*               wcycle,
-                         gmx_bool                     bVerbose)
+void dd_partition_system(FILE*                     fplog,
+                         const gmx::MDLogger&      mdlog,
+                         int64_t                   step,
+                         const t_commrec*          cr,
+                         gmx_bool                  bMasterState,
+                         int                       nstglobalcomm,
+                         t_state*                  state_global,
+                         const gmx_mtop_t&         top_global,
+                         const t_inputrec*         ir,
+                         gmx::ImdSession*          imdSession,
+                         pull_t*                   pull_work,
+                         t_state*                  state_local,
+                         gmx::ForceBuffers*        f,
+                         gmx::MDAtoms*             mdAtoms,
+                         gmx_localtop_t*           top_local,
+                         t_forcerec*               fr,
+                         gmx::VirtualSitesHandler* vsite,
+                         gmx::Constraints*         constr,
+                         t_nrnb*                   nrnb,
+                         gmx_wallcycle*            wcycle,
+                         gmx_bool                  bVerbose)
 {
     gmx_domdec_t*      dd;
     gmx_domdec_comm_t* comm;
@@ -3052,11 +3052,8 @@ void dd_partition_system(FILE*                        fplog,
     /* Set the charge group boundaries for neighbor searching */
     set_cg_boundaries(&comm->zones);
 
-    if (fr->cutoff_scheme == ecutsVERLET)
-    {
-        /* When bSortCG=true, we have already set the size for zone 0 */
-        set_zones_size(dd, state_local->box, &ddbox, bSortCG ? 1 : 0, comm->zones.n, 0);
-    }
+    /* When bSortCG=true, we have already set the size for zone 0 */
+    set_zones_size(dd, state_local->box, &ddbox, bSortCG ? 1 : 0, comm->zones.n, 0);
 
     wallcycle_sub_stop(wcycle, ewcsDD_SETUPCOMM);
 
@@ -3117,27 +3114,20 @@ void dd_partition_system(FILE*                        fplog,
 
     state_change_natoms(state_local, state_local->natoms);
 
-    if (fr->forceHelperBuffers->haveDirectVirialContributions())
+    if (vsite && vsite->numInterUpdategroupVirtualSites())
     {
-        if (vsite && vsite->numInterUpdategroupVirtualSites())
-        {
-            nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
-        }
-        else
-        {
-            if (EEL_FULL(ir->coulombtype) && dd->haveExclusions)
-            {
-                nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Zones);
-            }
-            else
-            {
-                nat_f_novirsum = comm->atomRanges.numHomeAtoms();
-            }
-        }
+        nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Vsites);
     }
     else
     {
-        nat_f_novirsum = 0;
+        if (EEL_FULL(ir->coulombtype) && dd->haveExclusions)
+        {
+            nat_f_novirsum = comm->atomRanges.end(DDAtomRanges::Type::Zones);
+        }
+        else
+        {
+            nat_f_novirsum = comm->atomRanges.numHomeAtoms();
+        }
     }
 
     /* Set the number of atoms required for the force calculation.
@@ -3162,16 +3152,17 @@ void dd_partition_system(FILE*                        fplog,
                                 mdatoms->sigmaB, dd_pme_maxshift_x(dd), dd_pme_maxshift_y(dd));
     }
 
-    if (ir->bPull)
-    {
-        /* Update the local pull groups */
-        dd_make_local_pull_groups(cr, pull_work);
-    }
-
     if (dd->atomSets != nullptr)
     {
         /* Update the local atom sets */
         dd->atomSets->setIndicesInDomainDecomposition(*(dd->ga2la));
+    }
+
+    // The pull group construction can need the atom sets updated above
+    if (ir->bPull)
+    {
+        /* Update the local pull groups */
+        dd_make_local_pull_groups(cr, pull_work);
     }
 
     /* Update the local atoms to be communicated via the IMD protocol if bIMD is TRUE. */
