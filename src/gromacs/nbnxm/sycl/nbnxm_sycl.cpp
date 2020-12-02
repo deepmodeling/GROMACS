@@ -91,7 +91,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
         GMX_ASSERT(adat->f.elementSize() == sizeof(float3),
                    "The size of the force buffer element should be equal to the size of float3.");
         copyFromDeviceBuffer(reinterpret_cast<float3*>(nbatom->out[0].f.data()) + adat_begin, &adat->f,
-                             adat_begin, adat_len, deviceStream, GpuApiCallBehavior::Async, nullptr);
+                             adat_begin, adat_len, deviceStream, GpuApiCallBehavior::Sync, nullptr);
     }
 
     /* After the non-local D2H is launched the nonlocal_done event can be
