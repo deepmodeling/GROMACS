@@ -96,7 +96,7 @@ void LogTargetFormatter::writeEntry(const LogEntry& entry)
 class LoggerOwner::Impl
 {
 public:
-    explicit Impl(std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets) :
+    explicit Impl(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> loggerTargets) :
         logger_(loggerTargets)
     {
     }
@@ -140,7 +140,7 @@ class LoggerBuilder::Impl
 public:
     std::vector<std::unique_ptr<TextOutputStream>> streams_;
     std::vector<std::unique_ptr<ILogTarget>>       targets_;
-    std::array<std::array<std::vector<ILogTarget*>, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets_;
+    std::array<EnumerationArray<VerbosityLevel, std::vector<ILogTarget*>>, MDLogger::LogStreamCount> loggerTargets_;
     int verbosityLevel_      = 0;
     int errorVerbosityLevel_ = 0;
     int debugVerbosityLevel_ = 0;
@@ -175,10 +175,10 @@ void LoggerBuilder::addTargetFile(MDLogger::LoggingStreams target, VerbosityLeve
 
 LoggerOwner LoggerBuilder::build()
 {
-    std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets;
+    std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> loggerTargets;
     for (int stream = 0; stream < MDLogger::LogStreamCount; ++stream)
     {
-        for (int level = 0; level < VerbosityLevelCount; ++level)
+        for (int level = 0; level < static_cast<int>(VerbosityLevel::Count); ++level)
         {
             auto& levelTargets           = impl_->loggerTargets_[stream][level];
             loggerTargets[stream][level] = nullptr;

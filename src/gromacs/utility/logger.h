@@ -48,6 +48,7 @@
 #include <string>
 
 #include "gromacs/utility/arrayref.h"
+#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/stringutil.h"
 
 namespace gmx
@@ -156,9 +157,6 @@ enum class VerbosityLevel
     Count
 };
 
-//! Number of verbosity levels available.
-static constexpr int VerbosityLevelCount = static_cast<int>(VerbosityLevel::Count);
-
 /*! \libinternal \brief
  * Represents a single logging level.
  *
@@ -197,7 +195,7 @@ class LogStreamHelper
 {
 public:
     //! Initializes one logging stream with targets at given verbosity levels.
-    explicit LogStreamHelper(const std::array<ILogTarget*, VerbosityLevelCount> targets) :
+    explicit LogStreamHelper(const EnumerationArray<VerbosityLevel, ILogTarget*> targets) :
         targets_(targets)
     {
     }
@@ -216,7 +214,7 @@ public:
     }
 
 private:
-    std::array<ILogTarget*, VerbosityLevelCount> targets_;
+    EnumerationArray<VerbosityLevel, ILogTarget*> targets_;
 };
 
 /*! \libinternal \brief
@@ -250,7 +248,7 @@ public:
 
     MDLogger();
     //! Creates a logger with the given targets.
-    explicit MDLogger(std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets);
+    explicit MDLogger(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> loggerTargets);
     //! For writing to the stream handling errors.
     LogStreamHelper error;
     //! For writing to the stream handling warnings.

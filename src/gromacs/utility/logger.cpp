@@ -34,6 +34,7 @@
  */
 #include "gmxpre.h"
 
+#include "gromacs/utility/enumerationhelpers.h"
 #include "logger.h"
 
 #include <cstdarg>
@@ -47,9 +48,9 @@ namespace
 {
 
 //! Helper method for reading logging targets from an array.
-std::array<ILogTarget*, VerbosityLevelCount>
-getTarget(std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> targets,
-          MDLogger::LoggingStreams                                                           stream)
+EnumerationArray<VerbosityLevel, ILogTarget*>
+getTarget(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> targets,
+          MDLogger::LoggingStreams stream)
 {
     return targets[static_cast<int>(stream)];
 }
@@ -71,7 +72,7 @@ LogEntryWriter& LogEntryWriter::appendTextFormatted(gmx_fmtstr const char* fmt, 
 
 MDLogger::MDLogger() {}
 
-MDLogger::MDLogger(std::array<std::array<ILogTarget*, VerbosityLevelCount>, MDLogger::LogStreamCount> loggerTargets) :
+MDLogger::MDLogger(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> loggerTargets) :
     error(getTarget(loggerTargets, LoggingStreams::Error)),
     warning(getTarget(loggerTargets, LoggingStreams::Warning)),
     debug(getTarget(loggerTargets, LoggingStreams::Debug)),

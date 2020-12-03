@@ -83,18 +83,18 @@ public:
         return targets_[static_cast<int>(level)][static_cast<int>(verbosity)];
     }
 
-    std::array<ILogTarget*, gmx::VerbosityLevelCount> prepareLogger(MDLogger::LoggingStreams level)
+    EnumerationArray<VerbosityLevel, ILogTarget*> prepareLogger(MDLogger::LoggingStreams level)
     {
-        for (int i = 0; i < gmx::VerbosityLevelCount; i++)
+        for (int i = 0; i < static_cast<int>(VerbosityLevel::Count); i++)
         {
             targetPointer_[static_cast<int>(level)][i] = &targets_[static_cast<int>(level)][i];
         }
         return targetPointer_[static_cast<int>(level)];
     }
 
-    std::array<std::array<NiceMock<MockLogTarget>, gmx::VerbosityLevelCount>, MDLogger::LogStreamCount> targets_;
-    std::array<std::array<ILogTarget*, gmx::VerbosityLevelCount>, MDLogger::LogStreamCount> targetPointer_;
-    MDLogger                                                                                logger_;
+    std::array<EnumerationArray<VerbosityLevel, NiceMock<MockLogTarget>>, MDLogger::LogStreamCount> targets_;
+    std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> targetPointer_;
+    MDLogger                                                                            logger_;
 };
 
 /********************************************************************
