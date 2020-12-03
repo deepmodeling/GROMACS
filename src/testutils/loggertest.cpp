@@ -80,21 +80,21 @@ public:
 
     NiceMock<MockLogTarget>& getTarget(MDLogger::LoggingStreams level, VerbosityLevel verbosity)
     {
-        return targets_[static_cast<int>(level)][static_cast<int>(verbosity)];
+        return targets_[level][verbosity];
     }
 
     EnumerationArray<VerbosityLevel, ILogTarget*> prepareLogger(MDLogger::LoggingStreams level)
     {
-        for (int i = 0; i < static_cast<int>(VerbosityLevel::Count); i++)
+        for (const auto& i : EnumerationWrapper<VerbosityLevel>{})
         {
-            targetPointer_[static_cast<int>(level)][i] = &targets_[static_cast<int>(level)][i];
+            targetPointer_[level][i] = &targets_[level][i];
         }
-        return targetPointer_[static_cast<int>(level)];
+        return targetPointer_[level];
     }
 
-    std::array<EnumerationArray<VerbosityLevel, NiceMock<MockLogTarget>>, MDLogger::LogStreamCount> targets_;
-    std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> targetPointer_;
-    MDLogger                                                                            logger_;
+    EnumerationArray<MDLogger::LoggingStreams, EnumerationArray<VerbosityLevel, NiceMock<MockLogTarget>>> targets_;
+    EnumerationArray<MDLogger::LoggingStreams, EnumerationArray<VerbosityLevel, ILogTarget*>> targetPointer_;
+    MDLogger logger_;
 };
 
 /********************************************************************

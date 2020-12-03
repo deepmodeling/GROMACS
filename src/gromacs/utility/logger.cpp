@@ -49,10 +49,10 @@ namespace
 
 //! Helper method for reading logging targets from an array.
 EnumerationArray<VerbosityLevel, ILogTarget*>
-getTarget(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> targets,
+getTarget(EnumerationArray<MDLogger::LoggingStreams, EnumerationArray<VerbosityLevel, ILogTarget*>> targets,
           MDLogger::LoggingStreams stream)
 {
-    return targets[static_cast<int>(stream)];
+    return targets[stream];
 }
 
 } // namespace
@@ -72,7 +72,7 @@ LogEntryWriter& LogEntryWriter::appendTextFormatted(gmx_fmtstr const char* fmt, 
 
 MDLogger::MDLogger() {}
 
-MDLogger::MDLogger(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> loggerTargets) :
+MDLogger::MDLogger(EnumerationArray<MDLogger::LoggingStreams, EnumerationArray<VerbosityLevel, ILogTarget*>> loggerTargets) :
     error(getTarget(loggerTargets, LoggingStreams::Error)),
     warning(getTarget(loggerTargets, LoggingStreams::Warning)),
     debug(getTarget(loggerTargets, LoggingStreams::Debug)),

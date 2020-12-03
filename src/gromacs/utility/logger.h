@@ -243,12 +243,10 @@ public:
         Debug,
         Count
     };
-    //! Number of logging streams.
-    static const int LogStreamCount = static_cast<int>(LoggingStreams::Count);
 
     MDLogger();
     //! Creates a logger with the given targets.
-    explicit MDLogger(std::array<EnumerationArray<VerbosityLevel, ILogTarget*>, MDLogger::LogStreamCount> loggerTargets);
+    explicit MDLogger(EnumerationArray<LoggingStreams, EnumerationArray<VerbosityLevel, ILogTarget*>> loggerTargets);
     //! For writing to the stream handling errors.
     LogStreamHelper error;
     //! For writing to the stream handling warnings.
@@ -268,7 +266,7 @@ public:
  *
  * Used as
  * \code
-   GMX_LOG(logger.status, VerbosityLevel::Verbose).appendText(...);
+   GMX_LOG_LEVEL(logger.status, VerbosityLevel::Verbose).appendText(...);
    \endcode
  * and ensures that the code to format the output is only executed when the
  * output goes somewhere.
