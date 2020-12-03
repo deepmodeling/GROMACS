@@ -50,7 +50,7 @@ cd ..
 
 SPHINX=`which sphinx-build`
 if [[ -z $SPHINX ]] ; then
-    echo "Can't do things without having sphins available"
+    echo "Can't do things without having sphinx available"
     exit 1
 fi
 
@@ -69,7 +69,6 @@ originalpwd=`pwd`
     cp $website_loc/manual-${VERSION}.pdf $originalpwd
 )
 
-cd $originalpwd
 
 (
     upload="rsync -avP --chmod=u+rw,g+rw,o+r"
