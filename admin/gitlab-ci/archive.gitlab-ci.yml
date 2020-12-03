@@ -290,10 +290,4 @@ archive:full-release:
     - export VERSION=`cat version.json |
       python3 -c "import json,sys; print(json.load(sys.stdin)['version'])"`
     - bash admin/ci-scripts/upload-release-artefacts.sh
-  artifacts:
-    when: always
-    paths:
-      - webpage.tar.gz
-      - gromacs-*tar.gz
-      - regressiontests-*tar.gz
 
