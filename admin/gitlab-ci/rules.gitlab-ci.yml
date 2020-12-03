@@ -82,6 +82,10 @@
        $CI_COMMIT_REF_NAME == "release-2021"'
   when: always
 
+# Only run this job manual, never automatic
+.rules-element:manual-only: &manual-only
+  when: manual
+
 # When composing a rule set, note that the first matching rule is applied.
 # If you want later rules to be evaluated, you must make sure that the *if*
 # clause of the earlier rules does not match. This may require inverting the
@@ -204,6 +208,18 @@
 # Excludes merge_requests and non-gromacs projects.
 .rules:nightly-only-for-release:
   rules:
+    - *if-not-gromacs-then-never
+    - *if-not-release-then-never
+    - *if-post-merge-acceptance-then-never
+    - *if-web-then-always
+    - *if-schedule-then-always
+
+# Rule to run a job only in nightly release-preparation pipelines with manual control
+# Checks if the GROMACS_RELEASE variable was set (typically through the GitLab web interface).
+# Excludes merge_requests and non-gromacs projects.
+.rules:nightly-only-for-release-manual:
+  rules:
+    - *manual-only
     - *if-not-gromacs-then-never
     - *if-not-release-then-never
     - *if-post-merge-acceptance-then-never

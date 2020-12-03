@@ -265,16 +265,31 @@ archive:nightly-webpage:
 archive:full-release:
   extends:
     - .webpage:build
-    - .rules:nightly-only-for-release
+    - .rules:nightly-only-for-release-manual
   stage: release-deploy
   dependencies:
     - webpage:build:release
     - archive:package
     - regressiontests:package
+    - prepare-release-version
   variables:
     BUILD_DIR: release-doc-builds
+  before_script:
+    - if [[ -z $SSH_PRIVATE_KEY ]] ; then
+        echo "Private key is not defined, not running script" ;
+        exit 1;
+      fi
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan www.gromacs.org > ~/.ssh/known_hosts # Force overwrite the known hosts so we only have that one key in it.
+    - ssh-keyscan ftp.gromacs.org >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
   script:
-    - tar czf webpage.tar.gz $BUILD_DIR/docs/html/
+    - export VERSION=`cat version.json |
+      python3 -c "import json,sys; print(json.load(sys.stdin)['version'])"`
+    - bash admin/ci-scripts/upload-release-artefacts.sh
   artifacts:
     when: always
     paths:
