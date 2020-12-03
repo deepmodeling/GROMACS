@@ -85,7 +85,7 @@ public:
 
     EnumerationArray<VerbosityLevel, ILogTarget*> prepareLogger(MDLogger::LoggingStreams level)
     {
-        for (const auto& i : EnumerationWrapper<VerbosityLevel>{})
+        for (const auto i : EnumerationWrapper<VerbosityLevel>{})
         {
             targetPointer_[level][i] = &targets_[level][i];
         }

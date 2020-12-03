@@ -176,9 +176,9 @@ void LoggerBuilder::addTargetFile(MDLogger::LoggingStreams target, VerbosityLeve
 LoggerOwner LoggerBuilder::build()
 {
     EnumerationArray<MDLogger::LoggingStreams, EnumerationArray<VerbosityLevel, ILogTarget*>> loggerTargets;
-    for (const auto& stream : EnumerationWrapper<MDLogger::LoggingStreams>{})
+    for (const auto stream : EnumerationWrapper<MDLogger::LoggingStreams>{})
     {
-        for (const auto& level : EnumerationWrapper<VerbosityLevel>{})
+        for (const auto level : EnumerationWrapper<VerbosityLevel>{})
         {
             auto& levelTargets           = impl_->loggerTargets_[stream][level];
             loggerTargets[stream][level] = nullptr;
