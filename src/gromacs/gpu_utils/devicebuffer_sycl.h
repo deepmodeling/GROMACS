@@ -354,6 +354,61 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
     }
 }
 
+namespace gmx::internal
+{
+template<typename T>
+static constexpr T zeroPattern = T(0);
+template<>
+static constexpr float3 zeroPattern<float3> = float3(0, 0, 0);
+
+template<typename ValueType, typename = std::enable_if_t<!std::is_same_v<ValueType, float3>>>
+static cl::sycl::event clearSyclBufferOnDevice(cl::sycl::buffer<ValueType, 1>& buffer,
+                                               size_t                          startingOffset,
+                                               size_t                          numValues,
+                                               cl::sycl::queue                 queue)
+{
+    using cl::sycl::access::mode;
+    const cl::sycl::range<1> range(numValues);
+    const cl::sycl::id<1>    offset(startingOffset);
+    const ValueType          pattern = zeroPattern<ValueType>;
+
+    return queue.submit([&](cl::sycl::handler& cgh) {
+        auto d_bufferAccessor =
+                cl::sycl::accessor<ValueType, 1, mode::discard_write>{ buffer, cgh, range, offset };
+        cgh.fill(d_bufferAccessor, pattern);
+    });
+}
+
+template<typename ValueType>
+static void clearSyclBufferViaHost(cl::sycl::buffer<ValueType, 1>& buffer,
+                                   size_t                          startingOffset,
+                                   size_t                          numValues,
+                                   cl::sycl::queue                 queue)
+{
+    using cl::sycl::accessor;
+    using cl::sycl::access::mode;
+    using cl::sycl::access::target;
+
+    const ValueType pattern = zeroPattern<ValueType>;
+    accessor<ValueType, 1, mode::discard_write, target::host_buffer> h_bufferAccessor{
+        buffer, cl::sycl::range<1>(numValues), cl::sycl::id<1>(startingOffset)
+    };
+    for (size_t i = startingOffset; i < startingOffset + numValues; i++)
+    {
+        h_bufferAccessor[i] = pattern;
+    }
+}
+
+static cl::sycl::event clearSyclBufferFloat3(cl::sycl::buffer<float3, 1>& buffer,
+                                             size_t                       startingOffset,
+                                             size_t                       numValues,
+                                             cl::sycl::queue              queue)
+{
+    cl::sycl::buffer<float, 1> bufferFloat = buffer.reinterpret<float, 1>(buffer.get_count() * 3);
+    return clearSyclBufferOnDevice<float>(bufferFloat, startingOffset * 3, numValues * 3, std::move(queue));
+}
+} // namespace gmx::internal
+
 /*! \brief
  * Clears the device buffer asynchronously.
  *
@@ -378,15 +433,20 @@ void clearDeviceBufferAsync(DeviceBuffer<ValueType>* buffer,
     GMX_ASSERT(checkDeviceBuffer(*buffer, startingOffset + numValues),
                "buffer too small or not initialized");
 
-    const ValueType              pattern{};
     cl::sycl::buffer<ValueType>& syclBuffer = *(buffer->buffer_);
 
-    cl::sycl::event ev = deviceStream.stream().submit([&](cl::sycl::handler& cgh) {
-        auto d_bufferAccessor = cl::sycl::accessor<ValueType, 1, cl::sycl::access::mode::discard_write>{
-            syclBuffer, cgh, cl::sycl::range(numValues), cl::sycl::id(startingOffset)
-        };
-        cgh.fill(d_bufferAccessor, pattern);
-    });
+    deviceStream.stream().wait_and_throw(); // TODO: Remove
+
+    // Apparently, cgh.fill does not like custom types?
+    if constexpr (std::is_same_v<ValueType, float3>)
+    {
+        gmx::internal::clearSyclBufferFloat3(syclBuffer, startingOffset, numValues, deviceStream.stream());
+    }
+    else
+    {
+        gmx::internal::clearSyclBufferOnDevice<ValueType>(syclBuffer, startingOffset, numValues,
+                                                          deviceStream.stream());
+    }
 }
 
 /*! \brief Create a texture object for an array of type ValueType.

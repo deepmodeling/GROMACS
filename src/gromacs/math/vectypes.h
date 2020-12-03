@@ -102,7 +102,7 @@ public:
     //! Constructs default (uninitialized) vector.
     BasicVector() {}
     //! Constructs a vector from given values.
-    BasicVector(ValueType x, ValueType y, ValueType z) : x_{ x, y, z } {}
+    constexpr BasicVector(ValueType x, ValueType y, ValueType z) : x_{ x, y, z } {}
     /*! \brief
      * Constructs a vector from given values.
      *
