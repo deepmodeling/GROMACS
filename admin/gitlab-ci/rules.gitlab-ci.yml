@@ -219,10 +219,10 @@
 # Excludes merge_requests and non-gromacs projects.
 .rules:nightly-only-for-release-manual:
   rules:
-    - *manual-only
     - *if-not-gromacs-then-never
     - *if-not-release-then-never
     - *if-post-merge-acceptance-then-never
+    - *manual-only
     - *if-web-then-always
     - *if-schedule-then-always
 
