@@ -435,12 +435,14 @@ void cuda_copy_fepconst(gmx_nbnxn_cuda_t* nb,
                                const bool        bFEP,
                                const float       alpha_coul,
                                const float       alpha_vdw,
+                               const float       alpha_bond,
                                const float       sc_sigma6_def,
                                const float       sc_sigma6_min)
 {
     nb->nbparam->bFEP       = bFEP;
     nb->nbparam->alpha_coul = alpha_coul;
     nb->nbparam->alpha_vdw  = alpha_vdw;
+    nb->nbparam->alpha_bond = alpha_bond;
     nb->nbparam->sc_sigma6  = sc_sigma6_def;
     nb->nbparam->sc_sigma6_min = sc_sigma6_min;
 }
@@ -992,6 +994,20 @@ void* gpu_get_xq(gmx_nbnxn_gpu_t* nb)
     assert(nb);
 
     return static_cast<void*>(nb->atdat->xq);
+}
+
+void* gpu_get_qA(gmx_nbnxn_gpu_t* nb)
+{
+    assert(nb);
+
+    return static_cast<void*>(nb->atdat->qA);
+}
+
+void* gpu_get_qB(gmx_nbnxn_gpu_t* nb)
+{
+    assert(nb);
+
+    return static_cast<void*>(nb->atdat->qB);
 }
 
 void* gpu_get_f(gmx_nbnxn_gpu_t* nb)

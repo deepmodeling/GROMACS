@@ -219,6 +219,19 @@ struct cu_nbparam
     bool  bFEP; /**< whether using free energy perturbation    */
     float alpha_coul;
     float alpha_vdw;
+    float alpha_bond;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    float lambda_q; /**< free energy λ for coulomb interaction */
+    float lambda_v; /**< free energy λ for vdw interaction     */
+};
+
+struct cu_fepparam
+{
+    bool  bFEP; /**< whether using free energy perturbation    */
+    float alpha_coul;
+    float alpha_vdw;
+    float alpha_bond;
     float sc_sigma6;
     float sc_sigma6_min;
     float lambda_q; /**< free energy λ for coulomb interaction */

@@ -95,8 +95,13 @@ struct BondedCudaKernelParameters
 
     //! Force parameters (on GPU)
     t_iparams* d_forceParams;
+    //! Free energy parameters for device-side use.
+    BondedFepParameters d_fepParams;
     //! Coordinates before the timestep (on GPU)
     const float4* d_xq;
+    //! Charge vector for free energy perturbation.
+    const float* d_qA;
+    const float* d_qB;
     //! Forces on atoms (on GPU)
     fvec* d_f;
     //! Force shifts on atoms (on GPU)
@@ -121,6 +126,18 @@ struct BondedCudaKernelParameters
     }
 };
 
+struct BondedFepParameters
+{
+    bool  bFEP; /**< whether using free energy perturbation    */
+    float alpha_coul;
+    float alpha_vdw;
+    float alpha_bond;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    float lambda_q; /**< free energy λ for coulomb interaction */
+    float lambda_v; /**< free energy λ for vdw interaction     */
+};
+
 /*! \internal \brief Implements GPU bondeds */
 class GpuBonded::Impl
 {
@@ -142,6 +159,16 @@ public:
                                                 void*               xqDevice,
                                                 void*               forceDevice,
                                                 void*               fshiftDevice);
+    void updateFepValuesAndDeviceBuffers(void*             qADevice,
+                                         void*             qBDevice,
+                                         const bool        bFEP,
+                                         const float       alpha_coul,
+                                         const float       alpha_vdw,
+                                         const float       alpha_bond,
+                                         const float       sc_sigma6_def,
+                                         const float       sc_sigma6_min,
+                                         const float       lambda_q,
+                                         const float       lambda_v);
 
     /*! \brief Launches bonded kernel on a GPU */
     template<bool calcVir, bool calcEner>
@@ -169,8 +196,13 @@ private:
     t_ilist d_iLists_[F_NRE];
     //! Bonded parameters for device-side use.
     t_iparams* d_forceParams_ = nullptr;
+    //! Free energy parameters for device-side use.
+    BondedFepParameters d_fepParams_;
     //! Position-charge vector on the device.
     const float4* d_xq_ = nullptr;
+    //! Charge vector for free energy perturbation.
+    const float* d_qA = nullptr;
+    const float* d_qB = nullptr;
     //! Force vector on the device.
     fvec* d_f_ = nullptr;
     //! Shift force vector on the device.

@@ -85,7 +85,10 @@ GpuBonded::Impl::Impl(const gmx_ffparams_t& ffparams, void* streamPtr, gmx_wallc
     }
 
     kernelParams_.d_forceParams = d_forceParams_;
+    kernelParams_.d_fepParams   = d_fepParams_;
     kernelParams_.d_xq          = d_xq_;
+    kernelParams_.d_qA          = d_qA_;
+    kernelParams_.d_qB          = d_qB_;
     kernelParams_.d_f           = d_f_;
     kernelParams_.d_fShift      = d_fShift_;
     kernelParams_.d_vTot        = d_vTot_;
@@ -109,6 +112,7 @@ GpuBonded::Impl::~Impl()
     }
 
     freeDeviceBuffer(&d_forceParams_);
+    freeDeviceBuffer(&d_fepParams_);
     freeDeviceBuffer(&d_vTot_);
 }
 
@@ -189,7 +193,8 @@ void GpuBonded::Impl::updateInteractionListsAndDeviceBuffers(ArrayRef<const int>
          * But instead of doing all interactions on the CPU, we can
          * still easily handle the types that have no perturbed
          * interactions on the GPU. */
-        if (idef.il[fType].nr > 0 && !fTypeHasPerturbedEntries(idef, fType))
+        // && !fTypeHasPerturbedEntries(idef, fType)
+        if (idef.il[fType].nr > 0)
         {
             haveInteractions_ = true;
 
@@ -253,6 +258,34 @@ void GpuBonded::Impl::updateInteractionListsAndDeviceBuffers(ArrayRef<const int>
     kernelParams_.d_vTot        = d_vTot_;
 
     // TODO wallcycle sub stop
+}
+
+void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*             d_qAPtr,
+                                                      void*             d_qBPtr,
+                                                      const bool        bFEP,
+                                                      const float       alpha_coul,
+                                                      const float       alpha_vdw,
+                                                      const float       alpha_bond,
+                                                      const float       sc_sigma6_def,
+                                                      const float       sc_sigma6_min,
+                                                      const float       lambda_q,
+                                                      const float       lambda_v)
+{
+    d_qA_     = static_cast<float*>(d_qAPtr);
+    d_qB_     = static_cast<float*>(d_qBPtr);
+
+    kernelParams_.d_qA          = d_qA_;
+    kernelParams_.d_qB          = d_qB_;
+
+    d_fepParams_.bFEP       = bFEP;
+    d_fepParams_.alpha_coul = alpha_coul;
+    d_fepParams_.alpha_vdw  = alpha_vdw;
+    d_fepParams_.alpha_bond = alpha_bond;
+    d_fepParams_.sc_sigma6  = sc_sigma6;
+    d_fepParams_.sc_sigma6_min = sc_sigma6_min;
+    d_fepParams_.lambda_q   = lambda_q;
+    d_fepParams_.lambda_v   = lambda_v;
+    kernelParams_.d_fepParams  = d_fepParams_;
 }
 
 bool GpuBonded::Impl::haveInteractions() const

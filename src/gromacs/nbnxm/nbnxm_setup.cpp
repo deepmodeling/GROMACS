@@ -456,7 +456,7 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger&     mdlo
         /* init the NxN GPU data; the last argument tells whether we'll have
          * both local and non-local NB calculation on GPU */
         gpu_nbv = gpu_init(deviceInfo, fr->ic, pairlistParams, nbat.get(), cr->nodeid, haveMultipleDomains);
-        cuda_copy_fepconst(gpu_nbv, pairlistParams.haveFep, fr->sc_alphacoul, fr->sc_alphavdw, fr->sc_sigma6_def, fr->sc_sigma6_min);
+        cuda_copy_fepconst(gpu_nbv, pairlistParams.haveFep, fr->sc_alphacoul, fr->sc_alphavdw, fr->sb_alpha, fr->sc_sigma6_def, fr->sc_sigma6_min);
         cuda_copy_feplambda(gpu_nbv, lambda_q, lambda_v);
 
         minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv);
