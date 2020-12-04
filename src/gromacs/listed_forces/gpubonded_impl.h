@@ -70,6 +70,30 @@ struct HostInteractionList
     HostVector<int> iatoms = { {}, gmx::HostAllocationPolicy(gmx::PinningPolicy::PinnedIfSupported) };
 };
 
+struct BondedFepParameters
+{
+    bool  bFEP; /**< whether using free energy perturbation    */
+    float alpha_coul;
+    float alpha_vdw;
+    float alpha_bond;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    float lambda_q; /**< free energy λ for coulomb interaction */
+    float lambda_v; /**< free energy λ for vdw interaction     */
+
+    BondedFepParameters()
+    {
+        bFEP = 0;
+        alpha_coul    = 0.0;
+        alpha_vdw     = 0.0;
+        alpha_bond    = 0.0;
+        sc_sigma6     = 0.0;
+        sc_sigma6_min = 0.0;
+        lambda_q      = 0.0;
+        lambda_v      = 0.0;
+    }
+};
+
 /* \brief Bonded parameters and GPU pointers
  *
  * This is used to accumulate all the parameters and pointers so they can be passed
@@ -96,7 +120,7 @@ struct BondedCudaKernelParameters
     //! Force parameters (on GPU)
     t_iparams* d_forceParams;
     //! Free energy parameters for device-side use.
-    BondedFepParameters d_fepParams;
+    BondedFepParameters* d_fepParams;
     //! Coordinates before the timestep (on GPU)
     const float4* d_xq;
     //! Charge vector for free energy perturbation.
@@ -120,22 +144,12 @@ struct BondedCudaKernelParameters
         scaleFactor   = 1.0;
         d_forceParams = nullptr;
         d_xq          = nullptr;
+        d_qA          = nullptr;
+        d_qB          = nullptr;
         d_f           = nullptr;
         d_fShift      = nullptr;
         d_vTot        = nullptr;
     }
-};
-
-struct BondedFepParameters
-{
-    bool  bFEP; /**< whether using free energy perturbation    */
-    float alpha_coul;
-    float alpha_vdw;
-    float alpha_bond;
-    float sc_sigma6;
-    float sc_sigma6_min;
-    float lambda_q; /**< free energy λ for coulomb interaction */
-    float lambda_v; /**< free energy λ for vdw interaction     */
 };
 
 /*! \internal \brief Implements GPU bondeds */
@@ -197,12 +211,12 @@ private:
     //! Bonded parameters for device-side use.
     t_iparams* d_forceParams_ = nullptr;
     //! Free energy parameters for device-side use.
-    BondedFepParameters d_fepParams_;
+    BondedFepParameters* d_fepParams_;
     //! Position-charge vector on the device.
     const float4* d_xq_ = nullptr;
     //! Charge vector for free energy perturbation.
-    const float* d_qA = nullptr;
-    const float* d_qB = nullptr;
+    const float* d_qA_ = nullptr;
+    const float* d_qB_ = nullptr;
     //! Force vector on the device.
     fvec* d_f_ = nullptr;
     //! Shift force vector on the device.

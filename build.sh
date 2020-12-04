@@ -5,7 +5,7 @@ module load cuda/10.0
 module load cuDNN/v7.6forcuda10.0
 module load cmake
 
-INSTALL_DIR=/data1/anguse/zijian/gromacs-2020.2-gpuall-softbond
+INSTALL_DIR=/data1/anguse/zijian/gromacs-2020.2-gpuall-bonded
 
 export LD_LIBRARY_PATH=/data1/anguse/zijian/plumed2/lib:$LD_LIBRARY_PATH
 export PATH=/data1/anguse/zijian/plumed2/bin:$PATH

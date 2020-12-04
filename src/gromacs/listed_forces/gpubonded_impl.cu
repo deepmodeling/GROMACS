@@ -56,6 +56,7 @@
 #include "gromacs/topology/forcefieldparameters.h"
 
 struct t_forcerec;
+struct BondedFepParameters;
 
 namespace gmx
 {
@@ -66,12 +67,20 @@ GpuBonded::Impl::Impl(const gmx_ffparams_t& ffparams, void* streamPtr, gmx_wallc
 {
     stream_ = *static_cast<CommandStream*>(streamPtr);
     wcycle_ = wcycle;
+    BondedFepParameters bonded_fep = BondedFepParameters();
 
     allocateDeviceBuffer(&d_forceParams_, ffparams.numTypes(), nullptr);
     // This could be an async transfer (if the source is pinned), so
     // long as it uses the same stream as the kernels and we are happy
     // to consume additional pinned pages.
     copyToDeviceBuffer(&d_forceParams_, ffparams.iparams.data(), 0, ffparams.numTypes(), stream_,
+                       GpuApiCallBehavior::Sync, nullptr);
+    
+    allocateDeviceBuffer(&d_fepParams_, sizeof(BondedFepParameters), nullptr);
+    // This could be an async transfer (if the source is pinned), so
+    // long as it uses the same stream as the kernels and we are happy
+    // to consume additional pinned pages.
+    copyToDeviceBuffer(&d_fepParams_, &bonded_fep, 0, sizeof(BondedFepParameters), stream_,
                        GpuApiCallBehavior::Sync, nullptr);
     vTot_.resize(F_NRE);
     allocateDeviceBuffer(&d_vTot_, F_NRE, nullptr);
@@ -277,14 +286,14 @@ void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*             d_qAPtr,
     kernelParams_.d_qA          = d_qA_;
     kernelParams_.d_qB          = d_qB_;
 
-    d_fepParams_.bFEP       = bFEP;
-    d_fepParams_.alpha_coul = alpha_coul;
-    d_fepParams_.alpha_vdw  = alpha_vdw;
-    d_fepParams_.alpha_bond = alpha_bond;
-    d_fepParams_.sc_sigma6  = sc_sigma6;
-    d_fepParams_.sc_sigma6_min = sc_sigma6_min;
-    d_fepParams_.lambda_q   = lambda_q;
-    d_fepParams_.lambda_v   = lambda_v;
+    d_fepParams_->bFEP       = bFEP;
+    d_fepParams_->alpha_coul = alpha_coul;
+    d_fepParams_->alpha_vdw  = alpha_vdw;
+    d_fepParams_->alpha_bond = alpha_bond;
+    d_fepParams_->sc_sigma6  = sc_sigma6_def;
+    d_fepParams_->sc_sigma6_min = sc_sigma6_min;
+    d_fepParams_->lambda_q   = lambda_q;
+    d_fepParams_->lambda_v   = lambda_v;
     kernelParams_.d_fepParams  = d_fepParams_;
 }
 
