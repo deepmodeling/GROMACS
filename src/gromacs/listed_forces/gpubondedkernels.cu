@@ -93,6 +93,96 @@ __device__ __forceinline__ static void
     *V = half * kA * dx2;
 }
 
+real harmonic(real kA, real kB, real xA, real xB, real x, real lambda, real* V, real* F)
+{
+    const real half = 0.5;
+    real       L1, kk, x0, dx, dx2;
+    real       v, f, dvdlambda;
+
+    L1 = 1.0 - lambda;
+    kk = L1 * kA + lambda * kB;
+    x0 = L1 * xA + lambda * xB;
+
+    dx  = x - x0;
+    dx2 = dx * dx;
+
+    f         = -kk * dx;
+    v         = half * kk * dx2;
+    dvdlambda = half * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+
+    *F = f;
+    *V = v;
+
+    return dvdlambda;
+
+    /* That was 19 flops */
+}
+
+__device__ __forceinline__ static void
+           harmonic_fep_gpu(const float kA, const float kB, const float xA, const float xB, const float x, const float lambda, float* V, float* F)
+{
+    constexpr float half = 0.5f;
+    float           L1, kk, x0, dx, dx2;
+    float           v, f, dvdlambda;
+
+    L1 = 1.0 - lambda;
+    kk = L1 * kA + lambda * kB;
+    x0 = L1 * xA + lambda * xB;
+
+    dx  = x - x0;
+    dx2 = dx * dx;
+
+    f         = -kk * dx;
+    v         = half * kk * dx2;
+    dvdlambda = half * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+
+    *F = f;
+    *V = v;
+}
+
+__device__ __forceinline__ static void
+           harmonic_softbond_gpu(const float kA, const float kB, const float xA, const float xB, const float x, const float sb_alpha, const float lambda, float* V, float* F)
+{
+    constexpr float half = 0.5f;
+    float           L1, kk, x0, dx, dx2, dxA, dxA2, dxB, dxB2;
+    float           v, f, dvdlambda;
+
+    L1 = 1.0 - lambda;
+    kk = L1 * kA + lambda * kB;
+    x0 = L1 * xA + lambda * xB;
+
+    dx  = x - x0;
+    dx2 = dx * dx;
+
+    dxA = x - xA;
+    dxA2= dxA * dxA;
+
+    dxB = x - xB;
+    dxB2= dxB * dxB;
+
+    if (kA == 0)
+    {
+        f         = -lambda * kB * dxB / (1 + sb_alpha * L1 * dxB2) / (1 + sb_alpha * L1 * dxB2);
+        v         = half * lambda * kB * dxB2 / (1 + sb_alpha * L1 * dxB2);
+        dvdlambda = v * (1 + sb_alpha * dxB2) / (1 + sb_alpha * L1 * dxB2);
+    }
+    else if (kB == 0)
+    {
+        f         = -L1 * kA * dxA / (1 + sb_alpha * lambda * dxB2) / (1 + sb_alpha * lambda * dxB2);
+        v         = half * L1 * kA * dxA2 / (1 + sb_alpha * lambda * dxA2);
+        dvdlambda = v * (1 + sb_alpha * dxB2) / (1 + sb_alpha * lambda * dxB2);
+    }
+    else
+    {
+        f         = -kk * dx;
+        v         = half * kk * dx2;
+        dvdlambda = half * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+    }
+
+    *F = f;
+    *V = v;
+}
+
 template<bool calcVir, bool calcEner>
 __device__ void bonds_gpu(const int       i,
                           float*          vtot_loc,
@@ -121,6 +211,62 @@ __device__ void bonds_gpu(const int       i,
         float vbond;
         float fbond;
         harmonic_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.rA, dr, &vbond, &fbond);
+
+        if (calcEner)
+        {
+            *vtot_loc += vbond;
+        }
+
+        if (dr2 != 0.0f)
+        {
+            fbond *= rsqrtf(dr2);
+
+#pragma unroll
+            for (int m = 0; m < DIM; m++)
+            {
+                float fij = fbond * dx[m];
+                atomicAdd(&gm_f[ai][m], fij);
+                atomicAdd(&gm_f[aj][m], -fij);
+                if (calcVir && ki != CENTRAL)
+                {
+                    atomicAdd(&sm_fShiftLoc[ki][m], fij);
+                    atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fij);
+                }
+            }
+        }
+    }
+}
+
+template<bool calcVir, bool calcEner>
+__device__ void bonds_fep_gpu(const int       i,
+                          float*          vtot_loc,
+                          const int       numBonds,
+                          const t_iatom   d_forceatoms[],
+                          const t_iparams d_forceparams[],
+                          const BondedFepParameters d_fepparams,
+                          const float4    gm_xq[],
+                          fvec            gm_f[],
+                          fvec            sm_fShiftLoc[],
+                          const PbcAiuc   pbcAiuc)
+{
+    if (i < numBonds)
+    {
+        int3 bondData = *(int3*)(d_forceatoms + 3 * i);
+        int  type     = bondData.x;
+        int  ai       = bondData.y;
+        int  aj       = bondData.z;
+
+        /* dx = xi - xj, corrected for periodic boundary conditions. */
+        fvec dx;
+        int  ki = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[ai], gm_xq[aj], dx);
+
+        float dr2 = iprod_gpu(dx, dx);
+        float dr  = sqrt(dr2);
+
+        float vbond;
+        float fbond;
+        harmonic_softbond_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB, d_forceparams[type].harmonic.rA, d_forceparams[type].harmonic.rB, 
+                              d_fepparams.alpha_bond, d_fepparams.lambda_q, dr, &vbond, &fbond);
 
         if (calcEner)
         {
@@ -199,6 +345,82 @@ __device__ void angles_gpu(const int       i,
         float dVdt;
         harmonic_gpu(d_forceparams[type].harmonic.krA,
                      d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, theta, &va, &dVdt);
+
+        if (calcEner)
+        {
+            *vtot_loc += va;
+        }
+
+        float cos_theta2 = cos_theta * cos_theta;
+        if (cos_theta2 < 1.0f)
+        {
+            float st    = dVdt * rsqrtf(1.0f - cos_theta2);
+            float sth   = st * cos_theta;
+            float nrij2 = iprod_gpu(r_ij, r_ij);
+            float nrkj2 = iprod_gpu(r_kj, r_kj);
+
+            float nrij_1 = rsqrtf(nrij2);
+            float nrkj_1 = rsqrtf(nrkj2);
+
+            float cik = st * nrij_1 * nrkj_1;
+            float cii = sth * nrij_1 * nrij_1;
+            float ckk = sth * nrkj_1 * nrkj_1;
+
+            fvec f_i;
+            fvec f_k;
+            fvec f_j;
+#pragma unroll
+            for (int m = 0; m < DIM; m++)
+            {
+                f_i[m] = -(cik * r_kj[m] - cii * r_ij[m]);
+                f_k[m] = -(cik * r_ij[m] - ckk * r_kj[m]);
+                f_j[m] = -f_i[m] - f_k[m];
+                atomicAdd(&gm_f[ai][m], f_i[m]);
+                atomicAdd(&gm_f[aj][m], f_j[m]);
+                atomicAdd(&gm_f[ak][m], f_k[m]);
+                if (calcVir)
+                {
+                    atomicAdd(&sm_fShiftLoc[t1][m], f_i[m]);
+                    atomicAdd(&sm_fShiftLoc[CENTRAL][m], f_j[m]);
+                    atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
+                }
+            }
+        }
+    }
+}
+
+template<bool calcVir, bool calcEner>
+__device__ void angles_fep_gpu(const int       i,
+                           float*          vtot_loc,
+                           const int       numBonds,
+                           const t_iatom   d_forceatoms[],
+                           const t_iparams d_forceparams[],
+                           const BondedFepParameters d_fepparams,
+                           const float4    gm_xq[],
+                           fvec            gm_f[],
+                           fvec            sm_fShiftLoc[],
+                           const PbcAiuc   pbcAiuc)
+{
+    if (i < numBonds)
+    {
+        int4 angleData = *(int4*)(d_forceatoms + 4 * i);
+        int  type      = angleData.x;
+        int  ai        = angleData.y;
+        int  aj        = angleData.z;
+        int  ak        = angleData.w;
+
+        fvec  r_ij;
+        fvec  r_kj;
+        float cos_theta;
+        int   t1;
+        int   t2;
+        float theta = bond_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], pbcAiuc, r_ij, r_kj,
+                                              &cos_theta, &t1, &t2);
+
+        float va;
+        float dVdt;
+        harmonic_fep_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB,
+                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, d_forceparams[type].harmonic.rB * CUDA_DEG2RAD_F, theta, d_fepparams.lambda_q, &va, &dVdt);
 
         if (calcEner)
         {
@@ -355,6 +577,126 @@ __device__ void urey_bradley_gpu(const int       i,
     }
 }
 
+template<bool calcVir, bool calcEner>
+__device__ void urey_bradley_fep_gpu(const int       i,
+                                 float*          vtot_loc,
+                                 const int       numBonds,
+                                 const t_iatom   d_forceatoms[],
+                                 const t_iparams d_forceparams[],
+                                 const BondedFepParameters d_fepparams,
+                                 const float4    gm_xq[],
+                                 fvec            gm_f[],
+                                 fvec            sm_fShiftLoc[],
+                                 const PbcAiuc   pbcAiuc)
+{
+    if (i < numBonds)
+    {
+        int4 ubData = *(int4*)(d_forceatoms + 4 * i);
+        int  type   = ubData.x;
+        int  ai     = ubData.y;
+        int  aj     = ubData.z;
+        int  ak     = ubData.w;
+
+        float th0A = d_forceparams[type].u_b.thetaA * CUDA_DEG2RAD_F;
+        float kthA = d_forceparams[type].u_b.kthetaA;
+        float r13A = d_forceparams[type].u_b.r13A;
+        float kUBA = d_forceparams[type].u_b.kUBA;
+
+        float th0B = d_forceparams[type].u_b.thetaB * CUDA_DEG2RAD_F;
+        float kthB = d_forceparams[type].u_b.kthetaB;
+        float r13B = d_forceparams[type].u_b.r13B;
+        float kUBB = d_forceparams[type].u_b.kUBB;
+
+        fvec  r_ij;
+        fvec  r_kj;
+        float cos_theta;
+        int   t1;
+        int   t2;
+        float theta = bond_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], pbcAiuc, r_ij, r_kj,
+                                              &cos_theta, &t1, &t2);
+
+        float va;
+        float dVdt;
+        // harmonic_gpu(kthA, th0A, theta, &va, &dVdt);
+        harmonic_fep_gpu(kthA, kthB, th0A, th0B, theta, d_fepparams.lambda_q, &va, &dVdt);
+
+        if (calcEner)
+        {
+            *vtot_loc += va;
+        }
+
+        fvec r_ik;
+        int  ki = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[ai], gm_xq[ak], r_ik);
+
+        float dr2 = iprod_gpu(r_ik, r_ik);
+        float dr  = dr2 * rsqrtf(dr2);
+
+        float vbond;
+        float fbond;
+        // harmonic_gpu(kUBA, r13A, dr, &vbond, &fbond);
+        harmonic_fep_gpu(kUBA, kUBB, r13A, r12B, dr, d_fepparams.lambda_q, &vbond, &fbond);
+
+        float cos_theta2 = cos_theta * cos_theta;
+        if (cos_theta2 < 1.0f)
+        {
+            float st  = dVdt * rsqrtf(1.0f - cos_theta2);
+            float sth = st * cos_theta;
+
+            float nrkj2 = iprod_gpu(r_kj, r_kj);
+            float nrij2 = iprod_gpu(r_ij, r_ij);
+
+            float cik = st * rsqrtf(nrkj2 * nrij2);
+            float cii = sth / nrij2;
+            float ckk = sth / nrkj2;
+
+            fvec f_i;
+            fvec f_j;
+            fvec f_k;
+#pragma unroll
+            for (int m = 0; m < DIM; m++)
+            {
+                f_i[m] = -(cik * r_kj[m] - cii * r_ij[m]);
+                f_k[m] = -(cik * r_ij[m] - ckk * r_kj[m]);
+                f_j[m] = -f_i[m] - f_k[m];
+                atomicAdd(&gm_f[ai][m], f_i[m]);
+                atomicAdd(&gm_f[aj][m], f_j[m]);
+                atomicAdd(&gm_f[ak][m], f_k[m]);
+                if (calcVir)
+                {
+                    atomicAdd(&sm_fShiftLoc[t1][m], f_i[m]);
+                    atomicAdd(&sm_fShiftLoc[CENTRAL][m], f_j[m]);
+                    atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
+                }
+            }
+        }
+
+        /* Time for the bond calculations */
+        if (dr2 != 0.0f)
+        {
+            if (calcEner)
+            {
+                *vtot_loc += vbond;
+            }
+
+            fbond *= rsqrtf(dr2);
+
+#pragma unroll
+            for (int m = 0; m < DIM; m++)
+            {
+                float fik = fbond * r_ik[m];
+                atomicAdd(&gm_f[ai][m], fik);
+                atomicAdd(&gm_f[ak][m], -fik);
+
+                if (calcVir && ki != CENTRAL)
+                {
+                    atomicAdd(&sm_fShiftLoc[ki][m], fik);
+                    atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fik);
+                }
+            }
+        }
+    }
+}
+
 template<bool returnShift, typename T>
 __device__ __forceinline__ static float dih_angle_gpu(const T        xi,
                                                       const T        xj,
@@ -394,6 +736,18 @@ __device__ __forceinline__ static void
     sdphi = sinf(mdphi);
     *v    = cpA * (1.0f + cosf(mdphi));
     *f    = -cpA * mult * sdphi;
+}
+
+__device__ __forceinline__ static void
+           dopdihs_fep_gpu(const float cpA, const float cpB, const float phiA, const float phiB, const int mult, const float phi, const float lambda, float* v, float* f)
+{
+    float mdphiA, sdphiA, mdphiB, sdphiB;
+    mdphiA = mult * phi - phiA * CUDA_DEG2RAD_F;
+    mdphiB = mult * phi - phiB * CUDA_DEG2RAD_F;
+    sdphiA = sinf(mdphiA);
+    sdphiA = sinf(mdphiB);
+    *v    = (1 - lambda) * cpA * (1.0f + cosf(mdphiA)) + lambda * cpB * (1.0f + cosf(mdphiB));
+    *f    = -((1 - lambda) * cpA * mult * sdphiA + lambda * cpB * mult * sdphiB);
 }
 
 template<bool calcVir>
@@ -516,6 +870,52 @@ __device__ void pdihs_gpu(const int       i,
 }
 
 template<bool calcVir, bool calcEner>
+__device__ void pdihs_fep_gpu(const int       i,
+                          float*          vtot_loc,
+                          const int       numBonds,
+                          const t_iatom   d_forceatoms[],
+                          const t_iparams d_forceparams[],
+                          const BondedFepParameters d_fepparams,
+                          const float4    gm_xq[],
+                          fvec            gm_f[],
+                          fvec            sm_fShiftLoc[],
+                          const PbcAiuc   pbcAiuc)
+{
+    if (i < numBonds)
+    {
+        int type = d_forceatoms[5 * i];
+        int ai   = d_forceatoms[5 * i + 1];
+        int aj   = d_forceatoms[5 * i + 2];
+        int ak   = d_forceatoms[5 * i + 3];
+        int al   = d_forceatoms[5 * i + 4];
+
+        fvec  r_ij;
+        fvec  r_kj;
+        fvec  r_kl;
+        fvec  m;
+        fvec  n;
+        int   t1;
+        int   t2;
+        int   t3;
+        float phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
+                                           r_ij, r_kj, r_kl, m, n, &t1, &t2, &t3);
+
+        float vpd;
+        float ddphi;
+        dopdihs_fep_gpu(d_forceparams[type].pdihs.cpA, d_forceparams[type].pdihs.cpB, d_forceparams[type].pdihs.phiA, d_forceparams[type].pdihs.phiB,
+                    d_forceparams[type].pdihs.mult, phi, d_fepparams.lambda_q, &vpd, &ddphi);
+
+        if (calcEner)
+        {
+            *vtot_loc += vpd;
+        }
+
+        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
+                                pbcAiuc, gm_xq, t1, t2, t3);
+    }
+}
+
+template<bool calcVir, bool calcEner>
 __device__ void rbdihs_gpu(const int       i,
                            float*          vtot_loc,
                            const int       numBonds,
@@ -564,6 +964,112 @@ __device__ void rbdihs_gpu(const int       i,
         for (int j = 0; j < NR_RBDIHS; j++)
         {
             parm[j] = d_forceparams[type].rbdihs.rbcA[j];
+        }
+        /* Calculate cosine powers */
+        /* Calculate the energy */
+        /* Calculate the derivative */
+        float v      = parm[0];
+        float ddphi  = c0;
+        float cosfac = c1;
+
+        float rbp = parm[1];
+        ddphi += rbp * cosfac;
+        cosfac *= cos_phi;
+        if (calcEner)
+        {
+            v += cosfac * rbp;
+        }
+        rbp = parm[2];
+        ddphi += c2 * rbp * cosfac;
+        cosfac *= cos_phi;
+        if (calcEner)
+        {
+            v += cosfac * rbp;
+        }
+        rbp = parm[3];
+        ddphi += c3 * rbp * cosfac;
+        cosfac *= cos_phi;
+        if (calcEner)
+        {
+            v += cosfac * rbp;
+        }
+        rbp = parm[4];
+        ddphi += c4 * rbp * cosfac;
+        cosfac *= cos_phi;
+        if (calcEner)
+        {
+            v += cosfac * rbp;
+        }
+        rbp = parm[5];
+        ddphi += c5 * rbp * cosfac;
+        cosfac *= cos_phi;
+        if (calcEner)
+        {
+            v += cosfac * rbp;
+        }
+
+        ddphi = -ddphi * sin_phi;
+
+        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
+                                pbcAiuc, gm_xq, t1, t2, t3);
+        if (calcEner)
+        {
+            *vtot_loc += v;
+        }
+    }
+}
+
+template<bool calcVir, bool calcEner>
+__device__ void rbdihsfep__gpu(const int       i,
+                           float*          vtot_loc,
+                           const int       numBonds,
+                           const t_iatom   d_forceatoms[],
+                           const t_iparams d_forceparams[],
+                           const BondedFepParameters d_fepparams,
+                           const float4    gm_xq[],
+                           fvec            gm_f[],
+                           fvec            sm_fShiftLoc[],
+                           const PbcAiuc   pbcAiuc)
+{
+    constexpr float c0 = 0.0f, c1 = 1.0f, c2 = 2.0f, c3 = 3.0f, c4 = 4.0f, c5 = 5.0f;
+
+    if (i < numBonds)
+    {
+        int type = d_forceatoms[5 * i];
+        int ai   = d_forceatoms[5 * i + 1];
+        int aj   = d_forceatoms[5 * i + 2];
+        int ak   = d_forceatoms[5 * i + 3];
+        int al   = d_forceatoms[5 * i + 4];
+
+        fvec  r_ij;
+        fvec  r_kj;
+        fvec  r_kl;
+        fvec  m;
+        fvec  n;
+        int   t1;
+        int   t2;
+        int   t3;
+        float phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
+                                           r_ij, r_kj, r_kl, m, n, &t1, &t2, &t3);
+        float lambda = d_fepparams.lambda_q;
+
+        /* Change to polymer convention */
+        if (phi < c0)
+        {
+            phi += CUDART_PI_F;
+        }
+        else
+        {
+            phi -= CUDART_PI_F;
+        }
+        float cos_phi = cosf(phi);
+        /* Beware of accuracy loss, cannot use 1-sqrt(cos^2) ! */
+        float sin_phi = sinf(phi);
+
+        float parm[NR_RBDIHS];
+        for (int j = 0; j < NR_RBDIHS; j++)
+        {
+            parm[j] = (1 - lambda) * d_forceparams[type].rbdihs.rbcA[j] + lambda * d_forceparams[type].rbdihs.rbcB[j];
         }
         /* Calculate cosine powers */
         /* Calculate the energy */
@@ -691,6 +1197,72 @@ __device__ void idihs_gpu(const int       i,
 }
 
 template<bool calcVir, bool calcEner>
+__device__ void idihs_fep_gpu(const int       i,
+                          float*          vtot_loc,
+                          const int       numBonds,
+                          const t_iatom   d_forceatoms[],
+                          const t_iparams d_forceparams[],
+                          const BondedFepParameters d_fepparams,
+                          const float4    gm_xq[],
+                          fvec            gm_f[],
+                          fvec            sm_fShiftLoc[],
+                          const PbcAiuc   pbcAiuc)
+{
+    if (i < numBonds)
+    {
+        int type = d_forceatoms[5 * i];
+        int ai   = d_forceatoms[5 * i + 1];
+        int aj   = d_forceatoms[5 * i + 2];
+        int ak   = d_forceatoms[5 * i + 3];
+        int al   = d_forceatoms[5 * i + 4];
+
+        fvec  r_ij;
+        fvec  r_kj;
+        fvec  r_kl;
+        fvec  m;
+        fvec  n;
+        int   t1;
+        int   t2;
+        int   t3;
+        float phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
+                                           r_ij, r_kj, r_kl, m, n, &t1, &t2, &t3);
+
+        /* phi can jump if phi0 is close to Pi/-Pi, which will cause huge
+         * force changes if we just apply a normal harmonic.
+         * Instead, we first calculate phi-phi0 and take it modulo (-Pi,Pi).
+         * This means we will never have the periodicity problem, unless
+         * the dihedral is Pi away from phiO, which is very unlikely due to
+         * the potential.
+         */
+        float kA = d_forceparams[type].harmonic.krA;
+        float pA = d_forceparams[type].harmonic.rA;
+        float kB = d_forceparams[type].harmonic.krB;
+        float pB = d_forceparams[type].harmonic.rB;
+
+        float phi0A = pA * CUDA_DEG2RAD_F;
+        float phi0B = pB * CUDA_DEG2RAD_F;
+
+        float dpA = phi - phi0A;
+        float dpB = phi - phi0B;
+
+        make_dp_periodic_gpu(&dpA);
+        make_dp_periodic_gpu(&dpB);
+
+        float lambda = d_fepparams.lambda_q;
+
+        float ddphi = -((1 - lambda) * kA * dpA + lambda * kB * dpB);
+
+        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, -ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
+                                pbcAiuc, gm_xq, t1, t2, t3);
+
+        if (calcEner)
+        {
+            *vtot_loc += -0.5f * ddphi * dp;
+        }
+    }
+}
+
+template<bool calcVir, bool calcEner>
 __device__ void pairs_gpu(const int       i,
                           const int       numBonds,
                           const t_iatom   d_forceatoms[],
@@ -754,6 +1326,200 @@ __device__ void pairs_gpu(const int       i,
     }
 }
 
+template<bool calcVir, bool calcEner>
+__device__ void pairs_fep_gpu(const int       i,
+                          const int       numBonds,
+                          const t_iatom   d_forceatoms[],
+                          const t_iparams iparams[],
+                          const BondedFepParameters d_fepparams,
+                          const float4    gm_xq[],
+                          const float     gm_qA[],
+                          const float     gm_qB[],
+                          fvec            gm_f[],
+                          fvec            sm_fShiftLoc[],
+                          const PbcAiuc   pbcAiuc,
+                          const float     scale_factor,
+                          float*          vtotVdw_loc,
+                          float*          vtotElec_loc)
+{
+    const bool bFEP = d_fepparams.bFEP;
+    bool       bFEPpair = 0;
+    int nFEP, nnFEP;
+    const float alpha_coul = d_fepparams.alpha_coul;
+    const float alpha_vdw  = d_fepparams.alpha_vdw;
+    float alpha_coul_eff   = alpha_coul;
+    float alpha_vdw_eff    = alpha_vdw;
+    const bool useSoftCore = (alpha_vdw != 0.0);
+    const bool useScBetaNO = (alpha_coul == 0.0);
+    const float sigma6_def = d_fepparams.sc_sigma6;
+    const float sigma6_min = d_fepparams.sc_sigma6_min;
+    const float lambda_q   = d_fepparams.lambda_q;
+    const float _lambda_q  = 1 - lambda_q;
+    const float lambda_v   = d_fepparams.lambda_v;
+    const float _lambda_v  = 1 - lambda_v;
+
+    const float lfac_coul[2] = {lambda_q, _lambda_q};
+    const float lfac_vdw[2]  = {lambda_v, _lambda_v};
+    const float LFC[2]       = {_lambda_q, lambda_q};
+    const float LFV[2]       = {_lambda_v, lambda_v};
+
+    float FscalC[2], FscalV[2], Vcoul[2], Vvdw[2];
+    float rinvC, rinvV, r2C, r2V, rpinvC, rpinvV;
+
+    if (i < numBonds)
+    {
+        int3 pairData = *(int3*)(d_forceatoms + 3 * i);
+        int  type     = pairData.x;
+        int  ai       = pairData.y;
+        int  aj       = pairData.z;
+
+        float qq[2]  = {gm_qA[ai] * gm_qA[aj], gm_qB[ai] * gm_qB[aj]};
+        float c6AB[2]  = {iparams[type].lj14.c6A, iparams[type].lj14.c6B};
+        float c12AB[2] = {iparams[type].lj14.c12A, iparams[type].lj14.c12B};
+        float velec = 0;
+        float vlj   = 0;
+        float finvr = 0;
+
+        if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 1;
+        else bFEPpair = 1;
+
+        /* Do we need to apply full periodic boundary conditions? */
+        fvec dr;
+        int  fshift_index = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[ai], gm_xq[aj], dr);
+
+        float r2    = norm2_gpu(dr);
+        float rpm2  = r2 * r2;
+        float rinv  = rsqrtf(r2);
+        float rinv2 = rinv * rinv;
+        float rinv6 = rinv2 * rinv2 * rinv2;
+
+        if (bFEPpair)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                FscalC[k] = 0;
+                FscalV[k] = 0;
+                if (calcEner)
+                {
+                    Vcoul[k]  = 0;
+                    Vvdw[k]   = 0;
+                }
+                if ((qq[k] != 0) || (c6AB[k] != 0) || (c12AB[k] != 0))
+                {
+                    if ((c12AB[0] == 0 || c12AB[1] == 0) && (useSoftCore))
+                    {
+                        alpha_vdw_eff  = alpha_vdw;
+                        alpha_coul_eff = (useScBetaNO ? alpha_vdw_eff : alpha_coul);
+                        if (sigma6[k] == 0)          sigma6[k] = sigma6_def;
+                        if (sigma6[k] < sigma6_min)  sigma6[k] = sigma6_min;
+
+                        if (useScBetaNO)
+                        {
+                            rpinvC = 1.0f / (alpha_coul_eff * lfac_coul[k] * sigma6[k] + rp);
+                        }
+                        // else if (softCoreTreatment == SoftCoreTreatment::RPower6_2)
+                        // {
+                        //     rpinvC = one / (alpha_coul_eff * lfac_coul[i] + rpc);
+                        //     sqRoot<softCoreTreatment>(rpinvC, &rinvC, &rC);
+                        // }
+                        else
+                        {
+                            rpinvC = 1.0f / (alpha_coul_eff * lfac_coul[k] * sigma6[k] + rp);
+                        }
+                        r2C    = rcbrt(rpinvC);
+                        rinvC  = rsqrt(r2C);
+                
+                        if ((alpha_coul_eff != alpha_vdw_eff) || (!useScBetaNO))
+                        {
+                            rpinvV = 1.0f / (alpha_vdw_eff * lfac_vdw[k] * sigma6[k] + rp);
+                            r2V    = rcbrt(rpinvV);
+                            rinvV  = rsqrt(r2V);
+                        }
+                        else
+                        {
+                            /* We can avoid one expensive pow and one / operation */
+                            rpinvV = rpinvC;
+                            rinvV  = rinvC;
+                        }
+                    }
+                    else
+                    {
+                        rpinvC = rinv6;
+                        rinvC  = rinv;
+                        rpinvV = rinv6;
+                        rinvV  = rinv;
+                    }
+// #        endif /* EXCLUSION_FORCES */
+                    // #    if !defined LJ_COMB_LB || defined CALC_ENERGIES
+                                    
+                    if (c6AB[k] != 0 || c12AB[k] != 0)
+                    {
+                        float Vvdw6 = c6AB[k] * rpinvV;
+                        float Vvdw12= c12AB[k] * rpinvV * rpinvV;
+                        FscalV[k] = 12.0f * Vvdw12 - 6.0f * Vvdw6;
+                        if (calcEner)
+                        {
+                            Vvdw[k] = Vvdw12 - Vvdw6;
+                        }
+                    }
+
+                    if (qq[k] != 0)
+                    {
+                        FscalC[k] = scale_factor * qq[k] * rinvC;
+                        Vcoul[k] = FscalC[k];
+                    }
+                            // if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
+                            // printf("interaction [%d-%d], r2=[%e], mask=%f, FscalC=[%e, %e], FscalV=[%e, %e]\n", ai, aj, r2, int_bit, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2);
+                    FscalC[k] *= rpinvC;
+                    FscalV[k] *= rpinvV;
+                }
+            }
+            for (int k = 0; k < 2; k++)
+            {
+                if (calcEner)
+                {
+                    velec += LFC[k] * Vcoul[k];
+                    vlj += LFV[k] * Vvdw[k];
+                }
+                finvr += LFC[k] * FscalC[k] * rpm2;
+                finvr += LFV[k] * FscalV[k] * rpm2;
+            }
+        }
+        else
+        {
+            /* Calculate the Coulomb force * r */
+            velec = scale_factor * qq[0] * rinv;
+            vlj   = (c12 * rinv6 - c6) * rinv6;
+
+            /* Calculate the LJ force * r and add it to the Coulomb part */
+            float fr = (12.0f * c12AB[0] * rinv6 - 6.0f * c6AB[0]) * rinv6 + velec;
+            finvr = fr * rinv2;
+        }
+
+        fvec  f;
+        svmul_gpu(finvr, dr, f);
+
+        /* Add the forces */
+#pragma unroll
+        for (int m = 0; m < DIM; m++)
+        {
+            atomicAdd(&gm_f[ai][m], f[m]);
+            atomicAdd(&gm_f[aj][m], -f[m]);
+            if (calcVir && fshift_index != CENTRAL)
+            {
+                atomicAdd(&sm_fShiftLoc[fshift_index][m], f[m]);
+                atomicAdd(&sm_fShiftLoc[CENTRAL][m], -f[m]);
+            }
+        }
+
+        if (calcEner)
+        {
+            *vtotVdw_loc += vlj;
+            *vtotElec_loc += velec;
+        }
+    }
+}
+
 namespace gmx
 {
 
@@ -797,39 +1563,61 @@ __global__ void exec_kernel_gpu(BondedCudaKernelParameters kernelParams)
             switch (fType)
             {
                 case F_BONDS:
-                    bonds_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_xq,
+                    // bonds_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                    //                              kernelParams.d_forceParams, kernelParams.d_xq,
+                    //                              kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    bonds_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                 kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
                                                  kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
                     break;
                 case F_ANGLES:
-                    angles_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                    // angles_gpu<calcVir, calcEner>(
+                    //         fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                    //         kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    angles_fep_gpu<calcVir, calcEner>(
+                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
                             kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
                     break;
                 case F_UREY_BRADLEY:
-                    urey_bradley_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                    // urey_bradley_gpu<calcVir, calcEner>(
+                    //         fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                    //         kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    urey_bradley_fep_gpu<calcVir, calcEner>(
+                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
                             kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
                     break;
                 case F_PDIHS:
                 case F_PIDIHS:
-                    pdihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_xq,
+                    // pdihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                    //                              kernelParams.d_forceParams, kernelParams.d_xq,
+                    //                              kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    pdihs_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                 kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
                                                  kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
                     break;
                 case F_RBDIHS:
-                    rbdihs_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                    // rbdihs_gpu<calcVir, calcEner>(
+                    //         fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                    //         kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    rbdihs_fep_gpu<calcVir, calcEner>(
+                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
                             kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
                     break;
                 case F_IDIHS:
-                    idihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_xq,
+                    // idihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                    //                              kernelParams.d_forceParams, kernelParams.d_xq,
+                    //                              kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    idihs_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                 kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
                                                  kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
                     break;
                 case F_LJ14:
-                    pairs_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
-                                                 kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc,
+                    // pairs_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
+                    //                              kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc,
+                    //                              kernelParams.pbcAiuc, kernelParams.scaleFactor,
+                    //                              &vtotVdw_loc, &vtotElec_loc);
+                    pairs_fep_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
+                                                 kernelParams.d_xq, kernelParams.d_qA, kernelParams.d_qB, kernelParams.d_f, sm_fShiftLoc,
                                                  kernelParams.pbcAiuc, kernelParams.scaleFactor,
                                                  &vtotVdw_loc, &vtotElec_loc);
                     break;
