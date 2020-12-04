@@ -65,6 +65,8 @@
 
 #include "gpubonded_impl.h"
 
+struct BondedFepParameters;
+
 #if defined(_MSVC)
 #    include <limits>
 #endif
@@ -243,7 +245,7 @@ __device__ void bonds_fep_gpu(const int       i,
                           const int       numBonds,
                           const t_iatom   d_forceatoms[],
                           const t_iparams d_forceparams[],
-                          const BondedFepParameters d_fepparams,
+                          gmx::BondedFepParameters* d_fepparams,
                           const float4    gm_xq[],
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
@@ -266,7 +268,7 @@ __device__ void bonds_fep_gpu(const int       i,
         float vbond;
         float fbond;
         harmonic_softbond_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB, d_forceparams[type].harmonic.rA, d_forceparams[type].harmonic.rB, 
-                              d_fepparams.alpha_bond, d_fepparams.lambda_q, dr, &vbond, &fbond);
+                              d_fepparams->alpha_bond, d_fepparams->lambda_q, dr, &vbond, &fbond);
 
         if (calcEner)
         {
@@ -395,7 +397,7 @@ __device__ void angles_fep_gpu(const int       i,
                            const int       numBonds,
                            const t_iatom   d_forceatoms[],
                            const t_iparams d_forceparams[],
-                           const BondedFepParameters d_fepparams,
+                           gmx::BondedFepParameters* d_fepparams,
                            const float4    gm_xq[],
                            fvec            gm_f[],
                            fvec            sm_fShiftLoc[],
@@ -420,7 +422,7 @@ __device__ void angles_fep_gpu(const int       i,
         float va;
         float dVdt;
         harmonic_fep_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB,
-                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, d_forceparams[type].harmonic.rB * CUDA_DEG2RAD_F, theta, d_fepparams.lambda_q, &va, &dVdt);
+                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, d_forceparams[type].harmonic.rB * CUDA_DEG2RAD_F, theta, d_fepparams->lambda_q, &va, &dVdt);
 
         if (calcEner)
         {
@@ -583,7 +585,7 @@ __device__ void urey_bradley_fep_gpu(const int       i,
                                  const int       numBonds,
                                  const t_iatom   d_forceatoms[],
                                  const t_iparams d_forceparams[],
-                                 const BondedFepParameters d_fepparams,
+                                 gmx::BondedFepParameters* d_fepparams,
                                  const float4    gm_xq[],
                                  fvec            gm_f[],
                                  fvec            sm_fShiftLoc[],
@@ -618,7 +620,7 @@ __device__ void urey_bradley_fep_gpu(const int       i,
         float va;
         float dVdt;
         // harmonic_gpu(kthA, th0A, theta, &va, &dVdt);
-        harmonic_fep_gpu(kthA, kthB, th0A, th0B, theta, d_fepparams.lambda_q, &va, &dVdt);
+        harmonic_fep_gpu(kthA, kthB, th0A, th0B, theta, d_fepparams->lambda_q, &va, &dVdt);
 
         if (calcEner)
         {
@@ -634,7 +636,7 @@ __device__ void urey_bradley_fep_gpu(const int       i,
         float vbond;
         float fbond;
         // harmonic_gpu(kUBA, r13A, dr, &vbond, &fbond);
-        harmonic_fep_gpu(kUBA, kUBB, r13A, r12B, dr, d_fepparams.lambda_q, &vbond, &fbond);
+        harmonic_fep_gpu(kUBA, kUBB, r13A, r13B, dr, d_fepparams->lambda_q, &vbond, &fbond);
 
         float cos_theta2 = cos_theta * cos_theta;
         if (cos_theta2 < 1.0f)
@@ -745,7 +747,7 @@ __device__ __forceinline__ static void
     mdphiA = mult * phi - phiA * CUDA_DEG2RAD_F;
     mdphiB = mult * phi - phiB * CUDA_DEG2RAD_F;
     sdphiA = sinf(mdphiA);
-    sdphiA = sinf(mdphiB);
+    sdphiB = sinf(mdphiB);
     *v    = (1 - lambda) * cpA * (1.0f + cosf(mdphiA)) + lambda * cpB * (1.0f + cosf(mdphiB));
     *f    = -((1 - lambda) * cpA * mult * sdphiA + lambda * cpB * mult * sdphiB);
 }
@@ -875,7 +877,7 @@ __device__ void pdihs_fep_gpu(const int       i,
                           const int       numBonds,
                           const t_iatom   d_forceatoms[],
                           const t_iparams d_forceparams[],
-                          const BondedFepParameters d_fepparams,
+                          gmx::BondedFepParameters* d_fepparams,
                           const float4    gm_xq[],
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
@@ -903,7 +905,7 @@ __device__ void pdihs_fep_gpu(const int       i,
         float vpd;
         float ddphi;
         dopdihs_fep_gpu(d_forceparams[type].pdihs.cpA, d_forceparams[type].pdihs.cpB, d_forceparams[type].pdihs.phiA, d_forceparams[type].pdihs.phiB,
-                    d_forceparams[type].pdihs.mult, phi, d_fepparams.lambda_q, &vpd, &ddphi);
+                    d_forceparams[type].pdihs.mult, phi, d_fepparams->lambda_q, &vpd, &ddphi);
 
         if (calcEner)
         {
@@ -1020,12 +1022,12 @@ __device__ void rbdihs_gpu(const int       i,
 }
 
 template<bool calcVir, bool calcEner>
-__device__ void rbdihsfep__gpu(const int       i,
+__device__ void rbdihs_fep_gpu(const int       i,
                            float*          vtot_loc,
                            const int       numBonds,
                            const t_iatom   d_forceatoms[],
                            const t_iparams d_forceparams[],
-                           const BondedFepParameters d_fepparams,
+                           gmx::BondedFepParameters* d_fepparams,
                            const float4    gm_xq[],
                            fvec            gm_f[],
                            fvec            sm_fShiftLoc[],
@@ -1051,7 +1053,7 @@ __device__ void rbdihsfep__gpu(const int       i,
         int   t3;
         float phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
                                            r_ij, r_kj, r_kl, m, n, &t1, &t2, &t3);
-        float lambda = d_fepparams.lambda_q;
+        float lambda = d_fepparams->lambda_q;
 
         /* Change to polymer convention */
         if (phi < c0)
@@ -1202,7 +1204,7 @@ __device__ void idihs_fep_gpu(const int       i,
                           const int       numBonds,
                           const t_iatom   d_forceatoms[],
                           const t_iparams d_forceparams[],
-                          const BondedFepParameters d_fepparams,
+                          gmx::BondedFepParameters* d_fepparams,
                           const float4    gm_xq[],
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
@@ -1248,7 +1250,7 @@ __device__ void idihs_fep_gpu(const int       i,
         make_dp_periodic_gpu(&dpA);
         make_dp_periodic_gpu(&dpB);
 
-        float lambda = d_fepparams.lambda_q;
+        float lambda = d_fepparams->lambda_q;
 
         float ddphi = -((1 - lambda) * kA * dpA + lambda * kB * dpB);
 
@@ -1257,7 +1259,7 @@ __device__ void idihs_fep_gpu(const int       i,
 
         if (calcEner)
         {
-            *vtot_loc += -0.5f * ddphi * dp;
+            *vtot_loc += -0.5f * ddphi * dpA;
         }
     }
 }
@@ -1331,7 +1333,7 @@ __device__ void pairs_fep_gpu(const int       i,
                           const int       numBonds,
                           const t_iatom   d_forceatoms[],
                           const t_iparams iparams[],
-                          const BondedFepParameters d_fepparams,
+                          gmx::BondedFepParameters* d_fepparams,
                           const float4    gm_xq[],
                           const float     gm_qA[],
                           const float     gm_qB[],
@@ -1342,20 +1344,19 @@ __device__ void pairs_fep_gpu(const int       i,
                           float*          vtotVdw_loc,
                           float*          vtotElec_loc)
 {
-    const bool bFEP = d_fepparams.bFEP;
+    const bool bFEP = d_fepparams->bFEP;
     bool       bFEPpair = 0;
-    int nFEP, nnFEP;
-    const float alpha_coul = d_fepparams.alpha_coul;
-    const float alpha_vdw  = d_fepparams.alpha_vdw;
+    const float alpha_coul = d_fepparams->alpha_coul;
+    const float alpha_vdw  = d_fepparams->alpha_vdw;
     float alpha_coul_eff   = alpha_coul;
     float alpha_vdw_eff    = alpha_vdw;
     const bool useSoftCore = (alpha_vdw != 0.0);
     const bool useScBetaNO = (alpha_coul == 0.0);
-    const float sigma6_def = d_fepparams.sc_sigma6;
-    const float sigma6_min = d_fepparams.sc_sigma6_min;
-    const float lambda_q   = d_fepparams.lambda_q;
+    const float sigma6_def = d_fepparams->sc_sigma6;
+    const float sigma6_min = d_fepparams->sc_sigma6_min;
+    const float lambda_q   = d_fepparams->lambda_q;
     const float _lambda_q  = 1 - lambda_q;
-    const float lambda_v   = d_fepparams.lambda_v;
+    const float lambda_v   = d_fepparams->lambda_v;
     const float _lambda_v  = 1 - lambda_v;
 
     const float lfac_coul[2] = {lambda_q, _lambda_q};
@@ -1376,6 +1377,7 @@ __device__ void pairs_fep_gpu(const int       i,
         float qq[2]  = {gm_qA[ai] * gm_qA[aj], gm_qB[ai] * gm_qB[aj]};
         float c6AB[2]  = {iparams[type].lj14.c6A, iparams[type].lj14.c6B};
         float c12AB[2] = {iparams[type].lj14.c12A, iparams[type].lj14.c12B};
+        float sigma6[2]= {c12AB[0] / c6AB[0], c12AB[1] / c6AB[1]};
         float velec = 0;
         float vlj   = 0;
         float finvr = 0;
@@ -1389,6 +1391,7 @@ __device__ void pairs_fep_gpu(const int       i,
 
         float r2    = norm2_gpu(dr);
         float rpm2  = r2 * r2;
+        float rp    = rpm2 * r2;
         float rinv  = rsqrtf(r2);
         float rinv2 = rinv * rinv;
         float rinv6 = rinv2 * rinv2 * rinv2;
@@ -1489,7 +1492,7 @@ __device__ void pairs_fep_gpu(const int       i,
         {
             /* Calculate the Coulomb force * r */
             velec = scale_factor * qq[0] * rinv;
-            vlj   = (c12 * rinv6 - c6) * rinv6;
+            vlj   = (c12AB[0] * rinv6 - c6AB[0]) * rinv6;
 
             /* Calculate the LJ force * r and add it to the Coulomb part */
             float fr = (12.0f * c12AB[0] * rinv6 - 6.0f * c6AB[0]) * rinv6 + velec;
