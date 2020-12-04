@@ -58,6 +58,7 @@
 #include "gromacs/simd/simd.h"
 #include "gromacs/utility/fatalerror.h"
 
+#include "nb_softcore.h"
 
 //! Scalar (non-SIMD) data types.
 struct ScalarDataTypes
@@ -138,90 +139,6 @@ static inline RealType ewaldPotential(const RealType coulomb, const RealType rin
     return (coulomb * (rinv - potentialShift));
 }
 
-/* linearized electrostatics */
-template<class RealType>
-static inline void quadraticApproximationCoulomb(const RealType qq,
-                                                 const RealType rInv,
-                                                 const RealType r,
-                                                 const RealType lambdaFac,
-                                                 const RealType dLambdaFac,
-                                                 const RealType sigma6,
-                                                 const RealType alphaEff,
-                                                 RealType*      force,
-                                                 RealType*      potential,
-                                                 RealType*      dvdl)
-{
-    constexpr real c_twentySixSeventh = 26.0 / 7.0;
-    RealType       rInvQ, rQ;
-
-    pthRoot(c_twentySixSeventh * sigma6 * (1. - lambdaFac), &rQ, &rInvQ);
-    rInvQ /= alphaEff;
-
-    if (rInvQ < rInv)
-    {
-        real quadrFac, linFac, constFac;
-        constFac = qq * rInvQ;
-        linFac   = constFac * r * rInvQ;
-        quadrFac = linFac * r * rInvQ;
-
-        /* Computing Coulomb force and potential energy */
-        /* note that later F will be multiplied by rpm2! */
-        *force = -2. * quadrFac + 3. * linFac;
-
-        *potential = quadrFac - 3. * (linFac - constFac);
-
-        *dvdl += dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac);
-    }
-}
-
-/* reaction-field linearized electrostatics */
-template<class RealType>
-static inline void reactionFieldQuadraticPotential(const RealType qq,
-                                                   const RealType rInv,
-                                                   const RealType r,
-                                                   const RealType lambdaFac,
-                                                   const RealType dLambdaFac,
-                                                   const RealType sigma6,
-                                                   const RealType alphaEff,
-                                                   const RealType krf,
-                                                   const RealType potentialShift,
-                                                   RealType*      force,
-                                                   RealType*      potential,
-                                                   RealType*      dvdl)
-{
-    if ((0 < lambdaFac) && (lambdaFac < 1))
-    {
-        quadraticApproximationCoulomb(qq, rInv, r, lambdaFac, dLambdaFac, sigma6, alphaEff, force,
-                                      potential, dvdl);
-        *force     -= (qq * 2.0 * krf * r * r);
-        *potential += (qq * (krf * r * r - potentialShift));
-    }
-}
-
-/* ewald linearized electrostatics */
-template<class RealType>
-static inline void ewaldQuadraticPotential(const RealType qq,
-                                           const RealType rInv,
-                                           const RealType r,
-                                           const RealType lambdaFac,
-                                           const RealType dLambdaFac,
-                                           const RealType sigma6,
-                                           const RealType alphaEff,
-                                           const RealType potentialShift,
-                                           RealType*      force,
-                                           RealType*      potential,
-                                           RealType*      dvdl)
-{
-
-    if ((0 < lambdaFac) && (lambdaFac < 1))
-    {
-        quadraticApproximationCoulomb(qq, rInv, r, lambdaFac, dLambdaFac, sigma6, alphaEff, force,
-                                      potential, dvdl);
-
-        *potential -= qq*potentialShift;
-    }
-}
-
 /* cutoff LJ */
 template<class RealType>
 static inline RealType lennardJonesScalarForce(const RealType v6, const RealType v12)
@@ -239,75 +156,6 @@ static inline RealType lennardJonesPotential(const RealType v6,
                                              const real     onetwelfth)
 {
     return ((v12 + c12 * repulsionShift) * onetwelfth - (v6 + c6 * dispersionShift) * onesixth);
-}
-
-/* cutoff LJ with quadratic appximation of lj-potential */
-template<class RealType>
-static inline void lennardJonesQuadraticPotential(const RealType c6,
-                                                  const RealType c12,
-                                                  const RealType rInv,
-                                                  const RealType r,
-                                                  const RealType rsq,
-                                                  const RealType lambdaFac,
-                                                  const RealType dLambdaFac,
-                                                  const RealType sigma6,
-                                                  const RealType alphaEff,
-                                                  const RealType repulsionShift,
-                                                  const RealType dispersionShift,
-                                                  RealType*      force,
-                                                  RealType*      potential,
-                                                  RealType*      dvdl)
-{
-    constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
-    constexpr RealType c_oneSixth         = 1.0 / 6.0;
-    constexpr RealType c_oneTwelth        = 1.0 / 12.0;
-
-    /* only do this if necessary */
-    if ((0 < lambdaFac) && (lambdaFac < 1))
-    {
-        RealType rInvQ, rQ;
-        pthRoot(c_twentySixSeventh * sigma6 * (1. - lambdaFac), &rQ, &rInvQ);
-        rInvQ /= alphaEff;
-
-        // scaled values for c6 and c12
-        RealType c6s, c12s;
-        c6s  = c_oneSixth * c6;
-        c12s = c_oneTwelth * c12;
-
-        if (rInvQ < rInv)
-        {
-            /* Temporary variables for inverted values */
-            RealType rInv14C, rInv13C, rInv12C;
-            RealType rInv8C, rInv7C, rInv6C;
-            rInv6C = rInvQ * rInvQ * rInvQ;
-            rInv6C *= rInv6C;
-            rInv7C  = rInv6C * rInvQ;
-            rInv8C  = rInv7C * rInvQ;
-            rInv14C = c12s * rInv7C * rInv7C * rsq;
-            rInv13C = c12s * rInv7C * rInv6C * r;
-            rInv12C = c12s * rInv6C * rInv6C;
-            rInv8C *= c6s * rsq;
-            rInv7C *= c6s * r;
-            rInv6C *= c6s;
-
-            /* Temporary variables for A and B */
-            RealType quadrFac, linearFac, constFac;
-            quadrFac  = 156. * rInv14C - 42. * rInv8C;
-            linearFac = 168. * rInv13C - 48. * rInv7C;
-            constFac  = 91. * rInv12C - 28. * rInv6C;
-
-            /* Computing LJ force and potential energy*/
-            *force = -quadrFac + linearFac;
-
-            *potential = 0.5 * quadrFac - linearFac + constFac;
-
-            *dvdl += dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
-                        * ((6.5 * rInv14C - rInv8C) - (13. * rInv13C - 2. * rInv7C)
-                           + (6.5 * rInv12C - rInv6C));
-        }
-
-        *potential += ((c12s * repulsionShift) - (c6s * dispersionShift));
-    }
 }
 
 /* Ewald LJ */
