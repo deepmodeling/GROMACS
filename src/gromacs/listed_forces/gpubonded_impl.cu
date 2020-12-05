@@ -368,6 +368,20 @@ void GpuBonded::updateInteractionListsAndDeviceBuffers(ArrayRef<const int> nbnxn
     impl_->updateInteractionListsAndDeviceBuffers(nbnxnAtomOrder, idef, d_xq, d_f, d_fShift);
 }
 
+void GpuBonded::updateFepValuesAndDeviceBuffers(void*             d_qA,
+                                                void*             d_qB,
+                                                const bool        bFEP,
+                                                const float       alpha_coul,
+                                                const float       alpha_vdw,
+                                                const float       alpha_bond,
+                                                const float       sc_sigma6_def,
+                                                const float       sc_sigma6_min,
+                                                const float       lambda_q,
+                                                const float       lambda_v)
+{
+    impl_->updateFepValuesAndDeviceBuffers(d_qA, d_qB, bFEP, alpha_coul, alpha_vdw, alpha_bond, sc_sigma6_def, sc_sigma6_min, lambda_q, lambda_v);
+}
+
 bool GpuBonded::haveInteractions() const
 {
     return impl_->haveInteractions();

@@ -151,6 +151,12 @@ void* gpu_get_command_stream(gmx_nbnxn_gpu_t gmx_unused* nb, gmx::InteractionLoc
 CUDA_FUNC_QUALIFIER
 void* gpu_get_xq(gmx_nbnxn_gpu_t gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
+CUDA_FUNC_QUALIFIER
+void* gpu_get_qA(gmx_nbnxn_gpu_t gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
+
+CUDA_FUNC_QUALIFIER
+void* gpu_get_qB(gmx_nbnxn_gpu_t gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
+
 /** Returns an opaque pointer to the GPU force array
  *  Note: CUDA only.
  */

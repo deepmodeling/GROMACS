@@ -121,6 +121,16 @@ public:
                                                 void*               xqDevice,
                                                 void*               forceDevice,
                                                 void*               fshiftDevice);
+    void updateFepValuesAndDeviceBuffers(void*             qADevice,
+                                         void*             qBDevice,
+                                         const bool        bFEP,
+                                         const float       alpha_coul,
+                                         const float       alpha_vdw,
+                                         const float       alpha_bond,
+                                         const float       sc_sigma6_def,
+                                         const float       sc_sigma6_min,
+                                         const float       lambda_q,
+                                         const float       lambda_v);
     /*! \brief Returns whether there are bonded interactions
      * assigned to the GPU */
     bool haveInteractions() const;
