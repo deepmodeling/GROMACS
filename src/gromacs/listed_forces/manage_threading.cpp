@@ -229,7 +229,8 @@ static void divide_bondeds_over_threads(bonded_threading_t* bt, bool useGpuForBo
              * But instead of doing all on the CPU, we could do only
              * the actually perturbed interactions on the CPU.
              */
-            if (!ftypeHasPerturbedEntries(idef, fType))
+            // !ftypeHasPerturbedEntries(idef, fType)
+            if (1)
             {
                 /* We will assign this interaction type to the GPU */
                 nrToAssignToCpuThreads = 0;

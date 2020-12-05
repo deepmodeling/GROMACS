@@ -1171,8 +1171,8 @@ void do_force(FILE*                               fplog,
 
         wallcycle_stop(wcycle, ewcNS);
 
-        runScheduleWork->domainWork = setupDomainLifetimeWorkload(
-                *inputrec, *fr, pull_work, ed, top->idef, *fcd, *mdatoms, simulationWork, stepWork);
+        // runScheduleWork->domainWork = setupDomainLifetimeWorkload(
+        //         *inputrec, *fr, pull_work, ed, top->idef, *fcd, *mdatoms, simulationWork, stepWork);
 
         /* initialize the GPU nbnxm atom data and bonded data structures */
         if (simulationWork.useGpuNonbonded)
@@ -1212,8 +1212,8 @@ void do_force(FILE*                               fplog,
     {
         // Need to run after the GPU-offload bonded interaction lists
         // are set up to be able to determine whether there is bonded work.
-        // runScheduleWork->domainWork = setupDomainLifetimeWorkload(
-        //         *inputrec, *fr, pull_work, ed, top->idef, *fcd, *mdatoms, simulationWork, stepWork);
+        runScheduleWork->domainWork = setupDomainLifetimeWorkload(
+                *inputrec, *fr, pull_work, ed, top->idef, *fcd, *mdatoms, simulationWork, stepWork);
 
         wallcycle_start_nocount(wcycle, ewcNS);
         wallcycle_sub_start(wcycle, ewcsNBS_SEARCH_LOCAL);

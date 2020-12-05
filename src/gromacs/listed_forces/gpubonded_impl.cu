@@ -286,14 +286,19 @@ void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*             d_qAPtr,
     kernelParams_.d_qA          = d_qA_;
     kernelParams_.d_qB          = d_qB_;
 
-    d_fepParams_->bFEP       = bFEP;
-    d_fepParams_->alpha_coul = alpha_coul;
-    d_fepParams_->alpha_vdw  = alpha_vdw;
-    d_fepParams_->alpha_bond = alpha_bond;
-    d_fepParams_->sc_sigma6  = sc_sigma6_def;
-    d_fepParams_->sc_sigma6_min = sc_sigma6_min;
-    d_fepParams_->lambda_q   = lambda_q;
-    d_fepParams_->lambda_v   = lambda_v;
+    BondedFepParameters bonded_fep = BondedFepParameters();
+
+    bonded_fep.bFEP       = bFEP;
+    bonded_fep.alpha_coul = alpha_coul;
+    bonded_fep.alpha_vdw  = alpha_vdw;
+    bonded_fep.alpha_bond = alpha_bond;
+    bonded_fep.sc_sigma6  = sc_sigma6_def;
+    bonded_fep.sc_sigma6_min = sc_sigma6_min;
+    bonded_fep.lambda_q   = lambda_q;
+    bonded_fep.lambda_v   = lambda_v;
+
+    copyToDeviceBuffer(&d_fepParams_, &bonded_fep, 0, sizeof(BondedFepParameters), stream_,
+                       GpuApiCallBehavior::Sync, nullptr);
     kernelParams_.d_fepParams  = d_fepParams_;
 }
 
