@@ -400,10 +400,6 @@
 /* Use Interactive Molecular Dynamics */
 #cmakedefine01 GMX_IMD
 
-/* License */
-#define PYTHON_HOME L"@PYTHON_HOME@"
-#define CMAKE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
-
 /*! \endcond */
 
 #endif

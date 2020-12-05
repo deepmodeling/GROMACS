@@ -119,9 +119,6 @@ gmx_cpack_init()
 set(INSTALLED_HEADER_INCLUDE_DIRS "")
 set(INSTALLED_HEADER_DEFINITIONS "")
 
-# License
-include_directories("${PYTHON_HOME}/include/python3.7m")
-
 ########################################################################
 # Global non-cache variables for implementing the build system
 ########################################################################
