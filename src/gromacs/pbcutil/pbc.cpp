@@ -48,6 +48,9 @@
 #include <cmath>
 
 #include <algorithm>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "gromacs/math/functions.h"
 #include "gromacs/math/units.h"
@@ -572,16 +575,19 @@ static void low_set_pbc(t_pbc* pbc, int ePBC, const ivec dd_pbc, const matrix bo
 
 void set_pbc(t_pbc* pbc, int ePBC, const matrix box)
 {
+    nvtxRangePush(__FUNCTION__);
     if (ePBC == -1)
     {
         ePBC = guess_ePBC(box);
     }
 
     low_set_pbc(pbc, ePBC, nullptr, box);
+    nvtxRangePop();
 }
 
 t_pbc* set_pbc_dd(t_pbc* pbc, int ePBC, const ivec domdecCells, gmx_bool bSingleDir, const matrix box)
 {
+    nvtxRangePush(__FUNCTION__);
     if (ePBC == epbcNONE)
     {
         pbc->ePBC = ePBC;
@@ -622,12 +628,14 @@ t_pbc* set_pbc_dd(t_pbc* pbc, int ePBC, const ivec domdecCells, gmx_bool bSingle
             pbc->ePBC = epbcNONE;
         }
     }
+    nvtxRangePop();
 
     return (pbc->ePBC != epbcNONE ? pbc : nullptr);
 }
 
 void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
 {
+    nvtxRangePush(__FUNCTION__);
     int      i, j;
     rvec     dx_start, trial;
     real     d2min, d2trial;
@@ -794,10 +802,12 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
         case epbcdxUNSUPPORTED: break;
         default: gmx_fatal(FARGS, "Internal error in pbc_dx, set_pbc has not been called");
     }
+    nvtxRangePush(__FUNCTION__);
 }
 
 int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
 {
+    nvtxRangePush(__FUNCTION__);
     int  i, j, is;
     rvec dx_start, trial;
     real d2min, d2trial;
@@ -1064,6 +1074,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
     {
         range_check_mesg(is, 0, SHIFTS, "PBC shift vector index range check.");
     }
+    nvtxRangePush(__FUNCTION__);
 
     return is;
 }
@@ -1071,6 +1082,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
 //! Compute distance vector in double precision
 void pbc_dx_d(const t_pbc* pbc, const dvec x1, const dvec x2, dvec dx)
 {
+    nvtxRangePush(__FUNCTION__);
     int      i, j;
     dvec     dx_start, trial;
     double   d2min, d2trial;
@@ -1187,6 +1199,7 @@ void pbc_dx_d(const t_pbc* pbc, const dvec x1, const dvec x2, dvec dx)
         case epbcdxUNSUPPORTED: break;
         default: gmx_fatal(FARGS, "Internal error in pbc_dx, set_pbc has not been called");
     }
+    nvtxRangePush(__FUNCTION__);
 }
 
 void calc_shifts(const matrix box, rvec shift_vec[])

@@ -1196,7 +1196,7 @@ void do_force(FILE*                               fplog,
                 fr->gpuBonded->updateInteractionListsAndDeviceBuffers(
                         nbv->getGridIndices(), top->idef, Nbnxm::gpu_get_xq(nbv->gpu_nbv),
                         Nbnxm::gpu_get_f(nbv->gpu_nbv), Nbnxm::gpu_get_fshift(nbv->gpu_nbv));
-                if (runScheduleWork->domainWork.haveFreeEnergyWork)
+                if (fr->efep != efepNO && mdatoms->nPerturbed != 0)
                 {
                     fr->gpuBonded->updateFepValuesAndDeviceBuffers(
                         Nbnxm::gpu_get_qA(nbv->gpu_nbv), Nbnxm::gpu_get_qB(nbv->gpu_nbv),

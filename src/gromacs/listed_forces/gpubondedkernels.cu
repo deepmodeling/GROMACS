@@ -95,31 +95,6 @@ __device__ __forceinline__ static void
     *V = half * kA * dx2;
 }
 
-real harmonic(real kA, real kB, real xA, real xB, real x, real lambda, real* V, real* F)
-{
-    const real half = 0.5;
-    real       L1, kk, x0, dx, dx2;
-    real       v, f, dvdlambda;
-
-    L1 = 1.0 - lambda;
-    kk = L1 * kA + lambda * kB;
-    x0 = L1 * xA + lambda * xB;
-
-    dx  = x - x0;
-    dx2 = dx * dx;
-
-    f         = -kk * dx;
-    v         = half * kk * dx2;
-    dvdlambda = half * (kB - kA) * dx2 + (xA - xB) * kk * dx;
-
-    *F = f;
-    *V = v;
-
-    return dvdlambda;
-
-    /* That was 19 flops */
-}
-
 __device__ __forceinline__ static void
            harmonic_fep_gpu(const float kA, const float kB, const float xA, const float xB, const float x, const float lambda, float* V, float* F)
 {
@@ -268,7 +243,7 @@ __device__ void bonds_fep_gpu(const int       i,
         float vbond;
         float fbond;
         harmonic_softbond_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB, d_forceparams[type].harmonic.rA, d_forceparams[type].harmonic.rB, 
-                              d_fepparams->alpha_bond, d_fepparams->lambda_q, dr, &vbond, &fbond);
+                              dr, d_fepparams->alpha_bond, d_fepparams->lambda_q, &vbond, &fbond);
 
         if (calcEner)
         {
@@ -1402,6 +1377,7 @@ __device__ void pairs_fep_gpu(const int       i,
             {
                 FscalC[k] = 0;
                 FscalV[k] = 0;
+                if (c6AB[k] == 0) sigma6[k] = 0;
                 if (calcEner)
                 {
                     Vcoul[k]  = 0;
@@ -1677,6 +1653,7 @@ void GpuBonded::Impl::launchKernel(const t_forcerec* fr, const matrix box)
     config.gridSize[0]  = (fTypeRangeEnd + TPB_BONDED) / TPB_BONDED;
     config.gridSize[1]  = 1;
     config.gridSize[2]  = 1;
+    config.sharedMemorySize = SHIFTS * sizeof(float3);
     config.stream       = stream_;
 
     auto kernelPtr            = exec_kernel_gpu<calcVir, calcEner>;
