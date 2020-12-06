@@ -885,7 +885,7 @@ void gmx::LegacySimulator::do_md()
         do_verbose = mdrunOptions.verbose
                      && (step % mdrunOptions.verboseStepPrintInterval == 0 || bFirstStep || bLastStep);
 
-        if (useGpuForUpdate && !bFirstStep && bNS)
+        if (useGpuForUpdate && !bFirstStep && (bNS || bDoReplEx))
         {
             // Copy velocities from the GPU on search steps to keep a copy on host (device buffers are reinitialized).
             stateGpu->copyVelocitiesFromGpu(state->v, AtomLocality::Local);

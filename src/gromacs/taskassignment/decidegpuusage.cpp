@@ -652,10 +652,10 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     {
         errorMessage += "Shells are not supported.\n";
     }
-    if (useReplicaExchange)
-    {
-        errorMessage += "Replica exchange simulations are not supported.\n";
-    }
+    // if (useReplicaExchange)
+    // {
+    //     errorMessage += "Replica exchange simulations are not supported.\n";
+    // }
     if (inputrec.eSwapCoords != eswapNO)
     {
         errorMessage += "Swapping the coordinates is not supported.\n";
