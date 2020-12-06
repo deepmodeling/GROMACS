@@ -178,7 +178,8 @@ void do_force_lowlevel(t_forcerec*                         fr,
         /* Check whether we need to take into account PBC in listed interactions. */
         const auto needPbcForListedForces =
                 fr->bMolPBC && stepWork.computeListedForces && haveCpuListedForces(*fr, *idef, *fcd);
-        if (needPbcForListedForces)
+        // needPbcForListedForces
+        if (1)
         {
             /* Since all atoms are in the rectangular or triclinic unit-cell,
              * only single box vector shifts (2 in x) are required.
