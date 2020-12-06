@@ -1352,13 +1352,13 @@ __device__ void pairs_fep_gpu(const int       i,
         float qq[2]  = {gm_qA[ai] * gm_qA[aj], gm_qB[ai] * gm_qB[aj]};
         float c6AB[2]  = {iparams[type].lj14.c6A, iparams[type].lj14.c6B};
         float c12AB[2] = {iparams[type].lj14.c12A, iparams[type].lj14.c12B};
-        float sigma6[2]= {c12AB[0] / c6AB[0], c12AB[1] / c6AB[1]};
+        float sigma6[2];
         float velec = 0;
         float vlj   = 0;
         float finvr = 0;
 
         if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 1;
-        else bFEPpair = 1;
+        else bFEPpair = 0;
 
         /* Do we need to apply full periodic boundary conditions? */
         fvec dr;
@@ -1377,7 +1377,6 @@ __device__ void pairs_fep_gpu(const int       i,
             {
                 FscalC[k] = 0;
                 FscalV[k] = 0;
-                if (c6AB[k] == 0) sigma6[k] = 0;
                 if (calcEner)
                 {
                     Vcoul[k]  = 0;
@@ -1387,6 +1386,8 @@ __device__ void pairs_fep_gpu(const int       i,
                 {
                     if ((c12AB[0] == 0 || c12AB[1] == 0) && (useSoftCore))
                     {
+                        if (c6AB[k] == 0) sigma6[k] = 0;
+                        else sigma6[k] = c12AB[k] / c6AB[k];
                         alpha_vdw_eff  = alpha_vdw;
                         alpha_coul_eff = (useScBetaNO ? alpha_vdw_eff : alpha_coul);
                         if (sigma6[k] == 0)          sigma6[k] = sigma6_def;
