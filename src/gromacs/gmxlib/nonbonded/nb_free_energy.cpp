@@ -591,15 +591,15 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             {
                                 if (elecInteractionTypeIsEwald)
                                 {
-                                    ewaldQuadraticPotential(qq[i], rinvC, rC, LFC[i], DLF[i],
-                                                            sigma6[i], alpha_coul_eff, sh_ewald,
-                                                            &FscalC[i], &Vcoul[i], &dvdl_coul);
+                                    ewaldQuadraticPotential(qq[i], rC, LFC[i], DLF[i], sigma6[i],
+                                                            alpha_coul_eff, sh_ewald, &FscalC[i],
+                                                            &Vcoul[i], &dvdl_coul);
                                 }
                                 else
                                 {
-                                    reactionFieldQuadraticPotential(qq[i], rinvC, rC, LFC[i], DLF[i],
-                                                                    sigma6[i], alpha_coul_eff, krf,
-                                                                    crf, &FscalC[i], &Vcoul[i], &dvdl_coul);
+                                    reactionFieldQuadraticPotential(
+                                            qq[i], rC, LFC[i], DLF[i], sigma6[i], alpha_coul_eff,
+                                            krf, crf, &FscalC[i], &Vcoul[i], &dvdl_coul);
                                 }
                             }
                         }
@@ -640,7 +640,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                              */
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
-                                lennardJonesQuadraticPotential(c6[i], c12[i], rinv, r, rsq, LFV[i],
+                                lennardJonesQuadraticPotential(c6[i], c12[i], r, rsq, LFV[i],
                                                                DLF[i], sigma6[i], alpha_coul_eff,
                                                                repulsionShift, dispersionShift,
                                                                &FscalV[i], &Vvdw[i], &dvdl_vdw);

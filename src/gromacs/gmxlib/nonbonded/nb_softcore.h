@@ -40,47 +40,33 @@
 
 #include "gromacs/math/functions.h"
 
-
 /* linearized electrostatics */
 template<class RealType>
 static inline void quadraticApproximationCoulomb(const RealType qq,
-                                                 const RealType rInv,
+                                                 const RealType rInvQ,
                                                  const RealType r,
                                                  const RealType lambdaFac,
                                                  const RealType dLambdaFac,
-                                                 const RealType sigma6,
-                                                 const RealType alphaEff,
                                                  RealType*      force,
                                                  RealType*      potential,
                                                  RealType*      dvdl)
 {
-    constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
-    RealType           rInvQ;
+    RealType quadrFac, linFac, constFac;
+    constFac = qq * rInvQ;
+    linFac   = constFac * r * rInvQ;
+    quadrFac = linFac * r * rInvQ;
 
-    rInvQ = gmx::invsqrt(std::cbrt(c_twentySixSeventh * sigma6 * (1.- lambdaFac)));
-    rInvQ /= alphaEff;
+    /* Computing Coulomb force and potential energy */
+    *force = -2. * quadrFac + 3. * linFac;
 
-    if (rInvQ < rInv)
-    {
-        RealType quadrFac, linFac, constFac;
-        constFac = qq * rInvQ;
-        linFac   = constFac * r * rInvQ;
-        quadrFac = linFac * r * rInvQ;
+    *potential = quadrFac - 3. * (linFac - constFac);
 
-        /* Computing Coulomb force and potential energy */
-        /* note that later F will be multiplied by rpm2! */
-        *force = -2. * quadrFac + 3. * linFac;
-
-        *potential = quadrFac - 3. * (linFac - constFac);
-
-        *dvdl += dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac);
-    }
+    *dvdl += dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac);
 }
 
 /* reaction-field linearized electrostatics */
 template<class RealType>
 static inline void reactionFieldQuadraticPotential(const RealType qq,
-                                                   const RealType rInv,
                                                    const RealType r,
                                                    const RealType lambdaFac,
                                                    const RealType dLambdaFac,
@@ -92,19 +78,28 @@ static inline void reactionFieldQuadraticPotential(const RealType qq,
                                                    RealType*      potential,
                                                    RealType*      dvdl)
 {
-    if ((0 < lambdaFac) && (lambdaFac < 1))
+    /* check if we have to use the hardcore values */
+    if ((lambdaFac < 1) && (alphaEff > 0))
     {
-        quadraticApproximationCoulomb(qq, rInv, r, lambdaFac, dLambdaFac, sigma6, alphaEff, force,
-                                      potential, dvdl);
-        *force     -= (qq * 2.0 * krf * r * r);
-        *potential += (qq * (krf * r * r - potentialShift));
+        constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
+        RealType           rQ;
+
+        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
+        rQ *= alphaEff;
+
+        if (r < rQ)
+        {
+            RealType rInvQ = 1.0/rQ;
+            quadraticApproximationCoulomb(qq, rInvQ, r, lambdaFac, dLambdaFac, force, potential, dvdl);
+            *force -= (qq * 2.0 * krf * r * r);
+            *potential += (qq * (krf * r * r - potentialShift));
+        }
     }
 }
 
 /* ewald linearized electrostatics */
 template<class RealType>
 static inline void ewaldQuadraticPotential(const RealType qq,
-                                           const RealType rInv,
                                            const RealType r,
                                            const RealType lambdaFac,
                                            const RealType dLambdaFac,
@@ -116,12 +111,22 @@ static inline void ewaldQuadraticPotential(const RealType qq,
                                            RealType*      dvdl)
 {
 
-    if ((0 < lambdaFac) && (lambdaFac < 1))
+    /* check if we have to use the hardcore values */
+    if ((lambdaFac < 1) && (alphaEff > 0))
     {
-        quadraticApproximationCoulomb(qq, rInv, r, lambdaFac, dLambdaFac, sigma6, alphaEff, force,
-                                      potential, dvdl);
+        constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
+        RealType           rQ;
 
-        *potential -= qq*potentialShift;
+        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
+        rQ *= alphaEff;
+
+        if (r < rQ)
+        {
+            RealType rInvQ = 1.0/rQ;
+            quadraticApproximationCoulomb(qq, rInvQ, r, lambdaFac, dLambdaFac, force, potential, dvdl);
+
+            *potential -= qq*potentialShift;
+        }
     }
 }
 
@@ -129,7 +134,6 @@ static inline void ewaldQuadraticPotential(const RealType qq,
 template<class RealType>
 static inline void lennardJonesQuadraticPotential(const RealType c6,
                                                   const RealType c12,
-                                                  const RealType rInv,
                                                   const RealType r,
                                                   const RealType rsq,
                                                   const RealType lambdaFac,
@@ -146,21 +150,22 @@ static inline void lennardJonesQuadraticPotential(const RealType c6,
     constexpr RealType c_oneSixth         = 1.0 / 6.0;
     constexpr RealType c_oneTwelth        = 1.0 / 12.0;
 
-    /* only do this if necessary */
-    if ((0 < lambdaFac) && (lambdaFac < 1))
+    /* check if we have to use the hardcore values */
+    if ((lambdaFac < 1) && (alphaEff > 0))
     {
-        RealType rInvQ;
-        rInvQ = gmx::invsqrt(std::cbrt(c_twentySixSeventh * sigma6 * (1.- lambdaFac)));
-        rInvQ /= alphaEff;
+        RealType rQ;
+        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
+        rQ *= alphaEff;
 
         // scaled values for c6 and c12
         RealType c6s, c12s;
         c6s  = c_oneSixth * c6;
         c12s = c_oneTwelth * c12;
 
-        if (rInvQ < rInv)
+        if (r < rQ)
         {
             /* Temporary variables for inverted values */
+            RealType rInvQ = 1.0 / rQ;
             RealType rInv14C, rInv13C, rInv12C;
             RealType rInv8C, rInv7C, rInv6C;
             rInv6C = rInvQ * rInvQ * rInvQ;
@@ -188,9 +193,10 @@ static inline void lennardJonesQuadraticPotential(const RealType c6,
             *dvdl += dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
                         * ((6.5 * rInv14C - rInv8C) - (13. * rInv13C - 2. * rInv7C)
                            + (6.5 * rInv12C - rInv6C));
+
+            *potential += ((c12s * repulsionShift) - (c6s * dispersionShift));
         }
 
-        *potential += ((c12s * repulsionShift) - (c6s * dispersionShift));
     }
 }
 
