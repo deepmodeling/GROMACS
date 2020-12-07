@@ -110,13 +110,14 @@ static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const Index
 }
 
 static inline bool any_of(
-        cl::sycl::nd_item<1> itemIdx,
+        cl::sycl::nd_item<1> /*itemIdx*/,
         cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write, cl::sycl::access::target::local> shmemBuf,
-        const int          widx,
+        const int /*widx*/,
         sycl_pf::sub_group sg,
         const bool         predicate)
 {
-    // return sycl_pf::group_any_of(sg, predicate);
+    return sycl_pf::group_any_of(sg, predicate);
+    /*
     shmemBuf[widx] = 0;
     itemIdx.barrier(cl::sycl::access::fence_space::local_space);
     if (predicate)
@@ -125,6 +126,7 @@ static inline bool any_of(
     }
     itemIdx.barrier(cl::sycl::access::fence_space::local_space);
     return shmemBuf[widx] != 0;
+     */
 }
 
 } // namespace Nbnxm

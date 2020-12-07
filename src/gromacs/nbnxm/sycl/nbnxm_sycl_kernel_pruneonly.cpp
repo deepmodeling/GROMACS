@@ -83,12 +83,12 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
     /* the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution */
+    /*
     cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
             cl::sycl::range<2>(c_syclPruneKernelJ4Concurrency,
                                c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize),
             cgh);
-
-    cl::sycl::stream debug(8024000, 128, cgh);
+            */
 
     cl::sycl::accessor<int, 1, mode::read_write, target::local> warp_vote_buf(
             cl::sycl::range<1>(c_syclPruneKernelJ4Concurrency * c_nbnxnGpuNumClusterPerSupercluster), cgh);
@@ -163,12 +163,14 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 imaskCheck = (imaskNew ^ imaskFull);
             }
 
+            /*
             if ((tidxj == 0 || tidxj == c_splitClSize) && tidxi < c_nbnxnGpuJgroupSize)
             {
                 cjs[tidxz][tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] =
                         a_plistCJ4[j4].cj[tidxi];
             }
             itemIdx.barrier(fence_space::local_space);
+             */
 
             if (imaskCheck)
             {
@@ -178,9 +180,12 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                     {
                         unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
 
+                        /*
                         const int loadOffset =
                                 (tidxj & c_splitClSize) * c_nbnxnGpuJgroupSize / c_splitClSize;
                         const int cj = cjs[tidxz][jm + loadOffset];
+                         */
+                        const int cj = a_plistCJ4[j4].cj[jm];
                         const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
@@ -217,22 +222,20 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                                     imaskNew |= mask_ji;
                                 }
                             } // (imaskCheck & mask_ji)
-
                             /* shift the mask bit by 1 */
                             mask_ji += mask_ji;
                         } // (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                     } // (imaskCheck & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                 } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
+
                 if constexpr (haveFreshList)
                 {
                     /* copy the list pruned to rlistOuter to a separate buffer */
                     a_plistIMask[j4 * c_nbnxnGpuClusterpairSplit + widx] = imaskFull;
                 }
                 /* update the imask with only the pairs up to rlistInner */
-                // debug << "plist.cj4[" << j4 << "].imei[" << widx << "].imask = " << imaskNew << cl::sycl::endl;
                 a_plistCJ4[j4].imei[widx].imask = imaskNew;
             } // (imaskCheck)
-            itemIdx.barrier(fence_space::local_space);
         } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += c_syclPruneKernelJ4Concurrency)
     };
 }

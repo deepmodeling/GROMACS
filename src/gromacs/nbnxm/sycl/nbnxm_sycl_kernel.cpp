@@ -436,7 +436,37 @@ static inline void reduce_force_j(cl::sycl::accessor<float, 1, mode::read_write,
 
         atomic_fetch_add(fout, 3 * aidx + tidxi, acc);
     }
-    itemIdx.barrier(fence_space::local_space);
+    itemIdx.get_sub_group().barrier();
+}
+
+static inline void reduce_force_j_shfl(float3                            f,
+                                       DeviceAccessor<float, mode::read_write> fout,
+                                       const cl::sycl::nd_item<1>              itemIdx,
+                                       const int                               tidxi,
+                                       const int                               tidxj,
+                                       const int                               aidx)
+{
+    static_assert(c_clSize == 4);
+    static constexpr int bufStride = c_clSize * c_clSize;
+    const int            tid       = tidxi + tidxj * c_clSize; // itemIdx.get_local_linear_id();
+    sycl_pf::sub_group sg = itemIdx.get_sub_group();
+    f[0] += sg.shuffle_down(f[0], 1);
+    f[1] += sg.shuffle_up(f[1], 1);
+    f[2] += sg.shuffle_down(f[2], 1);
+    if ((tidxi & 1) == 1)
+    {
+        f[0] = f[1];
+    }
+    f[0] += sg.shuffle_down(f[0], 2);
+    f[2] += sg.shuffle_up(f[2], 2);
+    if (tidxi == 2)
+    {
+        f[0] = f[2];
+    }
+    if (tidxi < 3)
+    {
+        atomic_fetch_add(fout, 3 * aidx + tidxi, f[0]);
+    }
 }
 
 static constexpr int log2i(const int v)
@@ -1066,8 +1096,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         } // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                         // Replace with group_reduce in SYCL2020
                         /* reduce j forces */
-                        // debug << ":: " << itemIdx << " {" << j4 << "/" << jm << " }" <<" !j " << fcj_buf[0] << " " << fcj_buf[1] << " " << fcj_buf[2] << cl::sycl::endl;
-                        reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
+                        // reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
+                        reduce_force_j_shfl(fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
                     } // (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                 } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
                 if constexpr (doPruneNBL)
