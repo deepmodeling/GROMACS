@@ -424,7 +424,6 @@ static inline void reduce_force_j(cl::sycl::accessor<float, 1, mode::read_write,
     shmemBuf[tid]                  = f[0];
     shmemBuf[tid + bufStride]      = f[1];
     shmemBuf[tid + 2 * bufStride]  = f[2];
-    // SYCL-TODO: Synchronizing only sub-group should be enough?
     itemIdx.barrier(fence_space::local_space);
     if (tidxi < 3)
     {
@@ -439,7 +438,7 @@ static inline void reduce_force_j(cl::sycl::accessor<float, 1, mode::read_write,
     itemIdx.get_sub_group().barrier();
 }
 
-static inline void reduce_force_j_shfl(float3                            f,
+static inline void reduce_force_j_shfl(float3                                  f,
                                        DeviceAccessor<float, mode::read_write> fout,
                                        const cl::sycl::nd_item<1>              itemIdx,
                                        const int                               tidxi,
@@ -449,7 +448,7 @@ static inline void reduce_force_j_shfl(float3                            f,
     static_assert(c_clSize == 4);
     static constexpr int bufStride = c_clSize * c_clSize;
     const int            tid       = tidxi + tidxj * c_clSize; // itemIdx.get_local_linear_id();
-    sycl_pf::sub_group sg = itemIdx.get_sub_group();
+    sycl_pf::sub_group   sg        = itemIdx.get_sub_group();
     f[0] += sg.shuffle_down(f[0], 1);
     f[1] += sg.shuffle_up(f[1], 1);
     f[2] += sg.shuffle_down(f[2], 1);
@@ -682,8 +681,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     constexpr bool doExclusionForces =
             (props.elecEwald || props.elecRF || props.vdwEwald || (props.elecCutoff && doCalcEnergies));
 
-    cl::sycl::stream debug(2024000, 128, cgh);
-
     return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(8)]]
     {
         /* thread/block/warp id-s */
@@ -733,7 +730,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 const int             ci = sci * c_nbnxnGpuNumClusterPerSupercluster + tidxj + i;
                 const int             ai = ci * c_clSize + tidxi;
                 const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
-                // debug << "{" << bidx << ";" << tidxi << "," << tidxj << "," << tidxz << "} loading " << ai << cl::sycl::endl;
 
                 const float3 shift = a_shiftVec[nb_sci.shift];
                 xqbuf              = a_xq[ai];
