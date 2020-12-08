@@ -124,6 +124,10 @@ bool buildSupportsGpuBondeds(std::string* error)
     {
         errorReasons.emplace_back("not supported with OpenCL build of GROMACS");
     }
+    if (GMX_GPU_SYCL)
+    {
+        errorReasons.emplace_back("not supported with SYCL build of GROMACS");
+    }
     else if (!GMX_GPU)
     {
         errorReasons.emplace_back("not supported with CPU-only build of GROMACS");
