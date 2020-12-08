@@ -422,11 +422,6 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
             i >>= 1;
             itemIdx.barrier(fence_space::local_space);
         }
-        /* needed because
-         * a) for c_clSize<8: id 2 (doing z in next block) is in 2nd warp
-         * b) for all c_clSize a barrier is needed before f_buf is reused by next reduce_force_i call
-         */
-        itemIdx.barrier(fence_space::local_space);
 
         /* i == 1, last reduction step, writing to global mem */
         /* Split the reduction between the first 3 line threads
@@ -532,12 +527,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     // shmem buffer for i x+q pre-loading
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> xqib(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
-    /*
-    // shmem buffer for cj, for each warp separately
-    // the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution
-    cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
-            cl::sycl::range<2>(NTHREAD_Z, c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize), cgh);
-    */
 
     // shmem buffer for j- and i-forces
     // SYCL-TODO: Make into 3D; section 4.7.6.11 of SYCL2020 specs
@@ -580,8 +569,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         const unsigned        tidxi   = localId[0];
         const unsigned        tidxj   = localId[1];
-        const cl::sycl::id<2> tidxji(localId[0], localId[1]);
-        const unsigned        tidx = tidxj * c_clSize + tidxi;
+        const unsigned        tidx    = tidxj * c_clSize + tidxi;
 #if NTHREAD_Z == 1
         const unsigned tidxz = 0;
 #else
@@ -709,27 +697,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             const unsigned wexcl = a_plistExcl[wexcl_idx].pair[tidx & (subGroupSize - 1)]; // sg.get_local_linear_id()
             if (doPruneNBL || imask)
             {
-                /* Pre-load cj into shared memory on both warps separately */
-                /*
-                if ((tidxj == 0 || tidxj == 4) && (tidxi < c_nbnxnGpuJgroupSize))
-                {
-                    cjs[cl::sycl::id<2>(tidxz, tidxi + tidxj * c_nbnxnGpuJgroupSize /
-                c_splitClSize)] = a_plistCJ4[j4].cj[tidxi];
-                }
-                sg.barrier();
-                 */
-
                 for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
                 {
                     if (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
-                        unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
-                        /*
-                        const int cj =
-                                cjs[cl::sycl::id<2>(tidxz, jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize)];
-                                */
-                        const int cj = a_plistCJ4[j4].cj[jm];
-                        const int aj = cj * c_clSize + tidxj;
+                        unsigned  mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        const int cj      = a_plistCJ4[j4].cj[jm];
+                        const int aj      = cj * c_clSize + tidxj;
 
                         // load j atom data
                         const float4 xqj = a_xq[aj];

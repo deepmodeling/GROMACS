@@ -82,14 +82,6 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> xib(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
-    /* the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution */
-    /*
-    cl::sycl::accessor<int, 2, mode::read_write, target::local> cjs(
-            cl::sycl::range<2>(c_syclPruneKernelJ4Concurrency,
-                               c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize),
-            cgh);
-            */
-
     /* Requirements:
      * Work group (block) must have range (c_clSize, c_clSize, ...) (for localId calculation, easy
      * to change) Sub group (warp) must have length 8 (more complicated to change) */
@@ -97,12 +89,11 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
     {
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         // thread/block/warp id-s
-        const unsigned        tidxi = localId[0];
-        const unsigned        tidxj = localId[1];
-        const cl::sycl::id<2> tidxji(localId[0], localId[1]);
-        const int             tidx  = tidxj * c_clSize + tidxi;
-        const unsigned        tidxz = localId[2];
-        const unsigned        bidx  = itemIdx.get_group(0);
+        const unsigned tidxi = localId[0];
+        const unsigned tidxj = localId[1];
+        const int      tidx  = tidxj * c_clSize + tidxi;
+        const unsigned tidxz = localId[2];
+        const unsigned bidx  = itemIdx.get_group(0);
 
         const sycl_pf::sub_group sg           = itemIdx.get_sub_group();
         static constexpr int     subGroupSize = 8;
@@ -157,30 +148,15 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 imaskCheck = (imaskNew ^ imaskFull);
             }
 
-            /*
-            if ((tidxj == 0 || tidxj == c_splitClSize) && tidxi < c_nbnxnGpuJgroupSize)
-            {
-                cjs[tidxz][tidxi + tidxj * c_nbnxnGpuJgroupSize / c_splitClSize] =
-                        a_plistCJ4[j4].cj[tidxi];
-            }
-            itemIdx.barrier(fence_space::local_space);
-             */
-
             if (imaskCheck)
             {
                 for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)
                 {
                     if (imaskCheck & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
-                        unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
-
-                        /*
-                        const int loadOffset =
-                                (tidxj & c_splitClSize) * c_nbnxnGpuJgroupSize / c_splitClSize;
-                        const int cj = cjs[tidxz][jm + loadOffset];
-                         */
-                        const int cj = a_plistCJ4[j4].cj[jm];
-                        const int aj = cj * c_clSize + tidxj;
+                        unsigned  mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        const int cj      = a_plistCJ4[j4].cj[jm];
+                        const int aj      = cj * c_clSize + tidxj;
 
                         /* load j atom data */
                         const float4 tmp = a_xq[aj];
