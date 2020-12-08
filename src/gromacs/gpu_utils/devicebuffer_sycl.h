@@ -47,6 +47,8 @@
  *  \inlibraryapi
  */
 
+#include <utility>
+
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
@@ -123,7 +125,6 @@ namespace gmx::internal
 template<class T, enum cl::sycl::access::mode mode>
 using PlaceholderAccessor =
         cl::sycl::accessor<T, 1, mode, cl::sycl::access::target::global_buffer, cl::sycl::access::placeholder::true_t>;
-// SYCL-TODO: no_alias, no_offset properties from Intel extensions?
 } // namespace gmx::internal
 
 /** \brief
@@ -354,23 +355,24 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
     }
 }
 
+
 namespace gmx::internal
 {
-template<typename T>
-static constexpr T zeroPattern = T(0);
-template<>
-static constexpr float3 zeroPattern<float3> = float3(0, 0, 0);
-
-template<typename ValueType, typename = std::enable_if_t<!std::is_same_v<ValueType, float3>>>
-static cl::sycl::event clearSyclBufferOnDevice(cl::sycl::buffer<ValueType, 1>& buffer,
-                                               size_t                          startingOffset,
-                                               size_t                          numValues,
-                                               cl::sycl::queue                 queue)
+/*! \brief Helper function to clear device buffer.
+ *
+ * Not applicable to GROMACS's float3 (a.k.a. gmx::RVec). From SYCL specs: "T must be a scalar
+ * value or a SYCL vector type."
+ */
+template<typename ValueType>
+cl::sycl::event fillSyclBufferWithNull(cl::sycl::buffer<ValueType, 1>& buffer,
+                                       size_t                          startingOffset,
+                                       size_t                          numValues,
+                                       cl::sycl::queue                 queue)
 {
     using cl::sycl::access::mode;
     const cl::sycl::range<1> range(numValues);
     const cl::sycl::id<1>    offset(startingOffset);
-    const ValueType          pattern = zeroPattern<ValueType>;
+    const ValueType pattern = ValueType(0); // Initialization by scalar supported by SYCL vectors.
 
     return queue.submit([&](cl::sycl::handler& cgh) {
         auto d_bufferAccessor =
@@ -379,34 +381,12 @@ static cl::sycl::event clearSyclBufferOnDevice(cl::sycl::buffer<ValueType, 1>& b
     });
 }
 
-template<typename ValueType>
-static void clearSyclBufferViaHost(cl::sycl::buffer<ValueType, 1>& buffer,
-                                   size_t                          startingOffset,
-                                   size_t                          numValues,
-                                   cl::sycl::queue                 queue)
-{
-    using cl::sycl::accessor;
-    using cl::sycl::access::mode;
-    using cl::sycl::access::target;
-
-    const ValueType pattern = zeroPattern<ValueType>;
-    accessor<ValueType, 1, mode::discard_write, target::host_buffer> h_bufferAccessor{
-        buffer, cl::sycl::range<1>(numValues), cl::sycl::id<1>(startingOffset)
-    };
-    for (size_t i = startingOffset; i < startingOffset + numValues; i++)
-    {
-        h_bufferAccessor[i] = pattern;
-    }
-}
-
-static cl::sycl::event clearSyclBufferFloat3(cl::sycl::buffer<float3, 1>& buffer,
-                                             size_t                       startingOffset,
-                                             size_t                       numValues,
-                                             cl::sycl::queue              queue)
-{
-    cl::sycl::buffer<float, 1> bufferFloat = buffer.reinterpret<float, 1>(buffer.get_count() * 3);
-    return clearSyclBufferOnDevice<float>(bufferFloat, startingOffset * 3, numValues * 3, std::move(queue));
-}
+//! \brief Helper function to clear device buffer of type float3.
+template<>
+cl::sycl::event fillSyclBufferWithNull(cl::sycl::buffer<float3, 1>& buffer,
+                                       size_t                       startingOffset,
+                                       size_t                       numValues,
+                                       cl::sycl::queue              queue);
 } // namespace gmx::internal
 
 /*! \brief
@@ -435,18 +415,8 @@ void clearDeviceBufferAsync(DeviceBuffer<ValueType>* buffer,
 
     cl::sycl::buffer<ValueType>& syclBuffer = *(buffer->buffer_);
 
-    deviceStream.stream().wait_and_throw(); // TODO: Remove
-
-    // Apparently, cgh.fill does not like custom types?
-    if constexpr (std::is_same_v<ValueType, float3>)
-    {
-        gmx::internal::clearSyclBufferFloat3(syclBuffer, startingOffset, numValues, deviceStream.stream());
-    }
-    else
-    {
-        gmx::internal::clearSyclBufferOnDevice<ValueType>(syclBuffer, startingOffset, numValues,
-                                                          deviceStream.stream());
-    }
+    gmx::internal::fillSyclBufferWithNull<ValueType>(syclBuffer, startingOffset, numValues,
+                                                     deviceStream.stream());
 }
 
 /*! \brief Create a texture object for an array of type ValueType.

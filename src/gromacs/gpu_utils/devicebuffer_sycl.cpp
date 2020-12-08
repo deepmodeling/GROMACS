@@ -46,3 +46,17 @@
 #include "devicebuffer_sycl.h"
 
 template struct DeviceBuffer<gmx::RVec>;
+
+namespace gmx::internal
+{
+template<>
+cl::sycl::event fillSyclBufferWithNull(cl::sycl::buffer<float3, 1>& buffer,
+                                       size_t                       startingOffset,
+                                       size_t                       numValues,
+                                       cl::sycl::queue              queue)
+{
+    cl::sycl::buffer<float, 1> bufferAsFloat = buffer.reinterpret<float, 1>(buffer.get_count() * DIM);
+    return fillSyclBufferWithNull<float>(bufferAsFloat, startingOffset * DIM, numValues * DIM,
+                                         std::move(queue));
+}
+} // namespace gmx::internal
