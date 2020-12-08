@@ -113,7 +113,7 @@ static inline void convert_sigma_epsilon_to_c6_c12(const float                  
     *c12               = (*c6) * sigma6;
 }
 
-// SYCL-TODO: Merge with calculate_force_switch_F_E by the means of template
+template<bool doCalcEnergies>
 static inline void calculate_force_switch_F(const shift_consts_t         dispersionShift,
                                             const shift_consts_t         repulsionShift,
                                             const float                  rVdwSwitch,
@@ -121,7 +121,8 @@ static inline void calculate_force_switch_F(const shift_consts_t         dispers
                                             const float                  c12,
                                             const float                  inv_r,
                                             const float                  r2,
-                                            cl::sycl::private_ptr<float> F_invr)
+                                            cl::sycl::private_ptr<float> F_invr,
+                                            cl::sycl::private_ptr<float> E_lj)
 {
     /* force switch constants */
     const float dispShiftV2 = dispersionShift.c2;
@@ -135,41 +136,19 @@ static inline void calculate_force_switch_F(const shift_consts_t         dispers
 
     *F_invr += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r
                + c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r;
+
+    if constexpr (doCalcEnergies)
+    {
+        const float dispShiftF2 = dispShiftV2 / 3;
+        const float dispShiftF3 = dispShiftV3 / 4;
+        const float repuShiftF2 = repuShiftV2 / 3;
+        const float repuShiftF3 = repuShiftV3 / 4;
+        *E_lj += c6 * (dispShiftF2 + dispShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch
+                 - c12 * (repuShiftF2 + repuShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch;
+    }
 }
 
-static inline void calculate_force_switch_F_E(const shift_consts_t         dispersionShift,
-                                              const shift_consts_t         repulsionShift,
-                                              const float                  rVdwSwitch,
-                                              const float                  c6,
-                                              const float                  c12,
-                                              const float                  inv_r,
-                                              const float                  r2,
-                                              cl::sycl::private_ptr<float> F_invr,
-                                              cl::sycl::private_ptr<float> E_lj)
-{
-    /* force switch constants */
-    const float dispShiftV2 = dispersionShift.c2;
-    const float dispShiftV3 = dispersionShift.c3;
-    const float repuShiftV2 = repulsionShift.c2;
-    const float repuShiftV3 = repulsionShift.c3;
-
-    const float dispShiftF2 = dispShiftV2 / 3;
-    const float dispShiftF3 = dispShiftV3 / 4;
-    const float repuShiftF2 = repuShiftV2 / 3;
-    const float repuShiftF3 = repuShiftV3 / 4;
-
-    const float r       = r2 * inv_r;
-    float       rSwitch = r - rVdwSwitch;
-    rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
-
-    *F_invr += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r
-               + c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r;
-    *E_lj += c6 * (dispShiftF2 + dispShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch
-             - c12 * (repuShiftF2 + repuShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch;
-}
-
-/*! \brief Fetch C6 grid contribution coefficients and return the product of these.
- */
+//! \brief Fetch C6 grid contribution coefficients and return the product of these.
 static inline float calculate_lj_ewald_c6grid(const DeviceAccessor<float, mode::read> a_nbfpComb,
                                               const int                               typei,
                                               const int                               typej)
@@ -179,19 +158,20 @@ static inline float calculate_lj_ewald_c6grid(const DeviceAccessor<float, mode::
 }
 
 
-/*! Calculate LJ-PME grid force contribution with
- *  geometric combination rule.
- */
+//! Calculate LJ-PME grid force contribution with geometric combination rule.
+template<bool doCalcEnergies>
 static inline void calculate_lj_ewald_comb_geom_F(const DeviceAccessor<float, mode::read> a_nbfpComb,
-                                                  const int                               typei,
-                                                  const int                               typej,
-                                                  const float                             r2,
-                                                  const float                             inv_r2,
+                                                  const float                  sh_lj_ewald,
+                                                  const int                    typei,
+                                                  const int                    typej,
+                                                  const float                  r2,
+                                                  const float                  inv_r2,
                                                   const float                  lje_coeff2,
                                                   const float                  lje_coeff6_6,
-                                                  cl::sycl::private_ptr<float> F_invr)
+                                                  const float                  int_bit,
+                                                  cl::sycl::private_ptr<float> F_invr,
+                                                  cl::sycl::private_ptr<float> E_lj)
 {
-    // SYCL-TODO: Merge with calculate_lj_ewald_comb_geom_F_E by templating on doCalcEnergies
     const float c6grid = calculate_lj_ewald_c6grid(std::move(a_nbfpComb), typei, typej);
 
     /* Recalculate inv_r6 without exclusion mask */
@@ -202,38 +182,13 @@ static inline void calculate_lj_ewald_comb_geom_F(const DeviceAccessor<float, mo
 
     /* Subtract the grid force from the total LJ force */
     *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
-}
 
-
-/*! Calculate LJ-PME grid force + energy contribution with
- *  geometric combination rule.
- */
-static inline void calculate_lj_ewald_comb_geom_F_E(const DeviceAccessor<float, mode::read> a_nbfpComb,
-                                                    const float                  sh_lj_ewald,
-                                                    const int                    typei,
-                                                    const int                    typej,
-                                                    const float                  r2,
-                                                    const float                  inv_r2,
-                                                    const float                  lje_coeff2,
-                                                    const float                  lje_coeff6_6,
-                                                    const float                  int_bit,
-                                                    cl::sycl::private_ptr<float> F_invr,
-                                                    cl::sycl::private_ptr<float> E_lj)
-{
-    const float c6grid = calculate_lj_ewald_c6grid(a_nbfpComb, typei, typej);
-
-    /* Recalculate inv_r6 without exclusion mask */
-    const float inv_r6_nm = inv_r2 * inv_r2 * inv_r2;
-    const float cr2       = lje_coeff2 * r2;
-    const float expmcr2   = expf(-cr2);
-    const float poly      = 1.0F + cr2 + 0.5F * cr2 * cr2;
-
-    /* Subtract the grid force from the total LJ force */
-    *F_invr += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * inv_r2;
-
-    /* Shift should be applied only to real LJ pairs */
-    const float sh_mask = sh_lj_ewald * int_bit;
-    *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0F - expmcr2 * poly) + sh_mask);
+    if constexpr (doCalcEnergies)
+    {
+        /* Shift should be applied only to real LJ pairs */
+        const float sh_mask = sh_lj_ewald * int_bit;
+        *E_lj += c_oneSixth * c6grid * (inv_r6_nm * (1.0F - expmcr2 * poly) + sh_mask);
+    }
 }
 
 /*! Calculate LJ-PME grid force + energy contribution (if E_lj != nullptr) with
@@ -282,7 +237,8 @@ static inline void calculate_lj_ewald_comb_LB_F_E(const DeviceAccessor<float, mo
     }
 }
 
-/*! Apply potential switch, force-only version. */
+/*! Apply potential switch. */
+template<bool doCalcEnergies>
 static inline void calculate_potential_switch_F(const switch_consts_t        vdw_switch,
                                                 const float                  rVdwSwitch,
                                                 const float                  inv_r,
@@ -301,8 +257,6 @@ static inline void calculate_potential_switch_F(const switch_consts_t        vdw
     const float r       = r2 * inv_r;
     const float rSwitch = r - rVdwSwitch;
 
-    // SYCL-TODO: The comment below is true for CUDA only
-    // Unlike in the F+E kernel, conditional is faster here
     if (rSwitch > 0.0F)
     {
         const float sw =
@@ -310,35 +264,11 @@ static inline void calculate_potential_switch_F(const switch_consts_t        vdw
         const float dsw = (switch_F2 + (switch_F3 + switch_F4 * rSwitch) * rSwitch) * rSwitch * rSwitch;
 
         *F_invr = (*F_invr) * sw - inv_r * (*E_lj) * dsw;
+        if constexpr (doCalcEnergies)
+        {
+            *E_lj *= sw;
+        }
     }
-}
-
-/*! Apply potential switch, force + energy version. */
-static inline void calculate_potential_switch_F_E(const switch_consts_t        vdw_switch,
-                                                  const float                  rVdwSwitch,
-                                                  float                        inv_r,
-                                                  float                        r2,
-                                                  cl::sycl::private_ptr<float> F_invr,
-                                                  cl::sycl::private_ptr<float> E_lj)
-{
-    /* potential switch constants */
-    const float switch_V3 = vdw_switch.c3;
-    const float switch_V4 = vdw_switch.c4;
-    const float switch_V5 = vdw_switch.c5;
-    const float switch_F2 = 3 * vdw_switch.c3;
-    const float switch_F3 = 4 * vdw_switch.c4;
-    const float switch_F4 = 5 * vdw_switch.c5;
-
-    const float r       = r2 * inv_r;
-    float       rSwitch = r - rVdwSwitch;
-    rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
-
-    const float sw =
-            1.0F + (switch_V3 + (switch_V4 + switch_V5 * rSwitch) * rSwitch) * rSwitch * rSwitch * rSwitch;
-    const float dsw = (switch_F2 + (switch_F3 + switch_F4 * rSwitch) * rSwitch) * rSwitch * rSwitch;
-
-    *F_invr = (*F_invr) * sw - inv_r * (*E_lj) * dsw;
-    *E_lj *= sw;
 }
 
 
@@ -407,36 +337,6 @@ static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode
     return lerp(left, right, fraction); // TODO: cl::sycl::mix
 }
 
-/*! Final j-force reduction; this implementation only with power of two
- *  array sizes.
- */
-static inline void reduce_force_j(cl::sycl::accessor<float, 1, mode::read_write, target::local> shmemBuf,
-                                  const float3                                                  f,
-                                  DeviceAccessor<float, mode::read_write> fout,
-                                  const cl::sycl::nd_item<1>              itemIdx,
-                                  const int                               tidxi,
-                                  const int                               tidxj,
-                                  const int                               aidx)
-{
-    // SYCL-TODO: Check for NTHREAD_Z > 1
-    static constexpr int bufStride = c_clSize * c_clSize;
-    const int            tid       = tidxi + tidxj * c_clSize; // itemIdx.get_local_linear_id();
-    shmemBuf[tid]                  = f[0];
-    shmemBuf[tid + bufStride]      = f[1];
-    shmemBuf[tid + 2 * bufStride]  = f[2];
-    itemIdx.barrier(fence_space::local_space);
-    if (tidxi < 3)
-    {
-        float acc = 0.0F;
-        for (int j = tidxj * c_clSize; j < (tidxj + 1) * c_clSize; j++)
-        {
-            acc += shmemBuf[bufStride * tidxi + j];
-        }
-
-        atomic_fetch_add(fout, 3 * aidx + tidxi, acc);
-    }
-    itemIdx.get_sub_group().barrier();
-}
 
 static inline void reduce_force_j_shfl(float3                                  f,
                                        DeviceAccessor<float, mode::read_write> fout,
@@ -962,36 +862,17 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     } // (!props.vdwCombLB || doCalcEnergies)
                                     if constexpr (props.vdwFSwitch)
                                     {
-                                        if constexpr (doCalcEnergies)
-                                        {
-                                            calculate_force_switch_F_E(
-                                                    dispersion_shift, repulsion_shift, rVdwSwitch,
-                                                    c6, c12, inv_r, r2, &F_invr, &E_lj_p);
-                                        }
-                                        else
-                                        {
-                                            calculate_force_switch_F(dispersion_shift,
-                                                                     repulsion_shift, rVdwSwitch,
-                                                                     c6, c12, inv_r, r2, &F_invr);
-                                        }
+                                        calculate_force_switch_F<doCalcEnergies>(
+                                                dispersion_shift, repulsion_shift, rVdwSwitch, c6,
+                                                c12, inv_r, r2, &F_invr, &E_lj_p);
                                     }
                                     if constexpr (props.vdwEwald)
                                     {
                                         if constexpr (props.vdwEwaldCombGeom)
                                         {
-                                            if constexpr (doCalcEnergies)
-                                            {
-                                                calculate_lj_ewald_comb_geom_F_E(
-                                                        a_nbfpComb, sh_lj_ewald, typei, typej, r2,
-                                                        inv_r2, lje_coeff2, lje_coeff6_6, int_bit,
-                                                        &F_invr, &E_lj_p);
-                                            }
-                                            else
-                                            {
-                                                calculate_lj_ewald_comb_geom_F(
-                                                        a_nbfpComb, typei, typej, r2, inv_r2,
-                                                        lje_coeff2, lje_coeff6_6, &F_invr);
-                                            }
+                                            calculate_lj_ewald_comb_geom_F<doCalcEnergies>(
+                                                    a_nbfpComb, sh_lj_ewald, typei, typej, r2, inv_r2,
+                                                    lje_coeff2, lje_coeff6_6, int_bit, &F_invr, &E_lj_p);
                                         }
                                         else if constexpr (props.vdwEwaldCombLB)
                                         {
@@ -1004,16 +885,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     } // (props.vdwEwald)
                                     if constexpr (props.vdwPSwitch)
                                     {
-                                        if constexpr (doCalcEnergies)
-                                        {
-                                            calculate_potential_switch_F_E(vdw_switch, rVdwSwitch,
-                                                                           inv_r, r2, &F_invr, &E_lj_p);
-                                        }
-                                        else
-                                        {
-                                            calculate_potential_switch_F(vdw_switch, rVdwSwitch,
-                                                                         inv_r, r2, &F_invr, &E_lj_p);
-                                        }
+                                        calculate_potential_switch_F<doCalcEnergies>(
+                                                vdw_switch, rVdwSwitch, inv_r, r2, &F_invr, &E_lj_p);
                                     }
                                     if constexpr (vdwCutoffCheck<elecType>)
                                     {
