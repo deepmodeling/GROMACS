@@ -60,39 +60,28 @@
 
 namespace sycl_pf
 {
-#if __SYCL_COMPILER_VERSION >= 20201005 // 2021.1-beta10
-template<typename... Args>
-bool group_any_of(Args&&... args)
-{
-    return cl::sycl::ONEAPI::any_of(std::forward<Args>(args)...);
-}
-using cl::sycl::ONEAPI::atomic_ref;
-using cl::sycl::ONEAPI::memory_order;
-using cl::sycl::ONEAPI::memory_scope;
-using cl::sycl::ONEAPI::plus;
-template<typename... Args>
-auto group_reduce(Args&&... args) -> decltype(cl::sycl::ONEAPI::reduce(std::forward<Args>(args)...))
-{
-    return cl::sycl::ONEAPI::reduce(std::forward<Args>(args)...);
-}
-using cl::sycl::ONEAPI::sub_group;
-#elif __SYCL_COMPILER_VERSION == 20200827 // 2021.1-beta09
-template<typename... Args>
-bool group_any_of(Args&&... args)
-{
-    return cl::sycl::intel::any_of(std::forward<Args>(args)...);
-}
-using cl::sycl::intel::atomic_ref;
-using cl::sycl::intel::memory_order;
-using cl::sycl::intel::memory_scope;
-using cl::sycl::intel::plus;
-template<typename... Args>
-auto group_reduce(Args&&... args) -> decltype(cl::sycl::intel::reduce(std::forward<Args>(args)...))
-{
-    return cl::sycl::intel::reduce(std::forward<Args>(args)...);
-}
-using cl::sycl::intel::sub_group;
+#if __SYCL_COMPILER_VERSION >= 20201005 // 2021.1-beta10 (20201005), 2021.1.1 (20201113), and up
+namespace origin = cl::sycl::ONEAPI;
+#elif __SYCL_COMPILER_VERSION == 20200827 // 2021.1-beta09 (20200827)
+namespace origin = cl::sycl::intel;
+#else
+#    error "Unsupported SYCL compiler"
 #endif
+using origin::atomic_ref;
+using origin::memory_order;
+using origin::memory_scope;
+using origin::plus;
+using origin::sub_group;
+template<typename... Args>
+bool group_any_of(Args&&... args)
+{
+    return origin::any_of(std::forward<Args>(args)...);
+}
+template<typename... Args>
+auto group_reduce(Args&&... args) -> decltype(origin::reduce(std::forward<Args>(args)...))
+{
+    return origin::reduce(std::forward<Args>(args)...);
+}
 } // namespace sycl_pf
 
 #endif
