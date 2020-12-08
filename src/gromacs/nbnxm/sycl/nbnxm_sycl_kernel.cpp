@@ -131,8 +131,7 @@ static inline void calculate_force_switch_F(const shift_consts_t         dispers
     const float repuShiftV3 = repulsionShift.c3;
 
     const float r       = r2 * inv_r;
-    float       rSwitch = r - rVdwSwitch; // TODO: use cl::sycl::fdim
-    rSwitch             = rSwitch >= 0.0F ? rSwitch : 0.0F;
+    const float rSwitch = cl::sycl::fdim(r, rVdwSwitch); // max(r - rVdwSwitch, 0)
 
     *F_invr += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r
                + c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * inv_r;
@@ -617,8 +616,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         bool doCalcShift = calcShift;
 
-        float4 xqbuf;
-
         if (tidxz == 0)
         {
             for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i += c_clSize)
@@ -629,7 +626,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
 
                 const float3 shift = a_shiftVec[nb_sci.shift];
-                xqbuf              = a_xq[ai];
+                float4       xqbuf = a_xq[ai];
                 xqbuf += float4(shift[0], shift[1], shift[2], 0.0F);
                 xqbuf[3] *= epsFac;
                 xqib[cacheIdx] = xqbuf;
@@ -737,11 +734,11 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         const int cj = a_plistCJ4[j4].cj[jm];
                         const int aj = cj * c_clSize + tidxj;
 
-                        /* load j atom data */
-                        xqbuf = a_xq[aj];
+                        // load j atom data
+                        const float4 xqj = a_xq[aj];
 
-                        const float3 xj(xqbuf[0], xqbuf[1], xqbuf[2]);
-                        const float  qj_f = xqbuf[3];
+                        const float3 xj(xqj[0], xqj[1], xqj[2]);
+                        const float  qj_f = xqj[3];
                         int          typej;  // Only needed if (!props.vdwComb)
                         float2       ljcp_j; // Only needed if (props.vdwComb)
                         if constexpr (!props.vdwComb)
@@ -759,14 +756,15 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         {
                             if (imask & mask_ji)
                             {
-                                int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i; /* i cluster index */
-                                /* all threads load an atom from i cluster ci into shmem! */
-                                xqbuf = xqib[i][tidxi];
-                                float3 xi(xqbuf[0], xqbuf[1], xqbuf[2]);
+                                // i cluster index
+                                const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i;
+                                // all threads load an atom from i cluster ci into shmem!
+                                const float4 xqi = xqib[i][tidxi];
+                                const float3 xi(xqi[0], xqi[1], xqi[2]);
 
-                                /* distance between i and j atoms */
-                                float3 rv = xi - xj;
-                                float  r2 = norm2(rv);
+                                // distance between i and j atoms
+                                const float3 rv = xi - xj;
+                                float        r2 = norm2(rv);
 
                                 if constexpr (doPruneNBL)
                                 {
@@ -788,9 +786,9 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
                                 if ((r2 < rCoulombSq) && notExcluded)
                                 {
-                                    float qi = xqbuf[3];
-                                    int   typei; // Only needed if (!props.vdwComb)
-                                    float c6, c12, sigma, epsilon;
+                                    const float qi = xqi[3];
+                                    int         typei; // Only needed if (!props.vdwComb)
+                                    float       c6, c12, sigma, epsilon;
 
                                     if constexpr (!props.vdwComb)
                                     {
@@ -802,7 +800,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     else
                                     {
-                                        float2 ljcp_i = ljcpib[i][tidxi];
+                                        const float2 ljcp_i = ljcpib[i][tidxi];
                                         if constexpr (props.vdwCombGeom)
                                         {
                                             c6  = ljcp_i[0] * ljcp_j[0];
@@ -959,9 +957,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                             /* shift the mask bit by 1 */
                             mask_ji += mask_ji;
                         } // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
-                        // Replace with group_reduce in SYCL2020
                         /* reduce j forces */
-                        // reduce_force_j(force_j_buf_shmem, fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
                         reduce_force_j_shfl(fcj_buf, a_f, itemIdx, tidxi, tidxj, aj);
                     } // (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                 } // for (int jm = 0; jm < c_nbnxnGpuJgroupSize; jm++)

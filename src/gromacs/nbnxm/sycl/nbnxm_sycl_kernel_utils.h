@@ -109,16 +109,6 @@ static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const Index
     }
 }
 
-static inline bool any_of(
-        cl::sycl::nd_item<1> /*itemIdx*/,
-        cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write, cl::sycl::access::target::local> shmemBuf,
-        const int /*widx*/,
-        sycl_pf::sub_group sg,
-        const bool         predicate)
-{
-    return sycl_pf::group_any_of(sg, predicate);
-}
-
 } // namespace Nbnxm
 
 #endif // GMX_NBNXM_SYCL_NBNXN_SYCL_KERNEL_UTILS_H

@@ -200,14 +200,13 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                                 /* If _none_ of the atoms pairs are in rlistOuter
                                  * range, the bit corresponding to the current
                                  * cluster-pair in imask gets set to 0. */
-                                if (haveFreshList
-                                    && !(sycl_pf::group_any_of(sg, r2 < rlistOuterSq))
+                                if (haveFreshList && !(sycl_pf::group_any_of(sg, r2 < rlistOuterSq)))
                                 {
                                     imaskFull &= ~mask_ji;
                                 }
                                 /* If any atom pair is within range, set the bit
                                  * corresponding to the current cluster-pair. */
-                                if (sycl_pf::group_any_of(r2 < rlistInnerSq))
+                                if (sycl_pf::group_any_of(sg, r2 < rlistInnerSq))
                                 {
                                     imaskNew |= mask_ji;
                                 }
