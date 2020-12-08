@@ -49,6 +49,8 @@ we observed an error about equal to the statistical error with 32 walkers
 for a rather fast reaction coordinate. For slower coordinates the error
 will be smaller than the statistical error.
 
+:issue:`3828`
+
 Fixed conserved energy for MTTK
 """""""""""""""""""""""""""""""
 
