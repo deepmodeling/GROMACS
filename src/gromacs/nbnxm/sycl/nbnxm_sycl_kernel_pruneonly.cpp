@@ -67,18 +67,16 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                           DeviceAccessor<nbnxn_cj4_t, mode::read_write> a_plistCJ4,
                           DeviceAccessor<nbnxn_sci_t, mode::read>       a_plistSci,
                           DeviceAccessor<unsigned int, haveFreshList ? mode::write : mode::read> a_plistIMask,
-                          const float                         rlistOuterSq,
-                          const float                         rlistInnerSq,
-                          const int                           numParts,
-                          const int                           part,
-                          DeviceAccessor<float4, mode::write> debug)
+                          const float rlistOuterSq,
+                          const float rlistInnerSq,
+                          const int   numParts,
+                          const int   part)
 {
     cgh.require(a_xq);
     cgh.require(a_shiftVec);
     cgh.require(a_plistCJ4);
     cgh.require(a_plistSci);
     cgh.require(a_plistIMask);
-    cgh.require(debug);
 
     /* shmem buffer for i x+q pre-loading */
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> xib(
@@ -118,9 +116,6 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const int         sci        = nb_sci.sci;           /* super-cluster */
         const int         cij4_start = nb_sci.cj4_ind_start; /* first ...*/
         const int         cij4_end   = nb_sci.cj4_ind_end;   /* and last index of j clusters */
-
-        /* debug << "{" << bidx << ";" << tidxi << "," << tidxj << "," << tidxz << "} sci="<< sci <<
-                " ["<<cij4_start << "," << cij4_end << "]" << cl::sycl::endl; */
 
         if (tidxz == 0)
         {
@@ -301,24 +296,11 @@ void launchNbnxmKernelPruneOnly(NbnxmGpu*                 nb,
 
     deviceStream.stream().wait_and_throw();
 
-    cl::sycl::buffer<float4> debug(numSciInPart * c_clSize * c_clSize * c_syclPruneKernelJ4Concurrency);
-
     cl::sycl::event e = chooseAndLaunchNbnxmKernelPruneOnly(
             haveFreshList, deviceStream, numSciInPart, adat->xq, adat->shiftVec, plist->cj4,
-            plist->sci, plist->imask, nbp->rlistOuter_sq, nbp->rlistInner_sq, numParts, part, debug);
+            plist->sci, plist->imask, nbp->rlistOuter_sq, nbp->rlistInner_sq, numParts, part);
 
     e.wait_and_throw(); // SYCL-TODO: remove
-
-    /*
-    {
-        auto a = debug.get_access<mode::read>();
-        for (size_t i = 0; i < debug.get_count(); i++)
-        {
-            std::cout << " P " << i << " = {" << a[i][0] << " , " << a[i][1] << " , " << a[i][2]
-                      << " , " << a[i][3] << "}" << std::endl;
-        }
-    }
-     */
 }
 
 } // namespace Nbnxm

@@ -599,8 +599,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  const float                                                 rVdwSwitch,
                  const float                                                 sh_lj_ewald,
                  const float                                                 coulombTabScale,
-                 const bool                                                  calcShift,
-                 DeviceAccessor<float4, mode::write>                         debug)
+                 const bool                                                  calcShift)
 {
     static constexpr EnergyFunctionProperties<elecType, vdwType> props;
 
@@ -633,7 +632,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     {
         cgh.require(a_coulombTab);
     }
-    cgh.require(debug);
 
     // shmem buffer for i x+q pre-loading
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> xqib(
@@ -1126,11 +1124,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             const float E_el_wg =
                     sycl_pf::group_reduce(itemIdx.get_group(), E_el, 0.0F, sycl_pf::plus<float>());
 
-            debug[itemIdx.get_global_linear_id()][0] = E_lj;
-            debug[itemIdx.get_global_linear_id()][1] = E_el;
-            debug[itemIdx.get_global_linear_id()][2] = E_lj_wg;
-            debug[itemIdx.get_global_linear_id()][3] = E_el_wg;
-
             if (tidx == 0)
             {
                 atomic_fetch_add(a_vdwEnergy, 0, E_lj_wg);
@@ -1203,8 +1196,6 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     cl::sycl::buffer<float3, 1> fShift(*adat->fShift.buffer_);
     auto fShift_as_float = fShift.reinterpret<float, 1>(fShift.get_count() * 3);
 
-    cl::sycl::buffer<float4> debug(plist->nsci * c_clSize * c_clSize * NTHREAD_Z);
-
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
             doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
             plist->nsci, adat->xq, f_as_float, adat->shiftVec, fShift_as_float, adat->eElec,
@@ -1212,18 +1203,9 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
             nbp->nbfp_comb, nbp->coulomb_tab, nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf,
             nbp->ewald_beta, nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj,
             adat->numTypes, nbp->c_rf, nbp->dispersion_shift, nbp->repulsion_shift, nbp->vdw_switch,
-            nbp->rvdw_switch, nbp->sh_lj_ewald, nbp->coulomb_tab_scale, stepWork.computeVirial, debug);
+            nbp->rvdw_switch, nbp->sh_lj_ewald, nbp->coulomb_tab_scale, stepWork.computeVirial);
 
     e.wait_and_throw(); // SYCL-TODO: remove
-    {
-        auto a = debug.get_access<mode::read>();
-        /*
-        for (size_t i = 0; i < debug.get_count(); i++) {
-            std::cout << "  " << i << " = {" << a[i][0] << " , " << a[i][1] << " , " << a[i][2] <<
-                    " , " << a[i][3] << "}" << std::endl;
-        }
-         */
-    }
 }
 
 } // namespace Nbnxm
