@@ -46,13 +46,13 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
 #include "gromacs/mdtypes/simulation_workload.h"
-#include "gromacs/nbnxm/sycl/nbnxm_sycl_kernel_utils.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/utility/template_mp.h"
 
+#include "nbnxm_sycl_kernel_utils.h"
 #include "nbnxm_sycl_types.h"
 
-// TODO: tune
+// Not tuned
 #define NTHREAD_Z 1
 
 namespace Nbnxm
@@ -190,10 +190,9 @@ static inline void calculate_lj_ewald_comb_geom_F(const DeviceAccessor<float, mo
     }
 }
 
-/*! Calculate LJ-PME grid force + energy contribution (if E_lj != nullptr) with
- *  Lorentz-Berthelot combination rule.
- *  We use a single F+E kernel with conditional because the performance impact
- *  of this is pretty small and LB on the CPU is anyway very slow.
+/*! \brief Calculate LJ-PME grid force with Lorentz-Berthelot combination rule.
+ *
+ *  If \p E_lj is \c nullptr, energy will not be computed.
  */
 static inline void calculate_lj_ewald_comb_LB_F_E(const DeviceAccessor<float, mode::read> a_nbfpComb,
                                                   const float                  sh_lj_ewald,
@@ -236,7 +235,7 @@ static inline void calculate_lj_ewald_comb_LB_F_E(const DeviceAccessor<float, mo
     }
 }
 
-/*! Apply potential switch. */
+/*! \brief Apply potential switch. */
 template<bool doCalcEnergies>
 static inline void calculate_potential_switch_F(const switch_consts_t        vdw_switch,
                                                 const float                  rVdwSwitch,
@@ -271,7 +270,7 @@ static inline void calculate_potential_switch_F(const switch_consts_t        vdw
 }
 
 
-/*! Calculate analytical Ewald correction term. */
+/*! \brief Calculate analytical Ewald correction term. */
 static inline float pmecorrF(const float z2)
 {
     constexpr float FN6 = -1.7357322914161492954e-8f;
@@ -310,7 +309,7 @@ static inline float pmecorrF(const float z2)
     return polyFN0 * polyFD0;
 }
 
-/*! Linear interpolation using exactly two FMA operations.
+/*! \brief Linear interpolation using exactly two FMA operations.
  *
  *  Implements numeric equivalent of: (1-t)*d0 + t*d1.
  */
@@ -320,8 +319,7 @@ static inline T lerp(T d0, T d1, T t)
     return fma(t, d1, fma(-t, d0, d0));
 }
 
-/*! Interpolate Ewald coulomb force correction using the F*r table.
- */
+/*! \brief Interpolate Ewald coulomb force correction using the F*r table. */
 static inline float interpolate_coulomb_force_r(const DeviceAccessor<float, mode::read> a_coulombTab,
                                                 const float coulombTabScale,
                                                 const float r)
@@ -341,13 +339,11 @@ static inline void reduce_force_j_shfl(float3                                  f
                                        DeviceAccessor<float, mode::read_write> fout,
                                        const cl::sycl::nd_item<1>              itemIdx,
                                        const int                               tidxi,
-                                       const int                               tidxj,
-                                       const int                               aidx)
+                                       const int /*tidxj*/,
+                                       const int aidx)
 {
     static_assert(c_clSize == 4);
-    static constexpr int bufStride = c_clSize * c_clSize;
-    const int            tid       = tidxi + tidxj * c_clSize; // itemIdx.get_local_linear_id();
-    sycl_pf::sub_group   sg        = itemIdx.get_sub_group();
+    sycl_pf::sub_group sg = itemIdx.get_sub_group();
     f[0] += sg.shuffle_down(f[0], 1);
     f[1] += sg.shuffle_up(f[1], 1);
     f[2] += sg.shuffle_down(f[2], 1);
@@ -380,8 +376,9 @@ static constexpr int log2i(const int v)
     }
 }
 
-/*! Final i-force reduction; this implementation works only with power of two
- *  array sizes.
+/*! \brief Final i-force reduction.
+ *
+ * This implementation works only with power of two array sizes.
  */
 static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::read_write, target::local> shmemBuf,
                                             const float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster],
@@ -411,8 +408,8 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
         /* Reduce the initial CL_SIZE values for each i atom to half
          * every step by using CL_SIZE * i threads.
          */
-        unsigned i = c_clSize / 2;
-        for (unsigned j = clSizeLog2 - 1; j > 0; j--)
+        int i = c_clSize / 2;
+        for (int j = clSizeLog2 - 1; j > 0; j--)
         {
             if (tidxj < i)
             {

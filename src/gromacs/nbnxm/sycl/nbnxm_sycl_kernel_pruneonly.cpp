@@ -45,9 +45,9 @@
 
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
-#include "gromacs/nbnxm/sycl/nbnxm_sycl_kernel_utils.h"
 #include "gromacs/utility/template_mp.h"
 
+#include "nbnxm_sycl_kernel_utils.h"
 #include "nbnxm_sycl_types.h"
 
 using cl::sycl::access::fence_space;
