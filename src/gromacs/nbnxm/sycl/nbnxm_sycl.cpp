@@ -69,6 +69,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* don't launch non-local copy-back if there was no non-local work to do */
     if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(*nb, iloc))
     {
+        nb->bNonLocalStreamActive = false;
         return;
     }
 
@@ -76,9 +77,8 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     const int adat_len   = (atomLocality == AtomLocality::Local) ? adat->numAtomsLocal
                                                                : adat->numAtoms - adat->numAtomsLocal;
 
-    /* With DD the local D2H transfer can only start after the non-local
-       kernel has finished. */
-    if (iloc == InteractionLocality::Local && nb->bUseTwoStreams)
+    // With DD the local D2H transfer can only start after the non-local kernel has finished.
+    if (iloc == InteractionLocality::Local && nb->bNonLocalStreamActive)
     {
         nb->nonlocal_done.waitForEvent();
     }
@@ -101,6 +101,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     if (iloc == InteractionLocality::NonLocal)
     {
         nb->nonlocal_done.markEvent(deviceStream);
+        nb->bNonLocalStreamActive = true;
     }
 }
 
