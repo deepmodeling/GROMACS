@@ -572,9 +572,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         }
     }();
 
-    cl::sycl::accessor<int, 1, mode::read_write, target::local> warp_vote_buf(
-            cl::sycl::range<1>(c_nbnxnGpuNumClusterPerSupercluster), cgh);
-
     /* Flag to control the calculation of exclusion forces in the kernel
      * We do that with Ewald (elec/vdw) and RF. Cut-off only has exclusion
      * energy terms. */
@@ -776,8 +773,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     /* If _none_ of the atoms pairs are in cutoff range,
                                      * the bit corresponding to the current
                                      * cluster-pair in imask gets set to 0. */
-                                    // if (!sycl_pf::group_any_of(sg, r2 < rlistOuterSq))
-                                    if (!any_of(itemIdx, warp_vote_buf, widx, sg, r2 < rlistOuterSq))
+                                    if (!sycl_pf::group_any_of(sg, r2 < rlistOuterSq))
                                     {
                                         imask &= ~mask_ji;
                                     }

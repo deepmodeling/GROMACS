@@ -117,16 +117,6 @@ static inline bool any_of(
         const bool         predicate)
 {
     return sycl_pf::group_any_of(sg, predicate);
-    /*
-    shmemBuf[widx] = 0;
-    itemIdx.barrier(cl::sycl::access::fence_space::local_space);
-    if (predicate)
-    {
-        shmemBuf[widx] = 1;
-    }
-    itemIdx.barrier(cl::sycl::access::fence_space::local_space);
-    return shmemBuf[widx] != 0;
-     */
 }
 
 } // namespace Nbnxm
