@@ -58,7 +58,7 @@
 namespace Nbnxm
 {
 
-//! \brief Set of boolean constants mimicking preprocessor macros
+//! \brief Set of boolean constants mimicking preprocessor macros.
 template<enum ElecType elecType, enum VdwType vdwType>
 struct EnergyFunctionProperties {
     static constexpr bool elecCutoff = (elecType == ElecType::Cut); ///< EL_CUTOFF
@@ -80,6 +80,8 @@ struct EnergyFunctionProperties {
     static constexpr bool vdwPSwitch       = (vdwType == VdwType::PSwitch); ///< LJ_POT_SWITCH
 };
 
+//! \brief Templated constants to shorten kernel function declaration.
+//@{
 template<enum VdwType vdwType>
 constexpr bool ljComb = EnergyFunctionProperties<ElecType::Count, vdwType>().vdwComb;
 
@@ -97,6 +99,7 @@ constexpr bool elecEwaldTab = EnergyFunctionProperties<elecType, VdwType::Count>
 
 template<enum VdwType vdwType>
 constexpr bool ljEwald = EnergyFunctionProperties<ElecType::Count, vdwType>().vdwEwald;
+//@}
 
 using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
@@ -430,10 +433,9 @@ static inline void reduce_force_i_and_shift(cl::sycl::accessor<float, 1, mode::r
            Threads with line id 2 will do the reduction for (float3).z components. */
         if (tidxj < 3)
         {
-            float f = shmemBuf[tidxj * bufStride + tidxi] + shmemBuf[tidxj * bufStride + c_clSize + tidxi];
-
+            const float f = shmemBuf[tidxj * bufStride + tidxi]
+                            + shmemBuf[tidxj * bufStride + c_clSize + tidxi];
             atomic_fetch_add(fout, 3 * aidx + tidxj, f);
-
             if (bCalcFshift)
             {
                 fshift_buf += f;
@@ -531,7 +533,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     // shmem buffer for j- and i-forces
     // SYCL-TODO: Make into 3D; section 4.7.6.11 of SYCL2020 specs
     cl::sycl::accessor<float, 1, mode::read_write, target::local> force_j_buf_shmem(
-            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z * 3), cgh); // 3 for float3
+            cl::sycl::range<1>(c_clSize * c_clSize * NTHREAD_Z * DIM), cgh);
 
     auto atib = [&]() {
         if constexpr (!props.vdwComb)
@@ -1028,9 +1030,9 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
 
     // Casting to float simplifies using atomic ops in the kernel
     cl::sycl::buffer<float3, 1> f(*adat->f.buffer_);
-    auto                        f_as_float = f.reinterpret<float, 1>(f.get_count() * 3);
+    auto                        f_as_float = f.reinterpret<float, 1>(f.get_count() * DIM);
     cl::sycl::buffer<float3, 1> fShift(*adat->fShift.buffer_);
-    auto fShift_as_float = fShift.reinterpret<float, 1>(fShift.get_count() * 3);
+    auto fShift_as_float = fShift.reinterpret<float, 1>(fShift.get_count() * DIM);
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
             doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
