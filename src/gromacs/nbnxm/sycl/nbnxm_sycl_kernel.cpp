@@ -948,7 +948,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         {
                                             E_lj_p = int_bit
                                                      * (c12 * (inv_r6 * inv_r6 + repulsion_shift.cpot) * c_oneTwelfth
-                                                        - c6 * (inv_r6 + repulsion_shift.cpot) * c_oneSixth);
+                                                        - c6 * (inv_r6 + dispersion_shift.cpot) * c_oneSixth);
                                         }
                                     }
                                     else
