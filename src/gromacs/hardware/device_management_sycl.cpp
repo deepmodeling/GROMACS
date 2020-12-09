@@ -100,17 +100,34 @@ static DeviceStatus isDeviceCompatible(const cl::sycl::device& syclDevice)
 
     if (syclDevice.is_host())
     {
-        // Some kernels rely on sub_groups, which are not available on host
+        // Host device does not support subgroups or even querying for sub_group_sizes
         return DeviceStatus::Incompatible;
     }
-
-    if (syclDevice.is_accelerator()) // FPGAs and FPGA emulators
+    const std::vector<size_t> supportedSubGroupSizes =
+            syclDevice.get_info<cl::sycl::info::device::sub_group_sizes>();
+    const size_t requiredSubGroupSizeForNBNXM = 8;
+    if (std::find(supportedSubGroupSizes.begin(), supportedSubGroupSizes.end(), requiredSubGroupSizeForNBNXM)
+        == supportedSubGroupSizes.end())
     {
-        return DeviceStatus::Incompatible;
+        return DeviceStatus::IncompatibleClusterSize;
+    }
+
+    /* Host device can not be used, because NBNXM requires sub-groups, which are not supported.
+     * Accelerators (FPGAs and their emulators) are not supported.
+     * So, the only viable options are CPUs and GPUs. */
+    const bool forceCpu = (getenv("GMX_SYCL_FORCE_CPU") != nullptr);
+
+    if (forceCpu && syclDevice.is_cpu())
+    {
+        return DeviceStatus::Compatible;
+    }
+    else if (!forceCpu && syclDevice.is_gpu())
+    {
+        return DeviceStatus::Compatible;
     }
     else
     {
-        return DeviceStatus::Compatible;
+        return DeviceStatus::Incompatible;
     }
 }
 
