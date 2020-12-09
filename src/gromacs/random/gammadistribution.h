@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -234,7 +234,7 @@ public:
                     const result_type y = std::sqrt(c / w) * (u - result_type(0.5));
                     x                   = b + y;
 
-                    if (x >= 0)
+                    if (x > 0)
                     {
                         const result_type z = 64 * w * w * w * v * v;
 
@@ -242,7 +242,7 @@ public:
                         {
                             break;
                         }
-                        if (std::log(z) <= 2.0 * (b * std::log(x / b) - y))
+                        if (z > 0.0 && std::log(z) <= 2.0 * (b * std::log(x / b) - y))
                         {
                             break;
                         }

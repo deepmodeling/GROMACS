@@ -132,6 +132,14 @@ If this potential agrees with the one provided as the input, a simulation was no
 
 :issue:`3800`
 
+Reduce possibility for Floating Point Exceptions (FPE) in random number generator
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The random number generator could generate floating point exceptions by either dividing
+by zero or taking the logarithm of zero under certain corner case conditions.
+
+:issue:`3234`
+
 Fixes for ``gmx`` tools
 ^^^^^^^^^^^^^^^^^^^^^^^
 
