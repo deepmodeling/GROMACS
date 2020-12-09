@@ -45,7 +45,6 @@
 #ifndef GMX_GPU_UTILS_GMXSYCL_H
 #define GMX_GPU_UTILS_GMXSYCL_H
 
-
 #ifdef DIM
 #    if DIM != 3
 #        error "The workaround here assumes we use DIM=3."
@@ -57,5 +56,37 @@
 #else
 #    include <CL/sycl.hpp>
 #endif
+
+/* Exposing Intel-specific extensions in a manner compatible with SYCL2020 provisional spec.
+ * Despite ICPX (up to 2021.1.1 at the least) having SYCL_LANGUAGE_VERSION=202001,
+ * some parts of the spec are still in private namespace (sycl::intel or sycl::ONEAPI, depending
+ * on the version), and some functions have different names. To make things easier to upgrade
+ * in the future, this thin layer is added.
+ * */
+namespace sycl_2020
+{
+#if __SYCL_COMPILER_VERSION >= 20201005 // 2021.1-beta10 (20201005), 2021.1.1 (20201113), and up
+namespace origin = cl::sycl::ONEAPI;
+#elif __SYCL_COMPILER_VERSION == 20200827 // 2021.1-beta09 (20200827)
+namespace origin = cl::sycl::intel;
+#else
+#    error "Unsupported SYCL compiler"
+#endif
+using origin::atomic_ref;
+using origin::memory_order;
+using origin::memory_scope;
+using origin::plus;
+using origin::sub_group;
+template<typename... Args>
+bool group_any_of(Args&&... args)
+{
+    return origin::any_of(std::forward<Args>(args)...);
+}
+template<typename... Args>
+auto group_reduce(Args&&... args) -> decltype(origin::reduce(std::forward<Args>(args)...))
+{
+    return origin::reduce(std::forward<Args>(args)...);
+}
+} // namespace sycl_2020
 
 #endif
