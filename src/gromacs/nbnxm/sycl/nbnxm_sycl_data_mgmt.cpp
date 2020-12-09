@@ -131,7 +131,7 @@ static void initNbparam(NBParamGpu*                     nbp,
     }
 }
 
-/*! Initializes simulation constant data. */
+/*! \brief Initialize simulation constant data. */
 static void initConst(NbnxmGpu*                       nb,
                       const interaction_const_t&      ic,
                       const PairlistParams&           listParams,
