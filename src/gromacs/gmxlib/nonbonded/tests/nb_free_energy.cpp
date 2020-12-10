@@ -62,24 +62,23 @@ struct InputData
 
 static InputData s_data;
 
-template <class RealType>
 struct Constants
 {
     // coulomb parameters (with q=0.5)
-    RealType qq_             = ONE_4PI_EPS0 * 0.25;
-    RealType potentialShift_ = 1.0;
-    RealType forceShift_     = 1.0;
-    RealType ewaldShift_     = 1.0;
+    real qq_             = ONE_4PI_EPS0 * 0.25_real;
+    real potentialShift_ = 1.0_real;
+    real forceShift_     = 1.0_real;
+    real ewaldShift_     = 1.0_real;
 
     // lennard-jones parameters (with eps=0.5, sigma=0.3)
-    RealType c12_             = 1.062882e-6 * 12;
-    RealType c6_              = 1.458e-3 * 6;
-    RealType sigma_           = 0.5 * c12_ / c6_;
-    RealType repulsionShift_  = 1.0;
-    RealType dispersionShift_ = 1.0;
+    real c12_             = 1.062882e-6_real * 12;
+    real c6_              = 1.458e-3_real * 6;
+    real sigma_           = 0.5_real * c12_ / c6_;
+    real repulsionShift_  = 1.0_real;
+    real dispersionShift_ = 1.0_real;
 
     // softcore parameters
-    RealType dLambda_ = 1.0;
+    real dLambda_ = 1.0_real;
 };
 
 class NonbondedFepTest : public ::testing::Test
@@ -91,22 +90,21 @@ public:
     gmx::test::TestReferenceChecker checker_;
 };
 
-template<class RealType>
-class SoftcoreGapsys :
+class SoftcoreGapsysReal :
     public NonbondedFepTest,
     public ::testing::WithParamInterface<std::tuple<double, double, double>>
 {
 protected:
     void SetUp() override
     {
-        force_     = 0.0;
-        potential_ = 0.0;
-        dvdl_      = 0.0;
+        force_     = 0.0_real;
+        potential_ = 0.0_real;
+        dvdl_      = 0.0_real;
 
         // get input parameters
         std::tie(r_, lambda_, alpha_) = GetParam();
         rsq_                          = r_ * r_;
-        rInv_                         = rsq_ > 0 ? 1.0 / r_ : 0.0;
+        rInv_                         = rsq_ > 0 ? 1.0_real / r_ : 0.0_real;
 
         // set up name for data checker
         name_ = "_r_" + std::to_string(r_) + "_lam_" + std::to_string(lambda_) + "_alp_"
@@ -114,24 +112,22 @@ protected:
     }
 
     // fixed test parameters
-    Constants<RealType> params_;
+    Constants params_;
 
     // input data this test class is supposed to use
-    RealType r_;
-    RealType rInv_;
-    RealType rsq_;
-    RealType lambda_;
-    RealType alpha_;
+    real r_;
+    real rInv_;
+    real rsq_;
+    real lambda_;
+    real alpha_;
 
     // output values
-    RealType force_;
-    RealType potential_;
-    RealType dvdl_;
+    real force_;
+    real potential_;
+    real dvdl_;
     std::string name_;
 
 };
-
-using SoftcoreGapsysReal = SoftcoreGapsys<real>;
 
 TEST_P(SoftcoreGapsysReal, reactionField)
 {
