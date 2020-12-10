@@ -976,7 +976,9 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 }
             }
 
-            if (doForces)
+            /* Avoid expensive restricted omp access by first checking if there are any operations
+             * to do. This can improve the performance significantly. */
+            if (doForces && gmx::anyTrue(fScal != zero))
             {
                 const RealType tX = fScal * dX;
                 const RealType tY = fScal * dY;
@@ -993,7 +995,10 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
         if (npair_within_cutoff > 0)
         {
 #pragma omp critical
-            if (doForces || doShiftForces)
+            /* Avoid expensive restricted omp access by first checking if there are any operations
+             * to do. This check, and the ones below, do not save as much time as the one above. */
+            if ((doForces || doShiftForces)
+                && (gmx::anyTrue(fIX != zero) || gmx::anyTrue(fIY != zero) || gmx::anyTrue(fIZ != zero)))
             {
                 if (doForces)
                 {
@@ -1008,18 +1013,30 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             if (doPotential)
             {
                 int ggid = gid[n];
+                if (gmx::anyTrue(vCTot != zero))
+                {
 #pragma omp atomic
-                Vc[ggid] += gmx::reduce(vCTot);
+                    Vc[ggid] += gmx::reduce(vCTot);
+                }
+                if (gmx::anyTrue(vVTot != zero))
+                {
 #pragma omp atomic
-                Vv[ggid] += gmx::reduce(vVTot);
+                    Vv[ggid] += gmx::reduce(vVTot);
+                }
             }
         }
     } // end for (int n = 0; n < nri; n++)
 
+    if (gmx::anyTrue(dvdlCoul != zero))
+    {
 #pragma omp atomic
-    dvdl[efptCOUL] += gmx::reduce(dvdlCoul);
+        dvdl[efptCOUL] += gmx::reduce(dvdlCoul);
+    }
+    if (gmx::anyTrue(dvdlVdw != zero))
+    {
 #pragma omp atomic
-    dvdl[efptVDW] += gmx::reduce(dvdlVdw);
+        dvdl[efptVDW] += gmx::reduce(dvdlVdw);
+    }
 
     /* Estimate flops, average for free energy stuff:
      * 12  flops per outer iteration
