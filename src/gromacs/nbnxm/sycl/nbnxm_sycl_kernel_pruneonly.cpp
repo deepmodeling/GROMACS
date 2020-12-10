@@ -79,7 +79,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
     cgh.require(a_plistIMask);
 
     /* shmem buffer for i x+q pre-loading */
-    cl::sycl::accessor<float4, 2, mode::read_write, target::local> xib(
+    cl::sycl::accessor<float4, 2, mode::read_write, target::local> sm_xq(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
     /* Requirements:
@@ -118,7 +118,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 const float4 xq    = a_xq[ai];
                 const float3 shift = a_shiftVec[nb_sci.shift];
                 const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], xq[3]);
-                xib[tidxj + i][tidxi] = xi;
+                sm_xq[tidxj + i][tidxi] = xi;
             }
         }
         itemIdx.barrier(fence_space::local_space);
@@ -167,7 +167,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                             if (imaskCheck & mask_ji)
                             {
                                 // load i-cluster coordinates from shmem
-                                const float4 xi = xib[i][tidxi];
+                                const float4 xi = sm_xq[i][tidxi];
                                 // distance between i and j atoms
                                 float3 rv(xi[0], xi[1], xi[2]);
                                 rv -= xj;
