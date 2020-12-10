@@ -975,7 +975,6 @@ cl::sycl::event launchNbnxmKernel(const DeviceStream& deviceStream, const int nu
     const cl::sycl::nd_range<3> range{ globalSize, blockSize };
 
     cl::sycl::queue q = deviceStream.stream();
-    q.wait_and_throw(); // TODO: remove
 
     cl::sycl::event e = q.submit([&](cl::sycl::handler& cgh) {
         auto kernel = nbnxmKernel<doPruneNBL, doCalcEnergies, elecType, vdwType>(
@@ -993,8 +992,6 @@ cl::sycl::event chooseAndLaunchNbnxmKernel(bool          doPruneNBL,
                                            enum VdwType  vdwType,
                                            Args&&... args)
 {
-    printf(">>> Launching NBNXM < %d %d %d %d > \n", doPruneNBL, doCalcEnergies,
-           static_cast<int>(elecType), static_cast<int>(vdwType));
     return gmx::dispatchTemplatedFunction(
             [&](auto doPruneNBL_, auto doCalcEnergies_, auto elecType_, auto vdwType_) {
                 return launchNbnxmKernel<doPruneNBL_, doCalcEnergies_, elecType_, vdwType_>(
@@ -1025,8 +1022,6 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
             nbp->ewald_beta, nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj,
             adat->numTypes, nbp->c_rf, nbp->dispersion_shift, nbp->repulsion_shift, nbp->vdw_switch,
             nbp->rvdw_switch, nbp->sh_lj_ewald, nbp->coulomb_tab_scale, stepWork.computeVirial);
-
-    e.wait_and_throw(); // SYCL-TODO: remove
 }
 
 } // namespace Nbnxm

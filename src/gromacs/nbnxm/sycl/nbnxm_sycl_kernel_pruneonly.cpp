@@ -228,7 +228,6 @@ cl::sycl::event launchNbnxmKernelPruneOnly(const DeviceStream& deviceStream,
     const cl::sycl::nd_range<3> range{ globalSize, blockSize };
 
     cl::sycl::queue q = deviceStream.stream();
-    q.wait_and_throw(); // TODO: remove
 
     cl::sycl::event e = q.submit([&](cl::sycl::handler& cgh) {
         auto kernel = nbnxmKernelPruneOnly<haveFreshList>(cgh, std::forward<Args>(args)...);
@@ -241,8 +240,6 @@ cl::sycl::event launchNbnxmKernelPruneOnly(const DeviceStream& deviceStream,
 template<class... Args>
 cl::sycl::event chooseAndLaunchNbnxmKernelPruneOnly(bool haveFreshList, Args&&... args)
 {
-
-    printf(">>> Launching NBNXM PruneOnly < %d > \n", haveFreshList);
     return gmx::dispatchTemplatedFunction(
             [&](auto haveFreshList_) {
                 return launchNbnxmKernelPruneOnly<haveFreshList_>(std::forward<Args>(args)...);
@@ -262,13 +259,9 @@ void launchNbnxmKernelPruneOnly(NbnxmGpu*                 nb,
     const bool          haveFreshList = plist->haveFreshList;
     const DeviceStream& deviceStream  = *nb->deviceStreams[iloc];
 
-    deviceStream.stream().wait_and_throw();
-
     cl::sycl::event e = chooseAndLaunchNbnxmKernelPruneOnly(
             haveFreshList, deviceStream, numSciInPart, adat->xq, adat->shiftVec, plist->cj4,
             plist->sci, plist->imask, nbp->rlistOuter_sq, nbp->rlistInner_sq, numParts, part);
-
-    e.wait_and_throw(); // SYCL-TODO: remove
 }
 
 } // namespace Nbnxm
