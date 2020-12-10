@@ -101,7 +101,7 @@ static inline cl::sycl::id<3> unflattenId(cl::sycl::id<1> id1d)
 
 //! \brief Convenience wrapper to do atomic addition to a global buffer
 template<cl::sycl::access::mode Mode, class IndexType>
-static inline void atomic_fetch_add(DeviceAccessor<float, Mode> acc, const IndexType idx, const float val)
+static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexType idx, const float val)
 {
     if (cl::sycl::isnormal(val))
     {
