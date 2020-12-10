@@ -242,7 +242,7 @@ public:
                         {
                             break;
                         }
-                        if (z > 0.0 && std::log(z) <= 2.0 * (b * std::log(x / b) - y))
+                        if (z > 0 && std::log(z) <= 2.0 * (b * std::log(x / b) - y))
                         {
                             break;
                         }
