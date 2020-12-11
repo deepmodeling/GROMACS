@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
-<ReferenceData>
-  <Real Name="force_r_0.100000_lam_0.400000_alp_1.000000">71.403829856895655</Real>
-  <Real Name="potential_r_0.100000_lam_0.400000_alp_1.000000">189.15749009478566</Real>
-  <Real Name="dvdl_r_0.100000_lam_0.400000_alp_1.000000">16.943058294331724</Real>
-</ReferenceData>
