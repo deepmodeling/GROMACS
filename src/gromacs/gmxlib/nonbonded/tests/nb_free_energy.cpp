@@ -85,9 +85,9 @@ struct ResultData
         std::vector<real> dvdl_      = {0.0, 0.0, 0.0, 401503.1459288585, 129.0495668164257, 16.110255786271328, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5018934377109587};
     };
 
-    ReactionField rf_;
+    ReactionField reactionField_;
     EwaldCoulomb ewald_;
-    LennardJones lj_;
+    LennardJones lennardJones_;
 };
 
 static const InputData s_data;
@@ -116,6 +116,12 @@ struct Constants
 class SoftcoreGapsys :
     public ::testing::TestWithParam<std::tuple<real, real, real>>
 {
+public:
+    SoftcoreGapsys() :
+        tolerance_(gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12))
+    {
+    }
+
 protected:
     void SetUp() override
     {
@@ -134,8 +140,29 @@ protected:
         rInv_                         = rsq_ > 0 ? 1.0_real / r_ : 0.0_real;
     }
 
-    // test case index
+    void reactionField()
+    {
+        reactionFieldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_,
+                                        alpha_, params_.forceShift_, params_.potentialShift_,
+                                        &force_, &potential_, &dvdl_);
+    }
+
+    void ewaldCoulomb()
+    {
+        ewaldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_, alpha_,
+                                params_.ewaldShift_, &force_, &potential_, &dvdl_);
+    }
+
+    void lennardJones()
+    {
+        lennardJonesQuadraticPotential(params_.c6_, params_.c12_, r_, rsq_, lambda_, params_.dLambda_,
+                                       params_.sigma_, alpha_, params_.repulsionShift_,
+                                       params_.dispersionShift_, &force_, &potential_, &dvdl_);
+    }
+
+    // test setup
     int idx_;
+    gmx::test::FloatingPointTolerance tolerance_;
 
     // fixed test parameters
     Constants params_;
@@ -156,47 +183,67 @@ protected:
 
 TEST_P(SoftcoreGapsys, reactionField)
 {
-    reactionFieldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_,
-                                    alpha_, params_.forceShift_, params_.potentialShift_, &force_,
-                                    &potential_, &dvdl_);
+    reactionField();
 
-    gmx::test::FloatingPointTolerance tolerance(
-            gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12));
-
-    EXPECT_REAL_EQ_TOL(force_, s_results.rf_.force_[idx_], tolerance);
-    EXPECT_REAL_EQ_TOL(potential_, s_results.rf_.potential_[idx_], tolerance);
-    EXPECT_REAL_EQ_TOL(dvdl_, s_results.rf_.dvdl_[idx_], tolerance);
+    EXPECT_REAL_EQ_TOL(force_, s_results.reactionField_.force_[idx_], tolerance_);
+    EXPECT_REAL_EQ_TOL(potential_, s_results.reactionField_.potential_[idx_], tolerance_);
+    EXPECT_REAL_EQ_TOL(dvdl_, s_results.reactionField_.dvdl_[idx_], tolerance_);
 }
 
 TEST_P(SoftcoreGapsys, ewaldCoulomb)
 {
-    ewaldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_, alpha_,
-                            params_.ewaldShift_, &force_, &potential_, &dvdl_);
+    ewaldCoulomb();
 
-    gmx::test::FloatingPointTolerance tolerance(
-            gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12));
-
-    EXPECT_REAL_EQ_TOL(force_, s_results.ewald_.force_[idx_], tolerance);
-    EXPECT_REAL_EQ_TOL(potential_, s_results.ewald_.potential_[idx_], tolerance);
-    EXPECT_REAL_EQ_TOL(dvdl_, s_results.ewald_.dvdl_[idx_], tolerance);
+    EXPECT_REAL_EQ_TOL(force_, s_results.ewald_.force_[idx_], tolerance_);
+    EXPECT_REAL_EQ_TOL(potential_, s_results.ewald_.potential_[idx_], tolerance_);
+    EXPECT_REAL_EQ_TOL(dvdl_, s_results.ewald_.dvdl_[idx_], tolerance_);
 }
 
 TEST_P(SoftcoreGapsys, lennardJones)
 {
-    lennardJonesQuadraticPotential(params_.c6_, params_.c12_, r_, rsq_, lambda_, params_.dLambda_,
-                                   params_.sigma_, alpha_, params_.repulsionShift_,
-                                   params_.dispersionShift_, &force_, &potential_, &dvdl_);
+    lennardJones();
 
-    gmx::test::FloatingPointTolerance tolerance(
-            gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12));
-
-    EXPECT_REAL_EQ_TOL(force_, s_results.lj_.force_[idx_], tolerance);
-    EXPECT_REAL_EQ_TOL(potential_, s_results.lj_.potential_[idx_], tolerance);
-    EXPECT_REAL_EQ_TOL(dvdl_, s_results.lj_.dvdl_[idx_], tolerance);
+    EXPECT_REAL_EQ_TOL(force_, s_results.lennardJones_.force_[idx_], tolerance_);
+    EXPECT_REAL_EQ_TOL(potential_, s_results.lennardJones_.potential_[idx_], tolerance_);
+    EXPECT_REAL_EQ_TOL(dvdl_, s_results.lennardJones_.dvdl_[idx_], tolerance_);
 }
 
 INSTANTIATE_TEST_CASE_P(CheckValues, SoftcoreGapsys,
                         ::testing::Combine(::testing::ValuesIn(s_data.distance_),
                                            ::testing::ValuesIn(s_data.lambda_),
+
                                            ::testing::ValuesIn(s_data.alpha_)));
+
+class SoftcoreGapsysEvalZero : public SoftcoreGapsys
+{};
+
+TEST_P(SoftcoreGapsysEvalZero, reactionField)
+{
+    reactionField();
+
+    EXPECT_EQ(force_, 0.0);
+    EXPECT_EQ(potential_, 0.0);
+    EXPECT_EQ(dvdl_, 0.0);
+}
+
+TEST_P(SoftcoreGapsysEvalZero, ewaldCoulomb)
+{
+    ewaldCoulomb();
+
+    EXPECT_EQ(force_, 0.0);
+    EXPECT_EQ(potential_, 0.0);
+    EXPECT_EQ(dvdl_, 0.0);
+}
+
+TEST_P(SoftcoreGapsysEvalZero, lennardJones)
+{
+    lennardJones();
+
+    EXPECT_EQ(force_, 0.0);
+    EXPECT_EQ(potential_, 0.0);
+    EXPECT_EQ(dvdl_, 0.0);
+}
+
+INSTANTIATE_TEST_CASE_P(CheckZeros, SoftcoreGapsysEvalZero,
+                        ::testing::Values(std::make_tuple(0.1, 1.0, 0.35), std::make_tuple(0.1, 0.4, 0.0)));
 } // namespace
