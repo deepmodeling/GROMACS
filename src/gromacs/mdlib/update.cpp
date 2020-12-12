@@ -47,6 +47,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/fileio/confio.h"
@@ -2003,6 +2006,7 @@ void update_coords(int64_t           step,
                    const t_commrec* cr, /* these shouldn't be here -- need to think about it */
                    const gmx::Constraints* constr)
 {
+    nvtxRangePush(__FUNCTION__);
     gmx_bool bDoConstr = (nullptr != constr);
 
     /* Running the velocity half does nothing except for velocity verlet */
@@ -2100,6 +2104,7 @@ void update_coords(int64_t           step,
         }
         GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
+    nvtxRangePop();
 }
 
 void do_constrain_gle_s(gmx::Constraints*         constr,
