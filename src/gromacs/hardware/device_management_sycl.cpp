@@ -94,7 +94,7 @@ static DeviceStatus isDeviceCompatible(const cl::sycl::device& syclDevice)
 
     if (syclDevice.get_info<cl::sycl::info::device::local_mem_type>() == cl::sycl::info::local_mem_type::none)
     {
-        // While some kernels (leapgrog) can run without shared/local memory, this is a bad sign
+        // While some kernels (leapfrog) can run without shared/local memory, this is a bad sign
         return DeviceStatus::Incompatible;
     }
 
