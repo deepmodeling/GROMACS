@@ -154,9 +154,10 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 {
                     if (imaskCheck & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
-                        unsigned  mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
-                        const int cj      = a_plistCJ4[j4].cj[jm];
-                        const int aj      = cj * c_clSize + tidxj;
+                        unsigned mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        // SYCL-TODO: Reevaluate prefetching methods
+                        const int cj = a_plistCJ4[j4].cj[jm];
+                        const int aj = cj * c_clSize + tidxj;
 
                         /* load j atom data */
                         const float4 tmp = a_xq[aj];

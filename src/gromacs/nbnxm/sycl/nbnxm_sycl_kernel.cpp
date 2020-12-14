@@ -729,7 +729,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         imask &= ~mask_ji;
                                     }
                                 }
-                                const float exclSwitch = (wexcl & mask_ji) ? 1.0F : 0.0F;
+                                const float pairExclMask = (wexcl & mask_ji) ? 1.0F : 0.0F;
 
                                 // cutoff & exclusion check
 
@@ -737,6 +737,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                                                  ? (nonSelfInteraction | (ci != cj))
                                                                  : (wexcl & mask_ji);
 
+                                // SYCL-TODO: Check optimal way of branching here.
                                 if ((r2 < rCoulombSq) && notExcluded)
                                 {
                                     const float qi = xqi[3];
@@ -775,7 +776,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
                                     // Ensure distance do not become so small that r^-12 overflows
                                     r2 = std::max(r2, c_nbnxnMinDistanceSquared);
-                                    const float rInv = cl::sycl::rsqrt(r2); // TODO: sycl::native::rsqrt?
+                                    // SYCL-TODO: sycl::half_precition::rsqrt?
+                                    const float rInv  = sycl::native::rsqrt(r2);
                                     const float r2Inv = rInv * rInv;
                                     float       r6Inv, fInvR, energyLJPair;
                                     if constexpr (!props.vdwCombLB || doCalcEnergies)
@@ -786,13 +788,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                             // SYCL-TODO: Check if true for SYCL
                                             /* We could mask r2Inv, but with Ewald masking both
                                              * r6Inv and fInvR is faster */
-                                            r6Inv *= exclSwitch;
+                                            r6Inv *= pairExclMask;
                                         }
                                         fInvR = r6Inv * (c12 * r6Inv - c6) * r2Inv;
                                         if constexpr (doCalcEnergies || props.vdwPSwitch)
                                         {
                                             energyLJPair =
-                                                    exclSwitch
+                                                    pairExclMask
                                                     * (c12 * (r6Inv * r6Inv + repulsion_shift.cpot) * c_oneTwelfth
                                                        - c6 * (r6Inv + dispersion_shift.cpot) * c_oneSixth);
                                         }
@@ -804,7 +806,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         float sig_r6 = sig_r2 * sig_r2 * sig_r2;
                                         if constexpr (doExclusionForces)
                                         {
-                                            sig_r6 *= exclSwitch;
+                                            sig_r6 *= pairExclMask;
                                         }
                                         fInvR = epsilon * sig_r6 * (sig_r6 - 1.0F) * r2Inv;
                                     } // (!props.vdwCombLB || doCalcEnergies)
@@ -820,15 +822,15 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         {
                                             ljEwaldCombGeom<doCalcEnergies>(
                                                     a_nbfpComb, sh_lj_ewald, atomTypeI, atomTypeJ,
-                                                    r2, r2Inv, lje_coeff2, lje_coeff6_6, exclSwitch,
-                                                    &fInvR, &energyLJPair);
+                                                    r2, r2Inv, lje_coeff2, lje_coeff6_6,
+                                                    pairExclMask, &fInvR, &energyLJPair);
                                         }
                                         else if constexpr (props.vdwEwaldCombLB)
                                         {
                                             ljEwaldCombLB<doCalcEnergies>(
                                                     a_nbfpComb, sh_lj_ewald, atomTypeI, atomTypeJ,
-                                                    r2, r2Inv, lje_coeff2, lje_coeff6_6, exclSwitch,
-                                                    &fInvR, &energyLJPair);
+                                                    r2, r2Inv, lje_coeff2, lje_coeff6_6,
+                                                    pairExclMask, &fInvR, &energyLJPair);
                                         }
                                     } // (props.vdwEwald)
                                     if constexpr (props.vdwPSwitch)
@@ -856,7 +858,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     {
                                         if constexpr (doExclusionForces)
                                         {
-                                            fInvR += qi * qj * exclSwitch * r2Inv * rInv;
+                                            fInvR += qi * qj * pairExclMask * r2Inv * rInv;
                                         }
                                         else
                                         {
@@ -865,17 +867,18 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     if constexpr (props.elecRF)
                                     {
-                                        fInvR += qi * qj * (exclSwitch * r2Inv * rInv - twoKRf);
+                                        fInvR += qi * qj * (pairExclMask * r2Inv * rInv - twoKRf);
                                     }
                                     if constexpr (props.elecEwaldAna)
                                     {
                                         fInvR += qi * qj
-                                                 * (exclSwitch * r2Inv * rInv + pmeCorrF(beta2 * r2) * beta3);
+                                                 * (pairExclMask * r2Inv * rInv
+                                                    + pmeCorrF(beta2 * r2) * beta3);
                                     }
                                     else if constexpr (props.elecEwaldTab)
                                     {
                                         fInvR += qi * qj
-                                                 * (exclSwitch * r2Inv
+                                                 * (pairExclMask * r2Inv
                                                     - interpolateCoulombForceR(
                                                               a_coulombTab, coulombTabScale, r2 * rInv))
                                                  * rInv;
@@ -885,20 +888,20 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     {
                                         if constexpr (props.elecCutoff)
                                         {
-                                            energyElec += qi * qj * (exclSwitch * rInv - c_rf);
+                                            energyElec += qi * qj * (pairExclMask * rInv - c_rf);
                                         }
                                         if constexpr (props.elecRF)
                                         {
                                             energyElec +=
                                                     qi * qj
-                                                    * (exclSwitch * rInv + 0.5f * twoKRf * r2 - c_rf);
+                                                    * (pairExclMask * rInv + 0.5f * twoKRf * r2 - c_rf);
                                         }
                                         if constexpr (props.elecEwald)
                                         {
                                             energyElec +=
                                                     qi * qj
-                                                    * (rInv * (exclSwitch - cl::sycl::erf(r2 * rInv * ewaldBeta))
-                                                       - exclSwitch * ewaldShift);
+                                                    * (rInv * (pairExclMask - cl::sycl::erf(r2 * rInv * ewaldBeta))
+                                                       - pairExclMask * ewaldShift);
                                         }
                                     }
 
