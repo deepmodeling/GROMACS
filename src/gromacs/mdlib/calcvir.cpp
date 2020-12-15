@@ -44,9 +44,11 @@
 
 #include <algorithm>
 
+#include "gromacs/gmxlib/nrnb.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
+#include "gromacs/mdtypes/forceoutput.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/utility/gmxassert.h"
@@ -100,7 +102,9 @@ static void calc_x_times_f(int nxf, const rvec x[], const rvec f[], gmx_bool bSc
     }
 }
 
-void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPBC, const matrix box)
+// This function can only be called (or tested) by the calculateVirial interface because it is deprecated.
+// Once forcerec.shift_vec is refactored away from rvec[] this can be incorporated there.
+static void calc_vir(int nxf, const rvec coordinates[], const rvec forces[], tensor vir, bool bScrewPBC, const matrix box)
 {
     matrix x_times_f;
 
@@ -110,7 +114,7 @@ void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPB
 
     if (nthreads == 1)
     {
-        calc_x_times_f(nxf, x, f, bScrewPBC, box, x_times_f);
+        calc_x_times_f(nxf, coordinates, forces, bScrewPBC, box, x_times_f);
     }
     else
     {
@@ -126,7 +130,11 @@ void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPB
             int start = (nxf * thread) / nthreads;
             int end   = std::min(nxf * (thread + 1) / nthreads, nxf);
 
-            calc_x_times_f(end - start, x + start, f + start, bScrewPBC, box,
+            calc_x_times_f(end - start,
+                           coordinates + start,
+                           forces + start,
+                           bScrewPBC,
+                           box,
                            thread == 0 ? x_times_f : xf_buf[thread * 3]);
         }
 
@@ -142,7 +150,39 @@ void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPB
     }
 }
 
-void f_calc_vir(int i0, int i1, const rvec x[], const rvec f[], tensor vir, const matrix box)
+namespace gmx
 {
-    calc_vir(i1 - i0, x + i0, f + i0, vir, FALSE, box);
+
+void calculateViralParts(int                         numVirialAtoms,
+                         ArrayRef<const RVec>        coordinates,
+                         const ForceWithShiftForces& forceWithShiftForces,
+                         tensor                      virialParts,
+                         const matrix                box,
+                         t_nrnb*                     nrnb,
+                         const rvec                  shiftVectors[],
+                         PbcType                     pbcType)
+{
+    /* The short-range virial from surrounding boxes */
+    const rvec* fshift = as_rvec_array(forceWithShiftForces.shiftForces().data());
+    calc_vir(SHIFTS, shiftVectors, fshift, virialParts, pbcType == PbcType::Screw, box);
+    inc_nrnb(nrnb, eNR_VIRIAL, SHIFTS);
+
+    /* Calculate partial virial, for local atoms only, based on short range.
+     * Total virial is computed in global_stat, called from do_md
+     */
+    calculateVirial(numVirialAtoms, coordinates, forceWithShiftForces.force(), virialParts, false, box);
+    inc_nrnb(nrnb, eNR_VIRIAL, numVirialAtoms);
 }
+
+void calculateVirial(int                  numVirialAtoms,
+                     ArrayRef<const RVec> coordinates,
+                     ArrayRef<const RVec> forces,
+                     tensor               virial,
+                     bool                 bScrewPBC,
+                     const matrix         box)
+{
+    calc_vir(numVirialAtoms, as_rvec_array(coordinates.data()), as_rvec_array(forces.data()), virial, bScrewPBC, box);
+}
+
+
+} // namespace gmx

@@ -36,13 +36,33 @@
 #define GMX_MDLIB_CALCVIR_H
 
 #include "gromacs/math/vectypes.h"
+#include "gromacs/utility/arrayref.h"
 
 struct t_pbc;
+struct t_nrnb;
+enum class PbcType;
 
-void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPBC, const matrix box);
-/* Calculate virial for nxf atoms, and add it to vir */
+namespace gmx
+{
+class ForceWithShiftForces;
 
-void f_calc_vir(int i0, int i1, const rvec x[], const rvec f[], tensor vir, const rvec shift_vec[]);
-/* Calculate virial taking periodicity into account */
+//! \brief Calculate both local and short-range virial.
+void calculateViralParts(int                         numVirialAtoms,
+                         ArrayRef<const RVec>        coordinates,
+                         const ForceWithShiftForces& forceWithShiftForces,
+                         tensor                      virialParts,
+                         const matrix                box,
+                         t_nrnb*                     nrnb,
+                         const rvec                  shiftVectors[],
+                         PbcType                     pbcType);
 
+//! \brief Calculate the virial for a component of the virial.
+void calculateVirial(int                  numVirialAtoms,
+                     ArrayRef<const RVec> coordinates,
+                     ArrayRef<const RVec> forces,
+                     tensor               virial,
+                     bool                 bScrewPBC,
+                     const matrix         box);
+
+} // namespace gmx
 #endif
