@@ -124,6 +124,7 @@ std::unique_ptr<ISimulator> SimulatorBuilder::build(bool useModularSimulator)
         throw APIError("You must add a TopologyData before calling build().");
     }
 
+    // clang-format off
     if (useModularSimulator)
     {
         // NOLINTNEXTLINE(modernize-make-unique): make_unique does not work with private constructor
@@ -199,6 +200,7 @@ std::unique_ptr<ISimulator> SimulatorBuilder::build(bool useModularSimulator)
                                                                 profiling_->walltimeAccounting,
                                                                 std::move(stopHandlerBuilder_),
                                                                 simulatorConfig_->mdrunOptions_.rerun));
+    // clang-format on
 }
 
 void SimulatorBuilder::add(MembedHolder&& membedHolder)
