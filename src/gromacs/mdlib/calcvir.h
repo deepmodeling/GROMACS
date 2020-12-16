@@ -39,7 +39,6 @@
 
 struct t_pbc;
 
-
 void calc_vir(int nxf, const rvec x[], const rvec f[], tensor vir, bool bScrewPBC, const matrix box);
 /* Calculate virial for nxf atoms, and add it to vir */
 
