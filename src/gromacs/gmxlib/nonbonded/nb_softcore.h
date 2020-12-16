@@ -39,17 +39,20 @@
 #include "config.h"
 
 #include "gromacs/math/functions.h"
+#include "gromacs/simd/simd.h"
+#include "gromacs/simd/simd_math.h"
 
 /* linearized electrostatics */
-template<class RealType>
+template<class RealType, class BoolType>
 static inline void quadraticApproximationCoulomb(const RealType qq,
                                                  const RealType rInvQ,
                                                  const RealType r,
-                                                 const RealType lambdaFac,
-                                                 const RealType dLambdaFac,
+                                                 const real lambdaFac,
+                                                 const real dLambdaFac,
                                                  RealType*      force,
                                                  RealType*      potential,
-                                                 RealType*      dvdl)
+                                                 RealType*      dvdl,
+                                                 BoolType       mask)
 {
     RealType quadrFac, linFac, constFac;
     constFac = qq * rInvQ;
@@ -61,123 +64,155 @@ static inline void quadraticApproximationCoulomb(const RealType qq,
 
     *potential = quadrFac - 3. * (linFac - constFac);
 
-    *dvdl += dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac);
+    *dvdl = gmx::selectByMask(
+            dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac), mask);
 }
 
 /* reaction-field linearized electrostatics */
-template<class RealType>
+template<class RealType, class BoolType>
 static inline void reactionFieldQuadraticPotential(const RealType qq,
                                                    const RealType r,
-                                                   const RealType lambdaFac,
-                                                   const RealType dLambdaFac,
+                                                   const real lambdaFac,
+                                                   const real dLambdaFac,
                                                    const RealType sigma6,
                                                    const RealType alphaEff,
-                                                   const RealType krf,
-                                                   const RealType potentialShift,
+                                                   const real krf,
+                                                   const real potentialShift,
                                                    RealType*      force,
                                                    RealType*      potential,
-                                                   RealType*      dvdl)
+                                                   RealType*      dvdl,
+                                                   BoolType       mask)
 {
     /* check if we have to use the hardcore values */
-    if ((lambdaFac < 1) && (alphaEff > 0))
+    BoolType computeValues = mask && (lambdaFac < 1 && 0 < alphaEff);
+    if (gmx::anyTrue(computeValues))
     {
-        constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
-        RealType           rQ;
+        constexpr real c_twentySixSeventh = 26.0 / 7.0;
+        RealType       rQ;
 
-        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
-        rQ *= alphaEff;
+        RealType lambdaFacRev = gmx::selectByMask(1.0 - lambdaFac, computeValues);
 
-        if (r < rQ)
+        rQ = gmx::cbrt(c_twentySixSeventh * sigma6 * lambdaFacRev);
+        rQ = gmx::sqrt(rQ);
+        rQ = rQ * alphaEff;
+
+        computeValues = (computeValues && r < rQ);
+        if (gmx::anyTrue(computeValues))
         {
-            RealType rInvQ = 1.0/rQ;
-            quadraticApproximationCoulomb(qq, rInvQ, r, lambdaFac, dLambdaFac, force, potential, dvdl);
-            *force -= (qq * 2.0 * krf * r * r);
-            *potential += (qq * (krf * r * r - potentialShift));
+            RealType rInvQ, forceOut, potentialOut, dvdlOut;
+
+            rInvQ = gmx::maskzInv(rQ, computeValues);
+            quadraticApproximationCoulomb(
+                    qq, rInvQ, r, lambdaFac, dLambdaFac, &forceOut, &potentialOut, &dvdlOut, computeValues);
+
+            *force     = gmx::selectByMask(forceOut - (qq * 2.0 * krf * r * r), computeValues);
+            *potential = gmx::selectByMask(potentialOut + (qq * (krf * r * r - potentialShift)),
+                                           computeValues);
+            *dvdl = *dvdl + dvdlOut;
         }
     }
 }
 
 /* ewald linearized electrostatics */
-template<class RealType>
+template<class RealType, class BoolType>
 static inline void ewaldQuadraticPotential(const RealType qq,
                                            const RealType r,
-                                           const RealType lambdaFac,
-                                           const RealType dLambdaFac,
+                                           const real lambdaFac,
+                                           const real dLambdaFac,
                                            const RealType sigma6,
                                            const RealType alphaEff,
-                                           const RealType potentialShift,
+                                           const real potentialShift,
                                            RealType*      force,
                                            RealType*      potential,
-                                           RealType*      dvdl)
+                                           RealType*      dvdl,
+                                           BoolType       mask)
 {
 
     /* check if we have to use the hardcore values */
-    if ((lambdaFac < 1) && (alphaEff > 0))
+    BoolType computeValues = mask && (lambdaFac < 1 && 0 < alphaEff);
+    if (gmx::anyTrue(computeValues))
     {
-        constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
-        RealType           rQ;
+        constexpr real c_twentySixSeventh = 26.0 / 7.0;
+        RealType       rQ;
 
-        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
-        rQ *= alphaEff;
+        RealType lambdaFacRev = gmx::selectByMask(1.0 - lambdaFac, computeValues);
 
-        if (r < rQ)
+        rQ = gmx::cbrt(c_twentySixSeventh * sigma6 * lambdaFacRev);
+        rQ = gmx::sqrt(rQ);
+        rQ = rQ * alphaEff;
+
+        computeValues = (computeValues && r < rQ);
+        if (gmx::anyTrue(computeValues))
         {
-            RealType rInvQ = 1.0/rQ;
-            quadraticApproximationCoulomb(qq, rInvQ, r, lambdaFac, dLambdaFac, force, potential, dvdl);
+            RealType rInvQ, forceOut, potentialOut, dvdlOut;
 
-            *potential -= qq*potentialShift;
+            rInvQ = gmx::maskzInv(rQ, computeValues);
+            quadraticApproximationCoulomb(
+                    qq, rInvQ, r, lambdaFac, dLambdaFac, &forceOut, &potentialOut, &dvdlOut, computeValues);
+
+            *force     = gmx::selectByMask(forceOut, computeValues);
+            *potential = gmx::selectByMask(potentialOut - (qq * potentialShift), computeValues);
+            *dvdl = *dvdl + gmx::selectByMask(dvdlOut, computeValues);
         }
     }
+
+
 }
 
 /* cutoff LJ with quadratic appximation of lj-potential */
-template<class RealType>
+template<class RealType, class BoolType>
 static inline void lennardJonesQuadraticPotential(const RealType c6,
                                                   const RealType c12,
                                                   const RealType r,
                                                   const RealType rsq,
-                                                  const RealType lambdaFac,
-                                                  const RealType dLambdaFac,
+                                                  const real lambdaFac,
+                                                  const real dLambdaFac,
                                                   const RealType sigma6,
                                                   const RealType alphaEff,
-                                                  const RealType repulsionShift,
-                                                  const RealType dispersionShift,
+                                                  const real repulsionShift,
+                                                  const real dispersionShift,
                                                   RealType*      force,
                                                   RealType*      potential,
-                                                  RealType*      dvdl)
+                                                  RealType*      dvdl,
+                                                  BoolType       mask)
 {
-    constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
-    constexpr RealType c_oneSixth         = 1.0 / 6.0;
-    constexpr RealType c_oneTwelth        = 1.0 / 12.0;
+    constexpr real c_twentySixSeventh = 26.0 / 7.0;
+    constexpr real c_oneSixth         = 1.0 / 6.0;
+    constexpr real c_oneTwelth        = 1.0 / 12.0;
 
     /* check if we have to use the hardcore values */
-    if ((lambdaFac < 1) && (alphaEff > 0))
+    BoolType computeValues = mask && (lambdaFac < 1 && 0 < alphaEff);
+    if (gmx::anyTrue(computeValues))
     {
-        RealType rQ;
-        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
-        rQ *= alphaEff;
+        RealType       rQ;
 
-        // scaled values for c6 and c12
-        RealType c6s, c12s;
-        c6s  = c_oneSixth * c6;
-        c12s = c_oneTwelth * c12;
+        RealType lambdaFacRev = gmx::selectByMask(1.0 - lambdaFac, computeValues);
 
-        if (r < rQ)
+        rQ = gmx::cbrt(c_twentySixSeventh * sigma6 * lambdaFacRev);
+        rQ = gmx::sqrt(rQ);
+        rQ = rQ * alphaEff;
+
+        computeValues = (computeValues && r < rQ);
+        if (gmx::anyTrue(computeValues))
         {
+            // scaled values for c6 and c12
+            RealType c6s, c12s;
+            c6s  = c_oneSixth * c6;
+            c12s = c_oneTwelth * c12;
             /* Temporary variables for inverted values */
-            RealType rInvQ = 1.0 / rQ;
+            RealType rInvQ = gmx::maskzInv(rQ, computeValues);
             RealType rInv14C, rInv13C, rInv12C;
             RealType rInv8C, rInv7C, rInv6C;
-            rInv6C = rInvQ * rInvQ * rInvQ;
-            rInv6C *= rInv6C;
+            rInv6C  = rInvQ * rInvQ * rInvQ;
+            rInv6C  = rInv6C * rInv6C;
             rInv7C  = rInv6C * rInvQ;
             rInv8C  = rInv7C * rInvQ;
             rInv14C = c12s * rInv7C * rInv7C * rsq;
             rInv13C = c12s * rInv7C * rInv6C * r;
             rInv12C = c12s * rInv6C * rInv6C;
-            rInv8C *= c6s * rsq;
-            rInv7C *= c6s * r;
-            rInv6C *= c6s;
+            rInv8C  = rInv8C * c6s * rsq;
+            rInv7C  = rInv7C * c6s * r;
+            rInv6C  = rInv6C * c6s;
 
             /* Temporary variables for A and B */
             RealType quadrFac, linearFac, constFac;
@@ -186,17 +221,16 @@ static inline void lennardJonesQuadraticPotential(const RealType c6,
             constFac  = 91. * rInv12C - 28. * rInv6C;
 
             /* Computing LJ force and potential energy*/
-            *force = -quadrFac + linearFac;
+            *force = gmx::selectByMask(-quadrFac + linearFac, computeValues);
 
-            *potential = 0.5 * quadrFac - linearFac + constFac;
+            *potential = gmx::selectByMask(0.5 * quadrFac - linearFac + constFac, computeValues);
 
-            *dvdl += dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
+            *dvdl = *dvdl + gmx::selectByMask(dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
                         * ((6.5 * rInv14C - rInv8C) - (13. * rInv13C - 2. * rInv7C)
-                           + (6.5 * rInv12C - rInv6C));
+                           + (6.5 * rInv12C - rInv6C)), computeValues);
 
-            *potential += ((c12s * repulsionShift) - (c6s * dispersionShift));
+            *potential = *potential + gmx::selectByMask(((c12s * repulsionShift) - (c6s * dispersionShift)), computeValues);
         }
-
     }
 }
 

@@ -161,20 +161,20 @@ protected:
     {
         reactionFieldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_,
                                         alpha_, params_.forceShift_, params_.potentialShift_,
-                                        &force_, &potential_, &dvdl_);
+                                        &force_, &potential_, &dvdl_, true);
     }
 
     void ewaldCoulomb()
     {
         ewaldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_, alpha_,
-                                params_.ewaldShift_, &force_, &potential_, &dvdl_);
+                                params_.ewaldShift_, &force_, &potential_, &dvdl_, true);
     }
 
     void lennardJones()
     {
         lennardJonesQuadraticPotential(params_.c6_, params_.c12_, r_, rsq_, lambda_, params_.dLambda_,
                                        params_.sigma_, alpha_, params_.repulsionShift_,
-                                       params_.dispersionShift_, &force_, &potential_, &dvdl_);
+                                       params_.dispersionShift_, &force_, &potential_, &dvdl_, true);
     }
 
     // test setup

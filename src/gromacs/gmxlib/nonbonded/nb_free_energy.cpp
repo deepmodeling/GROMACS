@@ -740,13 +740,15 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                 {
                                     ewaldQuadraticPotential(qq[i], rC, LFC[i], DLF[i], sigma6[i],
                                                             alphaCoulEff, sh_ewald, &fScalC[i],
-                                                            &vCoul[i], &dvdlCoul);
+                                                            &vCoul[i], &dvdlCoul,
+                                                            computeElecInteraction);
                                 }
                                 else
                                 {
                                     reactionFieldQuadraticPotential(
                                             qq[i], rC, LFC[i], DLF[i], sigma6[i], alphaCoulEff,
-                                            krf, crf, &FscalC[i], &Vcoul[i], &dvdl_coul);
+                                            krf, crf, &fScalC[i], &vCoul[i], &dvdlCoul,
+                                            computeElecInteraction);
                                 }
                             }
 
@@ -789,10 +791,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
-                                lennardJonesQuadraticPotential(c6[i], c12[i], r, rsq, LFV[i],
+                                lennardJonesQuadraticPotential(c6[i], c12[i], r, rSq, LFV[i],
                                                                DLF[i], sigma6[i], alphaCoulEff,
                                                                repulsionShift, dispersionShift,
-                                                               &fScalV[i], &vVdw[i], &dvdlVdw);
+                                                               &fScalV[i], &vVdw[i], &dvdlVdw,
+                                                               computeVdwInteraction);
                             }
 
                             if (vdwInteractionTypeIsEwald)
@@ -1189,6 +1192,7 @@ static KernelFunction dispatchKernel(const bool                 scLambdasOrAlpha
                                                                                        elecInteractionTypeIsEwald,
                                                                                        vdwModifierIsPotSwitch,
                                                                                        useSimd));
+        }
         else
         {
             return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::Gapsys>(scLambdasOrAlphasDiffer,
