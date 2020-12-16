@@ -56,6 +56,7 @@
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/simd/simd.h"
+#include "gromacs/simd/simd_math.h"
 #include "gromacs/utility/fatalerror.h"
 
 #include "nb_softcore.h"
@@ -63,80 +64,132 @@
 //! Scalar (non-SIMD) data types.
 struct ScalarDataTypes
 {
-    using RealType                     = real; //!< The data type to use as real.
-    using IntType                      = int;  //!< The data type to use as int.
-    static constexpr int simdRealWidth = 1;    //!< The width of the RealType.
-    static constexpr int simdIntWidth  = 1;    //!< The width of the IntType.
+    using RealType = real; //!< The data type to use as real.
+    using IntType  = int;  //!< The data type to use as int.
+    using BoolType = bool; //!< The data type to use as bool for real value comparison.
+    static constexpr int simdRealWidth = 1; //!< The width of the RealType.
+    static constexpr int simdIntWidth  = 1; //!< The width of the IntType.
 };
 
 #if GMX_SIMD_HAVE_REAL && GMX_SIMD_HAVE_INT32_ARITHMETICS
 //! SIMD data types.
 struct SimdDataTypes
 {
-    using RealType                     = gmx::SimdReal;         //!< The data type to use as real.
-    using IntType                      = gmx::SimdInt32;        //!< The data type to use as int.
-    static constexpr int simdRealWidth = GMX_SIMD_REAL_WIDTH;   //!< The width of the RealType.
-    static constexpr int simdIntWidth  = GMX_SIMD_FINT32_WIDTH; //!< The width of the IntType.
+    using RealType = gmx::SimdReal;  //!< The data type to use as real.
+    using IntType  = gmx::SimdInt32; //!< The data type to use as int.
+    using BoolType = gmx::SimdBool;  //!< The data type to use as bool for real value comparison.
+    static constexpr int simdRealWidth = GMX_SIMD_REAL_WIDTH; //!< The width of the RealType.
+#    if GMX_SIMD_HAVE_DOUBLE && GMX_DOUBLE
+    static constexpr int simdIntWidth = GMX_SIMD_DINT32_WIDTH; //!< The width of the IntType.
+#    else
+    static constexpr int simdIntWidth = GMX_SIMD_FINT32_WIDTH; //!< The width of the IntType.
+#    endif
 };
 #endif
 
+/* Retrieve value (specified by index) from table if mask is true */
+static inline real retrieveFromTable(const real* table, int index, bool mask)
+{
+    return (mask ? table[index] : 0.0F);
+}
+
+#if GMX_SIMD_HAVE_REAL && GMX_SIMD_HAVE_INT32_ARITHMETICS && GMX_USE_SIMD_KERNELS
+/* Retrieve GMX_SIMD_REAL_WIDTH values (specified by index) from table if the corresponding mask values are true */
+static inline gmx::SimdReal retrieveFromTable(const real* table, gmx::SimdInt32 index, const gmx::SimdBool mask)
+{
+#    if GMX_SIMD_HAVE_DOUBLE && GMX_DOUBLE
+    GMX_ASSERT(GMX_SIMD_REAL_WIDTH == GMX_SIMD_DINT32_WIDTH,
+               "Mismatch between SIMD real and integer sizes.");
+#    else
+    GMX_ASSERT(GMX_SIMD_REAL_WIDTH == GMX_SIMD_FINT32_WIDTH,
+               "Mismatch between SIMD real and integer sizes.");
+#    endif
+
+    gmx::SimdReal res;
+    std::int32_t  extractedIndex[GMX_SIMD_REAL_WIDTH];
+    extractedIndex[0] = gmx::extract<0>(index);
+#    if GMX_SIMD_REAL_WIDTH >= 2
+    extractedIndex[1] = gmx::extract<1>(index);
+#    endif
+#    if GMX_SIMD_REAL_WIDTH >= 4
+    extractedIndex[2] = gmx::extract<2>(index);
+    extractedIndex[3] = gmx::extract<3>(index);
+#    endif
+#    if GMX_SIMD_REAL_WIDTH >= 6
+    extractedIndex[4] = gmx::extract<4>(index);
+    extractedIndex[5] = gmx::extract<5>(index);
+#    endif
+#    if GMX_SIMD_REAL_WIDTH >= 8
+    extractedIndex[6] = gmx::extract<6>(index);
+    extractedIndex[7] = gmx::extract<7>(index);
+#    endif
+
+    for (std::size_t i = 0; i < GMX_SIMD_REAL_WIDTH; i++)
+    {
+        res.simdInternal_[i] = mask.simdInternal_[i] ? table[extractedIndex[i]] : 0.0;
+    }
+    return res;
+}
+#endif
+
 //! Computes r^(1/p) and 1/r^(1/p) for the standard p=6
-template<class RealType>
-static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* invPthRoot)
+template<class RealType, class BoolType>
+static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* invPthRoot, const BoolType mask)
 {
-    *invPthRoot = gmx::invsqrt(std::cbrt(r));
-    *pthRoot    = 1 / (*invPthRoot);
+    RealType cbrtRes = gmx::cbrt(r);
+    *invPthRoot      = gmx::maskzInvsqrt(cbrtRes, mask);
+    *pthRoot         = gmx::maskzInv(*invPthRoot, mask);
 }
 
 template<class RealType>
-static inline RealType calculateRinv6(const RealType rinvV)
+static inline RealType calculateRinv6(const RealType rInvV)
 {
-    RealType rinv6 = rinvV * rinvV;
-    return (rinv6 * rinv6 * rinv6);
+    RealType rInv6 = rInvV * rInvV;
+    return (rInv6 * rInv6 * rInv6);
 }
 
 template<class RealType>
-static inline RealType calculateVdw6(const RealType c6, const RealType rinv6)
+static inline RealType calculateVdw6(const RealType c6, const RealType rInv6)
 {
-    return (c6 * rinv6);
+    return (c6 * rInv6);
 }
 
 template<class RealType>
-static inline RealType calculateVdw12(const RealType c12, const RealType rinv6)
+static inline RealType calculateVdw12(const RealType c12, const RealType rInv6)
 {
-    return (c12 * rinv6 * rinv6);
+    return (c12 * rInv6 * rInv6);
 }
 
 /* reaction-field electrostatics */
 template<class RealType>
 static inline RealType reactionFieldScalarForce(const RealType qq,
-                                                const RealType rinv,
+                                                const RealType rInv,
                                                 const RealType r,
                                                 const real     krf,
                                                 const real     two)
 {
-    return (qq * (rinv - two * krf * r * r));
+    return (qq * (rInv - two * krf * r * r));
 }
 template<class RealType>
 static inline RealType reactionFieldPotential(const RealType qq,
-                                              const RealType rinv,
+                                              const RealType rInv,
                                               const RealType r,
                                               const real     krf,
                                               const real     potentialShift)
 {
-    return (qq * (rinv + krf * r * r - potentialShift));
+    return (qq * (rInv + krf * r * r - potentialShift));
 }
 
 /* Ewald electrostatics */
 template<class RealType>
-static inline RealType ewaldScalarForce(const RealType coulomb, const RealType rinv)
+static inline RealType ewaldScalarForce(const RealType coulomb, const RealType rInv)
 {
-    return (coulomb * rinv);
+    return (coulomb * rInv);
 }
 template<class RealType>
-static inline RealType ewaldPotential(const RealType coulomb, const RealType rinv, const real potentialShift)
+static inline RealType ewaldPotential(const RealType coulomb, const RealType rInv, const real potentialShift)
 {
-    return (coulomb * (rinv - potentialShift));
+    return (coulomb * (rInv - potentialShift));
 }
 
 /* cutoff LJ */
@@ -152,48 +205,38 @@ static inline RealType lennardJonesPotential(const RealType v6,
                                              const RealType c12,
                                              const real     repulsionShift,
                                              const real     dispersionShift,
-                                             const real     onesixth,
-                                             const real     onetwelfth)
+                                             const real     oneSixth,
+                                             const real     oneTwelfth)
 {
-    return ((v12 + c12 * repulsionShift) * onetwelfth - (v6 + c6 * dispersionShift) * onesixth);
+    return ((v12 + c12 * repulsionShift) * oneTwelfth - (v6 + c6 * dispersionShift) * oneSixth);
 }
 
 /* Ewald LJ */
-static inline real ewaldLennardJonesGridSubtract(const real c6grid, const real potentialShift, const real onesixth)
+template<class RealType>
+static inline RealType ewaldLennardJonesGridSubtract(const RealType c6grid,
+                                                     const real     potentialShift,
+                                                     const real     oneSixth)
 {
-    return (c6grid * potentialShift * onesixth);
+    return (c6grid * potentialShift * oneSixth);
 }
 
 /* LJ Potential switch */
-template<class RealType>
+template<class RealType, class BoolType>
 static inline RealType potSwitchScalarForceMod(const RealType fScalarInp,
                                                const RealType potential,
                                                const RealType sw,
                                                const RealType r,
-                                               const RealType rVdw,
                                                const RealType dsw,
-                                               const real     zero)
+                                               const BoolType mask)
 {
-    if (r < rVdw)
-    {
-        real fScalar = fScalarInp * sw - r * potential * dsw;
-        return (fScalar);
-    }
-    return (zero);
+    /* The mask should select on rV < rVdw */
+    return (gmx::selectByMask(fScalarInp * sw - r * potential * dsw, mask));
 }
-template<class RealType>
-static inline RealType potSwitchPotentialMod(const RealType potentialInp,
-                                             const RealType sw,
-                                             const RealType r,
-                                             const RealType rVdw,
-                                             const real     zero)
+template<class RealType, class BoolType>
+static inline RealType potSwitchPotentialMod(const RealType potentialInp, const RealType sw, const BoolType mask)
 {
-    if (r < rVdw)
-    {
-        real potential = potentialInp * sw;
-        return (potential);
-    }
-    return (zero);
+    /* The mask should select on rV < rVdw */
+    return (gmx::selectByMask(potentialInp * sw, mask));
 }
 
 
@@ -213,15 +256,17 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
     using RealType = typename DataTypes::RealType;
     using IntType  = typename DataTypes::IntType;
+    using BoolType = typename DataTypes::BoolType;
 
-    /* FIXME: How should these be handled with SIMD? */
-    constexpr real onetwelfth = 1.0 / 12.0;
-    constexpr real onesixth   = 1.0 / 6.0;
+    constexpr real oneTwelfth = 1.0 / 12.0;
+    constexpr real oneSixth   = 1.0 / 6.0;
     constexpr real zero       = 0.0;
     constexpr real half       = 0.5;
     constexpr real one        = 1.0;
     constexpr real two        = 2.0;
-    constexpr real six        = 6.0;
+    constexpr int  one_i      = 1;
+    constexpr int  two_i      = 2;
+    constexpr int  four_i     = 4;
 
     /* Extract pointer to non-bonded interaction constants */
     const interaction_const_t* ic = fr->ic;
@@ -259,11 +304,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
     // Extract data from interaction_const_t
     const real facel           = ic->epsfac;
-    const real rcoulomb        = ic->rcoulomb;
+    const real rCoulomb        = ic->rcoulomb;
     const real krf             = ic->k_rf;
     const real crf             = ic->c_rf;
-    const real sh_lj_ewald     = ic->sh_lj_ewald;
-    const real rvdw            = ic->rvdw;
+    const real shLjEwald       = ic->sh_lj_ewald;
+    const real rVdw            = ic->rvdw;
     const real dispersionShift = ic->dispersion_shift.cpot;
     const real repulsionShift  = ic->repulsion_shift.cpot;
 
@@ -271,7 +316,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     GMX_ASSERT(ic->coulomb_modifier != eintmodPOTSWITCH,
                "Potential switching is not supported for Coulomb with FEP");
 
-    real vdw_swV3, vdw_swV4, vdw_swV5, vdw_swF2, vdw_swF3, vdw_swF4;
+    const real rVdwSwitch(ic->rvdw_switch);
+    real       vdw_swV3, vdw_swV4, vdw_swV5, vdw_swF2, vdw_swF3, vdw_swF4;
     if (vdwModifierIsPotSwitch)
     {
         const real d = ic->rvdw - ic->rvdw_switch;
@@ -344,8 +390,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     GMX_RELEASE_ASSERT(!(vdwInteractionTypeIsEwald && vdwModifierIsPotSwitch),
                        "Can not apply soft-core to switched Ewald potentials");
 
-    real dvdl_coul = 0;
-    real dvdl_vdw  = 0;
+    RealType dvdlCoul(zero);
+    RealType dvdlVdw(zero);
 
     /* Lambda factor for state A, 1-lambda*/
     real LFC[NSTATES], LFV[NSTATES];
@@ -358,17 +404,17 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
     /*derivative of the lambda factor for state A and B */
     real DLF[NSTATES];
-    DLF[STATE_A] = -1;
-    DLF[STATE_B] = 1;
+    DLF[STATE_A] = -one;
+    DLF[STATE_B] = one;
 
-    real           lfac_coul[NSTATES], dlfac_coul[NSTATES], lfac_vdw[NSTATES], dlfac_vdw[NSTATES];
+    real           lFacCoul[NSTATES], dlFacCoul[NSTATES], lFacVdw[NSTATES], dlFacVdw[NSTATES];
     constexpr real sc_r_power = 6.0_real;
     for (int i = 0; i < NSTATES; i++)
     {
-        lfac_coul[i]  = (lam_power == 2 ? (1 - LFC[i]) * (1 - LFC[i]) : (1 - LFC[i]));
-        dlfac_coul[i] = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFC[i]) : 1);
-        lfac_vdw[i]   = (lam_power == 2 ? (1 - LFV[i]) * (1 - LFV[i]) : (1 - LFV[i]));
-        dlfac_vdw[i]  = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFV[i]) : 1);
+        lFacCoul[i]  = (lam_power == 2 ? (1 - LFC[i]) * (1 - LFC[i]) : (1 - LFC[i]));
+        dlFacCoul[i] = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFC[i]) : 1);
+        lFacVdw[i]   = (lam_power == 2 ? (1 - LFV[i]) * (1 - LFV[i]) : (1 - LFV[i]));
+        dlFacVdw[i]  = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFV[i]) : 1);
     }
 
     // TODO: We should get rid of using pointers to real
@@ -380,44 +426,168 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     {
         int npair_within_cutoff = 0;
 
-        const int  is3   = 3 * shift[n];
-        const real shX   = shiftvec[is3];
-        const real shY   = shiftvec[is3 + 1];
-        const real shZ   = shiftvec[is3 + 2];
-        const int  nj0   = jindex[n];
-        const int  nj1   = jindex[n + 1];
-        const int  ii    = iinr[n];
-        const int  ii3   = 3 * ii;
-        const real ix    = shX + x[ii3 + 0];
-        const real iy    = shY + x[ii3 + 1];
-        const real iz    = shZ + x[ii3 + 2];
-        const real iqA   = facel * chargeA[ii];
-        const real iqB   = facel * chargeB[ii];
-        const int  ntiA  = 2 * ntype * typeA[ii];
-        const int  ntiB  = 2 * ntype * typeB[ii];
-        real       vctot = 0;
-        real       vvtot = 0;
-        real       fix   = 0;
-        real       fiy   = 0;
-        real       fiz   = 0;
+        const int  is3  = 3 * shift[n];
+        const real shX  = shiftvec[is3];
+        const real shY  = shiftvec[is3 + 1];
+        const real shZ  = shiftvec[is3 + 2];
+        const int  nj0  = jindex[n];
+        const int  nj1  = jindex[n + 1];
+        const int  ii   = iinr[n];
+        const int  ii3  = 3 * ii;
+        const real ix   = shX + x[ii3 + 0];
+        const real iy   = shY + x[ii3 + 1];
+        const real iz   = shZ + x[ii3 + 2];
+        const real iqA  = facel * chargeA[ii];
+        const real iqB  = facel * chargeB[ii];
+        const int  ntiA = 2 * ntype * typeA[ii];
+        const int  ntiB = 2 * ntype * typeB[ii];
+        RealType   vCTot(0);
+        RealType   vVTot(0);
+        RealType   fIX(0);
+        RealType   fIY(0);
+        RealType   fIZ(0);
 
-        for (int k = nj0; k < nj1; k++)
+#if GMX_SIMD_HAVE_REAL
+        alignas(GMX_SIMD_ALIGNMENT) int preloadIi[DataTypes::simdRealWidth];
+        alignas(GMX_SIMD_ALIGNMENT) int preloadIs[DataTypes::simdRealWidth];
+#else
+        int preloadIi[DataTypes::simdRealWidth];
+        int preloadIs[DataTypes::simdRealWidth];
+#endif
+        for (int s = 0; s < DataTypes::simdRealWidth; s++)
         {
-            int            tj[NSTATES];
-            const int      jnr = jjnr[k];
-            const int      j3  = 3 * jnr;
-            RealType       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
-            RealType       r, rinv, rp, rpm2;
-            RealType       alpha_vdw_eff, alpha_coul_eff, sigma6[NSTATES];
-            const RealType dx  = ix - x[j3];
-            const RealType dy  = iy - x[j3 + 1];
-            const RealType dz  = iz - x[j3 + 2];
-            const RealType rsq = dx * dx + dy * dy + dz * dz;
-            RealType       FscalC[NSTATES], FscalV[NSTATES];
-            /* Check if this pair on the exlusions list.*/
-            const bool bPairIncluded = nlist->excl_fep == nullptr || nlist->excl_fep[k];
+            preloadIi[s] = ii;
+            preloadIs[s] = shift[n];
+        }
+        IntType ii_s = gmx::load<IntType>(preloadIi);
 
-            if (rsq >= rcutoff_max2 && bPairIncluded)
+        for (int k = nj0; k < nj1; k += DataTypes::simdRealWidth)
+        {
+            int      tj[NSTATES];
+            RealType r, rInv;
+
+#if GMX_SIMD_HAVE_REAL
+            alignas(GMX_SIMD_ALIGNMENT) real preloadPairIncluded[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) int  preloadJnr[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadDx[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadDy[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadDz[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadC6[NSTATES][DataTypes::simdRealWidth],
+                    preloadC12[NSTATES][DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadQq[NSTATES][DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadSigma6[NSTATES][DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadAlphaVdwEff[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadAlphaCoulEff[DataTypes::simdRealWidth];
+            alignas(GMX_SIMD_ALIGNMENT) real preloadLjPmeC6Grid[NSTATES][DataTypes::simdRealWidth];
+#else
+            real preloadPairIncluded[DataTypes::simdRealWidth];
+            int  preloadJnr[DataTypes::simdRealWidth];
+            real preloadDx[DataTypes::simdRealWidth];
+            real preloadDy[DataTypes::simdRealWidth];
+            real preloadDz[DataTypes::simdRealWidth];
+            real preloadC6[NSTATES][DataTypes::simdRealWidth],
+                    preloadC12[NSTATES][DataTypes::simdRealWidth];
+            real preloadQq[NSTATES][DataTypes::simdRealWidth];
+            real preloadSigma6[NSTATES][DataTypes::simdRealWidth];
+            real preloadAlphaVdwEff[DataTypes::simdRealWidth];
+            real preloadAlphaCoulEff[DataTypes::simdRealWidth];
+            real preloadLjPmeC6Grid[NSTATES][DataTypes::simdRealWidth];
+#endif
+            for (int s = 0; s < DataTypes::simdRealWidth; s++)
+            {
+                if (k + s < nj1)
+                {
+                    /* Check if this pair on the exclusions list.*/
+                    preloadPairIncluded[s] = (nlist->excl_fep == nullptr || nlist->excl_fep[k + s]);
+                    const int jnr          = jjnr[k + s];
+                    const int j3           = 3 * jnr;
+                    preloadJnr[s]          = jnr;
+                    preloadDx[s]           = ix - x[j3];
+                    preloadDy[s]           = iy - x[j3 + 1];
+                    preloadDz[s]           = iz - x[j3 + 2];
+                    tj[STATE_A]            = ntiA + 2 * typeA[jnr];
+                    tj[STATE_B]            = ntiB + 2 * typeB[jnr];
+                    preloadQq[STATE_A][s]  = iqA * chargeA[jnr];
+                    preloadQq[STATE_B][s]  = iqB * chargeB[jnr];
+
+                    for (int i = 0; i < NSTATES; i++)
+                    {
+                        preloadC6[i][s]  = nbfp[tj[i]];
+                        preloadC12[i][s] = nbfp[tj[i] + 1];
+                        if (vdwInteractionTypeIsEwald)
+                        {
+                            preloadLjPmeC6Grid[i][s] = nbfp_grid[tj[i]];
+                        }
+                        else
+                        {
+                            preloadLjPmeC6Grid[i][s] = 0;
+                        }
+                        if (softcoreType == SoftcoreType::Beutler || softcoreType == SoftcoreType::Gapsys)
+                        {
+                            if ((preloadC6[i][s] > 0) && (preloadC12[i][s] > 0))
+                            {
+                                /* c12 is stored scaled with 12.0 and c6 is scaled with 6.0 - correct for this */
+                                preloadSigma6[i][s] = 0.5 * preloadC12[i][s] / preloadC6[i][s];
+                                if (preloadSigma6[i][s]
+                                    < sigma6_min) /* for disappearing coul and vdw with soft core at the same time */
+                                {
+                                    preloadSigma6[i][s] = sigma6_min;
+                                }
+                            }
+                            else
+                            {
+                                preloadSigma6[i][s] = sigma6_def;
+                            }
+                        }
+                    }
+                    if (softcoreType == SoftcoreType::Beutler || softcoreType == SoftcoreType::Gapsys)
+                    {
+                        /* only use softcore if one of the states has a zero endstate - softcore is for avoiding infinities!*/
+                        if ((preloadC12[STATE_A][s] > 0) && (preloadC12[STATE_B][s] > 0))
+                        {
+                            preloadAlphaVdwEff[s]  = 0;
+                            preloadAlphaCoulEff[s] = 0;
+                        }
+                        else
+                        {
+                            preloadAlphaVdwEff[s]  = alpha_vdw;
+                            preloadAlphaCoulEff[s] = alpha_coul;
+                        }
+                    }
+                }
+                else
+                {
+                    preloadJnr[s] = 0;
+                    /* These must be set to make sure that the distance is beyond the cutoff. */
+                    preloadDx[s] = rcutoff_max2;
+                    preloadDy[s] = rcutoff_max2;
+                    preloadDz[s] = rcutoff_max2;
+                    /* Only pairs that are included can be skipped completely. */
+                    preloadPairIncluded[s] = true;
+                    preloadAlphaVdwEff[s]  = 0;
+                    preloadAlphaCoulEff[s] = 0;
+
+                    for (int i = 0; i < NSTATES; i++)
+                    {
+                        preloadQq[i][s]     = 0;
+                        preloadC6[i][s]     = 0;
+                        preloadC12[i][s]    = 0;
+                        preloadSigma6[i][s] = 0;
+                    }
+                }
+            }
+            const RealType pairIncluded     = gmx::load<RealType>(preloadPairIncluded);
+            const BoolType bPairIncluded    = (pairIncluded != zero);
+            const BoolType bPairNotIncluded = (pairIncluded == zero);
+
+            const RealType dX  = gmx::load<RealType>(preloadDx);
+            const RealType dY  = gmx::load<RealType>(preloadDy);
+            const RealType dZ  = gmx::load<RealType>(preloadDz);
+            const RealType rSq = dX * dX + dY * dY + dZ * dZ;
+
+            BoolType withinCutoffMask = (rSq < rcutoff_max2);
+
+            if (!gmx::anyTrue(withinCutoffMask || bPairNotIncluded))
             {
                 /* We save significant time by skipping all code below.
                  * Note that with soft-core interactions, the actual cut-off
@@ -427,36 +597,50 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * when using Ewald: the reciprocal-space
                  * Ewald component still needs to be subtracted.
                  */
-
                 continue;
             }
-            npair_within_cutoff++;
+            npair_within_cutoff++; /* It is not necessary to actually count how many are within cutoff as long as it gets > 0 */
+            const IntType  jnr_s    = gmx::load<IntType>(preloadJnr);
+            const BoolType bIiEqJnr = gmx::cvtIB2B(ii_s == jnr_s);
 
-            if (rsq > 0)
+            RealType c6[NSTATES];
+            RealType c12[NSTATES];
+            RealType sigma6[NSTATES];
+            RealType qq[NSTATES];
+            RealType ljPmeC6Grid[NSTATES];
+            RealType alphaVdwEff;
+            RealType alphaCoulEff;
+            for (int i = 0; i < NSTATES; i++)
             {
-                /* Note that unlike in the nbnxn kernels, we do not need
-                 * to clamp the value of rsq before taking the invsqrt
-                 * to avoid NaN in the LJ calculation, since here we do
-                 * not calculate LJ interactions when C6 and C12 are zero.
-                 */
-
-                rinv = gmx::invsqrt(rsq);
-                r    = rsq * rinv;
+                c6[i]          = gmx::load<RealType>(preloadC6[i]);
+                c12[i]         = gmx::load<RealType>(preloadC12[i]);
+                qq[i]          = gmx::load<RealType>(preloadQq[i]);
+                ljPmeC6Grid[i] = gmx::load<RealType>(preloadLjPmeC6Grid[i]);
+                if (softcoreType == SoftcoreType::Beutler || softcoreType == SoftcoreType::Gapsys)
+                {
+                    sigma6[i] = gmx::load<RealType>(preloadSigma6[i]);
+                }
             }
-            else
+            if (softcoreType == SoftcoreType::Beutler || softcoreType == SoftcoreType::Gapsys)
             {
-                /* The force at r=0 is zero, because of symmetry.
-                 * But note that the potential is in general non-zero,
-                 * since the soft-cored r will be non-zero.
-                 */
-                rinv = 0;
-                r    = 0;
+                alphaVdwEff  = gmx::load<RealType>(preloadAlphaVdwEff);
+                alphaCoulEff = gmx::load<RealType>(preloadAlphaCoulEff);
             }
 
+            BoolType rSqValid = (zero < rSq);
+
+            /* The force at r=0 is zero, because of symmetry.
+             * But note that the potential is in general non-zero,
+             * since the soft-cored r will be non-zero.
+             */
+            rInv = gmx::maskzInvsqrt(rSq, rSqValid);
+            r    = rSq * rInv;
+
+            RealType rp, rpm2;
             if (softcoreType == SoftcoreType::Beutler)
             {
-                rpm2 = rsq * rsq;  /* r4 */
-                rp   = rpm2 * rsq; /* r6 */
+                rpm2 = rSq * rSq;  /* r4 */
+                rp   = rpm2 * rSq; /* r6 */
             }
             else
             {
@@ -464,266 +648,252 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * with not using soft-core, so we use power of 0 which gives
                  * the simplest math and cheapest code.
                  */
-                rpm2 = rinv * rinv;
-                rp   = 1;
+                rpm2 = rInv * rInv;
+                rp   = one;
             }
 
-            RealType Fscal = 0;
+            RealType fScal(0);
 
-            qq[STATE_A] = iqA * chargeA[jnr];
-            qq[STATE_B] = iqB * chargeB[jnr];
-
-            tj[STATE_A] = ntiA + 2 * typeA[jnr];
-            tj[STATE_B] = ntiB + 2 * typeB[jnr];
-
-            if (bPairIncluded)
+            /* The following block is masked to only calculate values having bPairIncluded. If
+             * bPairIncluded is true then withinCutoffMask must also be true. */
+            if (gmx::anyTrue(withinCutoffMask && bPairIncluded))
             {
-                c6[STATE_A] = nbfp[tj[STATE_A]];
-                c6[STATE_B] = nbfp[tj[STATE_B]];
-
+                RealType fScalC[NSTATES], fScalV[NSTATES];
+                RealType vCoul[NSTATES], vVdw[NSTATES];
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    c12[i] = nbfp[tj[i] + 1];
-                    if (softcoreType == SoftcoreType::Beutler || softcoreType == SoftcoreType::Gapsys)
-                    {
-                        if ((c6[i] > 0) && (c12[i] > 0))
-                        {
-                            /* c12 is stored scaled with 12.0 and c6 is scaled with 6.0 - correct for this */
-                            sigma6[i] = half * c12[i] / c6[i];
-                            if (sigma6[i] < sigma6_min) /* for disappearing coul and vdw with soft core at the same time */
-                            {
-                                sigma6[i] = sigma6_min;
-                            }
-                        }
-                        else
-                        {
-                            sigma6[i] = sigma6_def;
-                        }
-                    }
-                }
+                    fScalC[i] = zero;
+                    fScalV[i] = zero;
+                    vCoul[i]  = zero;
+                    vVdw[i]   = zero;
 
-                if (softcoreType == SoftcoreType::Beutler || softcoreType == SoftcoreType::Gapsys)
-                {
-                    /* only use softcore if one of the states has a zero endstate - softcore is for avoiding infinities!*/
-                    if ((c12[STATE_A] > 0) && (c12[STATE_B] > 0))
-                    {
-                        alpha_vdw_eff  = 0;
-                        alpha_coul_eff = 0;
-                    }
-                    else
-                    {
-                        alpha_vdw_eff  = alpha_vdw;
-                        alpha_coul_eff = alpha_coul;
-                    }
-                }
+                    RealType rInvC, rInvV, rC, rV, rPInvC, rPInvV;
 
-                for (int i = 0; i < NSTATES; i++)
-                {
-                    FscalC[i] = 0;
-                    FscalV[i] = 0;
-                    Vcoul[i]  = 0;
-                    Vvdw[i]   = 0;
-
-                    RealType rinvC, rinvV, rC, rV, rpinvC, rpinvV;
-
-                    /* Only spend time on A or B state if it is non-zero */
-                    if ((qq[i] != 0) || (c6[i] != 0) || (c12[i] != 0))
+                    /* The following block is masked to require (qq[i] != 0 || c6[i] != 0 || c12[i]
+                     * != 0) in addition to bPairIncluded, which in turn requires withinCutoffMask. */
+                    BoolType nonZeroState = ((qq[i] != 0 || c6[i] != 0 || c12[i] != 0)
+                                             && bPairIncluded && withinCutoffMask);
+                    if (gmx::anyTrue(nonZeroState))
                     {
-                        /* this section has to be inside the loop because of the dependence on sigma6 */
                         if (softcoreType == SoftcoreType::Beutler)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma6[i] + rp);
-                            pthRoot(rpinvC, &rinvC, &rC);
+                            RealType divisor      = (alphaCoulEff * lFacCoul[i] * sigma6[i] + rp);
+                            BoolType validDivisor = (zero < divisor);
+                            rPInvC                = gmx::maskzInv(divisor, validDivisor);
+                            pthRoot(rPInvC, &rInvC, &rC, validDivisor);
+
                             if (scLambdasOrAlphasDiffer)
                             {
-                                rpinvV = one / (alpha_vdw_eff * lfac_vdw[i] * sigma6[i] + rp);
-                                pthRoot(rpinvV, &rinvV, &rV);
+                                RealType divisor      = (alphaVdwEff * lFacVdw[i] * sigma6[i] + rp);
+                                BoolType validDivisor = (zero < divisor);
+                                rPInvV                = gmx::maskzInv(divisor, validDivisor);
+                                pthRoot(rPInvV, &rInvV, &rV, validDivisor);
                             }
                             else
                             {
                                 /* We can avoid one expensive pow and one / operation */
-                                rpinvV = rpinvC;
-                                rinvV  = rinvC;
+                                rPInvV = rPInvC;
+                                rInvV  = rInvC;
                                 rV     = rC;
                             }
                         }
                         else
                         {
-                            rpinvC = 1;
-                            rinvC  = rinv;
+                            rPInvC = one;
+                            rInvC  = rInv;
                             rC     = r;
 
-                            rpinvV = 1;
-                            rinvV  = rinv;
+                            rPInvV = one;
+                            rInvV  = rInv;
                             rV     = r;
                         }
 
-                        /* Only process the coulomb interactions if we have charges,
-                         * and if we either include all entries in the list (no cutoff
+                        /* Only process the coulomb interactions if we either
+                         * include all entries in the list (no cutoff
                          * used in the kernel), or if we are within the cutoff.
                          */
-                        bool computeElecInteraction = (elecInteractionTypeIsEwald && r < rcoulomb)
-                                                      || (!elecInteractionTypeIsEwald && rC < rcoulomb);
-
-                        if ((qq[i] != 0) && computeElecInteraction)
+                        BoolType computeElecInteraction;
+                        if (elecInteractionTypeIsEwald)
+                        {
+                            computeElecInteraction = (r < rCoulomb && qq[i] != 0 && bPairIncluded);
+                        }
+                        else
+                        {
+                            computeElecInteraction = (rC < rCoulomb && qq[i] != 0 && bPairIncluded);
+                        }
+                        if (gmx::anyTrue(computeElecInteraction))
                         {
                             if (elecInteractionTypeIsEwald)
                             {
-                                Vcoul[i]  = ewaldPotential(qq[i], rinvC, sh_ewald);
-                                FscalC[i] = ewaldScalarForce(qq[i], rinvC);
+                                vCoul[i]  = ewaldPotential(qq[i], rInvC, sh_ewald);
+                                fScalC[i] = ewaldScalarForce(qq[i], rInvC);
                             }
                             else
                             {
-                                Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
-                                FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
+                                vCoul[i]  = reactionFieldPotential(qq[i], rInvC, rC, krf, crf);
+                                fScalC[i] = reactionFieldScalarForce(qq[i], rInvC, rC, krf, two);
                             }
 
-                            /* some prev. computed hardcore interactions might be
-                             * overwritten now; in case only a minor percentage
-                             * of pairs is affected, performance shouldn't be
-                             * degraded too much. For simd one must compute both
-                             * branches in the gapsys kernel (r<r0Q<r) anyways,
-                             * so not too much effort in code optimization at
-                             * this point now prior to introducing simd into
-                             * this kernel.
-                             */
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
                                 if (elecInteractionTypeIsEwald)
                                 {
                                     ewaldQuadraticPotential(qq[i], rC, LFC[i], DLF[i], sigma6[i],
-                                                            alpha_coul_eff, sh_ewald, &FscalC[i],
-                                                            &Vcoul[i], &dvdl_coul);
+                                                            alphaCoulEff, sh_ewald, &fScalC[i],
+                                                            &vCoul[i], &dvdlCoul);
                                 }
                                 else
                                 {
                                     reactionFieldQuadraticPotential(
-                                            qq[i], rC, LFC[i], DLF[i], sigma6[i], alpha_coul_eff,
+                                            qq[i], rC, LFC[i], DLF[i], sigma6[i], alphaCoulEff,
                                             krf, crf, &FscalC[i], &Vcoul[i], &dvdl_coul);
                                 }
                             }
+
+                            vCoul[i]  = gmx::selectByMask(vCoul[i], computeElecInteraction);
+                            fScalC[i] = gmx::selectByMask(fScalC[i], computeElecInteraction);
                         }
 
-                        /* Only process the VDW interactions if we have
-                         * some non-zero parameters, and if we either
+                        /* Only process the VDW interactions if we either
                          * include all entries in the list (no cutoff used
                          * in the kernel), or if we are within the cutoff.
                          */
-                        bool computeVdwInteraction = (vdwInteractionTypeIsEwald && r < rvdw)
-                                                     || (!vdwInteractionTypeIsEwald && rV < rvdw);
-                        if ((c6[i] != 0 || c12[i] != 0) && computeVdwInteraction)
+                        BoolType computeVdwInteraction;
+                        if (vdwInteractionTypeIsEwald)
                         {
-                            RealType rinv6;
+                            computeVdwInteraction =
+                                    (r < rVdw && (c6[i] != 0 || c12[i] != 0) && bPairIncluded);
+                        }
+                        else
+                        {
+                            computeVdwInteraction =
+                                    (rV < rVdw && (c6[i] != 0 || c12[i] != 0) && bPairIncluded);
+                        }
+                        if (gmx::anyTrue(computeVdwInteraction))
+                        {
+                            RealType rInv6;
                             if (softcoreType == SoftcoreType::Beutler)
                             {
-                                rinv6 = rpinvV;
+                                rInv6 = rPInvV;
                             }
                             else
                             {
-                                rinv6 = calculateRinv6(rinvV);
+                                rInv6 = calculateRinv6(rInvV);
                             }
-                            RealType Vvdw6  = calculateVdw6(c6[i], rinv6);
-                            RealType Vvdw12 = calculateVdw12(c12[i], rinv6);
+                            RealType vVdw6  = calculateVdw6(c6[i], rInv6);
+                            RealType vVdw12 = calculateVdw12(c12[i], rInv6);
 
-                            Vvdw[i] = lennardJonesPotential(Vvdw6, Vvdw12, c6[i], c12[i], repulsionShift,
-                                                            dispersionShift, onesixth, onetwelfth);
-                            FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
+                            vVdw[i] = lennardJonesPotential(
+                                    vVdw6, vVdw12, c6[i], c12[i], repulsionShift, dispersionShift, oneSixth, oneTwelfth);
+                            fScalV[i] = lennardJonesScalarForce(vVdw6, vVdw12);
 
-                            /* some prev. computed hardcore interactions might be
-                             * overwritten now; in case only a minor percentage
-                             * of pairs is affected, performance shouldn't be
-                             * degraded too much. For simd one must compute both
-                             * branches in the gapsys kernel (r<r0Q<r) anyways,
-                             * so not too much effort in code optimization at
-                             * this point now prior to introducing simd into
-                             * this kernel.
-                             */
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
                                 lennardJonesQuadraticPotential(c6[i], c12[i], r, rsq, LFV[i],
-                                                               DLF[i], sigma6[i], alpha_coul_eff,
+                                                               DLF[i], sigma6[i], alphaCoulEff,
                                                                repulsionShift, dispersionShift,
-                                                               &FscalV[i], &Vvdw[i], &dvdl_vdw);
+                                                               &fScalV[i], &vVdw[i], &dvdlVdw);
                             }
 
                             if (vdwInteractionTypeIsEwald)
                             {
                                 /* Subtract the grid potential at the cut-off */
-                                Vvdw[i] += ewaldLennardJonesGridSubtract(nbfp_grid[tj[i]],
-                                                                         sh_lj_ewald, onesixth);
+                                vVdw[i] = vVdw[i]
+                                          + gmx::selectByMask(ewaldLennardJonesGridSubtract(
+                                                                      ljPmeC6Grid[i], shLjEwald, oneSixth),
+                                                              computeVdwInteraction);
                             }
 
                             if (vdwModifierIsPotSwitch)
                             {
-                                RealType d        = rV - ic->rvdw_switch;
-                                d                 = (d > zero) ? d : zero;
-                                const RealType d2 = d * d;
+                                RealType d             = rV - rVdwSwitch;
+                                BoolType zeroMask      = zero < d;
+                                BoolType potSwitchMask = rV < rVdw;
+                                d                      = gmx::selectByMask(d, zeroMask);
+                                const RealType d2      = d * d;
                                 const RealType sw =
                                         one + d2 * d * (vdw_swV3 + d * (vdw_swV4 + d * vdw_swV5));
                                 const RealType dsw = d2 * (vdw_swF2 + d * (vdw_swF3 + d * vdw_swF4));
 
-                                FscalV[i] = potSwitchScalarForceMod(FscalV[i], Vvdw[i], sw, rV,
-                                                                    rvdw, dsw, zero);
-                                Vvdw[i]   = potSwitchPotentialMod(Vvdw[i], sw, rV, rvdw, zero);
+                                fScalV[i] = potSwitchScalarForceMod(
+                                        fScalV[i], vVdw[i], sw, rV, dsw, potSwitchMask);
+                                vVdw[i] = potSwitchPotentialMod(vVdw[i], sw, potSwitchMask);
                             }
+
+                            vVdw[i]   = gmx::selectByMask(vVdw[i], computeVdwInteraction);
+                            fScalV[i] = gmx::selectByMask(fScalV[i], computeVdwInteraction);
                         }
 
-                        /* FscalC (and FscalV) now contain: dV/drC * rC
+                        /* fScalC (and fScalV) now contain: dV/drC * rC
                          * Now we multiply by rC^-p, so it will be: dV/drC * rC^1-p
                          * Further down we first multiply by r^p-2 and then by
                          * the vector r, which in total gives: dV/drC * (r/rC)^1-p
                          */
-                        FscalC[i] *= rpinvC;
-                        FscalV[i] *= rpinvV;
-                    }
-                } // end for (int i = 0; i < NSTATES; i++)
+                        fScalC[i] = fScalC[i] * rPInvC;
+                        fScalV[i] = fScalV[i] * rPInvV;
+                    } // end of block requiring nonZeroState
+                }     // end for (int i = 0; i < NSTATES; i++)
 
-                /* Assemble A and B states */
-                for (int i = 0; i < NSTATES; i++)
+                /* Assemble A and B states. */
+                BoolType assembleStates = (bPairIncluded && withinCutoffMask);
+                if (gmx::anyTrue(assembleStates))
                 {
-                    vctot += LFC[i] * Vcoul[i];
-                    vvtot += LFV[i] * Vvdw[i];
-
-                    Fscal += LFC[i] * FscalC[i] * rpm2;
-                    Fscal += LFV[i] * FscalV[i] * rpm2;
-
-                    if (softcoreType == SoftcoreType::Beutler)
+                    for (int i = 0; i < NSTATES; i++)
                     {
-                        dvdl_coul += Vcoul[i] * DLF[i]
-                                     + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i] * sigma6[i];
-                        dvdl_vdw += Vvdw[i] * DLF[i]
-                                    + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * FscalV[i] * sigma6[i];
-                    }
-                    else
-                    {
-                        dvdl_coul += Vcoul[i] * DLF[i];
-                        dvdl_vdw += Vvdw[i] * DLF[i];
+                        vCTot = vCTot + LFC[i] * vCoul[i];
+                        vVTot = vVTot + LFV[i] * vVdw[i];
+
+                        fScal = fScal + LFC[i] * fScalC[i] * rpm2;
+                        fScal = fScal + LFV[i] * fScalV[i] * rpm2;
+
+                        if (softcoreType == SoftcoreType::Beutler)
+                        {
+                            dvdlCoul = dvdlCoul + vCoul[i] * DLF[i]
+                                       + LFC[i] * alphaCoulEff * dlFacCoul[i] * fScalC[i] * sigma6[i];
+                            dvdlVdw = dvdlVdw + vVdw[i] * DLF[i]
+                                      + LFV[i] * alphaVdwEff * dlFacVdw[i] * fScalV[i] * sigma6[i];
+                        }
+                        else
+                        {
+                            dvdlCoul = dvdlCoul + vCoul[i] * DLF[i];
+                            dvdlVdw  = dvdlVdw + vVdw[i] * DLF[i];
+                        }
                     }
                 }
-            } // end if (bPairIncluded)
-            else if (icoul == GMX_NBKERNEL_ELEC_REACTIONFIELD)
+            } // end of block requiring bPairIncluded && withinCutoffMask
+            /* In the following block bPairIncluded should be false in the masks. */
+            if (icoul == GMX_NBKERNEL_ELEC_REACTIONFIELD)
             {
-                /* For excluded pairs, which are only in this pair list when
-                 * using the Verlet scheme, we don't use soft-core.
-                 * As there is no singularity, there is no need for soft-core.
-                 */
-                const real FF = -two * krf;
-                RealType   VV = krf * rsq - crf;
+                const BoolType computeReactionField = bPairNotIncluded;
 
-                if (ii == jnr)
+                if (gmx::anyTrue(computeReactionField))
                 {
-                    VV *= half;
-                }
+                    /* For excluded pairs, which are only in this pair list when
+                     * using the Verlet scheme, we don't use soft-core.
+                     * As there is no singularity, there is no need for soft-core.
+                     */
+                    const RealType FF = -two * krf;
+                    RealType       VV = krf * rSq - crf;
 
-                for (int i = 0; i < NSTATES; i++)
-                {
-                    vctot += LFC[i] * qq[i] * VV;
-                    Fscal += LFC[i] * qq[i] * FF;
-                    dvdl_coul += DLF[i] * qq[i] * VV;
+                    /* If ii == jnr the i particle (ii) has itself (jnr)
+                     * in its neighborlist. This can only happen with the Verlet
+                     * scheme, and corresponds to a self-interaction that will
+                     * occur twice. Scale it down by 50% to only include it once.
+                     */
+                    VV = VV * gmx::blend(one, half, bIiEqJnr);
+
+                    for (int i = 0; i < NSTATES; i++)
+                    {
+                        vCTot = vCTot + gmx::selectByMask(LFC[i] * qq[i] * VV, computeReactionField);
+                        fScal = fScal + gmx::selectByMask(LFC[i] * qq[i] * FF, computeReactionField);
+                        dvdlCoul = dvdlCoul + gmx::selectByMask(DLF[i] * qq[i] * VV, computeReactionField);
+                    }
                 }
             }
 
-            if (elecInteractionTypeIsEwald && (r < rcoulomb || !bPairIncluded))
+            /* In the following block the mask should require (r < rCoulomb || !bPairIncluded) */
+            const BoolType computeElecEwaldInteraction = (r < rCoulomb || bPairNotIncluded);
+            if (elecInteractionTypeIsEwald && gmx::anyTrue(computeElecEwaldInteraction))
             {
                 /* See comment in the preamble. When using Ewald interactions
                  * (unless we use a switch modifier) we subtract the reciprocal-space
@@ -733,39 +903,50 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * the softcore to the entire electrostatic interaction,
                  * including the reciprocal-space component.
                  */
-                real v_lr, f_lr;
+                RealType v_lr, f_lr;
 
                 const RealType ewrt   = r * coulombTableScale;
-                IntType        ewitab = static_cast<IntType>(ewrt);
-                const RealType eweps  = ewrt - ewitab;
-                ewitab                = 4 * ewitab;
-                f_lr                  = ewtab[ewitab] + eweps * ewtab[ewitab + 1];
-                v_lr = (ewtab[ewitab + 2] - coulombTableScaleInvHalf * eweps * (ewtab[ewitab] + f_lr));
-                f_lr *= rinv;
+                IntType        ewitab = gmx::cvttR2I(ewrt);
+                const RealType eweps  = ewrt - gmx::cvtI2R(ewitab);
+                ewitab                = four_i * ewitab;
+
+                f_lr = retrieveFromTable(ewtab, ewitab, computeElecEwaldInteraction);
+                /* f_lr = ewtab[ewitab] + eweps * ewtab[ewitab + 1] */
+                f_lr = f_lr + eweps * retrieveFromTable(ewtab, ewitab + one_i, computeElecEwaldInteraction);
+
+                /* term1 = ewtab[ewitab + 2] */
+                RealType term1 = retrieveFromTable(ewtab, ewitab + two_i, computeElecEwaldInteraction);
+                /* term2 = coulombTableScaleInvHalf * eweps * (ewtab[ewitab] + f_lr) */
+                RealType term2 = coulombTableScaleInvHalf * eweps
+                                 * (retrieveFromTable(ewtab, ewitab, computeElecEwaldInteraction) + f_lr);
+                /* v_lr = (ewtab[ewitab + 2] - coulombTableScaleInvHalf * eweps * (ewtab[ewitab] + f_lr)) */
+                v_lr = term1 - term2;
+
+                f_lr = f_lr * rInv;
 
                 /* Note that any possible Ewald shift has already been applied in
                  * the normal interaction part above.
                  */
 
-                if (ii == jnr)
-                {
-                    /* If we get here, the i particle (ii) has itself (jnr)
-                     * in its neighborlist. This can only happen with the Verlet
-                     * scheme, and corresponds to a self-interaction that will
-                     * occur twice. Scale it down by 50% to only include it once.
-                     */
-                    v_lr *= half;
-                }
+                /* If ii == jnr the i particle (ii) has itself (jnr)
+                 * in its neighborlist. This can only happen with the Verlet
+                 * scheme, and corresponds to a self-interaction that will
+                 * occur twice. Scale it down by 50% to only include it once.
+                 */
+                v_lr = v_lr * gmx::blend(one, half, bIiEqJnr);
 
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    vctot -= LFC[i] * qq[i] * v_lr;
-                    Fscal -= LFC[i] * qq[i] * f_lr;
-                    dvdl_coul -= (DLF[i] * qq[i]) * v_lr;
+                    vCTot = vCTot - gmx::selectByMask(LFC[i] * qq[i] * v_lr, computeElecEwaldInteraction);
+                    fScal = fScal - gmx::selectByMask(LFC[i] * qq[i] * f_lr, computeElecEwaldInteraction);
+                    dvdlCoul = dvdlCoul
+                               - gmx::selectByMask(DLF[i] * qq[i] * v_lr, computeElecEwaldInteraction);
                 }
             }
 
-            if (vdwInteractionTypeIsEwald && r < rvdw)
+            /* In the following block the mask should require (r < rVdw) */
+            const BoolType computeVdwEwaldInteraction = r < rVdw;
+            if (vdwInteractionTypeIsEwald && gmx::anyTrue(computeVdwEwaldInteraction))
             {
                 /* See comment in the preamble. When using LJ-Ewald interactions
                  * (unless we use a switch modifier) we subtract the reciprocal-space
@@ -780,101 +961,107 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * r close to 0 for non-interacting pairs.
                  */
 
-                const RealType rs   = rsq * rinv * vdwTableScale;
-                const IntType  ri   = static_cast<IntType>(rs);
-                const RealType frac = rs - ri;
-                const RealType f_lr = (1 - frac) * tab_ewald_F_lj[ri] + frac * tab_ewald_F_lj[ri + 1];
+                const RealType rs        = rSq * rInv * vdwTableScale;
+                const IntType  ri        = gmx::cvttR2I(rs);
+                const RealType frac      = rs - gmx::cvtI2R(ri);
+                const RealType otherFrac = one - frac;
+
+                /* term1 = (1 - frac) * tab_ewald_F_lj[ri] */
+                RealType term1 =
+                        otherFrac * retrieveFromTable(tab_ewald_F_lj, ri, computeVdwEwaldInteraction);
+                /* term2 = frac * tab_ewald_F_lj[ri + 1] */
+                RealType term2 =
+                        frac * retrieveFromTable(tab_ewald_F_lj, ri + one_i, computeVdwEwaldInteraction);
+                /* f_lr = (1 - frac) * tab_ewald_F_lj[ri] + frac * tab_ewald_F_lj[ri + 1] */
+                const RealType f_lr = term1 + term2;
                 /* TODO: Currently the Ewald LJ table does not contain
                  * the factor 1/6, we should add this.
                  */
-                const RealType FF = f_lr * rinv / six;
-                RealType       VV =
-                        (tab_ewald_V_lj[ri] - vdwTableScaleInvHalf * frac * (tab_ewald_F_lj[ri] + f_lr))
-                        / six;
+                const RealType FF = f_lr * rInv * oneSixth;
 
-                if (ii == jnr)
-                {
-                    /* If we get here, the i particle (ii) has itself (jnr)
-                     * in its neighborlist. This can only happen with the Verlet
-                     * scheme, and corresponds to a self-interaction that will
-                     * occur twice. Scale it down by 50% to only include it once.
-                     */
-                    VV *= half;
-                }
+                term1 = retrieveFromTable(tab_ewald_V_lj, ri, computeVdwEwaldInteraction);
+                term2 = vdwTableScaleInvHalf * frac
+                        * (retrieveFromTable(tab_ewald_F_lj, ri, computeVdwEwaldInteraction) + f_lr);
+
+                /* VV = (tab_ewald_V_lj[ri] - vdwTableScaleInvHalf * frac * (tab_ewald_F_lj[ri] + f_lr)) / six */
+                RealType VV = (term1 - term2) * oneSixth;
+
+                /* If ii == jnr the i particle (ii) has itself (jnr)
+                 * in its neighborlist. This can only happen with the Verlet
+                 * scheme, and corresponds to a self-interaction that will
+                 * occur twice. Scale it down by 50% to only include it once.
+                 */
+                VV = VV * gmx::blend(one, half, bIiEqJnr);
 
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    const real c6grid = nbfp_grid[tj[i]];
-                    vvtot += LFV[i] * c6grid * VV;
-                    Fscal += LFV[i] * c6grid * FF;
-                    dvdl_vdw += (DLF[i] * c6grid) * VV;
+                    vVTot = vVTot + gmx::selectByMask(LFV[i] * ljPmeC6Grid[i] * VV, computeVdwEwaldInteraction);
+                    fScal = fScal + gmx::selectByMask(LFV[i] * ljPmeC6Grid[i] * FF, computeVdwEwaldInteraction);
+                    dvdlVdw = dvdlVdw + gmx::selectByMask(DLF[i] * ljPmeC6Grid[i] * VV, computeVdwEwaldInteraction);
                 }
             }
 
-            if (doForces)
+            /* Avoid expensive restricted omp access by first checking if there are any operations
+             * to do. This can improve the performance significantly. */
+            if (doForces && gmx::anyTrue(fScal != zero))
             {
-                const real tx = Fscal * dx;
-                const real ty = Fscal * dy;
-                const real tz = Fscal * dz;
-                fix           = fix + tx;
-                fiy           = fiy + ty;
-                fiz           = fiz + tz;
-                /* OpenMP atomics are expensive, but this kernels is also
-                 * expensive, so we can take this hit, instead of using
-                 * thread-local output buffers and extra reduction.
-                 *
-                 * All the OpenMP regions in this file are trivial and should
-                 * not throw, so no need for try/catch.
-                 */
-#pragma omp atomic
-                f[j3] -= tx;
-#pragma omp atomic
-                f[j3 + 1] -= ty;
-#pragma omp atomic
-                f[j3 + 2] -= tz;
-            }
-        } // end for (int k = nj0; k < nj1; k++)
+                const RealType tX = fScal * dX;
+                const RealType tY = fScal * dY;
+                const RealType tZ = fScal * dZ;
+                fIX               = fIX + tX;
+                fIY               = fIY + tY;
+                fIZ               = fIZ + tZ;
 
-        /* The atomics below are expensive with many OpenMP threads.
-         * Here unperturbed i-particles will usually only have a few
-         * (perturbed) j-particles in the list. Thus with a buffered list
-         * we can skip a significant number of i-reductions with a check.
-         */
+#pragma omp critical
+                gmx::transposeScatterDecrU<3>(reinterpret_cast<real*>(f), preloadJnr, tX, tY, tZ);
+            }
+        } // end for (int k = nj0; k < nj1; k += DataTypes::simdRealWidth)
+
         if (npair_within_cutoff > 0)
         {
-            if (doForces)
+#pragma omp critical
+            /* Avoid expensive restricted omp access by first checking if there are any operations
+             * to do. This check, and the ones below, do not save as much time as the one above. */
+            if ((doForces || doShiftForces)
+                && (gmx::anyTrue(fIX != zero) || gmx::anyTrue(fIY != zero) || gmx::anyTrue(fIZ != zero)))
             {
-#pragma omp atomic
-                f[ii3] += fix;
-#pragma omp atomic
-                f[ii3 + 1] += fiy;
-#pragma omp atomic
-                f[ii3 + 2] += fiz;
-            }
-            if (doShiftForces)
-            {
-#pragma omp atomic
-                fshift[is3] += fix;
-#pragma omp atomic
-                fshift[is3 + 1] += fiy;
-#pragma omp atomic
-                fshift[is3 + 2] += fiz;
+                if (doForces)
+                {
+                    gmx::transposeScatterIncrU<3>(reinterpret_cast<real*>(f), preloadIi, fIX, fIY, fIZ);
+                }
+                if (doShiftForces)
+                {
+                    gmx::transposeScatterIncrU<3>(
+                            reinterpret_cast<real*>(fshift), preloadIs, fIX, fIY, fIZ);
+                }
             }
             if (doPotential)
             {
                 int ggid = gid[n];
+                if (gmx::anyTrue(vCTot != zero))
+                {
 #pragma omp atomic
-                Vc[ggid] += vctot;
+                    Vc[ggid] += gmx::reduce(vCTot);
+                }
+                if (gmx::anyTrue(vVTot != zero))
+                {
 #pragma omp atomic
-                Vv[ggid] += vvtot;
+                    Vv[ggid] += gmx::reduce(vVTot);
+                }
             }
         }
     } // end for (int n = 0; n < nri; n++)
 
+    if (gmx::anyTrue(dvdlCoul != zero))
+    {
 #pragma omp atomic
-    dvdl[efptCOUL] += dvdl_coul;
+        dvdl[efptCOUL] += gmx::reduce(dvdlCoul);
+    }
+    if (gmx::anyTrue(dvdlVdw != zero))
+    {
 #pragma omp atomic
-    dvdl[efptVDW] += dvdl_vdw;
+        dvdl[efptVDW] += gmx::reduce(dvdlVdw);
+    }
 
     /* Estimate flops, average for free energy stuff:
      * 12  flops per outer iteration
@@ -898,18 +1085,14 @@ static KernelFunction dispatchKernelOnUseSimd(const bool useSimd)
     if (useSimd)
     {
 #if GMX_SIMD_HAVE_REAL && GMX_SIMD_HAVE_INT32_ARITHMETICS && GMX_USE_SIMD_KERNELS
-        /* FIXME: Here SimdDataTypes should be used to enable SIMD. So far, the code in nb_free_energy_kernel is not adapted to SIMD */
-        return (nb_free_energy_kernel<ScalarDataTypes, softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                      elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
+        return (nb_free_energy_kernel<SimdDataTypes, softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
 #else
-        return (nb_free_energy_kernel<ScalarDataTypes, softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                      elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
+        return (nb_free_energy_kernel<ScalarDataTypes, softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
 #endif
     }
     else
     {
-        return (nb_free_energy_kernel<ScalarDataTypes, softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                      elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
+        return (nb_free_energy_kernel<ScalarDataTypes, softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
     }
 }
 
@@ -918,13 +1101,13 @@ static KernelFunction dispatchKernelOnVdwModifier(const bool vdwModifierIsPotSwi
 {
     if (vdwModifierIsPotSwitch)
     {
-        return (dispatchKernelOnUseSimd<softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                        elecInteractionTypeIsEwald, true>(useSimd));
+        return (dispatchKernelOnUseSimd<softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, true>(
+                useSimd));
     }
     else
     {
-        return (dispatchKernelOnUseSimd<softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                        elecInteractionTypeIsEwald, false>(useSimd));
+        return (dispatchKernelOnUseSimd<softcoreType, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, false>(
+                useSimd));
     }
 }
 
@@ -991,23 +1174,28 @@ static KernelFunction dispatchKernel(const bool                 scLambdasOrAlpha
 {
     if (ic.softCoreParameters->alphaCoulomb == 0 && ic.softCoreParameters->alphaVdw == 0)
     {
-        return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::None>(
-                scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                vdwModifierIsPotSwitch, useSimd));
+        return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::None>(scLambdasOrAlphasDiffer,
+                                                                                vdwInteractionTypeIsEwald,
+                                                                                elecInteractionTypeIsEwald,
+                                                                                vdwModifierIsPotSwitch,
+                                                                                useSimd));
     }
     else
     {
         if (ic.softCoreParameters->softcoreType == SoftcoreType::Beutler)
         {
-            return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::Beutler>(
-                    scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                    vdwModifierIsPotSwitch, useSimd));
-        }
+            return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::Beutler>(scLambdasOrAlphasDiffer,
+                                                                                       vdwInteractionTypeIsEwald,
+                                                                                       elecInteractionTypeIsEwald,
+                                                                                       vdwModifierIsPotSwitch,
+                                                                                       useSimd));
         else
         {
-            return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::Gapsys>(
-                    scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                    vdwModifierIsPotSwitch, useSimd));
+            return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::Gapsys>(scLambdasOrAlphasDiffer,
+                                                                                      vdwInteractionTypeIsEwald,
+                                                                                      elecInteractionTypeIsEwald,
+                                                                                      vdwModifierIsPotSwitch,
+                                                                                      useSimd));
         }
     }
 }
@@ -1047,7 +1235,11 @@ void gmx_nb_free_energy_kernel(const t_nblist*            nlist,
     }
 
     KernelFunction kernelFunc;
-    kernelFunc = dispatchKernel(scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                elecInteractionTypeIsEwald, vdwModifierIsPotSwitch, useSimd, ic);
+    kernelFunc = dispatchKernel(scLambdasOrAlphasDiffer,
+                                vdwInteractionTypeIsEwald,
+                                elecInteractionTypeIsEwald,
+                                vdwModifierIsPotSwitch,
+                                useSimd,
+                                ic);
     kernelFunc(nlist, xx, ff, fr, mdatoms, kernel_data, nrnb);
 }
