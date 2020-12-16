@@ -62,7 +62,7 @@ public:
     std::vector<gmx::RVec> coordinates_;
     std::vector<gmx::RVec> forces_;
     int                    numVirialAtoms_;
-    tensor                 virial_;
+    tensor                 virial_{{0}};
 
     CalcvirTest() :
         checker_(refData_.rootChecker()),

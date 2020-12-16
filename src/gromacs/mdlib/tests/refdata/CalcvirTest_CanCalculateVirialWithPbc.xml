@@ -2,18 +2,18 @@
 <?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
 <ReferenceData>
   <Vector Name="Virial x">
-    <Real Name="X">-14</Real>
-    <Real Name="Y">-14</Real>
-    <Real Name="Z">-14</Real>
+    <Real Name="X">-7</Real>
+    <Real Name="Y">-7</Real>
+    <Real Name="Z">-7</Real>
   </Vector>
   <Vector Name="Virial y">
-    <Real Name="X">-14</Real>
-    <Real Name="Y">-14</Real>
-    <Real Name="Z">-14</Real>
+    <Real Name="X">-7</Real>
+    <Real Name="Y">-7</Real>
+    <Real Name="Z">-7</Real>
   </Vector>
   <Vector Name="Virial z">
-    <Real Name="X">-14</Real>
-    <Real Name="Y">-14</Real>
-    <Real Name="Z">-14</Real>
+    <Real Name="X">-7</Real>
+    <Real Name="Y">-7</Real>
+    <Real Name="Z">-7</Real>
   </Vector>
 </ReferenceData>
