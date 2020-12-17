@@ -56,7 +56,7 @@ void calculateViralParts(int                         numVirialAtoms,
                          const rvec                  shiftVectors[],
                          PbcType                     pbcType);
 
-//! \brief Calculate the virial for a component of the virial.
+//! \brief Calculate the virial contribution from \c coordinates and \c forces.
 void calculateVirial(int                  numVirialAtoms,
                      ArrayRef<const RVec> coordinates,
                      ArrayRef<const RVec> forces,
