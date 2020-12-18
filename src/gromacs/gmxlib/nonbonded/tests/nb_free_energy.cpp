@@ -42,225 +42,263 @@
  */
 #include "gmxpre.h"
 
-#include <string>
-
 #include <gtest/gtest.h>
 
-#include "testutils/refdata.h"
 #include "testutils/testasserts.h"
-#include "gromacs/math/units.h"
+#include "gromacs/simd/simd.h"
 
 #include "gromacs/gmxlib/nonbonded/nb_softcore.h"
+#include "data.h"
 
 namespace
 {
 
-struct InputData
+//! Scalar (non-SIMD) data types.
+struct ScalarDataTypes
 {
-    std::vector<real> distance_ = { 0.1, 0.3};
-    std::vector<real> lambda_   = { 0.0, 0.4};
-    std::vector<real> alpha_    = { 0.35, 0.85, 1.0 };
+    using RealType = real; //!< The data type to use as real.
+    using BoolType = bool; //!< The data type to use as boolean
+    static constexpr int simdRealWidth = 1; //!< The width of the RealType.
 };
 
-struct ResultData
+#if GMX_SIMD_HAVE_REAL
+//! SIMD data types.
+struct SimdDataTypes
 {
-    struct ReactionField
-    {
-        std::vector<real> force_     = {298.2262673248765, 81.04208675312732, 60.716019343653784,
-            320.9082469989308, 93.92455579266444, 70.70915256867373, 0.0, 108.52859863380814,
-            97.87991749360009, 0.0, 0.0, 104.55063947421152};
-        std::vector<real> potential_ = {308.46161910449194, 201.37114113756252, 176.63680068879958,
-            311.34337586881185, 214.50646301939787, 189.50482873889663, 0.0, 84.15285483983247,
-            83.29414218061244, 0.0, 0.0, 83.94546301215242};
-        std::vector<real> dvdl_      = {
-            0.0, 0.0, 0.0, 2.6807752609604263, 17.141528411721787, 16.943058294331728, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.5278382842267321
-        };
-    };
-
-    struct EwaldCoulomb
-    {
-        std::vector<real> force_     = {298.9209446130984, 81.73676404134923, 61.410696631875695,
-            321.6029242871527, 94.61923308088635, 71.40382985689564, 0.0, 114.78069422780533,
-            104.13201308759727, 0.0, 0.0, 110.8027350682087};
-        std::vector<real> potential_ = {308.114280460381, 201.02380249345157, 176.2894620446886,
-            310.9960372247009, 214.15912437528692, 189.15749009478566, 0.0, 81.02680704283388,
-            80.16809438361385, 0.0, 0.0, 80.81941521515382};
-        std::vector<real> dvdl_      = {0.0, 0.0, 0.0, 2.6807752609604263, 17.141528411721787,
-            16.943058294331728, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5278382842267321};
-    };
-
-    struct LennardJones
-    {
-        std::vector<real> force_     = {1592504.8443630151, 22.52700221389511, -0.3994048768740422,
-            3768632.8377578724, 83.77558926399867, 5.030256018969582, 0.0, 8.57813764570534,
-            -1.198214630622123, 0.0, 0.0, 2.265650434405245};
-        std::vector<real> potential_ = {347006.9938992501, 25.324325293355464, -1.4866674448593462,
-            614549.4305951666, 87.10756169609895, 5.416621259131128, 0.0, -0.062056135774753114,
-            -0.687857691111263, 0.0, 0.0, -0.36885157130686763};
-        std::vector<real> dvdl_      = {0.0, 0.0, 0.0, 401503.1459288585, 129.0495668164257,
-            16.110255786271328, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5018934377109587};
-    };
-
-    ReactionField reactionField_;
-    EwaldCoulomb ewald_;
-    LennardJones lennardJones_;
+    using RealType = gmx::SimdReal;  //!< The data type to use as real.
+    using BoolType = gmx::SimdBool;  //!< The data type to use as boolean
+    static constexpr int simdRealWidth = GMX_SIMD_REAL_WIDTH; //!< The width of the RealType.
 };
+#endif
 
-static const InputData s_data;
-static const ResultData s_results;
-
-struct Constants
-{
-    // coulomb parameters (with q=0.5)
-    real qq_             = ONE_4PI_EPS0 * 0.25_real;
-    real potentialShift_ = 1.0_real;
-    real forceShift_     = 1.0_real;
-    real ewaldShift_     = 1.0_real;
-
-    // lennard-jones parameters (with eps=0.5, sigma=0.3)
-    real c12_             = 1.062882e-6_real * 12;
-    real c6_              = 1.458e-3_real * 6;
-    real sigma_           = 0.5_real * c12_ / c6_;
-    real repulsionShift_  = 1.0_real;
-    real dispersionShift_ = 1.0_real;
-
-    // softcore parameters
-    real dLambda_ = 1.0_real;
-};
-
-
-class SoftcoreGapsysTest :
-    public ::testing::TestWithParam<std::tuple<real, real, real>>
+class InputDataGenerator
 {
 public:
-    SoftcoreGapsysTest() :
-        tolerance_(gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12))
+    InputDataGenerator(InputData input) :
+      distance_(input.distance_),
+      lambda_(input.lambda_),
+      alpha_(input.alpha_) {}
+
+    std::vector<std::tuple<real, real, real, int>> getData() const
     {
+        size_t numTuples = distance_.size() * lambda_.size() * alpha_.size();
+
+        std::vector<std::tuple<real, real, real, int>> data;
+        real distance, lambda, alpha;
+        for (size_t i=0; i<numTuples; i++)
+        {
+            std::tie(distance, lambda, alpha) = getTuple(i);
+            data.push_back(std::make_tuple(distance, lambda, alpha, i));
+        }
+
+        return data;
     }
 
 protected:
-    void SetUp() override
+    std::tuple<real, real, real> getTuple(int i) const
     {
-        force_     = 0.0_real;
-        potential_ = 0.0_real;
-        dvdl_      = 0.0_real;
+        int idxDistance =  i / (lambda_.size() * alpha_.size());
+        int idxLambda   =  i / alpha_.size();
+        int idxAlpha    =  i % alpha_.size();
 
-        // get test index
-        std::string name = testing::UnitTest::GetInstance()->current_test_info()->name();
-        std::size_t found = name.find_last_of("/");
-        idx_ = std::stoi(name.substr(found+1));
+        // wrap around
+        idxDistance = idxDistance % distance_.size();
+        idxLambda   = idxLambda % lambda_.size();
+        return std::make_tuple(distance_[idxDistance],
+                               lambda_[idxLambda],
+                               alpha_[idxAlpha]);
+    }
 
-        // get input parameters
-        std::tie(r_, lambda_, alpha_) = GetParam();
-        rsq_                          = r_ * r_;
-        rInv_                         = rsq_ > 0 ? 1.0_real / r_ : 0.0_real;
+    std::vector<real> distance_;
+    std::vector<real> lambda_;
+    std::vector<real> alpha_;
+};
+
+static const InputData s_input;
+static const ResultData s_results;
+static const InputDataGenerator s_data(s_input);
+
+template<class DataType>
+class SoftcoreGapsys
+{
+    using RealType = typename DataType::RealType;
+    using BoolType = typename DataType::BoolType;
+
+public:
+    void SetParams(const std::tuple<real, real, real, int> params)
+    {
+        std::tie(r_, lambda_, alpha_, idx_) = params;
+
+        rsq_          = r_ * r_;
+        BoolType mask = 0.0 < rsq_;
+        rInv_         = gmx::maskzInv(r_, mask);
+
+        force_ = 0.0;
+        potential_ = 0.0;
+        dvdl_ = 0.0;
+    }
+
+    std::vector<real> toVector(RealType data)
+    {
+#if GMX_SIMD_HAVE_REAL
+        alignas(GMX_SIMD_ALIGNMENT) real mem[DataType::simdRealWidth];
+#else
+        real mem[DataType::simdRealWidth];
+#endif
+        gmx::store(mem, data);
+        std::vector<real> vecData(mem, mem+DataType::simdRealWidth);
+        return vecData;
     }
 
     void reactionField()
     {
         reactionFieldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_,
                                         alpha_, params_.forceShift_, params_.potentialShift_,
-                                        &force_, &potential_, &dvdl_, true);
+                                        &force_, &potential_, &dvdl_, computeMask_);
     }
 
     void ewaldCoulomb()
     {
         ewaldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_, alpha_,
-                                params_.ewaldShift_, &force_, &potential_, &dvdl_, true);
+                                params_.ewaldShift_, &force_, &potential_, &dvdl_, computeMask_);
     }
 
     void lennardJones()
     {
         lennardJonesQuadraticPotential(params_.c6_, params_.c12_, r_, rsq_, lambda_, params_.dLambda_,
                                        params_.sigma_, alpha_, params_.repulsionShift_,
-                                       params_.dispersionShift_, &force_, &potential_, &dvdl_, true);
+                                       params_.dispersionShift_, &force_, &potential_, &dvdl_, computeMask_);
     }
 
-    // test setup
-    int idx_;
-    gmx::test::FloatingPointTolerance tolerance_;
+    // fixed parameters
+    const Constants<RealType> params_;
+    const BoolType computeMask_ = true;
 
-    // fixed test parameters
-    Constants params_;
-
-    // input data this test class is supposed to use
-    real r_;
-    real rInv_;
-    real rsq_;
+    // input data
+    RealType r_;
+    RealType rInv_;
+    RealType rsq_;
+    RealType alpha_;
     real lambda_;
-    real alpha_;
+    int idx_;
 
     // output values
-    real force_;
-    real potential_;
-    real dvdl_;
+    RealType force_;
+    RealType potential_;
+    RealType dvdl_;
 
 };
 
+class SoftcoreGapsysTest :
+    public ::testing::TestWithParam<std::tuple<real, real, real, int>>
+{
+public:
+    SoftcoreGapsysTest() :
+        tolerance_(
+          gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(
+            1, 1.0e-4, 1.0e-12))
+    {}
+
+    void SetUp() override
+    {
+        std::tuple<real, real, real, int> params = GetParam();
+        softcore_.SetParams(params);
+    }
+
+    void compareVectorToReal(std::vector<real> vec, real value)
+    {
+        for (auto it=vec.begin(); it!=vec.end(); it++)
+        {
+            EXPECT_REAL_EQ_TOL(*it, value, tolerance_);
+        }
+    }
+
+    template<class ReferenceData>
+    void compareToReference(ReferenceData refData)
+    {
+        // transform multidata to vector
+        std::vector<real> force(softcore_.toVector(softcore_.force_));
+        std::vector<real> potential(softcore_.toVector(softcore_.potential_));
+        std::vector<real> dvdl(softcore_.toVector(softcore_.dvdl_));
+
+        // get reference values
+        int idx           = softcore_.idx_;
+        real refForce     = refData.force_[idx];
+        real refPotential = refData.potential_[idx];
+        real refDvdl      = refData.dvdl_[idx];
+
+        compareVectorToReal(force, refForce);
+        compareVectorToReal(potential, refPotential);
+        compareVectorToReal(dvdl, refDvdl);
+    }
+
+    void compareToZero()
+    {
+        // transform multidata to vector
+        real force     = gmx::reduce(softcore_.force_);
+        real potential = gmx::reduce(softcore_.potential_);
+        real dvdl      = gmx::reduce(softcore_.dvdl_);
+
+        EXPECT_EQ(force, 0.0_real);
+        EXPECT_EQ(potential, 0.0_real);
+        EXPECT_EQ(dvdl, 0.0_real);
+    }
+
+#if GMX_SIMD_HAVE_REAL
+    SoftcoreGapsys<SimdDataTypes> softcore_;
+#else
+    SoftcoreGapsys<ScalarDataTypes> softcore_;
+#endif
+
+    gmx::test::FloatingPointTolerance tolerance_;
+};
+
+
 TEST_P(SoftcoreGapsysTest, reactionField)
 {
-    reactionField();
-
-    EXPECT_REAL_EQ_TOL(force_, s_results.reactionField_.force_[idx_], tolerance_);
-    EXPECT_REAL_EQ_TOL(potential_, s_results.reactionField_.potential_[idx_], tolerance_);
-    EXPECT_REAL_EQ_TOL(dvdl_, s_results.reactionField_.dvdl_[idx_], tolerance_);
+    softcore_.reactionField();
+    compareToReference(s_results.reactionField_);
 }
 
 TEST_P(SoftcoreGapsysTest, ewaldCoulomb)
 {
-    ewaldCoulomb();
-
-    EXPECT_REAL_EQ_TOL(force_, s_results.ewald_.force_[idx_], tolerance_);
-    EXPECT_REAL_EQ_TOL(potential_, s_results.ewald_.potential_[idx_], tolerance_);
-    EXPECT_REAL_EQ_TOL(dvdl_, s_results.ewald_.dvdl_[idx_], tolerance_);
+    softcore_.ewaldCoulomb();
+    compareToReference(s_results.ewald_);
 }
 
 TEST_P(SoftcoreGapsysTest, lennardJones)
 {
-    lennardJones();
-
-    EXPECT_REAL_EQ_TOL(force_, s_results.lennardJones_.force_[idx_], tolerance_);
-    EXPECT_REAL_EQ_TOL(potential_, s_results.lennardJones_.potential_[idx_], tolerance_);
-    EXPECT_REAL_EQ_TOL(dvdl_, s_results.lennardJones_.dvdl_[idx_], tolerance_);
+    softcore_.lennardJones();
+    compareToReference(s_results.lennardJones_);
 }
 
 INSTANTIATE_TEST_CASE_P(CheckValues, SoftcoreGapsysTest,
-                        ::testing::Combine(::testing::ValuesIn(s_data.distance_),
-                                           ::testing::ValuesIn(s_data.lambda_),
+                        ::testing::ValuesIn(s_data.getData()));
 
-                                           ::testing::ValuesIn(s_data.alpha_)));
 
-class SoftcoreGapsysEvalZeroTest : public SoftcoreGapsysTest
+class SoftcoreGapsysZeroTest : public SoftcoreGapsysTest
 {};
 
-TEST_P(SoftcoreGapsysEvalZeroTest, reactionField)
+TEST_P(SoftcoreGapsysZeroTest, reactionField)
 {
-    reactionField();
+    softcore_.reactionField();
+    compareToZero();
 
-    EXPECT_EQ(force_, 0.0);
-    EXPECT_EQ(potential_, 0.0);
-    EXPECT_EQ(dvdl_, 0.0);
 }
 
-TEST_P(SoftcoreGapsysEvalZeroTest, ewaldCoulomb)
+TEST_P(SoftcoreGapsysZeroTest, ewaldCoulomb)
 {
-    ewaldCoulomb();
-
-    EXPECT_EQ(force_, 0.0);
-    EXPECT_EQ(potential_, 0.0);
-    EXPECT_EQ(dvdl_, 0.0);
+    softcore_.ewaldCoulomb();
+    compareToZero();
 }
 
-TEST_P(SoftcoreGapsysEvalZeroTest, lennardJones)
+TEST_P(SoftcoreGapsysZeroTest, lennardJones)
 {
-    lennardJones();
-
-    EXPECT_EQ(force_, 0.0);
-    EXPECT_EQ(potential_, 0.0);
-    EXPECT_EQ(dvdl_, 0.0);
+    softcore_.lennardJones();
+    compareToZero();
 }
 
-INSTANTIATE_TEST_CASE_P(CheckZeros, SoftcoreGapsysEvalZeroTest,
-                        ::testing::Values(std::make_tuple(0.1, 1.0, 0.35), std::make_tuple(0.1, 0.4, 0.0)));
+INSTANTIATE_TEST_CASE_P(CheckZeros, SoftcoreGapsysZeroTest,
+                        ::testing::Values(std::make_tuple(0.1, 1.0, 0.35, 0), std::make_tuple(0.1, 0.4, 0.0, 0)));
+
 } // namespace
