@@ -125,6 +125,9 @@ class SoftcoreGapsys
     using BoolType = typename DataType::BoolType;
 
 public:
+
+    SoftcoreGapsys() : params_() {}
+
     void SetParams(const std::tuple<real, real, real, int> params)
     {
         std::tie(r_, lambda_, alpha_, idx_) = params;
