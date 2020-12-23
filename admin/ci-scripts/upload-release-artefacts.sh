@@ -34,19 +34,11 @@ echo "We are uploading files for this version: ${VERSION}"
 
 # Get files for uploading the manual front page
 MANUAL_PAGE_REPO=manual-front-page
-if [[ ! -d ${MANUAL_PAGE_REPO} ]] ; then
-    mkdir "${MANUAL_PAGE_REPO}"
-    cd "${MANUAL_PAGE_REPO}"
-    git init
-    cd ..
+if [[ -d "${MANUAL_PAGE_REPO}" ]]; then
+    rm -rf "${MANUAL_PAGE_REPO}"
 fi
+git clone --depth=1 git@gitlab.com:gromacs/deployment/manual-front-page.git
 
-cd "${MANUAL_PAGE_REPO}"
-git fetch git@gitlab.com:gromacs/deployment/manual-front-page.git master --depth=1
-git checkout -qf FETCH_HEAD
-git clean -ffdxq
-git gc
-cd ..
 
 SPHINX=$(which sphinx-build)
 if [[ -z "${SPHINX}" ]] ; then
