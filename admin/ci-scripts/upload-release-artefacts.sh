@@ -19,73 +19,73 @@ set -euo pipefail
 UPLOAD_LOCATION_FTP=/srv/ftp
 UPLOAD_LOCATION_WWW=/var/www/manual
 
-if [[ "$CI_COMMIT_REF_NAME" != "master" && "$CI_COMMIT_REF_NAME" != "release-2021" && "$CI_COMMIT_REF_NAME" != "release-2020" ]] ; then
+if [[ "${CI_COMMIT_REF_NAME}" != "master" && "${CI_COMMIT_REF_NAME}" != "release-2021" && "${CI_COMMIT_REF_NAME}" != "release-2020" ]] ; then
     echo "Not running for any recognized branch, not uploading to the real locations"
-    UPLOAD_LOCATION_FTP=$UPLOAD_LOCATION_FTP/test
-    UPLOAD_LOCATION_WWW=$UPLOAD_LOCATION_WWW/test
-else if [[ "$GROMACS_RELEASE" != "true" ]] ; then
+    UPLOAD_LOCATION_FTP=${UPLOAD_LOCATION_FTP}/test
+    UPLOAD_LOCATION_WWW=${UPLOAD_LOCATION_WWW}/test
+elif [[ "${GROMACS_RELEASE}" != "true" ]] ; then
     echo "Not running a true release build, not uploading to the real locations"
-    UPLOAD_LOCATION_FTP=$UPLOAD_LOCATION_FTP/test
-    UPLOAD_LOCATION_WWW=$UPLOAD_LOCATION_WWW/test
+    UPLOAD_LOCATION_FTP=${UPLOAD_LOCATION_FTP}/test
+    UPLOAD_LOCATION_WWW=${UPLOAD_LOCATION_WWW}/test
 fi
 
-echo "Running to upload to FTP ($UPLOAD_LOCATION_FTP), WWW ($UPLOAD_LOCATION_WWW)"
-echo "We are uploading files for this version: $VERSION"
+echo "Running to upload to FTP (${UPLOAD_LOCATION_FTP}), WWW (${UPLOAD_LOCATION_WWW})"
+echo "We are uploading files for this version: ${VERSION}"
 
 # Get files for uploading the manual front page
 MANUAL_PAGE_REPO=manual-front-page
-if [[ ! -d $MANUAL_PAGE_REPO ]] ; then
-    mkdir $MANUAL_PAGE_REPO
-    cd $MANUAL_PAGE_REPO
+if [[ ! -d ${MANUAL_PAGE_REPO} ]] ; then
+    mkdir "${MANUAL_PAGE_REPO}"
+    cd "${MANUAL_PAGE_REPO}"
     git init
     cd ..
 fi
 
-cd $MANUAL_PAGE_REPO
+cd "${MANUAL_PAGE_REPO}"
 git fetch git@gitlab.com:gromacs/deployment/manual-front-page.git master --depth=1
 git checkout -qf FETCH_HEAD
 git clean -ffdxq
 git gc
 cd ..
 
-SPHINX=`which sphinx-build`
-if [[ -z $SPHINX ]] ; then
+SPHINX=$(which sphinx-build)
+if [[ -z "${SPHINX}" ]] ; then
     echo "Can't do things without having sphinx available"
     exit 1
 fi
 
-originalpwd=`pwd`
+originalpwd="${PWD}"
 (
     
     upload="rsync -avP --chmod=u+rwX,g+rwX,o+rX"
-    deploymentlocation="pbauer@www.gromacs.org:$UPLOAD_LOCATION_WWW"
-    website_loc=$BUILD_DIR/docs/html/
-    if [[ ! -d $website_loc ]] ; then
+    deploymentlocation="pbauer@www.gromacs.org:${UPLOAD_LOCATION_WWW}"
+    website_loc=${BUILD_DIR}/docs/html/
+    if [[ ! -d "${website_loc}" ]] ; then
         echo "Can't find the webpage files"
         exit 1
     fi
     #$upload $website_loc/* $website_loc/.[a-z]* $deploymentlocation/${VERSION}/
     echo "done upload"
-    cp $website_loc/manual-${VERSION}.pdf $originalpwd
+    cp "${website_loc}/manual-${VERSION}.pdf" "${originalpwd}"
 )
 
 
 (
     upload="rsync -avP --chmod=u+rw,g+rw,o+r"
-    destination="pbauer@ftp.gromacs.org:$UPLOAD_LOCATION_FTP"
+    destination="pbauer@ftp.gromacs.org:${UPLOAD_LOCATION_FTP}"
     regressiontests_tarball="regressiontests-${VERSION}.tar.gz"
     source_tarball="gromacs-${VERSION}.tar.gz"
-    md5sum $source_tarball
-    md5sum $regressiontests_tarball
+    md5sum "${source_tarball}"
+    md5sum "${regressiontests_tarball}"
     #$upload $source_tarball $destination/gromacs/
     #$upload manual-${VERSION}.pdf $destination/manual/
     #$upload $regressiontests_tarball $destination/regressiontests/
 )
 
 (
-    cd $MANUAL_PAGE_REPO
+    cd "${MANUAL_PAGE_REPO}"
     upload="rsync -avP --chmod=u+rwX,g+rwX,o+rX"
-    deploymentlocation="pbauer@www.gromacs.org:$UPLOAD_LOCATION_WWW"
+    deploymentlocation="pbauer@www.gromacs.org:${UPLOAD_LOCATION_WWW}"
     make html
     #$upload -av _build/html/ $deploymentlocation/ --exclude _sources --exclude .buildinfo --exclude objects.inv
 )
