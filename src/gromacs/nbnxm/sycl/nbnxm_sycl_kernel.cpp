@@ -148,73 +148,47 @@ static inline void ljForceSwitch(const shift_consts_t         dispersionShift,
 }
 
 //! \brief Fetch C6 grid contribution coefficients and return the product of these.
+template<enum VdwType vdwType>
 static inline float calculateLJEwaldC6Grid(const DeviceAccessor<float, mode::read> a_nbfpComb,
                                            const int                               typeI,
                                            const int                               typeJ)
 {
-    // SYCL-TODO: Pass by const reference?
-    return a_nbfpComb[2 * typeI] * a_nbfpComb[2 * typeJ];
-}
-
-
-//! Calculate LJ-PME grid force contribution with geometric combination rule.
-template<bool doCalcEnergies>
-static inline void ljEwaldCombGeom(const DeviceAccessor<float, mode::read> a_nbfpComb,
-                                   const float                             sh_lj_ewald,
-                                   const int                               typeI,
-                                   const int                               typeJ,
-                                   const float                             r2,
-                                   const float                             r2Inv,
-                                   const float                             lje_coeff2,
-                                   const float                             lje_coeff6_6,
-                                   const float                             int_bit,
-                                   cl::sycl::private_ptr<float>            fInvR,
-                                   cl::sycl::private_ptr<float>            eLJ)
-{
-    const float c6grid = calculateLJEwaldC6Grid(a_nbfpComb, typeI, typeJ);
-
-    /* Recalculate inv_r6 without exclusion mask */
-    const float inv_r6_nm = r2Inv * r2Inv * r2Inv;
-    const float cr2       = lje_coeff2 * r2;
-    const float expmcr2   = expf(-cr2);
-    const float poly      = 1.0F + cr2 + 0.5F * cr2 * cr2;
-
-    /* Subtract the grid force from the total LJ force */
-    *fInvR += c6grid * (inv_r6_nm - expmcr2 * (inv_r6_nm * poly + lje_coeff6_6)) * r2Inv;
-
-    if constexpr (doCalcEnergies)
+    if constexpr (vdwType == VdwType::EwaldGeom)
     {
-        /* Shift should be applied only to real LJ pairs */
-        const float sh_mask = sh_lj_ewald * int_bit;
-        *eLJ += c_oneSixth * c6grid * (inv_r6_nm * (1.0F - expmcr2 * poly) + sh_mask);
+        return a_nbfpComb[2 * typeI] * a_nbfpComb[2 * typeJ];
+    }
+    else
+    {
+        static_assert(vdwType == VdwType::EwaldLB);
+        /* sigma and epsilon are scaled to give 6*C6 */
+        const float c6_i  = a_nbfpComb[2 * typeI];
+        const float c12_i = a_nbfpComb[2 * typeI + 1];
+        const float c6_j  = a_nbfpComb[2 * typeJ];
+        const float c12_j = a_nbfpComb[2 * typeJ + 1];
+
+        const float sigma   = c6_i + c6_j;
+        const float epsilon = c12_i * c12_j;
+
+        const float sigma2 = sigma * sigma;
+        return epsilon * sigma2 * sigma2 * sigma2;
     }
 }
 
-//! \brief Calculate LJ-PME grid force with Lorentz-Berthelot combination rule.
-template<bool doCalcEnergies>
-static inline void ljEwaldCombLB(const DeviceAccessor<float, mode::read> a_nbfpComb,
-                                 const float                             sh_lj_ewald,
-                                 const int                               typeI,
-                                 const int                               typeJ,
-                                 const float                             r2,
-                                 const float                             r2Inv,
-                                 const float                             lje_coeff2,
-                                 const float                             lje_coeff6_6,
-                                 const float                             int_bit,
-                                 cl::sycl::private_ptr<float>            fInvR,
-                                 cl::sycl::private_ptr<float>            eLJ)
+//! Calculate LJ-PME grid force contribution with geometric or LB combination rule.
+template<bool doCalcEnergies, enum VdwType vdwType>
+static inline void ljEwaldComb(const DeviceAccessor<float, mode::read> a_nbfpComb,
+                               const float                             sh_lj_ewald,
+                               const int                               typeI,
+                               const int                               typeJ,
+                               const float                             r2,
+                               const float                             r2Inv,
+                               const float                             lje_coeff2,
+                               const float                             lje_coeff6_6,
+                               const float                             int_bit,
+                               cl::sycl::private_ptr<float>            fInvR,
+                               cl::sycl::private_ptr<float>            eLJ)
 {
-    /* sigma and epsilon are scaled to give 6*C6 */
-    const float c6_i  = a_nbfpComb[2 * typeI];
-    const float c12_i = a_nbfpComb[2 * typeI + 1];
-    const float c6_j  = a_nbfpComb[2 * typeJ];
-    const float c12_j = a_nbfpComb[2 * typeJ + 1];
-
-    const float sigma   = c6_i + c6_j;
-    const float epsilon = c12_i * c12_j;
-
-    const float sigma2 = sigma * sigma;
-    const float c6grid = epsilon * sigma2 * sigma2 * sigma2;
+    const float c6grid = calculateLJEwaldC6Grid<vdwType>(a_nbfpComb, typeI, typeJ);
 
     /* Recalculate inv_r6 without exclusion mask */
     const float inv_r6_nm = r2Inv * r2Inv * r2Inv;
@@ -766,8 +740,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                             // LJ 2^(1/6)*sigma and 12*epsilon
                                             sigma   = ljCombI[0] + ljCombJ[0];
                                             epsilon = ljCombI[1] * ljCombJ[1];
-                                            // TODO: We're in this branch iff vdwCombGeom. Can't have props.vdw?Switch?
-                                            if constexpr (doCalcEnergies || props.vdwFSwitch || props.vdwPSwitch)
+                                            if constexpr (doCalcEnergies)
                                             {
                                                 convertSigmaEpsilonToC6C12(sigma, epsilon, &c6, &c12);
                                             }
@@ -818,20 +791,10 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     if constexpr (props.vdwEwald)
                                     {
-                                        if constexpr (props.vdwEwaldCombGeom)
-                                        {
-                                            ljEwaldCombGeom<doCalcEnergies>(
-                                                    a_nbfpComb, sh_lj_ewald, atomTypeI, atomTypeJ,
-                                                    r2, r2Inv, lje_coeff2, lje_coeff6_6,
-                                                    pairExclMask, &fInvR, &energyLJPair);
-                                        }
-                                        else if constexpr (props.vdwEwaldCombLB)
-                                        {
-                                            ljEwaldCombLB<doCalcEnergies>(
-                                                    a_nbfpComb, sh_lj_ewald, atomTypeI, atomTypeJ,
-                                                    r2, r2Inv, lje_coeff2, lje_coeff6_6,
-                                                    pairExclMask, &fInvR, &energyLJPair);
-                                        }
+                                        ljEwaldComb<doCalcEnergies, vdwType>(
+                                                a_nbfpComb, sh_lj_ewald, atomTypeI, atomTypeJ, r2,
+                                                r2Inv, lje_coeff2, lje_coeff6_6, pairExclMask,
+                                                &fInvR, &energyLJPair);
                                     } // (props.vdwEwald)
                                     if constexpr (props.vdwPSwitch)
                                     {
