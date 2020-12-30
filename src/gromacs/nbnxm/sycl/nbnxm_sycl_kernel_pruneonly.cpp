@@ -84,9 +84,8 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
 
     /* Requirements:
      * Work group (block) must have range (c_clSize, c_clSize, ...) (for localId calculation, easy
-     * to change) Sub group (warp) must have length 8 (more complicated to change) */
-    return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(8)]]
-    {
+     * to change). */
+    return [=](cl::sycl::nd_item<1> itemIdx) {
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         // thread/block/warp id-s
         const unsigned tidxi = localId[0];
@@ -95,9 +94,11 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const unsigned tidxz = localId[2];
         const unsigned bidx  = itemIdx.get_group(0);
 
-        const sycl_2020::sub_group sg           = itemIdx.get_sub_group();
-        static constexpr int       subGroupSize = 8;
-        const unsigned             widx         = tidx / subGroupSize;
+        const sycl_2020::sub_group sg = itemIdx.get_sub_group();
+        // Somewhat weird behavior inherited from OpenCL: we don't enforce specific sub_group size,
+        // but assume it's 8 anyway.
+        static constexpr int warpSize = c_clSize * c_clSize / 2;
+        const unsigned       widx     = tidx / warpSize;
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
         const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
