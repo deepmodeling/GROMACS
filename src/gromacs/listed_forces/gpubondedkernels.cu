@@ -1357,8 +1357,8 @@ __device__ void pairs_fep_gpu(const int       i,
         float vlj   = 0;
         float finvr = 0;
 
-        if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 1;
-        else bFEPpair = 0;
+        if (qq[0] == qq[1] && c6AB[0] == c6AB[1] && c12AB[0] == c12AB[1]) bFEPpair = 0;
+        else bFEPpair = 1;
 
         /* Do we need to apply full periodic boundary conditions? */
         fvec dr;
