@@ -86,9 +86,6 @@ template<enum ElecType elecType> // Yes, ElecType
 constexpr bool vdwCutoffCheck = EnergyFunctionProperties<elecType, VdwType::Count>().elecEwaldTwin;
 
 template<enum ElecType elecType>
-constexpr bool elecRF = EnergyFunctionProperties<elecType, VdwType::Count>().elecRF;
-
-template<enum ElecType elecType>
 constexpr bool elecEwald = EnergyFunctionProperties<elecType, VdwType::Count>().elecEwald;
 
 template<enum ElecType elecType>
@@ -419,6 +416,7 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
     }
 }
 
+
 /*! \brief Main kernel for NBNXM.
  *
  */
@@ -428,16 +426,17 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  DeviceAccessor<float, mode::read_write>                   a_f,
                  DeviceAccessor<float3, mode::read>                        a_shiftVec,
                  DeviceAccessor<float, mode::read_write>                   a_fShift,
-                 OptionalAccessor<float, mode::read_write, doCalcEnergies> a_elecEnergy,
-                 OptionalAccessor<float, mode::read_write, doCalcEnergies> a_vdwEnergy,
+                 OptionalAccessor<float, mode::read_write, doCalcEnergies> a_energyElec,
+                 OptionalAccessor<float, mode::read_write, doCalcEnergies> a_energyVdw,
                  DeviceAccessor<nbnxn_cj4_t, doPruneNBL ? mode::read_write : mode::read> a_plistCJ4,
                  DeviceAccessor<nbnxn_sci_t, mode::read>                                 a_plistSci,
                  DeviceAccessor<nbnxn_excl_t, mode::read>                    a_plistExcl,
-                 OptionalAccessor<int, mode::read, !ljComb<vdwType>>         a_atomTypes,
                  OptionalAccessor<float2, mode::read, ljComb<vdwType>>       a_ljComb,
+                 OptionalAccessor<int, mode::read, !ljComb<vdwType>>         a_atomTypes,
                  OptionalAccessor<float, mode::read, !ljComb<vdwType>>       a_nbfp,
                  OptionalAccessor<float, mode::read, ljEwald<vdwType>>       a_nbfpComb,
                  OptionalAccessor<float, mode::read, elecEwaldTab<elecType>> a_coulombTab,
+                 const int                                                   numTypes,
                  const float                                                 rCoulombSq,
                  const float                                                 rVdwSq,
                  const float                                                 twoKRf,
@@ -446,13 +445,12 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                  const float                                                 ewaldShift,
                  const float                                                 epsFac,
                  const float                                                 ewaldCoeffLJ,
-                 const int                                                   numTypes,
-                 const float                                                 c_rf,
-                 const shift_consts_t                                        dispersion_shift,
-                 const shift_consts_t                                        repulsion_shift,
-                 const switch_consts_t                                       vdw_switch,
+                 const float                                                 cRF,
+                 const shift_consts_t                                        dispersionShift,
+                 const shift_consts_t                                        repulsionShift,
+                 const switch_consts_t                                       vdwSwitch,
                  const float                                                 rVdwSwitch,
-                 const float                                                 sh_lj_ewald,
+                 const float                                                 ljEwaldShift,
                  const float                                                 coulombTabScale,
                  const bool                                                  calcShift)
 {
@@ -464,8 +462,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     cgh.require(a_fShift);
     if constexpr (doCalcEnergies)
     {
-        cgh.require(a_elecEnergy);
-        cgh.require(a_vdwEnergy);
+        cgh.require(a_energyElec);
+        cgh.require(a_energyVdw);
     }
     cgh.require(a_plistCJ4);
     cgh.require(a_plistSci);
@@ -550,16 +548,14 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             fCiBuf[i] = float3(0.0F, 0.0F, 0.0F);
         }
 
-        const nbnxn_sci_t nb_sci     = a_plistSci[bidx];
-        const int         sci        = nb_sci.sci;
-        const int         cij4_start = nb_sci.cj4_ind_start;
-        const int         cij4_end   = nb_sci.cj4_ind_end;
+        const nbnxn_sci_t nbSci     = a_plistSci[bidx];
+        const int         sci       = nbSci.sci;
+        const int         cij4Start = nbSci.cj4_ind_start;
+        const int         cij4End   = nbSci.cj4_ind_end;
 
         // Only needed if props.elecEwaldAna
         const float beta2 = ewaldBeta * ewaldBeta;
         const float beta3 = ewaldBeta * ewaldBeta * ewaldBeta;
-
-        bool doCalcShift = calcShift;
 
         for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i += c_clSize)
         {
@@ -568,7 +564,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             const int             ai       = ci * c_clSize + tidxi;
             const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
 
-            const float3 shift = a_shiftVec[nb_sci.shift];
+            const float3 shift = a_shiftVec[nbSci.shift];
             float4       xqi   = a_xq[ai];
             xqi += float4(shift[0], shift[1], shift[2], 0.0F);
             xqi[3] *= epsFac;
@@ -587,21 +583,21 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         }
         itemIdx.barrier(fence_space::local_space);
 
-        float lje_coeff2, lje_coeff6_6; // Only needed if (props.vdwEwald)
+        float ewaldCoeffLJ_2, ewaldCoeffLJ_6_6; // Only needed if (props.vdwEwald)
         if constexpr (props.vdwEwald)
         {
-            lje_coeff2   = ewaldCoeffLJ * ewaldCoeffLJ;
-            lje_coeff6_6 = lje_coeff2 * lje_coeff2 * lje_coeff2 * c_oneSixth;
+            ewaldCoeffLJ_2   = ewaldCoeffLJ * ewaldCoeffLJ;
+            ewaldCoeffLJ_6_6 = ewaldCoeffLJ_2 * ewaldCoeffLJ_2 * ewaldCoeffLJ_2 * c_oneSixth;
         }
 
-        float energyLJ, energyElec; // Only needed if (doCalcEnergies)
+        float energyVdw, energyElec; // Only needed if (doCalcEnergies)
         if constexpr (doCalcEnergies)
         {
-            energyLJ = energyElec = 0.0F;
+            energyVdw = energyElec = 0.0F;
             if constexpr (doExclusionForces)
             {
-                if (nb_sci.shift == CENTRAL
-                    && a_plistCJ4[cij4_start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
+                if (nbSci.shift == CENTRAL
+                    && a_plistCJ4[cij4Start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
                 {
                     // we have the diagonal: add the charge and LJ self interaction energy term
                     for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
@@ -614,7 +610,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         }
                         if constexpr (props.vdwEwald)
                         {
-                            energyLJ +=
+                            energyVdw +=
                                     a_nbfp[a_atomTypes[(sci * c_nbnxnGpuNumClusterPerSupercluster + i) * c_clSize + tidxi]
                                            * (numTypes + 1) * 2];
                         }
@@ -622,8 +618,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                     /* divide the self term(s) equally over the j-threads, then multiply with the coefficients. */
                     if constexpr (props.vdwEwald)
                     {
-                        energyLJ /= c_clSize;
-                        energyLJ *= 0.5F * c_oneSixth * lje_coeff6_6; // c_OneTwelfth?
+                        energyVdw /= c_clSize;
+                        energyVdw *= 0.5F * c_oneSixth * ewaldCoeffLJ_6_6; // c_OneTwelfth?
                     }
                     if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
                     {
@@ -631,22 +627,22 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         energyElec /= epsFac * c_clSize;
                         if constexpr (props.elecRF || props.elecCutoff)
                         {
-                            energyElec *= -0.5F * c_rf;
+                            energyElec *= -0.5F * cRF;
                         }
                         else
                         {
                             energyElec *= -ewaldBeta * c_OneOverSqrtPi; /* last factor 1/sqrt(pi) */
                         }
                     }
-                } // (nb_sci.shift == CENTRAL && a_plistCJ4[cij4_start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
+                } // (nbSci.shift == CENTRAL && a_plistCJ4[cij4Start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
             }     // (doExclusionForces)
         }         // (doCalcEnergies)
 
         // Only needed if (doExclusionForces)
-        const bool nonSelfInteraction = !(nb_sci.shift == CENTRAL & tidxj <= tidxi);
+        const bool nonSelfInteraction = !(nbSci.shift == CENTRAL & tidxj <= tidxi);
 
         // loop over the j clusters = seen by any of the atoms in the current super-cluster
-        for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += 1)
+        for (int j4 = cij4Start + tidxz; j4 < cij4End; j4 += 1)
         {
             const int wexclIdx = a_plistCJ4[j4].imei[widx].excl_ind;
             unsigned  imask    = a_plistCJ4[j4].imei[widx].imask;
@@ -657,9 +653,9 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                 {
                     if (imask & (superClInteractionMask << (jm * c_nbnxnGpuNumClusterPerSupercluster)))
                     {
-                        unsigned  mask_ji = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
-                        const int cj      = a_plistCJ4[j4].cj[jm];
-                        const int aj      = cj * c_clSize + tidxj;
+                        unsigned  maskJI = (1U << (jm * c_nbnxnGpuNumClusterPerSupercluster));
+                        const int cj     = a_plistCJ4[j4].cj[jm];
+                        const int aj     = cj * c_clSize + tidxj;
 
                         // load j atom data
                         const float4 xqj = a_xq[aj];
@@ -668,20 +664,20 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                         const float  qj = xqj[3];
                         int          atomTypeJ; // Only needed if (!props.vdwComb)
                         float2       ljCombJ;   // Only needed if (props.vdwComb)
-                        if constexpr (!props.vdwComb)
+                        if constexpr (props.vdwComb)
                         {
-                            atomTypeJ = a_atomTypes[aj];
+                            ljCombJ = a_ljComb[aj];
                         }
                         else
                         {
-                            ljCombJ = a_ljComb[aj];
+                            atomTypeJ = a_atomTypes[aj];
                         }
 
                         float3 fCjBuf(0.0F, 0.0F, 0.0F);
 
                         for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                         {
-                            if (imask & mask_ji)
+                            if (imask & maskJI)
                             {
                                 // i cluster index
                                 const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i;
@@ -700,16 +696,16 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                      * cluster-pair in imask gets set to 0. */
                                     if (!sycl_2020::group_any_of(sg, r2 < rlistOuterSq))
                                     {
-                                        imask &= ~mask_ji;
+                                        imask &= ~maskJI;
                                     }
                                 }
-                                const float pairExclMask = (wexcl & mask_ji) ? 1.0F : 0.0F;
+                                const float pairExclMask = (wexcl & maskJI) ? 1.0F : 0.0F;
 
                                 // cutoff & exclusion check
 
                                 const bool notExcluded = doExclusionForces
                                                                  ? (nonSelfInteraction | (ci != cj))
-                                                                 : (wexcl & mask_ji);
+                                                                 : (wexcl & maskJI);
 
                                 // SYCL-TODO: Check optimal way of branching here.
                                 if ((r2 < rCoulombSq) && notExcluded)
@@ -768,8 +764,8 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         {
                                             energyLJPair =
                                                     pairExclMask
-                                                    * (c12 * (r6Inv * r6Inv + repulsion_shift.cpot) * c_oneTwelfth
-                                                       - c6 * (r6Inv + dispersion_shift.cpot) * c_oneSixth);
+                                                    * (c12 * (r6Inv * r6Inv + repulsionShift.cpot) * c_oneTwelfth
+                                                       - c6 * (r6Inv + dispersionShift.cpot) * c_oneSixth);
                                         }
                                     }
                                     else
@@ -785,26 +781,26 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     } // (!props.vdwCombLB || doCalcEnergies)
                                     if constexpr (props.vdwFSwitch)
                                     {
-                                        ljForceSwitch<doCalcEnergies>(dispersion_shift, repulsion_shift,
+                                        ljForceSwitch<doCalcEnergies>(dispersionShift, repulsionShift,
                                                                       rVdwSwitch, c6, c12, rInv, r2,
                                                                       &fInvR, &energyLJPair);
                                     }
                                     if constexpr (props.vdwEwald)
                                     {
                                         ljEwaldComb<doCalcEnergies, vdwType>(
-                                                a_nbfpComb, sh_lj_ewald, atomTypeI, atomTypeJ, r2,
-                                                r2Inv, lje_coeff2, lje_coeff6_6, pairExclMask,
-                                                &fInvR, &energyLJPair);
+                                                a_nbfpComb, ljEwaldShift, atomTypeI, atomTypeJ, r2,
+                                                r2Inv, ewaldCoeffLJ_2, ewaldCoeffLJ_6_6,
+                                                pairExclMask, &fInvR, &energyLJPair);
                                     } // (props.vdwEwald)
                                     if constexpr (props.vdwPSwitch)
                                     {
-                                        ljPotentialSwitch<doCalcEnergies>(vdw_switch, rVdwSwitch, rInv,
+                                        ljPotentialSwitch<doCalcEnergies>(vdwSwitch, rVdwSwitch, rInv,
                                                                           r2, &fInvR, &energyLJPair);
                                     }
-                                    if constexpr (vdwCutoffCheck<elecType>)
+                                    if constexpr (props.elecEwaldTwin)
                                     {
                                         // Separate VDW cut-off check to enable twin-range cut-offs
-                                        // (rvdw < rcoulomb <= rlist)
+                                        // (rVdw < rCoulomb <= rList)
                                         const float vdwInRange = (r2 < rVdwSq) ? 1.0F : 0.0F;
                                         fInvR *= vdwInRange;
                                         if constexpr (doCalcEnergies)
@@ -814,7 +810,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     if constexpr (doCalcEnergies)
                                     {
-                                        energyLJ += energyLJPair;
+                                        energyVdw += energyLJPair;
                                     }
 
                                     if constexpr (props.elecCutoff)
@@ -851,13 +847,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     {
                                         if constexpr (props.elecCutoff)
                                         {
-                                            energyElec += qi * qj * (pairExclMask * rInv - c_rf);
+                                            energyElec += qi * qj * (pairExclMask * rInv - cRF);
                                         }
                                         if constexpr (props.elecRF)
                                         {
                                             energyElec +=
                                                     qi * qj
-                                                    * (pairExclMask * rInv + 0.5f * twoKRf * r2 - c_rf);
+                                                    * (pairExclMask * rInv + 0.5f * twoKRf * r2 - cRF);
                                         }
                                         if constexpr (props.elecEwald)
                                         {
@@ -868,16 +864,16 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         }
                                     }
 
-                                    const float3 f_ij = rv * fInvR;
+                                    const float3 forceIJ = rv * fInvR;
 
                                     /* accumulate j forces in registers */
-                                    fCjBuf -= f_ij;
+                                    fCjBuf -= forceIJ;
                                     /* accumulate i forces in registers */
-                                    fCiBuf[i] += f_ij;
+                                    fCiBuf[i] += forceIJ;
                                 } // (r2 < rCoulombSq) && notExcluded
-                            }     // (imask & mask_ji)
+                            }     // (imask & maskJI)
                             /* shift the mask bit by 1 */
-                            mask_ji += mask_ji;
+                            maskJI += maskJI;
                         } // for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                         /* reduce j forces */
                         reduceForceJShuffle(fCjBuf, itemIdx, tidxi, aj, a_f);
@@ -892,29 +888,26 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
             } // (doPruneNBL || imask)
 
             // avoid shared memory WAR hazards between loop iterations
-            itemIdx.barrier(fence_space::local_space); // sg.barrier();
-        } // for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += 1)
+            itemIdx.barrier(fence_space::local_space);
+        } // for (int j4 = cij4Start; j4 < cij4End; j4 += 1)
 
         /* skip central shifts when summing shift forces */
-        if (nb_sci.shift == CENTRAL)
-        {
-            doCalcShift = false;
-        }
+        const bool doCalcShift = (calcShift && !(nbSci.shift == CENTRAL));
 
         reduceForceIAndFShift(sm_reductionBuffer, fCiBuf, doCalcShift, itemIdx, tidxi, tidxj, sci,
-                              nb_sci.shift, a_f, a_fShift);
+                              nbSci.shift, a_f, a_fShift);
 
         if constexpr (doCalcEnergies)
         {
-            const float E_lj_wg = sycl_2020::group_reduce(itemIdx.get_group(), energyLJ, 0.0F,
-                                                          sycl_2020::plus<float>());
-            const float E_el_wg = sycl_2020::group_reduce(itemIdx.get_group(), energyElec, 0.0F,
-                                                          sycl_2020::plus<float>());
+            const float energyVdwGroup  = sycl_2020::group_reduce(itemIdx.get_group(), energyVdw,
+                                                                 0.0F, sycl_2020::plus<float>());
+            const float energyElecGroup = sycl_2020::group_reduce(itemIdx.get_group(), energyElec,
+                                                                  0.0F, sycl_2020::plus<float>());
 
             if (tidx == 0)
             {
-                atomicFetchAdd(a_vdwEnergy, 0, E_lj_wg);
-                atomicFetchAdd(a_elecEnergy, 0, E_el_wg);
+                atomicFetchAdd(a_energyVdw, 0, energyVdwGroup);
+                atomicFetchAdd(a_energyElec, 0, energyElecGroup);
             }
         }
     };
@@ -981,12 +974,12 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     auto fShiftAsFloat = fShift.reinterpret<float, 1>(fShift.get_count() * DIM);
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(
-            doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream,
-            plist->nsci, adat->xq, fAsFloat, adat->shiftVec, fShiftAsFloat, adat->eElec, adat->eLJ,
-            plist->cj4, plist->sci, plist->excl, adat->atomTypes, adat->ljComb, nbp->nbfp,
-            nbp->nbfp_comb, nbp->coulomb_tab, nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf,
+            doPruneNBL, stepWork.computeEnergy, nbp->elecType, nbp->vdwType, deviceStream, plist->nsci,
+            adat->xq, fAsFloat, adat->shiftVec, fShiftAsFloat, adat->eElec, adat->eLJ, plist->cj4,
+            plist->sci, plist->excl, adat->ljComb, adat->atomTypes, nbp->nbfp, nbp->nbfp_comb,
+            nbp->coulomb_tab, adat->numTypes, nbp->rcoulomb_sq, nbp->rvdw_sq, nbp->two_k_rf,
             nbp->ewald_beta, nbp->rlistOuter_sq, nbp->sh_ewald, nbp->epsfac, nbp->ewaldcoeff_lj,
-            adat->numTypes, nbp->c_rf, nbp->dispersion_shift, nbp->repulsion_shift, nbp->vdw_switch,
+            nbp->c_rf, nbp->dispersion_shift, nbp->repulsion_shift, nbp->vdw_switch,
             nbp->rvdw_switch, nbp->sh_lj_ewald, nbp->coulomb_tab_scale, stepWork.computeVirial);
 }
 

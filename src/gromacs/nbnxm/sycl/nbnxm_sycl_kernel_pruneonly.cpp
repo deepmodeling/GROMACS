@@ -101,10 +101,10 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const unsigned       widx     = tidx / warpSize;
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
-        const nbnxn_sci_t nb_sci     = a_plistSci[bidx * numParts + part];
-        const int         sci        = nb_sci.sci;           /* super-cluster */
-        const int         cij4_start = nb_sci.cj4_ind_start; /* first ...*/
-        const int         cij4_end   = nb_sci.cj4_ind_end;   /* and last index of j clusters */
+        const nbnxn_sci_t nbSci     = a_plistSci[bidx * numParts + part];
+        const int         sci       = nbSci.sci;           /* super-cluster */
+        const int         cij4Start = nbSci.cj4_ind_start; /* first ...*/
+        const int         cij4End   = nbSci.cj4_ind_end;   /* and last index of j clusters */
 
         if (tidxz == 0)
         {
@@ -117,7 +117,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
                 /* We don't need q, but using float4 in shmem avoids bank conflicts.
                    (but it also wastes L2 bandwidth). */
                 const float4 xq    = a_xq[ai];
-                const float3 shift = a_shiftVec[nb_sci.shift];
+                const float3 shift = a_shiftVec[nbSci.shift];
                 const float4 xi(xq[0] + shift[0], xq[1] + shift[1], xq[2] + shift[2], xq[3]);
                 sm_xq[tidxj + i][tidxi] = xi;
             }
@@ -127,7 +127,7 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         /* loop over the j clusters = seen by any of the atoms in the current super-cluster.
          * The loop stride c_syclPruneKernelJ4Concurrency ensures that consecutive warps-pairs are
          * assigned consecutive j4's entries. */
-        for (int j4 = cij4_start + tidxz; j4 < cij4_end; j4 += c_syclPruneKernelJ4Concurrency)
+        for (int j4 = cij4Start + tidxz; j4 < cij4End; j4 += c_syclPruneKernelJ4Concurrency)
         {
             unsigned imaskFull, imaskCheck, imaskNew;
 
