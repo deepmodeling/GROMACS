@@ -44,7 +44,7 @@ git clone --depth=1 git@gitlab.com:gromacs/deployment/manual-front-page.git
 
 SPHINX=$(which sphinx-build)
 if [[ -z "${SPHINX}" ]] ; then
-    echo "Can't do things without having sphinx available"
+    echo "Error: Can't do things without having sphinx available"
     exit 1
 fi
 
@@ -55,10 +55,13 @@ originalpwd="${PWD}"
     deploymentlocation="${UPLOAD_REMOTE_WWW}:${UPLOAD_LOCATION_WWW}"
     website_loc=${BUILD_DIR}/docs/html/
     if [[ ! -d "${website_loc}" ]] ; then
-        echo "Can't find the webpage files"
+        echo "Error: Can't find the webpage files"
         exit 1
     fi
-    #$upload $website_loc/* $website_loc/.[a-z]* $deploymentlocation/${VERSION}/
+    # we always fail save
+    if [[ "${DRY_RUN}" == "false" ]] ; then
+        $upload $website_loc/* $website_loc/.[a-z]* $deploymentlocation/${VERSION}/
+    fi
     echo "done upload"
     cp "${website_loc}/manual-${VERSION}.pdf" "${originalpwd}"
 )
@@ -71,9 +74,12 @@ originalpwd="${PWD}"
     source_tarball="gromacs-${VERSION}.tar.gz"
     md5sum "${source_tarball}"
     md5sum "${regressiontests_tarball}"
-    #$upload $source_tarball $destination/gromacs/
-    #$upload manual-${VERSION}.pdf $destination/manual/
-    #$upload $regressiontests_tarball $destination/regressiontests/
+    # we always fail save
+    if [[ "${DRY_RUN}" == "false" ]] ; then
+        $upload $source_tarball $destination/gromacs/
+        $upload manual-${VERSION}.pdf $destination/manual/
+        $upload $regressiontests_tarball $destination/regressiontests/
+    fi
 )
 
 (
@@ -81,6 +87,9 @@ originalpwd="${PWD}"
     upload="rsync -rlptvP --chmod=u+rwX,g+rwX,o+rX"
     deploymentlocation="${UPLOAD_REMOTE_WWW}:${UPLOAD_LOCATION_WWW}"
     make html
-    #$upload _build/html/ $deploymentlocation/ --exclude _sources --exclude .buildinfo --exclude objects.inv
+    # we always fail save
+    if [[ "${DRY_RUN}" == "false" ]] ; then
+        $upload _build/html/ $deploymentlocation/ --exclude _sources --exclude .buildinfo --exclude objects.inv
+    fi
 )
 

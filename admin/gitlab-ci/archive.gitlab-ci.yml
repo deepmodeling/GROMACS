@@ -276,15 +276,18 @@ archive:full-release:
     BUILD_DIR: release-doc-builds
   before_script:
     - if [[ -z $SSH_PRIVATE_KEY ]] ; then
-        echo "Private key is not defined, not running script" ;
+        echo "Error: Private key is not defined, not running script" ;
+        exit 1;
+      fi
+    - if [[ -z $SSH_KNOWN_HOSTS ]] ; then
+        echo "Error: Known hosts is not defined, not running script" ;
         exit 1;
       fi
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - ssh-keyscan www.gromacs.org > ~/.ssh/known_hosts # Force overwrite the known hosts so we only have that one key in it.
-    - ssh-keyscan ftp.gromacs.org >> ~/.ssh/known_hosts
+    - echo $SSH_KNOWN_HOSTS > ~/.ssh/known_hosts # Force overwrite the known hosts so we only have the keys we need in it.
     - chmod 644 ~/.ssh/known_hosts
   script:
     - export VERSION=`cat version.json |
