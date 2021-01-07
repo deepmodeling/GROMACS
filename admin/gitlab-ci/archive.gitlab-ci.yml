@@ -287,7 +287,7 @@ archive:full-release:
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
     - chmod 700 ~/.ssh
-    - echo $SSH_KNOWN_HOSTS > ~/.ssh/known_hosts # Force overwrite the known hosts so we only have the keys we need in it.
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts # Force overwrite the known hosts so we only have the keys we need in it.
     - chmod 644 ~/.ssh/known_hosts
   script:
     - export VERSION=`cat version.json |
