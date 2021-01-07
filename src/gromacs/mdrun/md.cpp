@@ -1815,6 +1815,15 @@ void gmx::LegacySimulator::do_md()
         if (bDoReplEx)
         {
             bExchanged = replica_exchange(fplog, cr, ms, repl_ex, state_global, enerd, state, step, t);
+            if (useGpuForUpdate)
+            {
+                // Copy data to the GPU after buffers might have being reinitialized
+                stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);
+                stateGpu->copyCoordinatesToGpu(state->x, AtomLocality::Local);
+                // stateGpu->copyForcesToGpu(ArrayRef<RVec>(f), AtomLocality::Local);
+                integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
+                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc);
+            }
         }
 
         if ((bExchanged || bNeedRepartition) && DOMAINDECOMP(cr))
