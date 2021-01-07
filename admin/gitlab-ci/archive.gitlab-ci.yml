@@ -276,11 +276,11 @@ archive:full-release:
     BUILD_DIR: release-doc-builds
   before_script:
     - if [[ -z $SSH_PRIVATE_KEY ]] ; then
-        echo "Error: Private key is not defined, not running script" ;
+        echo "Error Private key is not defined, not running script" ;
         exit 1;
       fi
     - if [[ -z $SSH_KNOWN_HOSTS ]] ; then
-        echo "Error: Known hosts is not defined, not running script" ;
+        echo "Error Known hosts is not defined, not running script" ;
         exit 1;
       fi
     - eval $(ssh-agent -s)

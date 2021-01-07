@@ -44,7 +44,7 @@ git clone --depth=1 git@gitlab.com:gromacs/deployment/manual-front-page.git
 
 SPHINX=$(which sphinx-build)
 if [[ -z "${SPHINX}" ]] ; then
-    echo "Error: Can't do things without having sphinx available"
+    echo "Error Can't do things without having sphinx available"
     exit 1
 fi
 
@@ -55,7 +55,7 @@ originalpwd="${PWD}"
     deploymentlocation="${UPLOAD_REMOTE_WWW}:${UPLOAD_LOCATION_WWW}"
     website_loc=${BUILD_DIR}/docs/html/
     if [[ ! -d "${website_loc}" ]] ; then
-        echo "Error: Can't find the webpage files"
+        echo "Error Can't find the webpage files"
         exit 1
     fi
     # we always fail save
