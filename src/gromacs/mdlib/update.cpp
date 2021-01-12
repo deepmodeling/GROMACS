@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -495,6 +495,13 @@ enum class AccelerationType
     cosine
 };
 
+//! Whether virtual sites are present
+enum class SystemHasVSites
+{
+    No,
+    Yes
+};
+
 /*! \brief Integrate using leap-frog with support for everything.
  *
  * \tparam        accelerationType  Type of NEMD acceleration.
@@ -516,7 +523,7 @@ enum class AccelerationType
  * \param[in]     nsttcouple        Frequency of the temperature coupling steps.
  * \param[in]     M                 Parrinello-Rahman scaling matrix.
  */
-template<AccelerationType accelerationType>
+template<AccelerationType accelerationType, SystemHasVSites hasVSites>
 static void updateMDLeapfrogGeneral(int                   start,
                                     int                   nrend,
                                     bool                  doNoseHoover,
@@ -555,6 +562,18 @@ static void updateMDLeapfrogGeneral(int                   start,
 
     for (int n = start; n < nrend; n++)
     {
+        if (hasVSites == SystemHasVSites::Yes)
+        {
+            // Avoid updating virtual site positions
+            if (md->ptype[n] == eptVSite)
+            {
+                for (int d = 0; d < DIM; d++)
+                {
+                    xprime[n][d] = x[n][d];
+                }
+                continue;
+            }
+        }
         if (cTC)
         {
             gt = cTC[n];
@@ -673,18 +692,42 @@ static void do_update_md(int         start,
 
         if (!doAcceleration)
         {
-            updateMDLeapfrogGeneral<AccelerationType::none>(
-                    start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            if (md->haveVsites)
+            {
+                updateMDLeapfrogGeneral<AccelerationType::none, SystemHasVSites::Yes>(
+                        start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            }
+            else
+            {
+                updateMDLeapfrogGeneral<AccelerationType::none, SystemHasVSites::No>(
+                        start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            }
         }
         else if (ekind->bNEMD)
         {
-            updateMDLeapfrogGeneral<AccelerationType::group>(
-                    start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            if (md->haveVsites)
+            {
+                updateMDLeapfrogGeneral<AccelerationType::group, SystemHasVSites::Yes>(
+                        start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            }
+            else
+            {
+                updateMDLeapfrogGeneral<AccelerationType::group, SystemHasVSites::No>(
+                        start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            }
         }
         else
         {
-            updateMDLeapfrogGeneral<AccelerationType::cosine>(
-                    start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            if (md->haveVsites)
+            {
+                updateMDLeapfrogGeneral<AccelerationType::cosine, SystemHasVSites::Yes>(
+                        start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            }
+            else
+            {
+                updateMDLeapfrogGeneral<AccelerationType::cosine, SystemHasVSites::No>(
+                        start, nrend, doNoseHoover, dt, dtPressureCouple, accel, md, ekind, box, x, xprime, v, f, nh_vxi, nsttcouple, stepM);
+            }
         }
     }
     else
