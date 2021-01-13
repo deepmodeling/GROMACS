@@ -1562,13 +1562,6 @@ void gmx::LegacySimulator::do_md()
             enerd->term[F_DVDL_CONSTR] += dvdl_constr;
         }
 
-        if (vsite != nullptr)
-        {
-            wallcycle_start(wcycle, ewcVSITECONSTR);
-            vsite->construct(state->x, ir->delta_t, state->v, state->box);
-            wallcycle_stop(wcycle, ewcVSITECONSTR);
-        }
-
         /* ############## IF NOT VV, Calculate globals HERE  ############ */
         /* With Leap-Frog we can skip compute_globals at
          * non-communication steps, but we need to calculate
@@ -1693,6 +1686,15 @@ void gmx::LegacySimulator::do_md()
 
         /* ################# END UPDATE STEP 2 ################# */
         /* #### We now have r(t+dt) and v(t+dt/2)  ############# */
+        if (vsite != nullptr)
+        {
+            // Virtual sites need to be updated after the step positions are final.
+            // Notably, this requires the following call to be placed after
+            // constraining and temperature and pressure coupling algorithms.
+            wallcycle_start(wcycle, ewcVSITECONSTR);
+            vsite->construct(state->x, ir->delta_t, state->v, state->box);
+            wallcycle_stop(wcycle, ewcVSITECONSTR);
+        }
 
         /* The coordinates (x) were unshifted in update */
         if (!bGStat)
