@@ -164,8 +164,6 @@ TEST_P(VirtualSiteVelocityTest, WithinTolerances)
     mdpFieldValues["nstxout"] = "1";
     mdpFieldValues["nstvout"] = "1";
     mdpFieldValues["dt"]      = toString(timeStep);
-    // The treatment of COMM removal might add velocity to v-sites (see #3849)
-    mdpFieldValues["comm-mode"] = "None";
 
     // Run grompp
     runner_.useTopGroAndNdxFromDatabase(simulationName);
