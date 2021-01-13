@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -267,6 +267,10 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
+            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            {
+                continue;
+            }
             unsigned short vcmGroup    = (group_id == nullptr ? 0 : group_id[i]);
             unsigned short freezeGroup = mdatoms.cFREEZE[i];
             for (int d = 0; d < numDimensions; d++)
@@ -283,6 +287,10 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
+            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            {
+                continue;
+            }
             for (int d = 0; d < numDimensions; d++)
             {
                 v[i][d] -= vcm.group_v[0][d];
@@ -294,6 +302,10 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
+            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            {
+                continue;
+            }
             const int g = group_id[i];
             for (int d = 0; d < numDimensions; d++)
             {
@@ -313,13 +325,15 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
  * \param[in,out] x         The coordinates to correct
  * \param[in,out] v         The velocities to correct
  * \param[in]     vcm       VCM data
+ * \param[in]     mdatoms   MD atoms data
  */
 template<int numDimensions>
 static void doStopComMotionAccelerationCorrection(int                      homenr,
                                                   const unsigned short*    group_id,
                                                   gmx::ArrayRef<gmx::RVec> x,
                                                   gmx::ArrayRef<gmx::RVec> v,
-                                                  const t_vcm&             vcm)
+                                                  const t_vcm&             vcm,
+                                                  const t_mdatoms&         mdatoms)
 {
     const real xCorrectionFactor = 0.5 * vcm.timeStep;
 
@@ -329,6 +343,10 @@ static void doStopComMotionAccelerationCorrection(int                      homen
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
+            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            {
+                continue;
+            }
             for (int d = 0; d < numDimensions; d++)
             {
                 x[i][d] -= vcm.group_v[0][d] * xCorrectionFactor;
@@ -341,6 +359,10 @@ static void doStopComMotionAccelerationCorrection(int                      homen
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
+            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            {
+                continue;
+            }
             const int g = group_id[i];
             for (int d = 0; d < numDimensions; d++)
             {
@@ -390,13 +412,13 @@ static void do_stopcm_grp(const t_mdatoms&         mdatoms,
                 switch (vcm.ndim)
                 {
                     case 1:
-                        doStopComMotionAccelerationCorrection<1>(homenr, group_id, x, v, vcm);
+                        doStopComMotionAccelerationCorrection<1>(homenr, group_id, x, v, vcm, mdatoms);
                         break;
                     case 2:
-                        doStopComMotionAccelerationCorrection<2>(homenr, group_id, x, v, vcm);
+                        doStopComMotionAccelerationCorrection<2>(homenr, group_id, x, v, vcm, mdatoms);
                         break;
                     case 3:
-                        doStopComMotionAccelerationCorrection<3>(homenr, group_id, x, v, vcm);
+                        doStopComMotionAccelerationCorrection<3>(homenr, group_id, x, v, vcm, mdatoms);
                         break;
                 }
             }
@@ -409,6 +431,10 @@ static void do_stopcm_grp(const t_mdatoms&         mdatoms,
 #pragma omp for schedule(static)
                 for (int i = 0; i < homenr; i++)
                 {
+                    if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+                    {
+                        continue;
+                    }
                     if (group_id)
                     {
                         g = group_id[i];
