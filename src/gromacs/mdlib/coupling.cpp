@@ -1430,6 +1430,10 @@ void trotter_update(const t_inputrec*               ir,
                 /* modify the velocities as well */
                 for (n = 0; n < md->homenr; n++)
                 {
+                    if (md->haveVsites && md->ptype[n] == eptVSite)
+                    {
+                        continue;
+                    }
                     if (md->cTC) /* does this conditional need to be here? is this always true?*/
                     {
                         gc = md->cTC[n];
