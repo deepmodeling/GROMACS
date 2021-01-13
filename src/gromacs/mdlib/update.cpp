@@ -890,7 +890,7 @@ static void do_update_vv_vel(int                  start,
             {
                 v[n][d] = mv1 * (mv1 * v[n][d] + 0.5 * (w_dt * mv2 * f[n][d])) + 0.5 * accel[ga][d] * dt;
             }
-            else
+            else if (ptype[n] != eptVSite)
             {
                 v[n][d] = 0.0;
             }
