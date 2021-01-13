@@ -70,6 +70,7 @@
 #include "gromacs/random/tabulatednormaldistribution.h"
 #include "gromacs/random/threefry.h"
 #include "gromacs/random/uniformrealdistribution.h"
+#include "gromacs/topology/atoms.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/pleasecite.h"
@@ -237,6 +238,8 @@ void update_pcouple_after_coordinates(FILE*                fplog,
                                                                      state->x.rvec_array(),
                                                                      nullptr,
                                                                      md->cFREEZE,
+                                                                     md->haveVsites,
+                                                                     md->ptype,
                                                                      nrnb,
                                                                      scaleCoordinates);
             }
@@ -264,6 +267,8 @@ void update_pcouple_after_coordinates(FILE*                fplog,
                                                                     state->x.rvec_array(),
                                                                     state->v.rvec_array(),
                                                                     md->cFREEZE,
+                                                                    md->haveVsites,
+                                                                    md->ptype,
                                                                     nrnb,
                                                                     scaleCoordinates);
             }
@@ -291,6 +296,10 @@ void update_pcouple_after_coordinates(FILE*                fplog,
                     auto x = state->x.rvec_array();
                     for (int n = start; n < start + homenr; n++)
                     {
+                        if (md->haveVsites && md->ptype[n] == eptVSite)
+                        {
+                            continue;
+                        }
                         tmvmul_ur0(pressureCouplingMu, x[n], x[n]);
                     }
                 }
@@ -1108,6 +1117,8 @@ void pressureCouplingScaleBoxAndCoordinates(const t_inputrec*    ir,
                                             rvec                 x[],
                                             rvec                 v[],
                                             const unsigned short cFREEZE[],
+                                            bool                 systemHasVSites,
+                                            const unsigned short ptype[],
                                             t_nrnb*              nrnb,
                                             const bool           scaleCoordinates)
 {
@@ -1129,6 +1140,11 @@ void pressureCouplingScaleBoxAndCoordinates(const t_inputrec*    ir,
 #pragma omp parallel for num_threads(numThreads) schedule(static)
         for (int n = start; n < start + nr_atoms; n++)
         {
+            if (systemHasVSites && ptype[n] == eptVSite)
+            {
+                // Don't update virtual site positions.
+                continue;
+            }
             // Trivial OpenMP region that does not throw
             int g = 0;
             if (cFREEZE != nullptr)

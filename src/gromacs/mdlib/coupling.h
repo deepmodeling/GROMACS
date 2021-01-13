@@ -220,6 +220,8 @@ void pressureCouplingScaleBoxAndCoordinates(const t_inputrec*    ir,
                                             rvec                 x[],
                                             rvec                 v[],
                                             const unsigned short cFREEZE[],
+                                            bool                 systemHasVSites,
+                                            const unsigned short ptype[],
                                             t_nrnb*              nrnb,
                                             bool                 scaleCoordinates);
 
