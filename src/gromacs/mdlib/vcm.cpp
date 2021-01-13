@@ -267,7 +267,7 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
-            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            if ((mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite) || mdatoms.ptype[i] == eptShell)
             {
                 continue;
             }
@@ -287,7 +287,7 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
-            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            if ((mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite) || mdatoms.ptype[i] == eptShell)
             {
                 continue;
             }
@@ -302,7 +302,7 @@ static void doStopComMotionLinear(const t_mdatoms& mdatoms, gmx::ArrayRef<gmx::R
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
-            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            if ((mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite) || mdatoms.ptype[i] == eptShell)
             {
                 continue;
             }
@@ -343,7 +343,7 @@ static void doStopComMotionAccelerationCorrection(int                      homen
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
-            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            if ((mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite) || mdatoms.ptype[i] == eptShell)
             {
                 continue;
             }
@@ -359,7 +359,7 @@ static void doStopComMotionAccelerationCorrection(int                      homen
 #pragma omp for schedule(static)
         for (int i = 0; i < homenr; i++)
         {
-            if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+            if ((mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite) || mdatoms.ptype[i] == eptShell)
             {
                 continue;
             }
@@ -431,7 +431,7 @@ static void do_stopcm_grp(const t_mdatoms&         mdatoms,
 #pragma omp for schedule(static)
                 for (int i = 0; i < homenr; i++)
                 {
-                    if (mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite)
+                    if ((mdatoms.haveVsites && mdatoms.ptype[i] == eptVSite) || mdatoms.ptype[i] == eptShell)
                     {
                         continue;
                     }
