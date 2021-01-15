@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -96,6 +96,12 @@ struct BondedCudaKernelParameters
     //! Force parameters (on GPU)
     t_iparams* d_forceParams;
     //! Coordinates before the timestep (on GPU)
+    int d_cmapGridSpacing;
+    //! CMAP parameters (on GPU). Note, this is a flat array instead of vec of vec
+    DeviceBuffer<float> d_cmapData;
+    //! CMAP grid index mapping, gives starting positions into d_cmapData.
+    DeviceBuffer<int> d_cmapGridIndices;
+    //! Coordinates before the timestep (on GPU)
     const float4* d_xq;
     //! Forces on atoms (on GPU)
     float3* d_f;
@@ -114,6 +120,7 @@ struct BondedCudaKernelParameters
 
         electrostaticsScaleFactor = 1.0;
         d_forceParams             = nullptr;
+        d_cmapGridSpacing         = 0;
         d_xq                      = nullptr;
         d_f                       = nullptr;
         d_fShift                  = nullptr;
@@ -183,6 +190,12 @@ private:
     t_ilist d_iLists_[F_NRE] = {};
     //! Bonded parameters for device-side use.
     t_iparams* d_forceParams_ = nullptr;
+    //! CMAP grid spacing for device-side use.
+    int d_cmapGridSpacing_ = 0;
+    //! CMAP parameters for device-side use. Note, flat array!
+    DeviceBuffer<float> d_cmapData_;
+    //! CMAP grid index mapping, gives starting positions into d_cmapData.
+    DeviceBuffer<int> d_cmapGridIndices_;
     //! Position-charge vector on the device.
     const float4* d_xq_ = nullptr;
     //! Force vector on the device.
