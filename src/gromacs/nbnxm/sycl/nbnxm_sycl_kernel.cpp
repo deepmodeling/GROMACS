@@ -307,21 +307,29 @@ static inline void reduceForceJShuffle(float3                                  f
                                        const int                               aidx,
                                        DeviceAccessor<float, mode::read_write> a_f)
 {
-    static_assert(c_clSize == 4);
+    static_assert(c_clSize == 8 || c_clSize == 4);
     sycl_2020::sub_group sg = itemIdx.get_sub_group();
+
     f[0] += sg.shuffle_down(f[0], 1);
     f[1] += sg.shuffle_up(f[1], 1);
     f[2] += sg.shuffle_down(f[2], 1);
-    if ((tidxi & 1) == 1)
+    if (tidxi & 1)
     {
         f[0] = f[1];
     }
+
     f[0] += sg.shuffle_down(f[0], 2);
     f[2] += sg.shuffle_up(f[2], 2);
-    if (tidxi == 2)
+    if (tidxi & 2)
     {
         f[0] = f[2];
     }
+
+    if constexpr (c_clSize == 8)
+    {
+        f[0] += sg.shuffle_down(f[0], 4);
+    }
+
     if (tidxi < 3)
     {
         atomicFetchAdd(a_f, 3 * aidx + tidxi, f[0]);
@@ -525,7 +533,9 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     constexpr bool doExclusionForces =
             (props.elecEwald || props.elecRF || props.vdwEwald || (props.elecCutoff && doCalcEnergies));
 
-    return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(8)]]
+    constexpr int subGroupSize = c_clSize * c_clSize / 2;
+
+    return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(subGroupSize)]]
     {
         /* thread/block/warp id-s */
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
@@ -539,7 +549,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         const sycl_2020::sub_group sg = itemIdx.get_sub_group();
         // Better use sg.get_group_range, but too much of the logic relies on it anyway
-        static constexpr int subGroupSize = 8;
         const unsigned       widx         = tidx / subGroupSize;
 
         float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster]; // i force buffer

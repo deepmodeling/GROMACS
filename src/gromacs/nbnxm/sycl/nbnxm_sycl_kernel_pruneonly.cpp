@@ -82,10 +82,18 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> sm_xq(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
+    constexpr int warpSize = c_clSize * c_clSize / 2;
+
+    /* Somewhat weird behavior inherited from OpenCL: we use sub_group size of 16 (not enforced in
+     * OpenCL implementation, but chosen by the compiler), however for data layout we consider it
+     * to be 8. But we need to set specific sub_group size >= 32 for clSize == 8 for correctness.
+     * Since we can not only */
+    constexpr int requiredSubGroupSize = (c_clSize == 4) ? 16 : warpSize;
+
     /* Requirements:
      * Work group (block) must have range (c_clSize, c_clSize, ...) (for localId calculation, easy
      * to change). */
-    return [=](cl::sycl::nd_item<1> itemIdx) {
+    return [=](cl::sycl::nd_item<1> itemIdx) [[intel::reqd_sub_group_size(requiredSubGroupSize)]] {
         const cl::sycl::id<3> localId = unflattenId<c_clSize, c_clSize>(itemIdx.get_local_id());
         // thread/block/warp id-s
         const unsigned tidxi = localId[0];
@@ -95,9 +103,6 @@ auto nbnxmKernelPruneOnly(cl::sycl::handler&                            cgh,
         const unsigned bidx  = itemIdx.get_group(0);
 
         const sycl_2020::sub_group sg = itemIdx.get_sub_group();
-        // Somewhat weird behavior inherited from OpenCL: we don't enforce specific sub_group size,
-        // but assume it's 8 anyway.
-        static constexpr int warpSize = c_clSize * c_clSize / 2;
         const unsigned       widx     = tidx / warpSize;
 
         // my i super-cluster's index = sciOffset + current bidx * numParts + part
