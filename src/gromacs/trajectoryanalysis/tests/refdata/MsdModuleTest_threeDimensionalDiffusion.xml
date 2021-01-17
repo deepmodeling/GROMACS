@@ -1,15 +1,19 @@
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="referencedata.xsl"?>
 <ReferenceData>
+  <String Name="CommandLine">-trestart 200 -sel 0</String>
   <OutputFiles Name="Files">
     <File Name="-o">
+      <XvgLegend Name="DiffusionCoefficient">
+        <String>MSD gathered over 9 ps with 1 restarts</String>
+        <String>Diffusion constants fitted from time 1 to 8 ps</String>
+        <String>D[ particles] = 4.0000 (+/- 0.0000) (1e-5 cm^2/s)</String>
+      </XvgLegend>
       <XvgLegend Name="Legend">
-        <String Name="XvgLegend"><![CDATA[
-title "Mean Square Displacement"
-xaxis  label "Time (ps)"
-yaxis  label "MSD (nm\S2\N)"
-TYPE xy
-]]></String>
+        <String>title "Mean Square Displacement"</String>
+        <String>xaxis  label "Time (ps)"</String>
+        <String>yaxis  label "MSD (nm\S2\N)"</String>
+        <String>TYPE xy</String>
       </XvgLegend>
       <XvgData Name="Data">
         <Sequence Name="Row0">
