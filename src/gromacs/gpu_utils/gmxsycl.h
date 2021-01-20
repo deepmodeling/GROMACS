@@ -61,6 +61,11 @@
 #    define DISABLE_UNROLL_WARNINGS 0
 #endif
 
+// For hipSYCL, we need to activate floating-point atomics
+#if defined(__HIP_SYCL__)
+#    define HIPSYCL_EXT_FP_ATOMICS
+#endif
+
 #if DISABLE_UNROLL_WARNINGS
 #    pragma clang diagnostic push
 #    pragma clang diagnostic ignored "-Wpass-failed"
