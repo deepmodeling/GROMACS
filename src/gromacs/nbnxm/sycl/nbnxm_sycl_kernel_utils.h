@@ -99,16 +99,35 @@ static inline cl::sycl::id<3> unflattenId(cl::sycl::id<1> id1d)
     return cl::sycl::id<3>(xy % rangeX, xy / rangeX, z);
 }
 
+/*
+ * Intel compiler has sycl::atomic_ref, but has no sycl::atomic_fetch_add for floats.
+ * However, atomic_ref can not be constructed from sycl::atomic, so we can not use
+ * atomic accessors.
+ *
+ * HIP SYCL does not have atomic_ref, but has atomic_fetch_add for floats, which
+ * requires using atomic accessors.
+ */
+#if defined(__SYCL_COMPILER_VERSION) // Intel SYCL compiler
+#    define MODE_ATOMIC cl::sycl::access::mode::read_write
+#elif defined(____HIPSYCL__)
+#    define MODE_ATOMIC cl::sycl::access::mode::atomic
+#endif
+
 //! \brief Convenience wrapper to do atomic addition to a global buffer
-template<cl::sycl::access::mode Mode, class IndexType>
+template<class IndexType, cl::sycl::access::mode Mode>
 static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexType idx, const float val)
 {
     if (cl::sycl::isnormal(val))
     {
+#if defined(__SYCL_COMPILER_VERSION)
         sycl_2020::atomic_ref<float, sycl_2020::memory_order::relaxed, sycl_2020::memory_scope::device,
                               cl::sycl::access::address_space::global_space>
                 fout_atomic(acc[idx]);
         fout_atomic.fetch_add(val);
+#elif defined(__HIP_SYCL__)
+        static_assert(Mode == cl::sycl::access::mode::atomic);
+        acc[idx].fetch_add(val);
+#endif
     }
 }
 
