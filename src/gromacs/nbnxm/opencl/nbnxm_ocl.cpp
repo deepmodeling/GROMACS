@@ -910,7 +910,7 @@ void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, c
                   "Mismatch in the size of computeFshift host / device data type");
     static_assert(sizeof(cl_int) == sizeof(decltype(part)),
                   "Mismatch in the size of adat->ntypes host / device data type");
-    const auto     kernelArgs   = prepareGpuKernelArguments(pruneKernel,
+    const auto kernelArgs = prepareGpuKernelArguments(pruneKernel,
                                                       config,
                                                       &nbparams_params,
                                                       &adat->xq,

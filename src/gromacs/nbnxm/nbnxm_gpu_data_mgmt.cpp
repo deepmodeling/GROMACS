@@ -80,8 +80,8 @@ void init_ewald_coulomb_force_table(const EwaldCorrectionTables& tables,
 
     nbp->coulomb_tab_scale = tables.scale;
 #if (GMX_GPU_OPENCL)
-        static_assert(sizeof(cl_float) == sizeof(decltype(*tables.tableF.data())),
-                   "Mismatch in the size of tales.tableF host / device data type");
+    static_assert(sizeof(cl_float) == sizeof(decltype(*tables.tableF.data())),
+                  "Mismatch in the size of tales.tableF host / device data type");
 #endif
     initParamLookupTable(
             &nbp->coulomb_tab, &nbp->coulomb_tab_texobj, tables.tableF.data(), tables.tableF.size(), deviceContext);
