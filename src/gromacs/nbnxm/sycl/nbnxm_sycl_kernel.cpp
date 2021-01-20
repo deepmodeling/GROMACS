@@ -336,25 +336,9 @@ static inline void reduceForceJShuffle(float3                                  f
     }
 }
 
-static constexpr int log2i(const int v)
-{
-    if (v == 1)
-    {
-        return 0;
-    }
-    else
-    {
-        assert(v % 2 == 0);
-        return log2i(v / 2) + 1;
-    }
-}
-
 /*! \brief Final i-force reduction.
- *
- * This implementation works only with power of two array sizes.
  */
-static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read_write, target::local> sm_buf,
-                                         const float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster],
+static inline void reduceForceIAndFShift(const float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster],
                                          const bool   calcFShift,
                                          const cl::sycl::nd_item<1>              itemIdx,
                                          const int                               tidxi,
@@ -364,62 +348,49 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
                                          DeviceAccessor<float, mode::read_write> a_f,
                                          DeviceAccessor<float, mode::read_write> a_fShift)
 {
-    static constexpr int bufStride  = c_clSize * c_clSize;
-    static constexpr int clSizeLog2 = log2i(c_clSize);
-    const int            tidx       = tidxi + tidxj * c_clSize;
-    float                fShiftBuf  = 0;
+    static_assert(c_clSize == 4);
+    sycl_2020::sub_group sg = itemIdx.get_sub_group();
+    float2               fShiftBuf{ 0, 0 };
     for (int ciOffset = 0; ciOffset < c_nbnxnGpuNumClusterPerSupercluster; ciOffset++)
     {
         const int aidx = (sci * c_nbnxnGpuNumClusterPerSupercluster + ciOffset) * c_clSize + tidxi;
-        /* store i forces in shmem */
-        sm_buf[tidx]                 = fCiBuf[ciOffset][0];
-        sm_buf[bufStride + tidx]     = fCiBuf[ciOffset][1];
-        sm_buf[2 * bufStride + tidx] = fCiBuf[ciOffset][2];
-        itemIdx.barrier(fence_space::local_space);
+        float3    fin  = fCiBuf[ciOffset];
+        fin[0] += sg.shuffle_down(fin[0], c_clSize);
+        fin[1] += sg.shuffle_up(fin[1], c_clSize);
+        fin[2] += sg.shuffle_down(fin[2], c_clSize);
 
-        /* Reduce the initial c_clSize values for each i atom to half
-         * every step by using c_clSize * i threads. */
-        int i = c_clSize / 2;
-        for (int j = clSizeLog2 - 1; j > 0; j--)
+        if (tidxj & 1)
         {
-            if (tidxj < i)
-            {
-                sm_buf[tidxj * c_clSize + tidxi] += sm_buf[(tidxj + i) * c_clSize + tidxi];
-                sm_buf[bufStride + tidxj * c_clSize + tidxi] +=
-                        sm_buf[bufStride + (tidxj + i) * c_clSize + tidxi];
-                sm_buf[2 * bufStride + tidxj * c_clSize + tidxi] +=
-                        sm_buf[2 * bufStride + (tidxj + i) * c_clSize + tidxi];
-            }
-            i >>= 1;
-            itemIdx.barrier(fence_space::local_space);
+            fin[0] = fin[1];
         }
 
-        /* i == 1, last reduction step, writing to global mem */
-        /* Split the reduction between the first 3 line threads
-           Threads with line id 0 will do the reduction for (float3).x components
-           Threads with line id 1 will do the reduction for (float3).y components
-           Threads with line id 2 will do the reduction for (float3).z components. */
-        if (tidxj < 3)
+        // Threads 0,1 and 2,3 increment x,y for their warp
+        atomicFetchAdd(a_f, 3 * aidx + (tidxj & 1), fin[0]);
+
+        if (calcFShift)
         {
-            const float f =
-                    sm_buf[tidxj * bufStride + tidxi] + sm_buf[tidxj * bufStride + c_clSize + tidxi];
-            atomicFetchAdd(a_f, 3 * aidx + tidxj, f);
+            fShiftBuf[0] += fin[0];
+        }
+        // Threads 0 and 2 increment z for their warp
+        if ((tidxj & 1) == 0)
+        {
+            atomicFetchAdd(a_f, 3 * aidx + 2, fin[2]);
             if (calcFShift)
             {
-                fShiftBuf += f;
+                fShiftBuf[1] += fin[2];
             }
         }
-        itemIdx.barrier(fence_space::local_space);
     }
-    /* add up local shift forces into global mem */
+
+    // add up local shift forces into global mem
     if (calcFShift)
     {
-        /* Only threads with tidxj < 3 will update fshift.
-           The threads performing the update must be the same as the threads
-           storing the reduction result above. */
-        if (tidxj < 3)
+        // Threads 0,1 and 2,3 update x,y
+        atomicFetchAdd(a_fShift, 3 * shift + (tidxj & 1), fShiftBuf[0]);
+        // Threads 0 and 2 update z
+        if ((tidxj & 1) == 0)
         {
-            atomicFetchAdd(a_fShift, 3 * shift + tidxj, fShiftBuf);
+            atomicFetchAdd(a_fShift, 3 * shift + 2, fShiftBuf[1]);
         }
     }
 }
@@ -498,11 +469,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
     cl::sycl::accessor<float4, 2, mode::read_write, target::local> sm_xq(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
-    // shmem buffer for force reduction
-    // SYCL-TODO: Make into 3D; section 4.7.6.11 of SYCL2020 specs
-    cl::sycl::accessor<float, 1, mode::read_write, target::local> sm_reductionBuffer(
-            cl::sycl::range<1>(c_clSize * c_clSize * DIM), cgh);
-
     auto sm_atomTypeI = [&]() {
         if constexpr (!props.vdwComb)
         {
@@ -549,7 +515,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         const sycl_2020::sub_group sg = itemIdx.get_sub_group();
         // Better use sg.get_group_range, but too much of the logic relies on it anyway
-        const unsigned       widx         = tidx / subGroupSize;
+        const unsigned widx = tidx / subGroupSize;
 
         float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster]; // i force buffer
         for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
@@ -903,8 +869,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
         /* skip central shifts when summing shift forces */
         const bool doCalcShift = (calcShift && !(nbSci.shift == CENTRAL));
 
-        reduceForceIAndFShift(sm_reductionBuffer, fCiBuf, doCalcShift, itemIdx, tidxi, tidxj, sci,
-                              nbSci.shift, a_f, a_fShift);
+        reduceForceIAndFShift(fCiBuf, doCalcShift, itemIdx, tidxi, tidxj, sci, nbSci.shift, a_f, a_fShift);
 
         if constexpr (doCalcEnergies)
         {
