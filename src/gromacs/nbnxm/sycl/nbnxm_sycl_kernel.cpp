@@ -549,7 +549,7 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
 
         const sycl_2020::sub_group sg = itemIdx.get_sub_group();
         // Better use sg.get_group_range, but too much of the logic relies on it anyway
-        const unsigned       widx         = tidx / subGroupSize;
+        const unsigned widx = tidx / subGroupSize;
 
         float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster]; // i force buffer
         for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
