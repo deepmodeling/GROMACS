@@ -126,9 +126,9 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
 #else
                 const __global int* restrict atom_types, /* IN  */
 #endif
-                const __global float* restrict shift_vec,        /* IN stores float[3] values */
-                __constant const float* gmx_unused nbfp_climg2d, /* IN  */
-                __constant const float* gmx_unused nbfp_comb_climg2d,   /* IN  */
+                const __global float* restrict shift_vec,             /* IN stores float3 values */
+                __constant const float* gmx_unused nbfp_climg2d,      /* IN  */
+                __constant const float* gmx_unused nbfp_comb_climg2d, /* IN  */
                 __constant const float* gmx_unused coulomb_tab_climg2d, /* IN  */
                 const __global nbnxn_sci_t* pl_sci,                     /* IN  */
 #ifndef PRUNE_NBL
