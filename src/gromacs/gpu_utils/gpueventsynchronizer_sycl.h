@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -99,15 +99,21 @@ public:
     inline void markEvent(const DeviceStream& deviceStream)
     {
         GMX_ASSERT(!event_.has_value(), "Do not call markEvent more than once!");
+#    ifdef __HIPSYCL__
+        deviceStream.stream().wait_and_throw(); // SYCL-TODO: Use CUDA/HIP-specific solutions
+#    else
         // Relies on SYCL_INTEL_enqueue_barrier
         event_ = deviceStream.stream().submit_barrier();
+#    endif
     }
     /*! \brief Synchronizes the host thread on the marked event.
      * As in the OpenCL implementation, the event is released.
      */
     inline void waitForEvent()
     {
+#    ifndef __HIPSYCL__
         event_->wait_and_throw();
+#    endif
         event_.reset();
     }
     /*! \brief Enqueues a wait for the recorded event in stream \p deviceStream.
@@ -115,10 +121,14 @@ public:
      */
     inline void enqueueWaitEvent(const DeviceStream& deviceStream)
     {
+#    ifdef __HIPSYCL__
+        deviceStream.stream().wait_and_throw(); // SYCL-TODO: Use CUDA/HIP-specific solutions
+#    else
         // Relies on SYCL_INTEL_enqueue_barrier
         const std::vector<cl::sycl::event> waitlist{ event_.value() };
         deviceStream.stream().submit_barrier(waitlist);
         event_.reset();
+#    endif
     }
 
 private:
