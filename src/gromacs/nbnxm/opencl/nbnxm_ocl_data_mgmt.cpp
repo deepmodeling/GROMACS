@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -103,14 +103,14 @@ static unsigned int gpu_min_ci_balanced_factor = 50;
 /*! \brief Initializes the atomdata structure first time, it only gets filled at
     pair-search.
  */
-static void init_atomdata_first(cl_atomdata_t* ad, int ntypes, const DeviceContext& deviceContext)
+static void init_atomdata_first(NBAtomdata* ad, int ntypes, const DeviceContext& deviceContext)
 {
     ad->ntypes = ntypes;
 
-    allocateDeviceBuffer(&ad->shift_vec, SHIFTS * DIM, deviceContext);
+    allocateDeviceBuffer(&ad->shift_vec, SHIFTS, deviceContext);
     ad->bShiftVecUploaded = CL_FALSE;
 
-    allocateDeviceBuffer(&ad->fshift, SHIFTS * DIM, deviceContext);
+    allocateDeviceBuffer(&ad->fshift, SHIFTS, deviceContext);
     allocateDeviceBuffer(&ad->e_lj, 1, deviceContext);
     allocateDeviceBuffer(&ad->e_el, 1, deviceContext);
 
@@ -204,7 +204,7 @@ static void nbnxn_ocl_clear_e_fshift(NbnxmGpu* nb)
 {
 
     cl_int           cl_error;
-    cl_atomdata_t*   adat = nb->atdat;
+    NBAtomdata*      adat = nb->atdat;
     cl_command_queue ls   = nb->deviceStreams[InteractionLocality::Local]->stream();
 
     size_t local_work_size[3]  = { 1, 1, 1 };
@@ -262,7 +262,7 @@ static void nbnxn_gpu_init_kernels(NbnxmGpu* nb)
  *  Initializes members of the atomdata and nbparam structs and
  *  clears e/fshift output buffers.
  */
-static void nbnxn_ocl_init_const(cl_atomdata_t*                  atomData,
+static void nbnxn_ocl_init_const(NBAtomdata*                     atomData,
                                  NBParamGpu*                     nbParams,
                                  const interaction_const_t*      ic,
                                  const PairlistParams&           listParams,
@@ -370,10 +370,10 @@ static void nbnxn_ocl_clear_f(NbnxmGpu* nb, int natoms_clear)
         return;
     }
 
-    cl_atomdata_t*      atomData    = nb->atdat;
+    NBAtomdata*         atomData    = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
 
-    clearDeviceBufferAsync(&atomData->f, 0, natoms_clear * DIM, localStream);
+    clearDeviceBufferAsync(&atomData->f, 0, natoms_clear, localStream);
 }
 
 //! This function is documented in the header file
@@ -396,18 +396,18 @@ void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
 //! This function is documented in the header file
 void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
 {
-    cl_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     const DeviceStream& deviceStream = *nb->deviceStreams[InteractionLocality::Local];
 
     /* only if we have a dynamic box */
     if (nbatom->bDynamicBox || !adat->bShiftVecUploaded)
     {
-        GMX_ASSERT(sizeof(float) * DIM == sizeof(*nbatom->shift_vec.data()),
-                   "Sizes of host- and device-side shift vectors should be the same.");
+        static_assert(sizeof(Xyz) == sizeof(nbatom->shift_vec[0]),
+                      "Sizes of host- and device-side shift vectors should be the same.");
         copyToDeviceBuffer(&adat->shift_vec,
-                           reinterpret_cast<const float*>(nbatom->shift_vec.data()),
+                           reinterpret_cast<const Xyz*>(nbatom->shift_vec.data()),
                            0,
-                           SHIFTS * DIM,
+                           SHIFTS,
                            deviceStream,
                            GpuApiCallBehavior::Async,
                            nullptr);
@@ -423,9 +423,9 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
     bool                 realloced;
     bool                 bDoTime       = nb->bDoTime;
     cl_timers_t*         timers        = nb->timers;
-    cl_atomdata_t*       d_atdat       = nb->atdat;
+    NBAtomdata*          d_atdat       = nb->atdat;
     const DeviceContext& deviceContext = *nb->deviceContext_;
-    const DeviceStream&  deviceStream  = *nb->deviceStreams[InteractionLocality::Local];
+    const DeviceStream&  localStream   = *nb->deviceStreams[InteractionLocality::Local];
 
     natoms    = nbat->numAtoms();
     realloced = false;
@@ -433,7 +433,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
     if (bDoTime)
     {
         /* time async copy */
-        timers->atdat.openTimingRegion(deviceStream);
+        timers->atdat.openTimingRegion(localStream);
     }
 
     /* need to reallocate if we have to copy more atoms than the amount of space
@@ -452,13 +452,13 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         }
 
 
-        allocateDeviceBuffer(&d_atdat->f, nalloc * DIM, deviceContext);
-        allocateDeviceBuffer(&d_atdat->xq, nalloc * (DIM + 1), deviceContext);
+        allocateDeviceBuffer(&d_atdat->f, nalloc, deviceContext);
+        allocateDeviceBuffer(&d_atdat->xq, nalloc, deviceContext);
 
         if (useLjCombRule(nb->nbparam->vdwType))
         {
             // Two Lennard-Jones parameters per atom
-            allocateDeviceBuffer(&d_atdat->lj_comb, nalloc * 2, deviceContext);
+            allocateDeviceBuffer(&d_atdat->lj_comb, nalloc, deviceContext);
         }
         else
         {
@@ -480,36 +480,36 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
 
     if (useLjCombRule(nb->nbparam->vdwType))
     {
-        GMX_ASSERT(sizeof(float) == sizeof(*nbat->params().lj_comb.data()),
-                   "Size of the LJ parameters element should be equal to the size of float2.");
+        static_assert(sizeof(float) == sizeof(*nbat->params().lj_comb.data()),
+                      "Size of the LJ parameters element should be equal to the size of float2.");
         copyToDeviceBuffer(&d_atdat->lj_comb,
-                           nbat->params().lj_comb.data(),
+                           reinterpret_cast<const LJParameters*>(nbat->params().lj_comb.data()),
                            0,
-                           2 * natoms,
-                           deviceStream,
+                           natoms,
+                           localStream,
                            GpuApiCallBehavior::Async,
                            bDoTime ? timers->atdat.fetchNextEvent() : nullptr);
     }
     else
     {
-        GMX_ASSERT(sizeof(int) == sizeof(*nbat->params().type.data()),
-                   "Sizes of host- and device-side atom types should be the same.");
+        static_assert(sizeof(int) == sizeof(*nbat->params().type.data()),
+                      "Sizes of host- and device-side atom types should be the same.");
         copyToDeviceBuffer(&d_atdat->atom_types,
                            nbat->params().type.data(),
                            0,
                            natoms,
-                           deviceStream,
+                           localStream,
                            GpuApiCallBehavior::Async,
                            bDoTime ? timers->atdat.fetchNextEvent() : nullptr);
     }
 
     if (bDoTime)
     {
-        timers->atdat.closeTimingRegion(deviceStream);
+        timers->atdat.closeTimingRegion(localStream);
     }
 
     /* kick off the tasks enqueued above to ensure concurrency with the search */
-    cl_error = clFlush(deviceStream.stream());
+    cl_error = clFlush(localStream.stream());
     GMX_RELEASE_ASSERT(cl_error == CL_SUCCESS,
                        ("clFlush failed: " + ocl_get_error_string(cl_error)).c_str());
 }

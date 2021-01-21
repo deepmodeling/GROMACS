@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -97,7 +97,7 @@ static void nbnxn_cuda_clear_e_fshift(NbnxmGpu* nb);
 
 /*! Initializes the atomdata structure first time, it only gets filled at
     pair-search. */
-static void init_atomdata_first(cu_atomdata_t* ad, int ntypes, const DeviceContext& deviceContext)
+static void init_atomdata_first(NBAtomdata* ad, int ntypes, const DeviceContext& deviceContext)
 {
     ad->ntypes = ntypes;
     allocateDeviceBuffer(&ad->shift_vec, SHIFTS, deviceContext);
@@ -269,7 +269,7 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
 
 void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
 {
-    cu_atomdata_t*      adat        = nb->atdat;
+    NBAtomdata*         adat        = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
 
     /* only if we have a dynamic box */
@@ -278,7 +278,7 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
         static_assert(sizeof(adat->shift_vec[0]) == sizeof(nbatom->shift_vec[0]),
                       "Sizes of host- and device-side shift vectors should be the same.");
         copyToDeviceBuffer(&adat->shift_vec,
-                           reinterpret_cast<const float3*>(nbatom->shift_vec.data()),
+                           reinterpret_cast<const Xyz*>(nbatom->shift_vec.data()),
                            0,
                            SHIFTS,
                            localStream,
@@ -291,7 +291,7 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
 /*! Clears the first natoms_clear elements of the GPU nonbonded force output array. */
 static void nbnxn_cuda_clear_f(NbnxmGpu* nb, int natoms_clear)
 {
-    cu_atomdata_t*      adat        = nb->atdat;
+    NBAtomdata*         adat        = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
     clearDeviceBufferAsync(&adat->f, 0, natoms_clear, localStream);
 }
@@ -299,7 +299,7 @@ static void nbnxn_cuda_clear_f(NbnxmGpu* nb, int natoms_clear)
 /*! Clears nonbonded shift force output array and energy outputs on the GPU. */
 static void nbnxn_cuda_clear_e_fshift(NbnxmGpu* nb)
 {
-    cu_atomdata_t*      adat        = nb->atdat;
+    NBAtomdata*         adat        = nb->atdat;
     const DeviceStream& localStream = *nb->deviceStreams[InteractionLocality::Local];
 
     clearDeviceBufferAsync(&adat->fshift, 0, SHIFTS, localStream);
@@ -324,7 +324,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
     bool                 realloced;
     bool                 bDoTime       = nb->bDoTime;
     cu_timers_t*         timers        = nb->timers;
-    cu_atomdata_t*       d_atdat       = nb->atdat;
+    NBAtomdata*          d_atdat       = nb->atdat;
     const DeviceContext& deviceContext = *nb->deviceContext_;
     const DeviceStream&  localStream   = *nb->deviceStreams[InteractionLocality::Local];
 
@@ -378,10 +378,10 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
 
     if (useLjCombRule(nb->nbparam->vdwType))
     {
-        static_assert(sizeof(d_atdat->lj_comb[0]) == sizeof(float2),
+        static_assert(sizeof(d_atdat->lj_comb[0]) == sizeof(LJParameters),
                       "Size of the LJ parameters element should be equal to the size of float2.");
         copyToDeviceBuffer(&d_atdat->lj_comb,
-                           reinterpret_cast<const float2*>(nbat->params().lj_comb.data()),
+                           reinterpret_cast<const LJParameters*>(nbat->params().lj_comb.data()),
                            0,
                            natoms,
                            localStream,
@@ -409,9 +409,9 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
 
 void gpu_free(NbnxmGpu* nb)
 {
-    cudaError_t    stat;
-    cu_atomdata_t* atdat;
-    NBParamGpu*    nbparam;
+    cudaError_t stat;
+    NBAtomdata* atdat;
+    NBParamGpu* nbparam;
 
     if (nb == nullptr)
     {

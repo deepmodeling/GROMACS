@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -88,62 +88,6 @@ enum ePruneKind
     epruneRolling,
     ePruneNR
 };
-
-/*! \internal
- * \brief Staging area for temporary data downloaded from the GPU.
- *
- *  The energies/shift forces get downloaded here first, before getting added
- *  to the CPU-side aggregate values.
- */
-struct nb_staging_t
-{
-    //! LJ energy
-    float* e_lj = nullptr;
-    //! electrostatic energy
-    float* e_el = nullptr;
-    //! float3 buffer with shift forces
-    float (*fshift)[3] = nullptr;
-};
-
-/*! \internal
- * \brief Nonbonded atom data - both inputs and outputs.
- */
-typedef struct cl_atomdata
-{
-    //! number of atoms
-    int natoms;
-    //! number of local atoms
-    int natoms_local;
-    //! allocation size for the atom data (xq, f)
-    int nalloc;
-
-    //! float4 buffer with atom coordinates + charges, size natoms
-    DeviceBuffer<float> xq;
-
-    //! float3 buffer with force output array, size natoms
-    DeviceBuffer<float> f;
-
-    //! LJ energy output, size 1
-    DeviceBuffer<float> e_lj;
-    //! Electrostatics energy input, size 1
-    DeviceBuffer<float> e_el;
-
-    //! float3 buffer with shift forces
-    DeviceBuffer<float> fshift;
-
-    //! number of atom types
-    int ntypes;
-    //! int buffer with atom type indices, size natoms
-    DeviceBuffer<int> atom_types;
-    //! float2 buffer with sqrt(c6),sqrt(c12), size natoms
-    DeviceBuffer<float> lj_comb;
-
-    //! float3 buffer with shifts values
-    DeviceBuffer<float> shift_vec;
-
-    //! true if the shift vector has been uploaded
-    bool bShiftVecUploaded;
-} cl_atomdata_t;
 
 /*! \internal
  * \brief Data structure shared between the OpenCL device code and OpenCL host code
@@ -244,7 +188,7 @@ struct NbnxmGpu
     bool bNonLocalStreamActive = false;
 
     //! atom data
-    cl_atomdata_t* atdat = nullptr;
+    NBAtomdata* atdat = nullptr;
     //! parameters required for the non-bonded calc.
     NBParamGpu* nbparam = nullptr;
     //! pair-list data structures (local and non-local)

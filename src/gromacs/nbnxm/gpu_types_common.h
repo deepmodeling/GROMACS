@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -57,6 +57,79 @@
 #if GMX_GPU_CUDA
 #    include "gromacs/gpu_utils/gpuregiontimer.cuh"
 #endif
+
+#if GMX_GPU_CUDA
+using Xyz          = float3;
+using Xyzq         = float4;
+using LJParameters = float2;
+#else
+struct Xyz
+{
+    float x, y, z;
+};
+struct Xyzq
+{
+    float x, y, z, q;
+};
+struct LJParameters
+{
+    float c6, c12;
+};
+#endif
+
+/** \internal
+ * \brief Staging area for temporary data downloaded from the GPU.
+ *
+ *  The energies/shift forces get downloaded here first, before getting added
+ *  to the CPU-side aggregate values.
+ */
+struct nb_staging_t
+{
+    //! LJ energy
+    float* e_lj = nullptr;
+    //! electrostatic energy
+    float* e_el = nullptr;
+    //! shift forces
+    Xyz* fshift = nullptr;
+};
+
+/** \internal
+ * \brief Nonbonded atom data - both inputs and outputs.
+ */
+struct NBAtomdata
+{
+    //! number of atoms
+    int natoms;
+    //! number of local atoms
+    int natoms_local;
+    //! allocation size for the atom data (xq, f)
+    int nalloc;
+
+    //! atom coordinates + charges, size natoms
+    DeviceBuffer<Xyzq> xq;
+    //! force output array, size natoms
+    DeviceBuffer<Xyz> f;
+
+    //! LJ energy output, size 1
+    DeviceBuffer<float> e_lj;
+    //! Electrostatics energy input, size 1
+    DeviceBuffer<float> e_el;
+
+    //! shift forces
+    DeviceBuffer<Xyz> fshift;
+
+    //! number of atom types
+    int ntypes;
+    //! atom type indices, size natoms
+    DeviceBuffer<int> atom_types;
+    //! sqrt(c6),sqrt(c12) size natoms
+    DeviceBuffer<LJParameters> lj_comb;
+
+    //! shifts
+    DeviceBuffer<Xyz> shift_vec;
+    //! true if the shift vector has been uploaded
+    bool bShiftVecUploaded;
+};
 
 /** \internal
  * \brief Parameters required for the GPU nonbonded calculations.

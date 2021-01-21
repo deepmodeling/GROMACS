@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -521,7 +521,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     /* local/nonlocal offset and length used for xq and f */
     int adat_begin, adat_len;
 
-    cl_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     gpu_plist*          plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
@@ -563,12 +563,12 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     }
 
     /* HtoD x, q */
-    GMX_ASSERT(sizeof(float) == sizeof(*nbatom->x().data()),
-               "The size of the xyzq buffer element should be equal to the size of float4.");
+    static_assert(sizeof(float) == sizeof(*nbatom->x().data()),
+                  "The size of the xyzq buffer element should be equal to the size of float4.");
     copyToDeviceBuffer(&adat->xq,
-                       nbatom->x().data() + adat_begin * 4,
-                       adat_begin * 4,
-                       adat_len * 4,
+                       reinterpret_cast<const Xyzq*>(nbatom->x().data()) + adat_begin,
+                       adat_begin,
+                       adat_len,
                        deviceStream,
                        GpuApiCallBehavior::Async,
                        bDoTime ? t->xf[atomLocality].nb_h2d.fetchNextEvent() : nullptr);
@@ -626,7 +626,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
  */
 void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const Nbnxm::InteractionLocality iloc)
 {
-    cl_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
     gpu_plist*          plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
@@ -797,7 +797,7 @@ static inline int calc_shmem_required_prune(const int num_threads_z)
  */
 void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, const int numParts)
 {
-    cl_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
     gpu_plist*          plist        = nb->plist[iloc];
     cl_timers_t*        t            = nb->timers;
@@ -947,7 +947,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* determine interaction locality from atom locality */
     const InteractionLocality iloc = gpuAtomToInteractionLocality(aloc);
 
-    cl_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     cl_timers_t*        t            = nb->timers;
     bool                bDoTime      = nb->bDoTime;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
@@ -985,10 +985,10 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* DtoH f */
     GMX_ASSERT(sizeof(*nbatom->out[0].f.data()) == sizeof(float),
                "The host force buffer should be in single precision to match device data size.");
-    copyFromDeviceBuffer(&nbatom->out[0].f[adat_begin * DIM],
+    copyFromDeviceBuffer(reinterpret_cast<Xyz*>(nbatom->out[0].f.data()) + adat_begin,
                          &adat->f,
-                         adat_begin * DIM,
-                         adat_len * DIM,
+                         adat_begin,
+                         adat_len,
                          deviceStream,
                          GpuApiCallBehavior::Async,
                          bDoTime ? t->xf[aloc].nb_d2h.fetchNextEvent() : nullptr);
@@ -1015,12 +1015,13 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
         /* DtoH fshift when virial is needed */
         if (stepWork.computeVirial)
         {
-            GMX_ASSERT(sizeof(*nb->nbst.fshift) == DIM * sizeof(float),
-                       "Sizes of host- and device-side shift vector elements should be the same.");
-            copyFromDeviceBuffer(reinterpret_cast<float*>(nb->nbst.fshift),
+            static_assert(
+                    sizeof(*nb->nbst.fshift) == sizeof(Xyz),
+                    "Sizes of host- and device-side shift vector elements should be the same.");
+            copyFromDeviceBuffer(nb->nbst.fshift,
                                  &adat->fshift,
                                  0,
-                                 SHIFTS * DIM,
+                                 SHIFTS,
                                  deviceStream,
                                  GpuApiCallBehavior::Async,
                                  bDoTime ? t->xf[aloc].nb_d2h.fetchNextEvent() : nullptr);
@@ -1029,8 +1030,8 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
         /* DtoH energies */
         if (stepWork.computeEnergy)
         {
-            GMX_ASSERT(sizeof(*nb->nbst.e_lj) == sizeof(float),
-                       "Sizes of host- and device-side LJ energy terms should be the same.");
+            static_assert(sizeof(*nb->nbst.e_lj) == sizeof(float),
+                          "Sizes of host- and device-side LJ energy terms should be the same.");
             copyFromDeviceBuffer(nb->nbst.e_lj,
                                  &adat->e_lj,
                                  0,
@@ -1038,9 +1039,9 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
                                  deviceStream,
                                  GpuApiCallBehavior::Async,
                                  bDoTime ? t->xf[aloc].nb_d2h.fetchNextEvent() : nullptr);
-            GMX_ASSERT(sizeof(*nb->nbst.e_el) == sizeof(float),
-                       "Sizes of host- and device-side electrostatic energy terms should be the "
-                       "same.");
+            static_assert(sizeof(*nb->nbst.e_el) == sizeof(float),
+                          "Sizes of host- and device-side electrostatic energy terms should be the "
+                          "same.");
             copyFromDeviceBuffer(nb->nbst.e_el,
                                  &adat->e_el,
                                  0,

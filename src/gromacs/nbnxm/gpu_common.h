@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -268,7 +268,8 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
         {
             for (int i = 0; i < SHIFTS; i++)
             {
-                rvec_inc(fshift[i], nbst.fshift[i]);
+                const rvec tmp = { nbst.fshift[i].x, nbst.fshift[i].y, nbst.fshift[i].z };
+                rvec_inc(fshift[i], tmp);
             }
         }
     }

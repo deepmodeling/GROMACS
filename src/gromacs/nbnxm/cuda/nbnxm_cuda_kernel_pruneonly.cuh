@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -103,7 +103,7 @@
  */
 template<bool haveFreshList>
 __launch_bounds__(THREADS_PER_BLOCK, MIN_BLOCKS_PER_MP) __global__
-        void nbnxn_kernel_prune_cuda(const cu_atomdata_t    atdat,
+        void nbnxn_kernel_prune_cuda(const NBAtomdata       atdat,
                                      const NBParamGpu       nbparam,
                                      const Nbnxm::gpu_plist plist,
                                      int                    numParts,
@@ -114,9 +114,9 @@ __launch_bounds__(THREADS_PER_BLOCK, MIN_BLOCKS_PER_MP) __global__
 // Add extern declarations so each translation unit understands that
 // there will be a definition provided.
 extern template __global__ void
-nbnxn_kernel_prune_cuda<true>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
+nbnxn_kernel_prune_cuda<true>(const NBAtomdata, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
 extern template __global__ void
-nbnxn_kernel_prune_cuda<false>(const cu_atomdata_t, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
+nbnxn_kernel_prune_cuda<false>(const NBAtomdata, const NBParamGpu, const Nbnxm::gpu_plist, int, int);
 #else
 {
 

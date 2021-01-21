@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -122,7 +122,7 @@ namespace Nbnxm
 constexpr static int c_bufOpsThreadsPerBlock = 128;
 
 /*! Nonbonded kernel function pointer type */
-typedef void (*nbnxn_cu_kfunc_ptr_t)(const cu_atomdata_t, const NBParamGpu, const gpu_plist, bool);
+typedef void (*nbnxn_cu_kfunc_ptr_t)(const NBAtomdata, const NBParamGpu, const gpu_plist, bool);
 
 /*********************************/
 
@@ -469,7 +469,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
 
     int adat_begin, adat_len; /* local/nonlocal offset and length used for xq and f */
 
-    cu_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     gpu_plist*          plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
@@ -504,17 +504,17 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
         adat_len   = adat->natoms - adat->natoms_local;
     }
 
-    /* HtoD x, q */
     /* beginning of timed HtoD section */
     if (bDoTime)
     {
         t->xf[atomLocality].nb_h2d.openTimingRegion(deviceStream);
     }
 
-    static_assert(sizeof(adat->xq[0]) == sizeof(float4),
+    /* HtoD x, q */
+    static_assert(sizeof(adat->xq[0]) == sizeof(Xyzq),
                   "The size of the xyzq buffer element should be equal to the size of float4.");
     copyToDeviceBuffer(&adat->xq,
-                       reinterpret_cast<const float4*>(nbatom->x().data()) + adat_begin,
+                       reinterpret_cast<const Xyzq*>(nbatom->x().data()) + adat_begin,
                        adat_begin,
                        adat_len,
                        deviceStream,
@@ -554,7 +554,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
  */
 void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const InteractionLocality iloc)
 {
-    cu_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
     gpu_plist*          plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
@@ -675,7 +675,7 @@ static inline int calc_shmem_required_prune(const int num_threads_z)
 
 void gpu_launch_kernel_pruneonly(NbnxmGpu* nb, const InteractionLocality iloc, const int numParts)
 {
-    cu_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     NBParamGpu*         nbp          = nb->nbparam;
     gpu_plist*          plist        = nb->plist[iloc];
     cu_timers_t*        t            = nb->timers;
@@ -816,7 +816,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     const InteractionLocality iloc = gpuAtomToInteractionLocality(atomLocality);
 
     /* extract the data */
-    cu_atomdata_t*      adat         = nb->atdat;
+    NBAtomdata*         adat         = nb->atdat;
     cu_timers_t*        t            = nb->timers;
     bool                bDoTime      = nb->bDoTime;
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
@@ -849,9 +849,9 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     if (!stepWork.useGpuFBufferOps)
     {
         static_assert(
-                sizeof(adat->f[0]) == sizeof(float3),
+                sizeof(adat->f[0]) == sizeof(Xyz),
                 "The size of the force buffer element should be equal to the size of float3.");
-        copyFromDeviceBuffer(reinterpret_cast<float3*>(nbatom->out[0].f.data()) + adat_begin,
+        copyFromDeviceBuffer(reinterpret_cast<Xyz*>(nbatom->out[0].f.data()) + adat_begin,
                              &adat->f,
                              adat_begin,
                              adat_len,
@@ -933,7 +933,7 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
-    cu_atomdata_t* adat = nb->atdat;
+    NBAtomdata* adat = nb->atdat;
 
     const int                  numColumns      = grid.numColumns();
     const int                  cellOffset      = grid.cellOffset();
