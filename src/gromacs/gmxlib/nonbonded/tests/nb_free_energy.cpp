@@ -145,7 +145,8 @@ class SoftcoreGapsysTest :
 {
 public:
     SoftcoreGapsysTest() :
-        tolerance_(gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12))
+        tolerance_(gmx::test::relativeToleranceAsPrecisionDependentFloatingPoint(1, 1.0e-4, 1.0e-12)),
+        facel_(ONE_4PI_EPS0)
     {
     }
 
@@ -169,14 +170,14 @@ protected:
 
     void reactionField()
     {
-        reactionFieldQuadraticPotential(params_.qq_, ONE_4PI_EPS0, r_, lambda_, params_.dLambda_,
+        reactionFieldQuadraticPotential(params_.qq_, facel_, r_, lambda_, params_.dLambda_,
                                         alpha_, params_.forceShift_, params_.potentialShift_,
                                         &force_, &potential_, &dvdl_);
     }
 
     void ewaldCoulomb()
     {
-        ewaldQuadraticPotential(params_.qq_, ONE_4PI_EPS0, r_, lambda_, params_.dLambda_, alpha_,
+        ewaldQuadraticPotential(params_.qq_, facel_, r_, lambda_, params_.dLambda_, alpha_,
                                 params_.ewaldShift_, &force_, &potential_, &dvdl_);
     }
 
@@ -193,6 +194,7 @@ protected:
 
     // fixed test parameters
     Constants params_;
+    const real facel_;
 
     // input data this test class is supposed to use
     real r_;
