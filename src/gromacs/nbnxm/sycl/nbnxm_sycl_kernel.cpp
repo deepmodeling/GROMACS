@@ -100,27 +100,76 @@ using cl::sycl::access::fence_space;
 using cl::sycl::access::mode;
 using cl::sycl::access::target;
 
-static inline void convertSigmaEpsilonToC6C12(const float                  sigma,
-                                              const float                  epsilon,
-                                              cl::sycl::private_ptr<float> c6,
-                                              cl::sycl::private_ptr<float> c12)
+template<enum VdwType vdwType, bool doCalcEnergies>
+struct VdwParams
 {
-    const float sigma2 = sigma * sigma;
-    const float sigma6 = sigma2 * sigma2 * sigma2;
-    *c6                = epsilon * sigma6;
-    *c12               = (*c6) * sigma6;
+    float c6;
+    float c12;
+};
+
+template<>
+struct VdwParams<VdwType::CutCombLB, false>
+{
+    float sigma;
+    float epsilon;
+};
+
+template<>
+struct VdwParams<VdwType::CutCombLB, true>
+{
+    float c6;
+    float c12;
+    float sigma;
+    float epsilon;
+};
+
+template<enum VdwType vdwType, bool doCalcEnergies>
+VdwParams<vdwType, doCalcEnergies>
+calcVdwParams(DeviceAccessor<float, mode::read> a_nbfp, int numTypes, int atomTypeI, int atomTypeJ)
+{
+    static_assert(!ljComb<vdwType>);
+    VdwParams<vdwType, doCalcEnergies> ret;
+    const int                          idx = (numTypes * atomTypeI + atomTypeJ) * 2;
+    ret.c6                                 = a_nbfp[idx];
+    ret.c12                                = a_nbfp[idx + 1];
+    return ret;
+}
+
+template<enum VdwType vdwType, bool doCalcEnergies>
+VdwParams<vdwType, doCalcEnergies> calcVdwParams(float2 ljCombI, float2 ljCombJ)
+{
+    static_assert(ljComb<vdwType>);
+    VdwParams<vdwType, doCalcEnergies> ret;
+    if constexpr (vdwType == VdwType::CutCombGeom)
+    {
+        ret.c6  = ljCombI[0] * ljCombJ[0];
+        ret.c12 = ljCombI[1] * ljCombJ[1];
+    }
+    else
+    {
+        static_assert(vdwType == VdwType::CutCombLB);
+        ret.sigma   = ljCombI[0] + ljCombJ[0];
+        ret.epsilon = ljCombI[1] * ljCombJ[1];
+        if constexpr (doCalcEnergies)
+        {
+            const float sigma2 = ret.sigma * ret.sigma;
+            const float sigma6 = sigma2 * sigma2 * sigma2;
+            ret.c6             = ret.epsilon * sigma6;
+            ret.c12            = ret.c6 * sigma6;
+        }
+    }
+    return ret;
 }
 
 template<bool doCalcEnergies>
-static inline void ljForceSwitch(const shift_consts_t         dispersionShift,
-                                 const shift_consts_t         repulsionShift,
-                                 const float                  rVdwSwitch,
-                                 const float                  c6,
-                                 const float                  c12,
-                                 const float                  rInv,
-                                 const float                  r2,
-                                 cl::sycl::private_ptr<float> fInvR,
-                                 cl::sycl::private_ptr<float> eLJ)
+static inline void ljForceSwitch(const shift_consts_t                              dispersionShift,
+                                 const shift_consts_t                              repulsionShift,
+                                 const float                                       rVdwSwitch,
+                                 const VdwParams<VdwType::FSwitch, doCalcEnergies> vdwParams,
+                                 const float                                       rInv,
+                                 const float                                       r2,
+                                 cl::sycl::private_ptr<float>                      fInvR,
+                                 cl::sycl::private_ptr<float>                      eLJ)
 {
     /* force switch constants */
     const float dispShiftV2 = dispersionShift.c2;
@@ -131,8 +180,8 @@ static inline void ljForceSwitch(const shift_consts_t         dispersionShift,
     const float r       = r2 * rInv;
     const float rSwitch = cl::sycl::fdim(r, rVdwSwitch); // max(r - rVdwSwitch, 0)
 
-    *fInvR += -c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * rInv
-              + c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * rInv;
+    *fInvR += -vdwParams.c6 * (dispShiftV2 + dispShiftV3 * rSwitch) * rSwitch * rSwitch * rInv
+              + vdwParams.c12 * (repuShiftV2 + repuShiftV3 * rSwitch) * rSwitch * rSwitch * rInv;
 
     if constexpr (doCalcEnergies)
     {
@@ -140,8 +189,8 @@ static inline void ljForceSwitch(const shift_consts_t         dispersionShift,
         const float dispShiftF3 = dispShiftV3 / 4;
         const float repuShiftF2 = repuShiftV2 / 3;
         const float repuShiftF3 = repuShiftV3 / 4;
-        *eLJ += c6 * (dispShiftF2 + dispShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch
-                - c12 * (repuShiftF2 + repuShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch;
+        *eLJ += vdwParams.c6 * (dispShiftF2 + dispShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch
+                - vdwParams.c12 * (repuShiftF2 + repuShiftF3 * rSwitch) * rSwitch * rSwitch * rSwitch;
     }
 }
 
@@ -698,49 +747,31 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     imask &= ~maskJI;
                                 }
                             }
+
                             const float pairExclMask = (wexcl & maskJI) ? 1.0F : 0.0F;
-
-                            // cutoff & exclusion check
-
-                            const bool notExcluded = doExclusionForces
+                            const bool  notExcluded  = doExclusionForces
                                                              ? (nonSelfInteraction | (ci != cj))
                                                              : (wexcl & maskJI);
 
+                            // cutoff & exclusion check
                             // SYCL-TODO: Check optimal way of branching here.
                             if ((r2 < rCoulombSq) && notExcluded)
                             {
                                 const float qi = xqi[3];
                                 int         atomTypeI; // Only needed if (!props.vdwComb)
-                                float       c6, c12, sigma, epsilon;
+                                VdwParams<vdwType, doCalcEnergies> vdwParams;
 
                                 if constexpr (!props.vdwComb)
                                 {
-                                    /* LJ 6*C6 and 12*C12 */
-                                    atomTypeI     = sm_atomTypeI[i][tidxi];
-                                    const int idx = (numTypes * atomTypeI + atomTypeJ) * 2;
-                                    c6            = a_nbfp[idx]; // TODO: Make a_nbfm into float2
-                                    c12           = a_nbfp[idx + 1];
+                                    atomTypeI = sm_atomTypeI[i][tidxi];
+                                    vdwParams = calcVdwParams<vdwType, doCalcEnergies>(
+                                            a_nbfp, numTypes, atomTypeI, atomTypeJ);
                                 }
                                 else
                                 {
                                     const float2 ljCombI = sm_ljCombI[i][tidxi];
-                                    if constexpr (props.vdwCombGeom)
-                                    {
-                                        c6  = ljCombI[0] * ljCombJ[0];
-                                        c12 = ljCombI[1] * ljCombJ[1];
-                                    }
-                                    else
-                                    {
-                                        static_assert(props.vdwCombLB);
-                                        // LJ 2^(1/6)*sigma and 12*epsilon
-                                        sigma   = ljCombI[0] + ljCombJ[0];
-                                        epsilon = ljCombI[1] * ljCombJ[1];
-                                        if constexpr (doCalcEnergies)
-                                        {
-                                            convertSigmaEpsilonToC6C12(sigma, epsilon, &c6, &c12);
-                                        }
-                                    } // props.vdwCombGeom
-                                }     // !props.vdwComb
+                                    vdwParams = calcVdwParams<vdwType, doCalcEnergies>(ljCombI, ljCombJ);
+                                } // !props.vdwComb
 
                                 // Ensure distance do not become so small that r^-12 overflows
                                 r2 = std::max(r2, c_nbnxnMinDistanceSquared);
@@ -758,30 +789,30 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                          * r6Inv and fInvR is faster */
                                         r6Inv *= pairExclMask;
                                     }
-                                    fInvR = r6Inv * (c12 * r6Inv - c6) * r2Inv;
+                                    fInvR = r6Inv * (vdwParams.c12 * r6Inv - vdwParams.c6) * r2Inv;
                                 }
                                 else
                                 {
-                                    float sig_r  = sigma * rInv;
+                                    float sig_r  = vdwParams.sigma * rInv;
                                     float sig_r2 = sig_r * sig_r;
                                     float sig_r6 = sig_r2 * sig_r2 * sig_r2;
                                     if constexpr (doExclusionForces)
                                     {
                                         sig_r6 *= pairExclMask;
                                     }
-                                    fInvR = epsilon * sig_r6 * (sig_r6 - 1.0F) * r2Inv;
+                                    fInvR = vdwParams.epsilon * sig_r6 * (sig_r6 - 1.0F) * r2Inv;
                                 } // (!props.vdwCombLB || doCalcEnergies)
                                 if constexpr (doCalcEnergies || props.vdwPSwitch)
                                 {
                                     energyLJPair =
                                             pairExclMask
-                                            * (c12 * (r6Inv * r6Inv + repulsionShift.cpot) * c_oneTwelfth
-                                               - c6 * (r6Inv + dispersionShift.cpot) * c_oneSixth);
+                                            * (vdwParams.c12 * (r6Inv * r6Inv + repulsionShift.cpot) * c_oneTwelfth
+                                               - vdwParams.c6 * (r6Inv + dispersionShift.cpot) * c_oneSixth);
                                 }
                                 if constexpr (props.vdwFSwitch)
                                 {
                                     ljForceSwitch<doCalcEnergies>(dispersionShift, repulsionShift,
-                                                                  rVdwSwitch, c6, c12, rInv, r2,
+                                                                  rVdwSwitch, vdwParams, rInv, r2,
                                                                   &fInvR, &energyLJPair);
                                 }
                                 if constexpr (props.vdwEwald)
