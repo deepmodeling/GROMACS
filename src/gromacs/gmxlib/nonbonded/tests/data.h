@@ -58,6 +58,7 @@ template<class RealType>
 struct Constants
 {
     // coulomb parameters (with q=0.5)
+    RealType facel_      = ONE_4PI_EPS0;
     RealType qq_         = ONE_4PI_EPS0 * 0.25;
     real potentialShift_ = 1.0_real;
     real forceShift_     = 1.0_real;

@@ -155,14 +155,14 @@ public:
 
     void reactionField()
     {
-        reactionFieldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_,
+        reactionFieldQuadraticPotential(params_.qq_, params_.facel_, r_, lambda_, params_.dLambda_,
                                         alpha_, params_.forceShift_, params_.potentialShift_,
                                         &force_, &potential_, &dvdl_, computeMask_);
     }
 
     void ewaldCoulomb()
     {
-        ewaldQuadraticPotential(params_.qq_, r_, lambda_, params_.dLambda_, params_.sigma_, alpha_,
+        ewaldQuadraticPotential(params_.qq_, params_.facel_, r_, lambda_, params_.dLambda_, alpha_,
                                 params_.ewaldShift_, &force_, &potential_, &dvdl_, computeMask_);
     }
 

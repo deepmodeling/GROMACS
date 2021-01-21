@@ -528,8 +528,9 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             {
                                 /* c12 is stored scaled with 12.0 and c6 is scaled with 6.0 - correct for this */
                                 preloadSigma6[i][s] = 0.5 * preloadC12[i][s] / preloadC6[i][s];
-                                if (preloadSigma6[i][s]
-                                    < sigma6_min) /* for disappearing coul and vdw with soft core at the same time */
+                                if ((preloadSigma6[i][s]
+                                    < sigma6_min) &&
+                                    (softcoreType == SoftcoreType::Beutler)) /* for disappearing coul and vdw with soft core at the same time */
                                 {
                                     preloadSigma6[i][s] = sigma6_min;
                                 }
@@ -550,8 +551,16 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         }
                         else
                         {
-                            preloadAlphaVdwEff[s]  = alpha_vdw;
-                            preloadAlphaCoulEff[s] = alpha_coul;
+                            if (softcoreType == SoftcoreType::Beutler)
+                            {
+                                preloadAlphaVdwEff[s]  = alpha_vdw;
+                                preloadAlphaCoulEff[s] = alpha_coul;
+                            }
+                            else if (softcoreType == SoftcoreType::Gapsys)
+                            {
+                                preloadAlphaVdwEff[s]  = alpha_vdw;
+                                preloadAlphaCoulEff[s] = gmx::sixthroot(sigma6_def);
+                            }
                         }
                     }
                 }
@@ -738,7 +747,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             {
                                 if (elecInteractionTypeIsEwald)
                                 {
-                                    ewaldQuadraticPotential(qq[i], rC, LFC[i], DLF[i], sigma6[i],
+                                    ewaldQuadraticPotential(qq[i], facel, rC, LFC[i], DLF[i],
                                                             alphaCoulEff, sh_ewald, &fScalC[i],
                                                             &vCoul[i], &dvdlCoul,
                                                             computeElecInteraction);
@@ -746,7 +755,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                 else
                                 {
                                     reactionFieldQuadraticPotential(
-                                            qq[i], rC, LFC[i], DLF[i], sigma6[i], alphaCoulEff,
+                                            qq[i], facel, rC, LFC[i], DLF[i], alphaCoulEff,
                                             krf, crf, &fScalC[i], &vCoul[i], &dvdlCoul,
                                             computeElecInteraction);
                                 }
@@ -792,7 +801,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
                                 lennardJonesQuadraticPotential(c6[i], c12[i], r, rSq, LFV[i],
-                                                               DLF[i], sigma6[i], alphaCoulEff,
+                                                               DLF[i], sigma6[i], alphaVdwEff,
                                                                repulsionShift, dispersionShift,
                                                                &fScalV[i], &vVdw[i], &dvdlVdw,
                                                                computeVdwInteraction);
