@@ -630,18 +630,17 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                     energyVdw /= c_clSize;
                     energyVdw *= 0.5F * c_oneSixth * ewaldCoeffLJ_6_6; // c_OneTwelfth?
                 }
-                if constexpr (props.elecEwald || props.elecRF || props.elecCutoff)
+                if constexpr (props.elecRF || props.elecCutoff)
                 {
                     // Correct for epsfac^2 due to adding qi^2 */
                     energyElec /= epsFac * c_clSize;
-                    if constexpr (props.elecRF || props.elecCutoff)
-                    {
-                        energyElec *= -0.5F * cRF;
-                    }
-                    else
-                    {
-                        energyElec *= -ewaldBeta * c_OneOverSqrtPi; /* last factor 1/sqrt(pi) */
-                    }
+                    energyElec *= -0.5F * cRF;
+                }
+                if constexpr (props.elecEwald)
+                {
+                    // Correct for epsfac^2 due to adding qi^2 */
+                    energyElec /= epsFac * c_clSize;
+                    energyElec *= -ewaldBeta * c_OneOverSqrtPi; /* last factor 1/sqrt(pi) */
                 }
             } // (nbSci.shift == CENTRAL && a_plistCJ4[cij4Start].cj[0] == sci * c_nbnxnGpuNumClusterPerSupercluster)
         }     // (doCalcEnergies && doExclusionForces)
@@ -772,13 +771,6 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                         r6Inv *= pairExclMask;
                                     }
                                     fInvR = r6Inv * (c12 * r6Inv - c6) * r2Inv;
-                                    if constexpr (doCalcEnergies || props.vdwPSwitch)
-                                    {
-                                        energyLJPair =
-                                                pairExclMask
-                                                * (c12 * (r6Inv * r6Inv + repulsionShift.cpot) * c_oneTwelfth
-                                                   - c6 * (r6Inv + dispersionShift.cpot) * c_oneSixth);
-                                    }
                                 }
                                 else
                                 {
@@ -791,6 +783,13 @@ auto nbnxmKernel(cl::sycl::handler&                                        cgh,
                                     }
                                     fInvR = epsilon * sig_r6 * (sig_r6 - 1.0F) * r2Inv;
                                 } // (!props.vdwCombLB || doCalcEnergies)
+                                if constexpr (doCalcEnergies || props.vdwPSwitch)
+                                {
+                                    energyLJPair =
+                                            pairExclMask
+                                            * (c12 * (r6Inv * r6Inv + repulsionShift.cpot) * c_oneTwelfth
+                                               - c6 * (r6Inv + dispersionShift.cpot) * c_oneSixth);
+                                }
                                 if constexpr (props.vdwFSwitch)
                                 {
                                     ljForceSwitch<doCalcEnergies>(dispersionShift, repulsionShift,
