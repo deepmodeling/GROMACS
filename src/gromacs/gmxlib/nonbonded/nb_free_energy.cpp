@@ -512,8 +512,17 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     }
                     else
                     {
-                        alpha_vdw_eff  = alpha_vdw;
-                        alpha_coul_eff = alpha_coul;
+                        if (softcoreType == SoftcoreType::Beutler)
+                        {
+                            alpha_vdw_eff  = alpha_vdw;
+                            alpha_coul_eff = alpha_coul;
+                        }
+                        else if (softcoreType == SoftcoreType::Gapsys)
+                        {
+                            alpha_vdw_eff  = alpha_vdw;
+                            alpha_coul_eff = gmx::sixthroot(sigma6_def);
+                            //alpha_coul_eff = alpha_coul;
+                        }
                     }
                 }
 
@@ -591,14 +600,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             {
                                 if (elecInteractionTypeIsEwald)
                                 {
-                                    ewaldQuadraticPotential(qq[i], rC, LFC[i], DLF[i], sigma6[i],
+                                    ewaldQuadraticPotential(qq[i], facel, rC, LFC[i], DLF[i],
                                                             alpha_coul_eff, sh_ewald, &FscalC[i],
                                                             &Vcoul[i], &dvdl_coul);
                                 }
                                 else
                                 {
                                     reactionFieldQuadraticPotential(
-                                            qq[i], rC, LFC[i], DLF[i], sigma6[i], alpha_coul_eff,
+                                            qq[i], facel, rC, LFC[i], DLF[i], alpha_coul_eff,
                                             krf, crf, &FscalC[i], &Vcoul[i], &dvdl_coul);
                                 }
                             }
@@ -641,7 +650,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                             if (softcoreType == SoftcoreType::Gapsys)
                             {
                                 lennardJonesQuadraticPotential(c6[i], c12[i], r, rsq, LFV[i],
-                                                               DLF[i], sigma6[i], alpha_coul_eff,
+                                                               DLF[i], sigma6[i], alpha_vdw_eff,
                                                                repulsionShift, dispersionShift,
                                                                &FscalV[i], &Vvdw[i], &dvdl_vdw);
                             }

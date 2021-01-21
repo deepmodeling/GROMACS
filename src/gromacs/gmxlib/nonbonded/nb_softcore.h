@@ -67,10 +67,10 @@ static inline void quadraticApproximationCoulomb(const RealType qq,
 /* reaction-field linearized electrostatics */
 template<class RealType>
 static inline void reactionFieldQuadraticPotential(const RealType qq,
+                                                   const RealType facel,
                                                    const RealType r,
                                                    const RealType lambdaFac,
                                                    const RealType dLambdaFac,
-                                                   const RealType sigma6,
                                                    const RealType alphaEff,
                                                    const RealType krf,
                                                    const RealType potentialShift,
@@ -81,10 +81,9 @@ static inline void reactionFieldQuadraticPotential(const RealType qq,
     /* check if we have to use the hardcore values */
     if ((lambdaFac < 1) && (alphaEff > 0))
     {
-        constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
         RealType           rQ;
 
-        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
+        rQ = gmx::sixthroot(1.-lambdaFac) * (1. + fabs(qq/facel));
         rQ *= alphaEff;
 
         if (r < rQ)
@@ -100,10 +99,10 @@ static inline void reactionFieldQuadraticPotential(const RealType qq,
 /* ewald linearized electrostatics */
 template<class RealType>
 static inline void ewaldQuadraticPotential(const RealType qq,
+                                           const RealType facel,
                                            const RealType r,
                                            const RealType lambdaFac,
                                            const RealType dLambdaFac,
-                                           const RealType sigma6,
                                            const RealType alphaEff,
                                            const RealType potentialShift,
                                            RealType*      force,
@@ -114,10 +113,9 @@ static inline void ewaldQuadraticPotential(const RealType qq,
     /* check if we have to use the hardcore values */
     if ((lambdaFac < 1) && (alphaEff > 0))
     {
-        constexpr RealType c_twentySixSeventh = 26.0 / 7.0;
         RealType           rQ;
 
-        rQ = gmx::sixthroot(c_twentySixSeventh * sigma6 * (1.- lambdaFac));
+        rQ = gmx::sixthroot(1.-lambdaFac) * (1. + fabs(qq/facel));
         rQ *= alphaEff;
 
         if (r < rQ)
