@@ -521,7 +521,6 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         {
                             alpha_vdw_eff  = alpha_vdw;
                             alpha_coul_eff = gmx::sixthroot(sigma6_def);
-                            //alpha_coul_eff = alpha_coul;
                         }
                     }
                 }
