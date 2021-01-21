@@ -490,7 +490,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         {
                             /* c12 is stored scaled with 12.0 and c6 is scaled with 6.0 - correct for this */
                             sigma6[i] = half * c12[i] / c6[i];
-                            if (sigma6[i] < sigma6_min) /* for disappearing coul and vdw with soft core at the same time */
+                            if ((sigma6[i] < sigma6_min) && (softcoreType == SoftcoreType::Beutler)) /* for disappearing coul and vdw with soft core at the same time */
                             {
                                 sigma6[i] = sigma6_min;
                             }
