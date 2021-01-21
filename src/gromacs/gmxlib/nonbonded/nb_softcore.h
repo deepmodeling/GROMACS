@@ -71,10 +71,10 @@ static inline void quadraticApproximationCoulomb(const RealType qq,
 /* reaction-field linearized electrostatics */
 template<class RealType, class BoolType>
 static inline void reactionFieldQuadraticPotential(const RealType qq,
-                                                   const RealType facel,
+                                                   const real     facel,
                                                    const RealType r,
-                                                   const RealType lambdaFac,
-                                                   const RealType dLambdaFac,
+                                                   const real     lambdaFac,
+                                                   const real     dLambdaFac,
                                                    const RealType alphaEff,
                                                    const real krf,
                                                    const real potentialShift,
@@ -92,7 +92,7 @@ static inline void reactionFieldQuadraticPotential(const RealType qq,
         RealType lambdaFacRev = gmx::selectByMask(1.0 - lambdaFac, computeValues);
 
         rQ = gmx::cbrt(lambdaFacRev);
-        rQ = gmx::sqrt(rQ) * (1. + fabs(qq/facel));
+        rQ = gmx::sqrt(rQ) * (1. + gmx::abs(qq/facel));
         rQ = rQ * alphaEff;
 
         computeValues = (computeValues && r < rQ);
@@ -115,10 +115,10 @@ static inline void reactionFieldQuadraticPotential(const RealType qq,
 /* ewald linearized electrostatics */
 template<class RealType, class BoolType>
 static inline void ewaldQuadraticPotential(const RealType qq,
-                                           const RealType facel,
+                                           const real     facel,
                                            const RealType r,
-                                           const RealType lambdaFac,
-                                           const RealType dLambdaFac,
+                                           const real     lambdaFac,
+                                           const real     dLambdaFac,
                                            const RealType alphaEff,
                                            const real potentialShift,
                                            RealType*      force,
@@ -136,7 +136,7 @@ static inline void ewaldQuadraticPotential(const RealType qq,
         RealType lambdaFacRev = gmx::selectByMask(1.0 - lambdaFac, computeValues);
 
         rQ = gmx::cbrt(lambdaFacRev);
-        rQ = gmx::sqrt(rQ) * (1. + fabs(qq/facel));
+        rQ = gmx::sqrt(rQ) * (1. + gmx::abs(qq/facel));
         rQ = rQ * alphaEff;
 
         computeValues = (computeValues && r < rQ);
