@@ -5,20 +5,20 @@
     <Real Name="Time 0.000000 Step 0 in frame 0">-843.10303</Real>
   </Energy>
   <Energy Name="Potential">
-    <Real Name="Time 0.000000 Step 0 in frame 0">237.86093</Real>
+    <Real Name="Time 0.000000 Step 0 in frame 0">239.2709</Real>
   </Energy>
   <Energy Name="dVcoul/dl">
-    <Real Name="Time 0.000000 Step 0 in frame 0">-228.12801</Real>
+    <Real Name="Time 0.000000 Step 0 in frame 0">-230.37555</Real>
   </Energy>
   <Sequence Name="Time 0.000000 Step 0 F">
     <Int Name="Length">2</Int>
     <Vector>
-      <Real Name="X">-1933.8892</Real>
+      <Real Name="X">-1950.4475</Real>
       <Real Name="Y">0</Real>
       <Real Name="Z">0</Real>
     </Vector>
     <Vector>
-      <Real Name="X">1933.8892</Real>
+      <Real Name="X">1950.4475</Real>
       <Real Name="Y">0</Real>
       <Real Name="Z">0</Real>
     </Vector>
