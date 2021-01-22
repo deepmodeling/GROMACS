@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -54,6 +54,7 @@ using DeviceTexture = void*;
 //! \brief Single GPU call timing event, not used with SYCL
 using CommandEvent = void*;
 
+#ifndef __HIPSYCL__
 //! Convenience alias.
 using float4 = cl::sycl::float4;
 
@@ -62,6 +63,7 @@ using float3 = gmx::RVec;
 
 //! Convenience alias for cl::sycl::float2
 using float2 = cl::sycl::float2;
+#endif
 
 /*! \internal \brief
  * GPU kernels scheduling description. This is same in OpenCL/CUDA.
