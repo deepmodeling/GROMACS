@@ -1819,6 +1819,9 @@ void gmx::LegacySimulator::do_md()
                 // stateGpu->copyForcesToGpu(ArrayRef<RVec>(f), AtomLocality::Local);
                 integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
                                 stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc);
+                t_pbc pbc;
+                set_pbc(&pbc, epbcXYZ, state->box);
+                integrator->setPbc(&pbc);
             }
         }
 
