@@ -897,8 +897,6 @@ void gmx::LegacySimulator::do_md()
             stateGpu->waitCoordinatesReadyOnHost(AtomLocality::Local);
         }
 
-        nvtxRangePushA("DomDec");
-
         if (bNS && !(bFirstStep && ir->bContinuation))
         {
             bMasterState = FALSE;
@@ -967,8 +965,6 @@ void gmx::LegacySimulator::do_md()
                                             &shouldCheckNumberOfBondedInteractions);
         }
         clear_mat(force_vir);
-
-        nvtxRangePop();
 
         /* PLUMED HREX */
         gmx_bool bHREX = bDoReplEx && plumed_hrex;
@@ -1171,7 +1167,7 @@ void gmx::LegacySimulator::do_md()
             /* END PLUMED */
         }
 
-        nvtxRangePushA("update");
+        // nvtxRangePushA("update");
 
         // VV integrators do not need the following velocity half step
         // if it is the first step after starting from a checkpoint.
@@ -1695,7 +1691,7 @@ void gmx::LegacySimulator::do_md()
 
         /* ################# END UPDATE STEP 2 ################# */
         /* #### We now have r(t+dt) and v(t+dt/2)  ############# */
-        nvtxRangePop();
+        // nvtxRangePop();
 
         /* The coordinates (x) were unshifted in update */
         if (!bGStat)

@@ -802,7 +802,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
         case epbcdxUNSUPPORTED: break;
         default: gmx_fatal(FARGS, "Internal error in pbc_dx, set_pbc has not been called");
     }
-    nvtxRangePush(__FUNCTION__);
+    nvtxRangePop();
 }
 
 int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
@@ -1074,7 +1074,7 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
     {
         range_check_mesg(is, 0, SHIFTS, "PBC shift vector index range check.");
     }
-    nvtxRangePush(__FUNCTION__);
+    nvtxRangePop();
 
     return is;
 }
@@ -1199,7 +1199,7 @@ void pbc_dx_d(const t_pbc* pbc, const dvec x1, const dvec x2, dvec dx)
         case epbcdxUNSUPPORTED: break;
         default: gmx_fatal(FARGS, "Internal error in pbc_dx, set_pbc has not been called");
     }
-    nvtxRangePush(__FUNCTION__);
+    nvtxRangePop();
 }
 
 void calc_shifts(const matrix box, rvec shift_vec[])
