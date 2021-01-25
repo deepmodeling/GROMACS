@@ -37,7 +37,7 @@ echo "We are uploading files for this version: ${VERSION}"
 # Get files for uploading the manual front page
 MANUAL_PAGE_REPO=manual-front-page
 if [[ -d "${MANUAL_PAGE_REPO}" ]]; then
-    rm -rf ${MANUAL_PAGE_REPO}
+    rm -rf "${MANUAL_PAGE_REPO}"
 fi
 git clone --depth=1 git@gitlab.com:gromacs/deployment/manual-front-page.git
 
@@ -60,10 +60,10 @@ originalpwd="${PWD}"
     fi
     # we always fail save
     if [[ "${DRY_RUN}" == "false" ]] ; then
-        ${upload} ${website_loc}/* ${website_loc}/.[a-z]* ${deploymentlocation}/${VERSION}/
+        ${upload} "${website_loc}"/* "${website_loc}"/.[a-z]* "${deploymentlocation}"/"${VERSION}"/
     fi
     echo "done upload"
-    cp ${website_loc}/manual-${VERSION}.pdf ${originalpwd}
+    cp "${website_loc}/manual-${VERSION}.pdf" "${originalpwd}"
 )
 
 
@@ -76,9 +76,9 @@ originalpwd="${PWD}"
     md5sum "${regressiontests_tarball}"
     # we always fail save
     if [[ "${DRY_RUN}" == "false" ]] ; then
-        ${upload} ${source_tarball} ${destination}/gromacs/
-        ${upload} manual-${VERSION}.pdf ${destination}/manual/
-        ${upload} ${regressiontests_tarball} ${destination}/regressiontests/
+        ${upload} "${source_tarball}" "${destination}/gromacs/"
+        ${upload} "manual-${VERSION}.pdf" "${destination}/manual/"
+        ${upload} "${regressiontests_tarball}" "${destination}/regressiontests/"
     fi
 )
 
@@ -89,7 +89,7 @@ originalpwd="${PWD}"
     make html
     # we always fail save
     if [[ "${DRY_RUN}" == "false" ]] ; then
-        ${upload} _build/html/ ${deploymentlocation}/ --exclude _sources --exclude .buildinfo --exclude objects.inv
+        ${upload} _build/html/ "${deploymentlocation}/" --exclude _sources --exclude .buildinfo --exclude objects.inv
     fi
 )
 
