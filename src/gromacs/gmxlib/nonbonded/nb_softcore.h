@@ -64,8 +64,8 @@ static inline void quadraticApproximationCoulomb(const RealType qq,
 
     *potential = quadrFac - 3. * (linFac - constFac);
 
-    *dvdl = gmx::selectByMask(
-            dLambdaFac * 0.5 * (lambdaFac / (1. - lambdaFac)) * (quadrFac - 2. * linFac + constFac), mask);
+    RealType lambdaFacRevInv = gmx::maskzInv(1.0 - lambdaFac, mask);
+    *dvdl = dLambdaFac * 0.5 * (lambdaFac * lambdaFacRevInv) * (quadrFac - 2. * linFac + constFac);
 }
 
 /* reaction-field linearized electrostatics */
@@ -104,10 +104,12 @@ static inline void reactionFieldQuadraticPotential(const RealType qq,
             quadraticApproximationCoulomb(
                     qq, rInvQ, r, lambdaFac, dLambdaFac, &forceOut, &potentialOut, &dvdlOut, computeValues);
 
-            *force     = gmx::selectByMask(forceOut - (qq * 2.0 * krf * r * r), computeValues);
-            *potential = gmx::selectByMask(potentialOut + (qq * (krf * r * r - potentialShift)),
-                                           computeValues);
-            *dvdl = *dvdl + dvdlOut;
+            *force = gmx::selectByNotMask(*force, computeValues)
+                     + gmx::selectByMask(forceOut - (qq * 2.0 * krf * r * r), computeValues);
+            *potential = gmx::selectByNotMask(*potential, computeValues)
+                         + gmx::selectByMask(potentialOut + (qq * (krf * r * r - potentialShift)),
+                                             computeValues);
+            *dvdl = *dvdl + gmx::selectByMask(dvdlOut, computeValues);
         }
     }
 }
@@ -148,8 +150,10 @@ static inline void ewaldQuadraticPotential(const RealType qq,
             quadraticApproximationCoulomb(
                     qq, rInvQ, r, lambdaFac, dLambdaFac, &forceOut, &potentialOut, &dvdlOut, computeValues);
 
-            *force     = gmx::selectByMask(forceOut, computeValues);
-            *potential = gmx::selectByMask(potentialOut - (qq * potentialShift), computeValues);
+            *force = gmx::selectByNotMask(*force, computeValues)
+                     + gmx::selectByMask(forceOut, computeValues);
+            *potential = gmx::selectByNotMask(*potential, computeValues)
+                         + gmx::selectByMask(potentialOut - (qq * potentialShift), computeValues);
             *dvdl = *dvdl + gmx::selectByMask(dvdlOut, computeValues);
         }
     }
@@ -219,15 +223,21 @@ static inline void lennardJonesQuadraticPotential(const RealType c6,
             constFac  = 91. * rInv12C - 28. * rInv6C;
 
             /* Computing LJ force and potential energy*/
-            *force = gmx::selectByMask(-quadrFac + linearFac, computeValues);
+            *force = gmx::selectByNotMask(*force, computeValues)
+                     + gmx::selectByMask(-quadrFac + linearFac, computeValues);
 
-            *potential = gmx::selectByMask(0.5 * quadrFac - linearFac + constFac, computeValues);
+            *potential = gmx::selectByNotMask(*potential, computeValues)
+                         + gmx::selectByMask(0.5 * quadrFac - linearFac + constFac, computeValues);
 
-            *dvdl = *dvdl + gmx::selectByMask(dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
-                        * ((6.5 * rInv14C - rInv8C) - (13. * rInv13C - 2. * rInv7C)
-                           + (6.5 * rInv12C - rInv6C)), computeValues);
+            *dvdl = *dvdl
+                    + gmx::selectByMask(dLambdaFac * 28. * (lambdaFac / (1. - lambdaFac))
+                                                * ((6.5 * rInv14C - rInv8C) - (13. * rInv13C - 2. * rInv7C)
+                                                   + (6.5 * rInv12C - rInv6C)),
+                                        computeValues);
 
-            *potential = *potential + gmx::selectByMask(((c12s * repulsionShift) - (c6s * dispersionShift)), computeValues);
+            *potential = *potential
+                         + gmx::selectByMask(((c12s * repulsionShift) - (c6s * dispersionShift)),
+                                             computeValues);
         }
     }
 }
