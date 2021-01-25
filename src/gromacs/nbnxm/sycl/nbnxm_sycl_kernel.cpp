@@ -45,6 +45,7 @@
 
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
+#include "gromacs/math/functions.h"
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/utility/template_mp.h"
@@ -336,18 +337,6 @@ static inline void reduceForceJShuffle(float3                                  f
     }
 }
 
-static constexpr int log2i(const int v)
-{
-    if (v == 1)
-    {
-        return 0;
-    }
-    else
-    {
-        assert(v % 2 == 0);
-        return log2i(v / 2) + 1;
-    }
-}
 
 /*! \brief Final i-force reduction.
  *
@@ -365,7 +354,7 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
                                          DeviceAccessor<float, mode::read_write> a_fShift)
 {
     static constexpr int bufStride  = c_clSize * c_clSize;
-    static constexpr int clSizeLog2 = log2i(c_clSize);
+    static constexpr int clSizeLog2 = gmx::StaticLog2<c_clSize>::value;
     const int            tidx       = tidxi + tidxj * c_clSize;
     float                fShiftBuf  = 0;
     for (int ciOffset = 0; ciOffset < c_nbnxnGpuNumClusterPerSupercluster; ciOffset++)
