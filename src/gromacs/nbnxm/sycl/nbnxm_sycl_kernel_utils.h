@@ -124,7 +124,7 @@ static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexTy
                               cl::sycl::access::address_space::global_space>
                 fout_atomic(acc[idx]);
         fout_atomic.fetch_add(val);
-#elif defined(__HIP_SYCL__)
+#elif defined(__HIPSYCL__)
         static_assert(Mode == cl::sycl::access::mode::atomic);
         acc[idx].fetch_add(val);
 #endif

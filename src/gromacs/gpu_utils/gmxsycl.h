@@ -62,7 +62,7 @@
 #endif
 
 // For hipSYCL, we need to activate floating-point atomics
-#if defined(__HIP_SYCL__)
+#if defined(__HIPSYCL__)
 #    define HIPSYCL_EXT_FP_ATOMICS
 #endif
 

@@ -309,7 +309,12 @@ __host__ __device__
 {
 #if defined(SYCL_DEVICE_ONLY)
 #    if defined(__HIPSYCL__)
-    return __shfl_down(var, delta);
+#        if defined HIPSYCL_PLATFORM_CUDA
+    static constexpr unsigned int c_fullWarpMask = 0xffffffff;
+    return __shfl_down_sync(var, delta, c_fullWarpMask);
+#        else
+#            error
+#        endif
 #    else
     return sg.shuffle_down(var, delta);
 #    endif
@@ -327,7 +332,12 @@ __host__ __device__
 {
 #if defined(SYCL_DEVICE_ONLY)
 #    if defined(__HIPSYCL__)
-    return __shfl_up(var, delta);
+#        if defined HIPSYCL_PLATFORM_CUDA
+    static constexpr unsigned int c_fullWarpMask = 0xffffffff;
+    return __shfl_up_sync(var, delta, c_fullWarpMask);
+#        else
+#            error
+#        endif
 #    else
     return sg.shuffle_up(var, delta);
 #    endif
