@@ -15,9 +15,12 @@ set -euo pipefail
 # on the FTP and manual servers, to check that things work. This is needed for testing this script.
 # When not on one of the recognized release branches, we also set the script to use test locations.
 
-# By default, assume we are doing the full upload
-UPLOAD_LOCATION_FTP=/srv/ftp
-UPLOAD_LOCATION_WWW=/var/www/manual
+# By default, assume we are doing the full upload to the default locations
+# As both the manual and ftpbot can't place files anywhere except their base
+# directories (/srv/ftp for the ftpbot and /var/www/manual for the manualbot),
+# we set the upload path relative to this.
+UPLOAD_LOCATION_FTP=./ # is equivalent to /srv/ftp
+UPLOAD_LOCATION_WWW=./ # is equivalent to /var/www/manual
 UPLOAD_REMOTE_FTP=ftpbot@ftp.gromacs.org
 UPLOAD_REMOTE_WWW=manualbot@manual.gromacs.org
 
@@ -58,10 +61,7 @@ originalpwd="${PWD}"
         echo "Error Can't find the webpage files"
         exit 1
     fi
-    # we always fail save
-    if [[ "${DRY_RUN}" == "false" ]] ; then
-        ${upload} "${website_loc}"/* "${website_loc}"/.[a-z]* "${deploymentlocation}"/"${VERSION}"/
-    fi
+    ${upload} "${website_loc}"/* "${website_loc}"/.[a-z]* "${deploymentlocation}"/"${VERSION}"/
     echo "done upload"
     cp "${website_loc}/manual-${VERSION}.pdf" "${originalpwd}"
 )
@@ -74,12 +74,9 @@ originalpwd="${PWD}"
     source_tarball="gromacs-${VERSION}.tar.gz"
     md5sum "${source_tarball}"
     md5sum "${regressiontests_tarball}"
-    # we always fail save
-    if [[ "${DRY_RUN}" == "false" ]] ; then
-        ${upload} "${source_tarball}" "${destination}/gromacs/"
-        ${upload} "manual-${VERSION}.pdf" "${destination}/manual/"
-        ${upload} "${regressiontests_tarball}" "${destination}/regressiontests/"
-    fi
+    ${upload} "${source_tarball}" "${destination}/gromacs/"
+    ${upload} "manual-${VERSION}.pdf" "${destination}/manual/"
+    ${upload} "${regressiontests_tarball}" "${destination}/regressiontests/"
 )
 
 (
@@ -88,8 +85,6 @@ originalpwd="${PWD}"
     deploymentlocation="${UPLOAD_REMOTE_WWW}:${UPLOAD_LOCATION_WWW}"
     make html
     # we always fail save
-    if [[ "${DRY_RUN}" == "false" ]] ; then
-        ${upload} _build/html/ "${deploymentlocation}/" --exclude _sources --exclude .buildinfo --exclude objects.inv
-    fi
+    ${upload} _build/html/ "${deploymentlocation}/" --exclude _sources --exclude .buildinfo --exclude objects.inv
 )
 
