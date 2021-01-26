@@ -44,6 +44,8 @@
 
 #include <cstdio>
 
+#include "gromacs/utility/arrayref.h"
+
 // The entire nblib public API can be included with a single header or individual components
 // can be included via their respective headers.
 #include "nblib/nblib.h"
@@ -94,8 +96,8 @@ int main()
     HarmonicBondType ohHarmonicBond(1, 1);
     HarmonicBondType hcHarmonicBond(2, 1);
 
-    DefaultAngle hohAngle(Degrees(120), 1);
-    DefaultAngle hchAngle(Degrees(109.5), 1);
+    HarmonicAngleType hohAngle(Degrees(120), 1);
+    HarmonicAngleType hchAngle(Degrees(109.5), 1);
 
     // add harmonic bonds for water
     water.addInteraction(ParticleName("O"), ParticleName("H1"), ohHarmonicBond);

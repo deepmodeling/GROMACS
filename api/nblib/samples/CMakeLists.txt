@@ -48,6 +48,16 @@ target_sources(${exename}
 
 target_link_libraries(${exename} PRIVATE nblib)
 
+set(exename "methane-water-integration")
+add_executable(${exename} "")
+
+target_sources(${exename}
+        PRIVATE
+        methane-water-integration.cpp
+        )
+
+target_link_libraries(${exename} PRIVATE nblib)
+
 if(BUILD_TESTING)
     add_test(NAME NbLibSamplesTests COMMAND ${exename})
     add_dependencies(check-nblib ${exename})
