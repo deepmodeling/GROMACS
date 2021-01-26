@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -390,6 +390,17 @@ void pme_gpu_realloc_grids(PmeGpu* pmeGpu)
                                    &pmeGpu->archSpecific->realGridSize[gridIndex],
                                    &pmeGpu->archSpecific->realGridCapacity[gridIndex],
                                    pmeGpu->archSpecific->deviceContext_);
+
+            if (pmeGpu->settings.useDecomposition)
+            {
+                GMX_ASSERT(CUDA_AWARE_MPI,
+                           "PME decomposition is supported only with CUDA-aware MPI");
+                reallocateDeviceBuffer(&kernelParamsPtr->grid.d_fourierGrid2[gridIndex],
+                                       newComplexGridSize,
+                                       &pmeGpu->archSpecific->complexGridSize[gridIndex],
+                                       &pmeGpu->archSpecific->complexGridCapacity2[gridIndex],
+                                       pmeGpu->archSpecific->deviceContext_);
+            }
         }
         else
         {
@@ -415,6 +426,11 @@ void pme_gpu_free_grids(const PmeGpu* pmeGpu)
         if (pmeGpu->archSpecific->performOutOfPlaceFFT)
         {
             freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_fourierGrid[gridIndex]);
+            if (pmeGpu->settings.useDecomposition)
+            {
+                // Free fourier grid
+                freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_fourierGrid2[gridIndex]);
+            }
         }
         freeDeviceBuffer(&pmeGpu->kernelParams->grid.d_realGrid[gridIndex]);
     }
@@ -811,6 +827,8 @@ static void pme_gpu_copy_common_data_from(const gmx_pme_t* pme)
     pmeGpu->common->nk[YY]       = pme->nky;
     pmeGpu->common->nk[ZZ]       = pme->nkz;
     pmeGpu->common->pme_order    = pme->pme_order;
+    pmeGpu->common->s2g0x        = pme->overlap[0].s2g0;
+    pmeGpu->common->s2g1x        = pme->overlap[0].s2g1;
     if (pmeGpu->common->pme_order != c_pmeGpuOrder)
     {
         GMX_THROW(gmx::NotImplementedError("pme_order != 4 is not implemented!"));
@@ -831,6 +849,8 @@ static void pme_gpu_copy_common_data_from(const gmx_pme_t* pme)
     pmeGpu->common->runMode       = pme->runMode;
     pmeGpu->common->isRankPmeOnly = !pme->bPPnode;
     pmeGpu->common->boxScaler     = pme->boxScaler;
+    pmeGpu->common->mpi_comm      = pme->mpi_comm_d[0];
+    GMX_RELEASE_ASSERT(pme->nnodes_minor == 1, "PME-decomposition in y-dim not supported");
 }
 
 /*! \libinternal \brief
@@ -932,9 +952,9 @@ void pme_gpu_reinit(gmx_pme_t*           pme,
         /* After this call nothing in the GPU code should refer to the gmx_pme_t *pme itself - until the next pme_gpu_reinit */
         pme_gpu_copy_common_data_from(pme);
     }
-    /* GPU FFT will only get used for a single rank.*/
-    pme->gpu->settings.performGPUFFT =
-            (pme->gpu->common->runMode == PmeRunMode::GPU) && !pme->gpu->settings.useDecomposition;
+
+    pme->gpu->settings.performGPUFFT = (pme->gpu->common->runMode == PmeRunMode::GPU)
+                                       && (CUDA_AWARE_MPI || !pme->gpu->settings.useDecomposition);
     pme->gpu->settings.performGPUSolve = (pme->gpu->common->runMode == PmeRunMode::GPU);
 
     /* Reinit active timers */
@@ -1390,7 +1410,9 @@ void pme_gpu_solve(const PmeGpu* pmeGpu,
                    const int     gridIndex,
                    t_complex*    h_grid,
                    GridOrdering  gridOrdering,
-                   bool          computeEnergyAndVirial)
+                   bool          computeEnergyAndVirial,
+                   int           nodeId,
+                   int           nNodes)
 {
     GMX_ASSERT(
             pmeGpu->common->ngrids == 1 || pmeGpu->common->ngrids == 2,
@@ -1439,6 +1461,12 @@ void pme_gpu_solve(const PmeGpu* pmeGpu,
     const int gridLinesPerBlock = std::max(maxBlockSize / gridLineSize, 1);
     const int blocksPerGridLine = (gridLineSize + maxBlockSize - 1) / maxBlockSize;
     int       cellsPerBlock;
+
+    pmeGpu->kernelParams->grid.kOffsets[minorDim]  = 0;
+    pmeGpu->kernelParams->grid.kOffsets[middleDim] = 0;
+    pmeGpu->kernelParams->grid.kOffsets[majorDim] =
+            nodeId * pmeGpu->kernelParams->grid.complexGridSize[majorDim] / nNodes;
+
     if (blocksPerGridLine == 1)
     {
         cellsPerBlock = gridLineSize * gridLinesPerBlock;
@@ -1460,7 +1488,17 @@ void pme_gpu_solve(const PmeGpu* pmeGpu,
     // rounding up to full warps so that shuffle operations produce defined results
     config.gridSize[1] = (pmeGpu->kernelParams->grid.complexGridSize[middleDim] + gridLinesPerBlock - 1)
                          / gridLinesPerBlock;
-    config.gridSize[2] = pmeGpu->kernelParams->grid.complexGridSize[majorDim];
+
+    if (pmeGpu->settings.useDecomposition)
+    {
+        config.gridSize[2] =
+                ((nodeId + 1) * pmeGpu->kernelParams->grid.complexGridSize[majorDim] / nNodes)
+                - ((nodeId)*pmeGpu->kernelParams->grid.complexGridSize[majorDim] / nNodes);
+    }
+    else
+    {
+        config.gridSize[2] = pmeGpu->kernelParams->grid.complexGridSize[majorDim];
+    }
 
     int                                timingId  = gtPME_SOLVE;
     PmeGpuProgramImpl::PmeKernelHandle kernelPtr = nullptr;

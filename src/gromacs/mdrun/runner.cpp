@@ -1086,11 +1086,9 @@ int Mdrunner::mdrunner()
             domdecOptions.numPmeRanks = 0;
             // TODO possibly print a note that one can opt-in for a separate PME GPU rank?
         }
-        else
-        {
-            GMX_RELEASE_ASSERT(domdecOptions.numPmeRanks <= 1,
-                               "PME GPU decomposition is not supported");
-        }
+
+        GMX_RELEASE_ASSERT(CUDA_AWARE_MPI || domdecOptions.numPmeRanks <= 1,
+                           "PME GPU decomposition is not supported");
     }
 
     /* NMR restraints must be initialized before load_checkpoint,
@@ -1376,6 +1374,8 @@ int Mdrunner::mdrunner()
                                                          doRerun,
                                                          EI_ENERGY_MINIMIZATION(inputrec->eI));
 
+    bool useGpuPmePpComm = decideWhetherToUseGpuPmePPComm(devFlags, pmeRunMode, cr);
+
     // Also populates the simulation constant workload description.
     runScheduleWork.simulationWork = createSimulationWorkload(*inputrec,
                                                               disableNonbondedCalculation,
@@ -1384,7 +1384,8 @@ int Mdrunner::mdrunner()
                                                               pmeRunMode,
                                                               useGpuForBonded,
                                                               useGpuForUpdate,
-                                                              useGpuDirectHalo);
+                                                              useGpuDirectHalo,
+                                                              useGpuPmePpComm);
 
     std::unique_ptr<DeviceStreamManager> deviceStreamManager = nullptr;
 

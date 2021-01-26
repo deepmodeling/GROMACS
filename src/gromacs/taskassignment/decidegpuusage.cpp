@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2015,2016,2017,2018,2019 by the GROMACS development team.
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -406,13 +406,11 @@ bool decideWhetherToUseGpusForPme(const bool              useGpuForNonbonded,
 
     if (pmeTarget == TaskTarget::Gpu)
     {
-        if (((numRanksPerSimulation > 1) && (numPmeRanksPerSimulation == 0))
-            || (numPmeRanksPerSimulation > 1))
+        if (((numRanksPerSimulation > 1) && (numPmeRanksPerSimulation == 0)))
         {
-            GMX_THROW(NotImplementedError(
-                    "PME tasks were required to run on GPUs, but that is not implemented with "
-                    "more than one PME rank. Use a single rank simulation, or a separate PME rank, "
-                    "or permit PME tasks to be assigned to the CPU."));
+            GMX_THROW(InconsistentInputError(
+                    "When you run mdrun -pme gpu, you must supply a PME-enabled .tpr "
+                    "file"));
         }
         return true;
     }
@@ -721,6 +719,15 @@ bool decideWhetherToUseGpuForHalo(const DevelopmentFeatureFlags& devFlags,
 {
     return havePPDomainDecomposition && devFlags.enableGpuHaloExchange && useGpuForNonbonded
            && !useModularSimulator && !doRerun && !haveEnergyMinimization;
+}
+
+bool decideWhetherToUseGpuPmePPComm(const DevelopmentFeatureFlags& devFlags,
+                                    PmeRunMode                     pmeRunMode,
+                                    const t_commrec*               cr)
+{
+    // No PP-PME comm needed if the same rank is computing both PP and PME forces
+    return devFlags.enableGpuPmePPComm && (pmeRunMode == PmeRunMode::GPU)
+           && !(thisRankHasDuty(cr, DUTY_PME) && thisRankHasDuty(cr, DUTY_PP));
 }
 
 } // namespace gmx

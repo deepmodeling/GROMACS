@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -133,11 +133,16 @@ struct PmeGpuGridParams
     /*! \brief Offsets for X/Y/Z components of d_fractShiftsTable and d_gridlineIndicesTable */
     int tablesOffsets[DIM];
 
+    /*! \brief Offsets for the complex grid in pme_solve */
+    int kOffsets[DIM];
+
     /* Grid arrays */
     /*! \brief Real space grid. */
     HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_realGrid[NUMFEPSTATES];
     /*! \brief Complex grid - used in FFT/solve. If inplace cu/clFFT is used, then it is the same handle as realGrid. */
     HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_fourierGrid[NUMFEPSTATES];
+    /*! \brief Additional Complex grid - used in FFT/solve. Required for out of place distributed FFT. */
+    HIDE_FROM_OPENCL_COMPILER(DeviceBuffer<float>) d_fourierGrid2[NUMFEPSTATES];
 
     /*! \brief Grid spline values as in pme->bsp_mod
      * (laid out sequentially (XXX....XYYY......YZZZ.....Z))

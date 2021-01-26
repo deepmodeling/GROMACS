@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -91,17 +91,19 @@ __launch_bounds__(c_solveMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBUT
     float2* __restrict__ gm_grid           = (float2*)kernelParams.grid.d_fourierGrid[gridIndex];
 
     /* Various grid sizes and indices */
-    const int localOffsetMinor = 0, localOffsetMajor = 0, localOffsetMiddle = 0; // unused
-    const int localSizeMinor   = kernelParams.grid.complexGridSizePadded[minorDim];
-    const int localSizeMiddle  = kernelParams.grid.complexGridSizePadded[middleDim];
-    const int localCountMiddle = kernelParams.grid.complexGridSize[middleDim];
-    const int localCountMinor  = kernelParams.grid.complexGridSize[minorDim];
-    const int nMajor           = kernelParams.grid.realGridSize[majorDim];
-    const int nMiddle          = kernelParams.grid.realGridSize[middleDim];
-    const int nMinor           = kernelParams.grid.realGridSize[minorDim];
-    const int maxkMajor        = (nMajor + 1) / 2;  // X or Y
-    const int maxkMiddle       = (nMiddle + 1) / 2; // Y OR Z => only check for !YZX
-    const int maxkMinor        = (nMinor + 1) / 2;  // Z or X => only check for YZX
+    const int localOffsetMinor  = kernelParams.grid.kOffsets[minorDim];
+    const int localOffsetMiddle = kernelParams.grid.kOffsets[middleDim];
+    const int localOffsetMajor  = kernelParams.grid.kOffsets[majorDim];
+    const int localSizeMinor    = kernelParams.grid.complexGridSizePadded[minorDim];
+    const int localSizeMiddle   = kernelParams.grid.complexGridSizePadded[middleDim];
+    const int localCountMiddle  = kernelParams.grid.complexGridSize[middleDim];
+    const int localCountMinor   = kernelParams.grid.complexGridSize[minorDim];
+    const int nMajor            = kernelParams.grid.realGridSize[majorDim];
+    const int nMiddle           = kernelParams.grid.realGridSize[middleDim];
+    const int nMinor            = kernelParams.grid.realGridSize[minorDim];
+    const int maxkMajor         = (nMajor + 1) / 2;  // X or Y
+    const int maxkMiddle        = (nMiddle + 1) / 2; // Y OR Z => only check for !YZX
+    const int maxkMinor         = (nMinor + 1) / 2;  // Z or X => only check for YZX
 
     /* Each thread works on one cell of the Fourier space complex 3D grid (gm_grid).
      * Each block handles up to c_solveMaxThreadsPerBlock cells -

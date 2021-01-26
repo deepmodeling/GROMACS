@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -375,12 +375,16 @@ void pme_gpu_3dfft(const PmeGpu* pmeGpu, enum gmx_fft_direction direction, int g
  * \param[in,out] h_grid                  The host-side input and output Fourier grid buffer (used only with testing or host-side FFT)
  * \param[in]     gridOrdering            Specifies the dimenion ordering of the complex grid. TODO: store this information?
  * \param[in]     computeEnergyAndVirial  Tells if the energy and virial computation should be performed.
+ * \param[in]     nodeId                  MPI rank for this process within all PME ranks
+ * \param[in]     nNodes                  Total number of ranks in PME MPI communicator
  */
 GPU_FUNC_QUALIFIER void pme_gpu_solve(const PmeGpu* GPU_FUNC_ARGUMENT(pmeGpu),
                                       int           GPU_FUNC_ARGUMENT(gridIndex),
                                       t_complex*    GPU_FUNC_ARGUMENT(h_grid),
                                       GridOrdering  GPU_FUNC_ARGUMENT(gridOrdering),
-                                      bool GPU_FUNC_ARGUMENT(computeEnergyAndVirial)) GPU_FUNC_TERM;
+                                      bool          GPU_FUNC_ARGUMENT(computeEnergyAndVirial),
+                                      int           GPU_FUNC_ARGUMENT(nodeId),
+                                      int           GPU_FUNC_ARGUMENT(nNodes)) GPU_FUNC_TERM;
 
 /*! \libinternal \brief
  * A GPU force gathering function.

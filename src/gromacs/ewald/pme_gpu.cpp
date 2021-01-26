@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -250,7 +250,8 @@ void pme_gpu_launch_complex_transforms(gmx_pme_t* pme, gmx_wallcycle* wcycle, co
                         settings.useDecomposition ? GridOrdering::YZX : GridOrdering::XYZ;
                 wallcycle_start_nocount(wcycle, ewcLAUNCH_GPU);
                 wallcycle_sub_start_nocount(wcycle, ewcsLAUNCH_GPU_PME);
-                pme_gpu_solve(pmeGpu, gridIndex, cfftgrid, gridOrdering, computeEnergyAndVirial);
+                pme_gpu_solve(
+                        pmeGpu, gridIndex, cfftgrid, gridOrdering, computeEnergyAndVirial, pme->nodeid, pme->nnodes);
                 wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_PME);
                 wallcycle_stop(wcycle, ewcLAUNCH_GPU);
             }

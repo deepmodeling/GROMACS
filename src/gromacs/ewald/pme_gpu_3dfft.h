@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -51,6 +51,10 @@
 #    include <cufft.h>
 
 #    include "gromacs/gpu_utils/gputraits.cuh"
+#    include "gromacs/gpu_utils/devicebuffer_datatype.h"
+#    include "gromacs/gpu_utils/device_stream.h"
+#    include "gromacs/gpu_utils/hostallocator.h"
+#    include "gromacs/utility/gmxmpi.h"
 #elif GMX_GPU_OPENCL
 #    include <clFFT.h>
 
@@ -59,6 +63,9 @@
 #endif
 
 #include "gromacs/fft/fft.h" // for the enum gmx_fft_direction
+
+// Workaround for UCX MPI_Alltoallv poor performance issue with self copy
+#define UCX_MPIALLTOALLV_BUG_HACK 1
 
 struct PmeGpu;
 
@@ -91,6 +98,191 @@ private:
     cufftHandle   planC2R_;
     cufftReal*    realGrid_;
     cufftComplex* complexGrid_;
+    const PmeGpu* pmeGpu_;
+
+    /*! \brief
+     * CUDA stream used for PME computation
+     */
+    const DeviceStream& stream_;
+
+#    if CUDA_AWARE_MPI
+
+    /*! \brief
+     * 2D and 1D cufft plans used for distributed fft implementation
+     */
+    cufftHandle planR2C2D_;
+    cufftHandle planC2R2D_;
+    cufftHandle planC2C1D_;
+
+    /*! \brief
+     * temporary grid used for distributed FFT for out-of-place transpose
+     */
+    cufftComplex* complexGrid2_;
+
+    /*! \brief
+     * MPI complex type
+     */
+    MPI_Datatype complexType_;
+
+    /*! \brief
+     * MPI communicator for PME ranks
+     */
+    MPI_Comm mpi_comm_;
+
+    /*! \brief
+     * total ranks within PME group
+     */
+    int mpiSize_;
+
+    /*! \brief
+     * current local mpi rank within PME group
+     */
+    int mpiRank_;
+
+    /*! \brief
+     * Max local grid size in X-dim (used during transposes in forward pass)
+     */
+    int xMax_;
+
+    /*! \brief
+     * Max local grid size in Y-dim (used during transposes in reverse pass)
+     */
+    int yMax_;
+
+    /*! \brief
+     * device array containing 1D decomposition size in X-dim (forwarad pass)
+     */
+    DeviceBuffer<int> d_xBlockSizes_;
+
+    /*! \brief
+     * device array containing 1D decomposition size in Y-dim (reverse pass)
+     */
+    DeviceBuffer<int> d_yBlockSizes_;
+
+    /*! \brief
+     * device arrays for local interpolation grid start values in X-dim
+     * (used during transposes in forward pass)
+     */
+    DeviceBuffer<int> d_s2g0x_;
+
+    /*! \brief
+     * device arrays for local interpolation grid start values in Y-dim
+     * (used during transposes in reverse pass)
+     */
+    DeviceBuffer<int> d_s2g0y_;
+
+    /*! \brief
+     * host array containing 1D decomposition size in X-dim (forwarad pass)
+     */
+    gmx::HostVector<int> h_xBlockSizes_;
+
+    /*! \brief
+     * host array containing 1D decomposition size in Y-dim (reverse pass)
+     */
+    gmx::HostVector<int> h_yBlockSizes_;
+
+    /*! \brief
+     * host array for local interpolation grid start values in Y-dim
+     */
+    gmx::HostVector<int> h_s2g0y_;
+
+    /*! \brief
+     * device array big enough to hold grid overlapping region
+     * used during grid halo exchange
+     */
+    DeviceBuffer<float> d_transferGrid_;
+
+    /*! \brief
+     * count and displacement arrays used in MPI_Alltoall call
+     *
+     */
+    int *sendCount_, *sendDisp_;
+    int *recvCount_, *recvDisp_;
+
+#        if UCX_MPIALLTOALLV_BUG_HACK
+    /*! \brief
+     * count arrays used in MPI_Alltoall call which has no self copies
+     *
+     */
+    int *sendCountTemp_, *recvCountTemp_;
+#        endif
+
+    /*! \brief
+     * Exchange grid overlap data with neighboring ranks before Forward FFT
+     *
+     */
+    void pmeGpuHaloExchange();
+
+    /*! \brief
+     * Exchange grid overlap data with neighboring ranks after reverse FFT
+     *
+     */
+    void pmeGpuHaloExchangeReverse();
+
+    /*! \brief
+     * Merge multiple blocks in YZX layout from different ranks
+     *
+     * \param[in] arrayIn          Input local grid
+     * \param[in] arrayOut         Output local grid in converted layout
+     * \param[in] sizeX            Grid size in X-dim.
+     * \param[in] sizeY            Grid size in Y-dim.
+     * \param[in] sizeZ            Grid size in Z-dim.
+     * \param[in] xBlockSizes      Array containing X-block sizes for each rank
+     * \param[in] xOffset          Array containing grid offsets for each rank
+     * \param[in] numRegions       number of regions correspond to number of PME ranks
+     * \param[in] maxRegionSize    max X-block size
+     */
+    void convertBlockedYzxToYzx(cufftComplex* arrayIn,
+                                cufftComplex* arrayOut,
+                                int           sizeX,
+                                int           sizeY,
+                                int           sizeZ,
+                                int*          xBlockSizes,
+                                int*          xOffset,
+                                int           numRegions,
+                                int           maxRegionSize);
+
+    /*! \brief
+     * Merge multiple blocks in XYZ layout from different ranks
+     *
+     * \param[in] arrayIn          Input local grid
+     * \param[in] arrayOut         Output local grid in converted layout
+     * \param[in] sizeX            Grid size in X-dim.
+     * \param[in] sizeY            Grid size in Y-dim.
+     * \param[in] sizeZ            Grid size in Z-dim.
+     * \param[in] yBlockSizes      Array containing Y-block sizes for each rank
+     * \param[in] yOffsets         Array containing grid offsets for each rank
+     * \param[in] numRegions       number of regions correspond to number of PME ranks
+     * \param[in] maxRegionSize    max X-block size
+     */
+    void convertBlockedXyzToXyz(cufftComplex* arrayIn,
+                                cufftComplex* arrayOut,
+                                int           sizeX,
+                                int           sizeY,
+                                int           sizeZ,
+                                int*          yBlockSizes,
+                                int*          yOffsets,
+                                int           numRegions,
+                                int           maxRegionSize);
+
+
+    /*! \brief
+     * Converts grid from XYZ to YZX layout in case of forward fft
+     * and converts from YZX to XYZ layout in case of reverse fft
+     *
+     * \tparam[in] forward         Forward pass or reverse pass
+     *
+     * \param[in] arrayIn          Input local grid
+     * \param[in] arrayOut         Output local grid in converted layout
+     * \param[in] sizeX            Grid size in X-dim.
+     * \param[in] sizeY            Grid size in Y-dim.
+     * \param[in] sizeZ            Grid size in Z-dim.
+     */
+    template<bool forward>
+    void transposeXyzToYzx(cufftComplex* arrayIn, cufftComplex* arrayOut, int sizeX, int sizeY, int sizeZ);
+
+#    endif // CUDA_AWARE_MPI
+
 #elif GMX_GPU_OPENCL
     clfftPlanHandle               planR2C_;
     clfftPlanHandle               planC2R_;

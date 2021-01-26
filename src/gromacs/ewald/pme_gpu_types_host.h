@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -58,6 +58,7 @@
 #include "gromacs/gpu_utils/clfftinitializer.h"
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/utility/gmxmpi.h"
 
 #include "pme_gpu_settings.h"
 #include "pme_gpu_staging.h"
@@ -126,7 +127,12 @@ struct PmeShared
      * \todo Manage this on higher level.
      * \todo Alternatively, when this structure is used by CPU PME code, make use of this field there as well.
      */
-    matrix previousBox;
+    matrix   previousBox;
+    MPI_Comm mpi_comm;
+
+    /*! \brief, local interpolation grid start values */
+    std::vector<int> s2g0x;
+    std::vector<int> s2g1x;
 };
 
 /*! \internal \brief

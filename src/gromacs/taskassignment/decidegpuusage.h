@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,6 +48,7 @@
 struct gmx_hw_info_t;
 struct gmx_mtop_t;
 struct t_inputrec;
+struct t_commrec;
 enum class PmeRunMode;
 
 namespace gmx
@@ -320,6 +321,18 @@ bool decideWhetherToUseGpuForHalo(const DevelopmentFeatureFlags& devFlags,
                                   bool                           useModularSimulator,
                                   bool                           doRerun,
                                   bool                           haveEnergyMinimization);
+
+/*! \brief Decide whether to use GPU for PME-PP Communication.
+ *
+ * \param[in]  devFlags                     GPU development / experimental feature flags.
+ * \param[in]  pmeRunMode                   Run mode indicating what resource is PME execured on.
+ * \param[in]  cr                           Communication structure pointer.
+ *
+ * \returns    Whether Direct PME-PP communication should be enabled.
+ */
+bool decideWhetherToUseGpuPmePPComm(const DevelopmentFeatureFlags& devFlags,
+                                    PmeRunMode                     pmeRunMode,
+                                    const t_commrec*               cr);
 
 } // namespace gmx
 

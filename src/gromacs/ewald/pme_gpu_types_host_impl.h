@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -161,6 +161,8 @@ struct PmeGpuSpecific
     int complexGridSize[NUMFEPSTATES] = { 0, 0 };
     /*! \brief The kernelParams.grid.fourierGrid float (not float2!) element count (reserved) */
     int complexGridCapacity[NUMFEPSTATES] = { 0, 0 };
+    /*! \brief The kernelParams.grid.fourierGrid2 float (not float2!) element count (reserved) */
+    int complexGridCapacity2[NUMFEPSTATES] = { 0, 0 };
 };
 
 #endif

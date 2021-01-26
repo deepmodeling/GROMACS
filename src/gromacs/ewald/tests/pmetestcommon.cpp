@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -415,8 +415,13 @@ void pmePerformSolve(const gmx_pme_t*  pme,
             switch (method)
             {
                 case PmeSolveAlgorithm::Coulomb:
-                    pme_gpu_solve(pme->gpu, gridIndex, h_grid, gridOrdering, computeEnergyAndVirial);
-                    break;
+                {
+                    const int nodeId = 0;
+                    const int nNodes = 1;
+                    pme_gpu_solve(
+                            pme->gpu, gridIndex, h_grid, gridOrdering, computeEnergyAndVirial, nodeId, nNodes);
+                }
+                break;
 
                 default: GMX_THROW(InternalError("Test not implemented for this mode"));
             }

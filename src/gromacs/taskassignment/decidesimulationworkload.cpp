@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -59,7 +59,8 @@ SimulationWorkload createSimulationWorkload(const t_inputrec& inputrec,
                                             PmeRunMode                     pmeRunMode,
                                             bool                           useGpuForBonded,
                                             bool                           useGpuForUpdate,
-                                            bool                           useGpuDirectHalo)
+                                            bool                           useGpuDirectHalo,
+                                            bool                           useGpuPmePpComm)
 {
     SimulationWorkload simulationWorkload;
     simulationWorkload.computeNonbonded = !disableNonbondedCalculation;
@@ -76,9 +77,8 @@ SimulationWorkload createSimulationWorkload(const t_inputrec& inputrec,
     simulationWorkload.useGpuUpdate    = useGpuForUpdate;
     simulationWorkload.useGpuBufferOps = (devFlags.enableGpuBufferOps || useGpuForUpdate)
                                          && !simulationWorkload.computeNonbondedAtMtsLevel1;
-    simulationWorkload.useGpuHaloExchange = useGpuDirectHalo;
-    simulationWorkload.useGpuPmePpCommunication =
-            devFlags.enableGpuPmePPComm && (pmeRunMode == PmeRunMode::GPU);
+    simulationWorkload.useGpuHaloExchange       = useGpuDirectHalo;
+    simulationWorkload.useGpuPmePpCommunication = useGpuPmePpComm;
     simulationWorkload.useGpuDirectCommunication =
             devFlags.enableGpuHaloExchange || devFlags.enableGpuPmePPComm;
     simulationWorkload.haveEwaldSurfaceContribution = haveEwaldSurfaceContribution(inputrec);
