@@ -88,10 +88,11 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
      */
     if (!stepWork.useGpuFBufferOps)
     {
-        GMX_ASSERT(adat->f.elementSize() == sizeof(float3),
+        GMX_ASSERT(adat->f.elementSize() == sizeof(gmx::float3),
                    "The size of the force buffer element should be equal to the size of float3.");
-        copyFromDeviceBuffer(reinterpret_cast<float3*>(nbatom->out[0].f.data()) + adat_begin, &adat->f,
-                             adat_begin, adat_len, deviceStream, GpuApiCallBehavior::Async, nullptr);
+        copyFromDeviceBuffer(reinterpret_cast<gmx::float3*>(nbatom->out[0].f.data()) + adat_begin,
+                             &adat->f, adat_begin, adat_len, deviceStream,
+                             GpuApiCallBehavior::Async, nullptr);
     }
 
     /* After the non-local D2H is launched the nonlocal_done event can be
@@ -139,9 +140,9 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
                                                                : adat->numAtoms - adat->numAtomsLocal;
 
     /* HtoD x, q */
-    GMX_ASSERT(adat->xq.elementSize() == sizeof(float4),
+    GMX_ASSERT(adat->xq.elementSize() == sizeof(gmx::float4),
                "The size of the xyzq buffer element should be equal to the size of float4.");
-    copyToDeviceBuffer(&adat->xq, reinterpret_cast<const float4*>(nbatom->x().data()) + adat_begin,
+    copyToDeviceBuffer(&adat->xq, reinterpret_cast<const gmx::float4*>(nbatom->x().data()) + adat_begin,
                        adat_begin, adat_len, deviceStream, GpuApiCallBehavior::Async, nullptr);
 }
 

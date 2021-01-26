@@ -360,7 +360,7 @@ namespace gmx::internal
 {
 /*! \brief Helper function to clear device buffer.
  *
- * Not applicable to GROMACS's float3 (a.k.a. gmx::RVec). From SYCL specs: "T must be a scalar
+ * Not applicable to gmx::float3 (a.k.a. gmx::RVec). From SYCL specs: "T must be a scalar
  * value or a SYCL vector type."
  */
 template<typename ValueType>
@@ -381,12 +381,12 @@ cl::sycl::event fillSyclBufferWithNull(cl::sycl::buffer<ValueType, 1>& buffer,
     });
 }
 
-//! \brief Helper function to clear device buffer of type float3.
+//! \brief Helper function to clear device buffer of type gmx::float3.
 template<>
-inline cl::sycl::event fillSyclBufferWithNull(cl::sycl::buffer<float3, 1>& buffer,
-                                              size_t                       startingOffset,
-                                              size_t                       numValues,
-                                              cl::sycl::queue              queue)
+inline cl::sycl::event fillSyclBufferWithNull(cl::sycl::buffer<gmx::float3, 1>& buffer,
+                                              size_t                            startingOffset,
+                                              size_t                            numValues,
+                                              cl::sycl::queue                   queue)
 {
     cl::sycl::buffer<float, 1> bufferAsFloat = buffer.reinterpret<float, 1>(buffer.get_count() * DIM);
     return fillSyclBufferWithNull<float>(bufferAsFloat, startingOffset * DIM, numValues * DIM,

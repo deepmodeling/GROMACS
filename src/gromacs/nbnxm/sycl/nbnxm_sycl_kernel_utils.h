@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -109,7 +109,7 @@ static inline cl::sycl::id<3> unflattenId(cl::sycl::id<1> id1d)
  */
 #if defined(__SYCL_COMPILER_VERSION) // Intel SYCL compiler
 #    define MODE_ATOMIC cl::sycl::access::mode::read_write
-#elif defined(____HIPSYCL__)
+#elif defined(__HIPSYCL__)
 #    define MODE_ATOMIC cl::sycl::access::mode::atomic
 #endif
 

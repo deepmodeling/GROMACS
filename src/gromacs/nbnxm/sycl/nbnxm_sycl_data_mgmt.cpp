@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -213,8 +213,9 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
     {
         GMX_ASSERT(adat->shiftVec.elementSize() == sizeof(nbatom->shift_vec[0]),
                    "Sizes of host- and device-side shift vectors should be the same.");
-        copyToDeviceBuffer(&adat->shiftVec, reinterpret_cast<const float3*>(nbatom->shift_vec.data()),
-                           0, SHIFTS, localStream, GpuApiCallBehavior::Async, nullptr);
+        copyToDeviceBuffer(&adat->shiftVec,
+                           reinterpret_cast<const gmx::float3*>(nbatom->shift_vec.data()), 0,
+                           SHIFTS, localStream, GpuApiCallBehavior::Async, nullptr);
         adat->shiftVecUploaded = true;
     }
 }
@@ -267,10 +268,11 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
 
     if (useLjCombRule(nb->nbparam->vdwType))
     {
-        GMX_ASSERT(atdat->ljComb.elementSize() == sizeof(float2),
+        GMX_ASSERT(atdat->ljComb.elementSize() == sizeof(gmx::float2),
                    "Size of the LJ parameters element should be equal to the size of float2.");
-        copyToDeviceBuffer(&atdat->ljComb, reinterpret_cast<const float2*>(nbat->params().lj_comb.data()),
-                           0, numAtoms, localStream, GpuApiCallBehavior::Async, nullptr);
+        copyToDeviceBuffer(&atdat->ljComb,
+                           reinterpret_cast<const gmx::float2*>(nbat->params().lj_comb.data()), 0,
+                           numAtoms, localStream, GpuApiCallBehavior::Async, nullptr);
     }
     else
     {

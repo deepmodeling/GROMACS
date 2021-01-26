@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -83,16 +83,16 @@ using cl::sycl::access::mode;
  */
 template<NumTempScaleValues numTempScaleValues, VelocityScalingType velocityScaling>
 auto leapFrogKernel(
-        cl::sycl::handler&                          cgh,
-        DeviceAccessor<float3, mode::read_write>    a_x,
-        DeviceAccessor<float3, mode::discard_write> a_xp,
-        DeviceAccessor<float3, mode::read_write>    a_v,
-        DeviceAccessor<float3, mode::read>          a_f,
-        DeviceAccessor<float, mode::read>           a_inverseMasses,
-        float                                       dt,
+        cl::sycl::handler&                               cgh,
+        DeviceAccessor<gmx::float3, mode::read_write>    a_x,
+        DeviceAccessor<gmx::float3, mode::discard_write> a_xp,
+        DeviceAccessor<gmx::float3, mode::read_write>    a_v,
+        DeviceAccessor<gmx::float3, mode::read>          a_f,
+        DeviceAccessor<float, mode::read>                a_inverseMasses,
+        float                                            dt,
         OptionalAccessor<float, mode::read, numTempScaleValues != NumTempScaleValues::None> a_lambdas,
         OptionalAccessor<unsigned short, mode::read, numTempScaleValues == NumTempScaleValues::Multiple> a_tempScaleGroups,
-        float3 prVelocityScalingMatrixDiagonal)
+        gmx::float3 prVelocityScalingMatrixDiagonal)
 {
     cgh.require(a_x);
     cgh.require(a_xp);
@@ -109,11 +109,11 @@ auto leapFrogKernel(
     }
 
     return [=](cl::sycl::id<1> itemIdx) {
-        const float3 x    = a_x[itemIdx];
-        const float3 v    = a_v[itemIdx];
-        const float3 f    = a_f[itemIdx];
-        const float  im   = a_inverseMasses[itemIdx];
-        const float  imdt = im * dt;
+        const gmx::float3 x    = a_x[itemIdx];
+        const gmx::float3 v    = a_v[itemIdx];
+        const gmx::float3 f    = a_f[itemIdx];
+        const float       im   = a_inverseMasses[itemIdx];
+        const float       imdt = im * dt;
 
         // Swapping places for xp and x so that the x will contain the updated coordinates and xp -
         // the coordinates before update. This should be taken into account when (if) constraints
@@ -137,22 +137,22 @@ auto leapFrogKernel(
             }
         }();
 
-        const float3 prVelocityDelta = [=]() {
+        const gmx::float3 prVelocityDelta = [=]() {
             if constexpr (velocityScaling == VelocityScalingType::Diagonal)
             {
-                return float3{ prVelocityScalingMatrixDiagonal[0] * v[0],
-                               prVelocityScalingMatrixDiagonal[1] * v[1],
-                               prVelocityScalingMatrixDiagonal[2] * v[2] };
+                return gmx::float3{ prVelocityScalingMatrixDiagonal[0] * v[0],
+                                    prVelocityScalingMatrixDiagonal[1] * v[1],
+                                    prVelocityScalingMatrixDiagonal[2] * v[2] };
             }
             else if constexpr (velocityScaling == VelocityScalingType::None)
             {
-                return float3{ 0, 0, 0 };
+                return gmx::float3{ 0, 0, 0 };
             }
         }();
 
-        const float3 v_new = v * lambda - prVelocityDelta + f * imdt;
-        a_v[itemIdx]       = v_new;
-        a_x[itemIdx]       = x + v_new * dt;
+        const gmx::float3 v_new = v * lambda - prVelocityDelta + f * imdt;
+        a_v[itemIdx]            = v_new;
+        a_x[itemIdx]            = x + v_new * dt;
     };
 }
 
@@ -215,10 +215,10 @@ static inline cl::sycl::event launchLeapFrogKernel(NumTempScaleValues  tempScali
             tempScalingType, prVelocityScalingType);
 }
 
-void LeapFrogGpu::integrate(DeviceBuffer<float3>              d_x,
-                            DeviceBuffer<float3>              d_xp,
-                            DeviceBuffer<float3>              d_v,
-                            DeviceBuffer<float3>              d_f,
+void LeapFrogGpu::integrate(DeviceBuffer<gmx::float3>         d_x,
+                            DeviceBuffer<gmx::float3>         d_xp,
+                            DeviceBuffer<gmx::float3>         d_v,
+                            DeviceBuffer<gmx::float3>         d_f,
                             const real                        dt,
                             const bool                        doTemperatureScaling,
                             gmx::ArrayRef<const t_grp_tcstat> tcstat,
@@ -253,8 +253,8 @@ void LeapFrogGpu::integrate(DeviceBuffer<float3>              d_x,
                    "in GPU version of Leap-Frog integrator.");
         prVelocityScalingMatrixDiagonal_ =
                 dtPressureCouple
-                * float3{ prVelocityScalingMatrix[XX][XX], prVelocityScalingMatrix[YY][YY],
-                          prVelocityScalingMatrix[ZZ][ZZ] };
+                * gmx::float3{ prVelocityScalingMatrix[XX][XX], prVelocityScalingMatrix[YY][YY],
+                               prVelocityScalingMatrix[ZZ][ZZ] };
     }
 
     launchLeapFrogKernel(tempVelocityScalingType, prVelocityScalingType, deviceStream_, numAtoms_,

@@ -301,8 +301,44 @@ static inline float interpolateCoulombForceR(const DeviceAccessor<float, mode::r
     return lerp(left, right, fraction); // TODO: cl::sycl::mix
 }
 
+#if defined(__HIPSYCL__)
+__host__ __device__
+#endif
+        static inline float
+        shuffle_down(float gmx_unused var, unsigned int gmx_unused delta, sycl_2020::sub_group gmx_unused sg)
+{
+#if defined(SYCL_DEVICE_ONLY)
+#    if defined(__HIPSYCL__)
+    return __shfl_down(var, delta);
+#    else
+    return sg.shuffle_down(var, delta);
+#    endif
+#else
+    // No shuffle ops on host
+    return 0.0F;
+#endif
+}
 
-static inline void reduceForceJShuffle(float3                             f,
+#if defined(__HIPSYCL__)
+__host__ __device__
+#endif
+        static inline float
+        shuffle_up(float gmx_unused var, unsigned int gmx_unused delta, sycl_2020::sub_group gmx_unused sg)
+{
+#if defined(SYCL_DEVICE_ONLY)
+#    if defined(__HIPSYCL__)
+    return __shfl_up(var, delta);
+#    else
+    return sg.shuffle_up(var, delta);
+#    endif
+#else
+    // No shuffle ops on host
+    return 0.0F;
+#endif
+}
+
+
+static inline void reduceForceJShuffle(gmx::float3                        f,
                                        const cl::sycl::nd_item<1>         itemIdx,
                                        const int                          tidxi,
                                        const int                          aidx,
@@ -311,16 +347,16 @@ static inline void reduceForceJShuffle(float3                             f,
     static_assert(c_clSize == 8 || c_clSize == 4);
     sycl_2020::sub_group sg = itemIdx.get_sub_group();
 
-    f[0] += sg.shuffle_down(f[0], 1);
-    f[1] += sg.shuffle_up(f[1], 1);
-    f[2] += sg.shuffle_down(f[2], 1);
+    f[0] += shuffle_down(f[0], 1, sg);
+    f[1] += shuffle_up(f[1], 1, sg);
+    f[2] += shuffle_down(f[2], 1, sg);
     if (tidxi & 1)
     {
         f[0] = f[1];
     }
 
-    f[0] += sg.shuffle_down(f[0], 2);
-    f[2] += sg.shuffle_up(f[2], 2);
+    f[0] += shuffle_down(f[0], 2, sg);
+    f[2] += shuffle_up(f[2], 2, sg);
     if (tidxi & 2)
     {
         f[0] = f[2];
@@ -328,7 +364,7 @@ static inline void reduceForceJShuffle(float3                             f,
 
     if constexpr (c_clSize == 8)
     {
-        f[0] += sg.shuffle_down(f[0], 4);
+        f[0] += shuffle_down(f[0], 4, sg);
     }
 
     if (tidxi < 3)
@@ -343,8 +379,8 @@ static inline void reduceForceJShuffle(float3                             f,
  * This implementation works only with power of two array sizes.
  */
 static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read_write, target::local> sm_buf,
-                                         const float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster],
-                                         const bool   calcFShift,
+                                         const gmx::float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster],
+                                         const bool        calcFShift,
                                          const cl::sycl::nd_item<1>         itemIdx,
                                          const int                          tidxi,
                                          const int                          tidxj,
@@ -362,8 +398,8 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
         const int aidx = (sci * c_nbnxnGpuNumClusterPerSupercluster + ciOffset) * c_clSize + tidxi;
         /* store i forces in shmem */
         sm_buf[tidx]                 = fCiBuf[ciOffset][0];
-        sm_buf[bufStride + tidx]     = fCiBuf[ciOffset][1];
-        sm_buf[2 * bufStride + tidx] = fCiBuf[ciOffset][2];
+        sm_buf[bufStride + tidx]     = fCiBuf[ciOffset][0];
+        sm_buf[2 * bufStride + tidx] = fCiBuf[ciOffset][0];
         itemIdx.barrier(fence_space::local_space);
 
         /* Reduce the initial c_clSize values for each i atom to half
@@ -419,16 +455,16 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
  */
 template<bool doPruneNBL, bool doCalcEnergies, enum ElecType elecType, enum VdwType vdwType>
 auto nbnxmKernel(cl::sycl::handler&                                   cgh,
-                 DeviceAccessor<float4, mode::read>                   a_xq,
+                 DeviceAccessor<gmx::float4, mode::read>              a_xq,
                  DeviceAccessor<float, MODE_ATOMIC>                   a_f,
-                 DeviceAccessor<float3, mode::read>                   a_shiftVec,
+                 DeviceAccessor<gmx::float3, mode::read>              a_shiftVec,
                  DeviceAccessor<float, MODE_ATOMIC>                   a_fShift,
                  OptionalAccessor<float, MODE_ATOMIC, doCalcEnergies> a_energyElec,
                  OptionalAccessor<float, MODE_ATOMIC, doCalcEnergies> a_energyVdw,
                  DeviceAccessor<nbnxn_cj4_t, doPruneNBL ? mode::read_write : mode::read> a_plistCJ4,
                  DeviceAccessor<nbnxn_sci_t, mode::read>                                 a_plistSci,
                  DeviceAccessor<nbnxn_excl_t, mode::read>                    a_plistExcl,
-                 OptionalAccessor<float2, mode::read, ljComb<vdwType>>       a_ljComb,
+                 OptionalAccessor<gmx::float2, mode::read, ljComb<vdwType>>  a_ljComb,
                  OptionalAccessor<int, mode::read, !ljComb<vdwType>>         a_atomTypes,
                  OptionalAccessor<float, mode::read, !ljComb<vdwType>>       a_nbfp,
                  OptionalAccessor<float, mode::read, ljEwald<vdwType>>       a_nbfpComb,
@@ -484,7 +520,7 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
     }
 
     // shmem buffer for i x+q pre-loading
-    cl::sycl::accessor<float4, 2, mode::read_write, target::local> sm_xq(
+    cl::sycl::accessor<gmx::float4, 2, mode::read_write, target::local> sm_xq(
             cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
 
     // shmem buffer for force reduction
@@ -507,7 +543,7 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
     auto sm_ljCombI = [&]() {
         if constexpr (props.vdwComb)
         {
-            return cl::sycl::accessor<float2, 2, mode::read_write, target::local>(
+            return cl::sycl::accessor<gmx::float2, 2, mode::read_write, target::local>(
                     cl::sycl::range<2>(c_nbnxnGpuNumClusterPerSupercluster, c_clSize), cgh);
         }
         else
@@ -540,10 +576,10 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
         // Better use sg.get_group_range, but too much of the logic relies on it anyway
         const unsigned widx = tidx / subGroupSize;
 
-        float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster]; // i force buffer
+        gmx::float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster]; // i force buffer
         for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
         {
-            fCiBuf[i] = float3(0.0F, 0.0F, 0.0F);
+            fCiBuf[i] = gmx::float3{ 0.0F, 0.0F, 0.0F };
         }
 
         const nbnxn_sci_t nbSci     = a_plistSci[bidx];
@@ -562,9 +598,9 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
             const int             ai       = ci * c_clSize + tidxi;
             const cl::sycl::id<2> cacheIdx = cl::sycl::id<2>(tidxj + i, tidxi);
 
-            const float3 shift = a_shiftVec[nbSci.shift];
-            float4       xqi   = a_xq[ai];
-            xqi += float4(shift[0], shift[1], shift[2], 0.0F);
+            const gmx::float3 shift = a_shiftVec[nbSci.shift];
+            gmx::float4       xqi   = a_xq[ai];
+            xqi += gmx::float4(shift[0], shift[1], shift[2], 0.0F);
             xqi[3] *= epsFac;
             sm_xq[cacheIdx] = xqi;
 
@@ -658,12 +694,12 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
                     const int aj     = cj * c_clSize + tidxj;
 
                     // load j atom data
-                    const float4 xqj = a_xq[aj];
+                    const gmx::float4 xqj = a_xq[aj];
 
-                    const float3 xj(xqj[0], xqj[1], xqj[2]);
-                    const float  qj = xqj[3];
-                    int          atomTypeJ; // Only needed if (!props.vdwComb)
-                    float2       ljCombJ;   // Only needed if (props.vdwComb)
+                    const gmx::float3 xj(xqj[0], xqj[1], xqj[2]);
+                    const float       qj = xqj[3];
+                    int               atomTypeJ; // Only needed if (!props.vdwComb)
+                    gmx::float2       ljCombJ;   // Only needed if (props.vdwComb)
                     if constexpr (props.vdwComb)
                     {
                         ljCombJ = a_ljComb[aj];
@@ -673,7 +709,7 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
                         atomTypeJ = a_atomTypes[aj];
                     }
 
-                    float3 fCjBuf(0.0F, 0.0F, 0.0F);
+                    gmx::float3 fCjBuf{ 0.0F, 0.0F, 0.0F };
 
                     for (int i = 0; i < c_nbnxnGpuNumClusterPerSupercluster; i++)
                     {
@@ -682,12 +718,12 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
                             // i cluster index
                             const int ci = sci * c_nbnxnGpuNumClusterPerSupercluster + i;
                             // all threads load an atom from i cluster ci into shmem!
-                            const float4 xqi = sm_xq[i][tidxi];
-                            const float3 xi(xqi[0], xqi[1], xqi[2]);
+                            const gmx::float4 xqi = sm_xq[i][tidxi];
+                            const gmx::float3 xi(xqi[0], xqi[1], xqi[2]);
 
                             // distance between i and j atoms
-                            const float3 rv = xi - xj;
-                            float        r2 = norm2(rv);
+                            const gmx::float3 rv = xi - xj;
+                            float             r2 = norm2(rv);
 
                             if constexpr (doPruneNBL)
                             {
@@ -724,7 +760,7 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
                                 }
                                 else
                                 {
-                                    const float2 ljCombI = sm_ljCombI[i][tidxi];
+                                    const gmx::float2 ljCombI = sm_ljCombI[i][tidxi];
                                     if constexpr (props.vdwCombGeom)
                                     {
                                         c6  = ljCombI[0] * ljCombJ[0];
@@ -745,8 +781,12 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
 
                                 // Ensure distance do not become so small that r^-12 overflows
                                 r2 = std::max(r2, c_nbnxnMinDistanceSquared);
+#if defined(__HIPSYCL__)
+                                const float rInv = cl::sycl::rsqrt(r2);
+#else
                                 // SYCL-TODO: sycl::half_precition::rsqrt?
-                                const float rInv  = sycl::native::rsqrt(r2);
+                                const float rInv = cl::sycl::native::rsqrt(r2);
+#endif
                                 const float r2Inv = rInv * rInv;
                                 float       r6Inv, fInvR, energyLJPair;
                                 if constexpr (!props.vdwCombLB || doCalcEnergies)
@@ -862,7 +902,7 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
                                     }
                                 }
 
-                                const float3 forceIJ = rv * fInvR;
+                                const gmx::float3 forceIJ = rv * fInvR;
 
                                 /* accumulate j forces in registers */
                                 fCjBuf -= forceIJ;
@@ -965,9 +1005,9 @@ void launchNbnxmKernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
     // Casting to float simplifies using atomic ops in the kernel
-    cl::sycl::buffer<float3, 1> f(*adat->f.buffer_);
-    auto                        fAsFloat = f.reinterpret<float, 1>(f.get_count() * DIM);
-    cl::sycl::buffer<float3, 1> fShift(*adat->fShift.buffer_);
+    cl::sycl::buffer<gmx::float3, 1> f(*adat->f.buffer_);
+    auto                             fAsFloat = f.reinterpret<float, 1>(f.get_count() * DIM);
+    cl::sycl::buffer<gmx::float3, 1> fShift(*adat->fShift.buffer_);
     auto fShiftAsFloat = fShift.reinterpret<float, 1>(fShift.get_count() * DIM);
 
     cl::sycl::event e = chooseAndLaunchNbnxmKernel(

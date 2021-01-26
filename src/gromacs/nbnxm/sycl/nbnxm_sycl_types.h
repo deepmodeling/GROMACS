@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -67,7 +67,7 @@ struct nb_staging_sycl_t
     //! electrostatic energy
     DeviceBuffer<float>* e_el = nullptr;
     //! float3 buffer with shift forces
-    DeviceBuffer<float3>* fshift;
+    DeviceBuffer<gmx::float3>* fshift;
 };
 
 /** \internal
@@ -83,9 +83,9 @@ struct sycl_atomdata_t
     int numAlloc;
 
     //! atom coordinates + charges, size \ref numAtoms
-    DeviceBuffer<float4> xq;
+    DeviceBuffer<gmx::float4> xq;
     //! force output array, size \ref numAtoms
-    DeviceBuffer<float3> f;
+    DeviceBuffer<gmx::float3> f;
 
     //! LJ energy output, size 1
     DeviceBuffer<float> eLJ;
@@ -93,17 +93,17 @@ struct sycl_atomdata_t
     DeviceBuffer<float> eElec;
 
     //! shift forces
-    DeviceBuffer<float3> fShift;
+    DeviceBuffer<gmx::float3> fShift;
 
     //! number of atom types
     int numTypes;
     //! atom type indices, size \ref numAtoms
     DeviceBuffer<int> atomTypes;
     //! sqrt(c6),sqrt(c12) size \ref numAtoms
-    DeviceBuffer<float2> ljComb;
+    DeviceBuffer<gmx::float2> ljComb;
 
     //! shifts
-    DeviceBuffer<float3> shiftVec;
+    DeviceBuffer<gmx::float3> shiftVec;
     //! true if the shift vector has been uploaded
     bool shiftVecUploaded;
 };

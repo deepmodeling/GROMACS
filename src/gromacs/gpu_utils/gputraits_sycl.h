@@ -54,7 +54,8 @@ using DeviceTexture = void*;
 //! \brief Single GPU call timing event, not used with SYCL
 using CommandEvent = void*;
 
-#ifndef __HIPSYCL__
+namespace gmx
+{
 //! Convenience alias.
 using float4 = cl::sycl::float4;
 
@@ -63,7 +64,7 @@ using float3 = gmx::RVec;
 
 //! Convenience alias for cl::sycl::float2
 using float2 = cl::sycl::float2;
-#endif
+} // namespace gmx
 
 /*! \internal \brief
  * GPU kernels scheduling description. This is same in OpenCL/CUDA.
