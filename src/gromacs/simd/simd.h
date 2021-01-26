@@ -152,6 +152,8 @@ struct SimdDInt32Tag
 #    include "impl_arm_neon/impl_arm_neon.h"
 #elif GMX_SIMD_ARM_NEON_ASIMD
 #    include "impl_arm_neon_asimd/impl_arm_neon_asimd.h"
+#elif GMX_SIMD_ARM_SVE
+#    include "impl_arm_sve/impl_arm_sve.h"
 #elif GMX_SIMD_IBM_VMX
 #    include "impl_ibm_vmx/impl_ibm_vmx.h"
 #elif GMX_SIMD_IBM_VSX
@@ -182,7 +184,6 @@ struct SimdDInt32Tag
 #    define GMX_SIMD_HAVE_GATHER_LOADU_BYSIMDINT_TRANSPOSE_REAL \
         GMX_SIMD_HAVE_GATHER_LOADU_BYSIMDINT_TRANSPOSE_DOUBLE
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_DOUBLE
-#    define GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_REAL GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_DOUBLE
 #    define GMX_SIMD4_HAVE_REAL GMX_SIMD4_HAVE_DOUBLE
 #else // GMX_DOUBLE
 
@@ -233,13 +234,6 @@ struct SimdDInt32Tag
  *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_FLOAT.
  */
 #    define GMX_SIMD_HAVE_HSIMD_UTIL_REAL GMX_SIMD_HAVE_HSIMD_UTIL_FLOAT
-
-/*! \brief 1 if a native decr3Hsimd() implementation is available, otherwise 0
- *
- *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_DOUBLE if GMX_DOUBLE is 1, otherwise
- *  \ref GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_FLOAT.
- */
-#    define GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_REAL GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_FLOAT
 
 /*! \brief 1 if Simd4Real is available, otherwise 0.
  *
@@ -608,7 +602,7 @@ static inline SimdSetZeroProxy gmx_simdcall setZero()
 
 namespace internal
 {
-// TODO: Don't foward function but properly rename them and use proper traits
+// TODO: Don't forward function but properly rename them and use proper traits
 template<typename T>
 struct Simd4Traits
 {
@@ -742,16 +736,6 @@ static inline Simd4NDouble gmx_simdcall load4DuplicateN(const double* f)
 #    define GMX_SIMD_HAVE_4NSIMD_UTIL_DOUBLE 0
 #endif
 
-#if GMX_SIMD_HAVE_HSIMD_UTIL_REAL && !GMX_SIMD_HAVE_HSIMD_UTIL_DECR3_REAL
-template<int stride>
-static inline void gmx_simdcall decr3Hsimd(real* m, SimdReal r0, SimdReal r1, SimdReal r2)
-{
-    decrHsimd(m, r0);
-    decrHsimd(m + stride, r1);
-    decrHsimd(m + 2 * stride, r2);
-}
-#endif
-
 #if GMX_DOUBLE
 #    define GMX_SIMD_HAVE_4NSIMD_UTIL_REAL GMX_SIMD_HAVE_4NSIMD_UTIL_DOUBLE
 #else
@@ -772,7 +756,7 @@ using Simd4NReal = Simd4NFloat;
 
 } // namespace gmx
 
-// \}          end of module_simd
+//! \}          end of module_simd
 
 //! \endcond   end of condition libapi
 

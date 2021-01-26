@@ -70,6 +70,11 @@ if (GMX_GPU_CUDA)
         pme_gpu_internal.cpp
         pme_gpu_timings.cpp
         )
+    _gmx_add_files_to_property(CUDA_SOURCES
+        # Must add these files so they can include device_information.h
+        pme_gpu_internal.cpp
+        pme_gpu_timings.cpp
+	)
 elseif (GMX_GPU_OPENCL)
     gmx_add_libgromacs_sources(
         # OpenCL-specific sources
@@ -79,6 +84,15 @@ elseif (GMX_GPU_OPENCL)
         pme_gpu.cpp
         pme_gpu_internal.cpp
         pme_gpu_timings.cpp
+        )
+elseif (GMX_GPU_SYCL)
+    # SYCL-TODO: proper implementation
+    gmx_add_libgromacs_sources(
+        pme_gpu_program_impl.cpp
+        )
+    _gmx_add_files_to_property(SYCL_SOURCES
+        pme_gpu_program_impl.cpp
+        pme_gpu_program.cpp
         )
 else()
     gmx_add_libgromacs_sources(

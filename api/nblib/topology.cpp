@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -42,6 +42,7 @@
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
+#include <algorithm>
 #include <numeric>
 
 #include "gromacs/topology/exclusionblocks.h"
@@ -49,15 +50,17 @@
 #include "gromacs/utility/smalloc.h"
 #include "nblib/exception.h"
 #include "nblib/particletype.h"
+#include "nblib/sequencing.hpp"
 #include "nblib/topology.h"
-#include "nblib/util/internal.h"
+#include "nblib/util/util.hpp"
+#include "nblib/topologyhelpers.h"
 
 namespace nblib
 {
 
 TopologyBuilder::TopologyBuilder() : numParticles_(0) {}
 
-gmx::ListOfLists<int> TopologyBuilder::createExclusionsListOfLists() const
+ExclusionLists<int> TopologyBuilder::createExclusionsLists() const
 {
     const auto& moleculesList = molecules_;
 
@@ -71,18 +74,17 @@ gmx::ListOfLists<int> TopologyBuilder::createExclusionsListOfLists() const
         size_t          numMols    = std::get<1>(molNumberTuple);
         const auto&     exclusions = molecule.getExclusions();
 
-        assert((!exclusions.empty()
-                && std::string("No exclusions found in the " + molecule.name().value() + " molecule.")
-                           .c_str()));
+        // Note this is a programming error as all particles should exclude at least themselves and empty topologies are not allowed.
+        const std::string message =
+                "No exclusions found in the " + molecule.name().value() + " molecule.";
+        assert((!exclusions.empty() && message.c_str()));
 
-        std::vector<gmx::ExclusionBlock> exclusionBlockPerMolecule =
-                detail::toGmxExclusionBlock(exclusions);
+        std::vector<gmx::ExclusionBlock> exclusionBlockPerMolecule = toGmxExclusionBlock(exclusions);
 
         // duplicate the exclusionBlockPerMolecule for the number of Molecules of (numMols)
         for (size_t i = 0; i < numMols; ++i)
         {
-            auto offsetExclusions =
-                    detail::offsetGmxBlock(exclusionBlockPerMolecule, particleNumberOffset);
+            auto offsetExclusions = offsetGmxBlock(exclusionBlockPerMolecule, particleNumberOffset);
 
             std::copy(std::begin(offsetExclusions), std::end(offsetExclusions),
                       std::back_inserter(exclusionBlockGlobal));
@@ -97,10 +99,18 @@ gmx::ListOfLists<int> TopologyBuilder::createExclusionsListOfLists() const
         exclusionsListOfListsGlobal.pushBack(block.atomNumber);
     }
 
-    return exclusionsListOfListsGlobal;
+    std::vector<int>    listRanges(exclusionsListOfListsGlobal.listRangesView().begin(),
+                                exclusionsListOfListsGlobal.listRangesView().end());
+    std::vector<int>    listElements(exclusionsListOfListsGlobal.elementsView().begin(),
+                                  exclusionsListOfListsGlobal.elementsView().end());
+    ExclusionLists<int> exclusionListsGlobal;
+    exclusionListsGlobal.ListRanges   = std::move(listRanges);
+    exclusionListsGlobal.ListElements = std::move(listElements);
+
+    return exclusionListsGlobal;
 }
 
-ListedInteractionData TopologyBuilder::createInteractionData(const detail::ParticleSequencer& particleSequencer)
+ListedInteractionData TopologyBuilder::createInteractionData(const ParticleSequencer& particleSequencer)
 {
     ListedInteractionData interactionData;
 
@@ -137,14 +147,13 @@ ListedInteractionData TopologyBuilder::createInteractionData(const detail::Parti
         std::transform(begin(coordinateIndices), end(coordinateIndices), begin(expansionArray),
                        begin(interactionDataElement.indices),
                        [](auto coordinateIndex, auto interactionIndex) {
-                           std::array<int, coordinateIndex.size() + 1> ret;
-                           for (int i = 0; i < coordinateIndex.size(); ++i)
+                           std::array<int, coordinateIndex.size() + 1> ret{ 0 };
+                           for (int i = 0; i < int(coordinateIndex.size()); ++i)
                            {
                                ret[i] = coordinateIndex[i];
                            }
                            ret[coordinateIndex.size()] = interactionIndex;
                            return ret;
-                           // return std::tuple_cat(coordinateIndex, std::make_tuple(interactionIndex));
                        });
     };
 
@@ -182,13 +191,16 @@ std::vector<T> TopologyBuilder::extractParticleTypeQuantity(Extractor&& extracto
 
 Topology TopologyBuilder::buildTopology()
 {
+    assert((!(numParticles_ < 0) && "It should not be possible to have negative particles"));
+    if (numParticles_ == 0)
+    {
+        throw InputException("You cannot build a topology with no particles");
+    }
     topology_.numParticles_ = numParticles_;
 
-    topology_.exclusions_ = createExclusionsListOfLists();
-    topology_.charges_    = extractParticleTypeQuantity<real>([](const auto& data, auto& map) {
-        ignore_unused(map);
-        return data.charge_;
-    });
+    topology_.exclusionLists_ = createExclusionsLists();
+    topology_.charges_        = extractParticleTypeQuantity<real>(
+            [](const auto& data, [[maybe_unused]] auto& map) { return data.charge_; });
 
     // map unique ParticleTypes to IDs
     std::unordered_map<std::string, int> nameToId;
@@ -199,12 +211,11 @@ Topology TopologyBuilder::buildTopology()
     }
 
     topology_.particleTypeIdOfAllParticles_ =
-            extractParticleTypeQuantity<int>([&nameToId](const auto& data, auto& map) {
-                ignore_unused(map);
+            extractParticleTypeQuantity<int>([&nameToId](const auto& data, [[maybe_unused]] auto& map) {
                 return nameToId[data.particleTypeName_];
             });
 
-    detail::ParticleSequencer particleSequencer;
+    ParticleSequencer particleSequencer;
     particleSequencer.build(molecules_);
     topology_.particleSequencer_ = std::move(particleSequencer);
 
@@ -311,9 +322,9 @@ CombinationRule Topology::getCombinationRule() const
     return combinationRule_;
 }
 
-gmx::ListOfLists<int> Topology::getGmxExclusions() const
+ExclusionLists<int> Topology::exclusionLists() const
 {
-    return exclusions_;
+    return exclusionLists_;
 }
 
 } // namespace nblib

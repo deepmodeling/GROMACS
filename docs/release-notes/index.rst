@@ -18,7 +18,7 @@ the 2021 release series, as appropriate. Around the time the 2022
 release is made, the 2020 series will no longer be maintained.
 
 Where issue numbers are reported in these release notes, more details
-can be found at https://gitlab.com/gromacs/gromacs/-/issues at that issue number.
+can be found on the `issue tracker`_ at that issue number.
 
 |Gromacs| 2021 series
 ---------------------
@@ -41,7 +41,6 @@ Major release
    2021/major/portability
    2021/major/miscellaneous
 
-
 |Gromacs| 2020 series
 ---------------------
 
@@ -51,6 +50,8 @@ Patch releases
 .. toctree::
    :maxdepth: 1
 
+   2020/2020.6
+   2020/2020.5
    2020/2020.4
    2020/2020.3
    2020/2020.2

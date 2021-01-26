@@ -50,7 +50,7 @@
 # be tagged. Official GROMACS releases should be mappable to a distinct gmxapi
 # release string. For roadmap details, see https://gitlab.com/gromacs/gromacs/-/issues/2585
 set(GMXAPI_MAJOR 0)
-set(GMXAPI_MINOR 1)
+set(GMXAPI_MINOR 2)
 set(GMXAPI_PATCH 0)
 set(GMXAPI_RELEASE ${GMXAPI_MAJOR}.${GMXAPI_MINOR}.${GMXAPI_PATCH})
 
@@ -61,12 +61,40 @@ set_target_properties(gmxapi PROPERTIES
                       VERSION_PATCH ${GMXAPI_PATCH}
                       RELEASE ${GMXAPI_RELEASE})
 
+
+if (GMX_LIB_MPI)
+    # GROMACS is built against an MPI library.
+    # Clarification should be possible with resolution of #3672.
+    set(_gmx_mpi_type "library")
+    # Ref https://cmake.org/cmake/help/v3.13/module/FindMPI.html#variables-for-using-mpi
+    find_package(MPI COMPONENTS C)
+    if (MPI_C_FOUND)
+        target_link_libraries(gmxapi PRIVATE MPI::MPI_C)
+    else()
+        message(FATAL_ERROR "Building gmxapi for MPI-enabled GROMACS, but no MPI toolchain found.")
+    endif ()
+elseif(GMX_THREAD_MPI)
+    # GROMACS is built with its internal thread-MPI implementation.
+    set(_gmx_mpi_type "tmpi")
+else()
+    # GROMACS is built without MPI or thread-MPI.
+    set(_gmx_mpi_type "none")
+endif ()
+define_property(TARGET PROPERTY MPI
+                BRIEF_DOCS "MPI capability of the GROMACS library."
+                FULL_DOCS "Values of 'library', 'tmpi', or 'none' indicate the configure-time options of the GROMACS
+                 library build.")
+set_target_properties(gmxapi PROPERTIES
+                      MPI ${_gmx_mpi_type})
+unset(_gmx_mpi_type)
+
 ##########################
 # Define public interface.
 #
 # The include directory should be mostly empty so that we can use it internally as
 # the public interface include directory during build and testing.
 configure_file(include/gmxapiversion.h.in include/gmxapi/version.h)
+configure_file(include/resourceassignment.cmakein.h include/gmxapi/mpi/resourceassignment.h)
 target_include_directories(gmxapi PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
@@ -89,4 +117,6 @@ install(DIRECTORY include/gmxapi
 # Install "configured" files from the build tree.
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/gmxapi/version.h
         DESTINATION include/gmxapi)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/gmxapi/mpi/resourceassignment.h
+        DESTINATION include/gmxapi/mpi)
 

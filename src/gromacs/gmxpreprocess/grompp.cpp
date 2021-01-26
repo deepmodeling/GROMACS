@@ -1762,7 +1762,6 @@ int gmx_grompp(int argc, char* argv[])
         "interpret the output messages before attempting to bypass them with",
         "this option."
     };
-    t_gromppopts*                        opts;
     std::vector<MoleculeInformation>     mi;
     std::unique_ptr<MoleculeInformation> intermolecular_interactions;
     int                                  nvsite, comb;
@@ -1832,7 +1831,8 @@ int gmx_grompp(int argc, char* argv[])
     gmx::MDModules mdModules;
     t_inputrec     irInstance;
     t_inputrec*    ir = &irInstance;
-    snew(opts, 1);
+    t_gromppopts   optsInstance;
+    t_gromppopts*  opts = &optsInstance;
     snew(opts->include, STRLEN);
     snew(opts->define, STRLEN);
 
@@ -2304,7 +2304,7 @@ int gmx_grompp(int argc, char* argv[])
             copy_mat(ir->compress, compressibility);
         }
         setStateDependentAwhParams(
-                ir->awhParams, ir->pull, pull, state.box, ir->pbcType, compressibility, &ir->opts,
+                ir->awhParams, *ir->pull, pull, state.box, ir->pbcType, compressibility, &ir->opts,
                 ir->efep != efepNO ? ir->fepvals->all_lambda[efptFEP][ir->fepvals->init_fep_state] : 0,
                 sys, wi);
     }
@@ -2389,7 +2389,6 @@ int gmx_grompp(int argc, char* argv[])
     sfree(opts->wall_atomtype[0]);
     sfree(opts->wall_atomtype[1]);
     sfree(opts->include);
-    sfree(opts);
     for (auto& mol : mi)
     {
         // Some of the contents of molinfo have been stolen, so

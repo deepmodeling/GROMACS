@@ -38,6 +38,7 @@
  * produced by mdrun.
  *
  * \author Mark Abraham <mark.j.abraham@gmail.com>
+ * \author Pascal Merz <pascal.merz@me.com>
  * \ingroup module_mdrun_integration_tests
  */
 #ifndef GMX_PROGRAMS_MDRUN_TESTS_TRAJECTORYCOMPARISON_H
@@ -54,6 +55,8 @@ class TrajectoryFrame;
 
 namespace test
 {
+
+class TestReferenceChecker;
 
 /*! \internal
  * \brief Helper struct for testing different trajectory components with different tolerances. */
@@ -99,15 +102,15 @@ struct TrajectoryFrameMatchSettings
     ComparisonConditions velocitiesComparison = ComparisonConditions::CompareIfBothFound;
     //! Whether forces must be compared.
     ComparisonConditions forcesComparison = ComparisonConditions::CompareIfBothFound;
-    //! Which frames will be compared
-    FramesToCompare framesToCompare = FramesToCompare::AllFrames;
+    //! How many frames will be compared.
+    MaxNumFrames maxNumTrajectoryFrames = MaxNumFrames::compareAllFrames();
 };
 
 /*! \internal
- * \brief Function object to compare the fields of the two frames for
- * equality given the \c matchSettings_ and \c tolerances_.
+ * \brief Function object to compare the fields of two frames vs each others or one
+ * frame vs reference data for equality given the \c matchSettings_ and \c tolerances_.
  *
- * The two frames are required to have valid and matching values for
+ * If using two frames, they are required to have valid and matching values for
  * time and step. According to \c matchSettings_, box, position coordinates,
  * velocities and/or forces will be compared between frames, using the
  * \c tolerances_. Comparisons will only occur when both frames have
@@ -116,7 +119,16 @@ struct TrajectoryFrameMatchSettings
  * GoogleTest expectation failure will be given. If a comparison is
  * required by \c matchSettings_ but cannot be done because either (or
  * both) frames lack the requisite data, descriptive expectation
- * failures will be given. */
+ * failures will be given.
+ *
+ * When comparing a frame to reference data, according to \c matchSettings_,
+ * box, position coordinates, velocities and/or forces will be compared to
+ * reference data, using the \c tolerances_. If a comparison fails, a
+ * GoogleTest expectation failure will be given. If a comparison is
+ * required by \c matchSettings_ but cannot be done because the
+ * frame lacks the requisite data, descriptive expectation
+ * failures will be given.
+ */
 class TrajectoryComparison
 {
 public:
@@ -128,20 +140,44 @@ public:
     /*! \brief Compare reference with test given the \c
      * matchSettings_ within \c tolerances_ */
     void operator()(const TrajectoryFrame& reference, const TrajectoryFrame& test) const;
+    /*! \brief Compare frame to reference given the \c
+     * matchSettings_ within \c tolerances_ */
+    void operator()(const TrajectoryFrame& frame, TestReferenceChecker* checker) const;
 
 private:
     //! Specifies expected behavior in comparisons
     TrajectoryFrameMatchSettings matchSettings_;
     //! Trajectory fields to match with given tolerances.
     TrajectoryTolerances tolerances_;
-    /*! \brief Whether the first frame has been compared yet
+    /*! \brief The number of frames that have been compared until now
      *
      * This field is mutable because the need to update the flag
-     * after the first frame is merely an implementation detail,
+     * when checking frames is merely an implementation detail,
      * rather than a proper change of internal state triggered
      * by the caller. */
-    mutable bool firstFrameHasBeenCompared_ = false;
+    mutable unsigned int numComparedFrames_ = 0;
 };
+
+/*! \internal
+ * \brief Helper function comparing a trajectory to reference.
+ *
+ * This opens a trajectory file, loops over its frames, and uses the
+ * \c trajectoryComparison and \c checker arguments to check each frame
+ * to reference data.
+ *
+ * Optionally, the max number of trajectory frames to be compared can
+ * be specified to allow to only test the first few frames of a
+ * simulation, e.g. to avoid failures due to numerical divergence.
+ */
+//! \{
+void checkTrajectoryAgainstReferenceData(const std::string&          trajectoryFilename,
+                                         const TrajectoryComparison& trajectoryComparison,
+                                         TestReferenceChecker*       checker);
+void checkTrajectoryAgainstReferenceData(const std::string&          trajectoryFilename,
+                                         const TrajectoryComparison& trajectoryComparison,
+                                         TestReferenceChecker*       checker,
+                                         MaxNumFrames                maxNumFrames);
+//! \}
 
 } // namespace test
 } // namespace gmx

@@ -51,6 +51,7 @@
 #include "modularsimulatorinterfaces.h"
 
 struct t_inputrec;
+struct t_trxframe;
 
 namespace gmx
 {
@@ -83,15 +84,28 @@ public:
     ArrayRef<const real> constLambdaView();
     //! Get the current FEP state
     int currentFEPState();
+    //! Update MDAtoms (public because it's called by DomDec - see #3700)
+    void updateMDAtoms();
 
     //! The element taking part in the simulator loop
     class Element;
     //! Get pointer to element (whose lifetime is managed by this)
     Element* element();
 
+    //! Read everything that can be stored in t_trxframe from a checkpoint file
+    static void readCheckpointToTrxFrame(t_trxframe*                       trxFrame,
+                                         std::optional<ReadCheckpointData> readCheckpointData);
+    //! CheckpointHelper identifier
+    static const std::string& checkpointID();
+
 private:
+    //! Default constructor - only used internally
+    FreeEnergyPerturbationData() = default;
     //! Update the lambda values
     void updateLambdas(Step step);
+    //! Helper function to read from / write to CheckpointData
+    template<CheckpointDataOperation operation>
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 
     //! The element
     std::unique_ptr<Element> element_;
@@ -128,8 +142,8 @@ public:
     //! Update lambda and mdatoms
     void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
-    //! No setup needed
-    void elementSetup() override{};
+    //! Update the MdAtoms object
+    void elementSetup() override;
 
     //! No teardown needed
     void elementTeardown() override{};
@@ -164,13 +178,6 @@ private:
     FreeEnergyPerturbationData* freeEnergyPerturbationData_;
     //! Whether lambda values are non-static
     const bool lambdasChange_;
-
-
-    //! CheckpointHelper identifier
-    const std::string identifier_ = "FreeEnergyPerturbationElement";
-    //! Helper function to read from / write to CheckpointData
-    template<CheckpointDataOperation operation>
-    void doCheckpointData(CheckpointData<operation>* checkpointData);
 };
 
 } // namespace gmx

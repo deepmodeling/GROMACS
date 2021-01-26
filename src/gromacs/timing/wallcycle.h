@@ -107,6 +107,7 @@ enum
     ewcsDD_MAKETOP,
     ewcsDD_MAKECONSTR,
     ewcsDD_TOPOTHER,
+    ewcsDD_GPU,
     ewcsNBS_GRID_LOCAL,
     ewcsNBS_GRID_NONLOCAL,
     ewcsNBS_SEARCH_LOCAL,
@@ -131,6 +132,7 @@ enum
     ewcsLAUNCH_GPU_NB_F_BUF_OPS,
     ewcsLAUNCH_GPU_MOVEX,
     ewcsLAUNCH_GPU_MOVEF,
+    ewcsLAUNCH_GPU_UPDATE_CONSTRAIN,
     ewcsTEST,
     ewcsNR
 };

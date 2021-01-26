@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -41,8 +41,8 @@
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  */
-#ifndef NBLIB_TESTS_TESTHELPERS_H
-#define NBLIB_TESTS_TESTHELPERS_H
+#ifndef NBLIB_TESTHELPERS_H
+#define NBLIB_TESTHELPERS_H
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
@@ -104,4 +104,4 @@ private:
 
 } // namespace test
 } // namespace nblib
-#endif // NBLIB_TESTS_TESTHELPERS_H
+#endif // NBLIB_TESTHELPERS_H

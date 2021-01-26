@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2020, by the GROMACS development team, led by
+# Copyright (c) 2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -46,28 +46,7 @@ target_sources(argon-forces-integration
         )
 
 target_link_libraries(argon-forces-integration PRIVATE nblib)
-install(
-        TARGETS
-        argon-forces-integration
-        DESTINATION
-        ${CMAKE_INSTALL_BINDIR}
-)
-
-add_executable(methane-water-integration "")
-
-target_sources(methane-water-integration
-        PRIVATE
-        methane-water-integration.cpp
-        )
-
-target_link_libraries(methane-water-integration PRIVATE nblib)
-install(
-        TARGETS
-        methane-water-integration
-        DESTINATION
-        ${CMAKE_INSTALL_BINDIR}
-)
 
 if(BUILD_TESTING)
-    add_subdirectory(tests)
+    add_test(NAME NbLibSamplesTests COMMAND argon-forces-integration)
 endif()

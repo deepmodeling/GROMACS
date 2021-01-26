@@ -399,8 +399,9 @@ static void init_em(FILE*                fplog,
     {
         GMX_ASSERT(shellfc != nullptr, "With NM we always support shells");
 
-        *shellfc = init_shell_flexcon(stdout, top_global, constr ? constr->numFlexibleConstraints() : 0,
-                                      ir->nstcalcenergy, DOMAINDECOMP(cr));
+        *shellfc =
+                init_shell_flexcon(stdout, top_global, constr ? constr->numFlexibleConstraints() : 0,
+                                   ir->nstcalcenergy, DOMAINDECOMP(cr), thisRankHasDuty(cr, DUTY_PME));
     }
     else
     {
@@ -1094,8 +1095,9 @@ void LegacySimulator::do_cg()
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
                                    mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
-    gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work, nullptr,
-                                   false, StartingBehavior::NewSimulation, mdModulesNotifier);
+    gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work,
+                                   nullptr, false, StartingBehavior::NewSimulation,
+                                   simulationsShareState, mdModulesNotifier);
 
     /* Print to log file */
     print_em_start(fplog, cr, walltime_accounting, wcycle, CG);
@@ -1709,8 +1711,9 @@ void LegacySimulator::do_lbfgs()
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
                                    mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
-    gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work, nullptr,
-                                   false, StartingBehavior::NewSimulation, mdModulesNotifier);
+    gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work,
+                                   nullptr, false, StartingBehavior::NewSimulation,
+                                   simulationsShareState, mdModulesNotifier);
 
     start = 0;
     end   = mdatoms->homenr;
@@ -2389,8 +2392,9 @@ void LegacySimulator::do_steep()
     gmx_mdoutf*       outf = init_mdoutf(fplog, nfile, fnm, mdrunOptions, cr, outputProvider,
                                    mdModulesNotifier, inputrec, top_global, nullptr, wcycle,
                                    StartingBehavior::NewSimulation, simulationsShareState, ms);
-    gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work, nullptr,
-                                   false, StartingBehavior::NewSimulation, mdModulesNotifier);
+    gmx::EnergyOutput energyOutput(mdoutf_get_fp_ene(outf), top_global, inputrec, pull_work,
+                                   nullptr, false, StartingBehavior::NewSimulation,
+                                   simulationsShareState, mdModulesNotifier);
 
     /* Print to log file  */
     print_em_start(fplog, cr, walltime_accounting, wcycle, SD);

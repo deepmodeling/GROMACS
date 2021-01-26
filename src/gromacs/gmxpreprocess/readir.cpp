@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017, The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -45,6 +45,7 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include "gromacs/applied_forces/awh/read_params.h"
@@ -59,6 +60,7 @@
 #include "gromacs/mdrun/mdmodules.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/options/options.h"
 #include "gromacs/options/treesupport.h"
@@ -70,6 +72,7 @@
 #include "gromacs/topology/mtop_util.h"
 #include "gromacs/topology/symtab.h"
 #include "gromacs/topology/topology.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
@@ -109,8 +112,6 @@ struct gmx_inputrec_strings
     std::vector<std::string> pullGroupNames;
     std::vector<std::string> rotateGroupNames;
     char anneal[STRLEN], anneal_npoints[STRLEN], anneal_time[STRLEN], anneal_temp[STRLEN];
-    char QMmethod[STRLEN], QMbasis[STRLEN], QMcharge[STRLEN], QMmult[STRLEN], bSH[STRLEN],
-            CASorbitals[STRLEN], CASelectrons[STRLEN], SAon[STRLEN], SAoff[STRLEN], SAsteps[STRLEN];
 };
 
 static gmx_inputrec_strings* inputrecStrings = nullptr;
@@ -229,6 +230,105 @@ static void process_interaction_modifier(int* eintmod)
     if (*eintmod == eintmodPOTSHIFT_VERLET_UNSUPPORTED)
     {
         *eintmod = eintmodPOTSHIFT;
+    }
+}
+
+static void checkMtsRequirement(const t_inputrec& ir, const char* param, const int nstValue, warninp_t wi)
+{
+    GMX_RELEASE_ASSERT(ir.mtsLevels.size() >= 2, "Need at least two levels for MTS");
+    const int mtsFactor = ir.mtsLevels.back().stepFactor;
+    if (nstValue % mtsFactor != 0)
+    {
+        auto message = gmx::formatString(
+                "With MTS, %s = %d should be a multiple of mts-factor = %d", param, nstValue, mtsFactor);
+        warning_error(wi, message.c_str());
+    }
+}
+
+static void setupMtsLevels(gmx::ArrayRef<gmx::MtsLevel> mtsLevels,
+                           const t_inputrec&            ir,
+                           const t_gromppopts&          opts,
+                           warninp_t                    wi)
+{
+    /* MD-VV has no MTS support yet.
+     * SD1 needs different scaling coefficients for the different MTS forces
+     * and the different forces are currently not available in ForceBuffers.
+     */
+    if (ir.eI != eiMD)
+    {
+        auto message = gmx::formatString(
+                "Multiple time stepping is only supported with integrator %s", ei_names[eiMD]);
+        warning_error(wi, message.c_str());
+    }
+    if (opts.numMtsLevels != 2)
+    {
+        warning_error(wi, "Only mts-levels = 2 is supported");
+    }
+    else
+    {
+        const std::vector<std::string> inputForceGroups = gmx::splitString(opts.mtsLevel2Forces);
+        auto&                          forceGroups      = mtsLevels[1].forceGroups;
+        for (const auto& inputForceGroup : inputForceGroups)
+        {
+            bool found     = false;
+            int  nameIndex = 0;
+            for (const auto& forceGroupName : gmx::mtsForceGroupNames)
+            {
+                if (gmx::equalCaseInsensitive(inputForceGroup, forceGroupName))
+                {
+                    forceGroups.set(nameIndex);
+                    found = true;
+                }
+                nameIndex++;
+            }
+            if (!found)
+            {
+                auto message =
+                        gmx::formatString("Unknown MTS force group '%s'", inputForceGroup.c_str());
+                warning_error(wi, message.c_str());
+            }
+        }
+
+        if (mtsLevels[1].stepFactor <= 1)
+        {
+            gmx_fatal(FARGS, "mts-factor should be larger than 1");
+        }
+
+        // Make the level 0 use the complement of the force groups of group 1
+        mtsLevels[0].forceGroups = ~mtsLevels[1].forceGroups;
+        mtsLevels[0].stepFactor  = 1;
+
+        if ((EEL_FULL(ir.coulombtype) || EVDW_PME(ir.vdwtype))
+            && !mtsLevels[1].forceGroups[static_cast<int>(gmx::MtsForceGroups::LongrangeNonbonded)])
+        {
+            warning_error(wi,
+                          "With long-range electrostatics and/or LJ treatment, the long-range part "
+                          "has to be part of the mts-level2-forces");
+        }
+
+        if (ir.nstcalcenergy > 0)
+        {
+            checkMtsRequirement(ir, "nstcalcenergy", ir.nstcalcenergy, wi);
+        }
+        checkMtsRequirement(ir, "nstenergy", ir.nstenergy, wi);
+        checkMtsRequirement(ir, "nstlog", ir.nstlog, wi);
+        if (ir.efep != efepNO)
+        {
+            checkMtsRequirement(ir, "nstdhdl", ir.fepvals->nstdhdl, wi);
+        }
+
+        if (ir.bPull)
+        {
+            const int pullMtsLevel = gmx::forceGroupMtsLevel(ir.mtsLevels, gmx::MtsForceGroups::Pull);
+            if (ir.pull->nstxout % ir.mtsLevels[pullMtsLevel].stepFactor != 0)
+            {
+                warning_error(wi, "pull-nstxout should be a multiple of mts-factor");
+            }
+            if (ir.pull->nstfout % ir.mtsLevels[pullMtsLevel].stepFactor != 0)
+            {
+                warning_error(wi, "pull-nstfout should be a multiple of mts-factor");
+            }
+        }
     }
 }
 
@@ -536,6 +636,12 @@ void check_ir(const char*                   mdparin,
             if (ir->nstpcouple < 0)
             {
                 ir->nstpcouple = ir_optimal_nstpcouple(ir);
+            }
+            if (ir->useMts && ir->nstpcouple % ir->mtsLevels.back().stepFactor != 0)
+            {
+                warning_error(wi,
+                              "With multiple time stepping, nstpcouple should be a mutiple of "
+                              "mts-factor");
             }
         }
 
@@ -1883,6 +1989,23 @@ void get_ir(const char*     mdparin,
     printStringNoNewline(
             &inp, "Part index is updated automatically on checkpointing (keeps files separate)");
     ir->simulation_part = get_eint(&inp, "simulation-part", 1, wi);
+    printStringNoNewline(&inp, "Multiple time-stepping");
+    ir->useMts = (get_eeenum(&inp, "mts", yesno_names, wi) != 0);
+    if (ir->useMts)
+    {
+        opts->numMtsLevels = get_eint(&inp, "mts-levels", 2, wi);
+        ir->mtsLevels.resize(2);
+        gmx::MtsLevel& mtsLevel = ir->mtsLevels[1];
+        opts->mtsLevel2Forces   = setStringEntry(&inp, "mts-level2-forces", "longrange-nonbonded");
+        mtsLevel.stepFactor     = get_eint(&inp, "mts-level2-factor", 2, wi);
+
+        // We clear after reading without dynamics to not force the user to remove MTS mdp options
+        if (!EI_DYNAMICS(ir->eI))
+        {
+            ir->useMts = false;
+            ir->mtsLevels.clear();
+        }
+    }
     printStringNoNewline(&inp, "mode for center of mass motion removal");
     ir->comm_mode = get_eeenum(&inp, "comm-mode", ecm_names, wi);
     printStringNoNewline(&inp, "number of steps for center of mass motion removal");
@@ -2023,29 +2146,8 @@ void get_ir(const char*     mdparin,
     /* QMMM */
     printStringNewline(&inp, "OPTIONS FOR QMMM calculations");
     ir->bQMMM = (get_eeenum(&inp, "QMMM", yesno_names, wi) != 0);
-    printStringNoNewline(&inp, "Groups treated Quantum Mechanically");
+    printStringNoNewline(&inp, "Groups treated with MiMiC");
     setStringEntry(&inp, "QMMM-grps", inputrecStrings->QMMM, nullptr);
-    printStringNoNewline(&inp, "QM method");
-    setStringEntry(&inp, "QMmethod", inputrecStrings->QMmethod, nullptr);
-    printStringNoNewline(&inp, "QMMM scheme");
-    const char* noQMMMSchemeName = "normal";
-    get_eeenum(&inp, "QMMMscheme", &noQMMMSchemeName, wi);
-    printStringNoNewline(&inp, "QM basisset");
-    setStringEntry(&inp, "QMbasis", inputrecStrings->QMbasis, nullptr);
-    printStringNoNewline(&inp, "QM charge");
-    setStringEntry(&inp, "QMcharge", inputrecStrings->QMcharge, nullptr);
-    printStringNoNewline(&inp, "QM multiplicity");
-    setStringEntry(&inp, "QMmult", inputrecStrings->QMmult, nullptr);
-    printStringNoNewline(&inp, "Surface Hopping");
-    setStringEntry(&inp, "SH", inputrecStrings->bSH, nullptr);
-    printStringNoNewline(&inp, "CAS space options");
-    setStringEntry(&inp, "CASorbitals", inputrecStrings->CASorbitals, nullptr);
-    setStringEntry(&inp, "CASelectrons", inputrecStrings->CASelectrons, nullptr);
-    setStringEntry(&inp, "SAon", inputrecStrings->SAon, nullptr);
-    setStringEntry(&inp, "SAoff", inputrecStrings->SAoff, nullptr);
-    setStringEntry(&inp, "SAsteps", inputrecStrings->SAsteps, nullptr);
-    printStringNoNewline(&inp, "Scale factor for MM charges");
-    get_ereal(&inp, "MMChargeScaleFactor", 1.0, wi);
 
     /* Simulated annealing */
     printStringNewline(&inp, "SIMULATED ANNEALING");
@@ -2111,8 +2213,22 @@ void get_ir(const char*     mdparin,
     ir->bPull = (get_eeenum(&inp, "pull", yesno_names, wi) != 0);
     if (ir->bPull)
     {
-        snew(ir->pull, 1);
-        inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull, wi);
+        ir->pull                        = std::make_unique<pull_params_t>();
+        inputrecStrings->pullGroupNames = read_pullparams(&inp, ir->pull.get(), wi);
+
+        if (ir->useMts)
+        {
+            for (int c = 0; c < ir->pull->ncoord; c++)
+            {
+                if (ir->pull->coord[c].eType == epullCONSTRAINT)
+                {
+                    warning_error(wi,
+                                  "Constraint COM pulling is not supported in combination with "
+                                  "multiple time stepping");
+                    break;
+                }
+            }
+        }
     }
 
     /* AWH biasing
@@ -2639,6 +2755,12 @@ void get_ir(const char*     mdparin,
         }
     }
 
+    /* Set up MTS levels, this needs to happen before checking AWH parameters */
+    if (ir->useMts)
+    {
+        setupMtsLevels(ir->mtsLevels, *ir, *opts, wi);
+    }
+
     if (ir->bDoAwh)
     {
         gmx::checkAwhParams(ir->awhParams, ir, wi);
@@ -2672,6 +2794,21 @@ int search_string(const char* s, int ng, char* gn[])
               s);
 }
 
+static void atomGroupRangeValidation(int natoms, int groupIndex, const t_blocka& block)
+{
+    /* Now go over the atoms in the group */
+    for (int j = block.index[groupIndex]; (j < block.index[groupIndex + 1]); j++)
+    {
+        int aj = block.a[j];
+
+        /* Range checking */
+        if ((aj < 0) || (aj >= natoms))
+        {
+            gmx_fatal(FARGS, "Invalid atom number %d in indexfile", aj + 1);
+        }
+    }
+}
+
 static void do_numbering(int                        natoms,
                          SimulationGroups*          groups,
                          gmx::ArrayRef<std::string> groupsFromMdpFile,
@@ -2685,7 +2822,7 @@ static void do_numbering(int                        natoms,
 {
     unsigned short*   cbuf;
     AtomGroupIndices* grps = &(groups->groups[gtype]);
-    int               j, gid, aj, ognr, ntot = 0;
+    int               ntot = 0;
     const char*       title;
     char              warn_buf[STRLEN];
 
@@ -2701,25 +2838,19 @@ static void do_numbering(int                        natoms,
     for (int i = 0; i != groupsFromMdpFile.ssize(); ++i)
     {
         /* Lookup the group name in the block structure */
-        gid = search_string(groupsFromMdpFile[i].c_str(), block->nr, gnames);
+        const int gid = search_string(groupsFromMdpFile[i].c_str(), block->nr, gnames);
         if ((grptp != egrptpONE) || (i == 0))
         {
             grps->emplace_back(gid);
         }
-
+        GMX_ASSERT(block, "Can't have a nullptr block");
+        atomGroupRangeValidation(natoms, gid, *block);
         /* Now go over the atoms in the group */
-        for (j = block->index[gid]; (j < block->index[gid + 1]); j++)
+        for (int j = block->index[gid]; (j < block->index[gid + 1]); j++)
         {
-
-            aj = block->a[j];
-
-            /* Range checking */
-            if ((aj < 0) || (aj >= natoms))
-            {
-                gmx_fatal(FARGS, "Invalid atom number %d in indexfile", aj + 1);
-            }
+            const int aj = block->a[j];
             /* Lookup up the old group number */
-            ognr = cbuf[aj];
+            const int ognr = cbuf[aj];
             if (ognr != NOGID)
             {
                 gmx_fatal(FARGS, "Atom %d in multiple %s groups (%d and %d)", aj + 1, title,
@@ -2754,7 +2885,7 @@ static void do_numbering(int                        natoms,
             warning_note(wi, warn_buf);
         }
         /* Assign all atoms currently unassigned to a rest group */
-        for (j = 0; (j < natoms); j++)
+        for (int j = 0; (j < natoms); j++)
         {
             if (cbuf[j] == NOGID)
             {
@@ -2772,7 +2903,7 @@ static void do_numbering(int                        natoms,
             grps->emplace_back(restnm);
 
             /* Assign the rest name to all atoms not currently assigned to a group */
-            for (j = 0; (j < natoms); j++)
+            for (int j = 0; (j < natoms); j++)
             {
                 if (cbuf[j] == NOGID)
                 {
@@ -2954,7 +3085,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
          * belong to different TC or VCM groups it is anyhow difficult
          * to determine the optimal nrdf assignment.
          */
-        pull = ir->pull;
+        pull = ir->pull.get();
 
         for (int i = 0; i < pull->ncoord; i++)
         {
@@ -2971,7 +3102,7 @@ static void calc_nrdf(const gmx_mtop_t* mtop, t_inputrec* ir, char** gnames)
 
                 pgrp = &pull->group[pull->coord[i].group[j]];
 
-                if (pgrp->nat > 0)
+                if (!pgrp->ind.empty())
                 {
                     /* Subtract 1/2 dof from each group */
                     int ai = pgrp->ind[0];
@@ -3234,11 +3365,12 @@ static void checkAndUpdateVcmFreezeGroupConsistency(SimulationGroups* groups,
             if (numFrozenDims == DIM)
             {
                 /* Do not remove COM motion for this fully frozen atom */
-                if (groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
+                if (groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval].empty())
                 {
-                    groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval].resize(numAtoms, 0);
+                    groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval].resize(
+                            numAtoms, 0);
                 }
-                groups->groups[SimulationAtomGroupType::MassCenterVelocityRemoval][a] = vcmRestGroup;
+                groups->groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval][a] = vcmRestGroup;
                 numFullyFrozenVcmAtoms++;
             }
             else if (numFrozenDims > 0)
@@ -3637,9 +3769,17 @@ void do_index(const char*                   mdparin,
 
     if (ir->bPull)
     {
-        make_pull_groups(ir->pull, inputrecStrings->pullGroupNames, defaultIndexGroups, gnames);
+        for (int i = 1; i < ir->pull->ngroup; i++)
+        {
+            const int gid = search_string(inputrecStrings->pullGroupNames[i].c_str(),
+                                          defaultIndexGroups->nr, gnames);
+            GMX_ASSERT(defaultIndexGroups, "Must have initialized default index groups");
+            atomGroupRangeValidation(natoms, gid, *defaultIndexGroups);
+        }
 
-        make_pull_coords(ir->pull);
+        process_pull_groups(ir->pull->group, inputrecStrings->pullGroupNames, defaultIndexGroups, gnames);
+
+        checkPullCoords(ir->pull->group, ir->pull->coord);
     }
 
     if (ir->bRot)
@@ -4061,6 +4201,9 @@ static void check_combination_rules(const t_inputrec* ir, const gmx_mtop_t* mtop
 
 void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_t wi)
 {
+    // Not meeting MTS requirements should have resulted in a fatal error, so we can assert here
+    gmx::assertMtsRequirements(*ir);
+
     char                      err_buf[STRLEN];
     int                       i, m, c, nmol;
     bool                      bCharge, bAcc;

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -51,7 +51,9 @@
 
 #include "nblib/pbc.hpp"
 #include "definitions.h"
-#include "nblib/util/internal.h"
+#include "nblib/util/util.hpp"
+
+#define NBLIB_ALWAYS_INLINE __attribute((always_inline))
 
 namespace nblib
 {
@@ -190,5 +192,7 @@ std::vector<ListedInteractionData> splitListedWork(const ListedInteractionData& 
 }
 
 } // namespace nblib
+
+#undef NBLIB_ALWAYS_INLINE
 
 #endif // NBLIB_LISTEDFORCSES_HELPERS_HPP

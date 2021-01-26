@@ -104,10 +104,11 @@ public:
         X86_Avx2,            //!< AVX2 including gather support (not used yet)
         X86_Avx512F,         //!< Foundation AVX-512 instructions
         X86_Avx512PF,        //!< Extended gather/scatter for AVX-512
-        X86_Avx512ER,        //!< AVX-512 exponential and recpirocal extensions
+        X86_Avx512ER,        //!< AVX-512 exponential and reciprocal extensions
         X86_Avx512CD,        //!< Memory conflict-detection for AVX-512
         X86_Avx512BW,        //!< AVX-512 byte and word instructions
         X86_Avx512VL,        //!< AVX-512 vector length extensions
+        X86_Avx512BF16,      //!< AVX-512 BFloat16 instructions
         X86_Avx512secondFMA, //!< AVX-512 second FMA unit
         X86_Clfsh,           //!< Supports CLFLUSH instruction
         X86_Cmov,            //!< Conditional move insn support
@@ -145,6 +146,7 @@ public:
         X86_Xop,         //!< AMD extended instructions, only AMD for now
         Arm_Neon,        //!< 32-bit ARM NEON
         Arm_NeonAsimd,   //!< 64-bit ARM AArch64 Advanced SIMD
+        Arm_Sve,         //!< ARM Scalable Vector Extensions
         Ibm_Qpx,         //!< IBM QPX SIMD (BlueGene/Q)
         Ibm_Vmx,         //!< IBM VMX SIMD (Altivec on Power6 and later)
         Ibm_Vsx,         //!< IBM VSX SIMD (Power7 and later)

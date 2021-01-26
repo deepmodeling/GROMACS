@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -47,7 +47,6 @@
 
 #include "nblib/exception.h"
 #include "nblib/interactions.h"
-#include "nblib/util/internal.h"
 
 namespace nblib
 {
@@ -76,7 +75,7 @@ size_t NonBondedInteractionMap::count(const NonBondedInteractionMap::NamePairTup
     return interactionMap_.count(namePairTuple);
 }
 
-namespace detail
+namespace
 {
 
 //! Combines the non-bonded parameters from two particles for pairwise interactions
@@ -92,7 +91,7 @@ real combineNonbondedParameters(real v, real w, CombinationRule combinationRule)
     }
 }
 
-} // namespace detail
+} // namespace
 
 ParticleTypesInteractions::ParticleTypesInteractions(CombinationRule cr) : combinationRule_(cr) {}
 
@@ -160,8 +159,8 @@ NonBondedInteractionMap ParticleTypesInteractions::generateTable() const
             C6  c6_2  = std::get<0>(particleType2.second);
             C12 c12_2 = std::get<1>(particleType2.second);
 
-            C6  c6_combo{ detail::combineNonbondedParameters(c6_1, c6_2, combinationRule_) };
-            C12 c12_combo{ detail::combineNonbondedParameters(c12_1, c12_2, combinationRule_) };
+            C6  c6_combo{ combineNonbondedParameters(c6_1, c6_2, combinationRule_) };
+            C12 c12_combo{ combineNonbondedParameters(c12_1, c12_2, combinationRule_) };
 
             nonbondedParameters_.setInteractions(particleType1.first, particleType2.first, c6_combo,
                                                  c12_combo);

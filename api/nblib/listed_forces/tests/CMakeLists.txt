@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2020, by the GROMACS development team, led by
+# Copyright (c) 2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -59,9 +59,3 @@ gmx_add_gtest_executable(
 target_link_libraries(${exename} PRIVATE nblib_test_infrastructure nblib)
 gmx_register_gtest_test(${testname} ${exename} INTEGRATION_TEST)
 add_dependencies(check-nblib ${exename})
-
-# separate compile target, makes it easy to choose compiler optimization and flags
-# and avoid dependencies on testing frameworks
-add_executable(listedperformance ../../topologyhelpers.cpp ../gmxcalculator.cpp performance.cpp)
-target_link_libraries(listedperformance libgromacs nblib)
-target_include_directories(listedperformance SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)

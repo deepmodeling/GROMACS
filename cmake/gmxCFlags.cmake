@@ -316,7 +316,8 @@ GMX_TEST_CFLAG(CFLAGS_WARN "/W3;/wd161;/wd177;/wd411;/wd593;/wd981;/wd1418;/wd14
 # 444: destructor for base class ".." is not virtual
 # 869: was never referenced (false positives)
 #2282: unrecognized GCC pragma
-                GMX_TEST_CXXFLAG(CXXFLAGS_WARN "-w3;-wd177;-wd280;-wd304;-wd383;-wd411;-wd444;-wd869;-wd981;-wd1418;-wd1572;-wd1599;-wd2259;-wd2547;-wd3280;-wd11074;-wd11076;-wd2282" GMXC_CXXFLAGS)
+#2621: attribute "unused" does not apply here
+                GMX_TEST_CXXFLAG(CXXFLAGS_WARN "-w3;-wd177;-wd280;-wd304;-wd383;-wd411;-wd444;-wd869;-wd981;-wd1418;-wd1572;-wd1599;-wd2259;-wd2547;-wd2621;-wd3280;-wd11074;-wd11076;-wd2282" GMXC_CXXFLAGS)
             endif()
             GMX_TEST_CXXFLAG(CXXFLAGS_OPT "-ip;-funroll-all-loops;-alias-const;-ansi-alias;-no-prec-div;-fimf-domain-exclusion=14;-qoverride-limits" GMXC_CXXFLAGS_RELEASE)
             GMX_TEST_CXXFLAG(CXXFLAGS_DEBUG "-O0" GMXC_CXXFLAGS_DEBUG)
@@ -441,13 +442,6 @@ GMX_TEST_CFLAG(CFLAGS_WARN "/W3;/wd161;/wd177;/wd411;/wd593;/wd981;/wd1418;/wd14
         endif()
         if(NOT GMX_OPENMP)
             GMX_TEST_CXXFLAG(CXXFLAGS_PRAGMA "-Wno-unknown-pragmas" GMXC_CXXFLAGS)
-        endif()
-        if(GMX_GPU_CUDA)
-            # CUDA header cuda_runtime_api.h in at least CUDA 10.1
-            # uses 0 where nullptr would be preferable, and this is
-            # the simplest way to avoid seeing it when it can't be
-            # readily fixed.
-            GMX_TEST_CXXFLAG(CXXFLAGS_PRAGMA "-Wno-zero-as-null-pointer-constant" GMXC_CXXFLAGS)
         endif()
         GMX_TEST_CXXFLAG(CXXFLAGS_WARN_NO_MISSING_FIELD_INITIALIZERS "-Wno-missing-field-initializers" GMXC_CXXFLAGS)
     endif()

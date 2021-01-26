@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -36,15 +36,15 @@
  * \brief
  * Implements a bonded force calculator
  *
- * Intended for internal use inside the ForceCalculator.
- *
  * \author Victor Holanda <victor.holanda@cscs.ch>
  * \author Joe Jordan <ejjordan@kth.se>
  * \author Prashanth Kanduri <kanduri@cscs.ch>
  * \author Sebastian Keller <keller@cscs.ch>
  * \author Artem Zhmurov <zhmurov@gmail.com>
  */
+#include "nblib/box.h"
 #include "nblib/exception.h"
+#include "nblib/pbc.hpp"
 #include "nblib/listed_forces/calculator.h"
 #include "nblib/listed_forces/dataflow.hpp"
 #include "nblib/listed_forces/helpers.hpp"
@@ -58,9 +58,9 @@ ListedForceCalculator::ListedForceCalculator(const ListedInteractionData& intera
                                              size_t                       bufferSize,
                                              int                          nthr,
                                              const Box&                   box) :
-    masterForceBuffer_(bufferSize, Vec3{ 0, 0, 0 }),
     numThreads(nthr),
-    pbcHolder_(box)
+    masterForceBuffer_(bufferSize, Vec3{ 0, 0, 0 }),
+    pbcHolder_(std::make_unique<PbcHolder>(box))
 {
     // split up the work
     threadedInteractions_ = splitListedWork(interactions, bufferSize, numThreads);
@@ -93,7 +93,7 @@ void ListedForceCalculator::computeForcesAndEnergies(gmx::ArrayRef<const Vec3> x
         if (usePbc)
         {
             energiesPerThread[thread] = reduceListedForces(
-                    threadedInteractions_[thread], x, threadedForceBuffers_[thread].get(), pbcHolder_);
+                    threadedInteractions_[thread], x, threadedForceBuffers_[thread].get(), *pbcHolder_);
         }
         else
         {
@@ -105,7 +105,7 @@ void ListedForceCalculator::computeForcesAndEnergies(gmx::ArrayRef<const Vec3> x
     // reduce energies
     for (int thread = 0; thread < numThreads; ++thread)
     {
-        for (int type = 0; type < energyBuffer_.size(); ++type)
+        for (int type = 0; type < int(energyBuffer_.size()); ++type)
         {
             energyBuffer_[type] += energiesPerThread[thread][type];
         }
@@ -151,7 +151,7 @@ void ListedForceCalculator::compute(gmx::ArrayRef<const Vec3> coordinates, gmx::
     computeForcesAndEnergies(coordinates, usePbc);
 
     // add forces to output force buffers
-    for (int pIndex = 0; pIndex < forces.size(); pIndex++)
+    for (int pIndex = 0; pIndex < int(forces.size()); pIndex++)
     {
         forces[pIndex] += masterForceBuffer_[pIndex];
     }

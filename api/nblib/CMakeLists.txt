@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2020, by the GROMACS development team, led by
+# Copyright (c) 2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -31,7 +31,7 @@
 #
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
-#
+
 # \author Victor Holanda <victor.holanda@cscs.ch>
 # \author Joe Jordan <ejjordan@kth.se>
 # \author Prashanth Kanduri <kanduri@cscs.ch>
@@ -47,35 +47,29 @@ set(IGNORED_CLANG_ALL_WARNINGS
         "-Wno-covered-switch-default" #GCC gives maybe-uninitialized without default label and checks for illegal enum values.
         "-Wno-switch-enum" # default statement for enum is OK
 
-        # We need to use macros like
-        # GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR. Those will look strange
-        # if they don't have a semicolon after them, and might confuse
-        # tools like IDEs also.
-        "-Wno-extra-semi-stmt"
-
-        #Following ones are undecided/TODO
-        "-Wno-disabled-macro-expansion"
-        "-Wno-cast-align"
-        "-Wno-reserved-id-macro"
-        "-Wno-global-constructors"
+        # These are all needed, mostly for testing code
+        "-Wno-conversion"
+        "-Wno-documentation"
+        "-Wno-double-promotion"
         "-Wno-exit-time-destructors"
+        "-Wno-float-equal"
+        "-Wno-global-constructors"
+        "-Wno-padded"
+        "-Wno-reserved-id-macro"
+        "-Wno-shadow"
         "-Wno-unused-macros"
         "-Wno-weak-vtables"
-        "-Wno-conditional-uninitialized"
-        "-Wno-format-nonliteral"
-        "-Wno-shadow"
-        "-Wno-cast-qual"
-        "-Wno-documentation"
-        "-Wno-used-but-marked-unused"
-        "-Wno-padded"
-        "-Wno-float-equal"
-        "-Wno-old-style-cast"
-        "-Wno-conversion"
-        "-Wno-double-promotion")
+        )
+
 string(REPLACE " " ";" IGNORED_CLANG_ALL_WARNINGS "${IGNORED_CLANG_ALL_WARNINGS}")
 
 set(TESTUTILS_DIR ${PROJECT_SOURCE_DIR}/src/testutils)
-include(${PROJECT_SOURCE_DIR}/src/testutils/TestMacros.cmake)
+if (BUILD_TESTING)
+    if(NOT GMX_DEVELOPER_BUILD)
+        set(UNITTEST_TARGET_OPTIONS EXCLUDE_FROM_ALL)
+    endif()
+    include(${TESTUTILS_DIR}/TestMacros.cmake)
+endif()
 
 # this allows all nblib tests to be run with "make check-nblib"
 add_custom_target(check-nblib
@@ -83,7 +77,19 @@ add_custom_target(check-nblib
         COMMENT "Running nblib tests"
         USES_TERMINAL VERBATIM)
 
-add_library(nblib SHARED "")
+set(NBLIB_MAJOR 0)
+set(NBLIB_MINOR 1)
+set(NBLIB_RELEASE ${NBLIB_MAJOR}.${NBLIB_MINOR}.0)
+
+add_library(nblib)
+set_target_properties(nblib PROPERTIES
+        VERSION_MAJOR ${NBLIB_MAJOR}
+        VERSION_MINOR ${NBLIB_MINOR}
+        SOVERSION ${NBLIB_MAJOR}
+        RELEASE ${NBLIB_RELEASE}
+        VERSION ${NBLIB_RELEASE}
+        LINKER_LANGUAGE CXX
+        OUTPUT_NAME "nblib")
 
 target_sources(nblib
         PRIVATE
@@ -94,18 +100,14 @@ target_sources(nblib
         integrator.cpp
         interactions.cpp
         molecules.cpp
+        particlesequencer.cpp
         particletype.cpp
         simulationstate.cpp
         topologyhelpers.cpp
         topology.cpp
         )
 
-
-set_target_properties(nblib
-        PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "nblib"
-        )
+gmx_target_compile_options(nblib)
 
 target_link_libraries(nblib PRIVATE libgromacs)
 target_include_directories(nblib PRIVATE ${PROJECT_SOURCE_DIR}/api)
@@ -130,11 +132,10 @@ if(GMX_INSTALL_NBLIB_API)
             molecules.h
             kerneloptions.h
             nblib.h
+            particlesequencer.h
             particletype.h
-            ppmap.h
             simulationstate.h
             topology.h
-            topologyhelpers.h
             DESTINATION include/nblib)
 endif()
 

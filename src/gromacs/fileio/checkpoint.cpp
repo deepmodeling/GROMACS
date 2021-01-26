@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2008,2009,2010,2011,2012 by the GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -72,6 +72,7 @@
 #include "gromacs/mdtypes/pullhistory.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/swaphistory.h"
+#include "gromacs/modularsimulator/modularsimulator.h"
 #include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/baseversion.h"
@@ -87,11 +88,8 @@
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/sysinfo.h"
+#include "gromacs/utility/textwriter.h"
 #include "gromacs/utility/txtdump.h"
-
-#if GMX_FAHCORE
-#    include "corewrap.h"
-#endif
 
 #define CPT_MAGIC1 171817
 #define CPT_MAGIC2 171819
@@ -2132,13 +2130,19 @@ static int do_cpt_awh(XDR* xd, gmx_bool bRead, int fflags, gmx::AwhHistory* awhH
 
 static void do_cpt_mdmodules(int                           fileVersion,
                              t_fileio*                     checkpointFileHandle,
-                             const gmx::MdModulesNotifier& mdModulesNotifier)
+                             const gmx::MdModulesNotifier& mdModulesNotifier,
+                             FILE*                         outputFile)
 {
     if (fileVersion >= cptv_MdModules)
     {
         gmx::FileIOXdrSerializer serializer(checkpointFileHandle);
         gmx::KeyValueTreeObject  mdModuleCheckpointParameterTree =
                 gmx::deserializeKeyValueTree(&serializer);
+        if (outputFile)
+        {
+            gmx::TextWriter textWriter(outputFile);
+            gmx::dumpKeyValueTree(&textWriter, mdModuleCheckpointParameterTree);
+        }
         gmx::MdModulesCheckpointReadingDataOnMaster mdModuleCheckpointReadingDataOnMaster = {
             mdModuleCheckpointParameterTree, fileVersion
         };
@@ -2349,6 +2353,22 @@ void write_checkpoint_data(t_fileio*                         fp,
     }
 
     do_cpt_footer(gmx_fio_getxdr(fp), headerContents.file_version);
+#if GMX_FAHCORE
+    /* Always FAH checkpoint immediately after a Gromacs checkpoint.
+     *
+     * Note that it is critical that we save a FAH checkpoint directly
+     * after writing a Gromacs checkpoint.  If the program dies, either
+     * by the machine powering off suddenly or the process being,
+     * killed, FAH can recover files that have only appended data by
+     * truncating them to the last recorded length.  The Gromacs
+     * checkpoint does not just append data, it is fully rewritten each
+     * time so a crash between moving the new Gromacs checkpoint file in
+     * to place and writing a FAH checkpoint is not recoverable.  Thus
+     * the time between these operations must be kept as short a
+     * possible.
+     */
+    fcCheckpoint();
+#endif
 }
 
 static void check_int(FILE* fplog, const char* type, int p, int f, gmx_bool* mm)
@@ -2404,7 +2424,7 @@ static void check_match(FILE*                           fplog,
     {
         const char msg_precision_difference[] =
                 "You are continuing a simulation with a different precision. Not matching\n"
-                "single/double precision will lead to precision or performance loss.\n";
+                "mixed/double precision will lead to precision or performance loss.\n";
         if (fplog)
         {
             fprintf(fplog, "%s\n", msg_precision_difference);
@@ -2579,12 +2599,24 @@ static void read_checkpoint(const char*                    fn,
                   fn);
     }
 
-    GMX_ASSERT(!(headerContents->isModularSimulatorCheckpoint && !useModularSimulator),
-               "Checkpoint file was written by modular simulator, but the current simulation uses "
-               "the legacy simulator.");
-    GMX_ASSERT(!(!headerContents->isModularSimulatorCheckpoint && useModularSimulator),
-               "Checkpoint file was written by legacy simulator, but the current simulation uses "
-               "the modular simulator.");
+    GMX_RELEASE_ASSERT(!(headerContents->isModularSimulatorCheckpoint && !useModularSimulator),
+                       "Checkpoint file was written by modular simulator, but the current "
+                       "simulation uses the legacy simulator.\n\n"
+                       "Try the following steps:\n"
+                       "1. Make sure the GMX_DISABLE_MODULAR_SIMULATOR environment variable is not "
+                       "set to return to the default behavior. Retry running the simulation.\n"
+                       "2. If the problem persists, set the environment variable "
+                       "GMX_USE_MODULAR_SIMULATOR=ON to overwrite the default behavior and use "
+                       "modular simulator for all implemented use cases.");
+    GMX_RELEASE_ASSERT(!(!headerContents->isModularSimulatorCheckpoint && useModularSimulator),
+                       "Checkpoint file was written by legacy simulator, but the current "
+                       "simulation uses the modular simulator.\n\n"
+                       "Try the following steps:\n"
+                       "1. Make sure the GMX_USE_MODULAR_SIMULATOR environment variable is not set "
+                       "to return to the default behavior. Retry running the simulation.\n"
+                       "2. If the problem persists, set the environment variable "
+                       "GMX_DISABLE_MODULAR_SIMULATOR=ON to overwrite the default behavior and use "
+                       "legacy simulator for all implemented use cases.");
 
     if (MASTER(cr))
     {
@@ -2687,7 +2719,7 @@ static void read_checkpoint(const char*                    fn,
     {
         cp_error();
     }
-    do_cpt_mdmodules(headerContents->file_version, fp, mdModulesNotifier);
+    do_cpt_mdmodules(headerContents->file_version, fp, mdModulesNotifier, nullptr);
     if (headerContents->file_version >= cptv_ModularSimulator)
     {
         gmx::FileIOXdrSerializer serializer(fp);
@@ -2785,7 +2817,8 @@ void read_checkpoint_part_and_step(const char* filename, int* simulation_part, i
 
 static CheckpointHeaderContents read_checkpoint_data(t_fileio*                         fp,
                                                      t_state*                          state,
-                                                     std::vector<gmx_file_position_t>* outputfiles)
+                                                     std::vector<gmx_file_position_t>* outputfiles,
+                                                     gmx::ReadCheckpointDataHolder* modularSimulatorCheckpointData)
 {
     CheckpointHeaderContents headerContents;
     do_cpt_header(gmx_fio_getxdr(fp), TRUE, nullptr, &headerContents);
@@ -2853,14 +2886,12 @@ static CheckpointHeaderContents read_checkpoint_data(t_fileio*                  
         cp_error();
     }
     gmx::MdModulesNotifier mdModuleNotifier;
-    do_cpt_mdmodules(headerContents.file_version, fp, mdModuleNotifier);
+    do_cpt_mdmodules(headerContents.file_version, fp, mdModuleNotifier, nullptr);
     if (headerContents.file_version >= cptv_ModularSimulator)
     {
-        // In the scope of the current function, we can just throw away the content
-        // of the modular checkpoint, but we need to read it to move the file pointer
-        gmx::FileIOXdrSerializer      serializer(fp);
-        gmx::ReadCheckpointDataHolder modularSimulatorCheckpointData;
-        modularSimulatorCheckpointData.deserialize(&serializer);
+        // Store modular checkpoint data into modularSimulatorCheckpointData
+        gmx::FileIOXdrSerializer serializer(fp);
+        modularSimulatorCheckpointData->deserialize(&serializer);
     }
     ret = do_cpt_footer(gmx_fio_getxdr(fp), headerContents.file_version);
     if (ret)
@@ -2874,7 +2905,14 @@ void read_checkpoint_trxframe(t_fileio* fp, t_trxframe* fr)
 {
     t_state                          state;
     std::vector<gmx_file_position_t> outputfiles;
-    CheckpointHeaderContents headerContents = read_checkpoint_data(fp, &state, &outputfiles);
+    gmx::ReadCheckpointDataHolder    modularSimulatorCheckpointData;
+    CheckpointHeaderContents         headerContents =
+            read_checkpoint_data(fp, &state, &outputfiles, &modularSimulatorCheckpointData);
+    if (headerContents.isModularSimulatorCheckpoint)
+    {
+        gmx::ModularSimulator::readCheckpointToTrxFrame(fr, &modularSimulatorCheckpointData, headerContents);
+        return;
+    }
 
     fr->natoms    = state.natoms;
     fr->bStep     = TRUE;
@@ -2967,6 +3005,15 @@ void list_checkpoint(const char* fn, FILE* out)
         std::vector<gmx_file_position_t> outputfiles;
         ret = do_cpt_files(gmx_fio_getxdr(fp), TRUE, &outputfiles, out, headerContents.file_version);
     }
+    gmx::MdModulesNotifier mdModuleNotifier;
+    do_cpt_mdmodules(headerContents.file_version, fp, mdModuleNotifier, out);
+    if (headerContents.file_version >= cptv_ModularSimulator)
+    {
+        gmx::FileIOXdrSerializer      serializer(fp);
+        gmx::ReadCheckpointDataHolder modularSimulatorCheckpointData;
+        modularSimulatorCheckpointData.deserialize(&serializer);
+        modularSimulatorCheckpointData.dump(out);
+    }
 
     if (ret == 0)
     {
@@ -2987,8 +3034,10 @@ void list_checkpoint(const char* fn, FILE* out)
 CheckpointHeaderContents read_checkpoint_simulation_part_and_filenames(t_fileio* fp,
                                                                        std::vector<gmx_file_position_t>* outputfiles)
 {
-    t_state                  state;
-    CheckpointHeaderContents headerContents = read_checkpoint_data(fp, &state, outputfiles);
+    t_state                       state;
+    gmx::ReadCheckpointDataHolder modularSimulatorCheckpointData;
+    CheckpointHeaderContents      headerContents =
+            read_checkpoint_data(fp, &state, outputfiles, &modularSimulatorCheckpointData);
     if (gmx_fio_close(fp) != 0)
     {
         gmx_file("Cannot read/write checkpoint; corrupt file, or maybe you are out of disk space?");

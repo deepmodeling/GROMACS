@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2009,2010,2011,2012,2013 by the GROMACS development team.
 # Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
-# Copyright (c) 2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -46,8 +46,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Providing a default value >=10.14 helps to find modern C++ compatibility,
     # such as by defaulting to the Clang libc++ instead of libstdc++.
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14 CACHE STRING
-        "OS X deployment target affects default SDK version and compiler flags."
-        FORCE)
+        "OS X deployment target affects default SDK version and compiler flags.")
     # By default, limit the binary architecture to a single 64-bit build.
     set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
         "OS X architecture affects the compatibility of the (potentially fat) binaries produced."
@@ -211,7 +210,7 @@ gmx_option_multichoice(
     GMX_SIMD
     "SIMD instruction set for CPU kernels and compiler optimization"
     "AUTO"
-    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
+    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD ARM_SVE IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
 
 if(GMX_TARGET_MIC)
     set(GMX_FFT_LIBRARY_DEFAULT "mkl")
@@ -370,7 +369,7 @@ check_cxx_source_compiles("int main(){ return __builtin_clz(1);}"   HAVE_BUILTIN
 check_cxx_source_compiles("int main(){ return __builtin_clzll(1);}" HAVE_BUILTIN_CLZLL)
 if(MSVC)
     check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned long i=1;_BitScanReverse(&r,i);return r;}" HAVE_BITSCANREVERSE)
-    check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned __int64 i=1;_BitScanReverse(&r,i);return r;}" HAVE_BITSCANREVERSE64)
+    check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned __int64 i=1;_BitScanReverse64(&r,i);return r;}" HAVE_BITSCANREVERSE64)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "XL")
     check_cxx_source_compiles("int main(){ return __cntlz4(1);}" HAVE_CNTLZ4)
     check_cxx_source_compiles("int main(){ return __cntlz8(1);}" HAVE_CNTLZ8)
@@ -511,6 +510,10 @@ if (GMX_HWLOC)
         message(FATAL_ERROR "HWLOC package support required, but not found.")
     endif()
 
+    if (HWLOC_FOUND AND HWLOC_VERSION VERSION_LESS "2")
+        message(STATUS "Support for hwloc versions 1.x is deprecated")
+    endif()
+
     set(HWLOC_FIND_QUIETLY_AFTER_FIRST_RUN TRUE CACHE INTERNAL "Be quiet during future attempts to find HWLOC")
 endif()
 
@@ -574,6 +577,9 @@ if(GMX_GPU)
     if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
         include(gmxManageCuda)
     elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
+        message(STATUS "GPU support with OpenCL is deprecated. It is still fully supported (and " 
+            "recommended for AMD and Intel GPUs). It may be replaced by different approaches in "
+            "future releases of GROMACS.")
         include(gmxManageOpenCL)
     elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
         include(gmxManageSYCL)

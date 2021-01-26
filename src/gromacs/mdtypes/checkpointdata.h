@@ -55,7 +55,6 @@ namespace gmx
 class ISerializer;
 
 /*! \libinternal
- * \ingroup module_modularsimulator
  * \brief The operations on CheckpointData
  *
  * This enum defines the two modes of operation on CheckpointData objects,
@@ -63,6 +62,8 @@ class ISerializer;
  * in turn enables clients to write a single function for read and write
  * access, eliminating the risk of having read and write functions getting
  * out of sync.
+ *
+ * \ingroup module_modularsimulator
  */
 enum class CheckpointDataOperation
 {
@@ -72,7 +73,6 @@ enum class CheckpointDataOperation
 };
 
 /*! \internal
- * \ingroup module_modularsimulator
  * \brief Get an ArrayRef whose const-ness is defined by the checkpointing operation
  *
  * \tparam operation  Whether we are reading or writing
@@ -81,6 +81,8 @@ enum class CheckpointDataOperation
  * \return            The ArrayRef
  *
  * \see ArrayRef
+ *
+ * \ingroup module_modularsimulator
  */
 template<CheckpointDataOperation operation, typename T>
 ArrayRef<std::conditional_t<operation == CheckpointDataOperation::Write || std::is_const<T>::value, const typename T::value_type, typename T::value_type>>
@@ -142,8 +144,9 @@ struct IsSerializableEnum<T, false>
 template<CheckpointDataOperation operation>
 class CheckpointData;
 
-// Shortcuts
-using ReadCheckpointData  = CheckpointData<CheckpointDataOperation::Read>;
+//! Convenience shortcut for reading checkpoint data.
+using ReadCheckpointData = CheckpointData<CheckpointDataOperation::Read>;
+//! Convenience shortcut for writing checkpoint data.
 using WriteCheckpointData = CheckpointData<CheckpointDataOperation::Write>;
 
 template<>
@@ -320,7 +323,15 @@ VersionEnum checkpointVersion(WriteCheckpointData* checkpointData,
     return programVersion;
 }
 
+inline ReadCheckpointData::CheckpointData(const KeyValueTreeObject& inputTree) :
+    inputTree_(&inputTree)
+{
+}
 
+inline WriteCheckpointData::CheckpointData(KeyValueTreeObjectBuilder&& outputTreeBuilder) :
+    outputTreeBuilder_(outputTreeBuilder)
+{
+}
 /*! \libinternal
  * \brief Holder for read checkpoint data
  *
@@ -347,6 +358,9 @@ public:
      * \return            A CheckpointData object representing a subset of the current object
      */
     [[nodiscard]] ReadCheckpointData checkpointData(const std::string& key) const;
+
+    //! Write the contents of the Checkpoint to file
+    void dump(FILE* out) const;
 
 private:
     //! KV-tree read from checkpoint
@@ -516,15 +530,6 @@ inline WriteCheckpointData WriteCheckpointData::subCheckpointData(const std::str
     return CheckpointData(outputTreeBuilder_->addObject(key));
 }
 
-inline ReadCheckpointData::CheckpointData(const KeyValueTreeObject& inputTree) :
-    inputTree_(&inputTree)
-{
-}
-
-inline WriteCheckpointData::CheckpointData(KeyValueTreeObjectBuilder&& outputTreeBuilder) :
-    outputTreeBuilder_(outputTreeBuilder)
-{
-}
 //! \endcond
 
 } // namespace gmx

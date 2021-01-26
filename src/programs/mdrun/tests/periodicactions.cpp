@@ -107,7 +107,7 @@ public:
     ReferenceFileNames referenceFileNames_ = { fileManager_.getTemporaryFilePath("reference.edr") };
     //! Functor for energy comparison
     EnergyComparison energyComparison_{ EnergyComparison::defaultEnergyTermsToCompare(),
-                                        FramesToCompare::AllFrames };
+                                        MaxNumFrames::compareAllFrames() };
     //! Names of energies compared by energyComparison_
     std::vector<std::string> namesOfEnergiesToMatch_ = energyComparison_.getEnergyNames();
 };
@@ -326,7 +326,7 @@ std::vector<PropagationParameters> propagationParametersWithCoupling()
                 {
                     continue;
                 }
-                for (std::string pcoupl : { "no", "Berendsen", "Parrinello-Rahman" })
+                for (std::string pcoupl : { "no", "Berendsen", "Parrinello-Rahman", "C-rescale" })
                 {
                     // VV supports few algorithm combinations
                     if (integrator == "md-vv")
@@ -393,7 +393,7 @@ std::vector<PropagationParameters> propagationParametersWithConstraints()
                 {
                     continue;
                 }
-                for (std::string pcoupl : { "no", "Parrinello-Rahman" })
+                for (std::string pcoupl : { "no", "Parrinello-Rahman", "C-rescale" })
                 {
                     // VV supports few algorithm combinations
                     if (integrator == "md-vv")

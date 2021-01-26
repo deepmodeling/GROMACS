@@ -2,7 +2,7 @@
 # This file is part of the GROMACS molecular simulation package.
 #
 # Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
-# Copyright (c) 2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -203,7 +203,7 @@ set(GMX_VERSION_PATCH 0)
 # candidates, where it signifies the most recent such release from
 # this branch; it will be empty before the first such release, as well
 # as after the final release is out.
-set(GMX_VERSION_SUFFIX "")
+set(GMX_VERSION_SUFFIX "-rc2")
 
 # Conventionally with libtool, any ABI change must change the major
 # version number, the minor version number should change if it's just
@@ -256,13 +256,13 @@ if (NOT SOURCE_IS_SOURCE_DISTRIBUTION AND
 endif()
 
 set(REGRESSIONTEST_VERSION "${GMX_VERSION_STRING}")
-set(REGRESSIONTEST_BRANCH "master")
+set(REGRESSIONTEST_BRANCH "release-2021") 
 # Run the regressiontests packaging job with the correct pakage
 # version string, and the release box checked, in order to have it
 # build the regressiontests tarball with all the right naming. The
 # naming affects the md5sum that has to go here, and if it isn't right
 # release workflow will report a failure.
-set(REGRESSIONTEST_MD5SUM "b75c3b1bac0e4114e236f049fc7f1f1c" CACHE INTERNAL "MD5 sum of the regressiontests tarball for this GROMACS version")
+set(REGRESSIONTEST_MD5SUM "486fa43c7b91e6cd9830d8830ecf2974" CACHE INTERNAL "MD5 sum of the regressiontests tarball for this GROMACS version")
 
 math(EXPR GMX_VERSION_NUMERIC
      "${GMX_VERSION_MAJOR}*10000 + ${GMX_VERSION_PATCH}")
@@ -411,7 +411,8 @@ else()
             -D VERSION_CMAKEIN=${VERSION_INFO_CMAKEIN_FILE_PARTIAL}
             -D VERSION_OUT=${VERSION_INFO_CMAKE_FILE}
             -D VERSION_STRING_OF_FORK=${GMX_VERSION_STRING_OF_FORK}
-            -P ${CMAKE_CURRENT_LIST_DIR}/gmxGenerateVersionInfoRelease.cmake
+            -D SOURCE_IS_SOURCE_DISTRIBUTION=${SOURCE_IS_SOURCE_DISTRIBUTION}
+            -P ${CMAKE_CURRENT_LIST_DIR}/gmxGenerateVersionInfoWithoutGit.cmake
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         COMMENT "Generating release version information")
     list(APPEND VERSION_INFO_DEPS release-version-info)
@@ -434,7 +435,7 @@ set(CHECKSUM_FILE "${PROJECT_SOURCE_DIR}/src/reference_checksum")
 # not been tampered with.
 # Note: The RUN_ALWAYS here is to regenerate the hash file only, it does not
 # mean that the target is run in all builds
-if (PYTHONINTERP_FOUND)
+if (Python3_Interpreter_FOUND)
     # We need the full path to the directories after passing it through
     set(FULL_PATH_DIRECTORIES "")
     foreach(DIR ${SET_OF_DIRECTORIES_TO_CHECKSUM})
@@ -451,7 +452,7 @@ if (PYTHONINTERP_FOUND)
 else()
     add_custom_target(reference_checksum
         COMMAND ${CMAKE_COMMAND} -E echo
-        "Can not checksum files without python being available"
+        "Can not checksum files without python3 being available"
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         COMMENT "Generating reference checksum of source files")
 endif()

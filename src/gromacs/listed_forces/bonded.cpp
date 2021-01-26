@@ -81,6 +81,10 @@
 
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 
+const EnumerationArray<BondedKernelFlavor, std::string> c_bondedKernelFlavorStrings = {
+    "forces, using SIMD when available", "forces, not using SIMD",
+    "forces, virial, and energy (ie. not using SIMD)", "forces and energy (ie. not using SIMD)"
+};
 namespace
 {
 
@@ -2037,7 +2041,7 @@ pdihs(int             nbonds,
             }
         }
 
-        /* Caclulate GMX_SIMD_REAL_WIDTH dihedral angles at once */
+        /* Calculate GMX_SIMD_REAL_WIDTH dihedral angles at once */
         dih_angle_simd(x, ai, aj, ak, al, pbc_simd, &phi_S, &mx_S, &my_S, &mz_S, &nx_S, &ny_S,
                        &nz_S, &nrkj_m2_S, &nrkj_n2_S, &p_S, &q_S);
 
@@ -2153,7 +2157,7 @@ rbdihs(int             nbonds,
             }
         }
 
-        /* Caclulate GMX_SIMD_REAL_WIDTH dihedral angles at once */
+        /* Calculate GMX_SIMD_REAL_WIDTH dihedral angles at once */
         dih_angle_simd(x, ai, aj, ak, al, pbc_simd, &phi_S, &mx_S, &my_S, &mz_S, &nx_S, &ny_S,
                        &nz_S, &nrkj_m2_S, &nrkj_n2_S, &p_S, &q_S);
 

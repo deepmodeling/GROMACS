@@ -60,7 +60,7 @@
  *
  * \tparam        ValueType            Raw value type of the \p buffer.
  * \param[in,out] buffer               Pointer to the device-side buffer.
- * \param[in]     numValues            Number of values to accomodate.
+ * \param[in]     numValues            Number of values to accommodate.
  * \param[in]     deviceContext        The buffer's device context-to-be.
  */
 template<typename ValueType>
@@ -321,7 +321,7 @@ void initParamLookupTable(DeviceBuffer<ValueType>* deviceBuffer,
  * \param[in,out] deviceBuffer  Device buffer to store data in.
  */
 template<typename ValueType>
-void destroyParamLookupTable(DeviceBuffer<ValueType>* deviceBuffer, DeviceTexture& /* deviceTexture*/)
+void destroyParamLookupTable(DeviceBuffer<ValueType>* deviceBuffer, const DeviceTexture& /* deviceTexture*/)
 {
     freeDeviceBuffer(deviceBuffer);
 }

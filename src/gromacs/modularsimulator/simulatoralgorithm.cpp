@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -408,13 +408,16 @@ ModularSimulatorAlgorithmBuilder::ModularSimulatorAlgorithmBuilder(
             opt2fn("-c", legacySimulatorData->nfile, legacySimulatorData->fnm), legacySimulatorData->inputrec,
             legacySimulatorData->mdAtoms->mdatoms(), legacySimulatorData->top_global);
 
+    // Multi sim is turned off
+    const bool simulationsShareState = false;
+
     energyData_ = std::make_unique<EnergyData>(
-            statePropagatorData_.get(), freeEnergyPerturbationData_.get(),
-            legacySimulatorData->top_global, legacySimulatorData->inputrec, legacySimulatorData->mdAtoms,
-            legacySimulatorData->enerd, legacySimulatorData->ekind, legacySimulatorData->constr,
-            legacySimulatorData->fplog, legacySimulatorData->fr->fcdata.get(),
-            legacySimulatorData->mdModulesNotifier, MASTER(legacySimulatorData->cr),
-            legacySimulatorData->observablesHistory, legacySimulatorData->startingBehavior);
+            statePropagatorData_.get(), freeEnergyPerturbationData_.get(), legacySimulatorData->top_global,
+            legacySimulatorData->inputrec, legacySimulatorData->mdAtoms, legacySimulatorData->enerd,
+            legacySimulatorData->ekind, legacySimulatorData->constr, legacySimulatorData->fplog,
+            legacySimulatorData->fr->fcdata.get(), legacySimulatorData->mdModulesNotifier,
+            MASTER(legacySimulatorData->cr), legacySimulatorData->observablesHistory,
+            legacySimulatorData->startingBehavior, simulationsShareState);
 }
 
 ModularSimulatorAlgorithm ModularSimulatorAlgorithmBuilder::build()
@@ -500,7 +503,8 @@ ModularSimulatorAlgorithm ModularSimulatorAlgorithmBuilder::build()
         algorithm.domDecHelper_ = std::make_unique<DomDecHelper>(
                 legacySimulatorData_->mdrunOptions.verbose,
                 legacySimulatorData_->mdrunOptions.verboseStepPrintInterval,
-                algorithm.statePropagatorData_.get(), algorithm.topologyHolder_.get(),
+                algorithm.statePropagatorData_.get(), algorithm.freeEnergyPerturbationData_.get(),
+                algorithm.topologyHolder_.get(),
                 globalCommunicationHelper_.moveCheckBondedInteractionsCallback(),
                 globalCommunicationHelper_.nstglobalcomm(), legacySimulatorData_->fplog,
                 legacySimulatorData_->cr, legacySimulatorData_->mdlog, legacySimulatorData_->constr,
@@ -574,7 +578,8 @@ ModularSimulatorAlgorithm ModularSimulatorAlgorithmBuilder::build()
                 inputrec->nstxout_compressed, trajectoryElement->tngBoxOut(),
                 trajectoryElement->tngLambdaOut(), trajectoryElement->tngBoxOutCompressed(),
                 trajectoryElement->tngLambdaOutCompressed(), inputrec->nstenergy));
-        addSignaller(loggingSignallerBuilder_.build(inputrec->nstlog, inputrec->init_step, inputrec->init_t));
+        addSignaller(loggingSignallerBuilder_.build(inputrec->nstlog, inputrec->init_step,
+                                                    legacySimulatorData_->startingBehavior));
         addSignaller(lastStepSignallerBuilder_.build(inputrec->nsteps, inputrec->init_step,
                                                      algorithm.stopHandler_.get()));
         addSignaller(neighborSearchSignallerBuilder_.build(inputrec->nstlist, inputrec->init_step,
@@ -691,6 +696,19 @@ ISimulatorElement* ModularSimulatorAlgorithmBuilderHelper::storeElement(std::uni
 bool ModularSimulatorAlgorithmBuilderHelper::elementIsStored(const ISimulatorElement* element) const
 {
     return builder_->elementExists(element);
+}
+
+std::optional<std::any> ModularSimulatorAlgorithmBuilderHelper::getStoredValue(const std::string& key) const
+{
+    const auto iter = values_.find(key);
+    if (iter == values_.end())
+    {
+        return std::nullopt;
+    }
+    else
+    {
+        return iter->second;
+    }
 }
 
 void ModularSimulatorAlgorithmBuilderHelper::registerThermostat(

@@ -48,6 +48,7 @@
 #include "gromacs/mdtypes/awh_params.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/multipletimestepping.h"
 #include "gromacs/mdtypes/pull_params.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/pulling/pull.h"
@@ -75,6 +76,58 @@ const char* eawhcoordprovider_names[eawhcoordproviderNR + 1] = { "pull", "fep-la
 
 namespace
 {
+
+/*! \brief
+ * Check multiple time-stepping consistency between AWH and pull and/or FEP
+ *
+ * \param[in] inputrec  Inputput parameter struct.
+ * \param[in,out] wi    Struct for bookeeping warnings.
+ */
+void checkMtsConsistency(const t_inputrec& inputrec, warninp_t wi)
+{
+    if (!inputrec.useMts)
+    {
+        return;
+    }
+
+    GMX_RELEASE_ASSERT(inputrec.mtsLevels.size() == 2, "Only 2 MTS levels supported here");
+
+    bool usesPull = false;
+    bool usesFep  = false;
+    for (int b = 0; b < inputrec.awhParams->numBias; b++)
+    {
+        const auto& biasParams = inputrec.awhParams->awhBiasParams[b];
+        for (int d = 0; d < biasParams.ndim; d++)
+        {
+            switch (biasParams.dimParams[d].eCoordProvider)
+            {
+                case eawhcoordproviderPULL: usesPull = true; break;
+                case eawhcoordproviderFREE_ENERGY_LAMBDA: usesFep = true; break;
+                default: GMX_RELEASE_ASSERT(false, "Unsupported coord provider");
+            }
+        }
+    }
+    const int awhMtsLevel = forceGroupMtsLevel(inputrec.mtsLevels, MtsForceGroups::Awh);
+    if (usesPull && forceGroupMtsLevel(inputrec.mtsLevels, MtsForceGroups::Pull) != awhMtsLevel)
+    {
+        warning_error(wi,
+                      "When AWH is applied to pull coordinates, pull and AWH should be computed at "
+                      "the same MTS level");
+    }
+    if (usesFep && awhMtsLevel != ssize(inputrec.mtsLevels) - 1)
+    {
+        warning_error(wi,
+                      "When AWH is applied to the free-energy lambda with MTS, AWH should be "
+                      "computed at the slow MTS level");
+    }
+
+    if (inputrec.awhParams->nstSampleCoord % inputrec.mtsLevels[awhMtsLevel].stepFactor != 0)
+    {
+        warning_error(wi,
+                      "With MTS applied to AWH, awh-nstsample should be a multiple of mts-factor");
+    }
+}
+
 /*! \brief
  * Check the parameters of an AWH bias pull dimension.
  *
@@ -85,7 +138,7 @@ namespace
  */
 void checkPullDimParams(const std::string&   prefix,
                         AwhDimParams*        dimParams,
-                        const pull_params_t* pull_params,
+                        const pull_params_t& pull_params,
                         warninp_t            wi)
 {
     if (dimParams->coordIndex < 0)
@@ -95,18 +148,18 @@ void checkPullDimParams(const std::string&   prefix,
                   "Note that the pull coordinate indexing starts at 1.",
                   prefix.c_str());
     }
-    if (dimParams->coordIndex >= pull_params->ncoord)
+    if (dimParams->coordIndex >= pull_params.ncoord)
     {
         gmx_fatal(FARGS,
                   "The given AWH coordinate index (%d) is larger than the number of pull "
                   "coordinates (%d)",
-                  dimParams->coordIndex + 1, pull_params->ncoord);
+                  dimParams->coordIndex + 1, pull_params.ncoord);
     }
-    if (pull_params->coord[dimParams->coordIndex].rate != 0)
+    if (pull_params.coord[dimParams->coordIndex].rate != 0)
     {
         auto message = formatString(
                 "Setting pull-coord%d-rate (%g) is incompatible with AWH biasing this coordinate",
-                dimParams->coordIndex + 1, pull_params->coord[dimParams->coordIndex].rate);
+                dimParams->coordIndex + 1, pull_params.coord[dimParams->coordIndex].rate);
         warning_error(wi, message);
     }
 
@@ -125,7 +178,7 @@ void checkPullDimParams(const std::string&   prefix,
     }
 
     /* Grid params for each axis */
-    int eGeom = pull_params->coord[dimParams->coordIndex].eGeom;
+    int eGeom = pull_params.coord[dimParams->coordIndex].eGeom;
 
     /* Check that the requested interval is in allowed range */
     if (eGeom == epullgDIST)
@@ -359,7 +412,7 @@ void checkDimParams(const std::string& prefix, AwhDimParams* dimParams, const t_
                       "AWH biasing along a pull dimension is only compatible with COM pulling "
                       "turned on");
         }
-        checkPullDimParams(prefix, dimParams, ir->pull, wi);
+        checkPullDimParams(prefix, dimParams, *ir->pull, wi);
     }
     else if (dimParams->eCoordProvider == eawhcoordproviderFREE_ENERGY_LAMBDA)
     {
@@ -751,6 +804,8 @@ void checkAwhParams(const AwhParams* awhParams, const t_inputrec* ir, warninp_t 
 {
     std::string opt;
 
+    checkMtsConsistency(*ir, wi);
+
     opt = "awh-nstout";
     if (awhParams->nstOut <= 0)
     {
@@ -1013,7 +1068,7 @@ static void setStateDependentAwhPullDimParams(AwhDimParams*        dimParams,
 }
 
 void setStateDependentAwhParams(AwhParams*           awhParams,
-                                const pull_params_t* pull_params,
+                                const pull_params_t& pull_params,
                                 pull_t*              pull_work,
                                 const matrix         box,
                                 PbcType              pbcType,
@@ -1052,7 +1107,7 @@ void setStateDependentAwhParams(AwhParams*           awhParams,
             AwhDimParams* dimParams = &awhBiasParams->dimParams[d];
             if (dimParams->eCoordProvider == eawhcoordproviderPULL)
             {
-                setStateDependentAwhPullDimParams(dimParams, k, d, pull_params, pull_work, pbc,
+                setStateDependentAwhPullDimParams(dimParams, k, d, &pull_params, pull_work, pbc,
                                                   compressibility, wi);
             }
             else

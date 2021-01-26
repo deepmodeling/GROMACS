@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -137,9 +137,9 @@ Molecule WaterMoleculeBuilder::waterMoleculeWithoutExclusions()
 
 void WaterMoleculeBuilder::addExclusionsFromNames()
 {
-    water_.addExclusion("H1", "Oxygen");
-    water_.addExclusion("H2", "Oxygen");
-    water_.addExclusion("H1", "H2");
+    water_.addExclusion(ParticleName("H1"), ParticleName("Oxygen"));
+    water_.addExclusion(ParticleName("H2"), ParticleName("Oxygen"));
+    water_.addExclusion(ParticleName("H1"), ParticleName("H2"));
 }
 
 MethanolMoleculeBuilder::MethanolMoleculeBuilder() : methanol_(MoleculeName("MeOH"))
@@ -152,9 +152,9 @@ MethanolMoleculeBuilder::MethanolMoleculeBuilder() : methanol_(MoleculeName("MeO
     methanol_.addParticle(ParticleName("H3"), Charges.at("HMet"), library.type("H"));
 
     // Add the exclusions
-    methanol_.addExclusion("Me1", "O2");
-    methanol_.addExclusion("Me1", "H3");
-    methanol_.addExclusion("H3", "O2");
+    methanol_.addExclusion(ParticleName("Me1"), ParticleName("O2"));
+    methanol_.addExclusion(ParticleName("Me1"), ParticleName("H3"));
+    methanol_.addExclusion(ParticleName("H3"), ParticleName("O2"));
 
     HarmonicBondType ohBond(1.01, 1.02);
     methanol_.addInteraction(ParticleName("O2"), ParticleName("H3"), ohBond);
@@ -162,7 +162,7 @@ MethanolMoleculeBuilder::MethanolMoleculeBuilder() : methanol_(MoleculeName("MeO
     HarmonicBondType ometBond(1.1, 1.2);
     methanol_.addInteraction(ParticleName("O2"), ParticleName("Me1"), ometBond);
 
-    DefaultAngle ochAngle(Degrees(108.52), 397.5);
+    HarmonicAngleType ochAngle(Degrees(108.52), 397.5);
     methanol_.addInteraction(ParticleName("O2"), ParticleName("Me1"), ParticleName("H3"), ochAngle);
 }
 

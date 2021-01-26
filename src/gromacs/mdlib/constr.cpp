@@ -672,7 +672,7 @@ bool Constraints::Impl::apply(bool                      bLog,
 
     if (econq == ConstraintVariable::Positions)
     {
-        if (ir.bPull && pull_have_constraint(pull_work))
+        if (ir.bPull && pull_have_constraint(*pull_work))
         {
             if (EI_DYNAMICS(ir.eI))
             {
@@ -928,6 +928,8 @@ void Constraints::Impl::setConstraints(gmx_localtop_t* top,
             {
                 // We are using the local topology, so there are only
                 // F_CONSTR constraints.
+                GMX_RELEASE_ASSERT(idef->il[F_CONSTRNC].empty(),
+                                   "Here we should not have no-connect constraints");
                 make_shake_sblock_dd(shaked.get(), idef->il[F_CONSTR]);
             }
             else

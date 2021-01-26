@@ -253,7 +253,12 @@ static void predict_shells(FILE*                   fplog,
     }
 }
 
-gmx_shellfc_t* init_shell_flexcon(FILE* fplog, const gmx_mtop_t* mtop, int nflexcon, int nstcalcenergy, bool usingDomainDecomposition)
+gmx_shellfc_t* init_shell_flexcon(FILE*             fplog,
+                                  const gmx_mtop_t* mtop,
+                                  int               nflexcon,
+                                  int               nstcalcenergy,
+                                  bool              usingDomainDecomposition,
+                                  bool              usingPmeOnGpu)
 {
     gmx_shellfc_t* shfc;
 
@@ -532,6 +537,16 @@ gmx_shellfc_t* init_shell_flexcon(FILE* fplog, const gmx_mtop_t* mtop, int nflex
              *    track of the shell displacements and thus the velocity.
              */
             shfc->predictShells = false;
+        }
+    }
+
+    /* shfc->x is used as a coordinate buffer for the sim_util's `do_force` function, and
+     * when using PME it must be pinned. */
+    if (usingPmeOnGpu)
+    {
+        for (i = 0; i < 2; i++)
+        {
+            changePinningPolicy(&shfc->x[i], gmx::PinningPolicy::PinnedIfSupported);
         }
     }
 
@@ -1020,7 +1035,7 @@ void relax_shell_flexcon(FILE*                         fplog,
         pr_rvecs(debug, 0, "x b4 do_force", as_rvec_array(x.data()), homenr);
     }
     int                   shellfc_flags = force_flags | (bVerbose ? GMX_FORCE_ENERGY : 0);
-    gmx::ForceBuffersView forceViewInit = gmx::ForceBuffersView(forceWithPadding[Min]);
+    gmx::ForceBuffersView forceViewInit = gmx::ForceBuffersView(forceWithPadding[Min], {}, false);
     do_force(fplog, cr, ms, inputrec, nullptr, enforcedRotation, imdSession, pull_work, mdstep,
              nrnb, wcycle, top, box, xPadded, hist, &forceViewInit, force_vir, md, enerd, lambda,
              fr, runScheduleWork, vsite, mu_tot, t, nullptr,
@@ -1107,7 +1122,7 @@ void relax_shell_flexcon(FILE*                         fplog,
             pr_rvecs(debug, 0, "RELAX: pos[Try]  ", as_rvec_array(pos[Try].data()), homenr);
         }
         /* Try the new positions */
-        gmx::ForceBuffersView forceViewTry = gmx::ForceBuffersView(forceWithPadding[Try]);
+        gmx::ForceBuffersView forceViewTry = gmx::ForceBuffersView(forceWithPadding[Try], {}, false);
         do_force(fplog, cr, ms, inputrec, nullptr, enforcedRotation, imdSession, pull_work, 1, nrnb, wcycle,
                  top, box, posWithPadding[Try], hist, &forceViewTry, force_vir, md, enerd, lambda, fr,
                  runScheduleWork, vsite, mu_tot, t, nullptr, shellfc_flags, ddBalanceRegionHandler);

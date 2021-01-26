@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2017,2018,2019, The GROMACS development team.
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -164,7 +165,7 @@ void sumPmf(gmx::ArrayRef<PointState> pointState,
     /* Need to temporarily exponentiate the log weights to sum over simulations */
     for (size_t i = 0; i < buffer.size(); i++)
     {
-        buffer[i] = pointState[i].inTargetRegion() ? std::exp(-pointState[i].logPmfSum()) : 0;
+        buffer[i] = pointState[i].inTargetRegion() ? std::exp(pointState[i].logPmfSum()) : 0;
     }
 
     sumOverSimulations(gmx::ArrayRef<double>(buffer), commRecord, multiSimComm);
@@ -175,7 +176,7 @@ void sumPmf(gmx::ArrayRef<PointState> pointState,
     {
         if (pointState[i].inTargetRegion())
         {
-            pointState[i].setLogPmfSum(-std::log(buffer[i] * normFac));
+            pointState[i].setLogPmfSum(std::log(buffer[i] * normFac));
         }
     }
 }
@@ -314,15 +315,19 @@ void BiasState::calcConvolvedPmf(const std::vector<DimParams>& dimParams,
         const GridPoint& point             = grid.point(m);
         for (auto& neighbor : point.neighbor)
         {
-            /* The negative PMF is a positive bias. */
-            double biasNeighbor = -pmf[neighbor];
+            /* Do not convolve the bias along a lambda axis - only use the pmf from the current point */
+            if (!pointsHaveDifferentLambda(grid, m, neighbor))
+            {
+                /* The negative PMF is a positive bias. */
+                double biasNeighbor = -pmf[neighbor];
 
-            /* Add the convolved PMF weights for the neighbors of this point.
-               Note that this function only adds point within the target > 0 region.
-               Sum weights, take the logarithm last to get the free energy. */
-            double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
-                                                        biasNeighbor, point.coordValue, {}, m);
-            freeEnergyWeights += std::exp(logWeight);
+                /* Add the convolved PMF weights for the neighbors of this point.
+                Note that this function only adds point within the target > 0 region.
+                Sum weights, take the logarithm last to get the free energy. */
+                double logWeight = biasedLogWeightFromPoint(dimParams, points_, grid, neighbor,
+                                                            biasNeighbor, point.coordValue, {}, m);
+                freeEnergyWeights += std::exp(logWeight);
+            }
         }
 
         GMX_RELEASE_ASSERT(freeEnergyWeights > 0,
@@ -999,13 +1004,16 @@ bool BiasState::isSamplingRegionCovered(const BiasParams&             params,
     {
         if (grid.axis(d).isFepLambdaAxis())
         {
-            /* TODO: Verify that a threshold of 1.0 is OK. With a very high sample weight 1.0 can be
-             * reached quickly even in regions with low probability. Should the sample weight be
-             * taken into account here? */
+            /* Do not modify the weight threshold based on a FEP lambda axis. The spread
+             * of the sampling weights is not depending on a Gaussian distribution (like
+             * below). */
             weightThreshold *= 1.0;
         }
         else
         {
+            /* The spacing is proportional to 1/sqrt(betak). The weight threshold will be
+             * approximately (given that the spacing can be modified if the dimension is periodic)
+             * proportional to sqrt(1/(2*pi)). */
             weightThreshold *= grid.axis(d).spacing()
                                * std::sqrt(dimParams[d].pullDimParams().betak * 0.5 * M_1_PI);
         }

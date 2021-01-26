@@ -73,11 +73,11 @@
 #include "gromacs/fileio/tpxio.h"
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/gmxlib/nrnb.h"
-#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/detecthardware.h"
 #include "gromacs/hardware/device_management.h"
+#include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/printhardware.h"
 #include "gromacs/imd/imd.h"
 #include "gromacs/listed_forces/disre.h"
@@ -95,6 +95,7 @@
 #include "gromacs/mdlib/force.h"
 #include "gromacs/mdlib/forcerec.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
+#include "gromacs/mdlib/gpuforcereduction.h"
 #include "gromacs/mdlib/makeconstraints.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/mdatoms.h"
@@ -171,10 +172,6 @@
 #include "replicaexchange.h"
 #include "simulatorbuilder.h"
 
-#if GMX_FAHCORE
-#    include "corewrap.h"
-#endif
-
 namespace gmx
 {
 
@@ -209,7 +206,7 @@ static DevelopmentFeatureFlags manageDevelopmentFeatures(const gmx::MDLogger& md
     devFlags.enableGpuBufferOps =
             GMX_GPU_CUDA && useGpuForNonbonded && (getenv("GMX_USE_GPU_BUFFER_OPS") != nullptr);
     devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_DD_COMMS") != nullptr;
-    devFlags.forceGpuUpdateDefault = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr);
+    devFlags.forceGpuUpdateDefault = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr) || GMX_FAHCORE;
     devFlags.enableGpuPmePPComm =
             GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
 
@@ -339,6 +336,7 @@ Mdrunner Mdrunner::cloneOnSpawnedThread() const
     newRunner.hw_opt    = hw_opt;
     newRunner.filenames = filenames;
 
+    newRunner.hwinfo_         = hwinfo_;
     newRunner.oenv            = oenv;
     newRunner.mdrunOptions    = mdrunOptions;
     newRunner.domdecOptions   = domdecOptions;
@@ -728,7 +726,6 @@ int Mdrunner::mdrunner()
     gmx_wallcycle_t           wcycle;
     gmx_walltime_accounting_t walltime_accounting = nullptr;
     MembedHolder              membedHolder(filenames.size(), filenames.data());
-    gmx_hw_info_t*            hwinfo = nullptr;
 
     /* CAUTION: threads may be started later on in this function, so
        cr doesn't reflect the final parallel state right now */
@@ -767,20 +764,10 @@ int Mdrunner::mdrunner()
     gmx::LoggerOwner logOwner(buildLogger(fplog, isSimulationMasterRank));
     gmx::MDLogger    mdlog(logOwner.logger());
 
-    // TODO The thread-MPI master rank makes a working
-    // PhysicalNodeCommunicator here, but it gets rebuilt by all ranks
-    // after the threads have been launched. This works because no use
-    // is made of that communicator until after the execution paths
-    // have rejoined. But it is likely that we can improve the way
-    // this is expressed, e.g. by expressly running detection only the
-    // master rank for thread-MPI, rather than relying on the mutex
-    // and reference count.
-    PhysicalNodeCommunicator physicalNodeComm(libraryWorldCommunicator, gmx_physicalnode_id_hash());
-    hwinfo = gmx_detect_hardware(mdlog, physicalNodeComm);
+    gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hwinfo_);
 
-    gmx_print_detected_hardware(fplog, isSimulationMasterRank && isMasterSim(ms), mdlog, hwinfo);
-
-    std::vector<int> gpuIdsToUse = makeGpuIdsToUse(hwinfo->deviceInfoList, hw_opt.gpuIdsAvailable);
+    std::vector<int> gpuIdsToUse = makeGpuIdsToUse(hwinfo_->deviceInfoList, hw_opt.gpuIdsAvailable);
+    const int        numDevicesToUse = gmx::ssize(gpuIdsToUse);
 
     // Print citation requests after all software/hardware printing
     pleaseCiteGromacs(fplog);
@@ -823,12 +810,12 @@ int Mdrunner::mdrunner()
             // the number of GPUs to choose the number of ranks.
             auto canUseGpuForNonbonded = buildSupportsNonbondedOnGpu(nullptr);
             useGpuForNonbonded         = decideWhetherToUseGpusForNonbondedWithThreadMpi(
-                    nonbondedTarget, gpuIdsToUse, userGpuTaskAssignment, emulateGpuNonbonded,
+                    nonbondedTarget, numDevicesToUse, userGpuTaskAssignment, emulateGpuNonbonded,
                     canUseGpuForNonbonded,
                     gpuAccelerationOfNonbondedIsUseful(mdlog, *inputrec, GMX_THREAD_MPI),
                     hw_opt.nthreads_tmpi);
             useGpuForPme = decideWhetherToUseGpusForPmeWithThreadMpi(
-                    useGpuForNonbonded, pmeTarget, gpuIdsToUse, userGpuTaskAssignment, *hwinfo,
+                    useGpuForNonbonded, pmeTarget, numDevicesToUse, userGpuTaskAssignment, *hwinfo_,
                     *inputrec, hw_opt.nthreads_tmpi, domdecOptions.numPmeRanks);
         }
         GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
@@ -839,15 +826,13 @@ int Mdrunner::mdrunner()
          * prevent any possible subsequent checks from working
          * correctly. */
         hw_opt.nthreads_tmpi =
-                get_nthreads_mpi(hwinfo, &hw_opt, gpuIdsToUse, useGpuForNonbonded, useGpuForPme,
+                get_nthreads_mpi(hwinfo_, &hw_opt, numDevicesToUse, useGpuForNonbonded, useGpuForPme,
                                  inputrec.get(), &mtop, mdlog, membedHolder.doMembed());
 
         // Now start the threads for thread MPI.
         spawnThreads(hw_opt.nthreads_tmpi);
         // The spawned threads enter mdrunner() and execution of
         // master and spawned threads joins at the end of this block.
-        physicalNodeComm =
-                PhysicalNodeCommunicator(libraryWorldCommunicator, gmx_physicalnode_id_hash());
     }
 
     GMX_RELEASE_ASSERT(ms || simulationCommunicator != MPI_COMM_NULL,
@@ -855,6 +840,14 @@ int Mdrunner::mdrunner()
     CommrecHandle crHandle = init_commrec(simulationCommunicator);
     t_commrec*    cr       = crHandle.get();
     GMX_RELEASE_ASSERT(cr != nullptr, "Must have valid commrec");
+
+    PhysicalNodeCommunicator physicalNodeComm(libraryWorldCommunicator, gmx_physicalnode_id_hash());
+
+    // If we detected the topology on this system, double-check that it makes sense
+    if (hwinfo_->hardwareTopology->isThisSystem())
+    {
+        hardwareTopologyDoubleCheckDetection(mdlog, *hwinfo_->hardwareTopology);
+    }
 
     if (PAR(cr))
     {
@@ -886,7 +879,7 @@ int Mdrunner::mdrunner()
     bool useGpuForPme       = false;
     bool useGpuForBonded    = false;
     bool useGpuForUpdate    = false;
-    bool gpusWereDetected   = hwinfo->ngpu_compatible_tot > 0;
+    bool gpusWereDetected   = hwinfo_->ngpu_compatible_tot > 0;
     try
     {
         // It's possible that there are different numbers of GPUs on
@@ -898,14 +891,11 @@ int Mdrunner::mdrunner()
                 nonbondedTarget, userGpuTaskAssignment, emulateGpuNonbonded, canUseGpuForNonbonded,
                 gpuAccelerationOfNonbondedIsUseful(mdlog, *inputrec, !GMX_THREAD_MPI), gpusWereDetected);
         useGpuForPme = decideWhetherToUseGpusForPme(
-                useGpuForNonbonded, pmeTarget, userGpuTaskAssignment, *hwinfo, *inputrec,
+                useGpuForNonbonded, pmeTarget, userGpuTaskAssignment, *hwinfo_, *inputrec,
                 cr->sizeOfDefaultCommunicator, domdecOptions.numPmeRanks, gpusWereDetected);
-        auto canUseGpuForBonded = buildSupportsGpuBondeds(nullptr)
-                                  && inputSupportsGpuBondeds(*inputrec, mtop, nullptr);
-        useGpuForBonded = decideWhetherToUseGpusForBonded(
-                useGpuForNonbonded, useGpuForPme, bondedTarget, canUseGpuForBonded,
-                EVDW_PME(inputrec->vdwtype), EEL_PME_EWALD(inputrec->coulombtype),
-                domdecOptions.numPmeRanks, gpusWereDetected);
+        useGpuForBonded = decideWhetherToUseGpusForBonded(useGpuForNonbonded, useGpuForPme,
+                                                          bondedTarget, *inputrec, mtop,
+                                                          domdecOptions.numPmeRanks, gpusWereDetected);
     }
     GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
 
@@ -1045,13 +1035,6 @@ int Mdrunner::mdrunner()
         }
     }
 
-#if GMX_FAHCORE
-    if (MASTER(cr))
-    {
-        fcRegisterSteps(inputrec->nsteps, inputrec->init_step);
-    }
-#endif
-
     /* NMR restraints must be initialized before load_checkpoint,
      * since with time averaging the history is added to t_state.
      * For proper consistency check we therefore need to extend
@@ -1075,6 +1058,21 @@ int Mdrunner::mdrunner()
     auto deform = prepareBoxDeformation(
             globalState != nullptr ? globalState->box : box, MASTER(cr) ? DDRole::Master : DDRole::Agent,
             PAR(cr) ? NumRanks::Multiple : NumRanks::Single, cr->mpi_comm_mygroup, *inputrec);
+
+#if GMX_FAHCORE
+    /* We have to remember the generation's first step before reading checkpoint.
+       This way, we can report to the F@H core both the generation's first step
+       and the restored first step, thus making it able to distinguish between
+       an interruption/resume and start of the n-th generation simulation.
+       Having this information, the F@H core can correctly calculate and report
+       the progress.
+     */
+    int gen_first_step = 0;
+    if (MASTER(cr))
+    {
+        gen_first_step = inputrec->init_step;
+    }
+#endif
 
     ObservablesHistory observablesHistory = {};
 
@@ -1119,6 +1117,13 @@ int Mdrunner::mdrunner()
         }
     }
 
+#if GMX_FAHCORE
+    if (MASTER(cr))
+    {
+        fcRegisterSteps(inputrec->nsteps + inputrec->init_step, gen_first_step);
+    }
+#endif
+
     if (mdrunOptions.numStepsCommandline > -2)
     {
         GMX_LOG(mdlog.info)
@@ -1155,9 +1160,8 @@ int Mdrunner::mdrunner()
      */
     prepare_verlet_scheme(fplog, cr, inputrec.get(), nstlist_cmdline, &mtop, box,
                           useGpuForNonbonded || (emulateGpuNonbonded == EmulateGpuNonbonded::Yes),
-                          *hwinfo->cpuInfo);
+                          *hwinfo_->cpuInfo);
 
-    const bool prefer1DAnd1PulseDD = (devFlags.enableGpuHaloExchange && useGpuForNonbonded);
     // This builder is necessary while we have multi-part construction
     // of DD. Before DD is constructed, we use the existence of
     // the builder object to indicate that further construction of DD
@@ -1166,7 +1170,7 @@ int Mdrunner::mdrunner()
     if (useDomainDecomposition)
     {
         ddBuilder = std::make_unique<DomainDecompositionBuilder>(
-                mdlog, cr, domdecOptions, mdrunOptions, prefer1DAnd1PulseDD, mtop, *inputrec, box,
+                mdlog, cr, domdecOptions, mdrunOptions, mtop, *inputrec, box,
                 positionsFromStatePointer(globalState.get()));
     }
     else
@@ -1186,7 +1190,7 @@ int Mdrunner::mdrunner()
 
     // Produce the task assignment for this rank - done after DD is constructed
     GpuTaskAssignments gpuTaskAssignments = GpuTaskAssignmentsBuilder::build(
-            gpuIdsToUse, userGpuTaskAssignment, *hwinfo, simulationCommunicator, physicalNodeComm,
+            gpuIdsToUse, userGpuTaskAssignment, *hwinfo_, simulationCommunicator, physicalNodeComm,
             nonbondedTarget, pmeTarget, bondedTarget, updateTarget, useGpuForNonbonded,
             useGpuForPme, thisRankHasDuty(cr, DUTY_PP),
             // TODO cr->duty & DUTY_PME should imply that a PME
@@ -1260,10 +1264,15 @@ int Mdrunner::mdrunner()
     }
 
     MdrunScheduleWorkload runScheduleWork;
+
+    bool useGpuDirectHalo = decideWhetherToUseGpuForHalo(
+            devFlags, havePPDomainDecomposition(cr), useGpuForNonbonded, useModularSimulator,
+            doRerun, EI_ENERGY_MINIMIZATION(inputrec->eI));
+
     // Also populates the simulation constant workload description.
-    runScheduleWork.simulationWork =
-            createSimulationWorkload(*inputrec, disableNonbondedCalculation, devFlags,
-                                     useGpuForNonbonded, pmeRunMode, useGpuForBonded, useGpuForUpdate);
+    runScheduleWork.simulationWork = createSimulationWorkload(
+            *inputrec, disableNonbondedCalculation, devFlags, useGpuForNonbonded, pmeRunMode,
+            useGpuForBonded, useGpuForUpdate, useGpuDirectHalo);
 
     std::unique_ptr<DeviceStreamManager> deviceStreamManager = nullptr;
 
@@ -1281,7 +1290,7 @@ int Mdrunner::mdrunner()
     // where appropriate.
     if (!userGpuTaskAssignment.empty())
     {
-        gpuTaskAssignments.logPerformanceHints(mdlog, ssize(gpuIdsToUse));
+        gpuTaskAssignments.logPerformanceHints(mdlog, numDevicesToUse);
     }
 
     if (PAR(cr))
@@ -1318,12 +1327,12 @@ int Mdrunner::mdrunner()
     // that existing affinity setting was from OpenMP or something
     // else, so we run this code both before and after we initialize
     // the OpenMP support.
-    gmx_check_thread_affinity_set(mdlog, &hw_opt, hwinfo->nthreads_hw_avail, FALSE);
+    gmx_check_thread_affinity_set(mdlog, &hw_opt, hwinfo_->nthreads_hw_avail, FALSE);
     /* Check and update the number of OpenMP threads requested */
-    checkAndUpdateRequestedNumOpenmpThreads(&hw_opt, *hwinfo, cr, ms, physicalNodeComm.size_,
+    checkAndUpdateRequestedNumOpenmpThreads(&hw_opt, *hwinfo_, cr, ms, physicalNodeComm.size_,
                                             pmeRunMode, mtop, *inputrec);
 
-    gmx_omp_nthreads_init(mdlog, cr, hwinfo->nthreads_hw_avail, physicalNodeComm.size_,
+    gmx_omp_nthreads_init(mdlog, cr, hwinfo_->nthreads_hw_avail, physicalNodeComm.size_,
                           hw_opt.nthreads_omp, hw_opt.nthreads_omp_pme, !thisRankHasDuty(cr, DUTY_PP));
 
     // Enable FP exception detection, but not in
@@ -1344,7 +1353,7 @@ int Mdrunner::mdrunner()
     }
 
     /* Now that we know the setup is consistent, check for efficiency */
-    check_resource_division_efficiency(hwinfo, gpuTaskAssignments.thisRankHasAnyGpuTask(),
+    check_resource_division_efficiency(hwinfo_, gpuTaskAssignments.thisRankHasAnyGpuTask(),
                                        mdrunOptions.ntompOptionIsSet, cr, mdlog);
 
     /* getting number of PP/PME threads on this MPI / tMPI rank.
@@ -1353,7 +1362,7 @@ int Mdrunner::mdrunner()
      */
     const int numThreadsOnThisRank = thisRankHasDuty(cr, DUTY_PP) ? gmx_omp_nthreads_get(emntNonbonded)
                                                                   : gmx_omp_nthreads_get(emntPME);
-    checkHardwareOversubscription(numThreadsOnThisRank, cr->nodeid, *hwinfo->hardwareTopology,
+    checkHardwareOversubscription(numThreadsOnThisRank, cr->nodeid, *hwinfo_->hardwareTopology,
                                   physicalNodeComm, mdlog);
 
     // Enable Peer access between GPUs where available
@@ -1372,14 +1381,14 @@ int Mdrunner::mdrunner()
          * - which indicates that probably the OpenMP library has changed it
          * since we first checked).
          */
-        gmx_check_thread_affinity_set(mdlog, &hw_opt, hwinfo->nthreads_hw_avail, TRUE);
+        gmx_check_thread_affinity_set(mdlog, &hw_opt, hwinfo_->nthreads_hw_avail, TRUE);
 
         int numThreadsOnThisNode, intraNodeThreadOffset;
         analyzeThreadsOnThisNode(physicalNodeComm, numThreadsOnThisRank, &numThreadsOnThisNode,
                                  &intraNodeThreadOffset);
 
         /* Set the CPU affinity */
-        gmx_set_thread_affinity(mdlog, cr, &hw_opt, *hwinfo->hardwareTopology, numThreadsOnThisRank,
+        gmx_set_thread_affinity(mdlog, cr, &hw_opt, *hwinfo_->hardwareTopology, numThreadsOnThisRank,
                                 numThreadsOnThisNode, intraNodeThreadOffset, nullptr);
     }
 
@@ -1448,7 +1457,7 @@ int Mdrunner::mdrunner()
                     deviceStreamManager->stream(DeviceStreamType::PmePpTransfer));
         }
 
-        fr->nbv = Nbnxm::init_nb_verlet(mdlog, inputrec.get(), fr, cr, *hwinfo,
+        fr->nbv = Nbnxm::init_nb_verlet(mdlog, inputrec.get(), fr, cr, *hwinfo_,
                                         runScheduleWork.simulationWork.useGpuNonbonded,
                                         deviceStreamManager.get(), &mtop, box, wcycle);
         // TODO: Move the logic below to a GPU bonded builder
@@ -1614,7 +1623,7 @@ int Mdrunner::mdrunner()
         if (inputrec->bPull)
         {
             /* Initialize pull code */
-            pull_work = init_pull(fplog, inputrec->pull, inputrec.get(), &mtop, cr, &atomSets,
+            pull_work = init_pull(fplog, inputrec->pull.get(), inputrec.get(), &mtop, cr, &atomSets,
                                   inputrec->fepvals->init_lambda);
             if (inputrec->pull->bXOutAverage || inputrec->pull->bFOutAverage)
             {
@@ -1671,6 +1680,16 @@ int Mdrunner::mdrunner()
              */
             dd_init_bondeds(fplog, cr->dd, mtop, vsite.get(), inputrec.get(),
                             domdecOptions.checkBondedInteractions, fr->cginfo_mb);
+        }
+
+        if (runScheduleWork.simulationWork.useGpuBufferOps)
+        {
+            fr->gpuForceReduction[gmx::AtomLocality::Local] = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedLocal), wcycle);
+            fr->gpuForceReduction[gmx::AtomLocality::NonLocal] = std::make_unique<gmx::GpuForceReduction>(
+                    deviceStreamManager->context(),
+                    deviceStreamManager->stream(gmx::DeviceStreamType::NonBondedNonLocal), wcycle);
         }
 
         std::unique_ptr<gmx::StatePropagatorDataGpu> stateGpu;
@@ -1774,7 +1793,7 @@ int Mdrunner::mdrunner()
     sfree(disresdata);
     sfree(oriresdata);
 
-    if (!hwinfo->deviceInfoList.empty())
+    if (!hwinfo_->deviceInfoList.empty())
     {
         /* stop the GPU profiler (only CUDA) */
         stopGpuProfiler();
@@ -1863,7 +1882,8 @@ Mdrunner::Mdrunner(std::unique_ptr<MDModules> mdModules) : mdModules_(std::move(
 
 Mdrunner::Mdrunner(Mdrunner&&) noexcept = default;
 
-Mdrunner& Mdrunner::operator=(Mdrunner&& /*handle*/) noexcept = default;
+//NOLINTNEXTLINE(performance-noexcept-move-constructor) working around GCC bug 58265 in CentOS 7
+Mdrunner& Mdrunner::operator=(Mdrunner&& /*handle*/) noexcept(BUGFREE_NOEXCEPT_STRING) = default;
 
 class Mdrunner::BuilderImplementation
 {
@@ -1875,6 +1895,8 @@ public:
     BuilderImplementation& setExtraMdrunOptions(const MdrunOptions& options,
                                                 real                forceWarningThreshold,
                                                 StartingBehavior    startingBehavior);
+
+    void addHardwareDetectionResult(const gmx_hw_info_t* hwinfo);
 
     void addDomdec(const DomdecOptions& options);
 
@@ -1940,6 +1962,9 @@ private:
 
     //! The modules that comprise the functionality of mdrun.
     std::unique_ptr<MDModules> mdModules_;
+
+    //! Detected hardware.
+    const gmx_hw_info_t* hwinfo_ = nullptr;
 
     //! \brief Parallelism information.
     gmx_hw_opt_t hardwareOptions_;
@@ -2041,6 +2066,16 @@ Mdrunner Mdrunner::BuilderImplementation::build()
     // nullptr is a valid value for the multisim handle
     newRunner.ms = multiSimulation_;
 
+    if (hwinfo_)
+    {
+        newRunner.hwinfo_ = hwinfo_;
+    }
+    else
+    {
+        GMX_THROW(gmx::APIError(
+                "MdrunnerBuilder::addHardwareDetectionResult() is required before build()"));
+    }
+
     if (inputHolder_)
     {
         newRunner.inputHolder_ = std::move(inputHolder_);
@@ -2119,6 +2154,11 @@ Mdrunner Mdrunner::BuilderImplementation::build()
     return newRunner;
 }
 
+void Mdrunner::BuilderImplementation::addHardwareDetectionResult(const gmx_hw_info_t* hwinfo)
+{
+    hwinfo_ = hwinfo;
+}
+
 void Mdrunner::BuilderImplementation::addNonBonded(const char* nbpu_opt)
 {
     nbpu_opt_ = nbpu_opt;
@@ -2177,6 +2217,12 @@ MdrunnerBuilder::MdrunnerBuilder(std::unique_ptr<MDModules>           mdModules,
 }
 
 MdrunnerBuilder::~MdrunnerBuilder() = default;
+
+MdrunnerBuilder& MdrunnerBuilder::addHardwareDetectionResult(const gmx_hw_info_t* hwinfo)
+{
+    impl_->addHardwareDetectionResult(hwinfo);
+    return *this;
+}
 
 MdrunnerBuilder& MdrunnerBuilder::addSimulationMethod(const MdrunOptions&    options,
                                                       real                   forceWarningThreshold,

@@ -303,7 +303,7 @@ void runTest(TestFileManager*            fileManager,
 
     // Build the functor that will compare energy frames on the chosen
     // energy terms.
-    EnergyComparison energyComparison(energyTermsToCompare, FramesToCompare::AllFrames);
+    EnergyComparison energyComparison(energyTermsToCompare, MaxNumFrames::compareAllFrames());
 
     // Build the manager that will present matching pairs of frames to compare.
     //
@@ -361,8 +361,11 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     const bool isTCouplingCompatibleWithModularSimulator =
             (temperatureCoupling == "no" || temperatureCoupling == "v-rescale"
              || temperatureCoupling == "berendsen");
+    // GPU update is not compatible with modular simulator
+    const bool isGpuUpdateRequested = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr);
     if (integrator == "md-vv" && pressureCoupling == "parrinello-rahman"
-        && (isModularSimulatorExplicitlyDisabled || !isTCouplingCompatibleWithModularSimulator))
+        && (isModularSimulatorExplicitlyDisabled || !isTCouplingCompatibleWithModularSimulator
+            || isGpuUpdateRequested))
     {
         // Under md-vv, Parrinello-Rahman is only implemented for the modular simulator
         return;
@@ -461,12 +464,13 @@ INSTANTIATE_TEST_CASE_P(
                            ::testing::Values("berendsen", "v-rescale", "nose-hoover"),
                            ::testing::Values("no")));
 
-INSTANTIATE_TEST_CASE_P(NPH,
-                        MdrunNoAppendContinuationIsExact,
-                        ::testing::Combine(::testing::Values("argon12"),
-                                           ::testing::Values("md", "md-vv"),
-                                           ::testing::Values("no"),
-                                           ::testing::Values("berendsen", "parrinello-rahman")));
+INSTANTIATE_TEST_CASE_P(
+        NPH,
+        MdrunNoAppendContinuationIsExact,
+        ::testing::Combine(::testing::Values("argon12"),
+                           ::testing::Values("md", "md-vv"),
+                           ::testing::Values("no"),
+                           ::testing::Values("berendsen", "parrinello-rahman", "C-rescale")));
 
 INSTANTIATE_TEST_CASE_P(
         NPT,
@@ -474,7 +478,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Combine(::testing::Values("argon12"),
                            ::testing::Values("md", "md-vv"),
                            ::testing::Values("berendsen", "v-rescale", "nose-hoover"),
-                           ::testing::Values("berendsen", "parrinello-rahman")));
+                           ::testing::Values("berendsen", "parrinello-rahman", "C-rescale")));
 
 INSTANTIATE_TEST_CASE_P(MTTK,
                         MdrunNoAppendContinuationIsExact,

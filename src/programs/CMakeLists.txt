@@ -49,8 +49,10 @@ if(GMX_FAHCORE)
     add_library(fahcore $<TARGET_OBJECTS:mdrun_objlib>)
     target_link_libraries(fahcore PRIVATE ${GMX_COMMON_LIBRARIES})
 elseif(GMX_BUILD_MDRUN_ONLY)
+    message(STATUS "The mdrun-only build is deprecated")
     add_executable(mdrun $<TARGET_OBJECTS:mdrun_objlib> mdrun_main.cpp)
     gmx_target_compile_options(mdrun)
+    target_include_directories(mdrun SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
     target_compile_definitions(mdrun PRIVATE HAVE_CONFIG_H)
     target_link_libraries(mdrun libgromacs
         ${GMX_COMMON_LIBRARIES}
@@ -76,6 +78,7 @@ else()
     target_include_directories(view_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
     add_library(gmx_objlib OBJECT ${GMX_MAIN_SOURCES})
     target_include_directories(gmx_objlib SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/src/external)
+    target_include_directories(gmx_objlib SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
     add_executable(gmx
         $<TARGET_OBJECTS:gmx_objlib>
         $<TARGET_OBJECTS:mdrun_objlib>

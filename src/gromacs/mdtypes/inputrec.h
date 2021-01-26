@@ -41,6 +41,7 @@
 #include <cstdio>
 
 #include <memory>
+#include <vector>
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
@@ -59,6 +60,7 @@ namespace gmx
 class Awh;
 struct AwhParams;
 class KeyValueTreeObject;
+struct MtsLevel;
 } // namespace gmx
 
 enum class PbcType;
@@ -348,6 +350,10 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     double init_t;
     //! Time step (ps)
     double delta_t;
+    //! Whether we use multiple time stepping
+    bool useMts;
+    //! The multiple time stepping levels
+    std::vector<gmx::MtsLevel> mtsLevels;
     //! Precision of x in compressed trajectory file
     real x_compression_precision;
     //! Requested fourier_spacing, when nk? not set
@@ -509,7 +515,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Do we do COM pulling?
     gmx_bool bPull;
     //! The data for center of mass pulling
-    pull_params_t* pull;
+    std::unique_ptr<pull_params_t> pull;
 
     /* AWH bias data */
     //! Whether to use AWH biasing for PMF calculations
@@ -614,7 +620,7 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
 
 void cmp_inputrec(FILE* fp, const t_inputrec* ir1, const t_inputrec* ir2, real ftol, real abstol);
 
-void comp_pull_AB(FILE* fp, pull_params_t* pull, real ftol, real abstol);
+void comp_pull_AB(FILE* fp, const pull_params_t& pull, real ftol, real abstol);
 
 
 gmx_bool inputrecDeform(const t_inputrec* ir);

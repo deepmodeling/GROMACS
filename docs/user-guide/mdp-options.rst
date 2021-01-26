@@ -231,6 +231,43 @@ Run control
          same simulation. This option is generally useful to set only
          when coping with a crashed simulation where files were lost.
 
+.. mdp:: mts
+
+   .. mdp-value:: no
+
+      Evaluate all forces at every integration step.
+
+   .. mdp-value:: yes
+
+      Use a multiple timing-stepping integrator to evaluate some forces, as specified
+      by :mdp:`mts-level2-forces` every :mdp:`mts-level2-factor` integration
+      steps. All other forces are evaluated at every step. MTS is currently
+      only supported with :mdp-value:`integrator=md`.
+
+.. mdp:: mts-levels
+
+        (2)
+	The number of levels for the multiple time-stepping scheme.
+	Currently only 2 is supported.
+
+.. mdp:: mts-level2-forces
+
+   (longrange-nonbonded)
+   A list of one or more force groups that will be evaluated only every
+   :mdp:`mts-level2-factor` steps. Supported entries are:
+   ``longrange-nonbonded``, ``nonbonded``, ``pair``, ``dihedral``, ``angle``,
+   ``pull`` and ``awh``. With ``pair`` the listed pair forces (such as 1-4)
+   are selected. With ``dihedral`` all dihedrals are selected, including cmap.
+   All other forces, including all restraints, are evaluated and
+   integrated every step. When PME or Ewald is used for electrostatics
+   and/or LJ interactions, ``longrange-nonbonded`` can not be omitted here.
+
+.. mdp:: mts-level2-factor
+
+      (2) [steps]
+      Interval for computing the forces in level 2 of the multiple time-stepping
+      scheme
+
 .. mdp:: comm-mode
 
    .. mdp-value:: Linear
@@ -1036,6 +1073,13 @@ Pressure coupling
       ensemble, but it is the most efficient way to scale a box at the
       beginning of a run.
 
+   .. mdp-value:: C-rescale
+
+      Exponential relaxation pressure coupling with time constant
+      :mdp:`tau-p`, including a stochastic term to enforce correct
+      volume fluctuations.  The box is scaled every :mdp:`nstpcouple`
+      steps. It can be used for both equilibration and production.
+
    .. mdp-value:: Parrinello-Rahman
 
       Extended-ensemble pressure coupling where the box vectors are
@@ -1642,7 +1686,8 @@ pull-coord2-vec, pull-coord2-k, and so on.
       Center of mass pulling using a constraint between the reference
       group and one or more groups. The setup is identical to the
       option umbrella, except for the fact that a rigid constraint is
-      applied instead of a harmonic potential.
+      applied instead of a harmonic potential. Note that this type is
+      not supported in combination with multiple time stepping.
 
    .. mdp-value:: constant-force
 
@@ -2045,13 +2090,15 @@ AWH adaptive biasing
    .. mdp-value:: pull
 
       The pull module is providing the reaction coordinate for this dimension.
+      With multiple time-stepping, AWH and pull should be in the same MTS level.
 
    .. mdp-value:: fep-lambda
 
       The free energy lambda state is the reaction coordinate for this dimension.
       The lambda states to use are specified by :mdp:`fep-lambdas`, :mdp:`vdw-lambdas`,
       :mdp:`coul-lambdas` etc. This is not compatible with delta-lambda. It also requires
-      calc-lambda-neighbors to be -1.
+      calc-lambda-neighbors to be -1. With multiple time-stepping, AWH should
+      be in the slow level.
 
 .. mdp:: awh1-dim1-coord-index
 
@@ -2908,7 +2955,7 @@ Non-equilibrium MD
 
    groups for constant acceleration (*e.g.* ``Protein Sol``) all atoms
    in groups Protein and Sol will experience constant acceleration as
-   specified in the :mdp:`accelerate` line
+   specified in the :mdp:`accelerate` line. (Deprecated)
 
 .. mdp:: accelerate
 
@@ -2916,7 +2963,7 @@ Non-equilibrium MD
    acceleration for :mdp:`acc-grps`; x, y and z for each group
    (*e.g.* ``0.1 0.0 0.0 -0.1 0.0 0.0`` means that first group has
    constant acceleration of 0.1 nm ps\ :sup:`-2` in X direction, second group
-   the opposite).
+   the opposite). (Deprecated)
 
 .. mdp:: freezegrps
 

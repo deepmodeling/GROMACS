@@ -51,9 +51,9 @@ namespace nblib
 
 Box::Box(real l) : Box(l, l, l) {}
 
-Box::Box(real x, real y, real z) : legacyMatrix_{ 0 }
+Box::Box(real x, real y, real z) : legacyMatrix_{ { 0 } }
 {
-    if (std::isnan(x) or std::isinf(x) or std::isnan(y) or std::isinf(y) or std::isnan(z) or std::isinf(z))
+    if (std::isnan(x) || std::isinf(x) || std::isnan(y) || std::isinf(y) || std::isnan(z) || std::isinf(z))
     {
         throw InputException("Cannot have NaN or Inf box length.");
     }

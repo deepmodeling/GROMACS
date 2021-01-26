@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,10 +48,11 @@
 #ifndef NBLIB_LISTEDFORCES_CALCULATOR_H
 #define NBLIB_LISTEDFORCES_CALCULATOR_H
 
+#include <memory>
 #include <unordered_map>
 
 #include "nblib/listed_forces/definitions.h"
-#include "nblib/pbc.hpp"
+#include "nblib/vector.h"
 
 namespace gmx
 {
@@ -61,11 +62,12 @@ class ArrayRef;
 
 namespace nblib
 {
-
+class Box;
+class PbcHolder;
 template<class T>
 class ForceBuffer;
 
-/*! \internal \brief object to calculate listed forces
+/*! \internal \brief Object to calculate forces and energies of listed forces
  *
  */
 class ListedForceCalculator
@@ -122,7 +124,7 @@ private:
     std::vector<std::unique_ptr<ForceBuffer<gmx::RVec>>> threadedForceBuffers_;
 
     //! PBC objects
-    PbcHolder pbcHolder_;
+    std::unique_ptr<PbcHolder> pbcHolder_;
 
     //! compute listed forces and energies, overwrites the internal buffers
     void computeForcesAndEnergies(gmx::ArrayRef<const Vec3> x, bool usePbc = false);
