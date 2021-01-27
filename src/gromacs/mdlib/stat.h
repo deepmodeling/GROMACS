@@ -74,13 +74,13 @@ void global_stat(const gmx_global_stat*  gs,
                  bool                    bSumEkinhOld,
                  int                     flags);
 
-real global_stat_min(const gmx_global_stat*  gs,
-                 const t_commrec*        cr,
-                 gmx_enerdata_t*         enerd,
-                 tensor                  fvir,
-                 tensor                  svir,
-                 bool bFEP,
-                 int                     flags);
+real global_stat_min(const gmx_global_stat* gs,
+                     const t_commrec*       cr,
+                     gmx_enerdata_t*        enerd,
+                     tensor                 fvir,
+                     tensor                 svir,
+                     bool                   bFEP,
+                     int                    flags);
 
 /*! \brief Returns TRUE if io should be done */
 inline bool do_per_step(int64_t step, int64_t nstep)

@@ -959,18 +959,18 @@ void EnergyEvaluator::run(em_state_t* ems, rvec mu_tot, tensor vir, tensor pres,
     clear_mat(pres);
 
     /* Communicate stuff when parallel */
-    real     terminate = 0;
+    real terminate = 0;
     if (PAR(cr) && inputrec->eI != eiNM)
     {
         wallcycle_start(wcycle, ewcMoveE);
 
         terminate = global_stat_min(gstat,
-                    cr,
-                    enerd,
-                    force_vir,
-                    shake_vir,
-                    inputrec->efep != efepNO,
-                    CGLO_ENERGY | CGLO_PRESSURE | CGLO_CONSTRAINT);
+                                    cr,
+                                    enerd,
+                                    force_vir,
+                                    shake_vir,
+                                    inputrec->efep != efepNO,
+                                    CGLO_ENERGY | CGLO_PRESSURE | CGLO_CONSTRAINT);
 
         wallcycle_stop(wcycle, ewcMoveE);
     }

@@ -389,25 +389,25 @@ void global_stat(const gmx_global_stat*  gs,
     }
 }
 
-real global_stat_min(const gmx_global_stat*  gs,
-                 const t_commrec*        cr,
-                 gmx_enerdata_t*         enerd,
-                 tensor                  fvir,
-                 tensor                  svir,
-                 bool bFEP,
-                 int                     flags)
+real global_stat_min(const gmx_global_stat* gs,
+                     const t_commrec*       cr,
+                     gmx_enerdata_t*        enerd,
+                     tensor                 fvir,
+                     tensor                 svir,
+                     bool                   bFEP,
+                     int                    flags)
 {
-    bool bTemp       = ((flags & CGLO_TEMPERATURE) != 0);
-    bool bEner       = ((flags & CGLO_ENERGY) != 0);
-    bool bPres       = ((flags & CGLO_PRESSURE) != 0);
-    bool bConstrVir  = ((flags & CGLO_CONSTRAINT) != 0);
+    bool bTemp                           = ((flags & CGLO_TEMPERATURE) != 0);
+    bool bEner                           = ((flags & CGLO_ENERGY) != 0);
+    bool bPres                           = ((flags & CGLO_PRESSURE) != 0);
+    bool bConstrVir                      = ((flags & CGLO_CONSTRAINT) != 0);
     bool checkNumberOfBondedInteractions = (flags & CGLO_CHECK_NUMBER_OF_BONDED_INTERACTIONS) != 0;
 
 
     /* This routine copies all the data to be summed to one big buffer
      * using the t_bin struct.
      */
-    t_bin* rb   = gs->rb;
+    t_bin* rb = gs->rb;
     reset_bin(rb);
 
     /* First, we neeed to identify which enerd->term should be
@@ -415,8 +415,8 @@ real global_stat_min(const gmx_global_stat*  gs,
        communicated and summed when they need to be, to avoid repeating
        the sums and overcounting. */
 
-    real     copyenerd[F_NRE];
-    int nener = filter_enerdterm(enerd->term, TRUE, copyenerd, bTemp, bPres, bEner);
+    real copyenerd[F_NRE];
+    int  nener = filter_enerdterm(enerd->term, TRUE, copyenerd, bTemp, bPres, bEner);
 
     /* First, the data that needs to be communicated with velocity verlet every time
        This is just the constraint virial.*/
@@ -430,9 +430,9 @@ real global_stat_min(const gmx_global_stat*  gs,
     {
         ifv = add_binr(rb, DIM * DIM, fvir[0]);
     }
-    gmx::ArrayRef<real> rmsdData;
-    std::array<int, egNR>      inn;
-    int idvdll = 0, idvdlnl = 0, ie = 0, iepl = 0;
+    gmx::ArrayRef<real>   rmsdData;
+    std::array<int, egNR> inn;
+    int                   idvdll = 0, idvdlnl = 0, ie = 0, iepl = 0;
     if (bEner)
     {
         ie = add_binr(rb, nener, copyenerd);
@@ -456,12 +456,12 @@ real global_stat_min(const gmx_global_stat*  gs,
 
     if (checkNumberOfBondedInteractions)
     {
-        double nb  = cr->dd->nbonded_local;
+        double nb = cr->dd->nbonded_local;
         add_bind(rb, 1, &nb);
     }
 
-    real sig = 0;
-    int isig = add_binr(rb, 1, &sig);
+    real sig  = 0;
+    int  isig = add_binr(rb, 1, &sig);
 
     /* Global sum it all */
     sum_bin(rb, cr);
