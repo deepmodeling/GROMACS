@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -110,6 +110,16 @@ static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexTy
                 fout_atomic(acc[idx]);
         fout_atomic.fetch_add(val);
     }
+}
+
+static inline float shuffleDown(float var, unsigned int delta, sycl_2020::sub_group sg)
+{
+    return sg.shuffle_down(var, delta);
+}
+
+static inline float shuffleUp(float var, unsigned int delta, sycl_2020::sub_group sg)
+{
+    return sg.shuffle_up(var, delta);
 }
 
 } // namespace Nbnxm

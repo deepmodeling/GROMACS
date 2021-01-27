@@ -301,7 +301,6 @@ static inline float interpolateCoulombForceR(const DeviceAccessor<float, mode::r
     return lerp(left, right, fraction); // TODO: cl::sycl::mix
 }
 
-
 static inline void reduceForceJShuffle(float3                                  f,
                                        const cl::sycl::nd_item<1>              itemIdx,
                                        const int                               tidxi,
@@ -311,16 +310,16 @@ static inline void reduceForceJShuffle(float3                                  f
     static_assert(c_clSize == 8 || c_clSize == 4);
     sycl_2020::sub_group sg = itemIdx.get_sub_group();
 
-    f[0] += sg.shuffle_down(f[0], 1);
-    f[1] += sg.shuffle_up(f[1], 1);
-    f[2] += sg.shuffle_down(f[2], 1);
+    f[0] += shuffleDown(f[0], 1, sg);
+    f[1] += shuffleUp(f[1], 1, sg);
+    f[2] += shuffleDown(f[2], 1, sg);
     if (tidxi & 1)
     {
         f[0] = f[1];
     }
 
-    f[0] += sg.shuffle_down(f[0], 2);
-    f[2] += sg.shuffle_up(f[2], 2);
+    f[0] += shuffleDown(f[0], 2, sg);
+    f[2] += shuffleUp(f[2], 2, sg);
     if (tidxi & 2)
     {
         f[0] = f[2];
@@ -328,7 +327,7 @@ static inline void reduceForceJShuffle(float3                                  f
 
     if constexpr (c_clSize == 8)
     {
-        f[0] += sg.shuffle_down(f[0], 4);
+        f[0] += shuffleDown(f[0], 4, sg);
     }
 
     if (tidxi < 3)
