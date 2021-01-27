@@ -126,7 +126,12 @@ static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexTy
         fout_atomic.fetch_add(val);
 #elif defined(__HIPSYCL__)
         static_assert(Mode == cl::sycl::access::mode::atomic);
+#    ifdef SYCL_DEVICE_ONLY
+        /* While there is support for float atomics on device, the host implementation uses
+         * Clang's __atomic_fetch_add intrinsic, that, at least in Clang 11, does not support
+         * floats. Luckily, we don't want to run on host. */
         acc[idx].fetch_add(val);
+#    endif
 #endif
     }
 }
