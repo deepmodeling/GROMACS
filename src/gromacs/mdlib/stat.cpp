@@ -136,6 +136,57 @@ static int filter_enerdterm(const real* afrom, gmx_bool bToBuffer, real* ato, gm
     return to;
 }
 
+class FepEnerdataHandler
+{
+public:
+    void add(t_bin* rb, gmx_enerdata_t* enerd)
+    {
+        idvdll_  = add_bind(rb, efptNR, enerd->dvdl_lin);
+        idvdlnl_ = add_bind(rb, efptNR, enerd->dvdl_nonlin);
+        if (enerd->foreignLambdaTerms.numLambdas() > 0)
+        {
+            iepl_ = add_bind(rb,
+                                enerd->foreignLambdaTerms.energies().size(),
+                                enerd->foreignLambdaTerms.energies().data());
+        }
+    }
+
+    void extract(t_bin* rb, gmx_enerdata_t* enerd)
+    {
+        extract_bind(rb, idvdll_, efptNR, enerd->dvdl_lin);
+        extract_bind(rb, idvdlnl_, efptNR, enerd->dvdl_nonlin);
+        if (enerd->foreignLambdaTerms.numLambdas() > 0)
+        {
+            extract_bind(rb,
+                         iepl_,
+                         enerd->foreignLambdaTerms.energies().size(),
+                         enerd->foreignLambdaTerms.energies().data());
+        }
+    }
+
+private:
+    int idvdll_ = 0;
+    int idvdlnl_ = 0;
+    int iepl_ = 0;
+};
+
+class VirialHandler
+{
+public:
+    void add(t_bin* rb, tensor vir)
+    {
+        index_ = add_binr(rb, DIM * DIM, vir[0]);
+    }
+
+    void extract(t_bin* rb, tensor vir)
+    {
+        extract_binr(rb, index_, DIM * DIM, vir[0]);
+    }
+
+private:
+    int index_ = 0;
+};
+
 void global_stat(const gmx_global_stat*  gs,
                  const t_commrec*        cr,
                  gmx_enerdata_t*         enerd,
@@ -154,8 +205,8 @@ void global_stat(const gmx_global_stat*  gs,
 {
     t_bin* rb;
     int *  itc0, *itc1;
-    int    ie = 0, ifv = 0, isv = 0, irmsd = 0;
-    int idedl = 0, idedlo = 0, idvdll = 0, idvdlnl = 0, iepl = 0, icm = 0, imass = 0, ica = 0, inb = 0;
+    int    ie = 0, irmsd = 0;
+    int idedl = 0, idedlo = 0, icm = 0, imass = 0, ica = 0, inb = 0;
     int      isig = -1;
     int      icj = -1, ici = -1, icx = -1;
     int      inn[egNR];
@@ -192,9 +243,10 @@ void global_stat(const gmx_global_stat*  gs,
 
     /* First, the data that needs to be communicated with velocity verlet every time
        This is just the constraint virial.*/
+    VirialHandler constrVirialHandler;
     if (bConstrVir)
     {
-        isv = add_binr(rb, DIM * DIM, svir[0]);
+        constrVirialHandler.add(rb, svir);
     }
 
     /* We need the force virial and the kinetic energy for the first time through with velocity verlet */
@@ -230,12 +282,14 @@ void global_stat(const gmx_global_stat*  gs,
         }
     }
 
+    VirialHandler pressureVirialHandler;
     if (bPres)
     {
-        ifv = add_binr(rb, DIM * DIM, fvir[0]);
+        pressureVirialHandler.add(rb, fvir);
     }
 
     gmx::ArrayRef<real> rmsdData;
+    FepEnerdataHandler fepEnerdataHandler;
     if (bEner)
     {
         ie = add_binr(rb, nener, copyenerd);
@@ -254,14 +308,7 @@ void global_stat(const gmx_global_stat*  gs,
         }
         if (inputrec->efep != efepNO)
         {
-            idvdll  = add_bind(rb, efptNR, enerd->dvdl_lin);
-            idvdlnl = add_bind(rb, efptNR, enerd->dvdl_nonlin);
-            if (enerd->foreignLambdaTerms.numLambdas() > 0)
-            {
-                iepl = add_bind(rb,
-                                enerd->foreignLambdaTerms.energies().size(),
-                                enerd->foreignLambdaTerms.energies().data());
-            }
+            fepEnerdataHandler.add(rb,enerd);
         }
     }
 
@@ -298,7 +345,7 @@ void global_stat(const gmx_global_stat*  gs,
 
     if (bConstrVir)
     {
-        extract_binr(rb, isv, DIM * DIM, svir[0]);
+        constrVirialHandler.extract(rb, svir);
     }
 
     /* We need the force virial and the kinetic energy for the first time through with velocity verlet */
@@ -334,7 +381,7 @@ void global_stat(const gmx_global_stat*  gs,
     }
     if (bPres)
     {
-        extract_binr(rb, ifv, DIM * DIM, fvir[0]);
+        pressureVirialHandler.extract(rb, fvir);
     }
 
     if (bEner)
@@ -351,15 +398,7 @@ void global_stat(const gmx_global_stat*  gs,
         }
         if (inputrec->efep != efepNO)
         {
-            extract_bind(rb, idvdll, efptNR, enerd->dvdl_lin);
-            extract_bind(rb, idvdlnl, efptNR, enerd->dvdl_nonlin);
-            if (enerd->foreignLambdaTerms.numLambdas() > 0)
-            {
-                extract_bind(rb,
-                             iepl,
-                             enerd->foreignLambdaTerms.energies().size(),
-                             enerd->foreignLambdaTerms.energies().data());
-            }
+            fepEnerdataHandler.extract(rb, enerd);
         }
 
         filter_enerdterm(copyenerd, FALSE, enerd->term, bTemp, bPres, bEner);
@@ -412,8 +451,10 @@ void global_stat_min(const gmx_global_stat* gs,
     int  nener = filter_enerdterm(enerd->term, TRUE, copyenerd, bTemp, bPres, bEner);
     /* First, the data that needs to be communicated with velocity verlet every time
        This is just the constraint virial.*/
-    int                   isv = add_binr(rb, DIM * DIM, svir[0]);
-    int                   ifv = add_binr(rb, DIM * DIM, fvir[0]);
+    VirialHandler pressureVirialHandler;
+    pressureVirialHandler.add(rb, fvir);
+    VirialHandler constrVirialHandler;
+    constrVirialHandler.add(rb, svir);
     gmx::ArrayRef<real>   rmsdData;
     std::array<int, egNR> inn;
     int                   ie = add_binr(rb, nener, copyenerd);
@@ -421,25 +462,18 @@ void global_stat_min(const gmx_global_stat* gs,
     {
         inn[j] = add_binr(rb, enerd->grpp.nener, enerd->grpp.ener[j].data());
     }
-    int idvdll = 0, idvdlnl = 0, iepl = 0;
+    FepEnerdataHandler fepEnerdataHandler;
     if (bFEP)
     {
-        idvdll  = add_bind(rb, efptNR, enerd->dvdl_lin);
-        idvdlnl = add_bind(rb, efptNR, enerd->dvdl_nonlin);
-        if (enerd->foreignLambdaTerms.numLambdas() > 0)
-        {
-            iepl = add_bind(rb,
-                            enerd->foreignLambdaTerms.energies().size(),
-                            enerd->foreignLambdaTerms.energies().data());
-        }
+        fepEnerdataHandler.add(rb, enerd);
     }
     real sig  = 0;
     int  isig = add_binr(rb, 1, &sig);
     /* Global sum it all */
     sum_bin(rb, cr);
     /* Extract all the data locally */
-    extract_binr(rb, isv, DIM * DIM, svir[0]);
-    extract_binr(rb, ifv, DIM * DIM, fvir[0]);
+    pressureVirialHandler.extract(rb,fvir);
+    constrVirialHandler.extract(rb, svir);
     extract_binr(rb, ie, nener, copyenerd);
     if (!rmsdData.empty())
     {
@@ -451,15 +485,7 @@ void global_stat_min(const gmx_global_stat* gs,
     }
     if (bFEP)
     {
-        extract_bind(rb, idvdll, efptNR, enerd->dvdl_lin);
-        extract_bind(rb, idvdlnl, efptNR, enerd->dvdl_nonlin);
-        if (enerd->foreignLambdaTerms.numLambdas() > 0)
-        {
-            extract_bind(rb,
-                         iepl,
-                         enerd->foreignLambdaTerms.energies().size(),
-                         enerd->foreignLambdaTerms.energies().data());
-        }
+        fepEnerdataHandler.extract(rb, enerd);
     }
     filter_enerdterm(copyenerd, FALSE, enerd->term, bTemp, bPres, bEner);
     extract_binr(rb, isig, 1, &sig);
