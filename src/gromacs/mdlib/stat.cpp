@@ -388,3 +388,125 @@ void global_stat(const gmx_global_stat*  gs,
         extract_binr(rb, isig, nsig, sig);
     }
 }
+
+real global_stat_min(const gmx_global_stat*  gs,
+                 const t_commrec*        cr,
+                 gmx_enerdata_t*         enerd,
+                 tensor                  fvir,
+                 tensor                  svir,
+                 bool bFEP,
+                 int                     flags)
+{
+    bool bTemp       = ((flags & CGLO_TEMPERATURE) != 0);
+    bool bEner       = ((flags & CGLO_ENERGY) != 0);
+    bool bPres       = ((flags & CGLO_PRESSURE) != 0);
+    bool bConstrVir  = ((flags & CGLO_CONSTRAINT) != 0);
+    bool checkNumberOfBondedInteractions = (flags & CGLO_CHECK_NUMBER_OF_BONDED_INTERACTIONS) != 0;
+
+
+    /* This routine copies all the data to be summed to one big buffer
+     * using the t_bin struct.
+     */
+    t_bin* rb   = gs->rb;
+    reset_bin(rb);
+
+    /* First, we neeed to identify which enerd->term should be
+       communicated.  Temperature and pressure terms should only be
+       communicated and summed when they need to be, to avoid repeating
+       the sums and overcounting. */
+
+    real     copyenerd[F_NRE];
+    int nener = filter_enerdterm(enerd->term, TRUE, copyenerd, bTemp, bPres, bEner);
+
+    /* First, the data that needs to be communicated with velocity verlet every time
+       This is just the constraint virial.*/
+    int isv = 0;
+    if (bConstrVir)
+    {
+        isv = add_binr(rb, DIM * DIM, svir[0]);
+    }
+    int ifv = 0;
+    if (bPres)
+    {
+        ifv = add_binr(rb, DIM * DIM, fvir[0]);
+    }
+    gmx::ArrayRef<real> rmsdData;
+    std::array<int, egNR>      inn;
+    int idvdll = 0, idvdlnl = 0, ie = 0, iepl = 0;
+    if (bEner)
+    {
+        ie = add_binr(rb, nener, copyenerd);
+
+        for (int j = 0; (j < egNR); j++)
+        {
+            inn[j] = add_binr(rb, enerd->grpp.nener, enerd->grpp.ener[j].data());
+        }
+        if (bFEP)
+        {
+            idvdll  = add_bind(rb, efptNR, enerd->dvdl_lin);
+            idvdlnl = add_bind(rb, efptNR, enerd->dvdl_nonlin);
+            if (enerd->foreignLambdaTerms.numLambdas() > 0)
+            {
+                iepl = add_bind(rb,
+                                enerd->foreignLambdaTerms.energies().size(),
+                                enerd->foreignLambdaTerms.energies().data());
+            }
+        }
+    }
+
+    if (checkNumberOfBondedInteractions)
+    {
+        double nb  = cr->dd->nbonded_local;
+        add_bind(rb, 1, &nb);
+    }
+
+    real sig = 0;
+    int isig = add_binr(rb, 1, &sig);
+
+    /* Global sum it all */
+    sum_bin(rb, cr);
+
+    /* Extract all the data locally */
+
+    if (bConstrVir)
+    {
+        extract_binr(rb, isv, DIM * DIM, svir[0]);
+    }
+
+    if (bPres)
+    {
+        extract_binr(rb, ifv, DIM * DIM, fvir[0]);
+    }
+
+    if (bEner)
+    {
+        extract_binr(rb, ie, nener, copyenerd);
+        if (!rmsdData.empty())
+        {
+            extract_binr(rb, 0, rmsdData);
+        }
+
+        for (int j = 0; (j < egNR); j++)
+        {
+            extract_binr(rb, inn[j], enerd->grpp.nener, enerd->grpp.ener[j].data());
+        }
+        if (bFEP)
+        {
+            extract_bind(rb, idvdll, efptNR, enerd->dvdl_lin);
+            extract_bind(rb, idvdlnl, efptNR, enerd->dvdl_nonlin);
+            if (enerd->foreignLambdaTerms.numLambdas() > 0)
+            {
+                extract_bind(rb,
+                             iepl,
+                             enerd->foreignLambdaTerms.energies().size(),
+                             enerd->foreignLambdaTerms.energies().data());
+            }
+        }
+
+        filter_enerdterm(copyenerd, FALSE, enerd->term, bTemp, bPres, bEner);
+    }
+
+    extract_binr(rb, isig, 1, &sig);
+
+    return sig;
+}
