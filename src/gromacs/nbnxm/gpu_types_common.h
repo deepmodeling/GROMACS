@@ -65,7 +65,7 @@
  *  The energies/shift forces get downloaded here first, before getting added
  *  to the CPU-side aggregate values.
  */
-struct nb_staging_t
+struct NBStagingData
 {
     //! LJ energy
     float* e_lj = nullptr;

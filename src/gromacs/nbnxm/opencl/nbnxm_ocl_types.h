@@ -194,7 +194,7 @@ struct NbnxmGpu
     //! pair-list data structures (local and non-local)
     gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist*> plist = { nullptr };
     //! staging area where fshift/energies get downloaded
-    nb_staging_t nbst;
+    NBStagingData nbst;
 
     //! local and non-local GPU queues
     gmx::EnumerationArray<Nbnxm::InteractionLocality, const DeviceStream*> deviceStreams;

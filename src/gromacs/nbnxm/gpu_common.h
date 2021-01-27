@@ -237,7 +237,6 @@ static void countPruneKernelTime(GpuTimers*                 timers,
  * Note that this function should always be called after the transfers into the
  * staging buffers has completed.
  *
- * \tparam     StagingData    Type of staging data
  * \param[in]  nbst           Nonbonded staging data
  * \param[in]  iLocality      Interaction locality specifier
  * \param[in]  reduceEnergies True if energy reduction should be done
@@ -246,8 +245,7 @@ static void countPruneKernelTime(GpuTimers*                 timers,
  * \param[out] e_el           Variable to accumulate electrostatic energy into
  * \param[out] fshift         Pointer to the array of shift forces to accumulate into
  */
-template<typename StagingData>
-static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
+static inline void gpu_reduce_staged_outputs(const NBStagingData&      nbst,
                                              const InteractionLocality iLocality,
                                              const bool                reduceEnergies,
                                              const bool                reduceFshift,
