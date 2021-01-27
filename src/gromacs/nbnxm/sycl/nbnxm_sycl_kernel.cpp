@@ -191,7 +191,7 @@ static inline void ljEwaldComb(const DeviceAccessor<float, mode::read> a_nbfpCom
     /* Recalculate inv_r6 without exclusion mask */
     const float inv_r6_nm = r2Inv * r2Inv * r2Inv;
     const float cr2       = lje_coeff2 * r2;
-    const float expmcr2   = expf(-cr2);
+    const float expmcr2   = cl::sycl::exp(-cr2);
     const float poly      = 1.0F + cr2 + 0.5F * cr2 * cr2;
 
     /* Subtract the grid force from the total LJ force */
