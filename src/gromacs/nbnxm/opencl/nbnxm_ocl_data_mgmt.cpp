@@ -402,10 +402,10 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
     /* only if we have a dynamic box */
     if (nbatom->bDynamicBox || !adat->bShiftVecUploaded)
     {
-        static_assert(sizeof(Xyz) == sizeof(nbatom->shift_vec[0]),
+        static_assert(sizeof(Float3) == sizeof(nbatom->shift_vec[0]),
                       "Sizes of host- and device-side shift vectors should be the same.");
         copyToDeviceBuffer(&adat->shift_vec,
-                           reinterpret_cast<const Xyz*>(nbatom->shift_vec.data()),
+                           reinterpret_cast<const Float3*>(nbatom->shift_vec.data()),
                            0,
                            SHIFTS,
                            deviceStream,
@@ -483,7 +483,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         static_assert(sizeof(float) == sizeof(*nbat->params().lj_comb.data()),
                       "Size of the LJ parameters element should be equal to the size of float2.");
         copyToDeviceBuffer(&d_atdat->lj_comb,
-                           reinterpret_cast<const LJParameters*>(nbat->params().lj_comb.data()),
+                           reinterpret_cast<const Float2*>(nbat->params().lj_comb.data()),
                            0,
                            natoms,
                            localStream,

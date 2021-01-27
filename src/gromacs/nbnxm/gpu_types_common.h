@@ -44,6 +44,7 @@
 
 #include "config.h"
 
+#include "gromacs/gpu_utils/device_vectypes.h"
 #include "gromacs/mdtypes/locality.h"
 #include "gromacs/utility/enumerationhelpers.h"
 
@@ -56,25 +57,6 @@
 
 #if GMX_GPU_CUDA
 #    include "gromacs/gpu_utils/gpuregiontimer.cuh"
-#endif
-
-#if GMX_GPU_CUDA
-using Xyz          = float3;
-using Xyzq         = float4;
-using LJParameters = float2;
-#else
-struct Xyz
-{
-    float x, y, z;
-};
-struct Xyzq
-{
-    float x, y, z, q;
-};
-struct LJParameters
-{
-    float c6, c12;
-};
 #endif
 
 /** \internal
@@ -90,7 +72,7 @@ struct nb_staging_t
     //! electrostatic energy
     float* e_el = nullptr;
     //! shift forces
-    Xyz* fshift = nullptr;
+    Float3* fshift = nullptr;
 };
 
 /** \internal
@@ -106,9 +88,9 @@ struct NBAtomdata
     int nalloc;
 
     //! atom coordinates + charges, size natoms
-    DeviceBuffer<Xyzq> xq;
+    DeviceBuffer<Float4> xq;
     //! force output array, size natoms
-    DeviceBuffer<Xyz> f;
+    DeviceBuffer<Float3> f;
 
     //! LJ energy output, size 1
     DeviceBuffer<float> e_lj;
@@ -116,17 +98,17 @@ struct NBAtomdata
     DeviceBuffer<float> e_el;
 
     //! shift forces
-    DeviceBuffer<Xyz> fshift;
+    DeviceBuffer<Float3> fshift;
 
     //! number of atom types
     int ntypes;
     //! atom type indices, size natoms
     DeviceBuffer<int> atom_types;
     //! sqrt(c6),sqrt(c12) size natoms
-    DeviceBuffer<LJParameters> lj_comb;
+    DeviceBuffer<Float2> lj_comb;
 
     //! shifts
-    DeviceBuffer<Xyz> shift_vec;
+    DeviceBuffer<Float3> shift_vec;
     //! true if the shift vector has been uploaded
     bool bShiftVecUploaded;
 };

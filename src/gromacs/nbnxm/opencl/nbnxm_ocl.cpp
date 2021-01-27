@@ -566,7 +566,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     static_assert(sizeof(float) == sizeof(*nbatom->x().data()),
                   "The size of the xyzq buffer element should be equal to the size of float4.");
     copyToDeviceBuffer(&adat->xq,
-                       reinterpret_cast<const Xyzq*>(nbatom->x().data()) + adat_begin,
+                       reinterpret_cast<const Float4*>(nbatom->x().data()) + adat_begin,
                        adat_begin,
                        adat_len,
                        deviceStream,
@@ -985,7 +985,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* DtoH f */
     GMX_ASSERT(sizeof(*nbatom->out[0].f.data()) == sizeof(float),
                "The host force buffer should be in single precision to match device data size.");
-    copyFromDeviceBuffer(reinterpret_cast<Xyz*>(nbatom->out[0].f.data()) + adat_begin,
+    copyFromDeviceBuffer(reinterpret_cast<Float3*>(nbatom->out[0].f.data()) + adat_begin,
                          &adat->f,
                          adat_begin,
                          adat_len,
@@ -1016,7 +1016,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
         if (stepWork.computeVirial)
         {
             static_assert(
-                    sizeof(*nb->nbst.fshift) == sizeof(Xyz),
+                    sizeof(*nb->nbst.fshift) == sizeof(Float3),
                     "Sizes of host- and device-side shift vector elements should be the same.");
             copyFromDeviceBuffer(nb->nbst.fshift,
                                  &adat->fshift,

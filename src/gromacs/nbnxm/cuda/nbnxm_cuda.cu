@@ -511,10 +511,10 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     }
 
     /* HtoD x, q */
-    static_assert(sizeof(adat->xq[0]) == sizeof(Xyzq),
+    static_assert(sizeof(adat->xq[0]) == sizeof(Float4),
                   "The size of the xyzq buffer element should be equal to the size of float4.");
     copyToDeviceBuffer(&adat->xq,
-                       reinterpret_cast<const Xyzq*>(nbatom->x().data()) + adat_begin,
+                       reinterpret_cast<const Float4*>(nbatom->x().data()) + adat_begin,
                        adat_begin,
                        adat_len,
                        deviceStream,
@@ -849,9 +849,9 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     if (!stepWork.useGpuFBufferOps)
     {
         static_assert(
-                sizeof(adat->f[0]) == sizeof(Xyz),
+                sizeof(adat->f[0]) == sizeof(Float3),
                 "The size of the force buffer element should be equal to the size of float3.");
-        copyFromDeviceBuffer(reinterpret_cast<Xyz*>(nbatom->out[0].f.data()) + adat_begin,
+        copyFromDeviceBuffer(reinterpret_cast<Float3*>(nbatom->out[0].f.data()) + adat_begin,
                              &adat->f,
                              adat_begin,
                              adat_len,
