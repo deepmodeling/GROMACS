@@ -117,23 +117,26 @@ static inline cl::sycl::id<3> unflattenId(cl::sycl::id<1> id1d)
 template<class IndexType, cl::sycl::access::mode Mode>
 static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexType idx, const float val)
 {
+#if defined(__SYCL_COMPILER_VERSION)
     if (cl::sycl::isnormal(val))
     {
-#if defined(__SYCL_COMPILER_VERSION)
         sycl_2020::atomic_ref<float, sycl_2020::memory_order::relaxed, sycl_2020::memory_scope::device,
                               cl::sycl::access::address_space::global_space>
                 fout_atomic(acc[idx]);
         fout_atomic.fetch_add(val);
+    }
 #elif defined(__HIPSYCL__)
-        static_assert(Mode == cl::sycl::access::mode::atomic);
+    static_assert(Mode == cl::sycl::access::mode::atomic);
+    if (std::isnormal(val))
+    {
 #    ifdef SYCL_DEVICE_ONLY
         /* While there is support for float atomics on device, the host implementation uses
          * Clang's __atomic_fetch_add intrinsic, that, at least in Clang 11, does not support
          * floats. Luckily, we don't want to run on host. */
         acc[idx].fetch_add(val);
 #    endif
-#endif
     }
+#endif
 }
 
 } // namespace Nbnxm
