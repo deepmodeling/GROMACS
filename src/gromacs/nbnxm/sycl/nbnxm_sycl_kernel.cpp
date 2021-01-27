@@ -408,8 +408,8 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
         const int aidx = (sci * c_nbnxnGpuNumClusterPerSupercluster + ciOffset) * c_clSize + tidxi;
         /* store i forces in shmem */
         sm_buf[tidx]                 = fCiBuf[ciOffset][0];
-        sm_buf[bufStride + tidx]     = fCiBuf[ciOffset][0];
-        sm_buf[2 * bufStride + tidx] = fCiBuf[ciOffset][0];
+        sm_buf[bufStride + tidx]     = fCiBuf[ciOffset][1];
+        sm_buf[2 * bufStride + tidx] = fCiBuf[ciOffset][2];
         itemIdx.barrier(fence_space::local_space);
 
         /* Reduce the initial c_clSize values for each i atom to half
