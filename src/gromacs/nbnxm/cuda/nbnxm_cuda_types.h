@@ -120,7 +120,7 @@ struct NbnxmGpu
     /*! \brief pair-list data structures (local and non-local) */
     gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist*> plist = { { nullptr } };
     /*! \brief staging area where fshift/energies get downloaded */
-    nb_staging_t nbst;
+    NBStagingData nbst;
     /*! \brief local and non-local GPU streams */
     gmx::EnumerationArray<Nbnxm::InteractionLocality, const DeviceStream*> deviceStreams;
 
