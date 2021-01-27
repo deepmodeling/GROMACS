@@ -64,6 +64,23 @@
 // For hipSYCL, we need to activate floating-point atomics
 #if defined(__HIPSYCL__)
 #    define HIPSYCL_EXT_FP_ATOMICS
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wunused-variable"
+#    pragma clang diagnostic ignored "-Wunused-parameter"
+#    pragma clang diagnostic ignored "-Wmissing-noreturn"
+#    pragma clang diagnostic ignored "-Wshadow-field"
+#    pragma clang diagnostic ignored "-Wctad-maybe-unsupported"
+#    pragma clang diagnostic ignored "-Wdeprecated-copy-dtor"
+#    pragma clang diagnostic ignored "-Winconsistent-missing-destructor-override"
+#    pragma clang diagnostic ignored "-Wunused-template"
+#    pragma clang diagnostic ignored "-Wsign-compare"
+#    pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#    pragma clang diagnostic ignored "-Wdeprecated-copy"
+#    pragma clang diagnostic ignored "-Wnewline-eof"
+#    pragma clang diagnostic ignored "-Wextra-semi"
+#    pragma clang diagnostic ignored "-Wsuggest-override"
+#    pragma clang diagnostic ignored "-Wsuggest-destructor-override"
+#    pragma clang diagnostic ignored "-Wgcc-compat"
 #endif
 
 #if DISABLE_UNROLL_WARNINGS
@@ -83,9 +100,10 @@
 #    include <CL/sycl.hpp>
 #endif
 
-#if DISABLE_UNROLL_WARNINGS
+#if DISABLE_UNROLL_WARNINGS || defined(__HIPSYCL__)
 #    pragma clang diagnostic pop
 #endif
+
 
 #undef DISABLE_UNROLL_WARNINGS
 
