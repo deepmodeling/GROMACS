@@ -764,6 +764,14 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->xq);
             freeDeviceBuffer(&d_atdat->atom_types);
             freeDeviceBuffer(&d_atdat->lj_comb);
+            if (bFEP){
+                freeDeviceBuffer(&d_atdat->qA);
+                freeDeviceBuffer(&d_atdat->atom_typesA);
+                freeDeviceBuffer(&d_atdat->lj_combA);
+                freeDeviceBuffer(&d_atdat->qB);
+                freeDeviceBuffer(&d_atdat->atom_typesB);
+                freeDeviceBuffer(&d_atdat->lj_combB);
+            }
         }
 
         stat = cudaMalloc((void**)&d_atdat->f, nalloc * sizeof(*d_atdat->f));
@@ -919,6 +927,15 @@ void gpu_free(gmx_nbnxn_cuda_t* nb)
     freeDeviceBuffer(&atdat->xq);
     freeDeviceBuffer(&atdat->atom_types);
     freeDeviceBuffer(&atdat->lj_comb);
+
+    if (d_atdat->qA != NULL){
+        freeDeviceBuffer(&d_atdat->qA);
+        freeDeviceBuffer(&d_atdat->atom_typesA);
+        freeDeviceBuffer(&d_atdat->lj_combA);
+        freeDeviceBuffer(&d_atdat->qB);
+        freeDeviceBuffer(&d_atdat->atom_typesB);
+        freeDeviceBuffer(&d_atdat->lj_combB);
+    }
 
     /* Free plist */
     auto* plist = nb->plist[InteractionLocality::Local];
