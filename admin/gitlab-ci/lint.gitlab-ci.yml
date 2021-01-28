@@ -81,7 +81,7 @@ clang-format:
     - .rules:basic-push
   cache: {}
   stage: pre-build
-  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs-1.8.17
   variables:
     COMPILER_MAJOR_VERSION: 7
     KUBERNETES_CPU_LIMIT: 1
@@ -112,7 +112,7 @@ copyright-check:
     - .rules:basic-push
   cache: {}
   stage: pre-build
-  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs-1.8.17
   variables:
     KUBERNETES_CPU_LIMIT: 1
     KUBERNETES_CPU_REQUEST: 1
