@@ -1069,7 +1069,7 @@ void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gridSet, gmx_nbnxn_gpu_t* gpu_
         // {
         //     printf("%d ", atomIndicesInv[i]);
         // }
-
+        gpu_nbv->atomIndicesSize_alloc = 0;
         reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
                                &gpu_nbv->atomIndicesSize_alloc, nullptr);
         gpu_nbv->atomIndicesSize_alloc = 0;
