@@ -118,6 +118,7 @@
     - *if-release-then-never
     - *if-mr-then-never
     - *if-schedule-then-never
+    - *if-web-then-always
     - *if-post-merge-acceptance-then-always
 
 # Jobs that run for merge requests and schedules, but not when GROMACS_RELEASE
@@ -139,6 +140,7 @@
     - *if-not-gromacs-then-never
     - *if-release-then-never
     - *if-schedule-then-never
+    - *if-web-then-always
     - *if-post-merge-acceptance-or-mr-then-always
 
 # Rule to run a job only in nightly release-preparation pipelines.
