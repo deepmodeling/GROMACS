@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -58,13 +58,26 @@ class HardwareTopology;
 class MDLogger;
 class PhysicalNodeCommunicator;
 
+/*! \brief Interface to thread-affinity handling
+ *
+ * Using an interface ensures the logic can be tested even when the
+ * underlying platform is not available. */
 class IThreadAffinityAccess
 {
 public:
-    virtual bool isThreadAffinitySupported() const        = 0;
+    //! Return whether setting thread affinity is supported.
+    virtual bool isThreadAffinitySupported() const = 0;
+    /*! \brief Set the affinity of the current thread to core \c
+     *
+     * The value of \c core must be a valid core ID, or the
+     * affinity will not be set.
+     *
+     * \return Whether affinity was successfully set.
+     */
     virtual bool setCurrentThreadAffinityToCore(int core) = 0;
 
 protected:
+    //! Required virtual destructor.
     virtual ~IThreadAffinityAccess();
 };
 

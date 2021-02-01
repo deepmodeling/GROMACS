@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -47,8 +47,6 @@
 #    include <sched.h>
 #endif
 
-#include "thread_mpi/threads.h"
-
 #include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/mdtypes/commrec.h"
@@ -64,29 +62,9 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/unique_cptr.h"
 
-namespace
-{
+#include "defaultthreadaffinityaccess.h"
 
-class DefaultThreadAffinityAccess : public gmx::IThreadAffinityAccess
-{
-public:
-    bool isThreadAffinitySupported() const override
-    {
-        return tMPI_Thread_setaffinity_support() == TMPI_SETAFFINITY_SUPPORT_YES;
-    }
-    bool setCurrentThreadAffinityToCore(int core) override
-    {
-        const int ret = tMPI_Thread_setaffinity_single(tMPI_Thread_self(), core);
-        return ret == 0;
-    }
-};
-
-//! Global instance of DefaultThreadAffinityAccess
-DefaultThreadAffinityAccess g_defaultAffinityAccess;
-
-} // namespace
-
-gmx::IThreadAffinityAccess::~IThreadAffinityAccess() {}
+gmx::IThreadAffinityAccess::~IThreadAffinityAccess() = default;
 
 static bool invalidWithinSimulation(const t_commrec* cr, bool invalidLocally)
 {
@@ -427,7 +405,7 @@ void gmx_set_thread_affinity(const gmx::MDLogger&         mdlog,
 
     if (affinityAccess == nullptr)
     {
-        affinityAccess = &g_defaultAffinityAccess;
+        affinityAccess = gmx::defaultThreadAffinityAccess();
     }
 
     /* If the tMPI thread affinity setting is not supported encourage the user
