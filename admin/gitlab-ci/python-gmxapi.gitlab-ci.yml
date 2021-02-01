@@ -39,7 +39,7 @@
 gmxapi-0.3:gcc-10:gmx2022:py-3.7.7:
   extends:
     - .gmxapi-0.3:gcc-10:gmx2022
-    - .rules:merge-requests:master
+    - .rules:merge-requests
   variables:
     VENVPATH: "/root/venv/py3.7"
     PY_VER: "3.7.7"
@@ -47,7 +47,7 @@ gmxapi-0.3:gcc-10:gmx2022:py-3.7.7:
 gmxapi-0.3:gcc-10:gmx2022:py-3.8.2:
   extends:
     - .gmxapi-0.3:gcc-10:gmx2022
-    - .rules:merge-requests:master
+    - .rules:merge-requests
   variables:
     VENVPATH: "/root/venv/py3.8"
     PY_VER: "3.8.2"
