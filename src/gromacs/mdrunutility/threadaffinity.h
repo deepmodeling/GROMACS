@@ -58,7 +58,8 @@ class HardwareTopology;
 class MDLogger;
 class PhysicalNodeCommunicator;
 
-/*! \brief Interface to thread-affinity handling
+/*! \libinternal
+ * \brief Interface to thread-affinity handling
  *
  * Using an interface ensures the logic can be tested even when the
  * underlying platform is not available. */

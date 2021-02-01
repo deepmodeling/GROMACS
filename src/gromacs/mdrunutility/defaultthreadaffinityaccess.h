@@ -50,7 +50,8 @@
 namespace gmx
 {
 
-/*! \brief Default implementation of thread-affinity access on
+/*! \libinternal
+ * \brief Default implementation of thread-affinity access on
  * supported platforms.
  *
  * Implementations on pthreads and winthreads are present. In
