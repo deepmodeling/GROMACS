@@ -121,8 +121,7 @@
     - *if-web-then-always
     - *if-post-merge-acceptance-then-always
 
-# Jobs that run for merge requests and schedules, but not when GROMACS_RELEASE
-# is set. Excludes non-GROMACS projects.
+# Jobs that run for merge requests. Excludes non-GROMACS projects.
 # More elaborate rule sets for merge requests should be based on the same sequence.
 .rules:merge-requests:
   rules:
