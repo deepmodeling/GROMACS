@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016, by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -78,18 +78,22 @@ enum class DeviceStatus : int
     Incompatible = 2,
     //! OpenCL device has incompatible cluster size for non-bonded kernels.
     IncompatibleClusterSize = 3,
-    //! There are known issues with NVIDIA Volta and newer.
+    //! There are known issues with OpenCL on NVIDIA Volta and newer.
     IncompatibleNvidiaVolta = 4,
+    /* \brief The device originates from non-recommended SYCL backend.
+     * The device might work by itself, but to simplify device allocation, it is marked as incompatible.
+     * */
+    NotPreferredBackend = 5,
     /*! \brief An error occurred during the functionality checks.
      * That indicates malfunctioning of the device, driver, or incompatible driver/runtime.
      */
-    NonFunctional = 5,
+    NonFunctional = 6,
     /*! \brief CUDA devices are busy or unavailable.
      * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
      */
-    Unavailable = 6,
+    Unavailable = 7,
     //! Enumeration size
-    Count = 7
+    Count = 8
 };
 
 /*! \brief Names of the GPU detection/check results
@@ -110,7 +114,9 @@ static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateStrin
     "incompatible (please recompile with correct GMX" "_OPENCL_NB_CLUSTER_SIZE of 4)",
     // clang-format on
     "incompatible (please use CUDA build for NVIDIA Volta GPUs or newer)",
-    "non-functional",
+    "unavailable"
+    "not recommended (please use SYCL_DEVICE_FILTER to limit visibility to a single backend)",
+    "non-functional", 
     "unavailable"
 };
 
