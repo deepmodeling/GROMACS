@@ -139,8 +139,7 @@ public:
                         real*           masses,
                         real*           inverseMasses,
                         bool            hasMassPerturbedAtoms,
-                        real            lambda,
-                        unsigned short* cFREEZE);
+                        real            lambda);
 
     /*! \brief Applies constraints to coordinates.
      *

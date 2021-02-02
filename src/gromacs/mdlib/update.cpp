@@ -1414,12 +1414,15 @@ void Update::Impl::finish_update(const t_inputrec& inputRecord,
     const int homenr = md->homenr;
     auto      xp     = makeConstArrayRef(xp_).subArray(0, homenr);
     auto      x      = makeArrayRef(state->x).subArray(0, homenr);
+    auto      v      = makeArrayRef(state->v).subArray(0, homenr);
 
     if (md->havePartiallyFrozenAtoms && haveConstraints)
     {
         /* We have atoms that are frozen along some, but not all dimensions,
          * then constraints will have moved them also along the frozen dimensions.
-         * To freeze such degrees of freedom we do not copy them back here.
+         * To freeze such degrees of freedom we:
+         * 1. Copy coordinates for all but frozen dimentions here.
+         * 2. Set the velocities along frozen dimensions to zero.
          */
         const ivec* nFreeze = inputRecord.opts.nFreeze;
 
@@ -1432,6 +1435,10 @@ void Update::Impl::finish_update(const t_inputrec& inputRecord,
                 if (nFreeze[g][d] == 0)
                 {
                     x[i][d] = xp[i][d];
+                }
+                else
+                {
+                    v[i][d] = 0.0;
                 }
             }
         }

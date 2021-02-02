@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -115,8 +115,7 @@ public:
                         real*           masses,
                         real*           inverseMasses,
                         bool            hasMassPerturbedAtoms,
-                        real            lambda,
-                        unsigned short* cFREEZE);
+                        real            lambda);
     bool apply(bool                      bLog,
                bool                      bEner,
                int64_t                   step,
@@ -176,8 +175,6 @@ public:
     bool hasMassPerturbedAtoms_;
     //! FEP lambda value.
     real lambda_;
-    //! Freeze groups data
-    unsigned short* cFREEZE_;
     //! Whether we need to do pbc for handling bonds.
     bool pbcHandlingRequired_ = false;
 
@@ -786,30 +783,8 @@ bool Constraints::Impl::apply(bool                      bLog,
     }
     wallcycle_stop(wcycle, ewcCONSTR);
 
-    if (!v.empty() && cFREEZE_)
-    {
-        /* Set the velocities of frozen dimensions to zero */
-        ArrayRef<RVec> vRef = v.unpaddedArrayRef();
-
-        int gmx_unused numThreads = gmx_omp_nthreads_get(emntUpdate);
-
-#pragma omp parallel for num_threads(numThreads) schedule(static)
-        for (int i = 0; i < numHomeAtoms_; i++)
-        {
-            int freezeGroup = cFREEZE_[i];
-
-            for (int d = 0; d < DIM; d++)
-            {
-                if (ir.opts.nFreeze[freezeGroup][d])
-                {
-                    vRef[i][d] = 0;
-                }
-            }
-        }
-    }
-
     return bOK;
-} // namespace gmx
+}
 
 ArrayRef<real> Constraints::rmsdData() const
 {
@@ -989,8 +964,7 @@ void Constraints::Impl::setConstraints(gmx_localtop_t* top,
                                        real*           masses,
                                        real*           inverseMasses,
                                        const bool      hasMassPerturbedAtoms,
-                                       const real      lambda,
-                                       unsigned short* cFREEZE)
+                                       const real      lambda)
 {
     numAtoms_              = numAtoms;
     numHomeAtoms_          = numHomeAtoms;
@@ -998,7 +972,6 @@ void Constraints::Impl::setConstraints(gmx_localtop_t* top,
     inverseMasses_         = inverseMasses;
     hasMassPerturbedAtoms_ = hasMassPerturbedAtoms;
     lambda_                = lambda;
-    cFREEZE_               = cFREEZE;
 
     idef = &top->idef;
 
@@ -1046,11 +1019,9 @@ void Constraints::setConstraints(gmx_localtop_t* top,
                                  real*           masses,
                                  real*           inverseMasses,
                                  const bool      hasMassPerturbedAtoms,
-                                 const real      lambda,
-                                 unsigned short* cFREEZE)
+                                 const real      lambda)
 {
-    impl_->setConstraints(
-            top, numAtoms, numHomeAtoms, masses, inverseMasses, hasMassPerturbedAtoms, lambda, cFREEZE);
+    impl_->setConstraints(top, numAtoms, numHomeAtoms, masses, inverseMasses, hasMassPerturbedAtoms, lambda);
 }
 
 /*! \brief Makes a per-moleculetype container of mappings from atom
