@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2014,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -82,8 +82,8 @@
  * Gromacs headers, they need for now take care to define the macros themselves
  * (as there is no way Gromacs can do that consistently).
  */
-#define __STDC_LIMIT_MACROS
-#define __STDC_FORMAT_MACROS
+#define STDC_LIMIT_MACROS
+#define STDC_FORMAT_MACROS
 
 #if GMX_FAHCORE
 #    define FULLINDIRECT 1
