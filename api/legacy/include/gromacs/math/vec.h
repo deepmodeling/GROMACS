@@ -367,6 +367,7 @@ static inline real cos_angle(const rvec a, const rvec b)
     double ip     = 0.0;
     double ipa    = 0.0;
     double ipb    = 0.0;
+    double ipab   = 0.0;
     for (int m = 0; (m < DIM); m++) /* 18 */
     {
         double aa = a[m];
