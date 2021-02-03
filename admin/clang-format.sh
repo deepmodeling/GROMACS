@@ -98,15 +98,15 @@ then
     if [ -z "$CLANG_FORMAT" ]
     then
         echo "Please set the path to clang-format using the git hook"
-        echo "git config hooks.clangformatpath /path/to/clang-format"
+        echo "git config hooks.clangformatpath /path/to/clang-format-11"
         echo "or by setting an environment variable, e.g."
-        echo "CLANG_FORMAT=/path/to/clang-format"
+        echo "CLANG_FORMAT=/path/to/clang-format-11"
         echo "See docs/dev-manual/code-formatting.rst for how to get clang-format."
         exit 2
     fi
     if ! which "$CLANG_FORMAT" 1>/dev/null
     then
-        echo "clang-format not found: $CLANG_FORMAT"
+        echo "clang-format-11 not found: $CLANG_FORMAT"
         exit 2
     fi
 fi
