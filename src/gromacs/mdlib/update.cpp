@@ -1421,7 +1421,7 @@ void Update::Impl::finish_update(const t_inputrec& inputRecord,
         /* We have atoms that are frozen along some, but not all dimensions,
          * then constraints will have moved them also along the frozen dimensions.
          * To freeze such degrees of freedom we:
-         * 1. Copy coordinates for all but frozen dimentions here.
+         * 1. Copy coordinates for all but frozen dimensions here.
          * 2. Set the velocities along frozen dimensions to zero.
          */
         const ivec* nFreeze = inputRecord.opts.nFreeze;
