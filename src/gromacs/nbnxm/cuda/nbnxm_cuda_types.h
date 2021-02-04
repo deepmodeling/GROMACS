@@ -140,6 +140,7 @@ typedef struct nb_staging  nb_staging_t;
  */
 struct nb_staging
 {
+    int     nener;  /**< Number of energy groups */
     float*  e_lj;   /**< LJ energy            */
     float*  e_el;   /**< electrostatic energy */
     float3* fshift; /**< shift forces         */
@@ -157,8 +158,8 @@ struct cu_atomdata
     float4* xq; /**< atom coordinates + charges, size natoms      */
     float3* f;  /**< force output array, size natoms              */
 
-    float* e_lj; /**< LJ energy output, size 1                     */
-    float* e_el; /**< Electrostatics energy input, size 1          */
+    float* e_lj; /**< LJ energy output, size nenergroup * nenergroup            */
+    float* e_el; /**< Electrostatics energy input, size nenergroup * nenergroup */
 
     float3* fshift; /**< shift forces                                 */
 
@@ -168,6 +169,13 @@ struct cu_atomdata
 
     float3* shift_vec;         /**< shifts                                       */
     bool    bShiftVecUploaded; /**< true if the shift vector has been uploaded   */
+
+    // The number of energy groups
+    int nenergrp;
+    // 2log(nenergrp)
+    int neg_2log;
+    // The energy groups, one int entry per cluster, only set when needed
+    int* energrp;
 };
 
 /** \internal
