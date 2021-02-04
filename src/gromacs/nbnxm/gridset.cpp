@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -57,14 +57,13 @@ namespace Nbnxm
 //! Returns the number of search grids
 static int numGrids(const GridSet::DomainSetup& domainSetup)
 {
-    int numGrids;
     if (domainSetup.doTestParticleInsertion)
     {
-        numGrids = 2;
+        return 2;
     }
     else
     {
-        numGrids = 1;
+        int numGrids = 1;
         for (auto haveDD : domainSetup.haveMultipleDomainsPerDim)
         {
             if (haveDD)
@@ -72,9 +71,8 @@ static int numGrids(const GridSet::DomainSetup& domainSetup)
                 numGrids *= 2;
             }
         }
+        return numGrids;
     }
-
-    return numGrids;
 }
 
 GridSet::DomainSetup::DomainSetup(const PbcType             pbcType,
@@ -147,12 +145,8 @@ void GridSet::putOnGrid(const matrix                   box,
 {
     Nbnxm::Grid& grid = grids_[gridIndex];
 
-    int cellOffset;
-    if (gridIndex == 0)
-    {
-        cellOffset = 0;
-    }
-    else
+    int cellOffset = 0;
+    if (gridIndex != 0)
     {
         const Nbnxm::Grid& previousGrid = grids_[gridIndex - 1];
         cellOffset = previousGrid.atomIndexEnd() / previousGrid.geometry().numAtomsPerCell;
@@ -160,7 +154,7 @@ void GridSet::putOnGrid(const matrix                   box,
 
     const int n = atomRange.size();
 
-    real maxAtomGroupRadius;
+    real maxAtomGroupRadius = NAN;
     if (gridIndex == 0)
     {
         copy_mat(box, box_);
