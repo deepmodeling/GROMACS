@@ -178,9 +178,9 @@ void pme_gpu_realloc_and_copy_bspline_values(PmeGpu* pmeGpu, const int gridIndex
                "Invalid combination of gridIndex and number of grids");
 
     const int splineValuesOffset[gmx::c_dim] = { 0,
-                                          pmeGpu->kernelParams->grid.realGridSize[XX],
-                                          pmeGpu->kernelParams->grid.realGridSize[XX]
-                                                  + pmeGpu->kernelParams->grid.realGridSize[YY] };
+                                                 pmeGpu->kernelParams->grid.realGridSize[XX],
+                                                 pmeGpu->kernelParams->grid.realGridSize[XX]
+                                                         + pmeGpu->kernelParams->grid.realGridSize[YY] };
     memcpy(&pmeGpu->kernelParams->grid.splineValuesOffset, &splineValuesOffset, sizeof(splineValuesOffset));
 
     const int newSplineValuesSize = pmeGpu->kernelParams->grid.realGridSize[XX]
@@ -731,10 +731,11 @@ void pme_gpu_update_input_box(PmeGpu gmx_unused* pmeGpu, const matrix gmx_unused
      * Spread uses matrix columns (while solve and gather use rows).
      * There is no particular reason for this; it might be further rethought/optimized for better access patterns.
      */
-    const real newRecipBox[gmx::c_dim][gmx::c_dim] = { { recipBox[XX][XX], recipBox[YY][XX],
-                                                         recipBox[ZZ][XX] },
-                                                       { 0.0, recipBox[YY][YY], recipBox[ZZ][YY] },
-                                                       { 0.0, 0.0, recipBox[ZZ][ZZ] } };
+    const real newRecipBox[gmx::c_dim][gmx::c_dim] = {
+        { recipBox[XX][XX], recipBox[YY][XX], recipBox[ZZ][XX] },
+        { 0.0, recipBox[YY][YY], recipBox[ZZ][YY] },
+        { 0.0, 0.0, recipBox[ZZ][ZZ] }
+    };
     memcpy(kernelParamsPtr->current.recipBox, newRecipBox, sizeof(matrix));
 #endif
 }

@@ -898,16 +898,21 @@ void calculateScalingMatrixImplDetail<epcBERENDSEN>(const t_inputrec* ir,
         case epctISOTROPIC:
             for (int d = 0; d < gmx::c_dim; d++)
             {
-                mu[d][d] = 1.0 - compressibilityFactor(d, d, ir, dt) * (ir->ref_p[d][d] - scalar_pressure) / gmx::c_dim;
+                mu[d][d] = 1.0
+                           - compressibilityFactor(d, d, ir, dt)
+                                     * (ir->ref_p[d][d] - scalar_pressure) / gmx::c_dim;
             }
             break;
         case epctSEMIISOTROPIC:
             for (int d = 0; d < ZZ; d++)
             {
-                mu[d][d] = 1.0 - compressibilityFactor(d, d, ir, dt) * (ir->ref_p[d][d] - xy_pressure) / gmx::c_dim;
+                mu[d][d] = 1.0
+                           - compressibilityFactor(d, d, ir, dt) * (ir->ref_p[d][d] - xy_pressure)
+                                     / gmx::c_dim;
             }
-            mu[ZZ][ZZ] =
-                    1.0 - compressibilityFactor(ZZ, ZZ, ir, dt) * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim;
+            mu[ZZ][ZZ] = 1.0
+                         - compressibilityFactor(ZZ, ZZ, ir, dt)
+                                   * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim;
             break;
         case epctANISOTROPIC:
             for (int d = 0; d < gmx::c_dim; d++)
@@ -915,7 +920,8 @@ void calculateScalingMatrixImplDetail<epcBERENDSEN>(const t_inputrec* ir,
                 for (int n = 0; n < gmx::c_dim; n++)
                 {
                     mu[d][n] = (d == n ? 1.0 : 0.0)
-                               - compressibilityFactor(d, n, ir, dt) * (ir->ref_p[d][n] - pres[d][n]) / gmx::c_dim;
+                               - compressibilityFactor(d, n, ir, dt)
+                                         * (ir->ref_p[d][n] - pres[d][n]) / gmx::c_dim;
                 }
             }
             break;
@@ -982,7 +988,7 @@ void calculateScalingMatrixImplDetail<epcCRESCALE>(const t_inputrec* ir,
             for (int d = 0; d < gmx::c_dim; d++)
             {
                 const real factor = compressibilityFactor(d, d, ir, dt);
-                mu[d][d]          = std::exp(-factor * (ir->ref_p[d][d] - scalar_pressure) / gmx::c_dim
+                mu[d][d] = std::exp(-factor * (ir->ref_p[d][d] - scalar_pressure) / gmx::c_dim
                                     + std::sqrt(2.0 * kt * factor * PRESFAC / vol) * gauss / gmx::c_dim);
             }
             break;
@@ -992,13 +998,14 @@ void calculateScalingMatrixImplDetail<epcCRESCALE>(const t_inputrec* ir,
             for (int d = 0; d < ZZ; d++)
             {
                 const real factor = compressibilityFactor(d, d, ir, dt);
-                mu[d][d]          = std::exp(-factor * (ir->ref_p[d][d] - xy_pressure) / gmx::c_dim
-                                    + std::sqrt((gmx::c_dim - 1) * 2.0 * kt * factor * PRESFAC / vol / gmx::c_dim)
-                                              / (gmx::c_dim - 1) * gauss);
+                mu[d][d]          = std::exp(
+                        -factor * (ir->ref_p[d][d] - xy_pressure) / gmx::c_dim
+                        + std::sqrt((gmx::c_dim - 1) * 2.0 * kt * factor * PRESFAC / vol / gmx::c_dim)
+                                  / (gmx::c_dim - 1) * gauss);
             }
             {
                 const real factor = compressibilityFactor(ZZ, ZZ, ir, dt);
-                mu[ZZ][ZZ]        = std::exp(-factor * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim
+                mu[ZZ][ZZ] = std::exp(-factor * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim
                                       + std::sqrt(2.0 * kt * factor * PRESFAC / vol / gmx::c_dim) * gauss2);
             }
             break;
@@ -1015,7 +1022,7 @@ void calculateScalingMatrixImplDetail<epcCRESCALE>(const t_inputrec* ir,
             }
             {
                 const real factor = compressibilityFactor(ZZ, ZZ, ir, dt);
-                mu[ZZ][ZZ]        = std::exp(-factor * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim
+                mu[ZZ][ZZ] = std::exp(-factor * (ir->ref_p[ZZ][ZZ] - pres[ZZ][ZZ]) / gmx::c_dim
                                       + std::sqrt(2.0 / 3.0 * kt * factor * PRESFAC / vol) * gauss2);
             }
             break;

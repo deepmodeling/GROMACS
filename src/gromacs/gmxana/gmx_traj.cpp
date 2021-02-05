@@ -891,12 +891,12 @@ int gmx_traj(int argc, char* argv[])
     }
     if (bEKT)
     {
-        bDum[XX]  = FALSE;
-        bDum[YY]  = FALSE;
-        bDum[ZZ]  = FALSE;
+        bDum[XX]         = FALSE;
+        bDum[YY]         = FALSE;
+        bDum[ZZ]         = FALSE;
         bDum[gmx::c_dim] = TRUE;
-        flags     = flags | TRX_READ_V;
-        outekt    = xvgropen(opt2fn("-ekt", NFILE, fnm),
+        flags            = flags | TRX_READ_V;
+        outekt           = xvgropen(opt2fn("-ekt", NFILE, fnm),
                           "Center of mass translation",
                           label,
                           "Energy (kJ mol\\S-1\\N)",
@@ -905,12 +905,12 @@ int gmx_traj(int argc, char* argv[])
     }
     if (bEKR)
     {
-        bDum[XX]  = FALSE;
-        bDum[YY]  = FALSE;
-        bDum[ZZ]  = FALSE;
+        bDum[XX]         = FALSE;
+        bDum[YY]         = FALSE;
+        bDum[ZZ]         = FALSE;
         bDum[gmx::c_dim] = TRUE;
-        flags     = flags | TRX_READ_X | TRX_READ_V;
-        outekr    = xvgropen(opt2fn("-ekr", NFILE, fnm),
+        flags            = flags | TRX_READ_X | TRX_READ_V;
+        outekr           = xvgropen(opt2fn("-ekr", NFILE, fnm),
                           "Center of mass rotation",
                           label,
                           "Energy (kJ mol\\S-1\\N)",

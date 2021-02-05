@@ -1105,8 +1105,8 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
         }
     }
 
-    pullAllReduce(cr, comm, ngroup * c_comBufferStride * gmx::c_dim,
-                  static_cast<double*>(comm->comBuffer[0]));
+    pullAllReduce(
+            cr, comm, ngroup * c_comBufferStride * gmx::c_dim, static_cast<double*>(comm->comBuffer[0]));
 
     for (size_t g = 0; g < ngroup; g++)
     {

@@ -1336,8 +1336,8 @@ static void make_pp_communicator(const gmx::MDLogger& mdlog,
             periods[i] = TRUE;
         }
         MPI_Comm comm_cart;
-        MPI_Cart_create(cr->mpi_comm_mygroup, gmx::c_dim, dd->numCells, periods,
-                        static_cast<int>(reorder), &comm_cart);
+        MPI_Cart_create(
+                cr->mpi_comm_mygroup, gmx::c_dim, dd->numCells, periods, static_cast<int>(reorder), &comm_cart);
         /* We overwrite the old communicator with the new cartesian one */
         cr->mpi_comm_mygroup = comm_cart;
     }
@@ -1538,8 +1538,8 @@ static CartesianRankSetup split_communicator(const gmx::MDLogger& mdlog,
             periods[i] = TRUE;
         }
         MPI_Comm comm_cart;
-        MPI_Cart_create(cr->mpi_comm_mysim, gmx::c_dim, cartSetup.ntot, periods,
-                        static_cast<int>(reorder), &comm_cart);
+        MPI_Cart_create(
+                cr->mpi_comm_mysim, gmx::c_dim, cartSetup.ntot, periods, static_cast<int>(reorder), &comm_cart);
         MPI_Comm_rank(comm_cart, &rank);
         if (MASTER(cr) && rank != 0)
         {

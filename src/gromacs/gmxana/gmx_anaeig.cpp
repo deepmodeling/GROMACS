@@ -1195,8 +1195,8 @@ int gmx_anaeig(int argc, char* argv[])
     bCompare = (Vec2File != nullptr) || (Eig2File != nullptr);
     bPDB3D   = fn2ftp(ThreeDPlotFile) == efPDB;
 
-    read_eigenvectors(VecFile, &natoms, &bFit1, &xref1, &bDMR1, &xav1, &bDMA1, &nvec1, &eignr1,
-                      &eigvec1, &eigval1);
+    read_eigenvectors(
+            VecFile, &natoms, &bFit1, &xref1, &bDMR1, &xav1, &bDMA1, &nvec1, &eignr1, &eigvec1, &eigval1);
     neig1 = std::min(nvec1, gmx::c_dim * natoms);
     if (nvec1 != gmx::c_dim * natoms)
     {

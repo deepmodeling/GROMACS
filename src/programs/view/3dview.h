@@ -47,12 +47,12 @@ typedef int iv2[2];
 typedef struct
 {
     matrix box;
-    int    ecenter;     /* enum for centering, see pbc.h */
-    vec4   eye, origin; /* The eye and origin position   */
-    mat4   proj;        /* Projection matrix             */
-    mat4   Rot;         /* Total rotation matrix         */
-    real   sc_x, sc_y;  /* Scaling for aspect ratio      */
-    mat4   RotP[gmx::c_dim];   /* state for 3d rotations        */
+    int    ecenter;          /* enum for centering, see pbc.h */
+    vec4   eye, origin;      /* The eye and origin position   */
+    mat4   proj;             /* Projection matrix             */
+    mat4   Rot;              /* Total rotation matrix         */
+    real   sc_x, sc_y;       /* Scaling for aspect ratio      */
+    mat4   RotP[gmx::c_dim]; /* state for 3d rotations        */
     mat4   RotM[gmx::c_dim];
 } t_3dview;
 

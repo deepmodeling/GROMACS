@@ -441,9 +441,9 @@ static FILE* open_pull_out(const char*             fn,
          * the group COMs for all the groups (+ ngroups_max*c_dim)
          * and the components of the distance vectors can be printed (+ (ngroups_max/2)*c_dim).
          */
-        snew(setname, pull->coord.size()
-                              * (1 + 1 + c_pullCoordNgroupMax * gmx::c_dim
-                                 + c_pullCoordNgroupMax / 2 * gmx::c_dim));
+        snew(setname,
+             pull->coord.size()
+                     * (1 + 1 + c_pullCoordNgroupMax * gmx::c_dim + c_pullCoordNgroupMax / 2 * gmx::c_dim));
 
         nsets = 0;
         for (size_t c = 0; c < pull->coord.size(); c++)
