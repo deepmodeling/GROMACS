@@ -86,7 +86,10 @@ static cudaError_t checkCompiledTargetCompatibility(int deviceId, const cudaDevi
                 "might be rare, or some architectures were disabled in the build. \n"
                 "Consult the install guide for how to use the GMX_CUDA_TARGET_SM and "
                 "GMX_CUDA_TARGET_COMPUTE CMake variables to add this architecture. \n",
-                gmx::getProgramContext().displayName(), deviceId, deviceProp.major, deviceProp.minor);
+                gmx::getProgramContext().displayName(),
+                deviceId,
+                deviceProp.major,
+                deviceProp.minor);
     }
 
     return stat;
@@ -127,8 +130,10 @@ static DeviceStatus isDeviceFunctional(const DeviceInformation& deviceInfo)
     cu_err = cudaSetDevice(deviceInfo.id);
     if (cu_err != cudaSuccess)
     {
-        fprintf(stderr, "Error %d while switching to device #%d: %s\n", cu_err, deviceInfo.id,
-                cudaGetErrorString(cu_err));
+        fprintf(stderr,
+                "Error while switching to device #%d. %s\n",
+                deviceInfo.id,
+                gmx::getDeviceErrorString(cu_err).c_str());
         return DeviceStatus::NonFunctional;
     }
 
@@ -160,7 +165,8 @@ static DeviceStatus isDeviceFunctional(const DeviceInformation& deviceInfo)
         // launchGpuKernel error is not fatal and should continue with marking the device bad
         fprintf(stderr,
                 "Error occurred while running dummy kernel sanity check on device #%d:\n %s\n",
-                deviceInfo.id, formatExceptionMessageToString(ex).c_str());
+                deviceInfo.id,
+                formatExceptionMessageToString(ex).c_str());
         return DeviceStatus::NonFunctional;
     }
 
@@ -216,11 +222,10 @@ bool isDeviceDetectionFunctional(std::string* errorMessage)
     stat                      = cudaDriverGetVersion(&driverVersion);
     GMX_ASSERT(stat != cudaErrorInvalidValue,
                "An impossible null pointer was passed to cudaDriverGetVersion");
-    GMX_RELEASE_ASSERT(
-            stat == cudaSuccess,
-            gmx::formatString("An unexpected value was returned from cudaDriverGetVersion %s: %s",
-                              cudaGetErrorName(stat), cudaGetErrorString(stat))
-                    .c_str());
+    GMX_RELEASE_ASSERT(stat == cudaSuccess,
+                       ("An unexpected value was returned from cudaDriverGetVersion. "
+                        + gmx::getDeviceErrorString(stat))
+                               .c_str());
     bool foundDriver = (driverVersion > 0);
     if (!foundDriver)
     {
@@ -268,18 +273,15 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
 {
     int         numDevices;
     cudaError_t stat = cudaGetDeviceCount(&numDevices);
-    if (stat != cudaSuccess)
-    {
-        GMX_THROW(gmx::InternalError(
-                "Invalid call of findDevices() when CUDA API returned an error, perhaps "
-                "canPerformDeviceDetection() was not called appropriately beforehand."));
-    }
+    gmx::checkDeviceError(stat,
+                          "Invalid call of findDevices() when CUDA API returned an error, perhaps "
+                          "canPerformDeviceDetection() was not called appropriately beforehand.");
 
     /* things might go horribly wrong if cudart is not compatible with the driver */
     numDevices = std::min(numDevices, c_cudaMaxDeviceCount);
 
     // We expect to start device support/sanity checks with a clean runtime error state
-    gmx::ensureNoPendingCudaError("");
+    gmx::ensureNoPendingDeviceError("Trying to find available CUDA devices.");
 
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList(numDevices);
     for (int i = 0; i < numDevices; i++)
@@ -288,9 +290,10 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
         memset(&prop, 0, sizeof(cudaDeviceProp));
         stat = cudaGetDeviceProperties(&prop, i);
 
-        deviceInfoList[i]       = std::make_unique<DeviceInformation>();
-        deviceInfoList[i]->id   = i;
-        deviceInfoList[i]->prop = prop;
+        deviceInfoList[i]               = std::make_unique<DeviceInformation>();
+        deviceInfoList[i]->id           = i;
+        deviceInfoList[i]->prop         = prop;
+        deviceInfoList[i]->deviceVendor = DeviceVendor::Nvidia;
 
         const DeviceStatus checkResult = (stat != cudaSuccess) ? DeviceStatus::NonFunctional
                                                                : checkDeviceStatus(*deviceInfoList[i]);
@@ -310,20 +313,18 @@ std::vector<std::unique_ptr<DeviceInformation>> findDevices()
             //
             // Here we also clear the CUDA API error state so potential
             // errors during sanity checks don't propagate.
-            if ((stat = cudaGetLastError()) != cudaSuccess)
-            {
-                gmx_warning("An error occurred while sanity checking device #%d; %s: %s",
-                            deviceInfoList[i]->id, cudaGetErrorName(stat), cudaGetErrorString(stat));
-            }
+            const std::string errorMessage = gmx::formatString(
+                    "An error occurred while sanity checking device #%d.", deviceInfoList[i]->id);
+            gmx::ensureNoPendingDeviceError(errorMessage);
         }
     }
 
     stat = cudaPeekAtLastError();
-    GMX_RELEASE_ASSERT(stat == cudaSuccess,
-                       gmx::formatString("We promise to return with clean CUDA state, but "
-                                         "non-success state encountered: %s: %s",
-                                         cudaGetErrorName(stat), cudaGetErrorString(stat))
-                               .c_str());
+    GMX_RELEASE_ASSERT(
+            stat == cudaSuccess,
+            ("We promise to return with clean CUDA state, but non-success state encountered. "
+             + gmx::getDeviceErrorString(stat))
+                    .c_str());
 
     return deviceInfoList;
 }
@@ -359,13 +360,13 @@ void releaseDevice(DeviceInformation* deviceInfo)
         {
             if (debug)
             {
-                fprintf(stderr, "Cleaning up context on GPU ID #%d\n", gpuid);
+                fprintf(stderr, "Cleaning up context on GPU ID #%d.\n", gpuid);
             }
 
             stat = cudaDeviceReset();
             if (stat != cudaSuccess)
             {
-                gmx_warning("Failed to free GPU #%d: %s", gpuid, cudaGetErrorString(stat));
+                gmx_warning("Failed to free GPU #%d. %s", gpuid, gmx::getDeviceErrorString(stat).c_str());
             }
         }
     }
@@ -378,14 +379,17 @@ std::string getDeviceInformationString(const DeviceInformation& deviceInfo)
 
     if (!gpuExists)
     {
-        return gmx::formatString("#%d: %s, stat: %s", deviceInfo.id, "N/A",
-                                 c_deviceStateString[deviceInfo.status]);
+        return gmx::formatString(
+                "#%d: %s, stat: %s", deviceInfo.id, "N/A", c_deviceStateString[deviceInfo.status]);
     }
     else
     {
         return gmx::formatString("#%d: NVIDIA %s, compute cap.: %d.%d, ECC: %3s, stat: %s",
-                                 deviceInfo.id, deviceInfo.prop.name, deviceInfo.prop.major,
-                                 deviceInfo.prop.minor, deviceInfo.prop.ECCEnabled ? "yes" : " no",
+                                 deviceInfo.id,
+                                 deviceInfo.prop.name,
+                                 deviceInfo.prop.major,
+                                 deviceInfo.prop.minor,
+                                 deviceInfo.prop.ECCEnabled ? "yes" : " no",
                                  c_deviceStateString[deviceInfo.status]);
     }
 }

@@ -49,7 +49,6 @@
 
 #include "device_management.h"
 
-#include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/fatalerror.h"
 
 #include "device_information.h"

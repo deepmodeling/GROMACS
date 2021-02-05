@@ -43,6 +43,8 @@
 
 #include "config.h"
 
+#include <time.h>
+
 #include <random>
 #include <string>
 
@@ -74,9 +76,9 @@ bool beCool()
 
 //! Return a valid random index into \c arrayRef
 template<typename T>
-const T& getRandomElement(gmx::ArrayRef<const T> arrayRef)
+const T& getPseudoRandomElement(gmx::ArrayRef<const T> arrayRef)
 {
-    std::random_device                    generator;
+    std::mt19937_64                       generator(time(nullptr));
     std::uniform_int_distribution<size_t> distribution(0, arrayRef.size() - 1);
     return arrayRef[distribution(generator)];
 }
@@ -116,7 +118,7 @@ std::string bromacs()
 
     if (beCool())
     {
-        return getRandomElement<const char*>(bromacsArray);
+        return getPseudoRandomElement<const char*>(bromacsArray);
     }
     else
     {
@@ -241,7 +243,6 @@ std::string getCoolQuote()
         { "You Own the Sun", "Throwing Muses" },
         { "I Need a Little Poison", "Throwing Muses" },
         { "Ease Myself Into the Body Bag", "P.J. Harvey" },
-        { "Motherhood Means Mental Freeze", "The Breeders" },
         { "Correctomundo", "Pulp Fiction" },
         { "I Don't Like Dirt", "The Breeders" },
         { "Bring Out the Gimp", "Pulp Fiction" },
@@ -394,8 +395,7 @@ std::string getCoolQuote()
         { "Disturb the Peace of a John Q Citizen", "Urban Dance Squad" },
         { "Wicky-wicky Wa-wild West", "Will Smith" },
         { "This is Tense !", "Star Wars Episode I The Phantom Menace" },
-        { "Fly to the Court of England and Unfold",
-          "Macbeth, Act 3, Scene 6, William Shakespeare" },
+        { "Fly to the Court of England and Unfold", "Macbeth, Act 3, Scene 6, William Shakespeare" },
         { "Why, how now, Claudio ! Whence Comes this Restraint ?",
           "Lucio in Measure for measure, Act 1, Scene 4, William Shakespeare" },
         { "In the End Science Comes Down to Praying", "P. v.d. Berg" },
@@ -453,8 +453,7 @@ std::string getCoolQuote()
         { "Nobody Never Learnt No-Nothing from No History", "Gogol Bordello" },
         { "I'd be Safe and Warm if I was in L.A.", "The Mamas and the Papas" },
         { "It's Unacceptable That Chocolate Makes You Fat", "MI 3" },
-        { "My Brothers are Protons (Protons!), My Sisters are Neurons (Neurons)",
-          "Gogol Bordello" },
+        { "My Brothers are Protons (Protons!), My Sisters are Neurons (Neurons)", "Gogol Bordello" },
         { "Put Me Inside SSC, Let's Test Superstring Theory, Oh Yoi Yoi Accelerate the Protons",
           "Gogol Bordello" },
         { "Do You Have Sex Maniacs or Schizophrenics or Astrophysicists in Your Family?",
@@ -535,8 +534,7 @@ std::string getCoolQuote()
         { "The scientific method is an integral part of human intelligence, and when it has once "
           "been set at work it can only be dismissed by dismissing the intelligence itself",
           "George H. Mead" },
-        { "Der Ball ist rund, das Spiel dauert 90 minuten, alles andere ist Theorie",
-          "Lola rennt" },
+        { "Der Ball ist rund, das Spiel dauert 90 minuten, alles andere ist Theorie", "Lola rennt" },
         { "Life in the streets is not easy", "Marky Mark" },
         { "How will I know it's working right?", "MGMT" },
         { "There was no preconception on what to do", "Daft Punk" },
@@ -1308,8 +1306,7 @@ std::string getCoolQuote()
         { "All sorts of things can happen when you're open to new ideas and playing around with "
           "things.",
           "Stephanie Kwolek, inventor of Kevlar" },
-        { "As always in life, people want a simple answer... and it's always wrong.",
-          "Marie Daly" },
+        { "As always in life, people want a simple answer... and it's always wrong.", "Marie Daly" },
         { "For a research worker the unforgotten moments of his life are those rare ones which "
           "come after years of plodding work, when the veil over natures secret seems suddenly to "
           "lift & when what was dark & chaotic appears in a clear & beautiful light & pattern.",
@@ -1379,8 +1376,7 @@ std::string getCoolQuote()
           "3-phosphoshikimate-carboxyvinyl transferase?' Shopkeeper: 'You mean Roundup?' "
           "Scientist: 'Yeah, that's it. I can never remember that dang name!'",
           "John Pickett" },
-        { "It is not clear that intelligence has any long-term survival value.",
-          "Stephen Hawking" },
+        { "It is not clear that intelligence has any long-term survival value.", "Stephen Hawking" },
         { "The greatest shortcoming of the human race is our inability to understand the "
           "exponential function.",
           "Albert Bartlett" },
@@ -1528,11 +1524,67 @@ std::string getCoolQuote()
         { "Everything what mathematicians were saying for the last 50 years is slowly catching up "
           "with us.",
           "David van der Spoel" },
+        { "I tend to consider myself as a scientist.",
+          "Emmanuelle Charpentier, when asked about the importance of two women sharing the Nobel "
+          "Prize for Chemistry" },
+        { "I identified myself very early on as a scientist rather than a student - as someone "
+          "creating knowledge rather than simply absorbing it.",
+          "Emmanuelle Charpentier" },
+        { "Look, I don't want to compete, so let's divide up physics between us. I'll take auroras "
+          "and you take the rest of the universe.",
+          "Joan Feynman to her brother Richard" },
+        { "There are three kinds of men. The one that learns by reading. The few who learn by "
+          "observation. The rest of them have to pee on the electric fence for themselves.",
+          "Will Rogers" },
+        { "I can't help but think the model is ungrateful for all that nice data I gave it. Jerk.",
+          "Kate Stafford" },
+        { "What do you call an acid with an attitude? A-mean-oh acid.", "Anonymous" },
+        { "Science grows like a weed every year.", "Kary Mullis" },
+        { "A good sign these days when you're listening to someone talk about this epidemic is the "
+          "number of times they say 'We don't know yet'. The more of those, the better.",
+          "Derek Lowe" },
+        { "Nullis in verba [Nobody's word is final].", "Motto of the Royal Society" },
+        { "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'.",
+          "Stan Ulam" },
+        { "Given enough eyeballs, all bugs are shallow.",
+          "Linus Torvalds, on the power of open source" },
+        { "If every study was groundbreaking, we'd end up with a bunch of holes in the ground and "
+          "nothing built.",
+          "Anonymous" },
+        { "Expertise is not inherently good.", "Joe Jordan" },
+        { "I couldn't give a shit about ribosomes.",
+          "Björn Forsberg, presenting his thesis, including two papers on ribosomes" },
+        { "Here's something fun to do: Next time you approach a conversation say 'I want to talk "
+          "to someone technical... Oh! There's a woman!' and walk straight over to her.",
+          "Patty Lopez" },
+        { "After a few talks we usually sit down to do some work... or drinking.", "Mike Klein" },
+        { "The message here is that Thermodynamic Integration sucks.", "Berk Hess" },
+        { "Enthusiasm is the mother of effort, and without it nothing great was ever achieved.",
+          "Ralph Waldo Emerson" },
+        { "Our hands are tied by physics.", "Christian Blau" },
+        { "If all it takes to motivate you is a fancy picture and quote, you probably have a very "
+          "easy job. The type of job computers will soon be doing.",
+          "Anonymous" },
+        { "At school I had a teacher that didn't like me and I didn't like him. At the end of the "
+          "year he decided to fail me. The ironic thing is that the topic was chemistry. I have "
+          "the distinction of being the only Chemistry Laurate who failed the topic in high "
+          "school.",
+          "Thomas Lindahl" },
+        { "Chemistry: It tends to be a messy science.",
+          "Gunnar von Heijne, former chair of the Nobel Committee for chemistry" },
+        { "Computers are incredibly fast, accurate and stupid. Humans are incredibly slow, "
+          "inaccurate and... also stupid.",
+          "Anonymous" },
+        { "Schrödinger's backup: The condition of any backup is unknown until a restore is "
+          "attempted.",
+          "Anonymous" },
+        { "If my PhD doesn't allow me to be right on the internet, what is it even good for?",
+          "Martin Vögele" }
     };
 
     if (beCool())
     {
-        auto quote = getRandomElement<Quote>(quoteArray);
+        auto quote = getPseudoRandomElement<Quote>(quoteArray);
         return formatString("GROMACS reminds you: \"%s\" (%s)", quote.text, quote.author);
     }
     else

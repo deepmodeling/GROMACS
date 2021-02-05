@@ -47,13 +47,15 @@ cmake_minimum_required(VERSION 3.13.0)
 # Reference https://scikit-build.readthedocs.io/en/latest/generators.html#macosx
 # and https://github.com/MacPython/wiki/wiki/Spinning-wheels
 set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14 CACHE STRING
-    "OS X deployment target below 10.14 does not use modern standard library"
-    FORCE)
+    "OS X deployment target below 10.14 does not use modern standard library")
 set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
     "OS X should build Python package for 64-bit architecture"
     FORCE)
 
-project(gmxapi VERSION 0.1.0)
+# Note that this is the gmxapi._gmxapi Python bindings package version,
+# not the C++ API version. It is not essential that it match the pure Python
+# package version, but is likely to do so.
+project(gmxapi VERSION 0.3.0)
 
 # Check if Python package is being built directly or via add_subdirectory
 set(GMXAPI_MASTER_PROJECT OFF)
@@ -74,7 +76,8 @@ if(POLICY CMP0074) #3.12
 endif()
 
 if(GMXAPI_MASTER_PROJECT)
-    find_package(gmxapi 0.0.8 REQUIRED
+    # TODO: Retain compatibility with libgmxapi 0.1 and back down the requirement.
+    find_package(gmxapi 0.2.0 REQUIRED
                  HINTS "$ENV{GROMACS_DIR}"
                  )
 endif()
@@ -148,10 +151,28 @@ set_target_properties(_gmxapi PROPERTIES
                       LIBRARY_OUTPUT_DIRECTORY ${GMXAPI_PYTHON_STAGING_DIR}/gmxapi)
 
 if(GMXAPI_MASTER_PROJECT)
+    # TODO: This requirement is probably overly restrictive.
     find_package(GROMACS 2021 REQUIRED
+                 NAMES gromacs gromacs_mpi
                  HINTS "$ENV{GROMACS_DIR}"
                  )
 endif()
+
+# Get details of GROMACS installation needed by the Python package at run time.
+
+# Get the MPI capability.
+get_target_property(_gmx_mpi Gromacs::gmxapi MPI)
+if (${_gmx_mpi} STREQUAL "library")
+    set(_gmx_mpi_type "\"library\"")
+elseif(${_gmx_mpi} STREQUAL "tmpi")
+    set(_gmx_mpi_type "\"tmpi\"")
+elseif(${_gmx_mpi} STREQUAL "none")
+    set(_gmx_mpi_type "null")
+else()
+    message(FATAL_ERROR "Unrecognized gmxapi MPI value: ${_gmx_mpi}")
+endif ()
+unset(_gmx_mpi)
+# Get the path of the command line entry point and binary install directory.
 if (NOT TARGET Gromacs::gmx)
     message(FATAL_ERROR "GROMACS command line tool not found.")
 endif ()
@@ -173,6 +194,7 @@ endif ()
 configure_file(gmxapi/gmxconfig.json.in ${GMXAPI_PYTHON_STAGING_DIR}/gmxapi/gmxconfig.json)
 unset(_gmx_executable)
 unset(_gmx_bindir)
+unset(_gmx_mpi_type)
 
 # scikit-build sets SKBUILD when running Python packaging tools through setup.py
 # (e.g. with pip)

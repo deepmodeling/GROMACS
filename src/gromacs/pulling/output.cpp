@@ -212,13 +212,13 @@ static void pull_print_x(FILE* out, pull_t* pull, double t)
             pcrdHistory = &pull->coordForceHistory->pullCoordinateSums[c];
 
             numValuesInSum = pull->coordForceHistory->numValuesInXSum;
-            pull_print_coord_dr(out, pull->params, pcrd.params, *pcrdHistory, pcrdHistory->valueRef,
-                                numValuesInSum);
+            pull_print_coord_dr(
+                    out, pull->params, pcrd.params, *pcrdHistory, pcrdHistory->valueRef, numValuesInSum);
         }
         else
         {
-            pull_print_coord_dr(out, pull->params, pcrd.params, pcrd.spatialData, pcrd.value_ref,
-                                numValuesInSum);
+            pull_print_coord_dr(
+                    out, pull->params, pcrd.params, pcrd.spatialData, pcrd.value_ref, numValuesInSum);
         }
 
         if (pull->params.bPrintCOM)
@@ -249,7 +249,8 @@ static void pull_print_x(FILE* out, pull_t* pull, double t)
                     {
                         if (pull->bXOutAverage)
                         {
-                            fprintf(out, "\t%g",
+                            fprintf(out,
+                                    "\t%g",
                                     pull->coordForceHistory->pullGroupSums[pcrd.params.group[0]].x[m]
                                             / numValuesInSum);
                         }
@@ -268,7 +269,8 @@ static void pull_print_x(FILE* out, pull_t* pull, double t)
                     {
                         if (pull->bXOutAverage)
                         {
-                            fprintf(out, "\t%g",
+                            fprintf(out,
+                                    "\t%g",
                                     pull->coordForceHistory->pullGroupSums[pcrd.params.group[g]].x[m]
                                             / numValuesInSum);
                         }
@@ -297,7 +299,8 @@ static void pull_print_f(FILE* out, const pull_t* pull, double t)
     {
         for (size_t c = 0; c < pull->coord.size(); c++)
         {
-            fprintf(out, "\t%g",
+            fprintf(out,
+                    "\t%g",
                     pull->coordForceHistory->pullCoordinateSums[c].scalarForce
                             / pull->coordForceHistory->numValuesInFSum);
         }

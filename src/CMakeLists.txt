@@ -53,14 +53,14 @@ endif()
 # CMAKE_BUILD_TYPE is #included into buildinfo.h and populates the
 # fields e.g. printed to the log file.
 file(GENERATE
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/compilerflaginfo-$<CONFIG>-$<COMPILE_LANGUAGE>.h
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/include/compilerflaginfo-$<CONFIG>-$<COMPILE_LANGUAGE>.h
     INPUT ${CMAKE_CURRENT_SOURCE_DIR}/compilerflaginfo.h.cmakein
     CONDITION $<CONFIG:${CMAKE_BUILD_TYPE}>
     )
 
 ####
-set(IGNORED_CLANG_ALL_WARNINGS
-    "-Wno-c++98-compat -Wno-c++98-compat-pedantic" #No intention of C++98 compability
+list(APPEND IGNORED_CLANG_ALL_WARNINGS
+    "-Wno-c++98-compat" "-Wno-c++98-compat-pedantic" #No intention of C++98 compability
     "-Wno-source-uses-openmp" #Don't warn for no-omp build
     "-Wno-c++17-extensions"   #Allowed in attributes (compilers are required to ignore unknown attributes)
     "-Wno-documentation-unknown-command" #Custom commands are used
@@ -92,7 +92,6 @@ set(IGNORED_CLANG_ALL_WARNINGS
     "-Wno-old-style-cast"
     "-Wno-conversion"
     "-Wno-double-promotion")
-string(REPLACE " " ";" IGNORED_CLANG_ALL_WARNINGS "${IGNORED_CLANG_ALL_WARNINGS}")
 
 option(GMX_CLANG_TIDY "Use clang-tidy" OFF)
 if (GMX_CLANG_TIDY)
@@ -114,6 +113,19 @@ if (GMX_CLANG_TIDY)
    mark_as_advanced(CLANG_TIDY)
    mark_as_advanced(CLANG_TIDY_EXE)
 endif()
+
+# Create a basic target for the `src` section of the build tree to capture
+# the library-level shared details through CMake infrastructure. It is not
+# installed or exported, so it must only be used as a PRIVATE dependency by
+# installed targets.
+# Initially, this is just an INTERFACE target to provide include directory.
+# It should also absorb global variables and compiler/linker details to be
+# provided as transitive usage requirements.
+# It could expand to aggregate the module targets in the future.
+add_library(common INTERFACE)
+target_include_directories(common INTERFACE
+                           ${CMAKE_CURRENT_SOURCE_DIR}/include
+                           ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 add_subdirectory(external)
 
@@ -140,9 +152,9 @@ add_subdirectory(api)
 # header file in both of the make stages. That's slow, and is useless
 # busy work for ccache, too.
 string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
-configure_file(config.h.cmakein config.h)
-configure_file(gmxpre-config.h.cmakein gmxpre-config.h)
+configure_file(config.h.cmakein include/config.h)
+configure_file(gmxpre-config.h.cmakein include/gmxpre-config.h)
 
 set(CMAKE_BUILD_CONFIGURATION_C_FLAGS   ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE_UPPER}})
 set(CMAKE_BUILD_CONFIGURATION_CXX_FLAGS ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER}})
-configure_file(buildinfo.h.cmakein buildinfo.h ESCAPE_QUOTES)
+configure_file(buildinfo.h.cmakein include/buildinfo.h ESCAPE_QUOTES)

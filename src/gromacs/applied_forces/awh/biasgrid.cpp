@@ -827,12 +827,12 @@ BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* 
                     c_numPointsPerSigma >= 1.0,
                     "The number of points per sigma should be at least 1.0 to get a uniformly "
                     "covering the reaction using Gaussians");
-            double pointDensity = std::sqrt(dimParams[d].betak) * c_numPointsPerSigma;
+            double pointDensity = std::sqrt(dimParams[d].pullDimParams().betak) * c_numPointsPerSigma;
             axis_.emplace_back(origin, end, period[d], pointDensity);
         }
         else
         {
-            axis_.emplace_back(origin, end, 0, dimParams[d].numFepLambdaStates, true);
+            axis_.emplace_back(origin, end, 0, dimParams[d].fepDimParams().numFepLambdaStates, true);
         }
         numPoints *= axis_[d].numPoints();
     }
@@ -897,7 +897,8 @@ void mapGridToDataGrid(std::vector<int>*    gridpointToDatapoint,
         std::string mesg = gmx::formatString(
                 "Could not extract data properly from %s. Wrong data format?"
                 "\n\n%s",
-                dataFilename.c_str(), correctFormatMessage.c_str());
+                dataFilename.c_str(),
+                correctFormatMessage.c_str());
         GMX_THROW(InvalidInputError(mesg));
     }
 
@@ -912,8 +913,8 @@ void mapGridToDataGrid(std::vector<int>*    gridpointToDatapoint,
         }
         else
         {
-            axis_.emplace_back(data[d][0], data[d][numDataPoints - 1], grid.axis(d).period(),
-                               numPoints[d], false);
+            axis_.emplace_back(
+                    data[d][0], data[d][numDataPoints - 1], grid.axis(d).period(), numPoints[d], false);
         }
     }
 
@@ -930,7 +931,8 @@ void mapGridToDataGrid(std::vector<int>*    gridpointToDatapoint,
                     "%s does not contain data for all coordinate values. "
                     "Make sure your input data covers the whole sampling domain "
                     "and is correctly formatted. \n\n%s",
-                    dataFilename.c_str(), correctFormatMessage.c_str());
+                    dataFilename.c_str(),
+                    correctFormatMessage.c_str());
             GMX_THROW(InvalidInputError(mesg));
         }
         (*gridpointToDatapoint)[m] = getNearestIndexInGrid(grid.point(m).coordValue, axis_);

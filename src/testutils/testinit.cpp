@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "testinit.h"
+#include "testutils/testinit.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -68,11 +68,12 @@
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/textwriter.h"
 
-#include "testutils/mpi_printer.h"
 #include "testutils/refdata.h"
 #include "testutils/test_hardware_environment.h"
 #include "testutils/testfilemanager.h"
 #include "testutils/testoptions.h"
+
+#include "mpi_printer.h"
 
 namespace gmx
 {
@@ -152,9 +153,8 @@ void initTestUtils(const char* dataPath,
                    int*        argc,
                    char***     argv)
 {
-#if !defined NDEBUG                                                                         \
-        && !((defined __clang__ || (defined(__GNUC__) && !defined(__ICC) && __GNUC__ == 7)) \
-             && defined __OPTIMIZE__)
+#if !defined NDEBUG \
+        && !((defined __clang__ || (defined(__GNUC__) && __GNUC__ == 7)) && defined __OPTIMIZE__)
     gmx_feenableexcept();
 #endif
     const CommandLineProgramContext& context = initForCommandLine(argc, argv);
@@ -171,7 +171,8 @@ void initTestUtils(const char* dataPath,
                         "NOTE: You are running %s on %d MPI ranks, "
                         "but it is does not contain MPI-enabled tests. "
                         "The test will now exit.\n",
-                        context.programName(), gmx_node_num());
+                        context.programName(),
+                        gmx_node_num());
             }
             finalizeForCommandLine();
             std::exit(1);

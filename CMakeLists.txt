@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2009,2010,2011,2012,2013 by the GROMACS development team.
 # Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
-# Copyright (c) 2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -46,8 +46,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Providing a default value >=10.14 helps to find modern C++ compatibility,
     # such as by defaulting to the Clang libc++ instead of libstdc++.
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.14 CACHE STRING
-        "OS X deployment target affects default SDK version and compiler flags."
-        FORCE)
+        "OS X deployment target affects default SDK version and compiler flags.")
     # By default, limit the binary architecture to a single 64-bit build.
     set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING
         "OS X architecture affects the compatibility of the (potentially fat) binaries produced."
@@ -175,20 +174,10 @@ include(gmxOptionUtilities)
 
 set(CMAKE_PREFIX_PATH "" CACHE STRING "Extra locations to search for external libraries and tools (give directory without lib, bin, or include)")
 
-# Fujitsu only has SIMD in double precision, so this will be faster
-gmx_set_boolean(GMX_DOUBLE_DEFAULT GMX_TARGET_FUJITSU_SPARC64)
-option(GMX_DOUBLE "Use double precision (much slower, use only if you really need it)" ${GMX_DOUBLE_DEFAULT})
-option(GMX_RELAXED_DOUBLE_PRECISION "Accept single precision 1/sqrt(x) when using Fujitsu HPC-ACE SIMD" OFF)
-mark_as_advanced(GMX_RELAXED_DOUBLE_PRECISION)
+option(GMX_DOUBLE "Use double precision (much slower, use only if you really need it)" OFF)
 
 option(GMX_MPI    "Build a parallel (message-passing) version of GROMACS" OFF)
 option(GMX_THREAD_MPI  "Build a thread-MPI-based multithreaded version of GROMACS (not compatible with MPI)" ON)
-gmx_dependent_option(
-    GMX_MPI_IN_PLACE
-    "Enable MPI_IN_PLACE for MPIs that have it defined"
-    ON
-    GMX_MPI)
-mark_as_advanced(GMX_MPI_IN_PLACE)
 
 option(GMX_MIMIC "Enable MiMiC QM/MM interface (CPMD is required)" OFF)
 
@@ -211,13 +200,9 @@ gmx_option_multichoice(
     GMX_SIMD
     "SIMD instruction set for CPU kernels and compiler optimization"
     "AUTO"
-    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL MIC ARM_NEON ARM_NEON_ASIMD IBM_VMX IBM_VSX Sparc64_HPC_ACE Reference)
+    AUTO None SSE2 SSE4.1 AVX_128_FMA AVX_256 AVX2_256 AVX2_128 AVX_512 AVX_512_KNL ARM_NEON_ASIMD ARM_SVE IBM_VSX Reference)
 
-if(GMX_TARGET_MIC)
-    set(GMX_FFT_LIBRARY_DEFAULT "mkl")
-else()
-    set(GMX_FFT_LIBRARY_DEFAULT "fftw3")
-endif()
+set(GMX_FFT_LIBRARY_DEFAULT "fftw3")
 
 gmx_option_multichoice(
     GMX_FFT_LIBRARY
@@ -248,8 +233,6 @@ mark_as_advanced(GMX_BROKEN_CALLOC)
 option(GMX_OPENMP "Enable OpenMP-based multithreading" ON)
 
 option(GMX_USE_TNG "Use the TNG library for trajectory I/O" ON)
-
-option(GMX_BUILD_MDRUN_ONLY "Build and install only the mdrun binary" OFF)
 
 option(GMX_CYCLE_SUBCOUNTERS "Enable cycle subcounters to get a more detailed cycle timings" OFF)
 mark_as_advanced(GMX_CYCLE_SUBCOUNTERS)
@@ -323,9 +306,6 @@ gmx_test_compiler_problems()
 # want such variables to always have a definition, because #if is more
 # robust than #ifdef. So, we put this value on the compiler command
 # line in all cases.
-#
-# GMX_RELAXED_DOUBLE_PRECISION does not need to be handled here,
-# because no installed header needs it
 if(GMX_DOUBLE)
     set(GMX_DOUBLE_VALUE 1)
 else()
@@ -370,7 +350,7 @@ check_cxx_source_compiles("int main(){ return __builtin_clz(1);}"   HAVE_BUILTIN
 check_cxx_source_compiles("int main(){ return __builtin_clzll(1);}" HAVE_BUILTIN_CLZLL)
 if(MSVC)
     check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned long i=1;_BitScanReverse(&r,i);return r;}" HAVE_BITSCANREVERSE)
-    check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned __int64 i=1;_BitScanReverse(&r,i);return r;}" HAVE_BITSCANREVERSE64)
+    check_cxx_source_compiles("#include <intrin.h>\n int main(){unsigned long r;unsigned __int64 i=1;_BitScanReverse64(&r,i);return r;}" HAVE_BITSCANREVERSE64)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "XL")
     check_cxx_source_compiles("int main(){ return __cntlz4(1);}" HAVE_CNTLZ4)
     check_cxx_source_compiles("int main(){ return __cntlz8(1);}" HAVE_CNTLZ8)
@@ -401,17 +381,6 @@ include(TestBigEndian)
 test_big_endian(GMX_INTEGER_BIG_ENDIAN)
 
 gmx_set_boolean(GMX_USE_NICE "HAVE_UNISTD_H AND HAVE_NICE")
-
-# Management of GROMACS options for specific toolchains should go
-# here. Because the initial settings for some of the main options have
-# already happened, but things like library detection and MPI compiler
-# feature detection have not, the docstrings for any over-rides of
-# GROMACS defaults or user settings will make sense. Also, any
-# toolchain-related reasons for choosing whether to detect various
-# things can be sorted out now, before the detection takes place.
-if(GMX_TARGET_FUJITSU_SPARC64)
-    include(gmxManageFujitsuSparc64)
-endif()
 
 ########################################################################
 #Process MPI settings
@@ -511,6 +480,10 @@ if (GMX_HWLOC)
         message(FATAL_ERROR "HWLOC package support required, but not found.")
     endif()
 
+    if (HWLOC_FOUND AND HWLOC_VERSION VERSION_LESS "2")
+        message(STATUS "Support for hwloc versions 1.x is deprecated")
+    endif()
+
     set(HWLOC_FIND_QUIETLY_AFTER_FIRST_RUN TRUE CACHE INTERNAL "Be quiet during future attempts to find HWLOC")
 endif()
 
@@ -557,7 +530,6 @@ tmpi_enable_core("${CMAKE_SOURCE_DIR}/src/external/thread_mpi/include")
 if(GMX_THREAD_MPI)
     # enable MPI functions
     tmpi_enable()
-    set(MPI_IN_PLACE_EXISTS 1)
 endif()
 # If atomics are manually disabled a define is needed because atomics.h doesn't depend on config.h
 if (TMPI_ATOMICS_DISABLED)
@@ -574,6 +546,9 @@ if(GMX_GPU)
     if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
         include(gmxManageCuda)
     elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
+        message(STATUS "GPU support with OpenCL is deprecated. It is still fully supported (and " 
+            "recommended for AMD and Intel GPUs). It may be replaced by different approaches in "
+            "future releases of GROMACS.")
         include(gmxManageOpenCL)
     elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
         include(gmxManageSYCL)
@@ -603,10 +578,7 @@ gmx_add_cache_dependency(GMX_BUILD_UNITTESTS BOOL BUILD_TESTING OFF)
 # Our own GROMACS tests
 ########################################################################
 
-include_directories(BEFORE ${CMAKE_SOURCE_DIR}/src)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/external)
-# Required for config.h, maybe should only be set in src/CMakeLists.txt
-include_directories(BEFORE ${CMAKE_BINARY_DIR}/src)
 
 include(gmxTestInlineASM)
 gmx_test_inline_asm_gcc_x86(GMX_X86_GCC_INLINE_ASM)
@@ -785,15 +757,13 @@ endif()
 option(GMX_PYTHON_PACKAGE "Configure gmxapi Python package" OFF)
 mark_as_advanced(GMX_PYTHON_PACKAGE)
 
-if (NOT GMX_BUILD_MDRUN_ONLY)
-    find_package(ImageMagick QUIET COMPONENTS convert)
-    include(gmxTestImageMagick)
-    GMX_TEST_IMAGEMAGICK(IMAGE_CONVERT_POSSIBLE)
-    # TODO: Resolve circular dependency between docs, gromacs, and python_packaging
-    add_subdirectory(docs)
-    add_subdirectory(share)
-    add_subdirectory(scripts)
-endif()
+find_package(ImageMagick QUIET COMPONENTS convert)
+include(gmxTestImageMagick)
+GMX_TEST_IMAGEMAGICK(IMAGE_CONVERT_POSSIBLE)
+# TODO: Resolve circular dependency between docs, gromacs, and python_packaging
+add_subdirectory(docs)
+add_subdirectory(share)
+add_subdirectory(scripts)
 add_subdirectory(api)
 add_subdirectory(src)
 
@@ -801,7 +771,7 @@ if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-if(GMX_PYTHON_PACKAGE AND NOT GMX_BUILD_MDRUN_ONLY)
+if(GMX_PYTHON_PACKAGE)
     add_subdirectory(python_packaging)
 endif()
 

@@ -48,7 +48,10 @@
  */
 #include "gmxpre.h"
 
+#include <algorithm>
+
 #include "gromacs/hardware/device_management.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 
 #include "device_information.h"
@@ -70,16 +73,26 @@ bool isDeviceDetectionEnabled()
     }
 }
 
-bool canComputeOnDevice()
+DeviceVendor getDeviceVendor(const char* vendorName)
 {
-    bool canComputeOnDevice = false;
-    if (canPerformDeviceDetection(nullptr))
+    if (vendorName)
     {
-        std::vector<std::unique_ptr<DeviceInformation>> devInfos = findDevices();
-        canComputeOnDevice = !getCompatibleDevices(devInfos).empty();
+        if (strstr(vendorName, "NVIDIA"))
+        {
+            return DeviceVendor::Nvidia;
+        }
+        else if (strstr(vendorName, "AMD") || strstr(vendorName, "Advanced Micro Devices"))
+        {
+            return DeviceVendor::Amd;
+        }
+        else if (strstr(vendorName, "Intel"))
+        {
+            return DeviceVendor::Intel;
+        }
     }
-    return canComputeOnDevice;
+    return DeviceVendor::Unknown;
 }
+
 
 std::vector<std::reference_wrapper<DeviceInformation>>
 getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
@@ -97,6 +110,37 @@ getCompatibleDevices(const std::vector<std::unique_ptr<DeviceInformation>>& devi
     return compatibleDeviceInfoList;
 }
 
+std::vector<int> getCompatibleDeviceIds(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList)
+{
+    // Possible minor over-allocation here, but not important for anything
+    std::vector<int> compatibleDeviceIds;
+    compatibleDeviceIds.reserve(deviceInfoList.size());
+    for (const auto& deviceInfo : deviceInfoList)
+    {
+        if (deviceInfo->status == DeviceStatus::Compatible)
+        {
+            compatibleDeviceIds.emplace_back(deviceInfo->id);
+        }
+    }
+    return compatibleDeviceIds;
+}
+
+bool deviceIdIsCompatible(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
+                          const int                                              deviceId)
+{
+    auto foundIt = std::find_if(deviceInfoList.begin(),
+                                deviceInfoList.end(),
+                                [deviceId](auto& deviceInfo) { return deviceInfo->id == deviceId; });
+    if (foundIt == deviceInfoList.end())
+    {
+        GMX_THROW(gmx::RangeError(gmx::formatString(
+                "Device ID %d did not correspond to any of the %zu detected device(s)",
+                deviceId,
+                deviceInfoList.size())));
+    }
+    return (*foundIt)->status == DeviceStatus::Compatible;
+}
+
 std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                               int deviceId)
 {
@@ -108,6 +152,8 @@ std::string getDeviceCompatibilityDescription(const std::vector<std::unique_ptr<
 void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfoList,
                                  gmx::ISerializer*                                      serializer)
 {
+    GMX_RELEASE_ASSERT(c_canSerializeDeviceInformation,
+                       "DeviceInformation for OpenCL/SYCL can not be serialized");
     int numDevices = deviceInfoList.size();
     serializer->doInt(&numDevices);
     for (auto& deviceInfo : deviceInfoList)
@@ -118,6 +164,8 @@ void serializeDeviceInformations(const std::vector<std::unique_ptr<DeviceInforma
 
 std::vector<std::unique_ptr<DeviceInformation>> deserializeDeviceInformations(gmx::ISerializer* serializer)
 {
+    GMX_RELEASE_ASSERT(c_canSerializeDeviceInformation,
+                       "DeviceInformation for OpenCL/SYCL can not be deserialized");
     int numDevices = 0;
     serializer->doInt(&numDevices);
     std::vector<std::unique_ptr<DeviceInformation>> deviceInfoList(numDevices);

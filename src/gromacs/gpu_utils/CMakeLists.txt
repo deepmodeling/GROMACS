@@ -36,6 +36,8 @@
 # the incidence of textual clashes when adding/moving files that
 # otherwise make the end of the list a hotspot.
 
+add_library(gpu_utils INTERFACE)
+
 gmx_add_libgromacs_sources(
         clfftinitializer.cpp
         device_stream_manager.cpp
@@ -58,18 +60,60 @@ elseif(GMX_GPU_CUDA)
         pinning.cu
         pmalloc_cuda.cu
         )
+    _gmx_add_files_to_property(CUDA_SOURCES
+        device_stream_manager.cpp
+	)
 elseif(GMX_GPU_SYCL)
     gmx_add_libgromacs_sources(
+        devicebuffer_sycl.cpp
         device_context_sycl.cpp
         device_stream_sycl.cpp
         )
-    _gmx_add_files_to_property(SYCL_SOURCES device_context_sycl.cpp device_stream_sycl.cpp)
+    _gmx_add_files_to_property(SYCL_SOURCES
+        devicebuffer_sycl.cpp
+        device_context_manager.cpp
+        device_context_sycl.cpp
+        device_stream_manager.cpp
+        device_stream_sycl.cpp
+        )
 else()
     gmx_add_libgromacs_sources(
         device_context.cpp
         device_stream.cpp
     )
 endif()
+
+# Source files have the following private module dependencies.
+target_link_libraries(gpu_utils PRIVATE
+#                      gmxlib
+#                      math
+#                      mdtypes
+#                      tng_io
+                      )
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(gpu_utils PUBLIC
+target_include_directories(gpu_utils INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(gpu_utils PUBLIC
+target_link_libraries(gpu_utils INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when gpu_utils is an OBJECT target
+#target_link_libraries(gpu_utils PUBLIC legacy_api)
+#target_link_libraries(gpu_utils PRIVATE common)
+
+# Module dependencies
+# gpu_utils interfaces convey transitive dependence on these modules.
+#target_link_libraries(gpu_utils PUBLIC
+target_link_libraries(gpu_utils INTERFACE
+#                      utility
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(gpu_utils PRIVATE tng_io)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(gpu_utils PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

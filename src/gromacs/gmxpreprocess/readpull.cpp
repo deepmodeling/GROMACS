@@ -55,6 +55,7 @@
 #include "gromacs/pulling/pull.h"
 #include "gromacs/topology/topology.h"
 #include "gromacs/utility/arrayref.h"
+#include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"
@@ -71,21 +72,18 @@ static void string2dvec(const char buf[], dvec nums)
     }
 }
 
-static void init_pull_group(t_pull_group* pg, const char* wbuf)
+static std::vector<real> setupPullGroupWeights(const char* wbuf)
 {
     double d;
     int    n;
 
-    pg->nweight = 0;
+    std::vector<real> weight;
     while (sscanf(wbuf, "%lf %n", &d, &n) == 1)
     {
-        if (pg->nweight % 100 == 0)
-        {
-            srenew(pg->weight, pg->nweight + 100);
-        }
-        pg->weight[pg->nweight++] = d;
+        weight.push_back(d);
         wbuf += n;
     }
+    return weight;
 }
 
 static void process_pull_dim(char* dim_buf, ivec dim, const t_pull_coord* pcrd)
@@ -151,7 +149,9 @@ static void init_pull_coord(t_pull_coord* pcrd,
         gmx_fatal(FARGS,
                   "Pulling of type %s can not be combined with geometry %s. Consider using pull "
                   "type %s.",
-                  epull_names[pcrd->eType], epullg_names[pcrd->eGeom], epull_names[epullUMBRELLA]);
+                  epull_names[pcrd->eType],
+                  epullg_names[pcrd->eGeom],
+                  epull_names[epullUMBRELLA]);
     }
 
     if (pcrd->eType == epullEXTERNAL)
@@ -161,8 +161,11 @@ static void init_pull_coord(t_pull_coord* pcrd,
             sprintf(buf,
                     "The use of pull type '%s' for pull coordinate %d requires that the name of "
                     "the module providing the potential external is set with the option %s%d%s",
-                    epull_names[pcrd->eType], coord_index_for_output, "pull-coord",
-                    coord_index_for_output, "-potential-provider");
+                    epull_names[pcrd->eType],
+                    coord_index_for_output,
+                    "pull-coord",
+                    coord_index_for_output,
+                    "-potential-provider");
             warning_error(wi, buf);
         }
 
@@ -171,7 +174,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
             sprintf(buf,
                     "The use of pull type '%s' for pull coordinate %d requires that the pull rate "
                     "is zero",
-                    epull_names[pcrd->eType], coord_index_for_output);
+                    epull_names[pcrd->eType],
+                    coord_index_for_output);
             warning_error(wi, buf);
         }
 
@@ -184,7 +188,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
                     "With pull type '%s' and geometry '%s', the distance component along the "
                     "cylinder axis between atoms in the cylinder group and the COM of the pull "
                     "group should be smaller than half the box length",
-                    epull_names[pcrd->eType], epullg_names[pcrd->eGeom]);
+                    epull_names[pcrd->eType],
+                    epullg_names[pcrd->eGeom]);
             warning_note(wi, buf);
         }
     }
@@ -208,7 +213,9 @@ static void init_pull_coord(t_pull_coord* pcrd,
                     "This may work, since you have set pull-coord-start to 'yes' which modifies "
                     "this value, but only for certain starting distances. "
                     "If this is a mistake you may want to use geometry %s instead.",
-                    pcrd->init, EPULLGEOM(pcrd->eGeom), EPULLGEOM(epullgDIR));
+                    pcrd->init,
+                    EPULLGEOM(pcrd->eGeom),
+                    EPULLGEOM(epullgDIR));
             warning(wi, buf);
         }
     }
@@ -222,7 +229,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
                     "allowed range [0, 180] degrees for geometry (%s). "
                     "This may work, since you have set pull-coord-start to 'yes' which modifies "
                     "this value, but only for certain starting angles.",
-                    pcrd->init, EPULLGEOM(pcrd->eGeom));
+                    pcrd->init,
+                    EPULLGEOM(pcrd->eGeom));
             warning(wi, buf);
         }
     }
@@ -235,7 +243,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
                     "allowed range [-180, 180] degrees for geometry (%s). "
                     "This may work, since you have set pull-coord-start to 'yes' which modifies "
                     "this value, but only for certain starting angles.",
-                    pcrd->init, EPULLGEOM(pcrd->eGeom));
+                    pcrd->init,
+                    EPULLGEOM(pcrd->eGeom));
             warning(wi, buf);
         }
     }
@@ -249,7 +258,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
     {
         if (dnorm2(vec) == 0)
         {
-            gmx_fatal(FARGS, "With pull geometry %s the pull vector can not be 0,0,0",
+            gmx_fatal(FARGS,
+                      "With pull geometry %s the pull vector can not be 0,0,0",
                       epullg_names[pcrd->eGeom]);
         }
         for (int d = 0; d < gmx::c_dim; d++)
@@ -259,7 +269,8 @@ static void init_pull_coord(t_pull_coord* pcrd,
                 gmx_fatal(FARGS,
                           "pull-coord-vec has non-zero %c-component while pull_dim for the "
                           "%c-dimension is set to N",
-                          'x' + d, 'x' + d);
+                          'x' + d,
+                          'x' + d);
             }
         }
 
@@ -274,7 +285,10 @@ static void init_pull_coord(t_pull_coord* pcrd,
                     "A pull vector is given (%g  %g  %g) but will not be used with geometry %s. If "
                     "you really want to use this "
                     "vector, consider using geometry %s instead.",
-                    vec[0], vec[1], vec[2], EPULLGEOM(pcrd->eGeom),
+                    vec[0],
+                    vec[1],
+                    vec[2],
+                    EPULLGEOM(pcrd->eGeom),
                     pcrd->eGeom == epullgANGLE ? EPULLGEOM(epullgANGLEAXIS) : EPULLGEOM(epullgDIR));
             warning(wi, buf);
         }
@@ -292,9 +306,6 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
     char buf[STRLEN];
     char provider[STRLEN], groups[STRLEN], dim_buf[STRLEN];
     char wbuf[STRLEN], origin_buf[STRLEN], vec_buf[STRLEN];
-
-    t_pull_group* pgrp;
-    t_pull_coord* pcrd;
 
     /* read pull parameters */
     printStringNoNewline(inp, "Cylinder radius for dynamic reaction force groups (nm)");
@@ -325,10 +336,6 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
         gmx_fatal(FARGS, "pull-ncoords should be >= 1");
     }
 
-    snew(pull->group, pull->ngroup);
-
-    snew(pull->coord, pull->ncoord);
-
     /* pull group options */
     printStringNoNewline(inp, "Group and coordinate parameters");
 
@@ -336,61 +343,75 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
     std::vector<std::string> pullGroups(pull->ngroup);
     char                     readBuffer[STRLEN];
     /* Group 0 is the absolute reference, we don't read anything for 0 */
+    pull->group.emplace_back(t_pull_group());
     for (int groupNum = 1; groupNum < pull->ngroup; groupNum++)
     {
-        pgrp = &pull->group[groupNum];
+        t_pull_group pullGroup; //= &pull->group[groupNum];
         sprintf(buf, "pull-group%d-name", groupNum);
         setStringEntry(inp, buf, readBuffer, "");
         pullGroups[groupNum] = readBuffer;
         sprintf(buf, "pull-group%d-weights", groupNum);
         setStringEntry(inp, buf, wbuf, "");
         sprintf(buf, "pull-group%d-pbcatom", groupNum);
-        pgrp->pbcatom = get_eint(inp, buf, 0, wi);
+        pullGroup.pbcatom = get_eint(inp, buf, 0, wi);
 
         /* Initialize the pull group */
-        init_pull_group(pgrp, wbuf);
+        pullGroup.weight = setupPullGroupWeights(wbuf);
+        pull->group.emplace_back(pullGroup);
     }
 
     /* Read the pull coordinates */
     for (int coordNum = 1; coordNum < pull->ncoord + 1; coordNum++)
     {
-        pcrd = &pull->coord[coordNum - 1];
+        t_pull_coord pullCoord; // = &pull->coord[coordNum - 1];
         sprintf(buf, "pull-coord%d-type", coordNum);
-        pcrd->eType = get_eeenum(inp, buf, epull_names, wi);
+        pullCoord.eType = get_eeenum(inp, buf, epull_names, wi);
         sprintf(buf, "pull-coord%d-potential-provider", coordNum);
         setStringEntry(inp, buf, provider, "");
-        pcrd->externalPotentialProvider = gmx_strdup(provider);
+        pullCoord.externalPotentialProvider = gmx_strdup(provider);
         sprintf(buf, "pull-coord%d-geometry", coordNum);
-        pcrd->eGeom = get_eeenum(inp, buf, epullg_names, wi);
+        pullCoord.eGeom = get_eeenum(inp, buf, epullg_names, wi);
         sprintf(buf, "pull-coord%d-groups", coordNum);
         setStringEntry(inp, buf, groups, "");
 
-        switch (pcrd->eGeom)
+        switch (pullCoord.eGeom)
         {
-            case epullgDIHEDRAL: pcrd->ngroup = 6; break;
+            case epullgDIHEDRAL: pullCoord.ngroup = 6; break;
             case epullgDIRRELATIVE:
-            case epullgANGLE: pcrd->ngroup = 4; break;
-            default: pcrd->ngroup = 2; break;
+            case epullgANGLE: pullCoord.ngroup = 4; break;
+            default: pullCoord.ngroup = 2; break;
         }
 
-        nscan = sscanf(groups, "%d %d %d %d %d %d %d", &pcrd->group[0], &pcrd->group[1],
-                       &pcrd->group[2], &pcrd->group[3], &pcrd->group[4], &pcrd->group[5], &idum);
-        if (nscan != pcrd->ngroup)
+        nscan = sscanf(groups,
+                       "%d %d %d %d %d %d %d",
+                       &pullCoord.group[0],
+                       &pullCoord.group[1],
+                       &pullCoord.group[2],
+                       &pullCoord.group[3],
+                       &pullCoord.group[4],
+                       &pullCoord.group[5],
+                       &idum);
+        if (nscan != pullCoord.ngroup)
         {
             auto message =
                     gmx::formatString("%s should contain %d pull group indices with geometry %s",
-                                      buf, pcrd->ngroup, epullg_names[pcrd->eGeom]);
+                                      buf,
+                                      pullCoord.ngroup,
+                                      epullg_names[pullCoord.eGeom]);
             set_warning_line(wi, nullptr, -1);
             warning_error(wi, message);
         }
-        for (int g = 0; g < pcrd->ngroup; g++)
+        for (int g = 0; g < pullCoord.ngroup; g++)
         {
-            if (pcrd->group[g] < 0 || pcrd->group[g] >= pull->ngroup)
+            if (pullCoord.group[g] < 0 || pullCoord.group[g] >= pull->ngroup)
             {
                 /* Quit with a fatal error to avoid invalid memory access */
                 gmx_fatal(FARGS,
                           "%s contains an invalid pull group %d, you should have %d <= group <= %d",
-                          buf, pcrd->group[g], 0, pull->ngroup - 1);
+                          buf,
+                          pullCoord.group[g],
+                          0,
+                          pull->ngroup - 1);
             }
         }
 
@@ -401,121 +422,119 @@ std::vector<std::string> read_pullparams(std::vector<t_inpfile>* inp, pull_param
         sprintf(buf, "pull-coord%d-vec", coordNum);
         setStringEntry(inp, buf, vec_buf, "0.0 0.0 0.0");
         sprintf(buf, "pull-coord%d-start", coordNum);
-        pcrd->bStart = (get_eeenum(inp, buf, yesno_names, wi) != 0);
+        pullCoord.bStart = (get_eeenum(inp, buf, yesno_names, wi) != 0);
         sprintf(buf, "pull-coord%d-init", coordNum);
-        pcrd->init = get_ereal(inp, buf, 0.0, wi);
+        pullCoord.init = get_ereal(inp, buf, 0.0, wi);
         sprintf(buf, "pull-coord%d-rate", coordNum);
-        pcrd->rate = get_ereal(inp, buf, 0.0, wi);
+        pullCoord.rate = get_ereal(inp, buf, 0.0, wi);
         sprintf(buf, "pull-coord%d-k", coordNum);
-        pcrd->k = get_ereal(inp, buf, 0.0, wi);
+        pullCoord.k = get_ereal(inp, buf, 0.0, wi);
         sprintf(buf, "pull-coord%d-kB", coordNum);
-        pcrd->kB = get_ereal(inp, buf, pcrd->k, wi);
+        pullCoord.kB = get_ereal(inp, buf, pullCoord.k, wi);
 
         /* Initialize the pull coordinate */
-        init_pull_coord(pcrd, coordNum, dim_buf, origin_buf, vec_buf, wi);
+        init_pull_coord(&pullCoord, coordNum, dim_buf, origin_buf, vec_buf, wi);
+        pull->coord.emplace_back(pullCoord);
     }
 
     return pullGroups;
 }
 
-void make_pull_groups(pull_params_t*                   pull,
-                      gmx::ArrayRef<const std::string> pullGroupNames,
-                      const t_blocka*                  grps,
-                      char**                           gnames)
+void process_pull_groups(gmx::ArrayRef<t_pull_group>      pullGroups,
+                         gmx::ArrayRef<const std::string> pullGroupNames,
+                         const t_blocka*                  grps,
+                         char**                           gnames)
 {
-    int           g, ig = -1, i;
-    t_pull_group* pgrp;
-
     /* Absolute reference group (might not be used) is special */
-    pgrp                = &pull->group[0];
-    pgrp->nat           = 0;
-    pgrp->pbcatom       = -1;
-    pgrp->pbcatom_input = -1;
+    pullGroups.front().pbcatom       = -1;
+    pullGroups.front().pbcatom_input = -1;
 
-    for (g = 1; g < pull->ngroup; g++)
+    // Skip pull group 0 here, as that is the absolute reference
+    for (int g = 1; g < int(pullGroups.size()); g++)
     {
-        pgrp                = &pull->group[g];
-        pgrp->pbcatom_input = pgrp->pbcatom;
+        auto& pullGroup = pullGroups[g];
 
         if (pullGroupNames[g].empty())
         {
             gmx_fatal(FARGS, "Pull option pull_group%d required by grompp has not been set.", g);
         }
 
-        ig        = search_string(pullGroupNames[g].c_str(), grps->nr, gnames);
-        pgrp->nat = grps->index[ig + 1] - grps->index[ig];
+        int ig                = search_string(pullGroupNames[g].c_str(), grps->nr, gnames);
+        int numPullGroupAtoms = grps->index[ig + 1] - grps->index[ig];
 
-        fprintf(stderr, "Pull group %d '%s' has %d atoms\n", g, pullGroupNames[g].c_str(), pgrp->nat);
+        fprintf(stderr, "Pull group %d '%s' has %d atoms\n", g, pullGroupNames[g].c_str(), numPullGroupAtoms);
 
-        if (pgrp->nat == 0)
+        if (numPullGroupAtoms == 0)
         {
             gmx_fatal(FARGS, "Pull group %d '%s' is empty", g, pullGroupNames[g].c_str());
         }
 
-        snew(pgrp->ind, pgrp->nat);
-        for (i = 0; i < pgrp->nat; i++)
+        for (int i = 0; i < numPullGroupAtoms; i++)
         {
-            pgrp->ind[i] = grps->a[grps->index[ig] + i];
+            pullGroup.ind.push_back(grps->a[grps->index[ig] + i]);
         }
 
-        if (pgrp->nweight > 0 && pgrp->nweight != pgrp->nat)
+        if (!pullGroup.weight.empty() && pullGroup.weight.size() != pullGroup.ind.size())
         {
             gmx_fatal(FARGS,
-                      "Number of weights (%d) for pull group %d '%s' does not match the number of "
-                      "atoms (%d)",
-                      pgrp->nweight, g, pullGroupNames[g].c_str(), pgrp->nat);
+                      "Number of weights (%ld) for pull group %d '%s' does not match the number of "
+                      "atoms (%ld)",
+                      gmx::ssize(pullGroup.weight),
+                      g,
+                      pullGroupNames[g].c_str(),
+                      gmx::ssize(pullGroup.ind));
         }
 
-        if (pgrp->nat == 1)
+        pullGroup.pbcatom_input = pullGroup.pbcatom;
+        if (pullGroup.ind.size() == 1)
         {
             /* No pbc is required for this group */
-            pgrp->pbcatom = -1;
+            pullGroup.pbcatom = -1;
         }
         else
         {
-            if (pgrp->pbcatom > 0)
+            if (pullGroup.pbcatom > 0)
             {
-                pgrp->pbcatom -= 1;
+                pullGroup.pbcatom -= 1;
             }
-            else if (pgrp->pbcatom == 0)
+            else if (pullGroup.pbcatom == 0)
             {
-                pgrp->pbcatom = pgrp->ind[(pgrp->nat - 1) / 2];
+                pullGroup.pbcatom = pullGroup.ind[(pullGroup.ind.size() - 1) / 2];
             }
             else
             {
                 /* Use cosine weighting */
-                pgrp->pbcatom = -1;
+                pullGroup.pbcatom = -1;
             }
         }
     }
 }
 
-void make_pull_coords(pull_params_t* pull)
+void checkPullCoords(gmx::ArrayRef<const t_pull_group> pullGroups, gmx::ArrayRef<const t_pull_coord> pullCoords)
 {
-    int           c;
-    t_pull_coord* pcrd;
-
-    for (c = 0; c < pull->ncoord; c++)
+    for (int c = 0; c < int(pullCoords.size()); c++)
     {
-        pcrd = &pull->coord[c];
+        t_pull_coord pcrd = pullCoords[c];
 
-        if (pcrd->group[0] < 0 || pcrd->group[0] >= pull->ngroup || pcrd->group[1] < 0
-            || pcrd->group[1] >= pull->ngroup)
+        if (pcrd.group[0] < 0 || pcrd.group[0] >= int(pullGroups.size()) || pcrd.group[1] < 0
+            || pcrd.group[1] >= int(pullGroups.size()))
         {
             gmx_fatal(FARGS,
                       "Pull group index in pull-coord%d-groups out of range, should be between %d "
                       "and %d",
-                      c + 1, 0, pull->ngroup + 1);
+                      c + 1,
+                      0,
+                      int(pullGroups.size()) + 1);
         }
 
-        if (pcrd->group[0] == pcrd->group[1])
+        if (pcrd.group[0] == pcrd.group[1])
         {
             gmx_fatal(FARGS, "Identical pull group indices in pull-coord%d-groups", c + 1);
         }
 
-        if (pcrd->eGeom == epullgCYL)
+        if (pcrd.eGeom == epullgCYL)
         {
-            if (pull->group[pcrd->group[0]].nweight > 0)
+            if (!pullGroups[pcrd.group[0]].weight.empty())
             {
                 gmx_fatal(
                         FARGS,
@@ -527,13 +546,12 @@ void make_pull_coords(pull_params_t* pull)
 
 pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix box, real lambda, warninp_t wi)
 {
-    pull_params_t* pull;
-    pull_t*        pull_work;
-    t_pbc          pbc;
-    int            c;
-    double         t_start;
+    pull_t* pull_work;
+    t_pbc   pbc;
+    int     c;
+    double  t_start;
 
-    pull = ir->pull;
+    pull_params_t*           pull = ir->pull.get();
     gmx::LocalAtomSetManager atomSets;
     pull_work    = init_pull(nullptr, pull, ir, mtop, nullptr, &atomSets, lambda);
     auto mdAtoms = gmx::makeMDAtoms(nullptr, *mtop, *ir, false);
@@ -557,8 +575,11 @@ pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix bo
     for (int g = 0; g < pull->ngroup; g++)
     {
         bool groupObeysPbc = pullCheckPbcWithinGroup(
-                *pull_work, gmx::arrayRefFromArray(reinterpret_cast<gmx::RVec*>(x), mtop->natoms),
-                pbc, g, c_pullGroupSmallGroupThreshold);
+                *pull_work,
+                gmx::arrayRefFromArray(reinterpret_cast<gmx::RVec*>(x), mtop->natoms),
+                pbc,
+                g,
+                c_pullGroupSmallGroupThreshold);
         if (!groupObeysPbc)
         {
             char buf[STRLEN];
@@ -571,7 +592,8 @@ pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix bo
                         "atom should be chosen as pbcatom. Pull group %d is larger than that and "
                         "does not have "
                         "a specific atom selected as reference atom.",
-                        c_pullGroupSmallGroupThreshold, g);
+                        c_pullGroupSmallGroupThreshold,
+                        g);
                 warning_error(wi, buf);
             }
             else if (!pull->bSetPbcRefToPrevStepCOM)
@@ -581,15 +603,20 @@ pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix bo
                         "other "
                         "atoms in the group is larger than %g times half the box size. "
                         "Set the pull-pbc-ref-prev-step-com option to yes.",
-                        pull->group[g].pbcatom + 1, g, c_pullGroupSmallGroupThreshold);
+                        pull->group[g].pbcatom + 1,
+                        g,
+                        c_pullGroupSmallGroupThreshold);
                 warning_error(wi, buf);
             }
         }
         if (groupObeysPbc)
         {
             groupObeysPbc = pullCheckPbcWithinGroup(
-                    *pull_work, gmx::arrayRefFromArray(reinterpret_cast<gmx::RVec*>(x), mtop->natoms),
-                    pbc, g, c_pullGroupPbcMargin);
+                    *pull_work,
+                    gmx::arrayRefFromArray(reinterpret_cast<gmx::RVec*>(x), mtop->natoms),
+                    pbc,
+                    g,
+                    c_pullGroupPbcMargin);
             if (!groupObeysPbc)
             {
                 char buf[STRLEN];
@@ -598,7 +625,9 @@ pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix bo
                         "size from the PBC atom (%d). "
                         "If atoms are or will more beyond half the box size from the PBC atom, the "
                         "COM will be ill defined.",
-                        g, c_pullGroupPbcMargin, pull->group[g].pbcatom + 1);
+                        g,
+                        c_pullGroupPbcMargin,
+                        pull->group[g].pbcatom + 1);
                 set_warning_line(wi, nullptr, -1);
                 warning(wi, buf);
             }
@@ -617,8 +646,8 @@ pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix bo
 
         pgrp0 = &pull->group[pcrd->group[0]];
         pgrp1 = &pull->group[pcrd->group[1]];
-        fprintf(stderr, "%8d  %8d  %8d\n", pcrd->group[0], pgrp0->nat, pgrp0->pbcatom + 1);
-        fprintf(stderr, "%8d  %8d  %8d ", pcrd->group[1], pgrp1->nat, pgrp1->pbcatom + 1);
+        fprintf(stderr, "%8d  %8zu  %8d\n", pcrd->group[0], pgrp0->ind.size(), pgrp0->pbcatom + 1);
+        fprintf(stderr, "%8d  %8zu  %8d ", pcrd->group[1], pgrp1->ind.size(), pgrp1->pbcatom + 1);
 
         if (pcrd->bStart)
         {
@@ -643,7 +672,9 @@ pull_t* set_pull_init(t_inputrec* ir, const gmx_mtop_t* mtop, rvec* x, matrix bo
                 gmx_fatal(FARGS,
                           "The initial pull distance (%g) needs to be non-negative with geometry "
                           "%s. If you want a signed distance, use geometry %s instead.",
-                          pcrd->init, EPULLGEOM(pcrd->eGeom), EPULLGEOM(epullgDIR));
+                          pcrd->init,
+                          EPULLGEOM(pcrd->eGeom),
+                          EPULLGEOM(epullgDIR));
             }
 
             /* TODO: With a positive init but a negative rate things could still

@@ -37,7 +37,6 @@
 #include <cmath>
 
 #include <memory>
-#include <random>
 #include <tuple>
 #include <vector>
 
@@ -88,23 +87,8 @@ struct AwhFepLambdaStateTestParameters
     std::vector<DimParams> dimParams; //!< Dimension parameters for setting up Bias
 };
 
-/*! \internal \brief Helper function to fill an array with random values (between lowerBound and
- * upperBound) from randomEngine.
- */
-static void randomArrayFill(ArrayRef<double>           array,
-                            std::default_random_engine randomEngine,
-                            double                     lowerBound,
-                            double                     upperBound)
-{
-    std::uniform_real_distribution<double> unif(lowerBound, upperBound);
-    for (size_t i = 0; i < array.size(); i++)
-    {
-        array[i] = unif(randomEngine);
-    }
-}
-
 //! Helper function to set up the C-style AWH parameters for the test
-static AwhFepLambdaStateTestParameters getAwhTestParameters(int eawhgrowth, int eawhpotential)
+static AwhFepLambdaStateTestParameters getAwhFepLambdaTestParameters(int eawhgrowth, int eawhpotential)
 {
     AwhFepLambdaStateTestParameters params;
 
@@ -112,8 +96,9 @@ static AwhFepLambdaStateTestParameters getAwhTestParameters(int eawhgrowth, int 
 
     AwhDimParams& awhDimParams = params.awhDimParams;
 
-    awhDimParams.period         = 0;
-    awhDimParams.diffusion      = 1e-4;
+    awhDimParams.period = 0;
+    // Correction for removal of GaussianGeometryFactor/2 in histogram size
+    awhDimParams.diffusion      = 1e-4 / (0.12927243028700 * 2);
     awhDimParams.origin         = 0;
     awhDimParams.end            = numLambdaStates - 1;
     awhDimParams.coordValueInit = awhDimParams.origin;
@@ -133,10 +118,9 @@ static AwhFepLambdaStateTestParameters getAwhTestParameters(int eawhgrowth, int 
     awhBiasParams.shareGroup           = 0;
     awhBiasParams.equilibrateHistogram = FALSE;
 
-    double  k    = 1000;
     int64_t seed = 93471803;
 
-    params.dimParams.emplace_back(k, params.beta, numLambdaStates);
+    params.dimParams.push_back(DimParams::fepLambdaDimParams(numLambdaStates, params.beta));
 
     AwhParams& awhParams = params.awhParams;
 
@@ -192,14 +176,22 @@ public:
         /* Set up a basic AWH setup with a single, 1D bias with parameters
          * such that we can measure the effects of different parameters.
          */
-        const AwhFepLambdaStateTestParameters params = getAwhTestParameters(eawhgrowth, eawhpotential);
+        const AwhFepLambdaStateTestParameters params =
+                getAwhFepLambdaTestParameters(eawhgrowth, eawhpotential);
 
         seed_ = params.awhParams.seed;
 
         double mdTimeStep = 0.1;
 
-        bias_ = std::make_unique<Bias>(-1, params.awhParams, params.awhBiasParams, params.dimParams,
-                                       params.beta, mdTimeStep, 1, "", Bias::ThisRankWillDoIO::No,
+        bias_ = std::make_unique<Bias>(-1,
+                                       params.awhParams,
+                                       params.awhBiasParams,
+                                       params.dimParams,
+                                       params.beta,
+                                       mdTimeStep,
+                                       1,
+                                       "",
+                                       Bias::ThisRankWillDoIO::No,
                                        disableUpdateSkips);
     }
 };
@@ -223,45 +215,36 @@ TEST_P(BiasFepLambdaStateTest, ForcesBiasPmf)
 
     std::vector<double> force, pot;
 
-    double                     potentialJump        = 0;
-    double                     mdTimeStep           = 0.1;
-    double                     energyNoiseMagnitude = 1.0;
-    double                     dhdlNoiseMagnitude   = 1.5;
-    int                        nSteps               = 501;
-    std::default_random_engine randomEngine;
-    randomEngine.seed(1234);
+    double potentialJump = 0;
+    double mdTimeStep    = 0.1;
+    int    nSteps        = 501;
 
     /* Some energies to use as base values (to which some noise is added later on). */
-    std::vector<double> lambdaEnergyBase(numLambdaStates);
-    std::vector<double> lambdaDhdlBase(numLambdaStates);
+    std::vector<double> neighborLambdaEnergies(numLambdaStates);
+    std::vector<double> neighborLambdaDhdl(numLambdaStates);
     const double        magnitude = 12.0;
     for (int i = 0; i < numLambdaStates; i++)
     {
-        lambdaEnergyBase[i] = magnitude * std::sin(i * 0.1);
-        lambdaDhdlBase[i]   = magnitude * std::cos(i * 0.1);
+        neighborLambdaEnergies[i] = magnitude * std::sin(i * 0.1);
+        neighborLambdaDhdl[i]     = magnitude * std::cos(i * 0.1);
     }
 
     for (int step = 0; step < nSteps; step++)
     {
-        /* Create some noise and add it to the base values */
-        std::vector<double> neighborLambdaEnergyNoise(numLambdaStates);
-        std::vector<double> neighborLambdaDhdlNoise(numLambdaStates);
-        randomArrayFill(neighborLambdaEnergyNoise, randomEngine, -energyNoiseMagnitude, energyNoiseMagnitude);
-        randomArrayFill(neighborLambdaDhdlNoise, randomEngine, -dhdlNoiseMagnitude, dhdlNoiseMagnitude);
-        std::vector<double> neighborLambdaEnergies(numLambdaStates);
-        std::vector<double> neighborLambdaDhdl(numLambdaStates);
-        for (int i = 0; i < numLambdaStates; i++)
-        {
-            neighborLambdaEnergies[i] = lambdaEnergyBase[i] + neighborLambdaEnergyNoise[i];
-            neighborLambdaDhdl[i]     = lambdaDhdlBase[i] + neighborLambdaDhdlNoise[i];
-        }
-
         int      umbrellaGridpointIndex = bias.state().coordState().umbrellaGridpoint();
         awh_dvec coordValue = { bias.getGridCoordValue(umbrellaGridpointIndex)[0], 0, 0, 0 };
         double   potential  = 0;
-        gmx::ArrayRef<const double> biasForce = bias.calcForceAndUpdateBias(
-                coordValue, neighborLambdaEnergies, neighborLambdaDhdl, &potential, &potentialJump,
-                nullptr, nullptr, step * mdTimeStep, step, seed_, nullptr);
+        gmx::ArrayRef<const double> biasForce = bias.calcForceAndUpdateBias(coordValue,
+                                                                            neighborLambdaEnergies,
+                                                                            neighborLambdaDhdl,
+                                                                            &potential,
+                                                                            &potentialJump,
+                                                                            nullptr,
+                                                                            nullptr,
+                                                                            step * mdTimeStep,
+                                                                            step,
+                                                                            seed_,
+                                                                            nullptr);
 
         force.push_back(biasForce[0]);
         pot.push_back(potential);
@@ -309,57 +292,54 @@ INSTANTIATE_TEST_CASE_P(WithParameters,
 TEST(BiasFepLambdaStateTest, DetectsCovering)
 {
     const AwhFepLambdaStateTestParameters params =
-            getAwhTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED);
+            getAwhFepLambdaTestParameters(eawhgrowthEXP_LINEAR, eawhpotentialCONVOLVED);
 
     const double mdTimeStep = 0.1;
 
-    Bias bias(-1, params.awhParams, params.awhBiasParams, params.dimParams, params.beta, mdTimeStep,
-              1, "", Bias::ThisRankWillDoIO::No);
+    Bias bias(-1,
+              params.awhParams,
+              params.awhBiasParams,
+              params.dimParams,
+              params.beta,
+              mdTimeStep,
+              1,
+              "",
+              Bias::ThisRankWillDoIO::No);
 
-    const int64_t exitStepRef = 380;
+    const int64_t exitStepRef = 320;
 
     bool inInitialStage = bias.state().inInitialStage();
 
-    double                     energyNoiseMagnitude = 1.0;
-    double                     dhdlNoiseMagnitude   = 1.5;
-    std::default_random_engine randomEngine;
-    randomEngine.seed(1234);
-
     /* Some energies to use as base values (to which some noise is added later on). */
-    std::vector<double> lambdaEnergyBase(numLambdaStates);
-    std::vector<double> lambdaDhdlBase(numLambdaStates);
+    std::vector<double> neighborLambdaEnergies(numLambdaStates);
+    std::vector<double> neighborLambdaDhdl(numLambdaStates);
     const double        magnitude = 12.0;
     for (int i = 0; i < numLambdaStates; i++)
     {
-        lambdaEnergyBase[i] = magnitude * std::sin(i * 0.1);
-        lambdaDhdlBase[i]   = magnitude * std::cos(i * 0.1);
+        neighborLambdaEnergies[i] = magnitude * std::sin(i * 0.1);
+        neighborLambdaDhdl[i]     = magnitude * std::cos(i * 0.1);
     }
 
     int64_t step;
     /* Normally this loop exits at exitStepRef, but we extend with failure */
     for (step = 0; step <= 2 * exitStepRef; step++)
     {
-        /* Create some noise and add it to the base values */
-        std::vector<double> neighborLambdaEnergyNoise(numLambdaStates);
-        std::vector<double> neighborLambdaDhdlNoise(numLambdaStates);
-        randomArrayFill(neighborLambdaEnergyNoise, randomEngine, -energyNoiseMagnitude, energyNoiseMagnitude);
-        randomArrayFill(neighborLambdaDhdlNoise, randomEngine, -dhdlNoiseMagnitude, dhdlNoiseMagnitude);
-        std::vector<double> neighborLambdaEnergies(numLambdaStates);
-        std::vector<double> neighborLambdaDhdl(numLambdaStates);
-        for (int i = 0; i < numLambdaStates; i++)
-        {
-            neighborLambdaEnergies[i] = lambdaEnergyBase[i] + neighborLambdaEnergyNoise[i];
-            neighborLambdaDhdl[i]     = lambdaDhdlBase[i] + neighborLambdaDhdlNoise[i];
-        }
-
         int      umbrellaGridpointIndex = bias.state().coordState().umbrellaGridpoint();
         awh_dvec coordValue = { bias.getGridCoordValue(umbrellaGridpointIndex)[0], 0, 0, 0 };
 
         double potential     = 0;
         double potentialJump = 0;
-        bias.calcForceAndUpdateBias(coordValue, neighborLambdaEnergies, neighborLambdaDhdl,
-                                    &potential, &potentialJump, nullptr, nullptr, step, step,
-                                    params.awhParams.seed, nullptr);
+        bias.calcForceAndUpdateBias(coordValue,
+                                    neighborLambdaEnergies,
+                                    neighborLambdaDhdl,
+                                    &potential,
+                                    &potentialJump,
+                                    nullptr,
+                                    nullptr,
+                                    step,
+                                    step,
+                                    params.awhParams.seed,
+                                    nullptr);
 
         inInitialStage = bias.state().inInitialStage();
         if (!inInitialStage)

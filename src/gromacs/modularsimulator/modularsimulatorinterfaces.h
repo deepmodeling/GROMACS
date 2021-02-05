@@ -374,10 +374,12 @@ public:
     //! Standard virtual destructor
     virtual ~ICheckpointHelperClient() = default;
 
-    //! Write checkpoint
-    virtual void writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr) = 0;
-    //! Read checkpoint
-    virtual void readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr) = 0;
+    //! Write checkpoint (CheckpointData object only passed on master rank)
+    virtual void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                     const t_commrec*                   cr) = 0;
+    //! Read checkpoint (CheckpointData object only passed on master rank)
+    virtual void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                        const t_commrec*                  cr) = 0;
     //! Get unique client id
     [[nodiscard]] virtual const std::string& clientID() = 0;
 };
@@ -457,8 +459,11 @@ typedef std::function<void(Step)> PropagatorCallback;
  */
 struct PropagatorThermostatConnection
 {
-    std::function<void(int)>            setNumVelocityScalingVariables;
-    std::function<ArrayRef<real>()>     getViewOnVelocityScaling;
+    //! Function variable for setting velocity scaling variables.
+    std::function<void(int)> setNumVelocityScalingVariables;
+    //! Function variable for receiving view on velocity scaling.
+    std::function<ArrayRef<real>()> getViewOnVelocityScaling;
+    //! Function variable for callback.
     std::function<PropagatorCallback()> getVelocityScalingCallback;
 };
 
@@ -467,7 +472,9 @@ struct PropagatorThermostatConnection
  */
 struct PropagatorBarostatConnection
 {
-    std::function<ArrayRef<rvec>()>     getViewOnPRScalingMatrix;
+    //! Function variable for receiving view on pressure scaling matrix.
+    std::function<ArrayRef<rvec>()> getViewOnPRScalingMatrix;
+    //! Function variable for callback.
     std::function<PropagatorCallback()> getPRScalingCallback;
 };
 

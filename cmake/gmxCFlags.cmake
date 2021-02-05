@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2009,2010,2011,2012,2013 by the GROMACS development team.
 # Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
-# Copyright (c) 2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -256,87 +256,6 @@ macro (gmx_c_flags)
         GMX_TEST_CXXFLAG(CXXFLAGS_NOINLINE "-fno-inline" GMXC_CXXFLAGS_DEBUG)
     endif()
 
-    # icc
-    if (CMAKE_C_COMPILER_ID MATCHES "Intel")
-        if (NOT WIN32)
-            if(NOT GMX_OPENMP)
-# 3180: unrecognized OpenMP #pragma
-                GMX_TEST_CFLAG(CFLAGS_PRAGMA "-wd3180" GMXC_CFLAGS)
-            endif()
-            if (GMX_COMPILER_WARNINGS)
-# -w3 enables a lot of useful diagnostics but we don't care about all. -wd disables some selectively.
-# 177: function/variable ".." was declared but never referenced
-# 280: selector expression is constant
-# 411: class defines no constructor to initialize the following (incorrect for struct, initializer list works)
-# 593: variable ".." was set but never used
-# 981: operands are evaluated in unspecified order
-#1418: external function definition with no prior declaration
-#1419: external declaration in primary source file
-#1572: floating-point equality and inequality comparisons are unreliable
-#1599: declaration hides variable ".."
-#2259: non-pointer conversion from ".." to ".." may lose significant bits
-#2415: variable ".." of static storage duration was declared but never referenced
-#2547: ".." was specified as both a system and non-system include directory
-#2557: comparison between signed and unsigned operands
-#3280: declaration hides member ".."
-#11074: Inlining inhibited by limit max-size(/max-total-size)
-#11076: To get full report use -opt-report=3 -opt-report-phase ipo (shown for previous remark)
-                GMX_TEST_CFLAG(CFLAGS_WARN "-w3;-wd177;-wd280;-wd411;-wd593;-wd981;-wd1418;-wd1419;-wd1572;-wd1599;-wd2259;-wd2415;-wd2547;-wd2557;-wd3280;-wd11074;-wd11076" GMXC_CFLAGS)
-            endif()
-            GMX_TEST_CFLAG(CFLAGS_STDGNU "-std=gnu99" GMXC_CFLAGS)
-            GMX_TEST_CFLAG(CFLAGS_OPT "-ip;-funroll-all-loops;-alias-const;-ansi-alias;-no-prec-div;-fimf-domain-exclusion=14;-qoverride-limits" GMXC_CFLAGS_RELEASE)
-            GMX_TEST_CFLAG(CFLAGS_DEBUG "-O0" GMXC_CFLAGS_DEBUG) #icc defaults to -O2 even with -g
-            # The "except" fp-model requires something other than the
-            # default "fast" model, so we test and use it with
-            # "precise".
-            GMX_TEST_CFLAG(CFLAGS_FP_MODEL_RELASSERT "-fp-model=except;-fp-model=precise" GMXC_CFLAGS_RELWITHASSERT)
-        else()
-            if(NOT GMX_OPENMP)
-                GMX_TEST_CFLAG(CFLAGS_PRAGMA "/wd3180" GMXC_CFLAGS)
-            endif()
-            if (GMX_COMPILER_WARNINGS)
-#only on Windows
-#161: unrecognized pragma
-#1786 function was declared deprecated (is issued for stdlib function such as strncpy which have a _s version)
-GMX_TEST_CFLAG(CFLAGS_WARN "/W3;/wd161;/wd177;/wd411;/wd593;/wd981;/wd1418;/wd1419;/wd1572;/wd1599;/wd1786;/wd2259;/wd2415;/wd2547;/wd2557;/wd3280" GMXC_CFLAGS)
-            endif()
-            GMX_TEST_CFLAG(CFLAGS_OPT "/Qip" GMXC_CFLAGS_RELEASE)
-        endif()
-    endif()
-
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-        if (NOT WIN32) 
-            if(NOT GMX_OPENMP)
-                GMX_TEST_CXXFLAG(CXXFLAGS_PRAGMA "-wd3180" GMXC_CXXFLAGS)
-            endif()
-            if (GMX_COMPILER_WARNINGS)
-#All but the following warnings are identical for the C-compiler (see above)
-# 304: access control not specified
-# 383: value copied to temporary, reference to temporary used
-# 444: destructor for base class ".." is not virtual
-# 869: was never referenced (false positives)
-#2282: unrecognized GCC pragma
-                GMX_TEST_CXXFLAG(CXXFLAGS_WARN "-w3;-wd177;-wd280;-wd304;-wd383;-wd411;-wd444;-wd869;-wd981;-wd1418;-wd1572;-wd1599;-wd2259;-wd2547;-wd3280;-wd11074;-wd11076;-wd2282" GMXC_CXXFLAGS)
-            endif()
-            GMX_TEST_CXXFLAG(CXXFLAGS_OPT "-ip;-funroll-all-loops;-alias-const;-ansi-alias;-no-prec-div;-fimf-domain-exclusion=14;-qoverride-limits" GMXC_CXXFLAGS_RELEASE)
-            GMX_TEST_CXXFLAG(CXXFLAGS_DEBUG "-O0" GMXC_CXXFLAGS_DEBUG)
-            # The "except" fp-model requires something other than the
-            # default "fast" model, so we test and use it with
-            # "precise".
-            GMX_TEST_CXXFLAG(CXXFLAGS_FP_MODEL_RELASSERT "-fp-model=except;-fp-model=precise" GMXC_CXXFLAGS_RELWITHASSERT)
-        else()
-            if(NOT GMX_OPENMP)
-                GMX_TEST_CXXFLAG(CXXFLAGS_PRAGMA "/wd3180" GMXC_CFLAGS)
-            endif()
-            if (GMX_COMPILER_WARNINGS)
-#161: unrecognized pragma
-#809: exception specification for virtual function X is incompatible with that of overridden function
-                GMX_TEST_CXXFLAG(CXXFLAGS_WARN "/W3;/wd161;/wd177;/wd280;/wd304;/wd383;/wd411;/wd444;/wd809;/wd869;/wd981;/wd1418;/wd1572;/wd1599;/wd1786;/wd2259;/wd2547;/wd3280;/wd11074;/wd11076;/wd2282" GMXC_CXXFLAGS)
-            endif()
-            GMX_TEST_CXXFLAG(CXXFLAGS_OPT "/Qip" GMXC_CXXFLAGS_RELEASE)
-        endif()
-    endif()
-
     # PGI
     # Inter-procedural analysis causes pgcc/pgc++ to crash when linking the library with PGI release 15.7.
     if (CMAKE_C_COMPILER_ID MATCHES "PGI")
@@ -442,13 +361,6 @@ GMX_TEST_CFLAG(CFLAGS_WARN "/W3;/wd161;/wd177;/wd411;/wd593;/wd981;/wd1418;/wd14
         if(NOT GMX_OPENMP)
             GMX_TEST_CXXFLAG(CXXFLAGS_PRAGMA "-Wno-unknown-pragmas" GMXC_CXXFLAGS)
         endif()
-        if(GMX_GPU_CUDA)
-            # CUDA header cuda_runtime_api.h in at least CUDA 10.1
-            # uses 0 where nullptr would be preferable, and this is
-            # the simplest way to avoid seeing it when it can't be
-            # readily fixed.
-            GMX_TEST_CXXFLAG(CXXFLAGS_PRAGMA "-Wno-zero-as-null-pointer-constant" GMXC_CXXFLAGS)
-        endif()
         GMX_TEST_CXXFLAG(CXXFLAGS_WARN_NO_MISSING_FIELD_INITIALIZERS "-Wno-missing-field-initializers" GMXC_CXXFLAGS)
     endif()
 
@@ -488,19 +400,6 @@ GMX_TEST_CFLAG(CFLAGS_WARN "/W3;/wd161;/wd177;/wd411;/wd593;/wd981;/wd1418;/wd14
             # does not align the stack properly. Embarrassing, Apple...
             GMX_TEST_CXXFLAG(CXXFLAG_NO_STACK_CHECK "-fno-stack-check" GMXC_CXXFLAGS)
         endif()
-    endif()
-
-    # Fujitsu compilers on PrimeHPC/Sparc64
-    if(${CMAKE_C_COMPILER_ID} MATCHES Fujitsu OR
-       (${CMAKE_C_COMPILER_ID} MATCHES unknown AND ${CMAKE_C_COMPILER} MATCHES ^fcc))
-        GMX_TEST_CFLAG(CFLAG_GNUCOMPAT "-Xg;-w" GMXC_CFLAGS)
-        GMX_TEST_CFLAG(CFLAG_OPT "-Kfast,reduction,swp,simd=2,uxsimd,fsimple;-x100" GMXC_CFLAGS)
-    endif()
-
-    if(${CMAKE_CXX_COMPILER_ID} MATCHES Fujitsu OR
-       (${CMAKE_CXX_COMPILER_ID} MATCHES unknown AND ${CMAKE_CXX_COMPILER} MATCHES ^FCC))
-        GMX_TEST_CXXFLAG(CXXFLAG_GNUCOMPAT "-Xg;-w" GMXC_CXXFLAGS)
-        GMX_TEST_CXXFLAG(CXXFLAG_OPT "-Kfast,reduction,swp,simd=2,uxsimd,fsimple;-x100" GMXC_CXXFLAGS)
     endif()
 
 endmacro()

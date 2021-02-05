@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -466,9 +466,6 @@ TEST_F(SimdFloatingpointUtilTest, transposeScatterDecrU3Overlapping)
         mem0_[j] = refmem[j] = (1000.0 + j) * (1.0 + 100 * GMX_REAL_EPS);
     }
 
-#    ifdef __INTEL_COMPILER // Bug in (at least) 19u1 and 18u5 (03424712)
-#        pragma novector
-#    endif
     for (std::size_t j = 0; j < GMX_SIMD_REAL_WIDTH; j++)
     {
         // Subtract values from _reference_ memory (we will then test with mem0_, and compare)
@@ -810,11 +807,11 @@ TEST_F(SimdFloatingpointUtilTest, incrDualHsimdOverlapping)
     }
 }
 
-TEST_F(SimdFloatingpointUtilTest, decrHsimd)
+TEST_F(SimdFloatingpointUtilTest, decr3Hsimd)
 {
-    SimdReal               v0;
-    real                   ref[GMX_SIMD_REAL_WIDTH / 2];
-    int                    i;
+    SimdReal               v0, v1, v2;
+    real                   ref[3 * GMX_SIMD_REAL_WIDTH / 2];
+    int                    i, j;
     FloatingPointTolerance tolerance(defaultRealTolerance());
 
     // Point p to the upper half of val1_
@@ -823,11 +820,23 @@ TEST_F(SimdFloatingpointUtilTest, decrHsimd)
     {
         ref[i] = val0_[i] - (val1_[i] + p[i]);
     }
+    p = val2_ + GMX_SIMD_REAL_WIDTH / 2;
+    for (j = 0; j < GMX_SIMD_REAL_WIDTH / 2; i++, j++)
+    {
+        ref[i] = val0_[i] - (val2_[j] + p[j]);
+    }
+    p = val3_ + GMX_SIMD_REAL_WIDTH / 2;
+    for (j = 0; j < GMX_SIMD_REAL_WIDTH / 2; i++, j++)
+    {
+        ref[i] = val0_[i] - (val3_[j] + p[j]);
+    }
 
     v0 = load<SimdReal>(val1_);
-    decrHsimd(val0_, v0);
+    v1 = load<SimdReal>(val2_);
+    v2 = load<SimdReal>(val3_);
+    decr3Hsimd(val0_, v0, v1, v2);
 
-    for (i = 0; i < GMX_SIMD_REAL_WIDTH / 2; i++)
+    for (i = 0; i < 3 * GMX_SIMD_REAL_WIDTH / 2; i++)
     {
         EXPECT_REAL_EQ_TOL(ref[i], val0_[i], tolerance);
     }
@@ -930,9 +939,6 @@ TEST_F(SimdFloatingpointUtilTest, loadUNDuplicate4)
     real       data[GMX_SIMD_REAL_WIDTH / 4];
     std::iota(data, data + GMX_SIMD_REAL_WIDTH / 4, 1);
 
-#        if defined __ICC && __ICC == 1800 || defined __ICL && __ICL == 1800
-#            pragma novector /* Work-around for incorrect vectorization for AVX_512(_KNL) */
-#        endif
     for (i = 0; i < GMX_SIMD_REAL_WIDTH / 4; i++)
     {
         val0_[i * 4] = val0_[i * 4 + 1] = val0_[i * 4 + 2] = val0_[i * 4 + 3] = data[i];

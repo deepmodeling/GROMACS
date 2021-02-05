@@ -37,7 +37,7 @@
  */
 #include "gmxpre.h"
 
-#include "filetypes.h"
+#include "gromacs/fileio/filetypes.h"
 
 #include <cstring>
 
@@ -95,8 +95,13 @@ static const t_deffile deffile[efNR] = {
     { eftGEN, ".???", "trajout", "-f", "Trajectory", NTROS, tros },
     { eftGEN, ".???", "traj", nullptr, "Full precision trajectory", NTRNS, trns },
     { eftXDR, ".trr", "traj", nullptr, "Trajectory in portable xdr format" },
-    { eftGEN, ".???", "traj_comp", nullptr,
-      "Compressed trajectory (tng format or portable xdr format)", NTRCOMPRESSED, trcompressed },
+    { eftGEN,
+      ".???",
+      "traj_comp",
+      nullptr,
+      "Compressed trajectory (tng format or portable xdr format)",
+      NTRCOMPRESSED,
+      trcompressed },
     { eftXDR, ".xtc", "traj", nullptr, "Compressed trajectory (portable xdr format): xtc" },
     { eftTNG, ".tng", "traj", nullptr, "Trajectory file (tng format)" },
     { eftXDR, ".edr", "ener", nullptr, "Energy file" },
@@ -138,7 +143,8 @@ static const t_deffile deffile[efNR] = {
     { eftASC, ".edi", "sam", nullptr, "ED sampling input" },
     { eftASC, ".cub", "pot", nullptr, "Gaussian cube file" },
     { eftASC, ".xpm", "root", nullptr, "X PixMap compatible matrix file" },
-    { eftASC, "", "rundir", nullptr, "Run directory" }
+    { eftASC, "", "rundir", nullptr, "Run directory" },
+    { eftASC, ".csv", "bench", nullptr, "CSV data file" }
 };
 
 const char* ftp2ext(int ftp)

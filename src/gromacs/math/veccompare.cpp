@@ -50,13 +50,28 @@ void cmp_rvec(FILE* fp, const char* s, int index, const rvec i1, const rvec i2, 
     {
         if (index != -1)
         {
-            fprintf(fp, "%s[%5d] (%12.5e %12.5e %12.5e) - (%12.5e %12.5e %12.5e)\n", s, index,
-                    i1[XX], i1[YY], i1[ZZ], i2[XX], i2[YY], i2[ZZ]);
+            fprintf(fp,
+                    "%s[%5d] (%12.5e %12.5e %12.5e) - (%12.5e %12.5e %12.5e)\n",
+                    s,
+                    index,
+                    i1[XX],
+                    i1[YY],
+                    i1[ZZ],
+                    i2[XX],
+                    i2[YY],
+                    i2[ZZ]);
         }
         else
         {
-            fprintf(fp, "%s (%12.5e %12.5e %12.5e) - (%12.5e %12.5e %12.5e)\n", s, i1[XX], i1[YY],
-                    i1[ZZ], i2[XX], i2[YY], i2[ZZ]);
+            fprintf(fp,
+                    "%s (%12.5e %12.5e %12.5e) - (%12.5e %12.5e %12.5e)\n",
+                    s,
+                    i1[XX],
+                    i1[YY],
+                    i1[ZZ],
+                    i2[XX],
+                    i2[YY],
+                    i2[ZZ]);
         }
     }
 }
@@ -67,13 +82,20 @@ void cmp_ivec(FILE* fp, const char* s, int index, const ivec i1, const ivec i2)
     {
         if (index != -1)
         {
-            fprintf(fp, "%s[%5d] (%8d,%8d,%8d - %8d,%8d,%8d)\n", s, index, i1[XX], i1[YY], i1[ZZ],
-                    i2[XX], i2[YY], i2[ZZ]);
+            fprintf(fp,
+                    "%s[%5d] (%8d,%8d,%8d - %8d,%8d,%8d)\n",
+                    s,
+                    index,
+                    i1[XX],
+                    i1[YY],
+                    i1[ZZ],
+                    i2[XX],
+                    i2[YY],
+                    i2[ZZ]);
         }
         else
         {
-            fprintf(fp, "%s (%8d,%8d,%8d - %8d,%8d,%8d)\n", s, i1[XX], i1[YY], i1[ZZ], i2[XX],
-                    i2[YY], i2[ZZ]);
+            fprintf(fp, "%s (%8d,%8d,%8d - %8d,%8d,%8d)\n", s, i1[XX], i1[YY], i1[ZZ], i2[XX], i2[YY], i2[ZZ]);
         }
     }
 }

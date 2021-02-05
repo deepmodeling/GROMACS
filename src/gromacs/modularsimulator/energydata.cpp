@@ -91,7 +91,8 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
                        const MdModulesNotifier&    mdModulesNotifier,
                        bool                        isMasterRank,
                        ObservablesHistory*         observablesHistory,
-                       StartingBehavior            startingBehavior) :
+                       StartingBehavior            startingBehavior,
+                       bool                        simulationsShareState) :
     element_(std::make_unique<Element>(this, isMasterRank)),
     isMasterRank_(isMasterRank),
     forceVirialStep_(-1),
@@ -115,7 +116,8 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
     fcd_(fcd),
     mdModulesNotifier_(mdModulesNotifier),
     groups_(&globalTopology->groups),
-    observablesHistory_(observablesHistory)
+    observablesHistory_(observablesHistory),
+    simulationsShareState_(simulationsShareState)
 {
     clear_mat(forceVirial_);
     clear_mat(shakeVirial_);
@@ -152,6 +154,7 @@ void EnergyData::teardown()
 {
     if (inputrec_->nstcalcenergy > 0 && isMasterRank_)
     {
+        energyOutput_->printEnergyConservation(fplog_, inputrec_->simulation_part, EI_MD(inputrec_->eI));
         energyOutput_->printAverages(fplog_, groups_);
     }
 }
@@ -164,9 +167,15 @@ void EnergyData::Element::trajectoryWriterSetup(gmx_mdoutf* outf)
 void EnergyData::setup(gmx_mdoutf* outf)
 {
     pull_t* pull_work = nullptr;
-    energyOutput_ = std::make_unique<EnergyOutput>(mdoutf_get_fp_ene(outf), top_global_, inputrec_,
-                                                   pull_work, mdoutf_get_fp_dhdl(outf), false,
-                                                   startingBehavior_, mdModulesNotifier_);
+    energyOutput_     = std::make_unique<EnergyOutput>(mdoutf_get_fp_ene(outf),
+                                                   top_global_,
+                                                   inputrec_,
+                                                   pull_work,
+                                                   mdoutf_get_fp_dhdl(outf),
+                                                   false,
+                                                   startingBehavior_,
+                                                   simulationsShareState_,
+                                                   mdModulesNotifier_);
 
     if (!isMasterRank_)
     {
@@ -235,8 +244,8 @@ void EnergyData::doStep(Time time, bool isEnergyCalculationStep, bool isFreeEner
     enerd_->term[F_ETOT] = enerd_->term[F_EPOT] + enerd_->term[F_EKIN];
     if (freeEnergyPerturbationData_)
     {
-        accumulateKineticLambdaComponents(enerd_, freeEnergyPerturbationData_->constLambdaView(),
-                                          *inputrec_->fepvals);
+        accumulateKineticLambdaComponents(
+                enerd_, freeEnergyPerturbationData_->constLambdaView(), *inputrec_->fepvals);
     }
     if (integratorHasConservedEnergyQuantity(inputrec_))
     {
@@ -249,15 +258,27 @@ void EnergyData::doStep(Time time, bool isEnergyCalculationStep, bool isFreeEner
     }
     matrix nullMatrix = {};
     energyOutput_->addDataAtEnergyStep(
-            isFreeEnergyCalculationStep, isEnergyCalculationStep, time, mdAtoms_->mdatoms()->tmass, enerd_,
-            inputrec_->fepvals, inputrec_->expandedvals, statePropagatorData_->constPreviousBox(),
+            isFreeEnergyCalculationStep,
+            isEnergyCalculationStep,
+            time,
+            mdAtoms_->mdatoms()->tmass,
+            enerd_,
+            inputrec_->fepvals,
+            inputrec_->expandedvals,
+            statePropagatorData_->constPreviousBox(),
             PTCouplingArrays({ parrinelloRahmanBarostat_ ? parrinelloRahmanBarostat_->boxVelocities() : nullMatrix,
                                {},
                                {},
                                {},
                                {} }),
             freeEnergyPerturbationData_ ? freeEnergyPerturbationData_->currentFEPState() : 0,
-            shakeVirial_, forceVirial_, totalVirial_, pressure_, ekind_, muTot_, constr_);
+            shakeVirial_,
+            forceVirial_,
+            totalVirial_,
+            pressure_,
+            ekind_,
+            muTot_,
+            constr_);
 }
 
 void EnergyData::write(gmx_mdoutf* outf, Step step, Time time, bool writeTrajectory, bool writeLog)
@@ -272,8 +293,8 @@ void EnergyData::write(gmx_mdoutf* outf, Step step, Time time, bool writeTraject
 
     // energyOutput_->printAnnealingTemperatures(writeLog ? fplog_ : nullptr, groups_, &(inputrec_->opts));
     Awh* awh = nullptr;
-    energyOutput_->printStepToEnergyFile(mdoutf_get_fp_ene(outf), writeTrajectory, do_dr, do_or,
-                                         writeLog ? fplog_ : nullptr, step, time, fcd_, awh);
+    energyOutput_->printStepToEnergyFile(
+            mdoutf_get_fp_ene(outf), writeTrajectory, do_dr, do_or, writeLog ? fplog_ : nullptr, step, time, fcd_, awh);
 }
 
 void EnergyData::addToForceVirial(const tensor virial, Step step)
@@ -339,8 +360,7 @@ rvec* EnergyData::pressure(Step gmx_unused step)
         pressureStep_ = step;
         clear_mat(pressure_);
     }
-    GMX_ASSERT(step >= pressureStep_ || pressureStep_ == -1,
-               "Asked for pressure of previous step.");
+    GMX_ASSERT(step >= pressureStep_ || pressureStep_ == -1, "Asked for pressure of previous step.");
     return pressure_;
 }
 
@@ -386,20 +406,17 @@ constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count
 } // namespace
 
 template<CheckpointDataOperation operation>
-void EnergyData::Element::doCheckpointData(CheckpointData<operation>* checkpointData, const t_commrec* cr)
+void EnergyData::Element::doCheckpointData(CheckpointData<operation>* checkpointData)
 {
-    if (MASTER(cr))
-    {
-        checkpointVersion(checkpointData, "EnergyData version", c_currentVersion);
+    checkpointVersion(checkpointData, "EnergyData version", c_currentVersion);
 
-        energyData_->observablesHistory_->energyHistory->doCheckpoint<operation>(
-                checkpointData->subCheckpointData("energy history"));
-        energyData_->ekinstate_.doCheckpoint<operation>(
-                checkpointData->subCheckpointData("ekinstate"));
-    }
+    energyData_->observablesHistory_->energyHistory->doCheckpoint<operation>(
+            checkpointData->subCheckpointData("energy history"));
+    energyData_->ekinstate_.doCheckpoint<operation>(checkpointData->subCheckpointData("ekinstate"));
 }
 
-void EnergyData::Element::writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr)
+void EnergyData::Element::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                              const t_commrec*                   cr)
 {
     if (MASTER(cr))
     {
@@ -414,17 +431,22 @@ void EnergyData::Element::writeCheckpoint(WriteCheckpointData checkpointData, co
         }
         energyData_->energyOutput_->fillEnergyHistory(
                 energyData_->observablesHistory_->energyHistory.get());
+        doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
     }
-    doCheckpointData<CheckpointDataOperation::Write>(&checkpointData, cr);
 }
 
-void EnergyData::Element::readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr)
+void EnergyData::Element::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                 const t_commrec*                  cr)
 {
-    doCheckpointData<CheckpointDataOperation::Read>(&checkpointData, cr);
+    if (MASTER(cr))
+    {
+        doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
     energyData_->hasReadEkinFromCheckpoint_ = MASTER(cr) ? energyData_->ekinstate_.bUpToDate : false;
     if (PAR(cr))
     {
-        gmx_bcast(sizeof(hasReadEkinFromCheckpoint_), &energyData_->hasReadEkinFromCheckpoint_,
+        gmx_bcast(sizeof(hasReadEkinFromCheckpoint_),
+                  &energyData_->hasReadEkinFromCheckpoint_,
                   cr->mpi_comm_mygroup);
     }
     if (energyData_->hasReadEkinFromCheckpoint_)

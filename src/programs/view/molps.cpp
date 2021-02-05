@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2013, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2017,2019, by the GROMACS development team, led by
+ * Copyright (c) 2013,2014,2015,2017,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -70,7 +70,7 @@ static void init_pbc(matrix box)
 {
     int i;
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         gl_fbox[i]  = box[i][i];
         gl_hbox[i]  = gl_fbox[i] * 0.5;
@@ -83,7 +83,7 @@ static bool local_pbc_dx(rvec x1, rvec x2)
     int  i;
     real dx;
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         dx = x1[i] - x2[i];
         if (dx > gl_hbox[i])
@@ -176,7 +176,7 @@ static void draw_box(t_psdata* ps, t_3dview* view, matrix box, int x0, int y0, r
 
     for (i = 0; (i < 8); i++)
     {
-        for (j = 0; (j < DIM); j++)
+        for (j = 0; (j < gmx::c_dim); j++)
         {
             corner[i][j] = ivec[i][j] * box[j][j];
         }
@@ -186,8 +186,7 @@ static void draw_box(t_psdata* ps, t_3dview* view, matrix box, int x0, int y0, r
     ps_color(ps, 0, 0, 0.5);
     for (i = 0; (i < 12); i++)
     {
-        ps_line(ps, vec2[bonds[i][0]][XX], vec2[bonds[i][0]][YY], vec2[bonds[i][1]][XX],
-                vec2[bonds[i][1]][YY]);
+        ps_line(ps, vec2[bonds[i][0]][XX], vec2[bonds[i][0]][YY], vec2[bonds[i][1]][XX], vec2[bonds[i][1]][YY]);
     }
 }
 

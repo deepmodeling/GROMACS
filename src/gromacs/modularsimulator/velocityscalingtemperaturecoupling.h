@@ -75,6 +75,7 @@ enum class ReportPreviousStepConservedEnergy
     Count
 };
 
+//! Typedef to match current use of ints as types.
 using TemperatureCouplingType = int;
 
 /*! \internal
@@ -125,9 +126,9 @@ public:
     void connectWithPropagator(const PropagatorThermostatConnection& connectionData);
 
     //! ICheckpointHelperClient write checkpoint implementation
-    void writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr) override;
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
     //! ICheckpointHelperClient read checkpoint implementation
-    void readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr) override;
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
     //! ICheckpointHelperClient key implementation
     const std::string& clientID() override;
 
@@ -198,7 +199,7 @@ private:
     const std::string identifier_ = "VelocityScalingTemperatureCoupling";
     //! Helper function to read from / write to CheckpointData
     template<CheckpointDataOperation operation>
-    void doCheckpointData(CheckpointData<operation>* checkpointData, const t_commrec* cr);
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 };
 
 } // namespace gmx

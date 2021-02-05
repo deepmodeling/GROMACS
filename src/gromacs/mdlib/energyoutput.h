@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,6 +46,8 @@
 #define GMX_MDLIB_ENERGYOUTPUT_H
 
 #include <cstdio>
+
+#include <memory>
 
 #include "gromacs/mdtypes/enerdata.h"
 
@@ -97,6 +99,7 @@ enum
 
 namespace gmx
 {
+class EnergyDriftTracker;
 
 /*! \internal
  * \brief Arrays connected to Pressure and Temperature coupling
@@ -136,6 +139,7 @@ public:
      * \param[in] fp_dhdl    FEP file.
      * \param[in] isRerun    Is this is a rerun instead of the simulations.
      * \param[in] startingBehavior  Run starting behavior.
+     * \param[in] simulationsShareState  Tells whether the physical state is shared over simulations
      * \param[in] mdModulesNotifier Notifications to MD modules.
      */
     EnergyOutput(ener_file*               fp_ene,
@@ -145,6 +149,7 @@ public:
                  FILE*                    fp_dhdl,
                  bool                     isRerun,
                  StartingBehavior         startingBehavior,
+                 bool                     simulationsShareState,
                  const MdModulesNotifier& mdModulesNotifier);
 
     ~EnergyOutput();
@@ -235,7 +240,7 @@ public:
      * \param[in] opts    Atom temperature coupling groups options
      *                    (annealing is done by groups).
      */
-    static void printAnnealingTemperatures(FILE* log, const SimulationGroups* groups, t_grpopts* opts);
+    static void printAnnealingTemperatures(FILE* log, const SimulationGroups* groups, const t_grpopts* opts);
 
     /*! \brief Prints average values to log file.
      *
@@ -276,6 +281,15 @@ public:
 
     //! Print an output header to the log file.
     static void printHeader(FILE* log, int64_t steps, double time);
+
+    /*! \brief Print conserved energy drift message to \p fplog
+     *
+     * Note that this is only over the current run (times are printed),
+     * this is not from the original start time for runs with continuation.
+     * This has the advantage that one can find if conservation issues are
+     * from the current run with the current settings on the current hardware.
+     */
+    void printEnergyConservation(FILE* fplog, int simulationPart, bool usingMdIntegrator) const;
 
 private:
     //! Timestep
@@ -391,11 +405,6 @@ private:
     //! Index for scalling factor of MTTK
     int itcb_ = 0;
 
-    //! Number of acceleration groups
-    int nU_ = 0;
-    //! Index for group velocities
-    int iu_ = 0;
-
     //! Array to accumulate values during update
     real* tmp_r_ = nullptr;
     //! Array to accumulate values during update
@@ -411,6 +420,9 @@ private:
     real* temperatures_ = nullptr;
     //! Number of temperatures actually saved
     int numTemperatures_ = 0;
+
+    //! For tracking the conserved or total energy
+    std::unique_ptr<EnergyDriftTracker> conservedEnergyTracker_;
 };
 
 } // namespace gmx

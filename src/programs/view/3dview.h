@@ -52,8 +52,8 @@ typedef struct
     mat4   proj;        /* Projection matrix             */
     mat4   Rot;         /* Total rotation matrix         */
     real   sc_x, sc_y;  /* Scaling for aspect ratio      */
-    mat4   RotP[DIM];   /* state for 3d rotations        */
-    mat4   RotM[DIM];
+    mat4   RotP[gmx::c_dim];   /* state for 3d rotations        */
+    mat4   RotM[gmx::c_dim];
 } t_3dview;
 
 t_3dview* init_view(matrix box);

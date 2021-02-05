@@ -2,6 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014,2015,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -49,6 +50,8 @@
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/gpu_macros.h"
 #include "gromacs/mdtypes/locality.h"
+
+#include "nbnxm.h"
 
 struct NbnxmGpu;
 struct DeviceInformation;
@@ -123,6 +126,18 @@ int gpu_min_ci_balanced(NbnxmGpu gmx_unused* nb) GPU_FUNC_TERM_WITH_RETURN(-1);
 /** Returns if analytical Ewald GPU kernels are used. */
 GPU_FUNC_QUALIFIER
 bool gpu_is_kernel_ewald_analytical(const NbnxmGpu gmx_unused* nb) GPU_FUNC_TERM_WITH_RETURN(FALSE);
+
+/** Return the enum value of electrostatics kernel type for given interaction parameters \p ic. */
+GPU_FUNC_QUALIFIER
+enum ElecType nbnxmGpuPickElectrostaticsKernelType(const interaction_const_t gmx_unused* ic,
+                                                   const DeviceInformation gmx_unused& deviceInfo)
+        GPU_FUNC_TERM_WITH_RETURN(ElecType::Count);
+
+/** Return the enum value of VdW kernel type for given \p ic and \p combRule. */
+GPU_FUNC_QUALIFIER
+enum VdwType nbnxmGpuPickVdwKernelType(const interaction_const_t gmx_unused* ic,
+                                       LJCombinationRule gmx_unused ljCombinationRule)
+        GPU_FUNC_TERM_WITH_RETURN(VdwType::Count);
 
 /** Returns an opaque pointer to the GPU command stream
  *  Note: CUDA only.

@@ -107,7 +107,8 @@ public:
                const MdModulesNotifier&    mdModulesNotifier,
                bool                        isMasterRank,
                ObservablesHistory*         observablesHistory,
-               StartingBehavior            startingBehavior);
+               StartingBehavior            startingBehavior,
+               bool                        simulationsShareState);
 
     /*! \brief Final output
      *
@@ -315,6 +316,8 @@ private:
     const SimulationGroups* groups_;
     //! History of simulation observables.
     ObservablesHistory* observablesHistory_;
+    //! Whether simulations share the state
+    bool simulationsShareState_;
 };
 
 /*! \internal
@@ -364,9 +367,9 @@ public:
     void elementTeardown() override {}
 
     //! ICheckpointHelperClient write checkpoint implementation
-    void writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr) override;
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
     //! ICheckpointHelperClient read checkpoint implementation
-    void readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr) override;
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
     //! ICheckpointHelperClient key implementation
     const std::string& clientID() override;
 
@@ -415,7 +418,7 @@ private:
     const std::string identifier_ = "EnergyElement";
     //! Helper function to read from / write to CheckpointData
     template<CheckpointDataOperation operation>
-    void doCheckpointData(CheckpointData<operation>* checkpointData, const t_commrec* cr);
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 
     //! Whether this is the master rank
     const bool isMasterRank_;

@@ -213,7 +213,7 @@ static void my_init_pbc(matrix box)
 {
     int i;
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         gl_fbox[i]  = box[i][i];
         gl_hbox[i]  = gl_fbox[i] * 0.5;
@@ -226,7 +226,7 @@ static bool local_pbc_dx(rvec x1, rvec x2)
     int  i;
     real dx;
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         dx = x1[i] - x2[i];
         if (dx > gl_hbox[i])
@@ -461,16 +461,16 @@ static void draw_box(t_x11* x11, Window w, t_3dview* view, matrix box, int x0, i
     {
         if (boxtype == esbRect)
         {
-            for (j = 0; (j < DIM); j++)
+            for (j = 0; (j < gmx::c_dim); j++)
             {
                 box_center[j] -= 0.5 * box[j][j];
             }
         }
         else
         {
-            for (i = 0; (i < DIM); i++)
+            for (i = 0; (i < gmx::c_dim); i++)
             {
-                for (j = 0; (j < DIM); j++)
+                for (j = 0; (j < gmx::c_dim); j++)
                 {
                     box_center[j] -= 0.5 * box[i][j];
                 }
@@ -479,11 +479,11 @@ static void draw_box(t_x11* x11, Window w, t_3dview* view, matrix box, int x0, i
         for (i = 0; (i < 8); i++)
         {
             clear_rvec(corner[i]);
-            for (j = 0; (j < DIM); j++)
+            for (j = 0; (j < gmx::c_dim); j++)
             {
                 if (boxtype == esbTri)
                 {
-                    for (k = 0; (k < DIM); k++)
+                    for (k = 0; (k < gmx::c_dim); k++)
                     {
                         corner[i][k] += rect_tri[i][j] * box[j][k];
                     }
@@ -499,7 +499,7 @@ static void draw_box(t_x11* x11, Window w, t_3dview* view, matrix box, int x0, i
         }
         if (debug)
         {
-            pr_rvecs(debug, 0, "box", box, DIM);
+            pr_rvecs(debug, 0, "box", box, gmx::c_dim);
             pr_rvecs(debug, 0, "corner", corner, 8);
         }
         XSetForeground(x11->disp, x11->gc, YELLOW);
@@ -590,8 +590,18 @@ void draw_mol(t_x11* x11, t_manager* man)
     }
 
     /* Draw the objects */
-    draw_objects(x11->disp, win->self, x11->gc, nvis, man->obj, man->ix, man->x, man->col,
-                 man->size, mw->bShowHydrogen, mw->bond_type, man->bPlus);
+    draw_objects(x11->disp,
+                 win->self,
+                 x11->gc,
+                 nvis,
+                 man->obj,
+                 man->ix,
+                 man->x,
+                 man->col,
+                 man->size,
+                 mw->bShowHydrogen,
+                 mw->bond_type,
+                 man->bPlus);
 
     /* Draw the labels */
     XSetForeground(x11->disp, x11->gc, WHITE);
@@ -599,8 +609,13 @@ void draw_mol(t_x11* x11, t_manager* man)
     {
         if (man->bLabel[i] && man->bVis[i])
         {
-            XDrawString(x11->disp, win->self, x11->gc, vec2[i][XX] + 2, vec2[i][YY] - 2,
-                        man->szLab[i], std::strlen(man->szLab[i]));
+            XDrawString(x11->disp,
+                        win->self,
+                        x11->gc,
+                        vec2[i][XX] + 2,
+                        vec2[i][YY] - 2,
+                        man->szLab[i],
+                        std::strlen(man->szLab[i]));
         }
     }
 

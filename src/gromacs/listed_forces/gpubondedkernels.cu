@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -61,6 +61,7 @@
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/pbcutil/pbc_aiuc_cuda.cuh"
+#include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/gmxassert.h"
 
 #include "gpubonded_impl.h"
@@ -185,13 +186,16 @@ __device__ void angles_gpu(const int       i,
         float  cos_theta;
         int    t1;
         int    t2;
-        float  theta = bond_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], pbcAiuc, &r_ij,
-                                              &r_kj, &cos_theta, &t1, &t2);
+        float  theta = bond_angle_gpu<calcVir>(
+                gm_xq[ai], gm_xq[aj], gm_xq[ak], pbcAiuc, &r_ij, &r_kj, &cos_theta, &t1, &t2);
 
         float va;
         float dVdt;
         harmonic_gpu(d_forceparams[type].harmonic.krA,
-                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, theta, &va, &dVdt);
+                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F,
+                     theta,
+                     &va,
+                     &dVdt);
 
         if (calcEner)
         {
@@ -260,8 +264,8 @@ __device__ void urey_bradley_gpu(const int       i,
         float  cos_theta;
         int    t1;
         int    t2;
-        float  theta = bond_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], pbcAiuc, &r_ij,
-                                              &r_kj, &cos_theta, &t1, &t2);
+        float  theta = bond_angle_gpu<calcVir>(
+                gm_xq[ai], gm_xq[aj], gm_xq[ak], pbcAiuc, &r_ij, &r_kj, &cos_theta, &t1, &t2);
 
         float va;
         float dVdt;
@@ -462,21 +466,25 @@ __device__ void pdihs_gpu(const int       i,
         int    t1;
         int    t2;
         int    t3;
-        float  phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
-                                           &r_ij, &r_kj, &r_kl, &m, &n, &t1, &t2, &t3);
+        float  phi = dih_angle_gpu<calcVir>(
+                gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc, &r_ij, &r_kj, &r_kl, &m, &n, &t1, &t2, &t3);
 
         float vpd;
         float ddphi;
-        dopdihs_gpu(d_forceparams[type].pdihs.cpA, d_forceparams[type].pdihs.phiA,
-                    d_forceparams[type].pdihs.mult, phi, &vpd, &ddphi);
+        dopdihs_gpu(d_forceparams[type].pdihs.cpA,
+                    d_forceparams[type].pdihs.phiA,
+                    d_forceparams[type].pdihs.mult,
+                    phi,
+                    &vpd,
+                    &ddphi);
 
         if (calcEner)
         {
             *vtot_loc += vpd;
         }
 
-        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, gm_xq, t1, t2, t3);
+        do_dih_fup_gpu<calcVir>(
+                ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc, pbcAiuc, gm_xq, t1, t2, t3);
     }
 }
 
@@ -509,8 +517,8 @@ __device__ void rbdihs_gpu(const int       i,
         int    t1;
         int    t2;
         int    t3;
-        float  phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
-                                           &r_ij, &r_kj, &r_kl, &m, &n, &t1, &t2, &t3);
+        float  phi = dih_angle_gpu<calcVir>(
+                gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc, &r_ij, &r_kj, &r_kl, &m, &n, &t1, &t2, &t3);
 
         /* Change to polymer convention */
         if (phi < c0)
@@ -575,8 +583,8 @@ __device__ void rbdihs_gpu(const int       i,
 
         ddphi = -ddphi * sin_phi;
 
-        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, gm_xq, t1, t2, t3);
+        do_dih_fup_gpu<calcVir>(
+                ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc, pbcAiuc, gm_xq, t1, t2, t3);
         if (calcEner)
         {
             *vtot_loc += v;
@@ -624,8 +632,8 @@ __device__ void idihs_gpu(const int       i,
         int    t1;
         int    t2;
         int    t3;
-        float  phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
-                                           &r_ij, &r_kj, &r_kl, &m, &n, &t1, &t2, &t3);
+        float  phi = dih_angle_gpu<calcVir>(
+                gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc, &r_ij, &r_kj, &r_kl, &m, &n, &t1, &t2, &t3);
 
         /* phi can jump if phi0 is close to Pi/-Pi, which will cause huge
          * force changes if we just apply a normal harmonic.
@@ -645,8 +653,8 @@ __device__ void idihs_gpu(const int       i,
 
         float ddphi = -kA * dp;
 
-        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, -ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, gm_xq, t1, t2, t3);
+        do_dih_fup_gpu<calcVir>(
+                ai, aj, ak, al, -ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc, pbcAiuc, gm_xq, t1, t2, t3);
 
         if (calcEner)
         {
@@ -722,11 +730,15 @@ template<bool calcVir, bool calcEner>
 __global__ void exec_kernel_gpu(BondedCudaKernelParameters kernelParams)
 {
     assert(blockDim.y == 1 && blockDim.z == 1);
-    const int  tid          = blockIdx.x * blockDim.x + threadIdx.x;
-    float      vtot_loc     = 0;
-    float      vtotVdw_loc  = 0;
-    float      vtotElec_loc = 0;
-    __shared__ float3 sm_fShiftLoc[SHIFTS];
+    const int tid          = blockIdx.x * blockDim.x + threadIdx.x;
+    float     vtot_loc     = 0;
+    float     vtotVdw_loc  = 0;
+    float     vtotElec_loc = 0;
+
+    extern __shared__ char sm_dynamicShmem[];
+    char*                  sm_nextSlotPtr = sm_dynamicShmem;
+    float3*                sm_fShiftLoc   = (float3*)sm_nextSlotPtr;
+    sm_nextSlotPtr += SHIFTS * sizeof(float3);
 
     if (calcVir)
     {
@@ -756,41 +768,84 @@ __global__ void exec_kernel_gpu(BondedCudaKernelParameters kernelParams)
             switch (fType)
             {
                 case F_BONDS:
-                    bonds_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    bonds_gpu<calcVir, calcEner>(fTypeTid,
+                                                 &vtot_loc,
+                                                 numBonds,
+                                                 iatoms,
+                                                 kernelParams.d_forceParams,
+                                                 kernelParams.d_xq,
+                                                 kernelParams.d_f,
+                                                 sm_fShiftLoc,
+                                                 kernelParams.pbcAiuc);
                     break;
                 case F_ANGLES:
-                    angles_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    angles_gpu<calcVir, calcEner>(fTypeTid,
+                                                  &vtot_loc,
+                                                  numBonds,
+                                                  iatoms,
+                                                  kernelParams.d_forceParams,
+                                                  kernelParams.d_xq,
+                                                  kernelParams.d_f,
+                                                  sm_fShiftLoc,
+                                                  kernelParams.pbcAiuc);
                     break;
                 case F_UREY_BRADLEY:
-                    urey_bradley_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    urey_bradley_gpu<calcVir, calcEner>(fTypeTid,
+                                                        &vtot_loc,
+                                                        numBonds,
+                                                        iatoms,
+                                                        kernelParams.d_forceParams,
+                                                        kernelParams.d_xq,
+                                                        kernelParams.d_f,
+                                                        sm_fShiftLoc,
+                                                        kernelParams.pbcAiuc);
                     break;
                 case F_PDIHS:
                 case F_PIDIHS:
-                    pdihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    pdihs_gpu<calcVir, calcEner>(fTypeTid,
+                                                 &vtot_loc,
+                                                 numBonds,
+                                                 iatoms,
+                                                 kernelParams.d_forceParams,
+                                                 kernelParams.d_xq,
+                                                 kernelParams.d_f,
+                                                 sm_fShiftLoc,
+                                                 kernelParams.pbcAiuc);
                     break;
                 case F_RBDIHS:
-                    rbdihs_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    rbdihs_gpu<calcVir, calcEner>(fTypeTid,
+                                                  &vtot_loc,
+                                                  numBonds,
+                                                  iatoms,
+                                                  kernelParams.d_forceParams,
+                                                  kernelParams.d_xq,
+                                                  kernelParams.d_f,
+                                                  sm_fShiftLoc,
+                                                  kernelParams.pbcAiuc);
                     break;
                 case F_IDIHS:
-                    idihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                    idihs_gpu<calcVir, calcEner>(fTypeTid,
+                                                 &vtot_loc,
+                                                 numBonds,
+                                                 iatoms,
+                                                 kernelParams.d_forceParams,
+                                                 kernelParams.d_xq,
+                                                 kernelParams.d_f,
+                                                 sm_fShiftLoc,
+                                                 kernelParams.pbcAiuc);
                     break;
                 case F_LJ14:
-                    pairs_gpu<calcVir, calcEner>(
-                            fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc,
-                            kernelParams.electrostaticsScaleFactor, &vtotVdw_loc, &vtotElec_loc);
+                    pairs_gpu<calcVir, calcEner>(fTypeTid,
+                                                 numBonds,
+                                                 iatoms,
+                                                 kernelParams.d_forceParams,
+                                                 kernelParams.d_xq,
+                                                 kernelParams.d_f,
+                                                 sm_fShiftLoc,
+                                                 kernelParams.pbcAiuc,
+                                                 kernelParams.electrostaticsScaleFactor,
+                                                 &vtotVdw_loc,
+                                                 &vtotElec_loc);
                     break;
             }
             break;
@@ -801,9 +856,42 @@ __global__ void exec_kernel_gpu(BondedCudaKernelParameters kernelParams)
     {
         float* vtotVdw  = kernelParams.d_vTot + F_LJ14;
         float* vtotElec = kernelParams.d_vTot + F_COUL14;
-        atomicAdd(kernelParams.d_vTot + fType, vtot_loc);
-        atomicAdd(vtotVdw, vtotVdw_loc);
-        atomicAdd(vtotElec, vtotElec_loc);
+
+        // Stage atomic accumulation through shared memory:
+        // each warp will accumulate its own partial sum
+        // and then a single thread per warp will accumulate this to the global sum
+
+        int numWarps = blockDim.x / warpSize;
+        int warpId   = threadIdx.x / warpSize;
+
+        // Shared memory variables to hold block-local partial sum
+        float* sm_vTot = (float*)sm_nextSlotPtr;
+        sm_nextSlotPtr += numWarps * sizeof(float);
+        float* sm_vTotVdw = (float*)sm_nextSlotPtr;
+        sm_nextSlotPtr += numWarps * sizeof(float);
+        float* sm_vTotElec = (float*)sm_nextSlotPtr;
+
+        if (threadIdx.x % warpSize == 0)
+        {
+            // One thread per warp initializes to zero
+            sm_vTot[warpId]     = 0.;
+            sm_vTotVdw[warpId]  = 0.;
+            sm_vTotElec[warpId] = 0.;
+        }
+        __syncwarp(); // All threads in warp must wait for initialization
+
+        // Perform warp-local accumulation in shared memory
+        atomicAdd(sm_vTot + warpId, vtot_loc);
+        atomicAdd(sm_vTotVdw + warpId, vtotVdw_loc);
+        atomicAdd(sm_vTotElec + warpId, vtotElec_loc);
+
+        __syncwarp(); // Ensure all threads in warp have completed
+        if (threadIdx.x % warpSize == 0)
+        { // One thread per warp accumulates partial sum into global sum
+            atomicAdd(kernelParams.d_vTot + fType, sm_vTot[warpId]);
+            atomicAdd(vtotVdw, sm_vTotVdw[warpId]);
+            atomicAdd(vtotElec, sm_vTotElec[warpId]);
+        }
     }
     /* Accumulate shift vectors from shared memory to global memory on the first SHIFTS threads of the block. */
     if (calcVir)
@@ -826,6 +914,9 @@ void GpuBonded::Impl::launchKernel()
     GMX_ASSERT(haveInteractions_,
                "Cannot launch bonded GPU kernels unless bonded GPU work was scheduled");
 
+    wallcycle_start_nocount(wcycle_, ewcLAUNCH_GPU);
+    wallcycle_sub_start(wcycle_, ewcsLAUNCH_GPU_BONDED);
+
     int fTypeRangeEnd = kernelParams_.fTypeRangeEnd[numFTypesOnGpu - 1];
 
     if (fTypeRangeEnd < 0)
@@ -837,8 +928,15 @@ void GpuBonded::Impl::launchKernel()
 
     const auto kernelArgs = prepareGpuKernelArguments(kernelPtr, kernelLaunchConfig_, &kernelParams_);
 
-    launchGpuKernel(kernelPtr, kernelLaunchConfig_, deviceStream_, nullptr,
-                    "exec_kernel_gpu<calcVir, calcEner>", kernelArgs);
+    launchGpuKernel(kernelPtr,
+                    kernelLaunchConfig_,
+                    deviceStream_,
+                    nullptr,
+                    "exec_kernel_gpu<calcVir, calcEner>",
+                    kernelArgs);
+
+    wallcycle_sub_stop(wcycle_, ewcsLAUNCH_GPU_BONDED);
+    wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
 }
 
 void GpuBonded::launchKernel(const gmx::StepWorkload& stepWork)

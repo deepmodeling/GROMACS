@@ -74,7 +74,7 @@ class TrajectoryElement;
  * every 15 minutes), and needs two NS steps to take effect - on the first
  * NS step, the checkpoint helper on master rank signals to all other ranks
  * that checkpointing is about to occur. At the next NS step, the checkpoint
- * is written. On the last step, checkpointing happens immediately after the
+ * is written. On the last step, checkpointing happens immediately before the
  * step (no signalling). To be able to react to last step being signalled,
  * the CheckpointHelper does also implement the `ISimulatorElement` interface,
  * but does only register a function if the last step has been called. It
@@ -100,7 +100,6 @@ public:
                      std::unique_ptr<CheckpointHandler> checkpointHandler,
                      int                                initStep,
                      TrajectoryElement*                 trajectoryElement,
-                     int                                globalNumAtoms,
                      FILE*                              fplog,
                      t_commrec*                         cr,
                      ObservablesHistory*                observablesHistory,
@@ -145,8 +144,6 @@ private:
     const Step initStep_;
     //! The last step of the simulation
     Step lastStep_;
-    //! The total number of atoms
-    const int globalNumAtoms_;
     //! Whether a checkpoint is written on the last step
     const bool writeFinalCheckpoint_;
 
@@ -158,12 +155,6 @@ private:
 
     //! Pointer to the trajectory element - to use file pointer
     TrajectoryElement* trajectoryElement_;
-
-    //! A local t_state object to gather data in
-    //! {
-    std::unique_ptr<t_state> localState_;
-    t_state*                 localStateInstance_;
-    //! }
 
     // Access to ISimulator data
     //! Handles logging.
@@ -236,8 +227,8 @@ std::unique_ptr<CheckpointHelper> CheckpointHelperBuilder::build(Args&&... args)
 
     std::vector<std::tuple<std::string, ICheckpointHelperClient*>>&& clients = { clientsMap_.begin(),
                                                                                  clientsMap_.end() };
-    return std::make_unique<CheckpointHelper>(std::move(clients), std::move(checkpointHandler_),
-                                              std::forward<Args>(args)...);
+    return std::make_unique<CheckpointHelper>(
+            std::move(clients), std::move(checkpointHandler_), std::forward<Args>(args)...);
 }
 
 } // namespace gmx

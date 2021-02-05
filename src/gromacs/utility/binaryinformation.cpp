@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -107,23 +107,57 @@ std::string formatCentered(int width, const char* text)
 
 void printCopyright(gmx::TextWriter* writer)
 {
-    static const char* const Contributors[] = {
-        "Emile Apol",         "Rossen Apostolov",   "Paul Bauer",         "Herman J.C. Berendsen",
-        "Par Bjelkmar",       "Christian Blau",     "Viacheslav Bolnykh", "Kevin Boyd",
-        "Aldert van Buuren",  "Rudi van Drunen",    "Anton Feenstra",     "Alan Gray",
-        "Gerrit Groenhof",    "Anca Hamuraru",      "Vincent Hindriksen", "M. Eric Irrgang",
-        "Aleksei Iupinov",    "Christoph Junghans", "Joe Jordan",         "Dimitrios Karkoulis",
-        "Peter Kasson",       "Jiri Kraus",         "Carsten Kutzner",    "Per Larsson",
-        "Justin A. Lemkul",   "Viveca Lindahl",     "Magnus Lundborg",    "Erik Marklund",
-        "Pascal Merz",        "Pieter Meulenhoff",  "Teemu Murtola",      "Szilard Pall",
-        "Sander Pronk",       "Roland Schulz",      "Michael Shirts",     "Alexey Shvetsov",
-        "Alfons Sijbers",     "Peter Tieleman",     "Jon Vincent",        "Teemu Virolainen",
-        "Christian Wennberg", "Maarten Wolf",       "Artem Zhmurov"
-    };
+    // Contributors sorted alphabetically by last name
+    static const char* const Contributors[]  = { "Andrey Alekseenko",
+                                                "Emile Apol",
+                                                "Rossen Apostolov",
+                                                "Paul Bauer",
+                                                "Herman J.C. Berendsen",
+                                                "Par Bjelkmar",
+                                                "Christian Blau",
+                                                "Viacheslav Bolnykh",
+                                                "Kevin Boyd",
+                                                "Aldert van Buuren",
+                                                "Rudi van Drunen",
+                                                "Anton Feenstra",
+                                                "Gilles Gouaillardet",
+                                                "Alan Gray",
+                                                "Gerrit Groenhof",
+                                                "Anca Hamuraru",
+                                                "Vincent Hindriksen",
+                                                "M. Eric Irrgang",
+                                                "Aleksei Iupinov",
+                                                "Christoph Junghans",
+                                                "Joe Jordan",
+                                                "Dimitrios Karkoulis",
+                                                "Peter Kasson",
+                                                "Jiri Kraus",
+                                                "Carsten Kutzner",
+                                                "Per Larsson",
+                                                "Justin A. Lemkul",
+                                                "Viveca Lindahl",
+                                                "Magnus Lundborg",
+                                                "Erik Marklund",
+                                                "Pascal Merz",
+                                                "Pieter Meulenhoff",
+                                                "Teemu Murtola",
+                                                "Szilard Pall",
+                                                "Sander Pronk",
+                                                "Roland Schulz",
+                                                "Michael Shirts",
+                                                "Alexey Shvetsov",
+                                                "Alfons Sijbers",
+                                                "Peter Tieleman",
+                                                "Jon Vincent",
+                                                "Teemu Virolainen",
+                                                "Christian Wennberg",
+                                                "Maarten Wolf",
+                                                "Artem Zhmurov" };
     static const char* const CopyrightText[] = {
         "Copyright (c) 1991-2000, University of Groningen, The Netherlands.",
         "Copyright (c) 2001-2019, The GROMACS development team at",
-        "Uppsala University, Stockholm University and", "the Royal Institute of Technology, Sweden.",
+        "Uppsala University, Stockholm University and",
+        "the Royal Institute of Technology, Sweden.",
         "check out http://www.gromacs.org for more information."
     };
 
@@ -134,9 +168,9 @@ void printCopyright(gmx::TextWriter* writer)
     writer->writeLine(formatCentered(78, "GROMACS is written by:"));
     for (int i = 0; i < NCONTRIBUTORS;)
     {
-        for (int j = 0; j < 4 && i < NCONTRIBUTORS; ++j, ++i)
+        for (int j = 0; j < 3 && i < NCONTRIBUTORS; ++j, ++i)
         {
-            const int            width = 18;
+            const int            width = 26;
             std::array<char, 30> buf;
             const int            offset = centeringOffset(width, strlen(Contributors[i]));
             GMX_RELEASE_ASSERT(static_cast<int>(strlen(Contributors[i])) + offset < gmx::ssize(buf),
@@ -251,7 +285,7 @@ void gmx_print_version_info(gmx::TextWriter* writer)
 #if GMX_DOUBLE
     writer->writeLine("Precision:          double");
 #else
-    writer->writeLine("Precision:          single");
+    writer->writeLine("Precision:          mixed");
 #endif
     writer->writeLine(formatString("Memory model:       %u bit", static_cast<unsigned>(8 * sizeof(void*))));
 
@@ -287,8 +321,8 @@ void gmx_print_version_info(gmx::TextWriter* writer)
 #if HAVE_EXTRAE
     unsigned major, minor, revision;
     Extrae_get_version(&major, &minor, &revision);
-    writer->writeLine(formatString("Tracing support:    enabled. Using Extrae-%d.%d.%d", major,
-                                   minor, revision));
+    writer->writeLine(formatString(
+            "Tracing support:    enabled. Using Extrae-%d.%d.%d", major, minor, revision));
 #else
     writer->writeLine("Tracing support:    disabled");
 #endif
@@ -298,15 +332,15 @@ void gmx_print_version_info(gmx::TextWriter* writer)
      * them. Can wait for later, as the master branch has ready code to do all
      * that. */
     writer->writeLine(formatString("C compiler:         %s", BUILD_C_COMPILER));
-    writer->writeLine(formatString("C compiler flags:   %s %s", BUILD_CFLAGS,
-                                   CMAKE_BUILD_CONFIGURATION_C_FLAGS));
+    writer->writeLine(formatString(
+            "C compiler flags:   %s %s", BUILD_CFLAGS, CMAKE_BUILD_CONFIGURATION_C_FLAGS));
     writer->writeLine(formatString("C++ compiler:       %s", BUILD_CXX_COMPILER));
-    writer->writeLine(formatString("C++ compiler flags: %s %s", BUILD_CXXFLAGS,
-                                   CMAKE_BUILD_CONFIGURATION_CXX_FLAGS));
+    writer->writeLine(formatString(
+            "C++ compiler flags: %s %s", BUILD_CXXFLAGS, CMAKE_BUILD_CONFIGURATION_CXX_FLAGS));
 #ifdef HAVE_LIBMKL
     /* MKL might be used for LAPACK/BLAS even if FFTs use FFTW, so keep it separate */
-    writer->writeLine(formatString("Linked with Intel MKL version %d.%d.%d.", __INTEL_MKL__,
-                                   __INTEL_MKL_MINOR__, __INTEL_MKL_UPDATE__));
+    writer->writeLine(formatString(
+            "Linked with Intel MKL version %d.%d.%d.", __INTEL_MKL__, __INTEL_MKL_MINOR__, __INTEL_MKL_UPDATE__));
 #endif
 #if GMX_GPU_OPENCL
     writer->writeLine(formatString("OpenCL include dir: %s", OPENCL_INCLUDE_DIR));
@@ -315,8 +349,8 @@ void gmx_print_version_info(gmx::TextWriter* writer)
 #endif
 #if GMX_GPU_CUDA
     writer->writeLine(formatString("CUDA compiler:      %s", CUDA_COMPILER_INFO));
-    writer->writeLine(formatString("CUDA compiler flags:%s %s", CUDA_COMPILER_FLAGS,
-                                   CMAKE_BUILD_CONFIGURATION_CXX_FLAGS));
+    writer->writeLine(formatString(
+            "CUDA compiler flags:%s %s", CUDA_COMPILER_FLAGS, CMAKE_BUILD_CONFIGURATION_CXX_FLAGS));
     writer->writeLine("CUDA driver:        " + gmx::getCudaDriverVersionString());
     writer->writeLine("CUDA runtime:       " + gmx::getCudaRuntimeVersionString());
 #endif
@@ -393,8 +427,8 @@ void printBinaryInformation(TextWriter*                      writer,
         // necessary to read stuff above the copyright notice.
         // The line above the copyright notice puts the copyright notice is
         // context, though.
-        writer->writeLine(formatString("%sGROMACS:      %s, version %s%s%s", prefix, name,
-                                       gmx_version(), precisionString, suffix));
+        writer->writeLine(formatString(
+                "%sGROMACS:      %s, version %s%s%s", prefix, name, gmx_version(), precisionString, suffix));
     }
     const char* const binaryPath = programContext.fullBinaryPath();
     if (!gmx::isNullOrEmpty(binaryPath))
@@ -404,8 +438,11 @@ void printBinaryInformation(TextWriter*                      writer,
     const gmx::InstallationPrefixInfo installPrefix = programContext.installationPrefix();
     if (!gmx::isNullOrEmpty(installPrefix.path))
     {
-        writer->writeLine(formatString("%sData prefix:  %s%s%s", prefix, installPrefix.path,
-                                       installPrefix.bSourceLayout ? " (source tree)" : "", suffix));
+        writer->writeLine(formatString("%sData prefix:  %s%s%s",
+                                       prefix,
+                                       installPrefix.path,
+                                       installPrefix.bSourceLayout ? " (source tree)" : "",
+                                       suffix));
     }
     const std::string workingDir = Path::getWorkingDirectory();
     if (!workingDir.empty())
@@ -419,8 +456,8 @@ void printBinaryInformation(TextWriter*                      writer,
     const char* const commandLine = programContext.commandLine();
     if (!gmx::isNullOrEmpty(commandLine))
     {
-        writer->writeLine(formatString("%sCommand line:%s\n%s  %s%s", prefix, suffix, prefix,
-                                       commandLine, suffix));
+        writer->writeLine(formatString(
+                "%sCommand line:%s\n%s  %s%s", prefix, suffix, prefix, commandLine, suffix));
     }
     if (settings.bExtendedInfo_)
     {

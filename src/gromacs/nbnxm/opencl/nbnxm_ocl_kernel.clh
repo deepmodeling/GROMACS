@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012-2018, The GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -56,6 +56,11 @@
 #    define EL_EWALD_ANY
 #endif
 
+#if defined LJ_EWALD_COMB_GEOM || defined LJ_EWALD_COMB_LB
+/* Note: convenience macro, needs to be undef-ed at the end of the file. */
+#    define LJ_EWALD
+#endif
+
 #if defined EL_EWALD_ANY || defined EL_RF || defined LJ_EWALD \
         || (defined EL_CUTOFF && defined CALC_ENERGIES)
 /* Macro to control the calculation of exclusion forces in the kernel
@@ -65,11 +70,6 @@
  * Note: convenience macro, needs to be undef-ed at the end of the file.
  */
 #    define EXCLUSION_FORCES
-#endif
-
-#if defined LJ_EWALD_COMB_GEOM || defined LJ_EWALD_COMB_LB
-/* Note: convenience macro, needs to be undef-ed at the end of the file. */
-#    define LJ_EWALD
 #endif
 
 #if defined LJ_COMB_GEOM || defined LJ_COMB_LB
@@ -126,11 +126,11 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
 #else
                 const __global int* restrict atom_types, /* IN  */
 #endif
-                const __global float* restrict shift_vec,             /* IN stores float3 values */
-                __constant const float* gmx_unused nbfp_climg2d,      /* IN  */
-                __constant const float* gmx_unused nbfp_comb_climg2d, /* IN  */
-                __constant const float* gmx_unused coulomb_tab_climg2d, /* IN  */
-                const __global nbnxn_sci_t* pl_sci,                     /* IN  */
+                const __global float* restrict shift_vec,       /* IN stores float3 values */
+                __constant const float* gmx_unused nbfp,        /* IN  */
+                __constant const float* gmx_unused nbfp_comb,   /* IN  */
+                __constant const float* gmx_unused coulomb_tab, /* IN  */
+                const __global nbnxn_sci_t* pl_sci,             /* IN  */
 #ifndef PRUNE_NBL
                 const
 #endif
@@ -232,8 +232,10 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
         const int ai = ci * CL_SIZE + tidxi;
 
         float4 xqbuf = xq[ai]
-                       + (float4)(shift_vec[3 * nb_sci.shift], shift_vec[3 * nb_sci.shift + 1],
-                                  shift_vec[3 * nb_sci.shift + 2], 0.0F);
+                       + (float4)(shift_vec[3 * nb_sci.shift],
+                                  shift_vec[3 * nb_sci.shift + 1],
+                                  shift_vec[3 * nb_sci.shift + 2],
+                                  0.0F);
         xqbuf.w *= nbparam->epsfac;
         xqib[(tidxj + i) * CL_SIZE + tidxi] = xqbuf;
 #ifdef IATYPE_SHMEM
@@ -254,10 +256,12 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
 #endif
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    float3 fci_buf[c_nbnxnGpuNumClusterPerSupercluster]; /* i force buffer */
+    fvec fci_buf[c_nbnxnGpuNumClusterPerSupercluster]; /* i force buffer */
     for (int ci_offset = 0; ci_offset < c_nbnxnGpuNumClusterPerSupercluster; ci_offset++)
     {
-        fci_buf[ci_offset] = (float3)(0.0F);
+        fci_buf[ci_offset][0] = 0.0F;
+        fci_buf[ci_offset][1] = 0.0F;
+        fci_buf[ci_offset][2] = 0.0F;
     }
 
 #ifdef LJ_EWALD
@@ -282,8 +286,8 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
             E_el += qi * qi;
 #        endif
 #        if defined LJ_EWALD
-            E_lj += nbfp_climg2d[atom_types[(sci * c_nbnxnGpuNumClusterPerSupercluster + i) * CL_SIZE + tidxi]
-                                 * (ntypes + 1) * 2];
+            E_lj += nbfp[atom_types[(sci * c_nbnxnGpuNumClusterPerSupercluster + i) * CL_SIZE + tidxi]
+                         * (ntypes + 1) * 2];
 #        endif /* LJ_EWALD */
         }
 
@@ -407,27 +411,26 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
 #endif                          /* IATYPE_SHMEM */
                                 /* LJ 6*C6 and 12*C12 */
 #ifndef LJ_COMB
-                                const float c6  = nbfp_climg2d[2 * (ntypes * typei + typej)];
-                                const float c12 = nbfp_climg2d[2 * (ntypes * typei + typej) + 1];
+                                const float c6  = nbfp[2 * (ntypes * typei + typej)];
+                                const float c12 = nbfp[2 * (ntypes * typei + typej) + 1];
 #else /* LJ_COMB */
 #    ifdef LJ_COMB_GEOM
                                 const float c6     = ljcp_i.x * ljcp_j.x;
                                 const float c12    = ljcp_i.y * ljcp_j.y;
 #    else
                                 /* LJ 2^(1/6)*sigma and 12*epsilon */
-                                const float sigma   = ljcp_i.x + ljcp_j.x;
-                                const float epsilon = ljcp_i.y * ljcp_j.y;
+                                const float  sigma   = ljcp_i.x + ljcp_j.x;
+                                const float  epsilon = ljcp_i.y * ljcp_j.y;
 #        if defined CALC_ENERGIES || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH
-                                float       c6, c12;
-                                convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
+                                const float2 c6c12 = convert_sigma_epsilon_to_c6_c12(sigma, epsilon);
+                                const float  c6    = c6c12.x;
+                                const float  c12   = c6c12.y;
 #        endif
 #    endif /* LJ_COMB_GEOM */
 #endif     /* LJ_COMB */
 
                                 // Ensure distance do not become so small that r^-12 overflows.
-                                // Cast to float to ensure the correct built-in max() function
-                                // is called.
-                                r2 = max(r2, (float)c_nbnxnMinDistanceSquared);
+                                r2 = max(r2, c_nbnxnMinDistanceSquared);
 
                                 const float inv_r  = rsqrt(r2);
                                 const float inv_r2 = inv_r * inv_r;
@@ -471,20 +474,40 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
 #ifdef LJ_EWALD
 #    ifdef LJ_EWALD_COMB_GEOM
 #        ifdef CALC_ENERGIES
-                                calculate_lj_ewald_comb_geom_F_E(
-                                        nbfp_comb_climg2d, nbparam, typei, typej, r2, inv_r2,
-                                        lje_coeff2, lje_coeff6_6, int_bit, &F_invr, &E_lj_p);
+                                calculate_lj_ewald_comb_geom_F_E(nbfp_comb,
+                                                                 nbparam,
+                                                                 typei,
+                                                                 typej,
+                                                                 r2,
+                                                                 inv_r2,
+                                                                 lje_coeff2,
+                                                                 lje_coeff6_6,
+                                                                 int_bit,
+                                                                 &F_invr,
+                                                                 &E_lj_p);
 #        else
-                                calculate_lj_ewald_comb_geom_F(nbfp_comb_climg2d, typei, typej, r2, inv_r2,
-                                                               lje_coeff2, lje_coeff6_6, &F_invr);
+                                calculate_lj_ewald_comb_geom_F(
+                                        nbfp_comb, typei, typej, r2, inv_r2, lje_coeff2, lje_coeff6_6, &F_invr);
 #        endif /* CALC_ENERGIES */
 #    elif defined LJ_EWALD_COMB_LB
-                                calculate_lj_ewald_comb_LB_F_E(nbfp_comb_climg2d, nbparam, typei, typej,
-                                                               r2, inv_r2, lje_coeff2, lje_coeff6_6,
+                                calculate_lj_ewald_comb_LB_F_E(nbfp_comb,
+                                                               nbparam,
+                                                               typei,
+                                                               typej,
+                                                               r2,
+                                                               inv_r2,
+                                                               lje_coeff2,
+                                                               lje_coeff6_6,
 #        ifdef CALC_ENERGIES
-                                                               int_bit, true, &F_invr, &E_lj_p
+                                                               int_bit,
+                                                               true,
+                                                               &F_invr,
+                                                               &E_lj_p
 #        else
-                                                               0, false, &F_invr, 0
+                                                               0,
+                                                               false,
+                                                               &F_invr,
+                                                               0
 #        endif /* CALC_ENERGIES */
                                 );
 #    endif     /* LJ_EWALD_COMB_GEOM */
@@ -531,8 +554,8 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
 #elif defined EL_EWALD_TAB
                                 F_invr += qi * qj_f
                                           * (int_bit * inv_r2
-                                             - interpolate_coulomb_force_r(coulomb_tab_climg2d, r2 * inv_r,
-                                                                           coulomb_tab_scale))
+                                             - interpolate_coulomb_force_r(
+                                                       coulomb_tab, r2 * inv_r, coulomb_tab_scale))
                                           * inv_r;
 #endif /* EL_EWALD_ANA/TAB */
 
@@ -555,7 +578,9 @@ __kernel void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_opencl)
                                 fcj_buf -= f_ij;
 
                                 /* accumulate i forces in registers */
-                                fci_buf[i] += f_ij;
+                                fci_buf[i][0] += f_ij.x;
+                                fci_buf[i][1] += f_ij.y;
+                                fci_buf[i][2] += f_ij.z;
                             }
                         }
 

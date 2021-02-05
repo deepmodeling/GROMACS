@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -52,6 +52,7 @@
 #include <vector>
 
 #include "gromacs/onlinehelp/helpformat.h"
+#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/programcontext.h"
@@ -445,8 +446,7 @@ std::string HelpWriterContext::Impl::replaceLinks(const std::string& input) cons
     if (state_->links_ != nullptr)
     {
         HelpLinks::Impl::LinkList::const_iterator link;
-        for (link = state_->links_->impl_->links_.begin();
-             link != state_->links_->impl_->links_.end(); ++link)
+        for (link = state_->links_->impl_->links_.begin(); link != state_->links_->impl_->links_.end(); ++link)
         {
             result = replaceAllWords(result, link->linkName, link->replacement);
         }

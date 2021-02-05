@@ -107,9 +107,10 @@ public:
                                      const TemperatureCouplingData& temperatureCouplingData) = 0;
 
     //! Write private data to checkpoint
-    virtual void writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr) = 0;
+    virtual void writeCheckpoint(std::optional<WriteCheckpointData> checkpointData,
+                                 const t_commrec*                   cr) = 0;
     //! Read private data from checkpoint
-    virtual void readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr) = 0;
+    virtual void readCheckpoint(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) = 0;
 
     //! Standard virtual destructor
     virtual ~ITemperatureCouplingImpl() = default;
@@ -141,11 +142,13 @@ public:
                 * temperatureCouplingData.numDegreesOfFreedom[temperatureGroup];
 
         const real newKineticEnergy =
-                vrescale_resamplekin(currentKineticEnergy, referenceKineticEnergy,
+                vrescale_resamplekin(currentKineticEnergy,
+                                     referenceKineticEnergy,
                                      temperatureCouplingData.numDegreesOfFreedom[temperatureGroup],
                                      temperatureCouplingData.couplingTime[temperatureGroup]
                                              / temperatureCouplingData.couplingTimeStep,
-                                     step, seed_);
+                                     step,
+                                     seed_);
 
         // Analytically newKineticEnergy >= 0, but we check for rounding errors
         if (newKineticEnergy <= 0)
@@ -159,8 +162,12 @@ public:
 
         if (debug)
         {
-            fprintf(debug, "TC: group %d: Ekr %g, Ek %g, Ek_new %g, Lambda: %g\n", temperatureGroup,
-                    referenceKineticEnergy, currentKineticEnergy, newKineticEnergy,
+            fprintf(debug,
+                    "TC: group %d: Ekr %g, Ek %g, Ek_new %g, Lambda: %g\n",
+                    temperatureGroup,
+                    referenceKineticEnergy,
+                    currentKineticEnergy,
+                    newKineticEnergy,
                     lambdaStartVelocities_[temperatureGroup]);
         }
 
@@ -177,11 +184,13 @@ public:
     }
 
     //! No data to write to checkpoint
-    void writeCheckpoint(WriteCheckpointData gmx_unused checkpointData, const t_commrec gmx_unused* cr) override
+    void writeCheckpoint(std::optional<WriteCheckpointData> gmx_unused checkpointData,
+                         const t_commrec gmx_unused* cr) override
     {
     }
     //! No data to read from checkpoints
-    void readCheckpoint(ReadCheckpointData gmx_unused checkpointData, const t_commrec gmx_unused* cr) override
+    void readCheckpoint(std::optional<ReadCheckpointData> gmx_unused checkpointData,
+                        const t_commrec gmx_unused* cr) override
     {
     }
 
@@ -192,6 +201,72 @@ private:
     //! The random seed
     const int64_t seed_;
 
+    //! View on the scaling factor of the propagator (pre-step velocities)
+    ArrayRef<real> lambdaStartVelocities_;
+};
+
+/*! \internal
+ * \brief Implements Berendsen temperature coupling
+ */
+class BerendsenTemperatureCoupling final : public ITemperatureCouplingImpl
+{
+public:
+    //! Apply the v-rescale temperature control
+    real apply(Step gmx_unused                step,
+               int                            temperatureGroup,
+               real                           currentKineticEnergy,
+               real                           currentTemperature,
+               const TemperatureCouplingData& temperatureCouplingData) override
+    {
+        if (!(temperatureCouplingData.couplingTime[temperatureGroup] >= 0
+              && temperatureCouplingData.numDegreesOfFreedom[temperatureGroup] > 0
+              && currentKineticEnergy > 0))
+        {
+            lambdaStartVelocities_[temperatureGroup] = 1.0;
+            return temperatureCouplingData.temperatureCouplingIntegral[temperatureGroup];
+        }
+
+        real lambda =
+                std::sqrt(1.0
+                          + (temperatureCouplingData.couplingTimeStep
+                             / temperatureCouplingData.couplingTime[temperatureGroup])
+                                    * (temperatureCouplingData.referenceTemperature[temperatureGroup] / currentTemperature
+                                       - 1.0));
+        lambdaStartVelocities_[temperatureGroup] =
+                std::max<real>(std::min<real>(lambda, 1.25_real), 0.8_real);
+        if (debug)
+        {
+            fprintf(debug,
+                    "TC: group %d: T: %g, Lambda: %g\n",
+                    temperatureGroup,
+                    currentTemperature,
+                    lambdaStartVelocities_[temperatureGroup]);
+        }
+        return temperatureCouplingData.temperatureCouplingIntegral[temperatureGroup]
+               - (lambdaStartVelocities_[temperatureGroup] * lambdaStartVelocities_[temperatureGroup]
+                  - 1) * currentKineticEnergy;
+    }
+
+    //! Connect with propagator - Berendsen only scales start step velocities
+    void connectWithPropagator(const PropagatorThermostatConnection& connectionData,
+                               int                                   numTemperatureGroups) override
+    {
+        connectionData.setNumVelocityScalingVariables(numTemperatureGroups);
+        lambdaStartVelocities_ = connectionData.getViewOnVelocityScaling();
+    }
+
+    //! No data to write to checkpoint
+    void writeCheckpoint(std::optional<WriteCheckpointData> gmx_unused checkpointData,
+                         const t_commrec gmx_unused* cr) override
+    {
+    }
+    //! No data to read from checkpoints
+    void readCheckpoint(std::optional<ReadCheckpointData> gmx_unused checkpointData,
+                        const t_commrec gmx_unused* cr) override
+    {
+    }
+
+private:
     //! View on the scaling factor of the propagator (pre-step velocities)
     ArrayRef<real> lambdaStartVelocities_;
 };
@@ -229,6 +304,10 @@ VelocityScalingTemperatureCoupling::VelocityScalingTemperatureCoupling(
     if (couplingType == etcVRESCALE)
     {
         temperatureCouplingImpl_ = std::make_unique<VRescaleTemperatureCoupling>(seed);
+    }
+    else if (couplingType == etcBERENDSEN)
+    {
+        temperatureCouplingImpl_ = std::make_unique<BerendsenTemperatureCoupling>();
     }
     else
     {
@@ -286,8 +365,9 @@ void VelocityScalingTemperatureCoupling::setLambda(Step step)
     }
 
     const auto*             ekind          = energyData_->ekindata();
-    TemperatureCouplingData thermostatData = { couplingTimeStep_, referenceTemperature_, couplingTime_,
-                                               numDegreesOfFreedom_, temperatureCouplingIntegral_ };
+    TemperatureCouplingData thermostatData = {
+        couplingTimeStep_, referenceTemperature_, couplingTime_, numDegreesOfFreedom_, temperatureCouplingIntegral_
+    };
 
     for (int temperatureGroup = 0; (temperatureGroup < numTemperatureGroups_); temperatureGroup++)
     {
@@ -320,35 +400,46 @@ constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count
 } // namespace
 
 template<CheckpointDataOperation operation>
-void VelocityScalingTemperatureCoupling::doCheckpointData(CheckpointData<operation>* checkpointData,
-                                                          const t_commrec*           cr)
+void VelocityScalingTemperatureCoupling::doCheckpointData(CheckpointData<operation>* checkpointData)
+{
+    checkpointVersion(checkpointData, "VRescaleThermostat version", c_currentVersion);
+
+    checkpointData->arrayRef("thermostat integral",
+                             makeCheckpointArrayRef<operation>(temperatureCouplingIntegral_));
+}
+
+void VelocityScalingTemperatureCoupling::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                                             const t_commrec*                   cr)
 {
     if (MASTER(cr))
     {
-        checkpointVersion(checkpointData, "VRescaleThermostat version", c_currentVersion);
-
-        checkpointData->arrayRef("thermostat integral",
-                                 makeCheckpointArrayRef<operation>(temperatureCouplingIntegral_));
+        doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
     }
-    if (operation == CheckpointDataOperation::Read && DOMAINDECOMP(cr))
+    temperatureCouplingImpl_->writeCheckpoint(
+            checkpointData
+                    ? std::make_optional(checkpointData->subCheckpointData("thermostat impl"))
+                    : std::nullopt,
+            cr);
+}
+
+void VelocityScalingTemperatureCoupling::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                                const t_commrec* cr)
+{
+    if (MASTER(cr))
     {
-        dd_bcast(cr->dd, temperatureCouplingIntegral_.size() * sizeof(double),
+        doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
+    if (DOMAINDECOMP(cr))
+    {
+        dd_bcast(cr->dd,
+                 ssize(temperatureCouplingIntegral_) * int(sizeof(double)),
                  temperatureCouplingIntegral_.data());
     }
-}
-
-void VelocityScalingTemperatureCoupling::writeCheckpoint(WriteCheckpointData checkpointData,
-                                                         const t_commrec*    cr)
-{
-    doCheckpointData<CheckpointDataOperation::Write>(&checkpointData, cr);
-    temperatureCouplingImpl_->writeCheckpoint(checkpointData.subCheckpointData("thermostat impl"), cr);
-}
-
-void VelocityScalingTemperatureCoupling::readCheckpoint(ReadCheckpointData checkpointData,
-                                                        const t_commrec*   cr)
-{
-    doCheckpointData<CheckpointDataOperation::Read>(&checkpointData, cr);
-    temperatureCouplingImpl_->readCheckpoint(checkpointData.subCheckpointData("thermostat impl"), cr);
+    temperatureCouplingImpl_->readCheckpoint(
+            checkpointData
+                    ? std::make_optional(checkpointData->subCheckpointData("thermostat impl"))
+                    : std::nullopt,
+            cr);
 }
 
 const std::string& VelocityScalingTemperatureCoupling::clientID()
@@ -358,11 +449,17 @@ const std::string& VelocityScalingTemperatureCoupling::clientID()
 
 real VelocityScalingTemperatureCoupling::conservedEnergyContribution() const
 {
-    return (reportPreviousConservedEnergy_ == ReportPreviousStepConservedEnergy::Yes)
-                   ? std::accumulate(temperatureCouplingIntegralPreviousStep_.begin(),
-                                     temperatureCouplingIntegralPreviousStep_.end(), 0.0)
-                   : std::accumulate(temperatureCouplingIntegral_.begin(),
-                                     temperatureCouplingIntegral_.end(), 0.0);
+    if (reportPreviousConservedEnergy_ == ReportPreviousStepConservedEnergy::Yes)
+    {
+        return std::accumulate(temperatureCouplingIntegralPreviousStep_.begin(),
+                               temperatureCouplingIntegralPreviousStep_.end(),
+                               0.0);
+    }
+    else
+    {
+        return std::accumulate(
+                temperatureCouplingIntegral_.begin(), temperatureCouplingIntegral_.end(), 0.0);
+    }
 }
 
 ISimulatorElement* VelocityScalingTemperatureCoupling::getElementPointerImpl(
@@ -376,13 +473,22 @@ ISimulatorElement* VelocityScalingTemperatureCoupling::getElementPointerImpl(
         UseFullStepKE                         useFullStepKE,
         ReportPreviousStepConservedEnergy     reportPreviousStepConservedEnergy)
 {
+    // Element is now owned by the caller of this method, who will handle lifetime (see ModularSimulatorAlgorithm)
     auto* element = builderHelper->storeElement(std::make_unique<VelocityScalingTemperatureCoupling>(
-            legacySimulatorData->inputrec->nsttcouple, offset, useFullStepKE, reportPreviousStepConservedEnergy,
-            legacySimulatorData->inputrec->ld_seed, legacySimulatorData->inputrec->opts.ngtc,
+            legacySimulatorData->inputrec->nsttcouple,
+            offset,
+            useFullStepKE,
+            reportPreviousStepConservedEnergy,
+            legacySimulatorData->inputrec->ld_seed,
+            legacySimulatorData->inputrec->opts.ngtc,
             legacySimulatorData->inputrec->delta_t * legacySimulatorData->inputrec->nsttcouple,
-            legacySimulatorData->inputrec->opts.ref_t, legacySimulatorData->inputrec->opts.tau_t,
-            legacySimulatorData->inputrec->opts.nrdf, energyData, legacySimulatorData->inputrec->etc));
+            legacySimulatorData->inputrec->opts.ref_t,
+            legacySimulatorData->inputrec->opts.tau_t,
+            legacySimulatorData->inputrec->opts.nrdf,
+            energyData,
+            legacySimulatorData->inputrec->etc));
     auto* thermostat = static_cast<VelocityScalingTemperatureCoupling*>(element);
+    // Capturing pointer is safe because lifetime is handled by caller
     builderHelper->registerThermostat([thermostat](const PropagatorThermostatConnection& connection) {
         thermostat->connectWithPropagator(connection);
     });

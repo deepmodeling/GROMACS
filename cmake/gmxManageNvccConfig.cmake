@@ -149,12 +149,52 @@ if (GMX_CUDA_TARGET_COMPUTE)
     set_property(CACHE GMX_CUDA_TARGET_COMPUTE PROPERTY TYPE STRING)
 endif()
 
+# FindCUDA.cmake is unaware of the mechanism used by cmake to embed
+# the compiler flag for the required C++ standard in the generated
+# build files, so we have to pass it ourselves
+if (CUDA_VERSION VERSION_LESS 11.0)
+    # CUDA doesn't formally support C++17 until version 11.0, so for
+    # now host-side code that compiles with CUDA is restricted to
+    # C++14. This needs to be expressed formally for older CUDA
+    # version.
+    list(APPEND GMX_CUDA_NVCC_FLAGS "${CMAKE_CXX14_STANDARD_COMPILE_OPTION}")
+else()
+    # gcc-7 pre-dated C++17, so uses the -std=c++1z compiler flag for it,
+    # which modern nvcc does not recognize. So we work around that by
+    # compiling in C++14 mode. Clang doesn't have this problem because nvcc
+    # only supports version of clang that already understood -std=c++17
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8)
+        list(APPEND GMX_CUDA_NVCC_FLAGS "${CMAKE_CXX14_STANDARD_COMPILE_OPTION}")
+    else()
+        list(APPEND GMX_CUDA_NVCC_FLAGS "${CMAKE_CXX17_STANDARD_COMPILE_OPTION}")
+    endif()
+endif()
+
 # assemble the CUDA flags
 list(APPEND GMX_CUDA_NVCC_FLAGS "${GMX_CUDA_NVCC_GENCODE_FLAGS}")
 list(APPEND GMX_CUDA_NVCC_FLAGS "-use_fast_math")
 
 # assemble the CUDA host compiler flags
 list(APPEND GMX_CUDA_NVCC_FLAGS "${CUDA_HOST_COMPILER_OPTIONS}")
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # CUDA header cuda_runtime_api.h in at least CUDA 10.1 uses 0
+    # where nullptr would be preferable. GROMACS can't fix these, so
+    # must suppress them.
+    GMX_TEST_CXXFLAG(CXXFLAGS_NO_ZERO_AS_NULL_POINTER_CONSTANT "-Wno-zero-as-null-pointer-constant" NVCC_CLANG_SUPPRESSIONS_CXXFLAGS)
+
+    # CUDA header crt/math_functions.h in at least CUDA 10.x and 11.1
+    # used throw() specifications that are deprecated in more recent
+    # C++ versions. GROMACS can't fix these, so must suppress them.
+    GMX_TEST_CXXFLAG(CXXFLAGS_NO_DEPRECATED_DYNAMIC_EXCEPTION_SPEC "-Wno-deprecated-dynamic-exception-spec" NVCC_CLANG_SUPPRESSIONS_CXXFLAGS)
+
+    # Add these flags to those used for the host compiler. The
+    # "-Xcompiler" prefix directs nvcc to only use them for host
+    # compilation, which is all that is needed in this case.
+    foreach(_flag ${NVCC_CLANG_SUPPRESSIONS_CXXFLAGS})
+        list(APPEND GMX_CUDA_NVCC_FLAGS "-Xcompiler ${_flag}")
+    endforeach()
+endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" _build_type)
 gmx_check_if_changed(_cuda_nvcc_executable_or_flags_changed CUDA_NVCC_EXECUTABLE CUDA_NVCC_FLAGS CUDA_NVCC_FLAGS_${_build_type})

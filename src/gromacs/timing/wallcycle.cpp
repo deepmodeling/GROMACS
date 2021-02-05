@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2008, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -60,13 +60,22 @@
 
 static const bool useCycleSubcounters = GMX_CYCLE_SUBCOUNTERS;
 
-/* DEBUG_WCYCLE adds consistency checking for the counters.
- * It checks if you stop a counter different from the last
+#ifndef DEBUG_WCYCLE
+/*! \brief Enables consistency checking for the counters.
+ *
+ * If the macro is set to 1, code checks if you stop a counter different from the last
  * one that was opened and if you do nest too deep.
  */
-/* #define DEBUG_WCYCLE */
+#    define DEBUG_WCYCLE 0
+#endif
+//! Whether wallcycle debugging is enabled
+constexpr bool gmx_unused enableWallcycleDebug = (DEBUG_WCYCLE != 0);
+//! True if only the master rank should print debugging output
+constexpr bool gmx_unused onlyMasterDebugPrints = true;
+//! True if cycle counter nesting depth debuggin prints are enabled
+constexpr bool gmx_unused debugPrintDepth = false /* enableWallcycleDebug */;
 
-#ifdef DEBUG_WCYCLE
+#if DEBUG_WCYCLE
 #    include "gromacs/utility/fatalerror.h"
 #endif
 
@@ -86,10 +95,11 @@ struct gmx_wallcycle
     gmx_bool  wc_barrier;
     wallcc_t* wcc_all;
     int       wc_depth;
-#ifdef DEBUG_WCYCLE
+#if DEBUG_WCYCLE
 #    define DEPTH_MAX 6
-    int counterlist[DEPTH_MAX];
-    int count_depth;
+    int  counterlist[DEPTH_MAX];
+    int  count_depth;
+    bool isMasterRank;
 #endif
     int          ewc_prev;
     gmx_cycles_t cycle_prev;
@@ -155,6 +165,7 @@ static const char* wcsn[ewcsNR] = {
     "DD make top.",
     "DD make constr.",
     "DD top. other",
+    "DD GPU ops.",
     "NS grid local",
     "NS grid non-loc.",
     "NS search local",
@@ -179,6 +190,7 @@ static const char* wcsn[ewcsNR] = {
     "Launch GPU NB F buffer ops.",
     "Launch GPU Comm. coord.",
     "Launch GPU Comm. force.",
+    "Launch GPU update",
     "Test subcounter",
 };
 
@@ -212,6 +224,7 @@ gmx_wallcycle_t wallcycle_init(FILE* fplog, int resetstep, t_commrec gmx_unused*
     wc->ewc_prev         = -1;
     wc->reset_counters   = resetstep;
 
+
 #if GMX_MPI
     if (PAR(cr) && getenv("GMX_CYCLE_BARRIER") != nullptr)
     {
@@ -239,8 +252,9 @@ gmx_wallcycle_t wallcycle_init(FILE* fplog, int resetstep, t_commrec gmx_unused*
         snew(wc->wcsc, ewcsNR);
     }
 
-#ifdef DEBUG_WCYCLE
-    wc->count_depth = 0;
+#if DEBUG_WCYCLE
+    wc->count_depth  = 0;
+    wc->isMasterRank = MASTER(cr);
 #endif
 
     return wc;
@@ -281,34 +295,43 @@ static void wallcycle_all_stop(gmx_wallcycle_t wc, int ewc, gmx_cycles_t cycle)
 }
 
 
-#ifdef DEBUG_WCYCLE
+#if DEBUG_WCYCLE
 static void debug_start_check(gmx_wallcycle_t wc, int ewc)
 {
-    /* fprintf(stderr,"wcycle_start depth %d, %s\n",wc->count_depth,wcn[ewc]); */
-
     if (wc->count_depth < 0 || wc->count_depth >= DEPTH_MAX)
     {
-        gmx_fatal(FARGS, "wallcycle counter depth out of range: %d", wc->count_depth);
+        gmx_fatal(FARGS, "wallcycle counter depth out of range: %d", wc->count_depth + 1);
     }
     wc->counterlist[wc->count_depth] = ewc;
     wc->count_depth++;
+
+    if (debugPrintDepth && (!onlyMasterDebugPrints || wc->isMasterRank))
+    {
+        std::string indentStr(4 * wc->count_depth, ' ');
+        fprintf(stderr, "%swcycle_start depth %d, %s\n", indentStr.c_str(), wc->count_depth, wcn[ewc]);
+    }
 }
 
 static void debug_stop_check(gmx_wallcycle_t wc, int ewc)
 {
-    wc->count_depth--;
+    if (debugPrintDepth && (!onlyMasterDebugPrints || wc->isMasterRank))
+    {
+        std::string indentStr(4 * wc->count_depth, ' ');
+        fprintf(stderr, "%swcycle_stop  depth %d, %s\n", indentStr.c_str(), wc->count_depth, wcn[ewc]);
+    }
 
-    /* fprintf(stderr,"wcycle_stop depth %d, %s\n",wc->count_depth,wcn[ewc]); */
+    wc->count_depth--;
 
     if (wc->count_depth < 0)
     {
-        gmx_fatal(FARGS, "wallcycle counter depth out of range when stopping %s: %d", wcn[ewc],
-                  wc->count_depth);
+        gmx_fatal(FARGS, "wallcycle counter depth out of range when stopping %s: %d", wcn[ewc], wc->count_depth);
     }
     if (wc->counterlist[wc->count_depth] != ewc)
     {
-        gmx_fatal(FARGS, "wallcycle mismatch at stop, start %s, stop %s",
-                  wcn[wc->counterlist[wc->count_depth]], wcn[ewc]);
+        gmx_fatal(FARGS,
+                  "wallcycle mismatch at stop, start %s, stop %s",
+                  wcn[wc->counterlist[wc->count_depth]],
+                  wcn[ewc]);
     }
 }
 #endif
@@ -329,7 +352,7 @@ void wallcycle_start(gmx_wallcycle_t wc, int ewc)
     }
 #endif
 
-#ifdef DEBUG_WCYCLE
+#if DEBUG_WCYCLE
     debug_start_check(wc, ewc);
 #endif
 
@@ -385,7 +408,7 @@ double wallcycle_stop(gmx_wallcycle_t wc, int ewc)
     }
 #endif
 
-#ifdef DEBUG_WCYCLE
+#if DEBUG_WCYCLE
     debug_stop_check(wc, ewc);
 #endif
 
@@ -561,8 +584,7 @@ WallcycleCounts wallcycle_sum(const t_commrec* cr, gmx_wallcycle_t wc)
     if (wc == nullptr)
     {
         /* Default construction of std::array of non-class T can leave
-           the values indeterminate, just like a C array, and icc
-           warns about it. */
+           the values indeterminate, just like a C array */
         cycles_sum.fill(0);
         return cycles_sum;
     }
@@ -711,8 +733,15 @@ print_cycles(FILE* fplog, double c2t, const char* name, int nnodes, int nthreads
         /* Convert the cycle count to wallclock time for this task */
         wallt = c_sum * c2t;
 
-        fprintf(fplog, " %-19.19s %4s %4s %10s  %10.3f %14.3f %5.1f\n", name, nnodes_str,
-                nthreads_str, ncalls_str, wallt, c_sum * 1e-9, percentage);
+        fprintf(fplog,
+                " %-19.19s %4s %4s %10s  %10.3f %14.3f %5.1f\n",
+                name,
+                nnodes_str,
+                nthreads_str,
+                ncalls_str,
+                wallt,
+                c_sum * 1e-9,
+                percentage);
     }
 }
 
@@ -892,8 +921,14 @@ void wallcycle_print(FILE*                            fplog,
             for (j = 0; j < ewcNR; j++)
             {
                 snprintf(buf, 20, "%-9.9s %-9.9s", wcn[i], wcn[j]);
-                print_cycles(fplog, c2t_pp, buf, npp, nth_pp, wc->wcc_all[i * ewcNR + j].n,
-                             wc->wcc_all[i * ewcNR + j].c, tot);
+                print_cycles(fplog,
+                             c2t_pp,
+                             buf,
+                             npp,
+                             nth_pp,
+                             wc->wcc_all[i * ewcNR + j].n,
+                             wc->wcc_all[i * ewcNR + j].c,
+                             tot);
             }
         }
     }
@@ -931,8 +966,14 @@ void wallcycle_print(FILE*                            fplog,
             fprintf(fplog, "%s\n", hline);
             for (auto i : validPmeSubcounterIndices)
             {
-                print_cycles(fplog, npme > 0 ? c2t_pme : c2t_pp, wcn[i], npme > 0 ? npme : npp,
-                             nth_pme, wc->wcc[i].n, cyc_sum[i], tot);
+                print_cycles(fplog,
+                             npme > 0 ? c2t_pme : c2t_pp,
+                             wcn[i],
+                             npme > 0 ? npme : npp,
+                             nth_pme,
+                             wc->wcc[i].n,
+                             cyc_sum[i],
+                             tot);
             }
             fprintf(fplog, "%s\n", hline);
         }
@@ -983,7 +1024,8 @@ void wallcycle_print(FILE*                            fplog,
 
         fprintf(fplog, "\n GPU timings\n%s\n", hline);
         fprintf(fplog,
-                " Computing:                         Count  Wall t (s)      ms/step       %c\n", '%');
+                " Computing:                         Count  Wall t (s)      ms/step       %c\n",
+                '%');
         fprintf(fplog, "%s\n", hline);
         print_gputimes(fplog, "Pair list H2D", gpu_nbnxn_t->pl_h2d_c, gpu_nbnxn_t->pl_h2d_t, tot_gpu);
         print_gputimes(fplog, "X / q H2D", gpu_nbnxn_t->nb_c, gpu_nbnxn_t->nb_h2d_t, tot_gpu);
@@ -994,8 +1036,11 @@ void wallcycle_print(FILE*                            fplog,
             {
                 if (gpu_nbnxn_t->ktime[i][j].c)
                 {
-                    print_gputimes(fplog, k_log_str[i][j], gpu_nbnxn_t->ktime[i][j].c,
-                                   gpu_nbnxn_t->ktime[i][j].t, tot_gpu);
+                    print_gputimes(fplog,
+                                   k_log_str[i][j],
+                                   gpu_nbnxn_t->ktime[i][j].c,
+                                   gpu_nbnxn_t->ktime[i][j].t,
+                                   tot_gpu);
                 }
             }
         }
@@ -1005,15 +1050,14 @@ void wallcycle_print(FILE*                            fplog,
             {
                 if (gpu_pme_t->timing[k].c)
                 {
-                    print_gputimes(fplog, PMEStageNames[k], gpu_pme_t->timing[k].c,
-                                   gpu_pme_t->timing[k].t, tot_gpu);
+                    print_gputimes(
+                            fplog, PMEStageNames[k], gpu_pme_t->timing[k].c, gpu_pme_t->timing[k].t, tot_gpu);
                 }
             }
         }
         if (gpu_nbnxn_t->pruneTime.c)
         {
-            print_gputimes(fplog, "Pruning kernel", gpu_nbnxn_t->pruneTime.c,
-                           gpu_nbnxn_t->pruneTime.t, tot_gpu);
+            print_gputimes(fplog, "Pruning kernel", gpu_nbnxn_t->pruneTime.c, gpu_nbnxn_t->pruneTime.t, tot_gpu);
         }
         print_gputimes(fplog, "F D2H", gpu_nbnxn_t->nb_c, gpu_nbnxn_t->nb_d2h_t, tot_gpu);
         fprintf(fplog, "%s\n", hline);
@@ -1025,8 +1069,11 @@ void wallcycle_print(FILE*                            fplog,
              * and avoid adding it to tot_gpu as this is not in the force
              * overlap. We print the fraction as relative to the rest.
              */
-            print_gputimes(fplog, "*Dynamic pruning", gpu_nbnxn_t->dynamicPruneTime.c,
-                           gpu_nbnxn_t->dynamicPruneTime.t, tot_gpu);
+            print_gputimes(fplog,
+                           "*Dynamic pruning",
+                           gpu_nbnxn_t->dynamicPruneTime.c,
+                           gpu_nbnxn_t->dynamicPruneTime.t,
+                           tot_gpu);
             fprintf(fplog, "%s\n", hline);
         }
         gpu_cpu_ratio = tot_gpu / tot_cpu_overlap;
@@ -1035,7 +1082,9 @@ void wallcycle_print(FILE*                            fplog,
             fprintf(fplog,
                     "\nAverage per-step force GPU/CPU evaluation time ratio: %.3f ms/%.3f ms = "
                     "%.3f\n",
-                    tot_gpu / gpu_nbnxn_t->nb_c, tot_cpu_overlap / wc->wcc[ewcFORCE].n, gpu_cpu_ratio);
+                    tot_gpu / gpu_nbnxn_t->nb_c,
+                    tot_cpu_overlap / wc->wcc[ewcFORCE].n,
+                    gpu_cpu_ratio);
         }
 
         /* only print notes related to CPU-GPU load balance with PME */

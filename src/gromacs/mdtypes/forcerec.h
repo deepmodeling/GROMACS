@@ -49,6 +49,8 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
+#include "locality.h"
+
 /* Abstract type for PME that is defined only in the routine that use them. */
 struct gmx_pme_t;
 struct nonbonded_verlet_t;
@@ -64,6 +66,7 @@ namespace gmx
 {
 class DeviceStreamManager;
 class GpuBonded;
+class GpuForceReduction;
 class ForceProviders;
 class StatePropagatorDataGpu;
 class PmePpCommGpu;
@@ -254,8 +257,8 @@ struct t_forcerec
     /* The number of atoms participating in force calculation and constraints */
     int natoms_force_constr = 0;
 
-    /* Helper buffer for ForceOutputs */
-    std::unique_ptr<ForceHelperBuffers> forceHelperBuffers;
+    /* List of helper buffers for ForceOutputs, one for each time step with MTS */
+    std::vector<ForceHelperBuffers> forceHelperBuffers;
 
     /* Data for PPPM/PME/Ewald */
     struct gmx_pme_t* pmedata                = nullptr;
@@ -296,13 +299,14 @@ struct t_forcerec
     real userreal3 = 0;
     real userreal4 = 0;
 
+    /* Tells whether we use multiple time stepping, computing some forces less frequently */
+    bool useMts = false;
+
     /* Data for special listed force calculations */
     std::unique_ptr<t_fcdata> fcdata;
 
     // The listed forces calculation data, 1 entry or multiple entries with multiple time stepping
     std::vector<ListedForces> listedForces;
-
-    static constexpr size_t c_listedForcesFast = 0;
 
     /* TODO: Replace the pointer by an object once we got rid of C */
     gmx::GpuBonded* gpuBonded = nullptr;
@@ -325,6 +329,9 @@ struct t_forcerec
 
     /* For PME-PP GPU communication */
     std::unique_ptr<gmx::PmePpCommGpu> pmePpCommGpu;
+
+    /* For GPU force reduction (on both local and non-local atoms) */
+    gmx::EnumerationArray<gmx::AtomLocality, std::unique_ptr<gmx::GpuForceReduction>> gpuForceReduction;
 };
 
 /* Important: Starting with Gromacs-4.6, the values of c6 and c12 in the nbfp array have

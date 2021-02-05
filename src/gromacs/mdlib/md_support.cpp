@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -88,18 +88,14 @@ static void calc_ke_part_normal(gmx::ArrayRef<const gmx::RVec> v,
                                 gmx_bool                       bEkinAveVel)
 {
     int                         g;
-    gmx::ArrayRef<t_grp_tcstat> tcstat  = ekind->tcstat;
-    gmx::ArrayRef<t_grp_acc>    grpstat = ekind->grpstat;
+    gmx::ArrayRef<t_grp_tcstat> tcstat = ekind->tcstat;
 
     /* three main: VV with AveVel, vv with AveEkin, leap with AveEkin.  Leap with AveVel is also
        an option, but not supported now.
        bEkinAveVel: If TRUE, we sum into ekin, if FALSE, into ekinh.
      */
 
-    /* group velocities are calculated in update_ekindata and
-     * accumulated in acumulate_groups.
-     * Now the partial global and groups ekin.
-     */
+    // Now accumulate the partial global and groups ekin.
     for (g = 0; (g < opts->ngtc); g++)
     {
         copy_mat(tcstat[g].ekinh, tcstat[g].ekinh_old);
@@ -123,8 +119,7 @@ static void calc_ke_part_normal(gmx::ArrayRef<const gmx::RVec> v,
         // or memory allocation. It should not be able to throw, so for now
         // we do not need a try/catch wrapper.
         int     start_t, end_t, n;
-        int     ga, gt;
-        rvec    v_corrt;
+        int     gt;
         real    hm;
         int     d, m;
         matrix* ekin_sum;
@@ -142,14 +137,9 @@ static void calc_ke_part_normal(gmx::ArrayRef<const gmx::RVec> v,
         }
         *dekindl_sum = 0.0;
 
-        ga = 0;
         gt = 0;
         for (n = start_t; n < end_t; n++)
         {
-            if (md->cACC)
-            {
-                ga = md->cACC[n];
-            }
             if (md->cTC)
             {
                 gt = md->cTC[n];
@@ -158,19 +148,15 @@ static void calc_ke_part_normal(gmx::ArrayRef<const gmx::RVec> v,
 
             for (d = 0; (d < gmx::c_dim); d++)
             {
-                v_corrt[d] = v[n][d] - grpstat[ga].u[d];
-            }
-            for (d = 0; (d < gmx::c_dim); d++)
-            {
                 for (m = 0; (m < gmx::c_dim); m++)
                 {
-                    /* if we're computing a full step velocity, v_corrt[d] has v(t).  Otherwise, v(t+dt/2) */
-                    ekin_sum[gt][m][d] += hm * v_corrt[m] * v_corrt[d];
+                    /* if we're computing a full step velocity, v[d] has v(t).  Otherwise, v(t+dt/2) */
+                    ekin_sum[gt][m][d] += hm * v[n][m] * v[n][d];
                 }
             }
             if (md->nMassPerturbed && md->bPerturbed[n])
             {
-                *dekindl_sum += 0.5 * (md->massB[n] - md->massA[n]) * iprod(v_corrt, v_corrt);
+                *dekindl_sum += 0.5 * (md->massB[n] - md->massA[n]) * iprod(v[n], v[n]);
             }
         }
     }
@@ -311,7 +297,7 @@ void compute_globals(gmx_global_stat*               gstat,
                      tensor                         shake_vir,
                      tensor                         total_vir,
                      tensor                         pres,
-                     gmx::Constraints*              constr,
+                     gmx::ArrayRef<real>            constraintsRmsdData,
                      gmx::SimulationSignaller*      signalCoordinator,
                      const matrix                   lastbox,
                      int*                           totalNumberOfBondedInteractions,
@@ -346,14 +332,6 @@ void compute_globals(gmx_global_stat*               gstat,
 
     if (bTemp)
     {
-        /* Non-equilibrium MD: this is parallellized, but only does communication
-         * when there really is NEMD.
-         */
-
-        if (PAR(cr) && (ekind->bNEMD))
-        {
-            accumulate_u(cr, &(ir->opts), ekind);
-        }
         if (!bReadEkin)
         {
             calc_ke_part(x, v, box, &(ir->opts), mdatoms, ekind, nrnb, bEkinAveVel);
@@ -381,9 +359,20 @@ void compute_globals(gmx_global_stat*               gstat,
             if (PAR(cr))
             {
                 wallcycle_start(wcycle, ewcMoveE);
-                global_stat(gstat, cr, enerd, force_vir, shake_vir, ir, ekind, constr,
-                            bStopCM ? vcm : nullptr, signalBuffer.size(), signalBuffer.data(),
-                            totalNumberOfBondedInteractions, *bSumEkinhOld, flags);
+                global_stat(gstat,
+                            cr,
+                            enerd,
+                            force_vir,
+                            shake_vir,
+                            ir,
+                            ekind,
+                            constraintsRmsdData,
+                            bStopCM ? vcm : nullptr,
+                            signalBuffer.size(),
+                            signalBuffer.data(),
+                            totalNumberOfBondedInteractions,
+                            *bSumEkinhOld,
+                            flags);
                 wallcycle_stop(wcycle, ewcMoveE);
             }
             signalCoordinator->finalizeSignals();
@@ -458,9 +447,9 @@ static int lcd4(int i1, int i2, int i3, int i4)
     return nst;
 }
 
-int computeGlobalCommunicationPeriod(const gmx::MDLogger& mdlog, t_inputrec* ir, const t_commrec* cr)
+int computeGlobalCommunicationPeriod(const t_inputrec* ir)
 {
-    int nstglobalcomm;
+    int nstglobalcomm = 10;
     {
         // Set up the default behaviour
         if (!(ir->nstcalcenergy > 0 || ir->nstlist > 0 || ir->etc != etcNO || ir->epc != epcNO))
@@ -468,7 +457,6 @@ int computeGlobalCommunicationPeriod(const gmx::MDLogger& mdlog, t_inputrec* ir,
             /* The user didn't choose the period for anything
                important, so we just make sure we can send signals and
                write output suitably. */
-            nstglobalcomm = 10;
             if (ir->nstenergy > 0 && ir->nstenergy < nstglobalcomm)
             {
                 nstglobalcomm = ir->nstenergy;
@@ -485,20 +473,18 @@ int computeGlobalCommunicationPeriod(const gmx::MDLogger& mdlog, t_inputrec* ir,
              * here a leftover of the twin-range scheme? Can we remove
              * nstlist when we remove the group scheme?
              */
-            nstglobalcomm = lcd4(ir->nstcalcenergy, ir->nstlist, ir->etc != etcNO ? ir->nsttcouple : 0,
+            nstglobalcomm = lcd4(ir->nstcalcenergy,
+                                 ir->nstlist,
+                                 ir->etc != etcNO ? ir->nsttcouple : 0,
                                  ir->epc != epcNO ? ir->nstpcouple : 0);
         }
     }
+    return nstglobalcomm;
+}
 
-    // TODO change this behaviour. Instead grompp should print
-    // a (performance) note and mdrun should not change ir.
-    if (ir->comm_mode != ecmNO && ir->nstcomm < nstglobalcomm)
-    {
-        GMX_LOG(mdlog.warning)
-                .asParagraph()
-                .appendTextFormatted("WARNING: Changing nstcomm from %d to %d", ir->nstcomm, nstglobalcomm);
-        ir->nstcomm = nstglobalcomm;
-    }
+int computeGlobalCommunicationPeriod(const gmx::MDLogger& mdlog, const t_inputrec* ir, const t_commrec* cr)
+{
+    const int nstglobalcomm = computeGlobalCommunicationPeriod(ir);
 
     if (cr->nnodes > 1)
     {
@@ -572,7 +558,7 @@ void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimu
             state->flags |= (1 << estVETA);
             state->flags |= (1 << estVOL0);
         }
-        if (ir->epc == epcBERENDSEN)
+        if (ir->epc == epcBERENDSEN || ir->epc == epcCRESCALE)
         {
             state->flags |= (1 << estBAROS_INT);
         }
@@ -589,8 +575,7 @@ void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimu
         state->flags |= (1 << estTHERM_INT);
     }
 
-    init_gtc_state(state, state->ngtc, state->nnhpres,
-                   ir->opts.nhchainlength); /* allocate the space for nose-hoover chains */
+    init_gtc_state(state, state->ngtc, state->nnhpres, ir->opts.nhchainlength); /* allocate the space for nose-hoover chains */
     init_ekinstate(&state->ekinstate, ir);
 
     if (ir->bExpanded)

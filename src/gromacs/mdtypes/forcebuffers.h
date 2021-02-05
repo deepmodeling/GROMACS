@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -47,11 +47,12 @@
 #ifndef GMX_MDTYPES_FORCEBUFFERS_H
 #define GMX_MDTYPES_FORCEBUFFERS_H
 
+#include <memory>
+
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/arrayrefwithpadding.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/classhelpers.h"
 
 namespace gmx
 {
@@ -66,7 +67,14 @@ class ForceBuffersView
 {
 public:
     //! Constructor, creates a view to \p force
-    ForceBuffersView(const ArrayRefWithPadding<RVec>& force) : force_(force) {}
+    ForceBuffersView(const ArrayRefWithPadding<RVec>& force,
+                     const ArrayRefWithPadding<RVec>& forceMtsCombined,
+                     const bool                       useForceMtsCombined) :
+        force_(force),
+        forceMtsCombined_(forceMtsCombined),
+        useForceMtsCombined_(useForceMtsCombined)
+    {
+    }
 
     //! Copy constructor deleted to avoid creating non-const from const
     ForceBuffersView(const ForceBuffersView& o) = delete;
@@ -91,23 +99,62 @@ public:
     //! Returns an ArrayRefWithPadding to the force buffer
     ArrayRefWithPadding<RVec> forceWithPadding() { return force_; }
 
+    //! Returns a const arrayref to the MTS force buffer without padding
+    ArrayRef<const RVec> forceMtsCombined() const
+    {
+        GMX_ASSERT(useForceMtsCombined_, "Need the MTS buffer");
+        return forceMtsCombined_.unpaddedConstArrayRef();
+    }
+
+    //! Returns an arrayref to the MTS force buffer without padding
+    ArrayRef<RVec> forceMtsCombined()
+    {
+        GMX_ASSERT(useForceMtsCombined_, "Need the MTS buffer");
+        return forceMtsCombined_.unpaddedArrayRef();
+    }
+
+    //! Returns an ArrayRefWithPadding to the MTS force buffer
+    ArrayRefWithPadding<RVec> forceMtsCombinedWithPadding()
+    {
+        GMX_ASSERT(useForceMtsCombined_, "Need the MTS buffer");
+        return forceMtsCombined_;
+    }
+
 private:
     //! The force buffer
     ArrayRefWithPadding<RVec> force_;
+    //! The force buffer for combined fast and slow forces with MTS
+    ArrayRefWithPadding<RVec> forceMtsCombined_;
+    // GCC 9 complains about unused attribute "unused" as it never warns about unused members,
+    // while clang requires it to avoid -Wunused
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+    //! Wether we use forceMtsCombined_
+    gmx_used_in_debug bool useForceMtsCombined_;
+#pragma GCC diagnostic pop
 };
 
 /*! \libinternal \brief Object that holds the force buffers
  *
+ * Contains a normal force buffer and optionally a force buffer for combined fast and slow
+ * forces for use with multiple time stepping.
  * More buffers can be added when needed. Those should also be added
  * to ForceBuffersView.
- * Can be pinned for efficient transfer to/from GPUs.
+ * The force buffer (not forceMtsCombined) can be pinned for efficient transfer to/from GPUs.
  * All access happens through the ForceBuffersView object.
  */
 class ForceBuffers
 {
 public:
-    //! Constructor, creates an empty force buffer with pinning not active
-    ForceBuffers(PinningPolicy pinningPolicy = PinningPolicy::CannotBePinned);
+    //! Constructor, creates an empty force buffer with pinning not active and no MTS force buffer
+    ForceBuffers();
+
+    /*! \brief Constructor, with options for using the MTS force buffer and the pinning policy
+     *
+     * \param[in] useForceMtsCombined  Whether to enable use of the forceMtsCombined buffer
+     * \param[in] pinningPolicy        The pinning policy for the force (not MTS) buffer
+     */
+    ForceBuffers(bool useForceMtsCombined, PinningPolicy pinningPolicy);
 
     //! Copy constructor deleted, but could be implemented
     ForceBuffers(const ForceBuffers& o) = delete;
@@ -141,8 +188,12 @@ public:
 private:
     //! The force buffer
     PaddedHostVector<RVec> force_;
+    //! Force buffer with combined fast and slow forces for use with multiple time stepping
+    PaddedHostVector<RVec> forceMtsCombined_;
     //! The view to the force buffer
     ForceBuffersView view_;
+    //! Wether we use forceMtsCombined_
+    bool useForceMtsCombined_;
 };
 
 } // namespace gmx

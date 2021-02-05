@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -124,9 +124,7 @@ static void init_nbparam(NBParamGpu*                     nbp,
                          const nbnxn_atomdata_t::Params& nbatParams,
                          const DeviceContext&            deviceContext)
 {
-    int ntypes;
-
-    ntypes = nbatParams.numTypes;
+    const int ntypes = nbatParams.numTypes;
 
     set_cutoff_parameters(nbp, ic, listParams);
 
@@ -139,90 +137,29 @@ static void init_nbparam(NBParamGpu*                     nbp,
      * combination is rarely used. LJ force-switch with LB rule is more common,
      * but gives only 1% speed-up.
      */
-    if (ic->vdwtype == evdwCUT)
-    {
-        switch (ic->vdw_modifier)
-        {
-            case eintmodNONE:
-            case eintmodPOTSHIFT:
-                switch (nbatParams.comb_rule)
-                {
-                    case ljcrNONE: nbp->vdwtype = evdwTypeCUT; break;
-                    case ljcrGEOM: nbp->vdwtype = evdwTypeCUTCOMBGEOM; break;
-                    case ljcrLB: nbp->vdwtype = evdwTypeCUTCOMBLB; break;
-                    default:
-                        gmx_incons(
-                                "The requested LJ combination rule is not implemented in the CUDA "
-                                "GPU accelerated kernels!");
-                }
-                break;
-            case eintmodFORCESWITCH: nbp->vdwtype = evdwTypeFSWITCH; break;
-            case eintmodPOTSWITCH: nbp->vdwtype = evdwTypePSWITCH; break;
-            default:
-                gmx_incons(
-                        "The requested VdW interaction modifier is not implemented in the CUDA GPU "
-                        "accelerated kernels!");
-        }
-    }
-    else if (ic->vdwtype == evdwPME)
-    {
-        if (ic->ljpme_comb_rule == ljcrGEOM)
-        {
-            assert(nbatParams.comb_rule == ljcrGEOM);
-            nbp->vdwtype = evdwTypeEWALDGEOM;
-        }
-        else
-        {
-            assert(nbatParams.comb_rule == ljcrLB);
-            nbp->vdwtype = evdwTypeEWALDLB;
-        }
-    }
-    else
-    {
-        gmx_incons(
-                "The requested VdW type is not implemented in the CUDA GPU accelerated kernels!");
-    }
-
-    if (ic->eeltype == eelCUT)
-    {
-        nbp->eeltype = eelTypeCUT;
-    }
-    else if (EEL_RF(ic->eeltype))
-    {
-        nbp->eeltype = eelTypeRF;
-    }
-    else if ((EEL_PME(ic->eeltype) || ic->eeltype == eelEWALD))
-    {
-        nbp->eeltype = nbnxn_gpu_pick_ewald_kernel_type(*ic);
-    }
-    else
-    {
-        /* Shouldn't happen, as this is checked when choosing Verlet-scheme */
-        gmx_incons(
-                "The requested electrostatics type is not implemented in the CUDA GPU accelerated "
-                "kernels!");
-    }
+    nbp->vdwType  = nbnxmGpuPickVdwKernelType(ic, nbatParams.ljCombinationRule);
+    nbp->elecType = nbnxmGpuPickElectrostaticsKernelType(ic, deviceContext.deviceInfo());
 
     /* generate table for PME */
     nbp->coulomb_tab = nullptr;
-    if (nbp->eeltype == eelTypeEWALD_TAB || nbp->eeltype == eelTypeEWALD_TAB_TWIN)
+    if (nbp->elecType == ElecType::EwaldTab || nbp->elecType == ElecType::EwaldTabTwin)
     {
         GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
         init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp, deviceContext);
     }
 
     /* set up LJ parameter lookup table */
-    if (!useLjCombRule(nbp->vdwtype))
+    if (!useLjCombRule(nbp->vdwType))
     {
-        initParamLookupTable(&nbp->nbfp, &nbp->nbfp_texobj, nbatParams.nbfp.data(),
-                             2 * ntypes * ntypes, deviceContext);
+        initParamLookupTable(
+                &nbp->nbfp, &nbp->nbfp_texobj, nbatParams.nbfp.data(), 2 * ntypes * ntypes, deviceContext);
     }
 
     /* set up LJ-PME parameter lookup table */
     if (ic->vdwtype == evdwPME)
     {
-        initParamLookupTable(&nbp->nbfp_comb, &nbp->nbfp_comb_texobj, nbatParams.nbfp_comb.data(),
-                             2 * ntypes, deviceContext);
+        initParamLookupTable(
+                &nbp->nbfp_comb, &nbp->nbfp_comb_texobj, nbatParams.nbfp_comb.data(), 2 * ntypes, deviceContext);
     }
 }
 
@@ -321,8 +258,6 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     nb->ncxy_na_alloc         = 0;
     nb->ncxy_ind              = 0;
     nb->ncxy_ind_alloc        = 0;
-    nb->ncell                 = 0;
-    nb->ncell_alloc           = 0;
 
     if (debug)
     {
@@ -342,8 +277,13 @@ void gpu_upload_shiftvec(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom)
     {
         static_assert(sizeof(adat->shift_vec[0]) == sizeof(nbatom->shift_vec[0]),
                       "Sizes of host- and device-side shift vectors should be the same.");
-        copyToDeviceBuffer(&adat->shift_vec, reinterpret_cast<const float3*>(nbatom->shift_vec.data()),
-                           0, SHIFTS, localStream, GpuApiCallBehavior::Async, nullptr);
+        copyToDeviceBuffer(&adat->shift_vec,
+                           reinterpret_cast<const float3*>(nbatom->shift_vec.data()),
+                           0,
+                           SHIFTS,
+                           localStream,
+                           GpuApiCallBehavior::Async,
+                           nullptr);
         adat->bShiftVecUploaded = true;
     }
 }
@@ -414,7 +354,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
 
         allocateDeviceBuffer(&d_atdat->f, nalloc, deviceContext);
         allocateDeviceBuffer(&d_atdat->xq, nalloc, deviceContext);
-        if (useLjCombRule(nb->nbparam->vdwtype))
+        if (useLjCombRule(nb->nbparam->vdwType))
         {
             allocateDeviceBuffer(&d_atdat->lj_comb, nalloc, deviceContext);
         }
@@ -436,20 +376,29 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         nbnxn_cuda_clear_f(nb, nalloc);
     }
 
-    if (useLjCombRule(nb->nbparam->vdwtype))
+    if (useLjCombRule(nb->nbparam->vdwType))
     {
         static_assert(sizeof(d_atdat->lj_comb[0]) == sizeof(float2),
                       "Size of the LJ parameters element should be equal to the size of float2.");
         copyToDeviceBuffer(&d_atdat->lj_comb,
-                           reinterpret_cast<const float2*>(nbat->params().lj_comb.data()), 0,
-                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+                           reinterpret_cast<const float2*>(nbat->params().lj_comb.data()),
+                           0,
+                           natoms,
+                           localStream,
+                           GpuApiCallBehavior::Async,
+                           nullptr);
     }
     else
     {
         static_assert(sizeof(d_atdat->atom_types[0]) == sizeof(nbat->params().type[0]),
                       "Sizes of host- and device-side atom types should be the same.");
-        copyToDeviceBuffer(&d_atdat->atom_types, nbat->params().type.data(), 0, natoms, localStream,
-                           GpuApiCallBehavior::Async, nullptr);
+        copyToDeviceBuffer(&d_atdat->atom_types,
+                           nbat->params().type.data(),
+                           0,
+                           natoms,
+                           localStream,
+                           GpuApiCallBehavior::Async,
+                           nullptr);
     }
 
     if (bDoTime)
@@ -473,7 +422,7 @@ void gpu_free(NbnxmGpu* nb)
     nbparam = nb->nbparam;
 
     if ((!nbparam->coulomb_tab)
-        && (nbparam->eeltype == eelTypeEWALD_TAB || nbparam->eeltype == eelTypeEWALD_TAB_TWIN))
+        && (nbparam->elecType == ElecType::EwaldTab || nbparam->elecType == ElecType::EwaldTabTwin))
     {
         destroyParamLookupTable(&nbparam->coulomb_tab, nbparam->coulomb_tab_texobj);
     }
@@ -485,12 +434,12 @@ void gpu_free(NbnxmGpu* nb)
 
     delete nb->timers;
 
-    if (!useLjCombRule(nb->nbparam->vdwtype))
+    if (!useLjCombRule(nb->nbparam->vdwType))
     {
         destroyParamLookupTable(&nbparam->nbfp, nbparam->nbfp_texobj);
     }
 
-    if (nbparam->vdwtype == evdwTypeEWALDGEOM || nbparam->vdwtype == evdwTypeEWALDLB)
+    if (nbparam->vdwType == VdwType::EwaldGeom || nbparam->vdwType == VdwType::EwaldLB)
     {
         destroyParamLookupTable(&nbparam->nbfp_comb, nbparam->nbfp_comb_texobj);
     }
@@ -579,10 +528,16 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
     bool                bDoTime       = gpu_nbv->bDoTime;
     const int           maxNumColumns = gridSet.numColumnsMax();
 
-    reallocateDeviceBuffer(&gpu_nbv->cxy_na, maxNumColumns * gridSet.grids().size(),
-                           &gpu_nbv->ncxy_na, &gpu_nbv->ncxy_na_alloc, *gpu_nbv->deviceContext_);
-    reallocateDeviceBuffer(&gpu_nbv->cxy_ind, maxNumColumns * gridSet.grids().size(),
-                           &gpu_nbv->ncxy_ind, &gpu_nbv->ncxy_ind_alloc, *gpu_nbv->deviceContext_);
+    reallocateDeviceBuffer(&gpu_nbv->cxy_na,
+                           maxNumColumns * gridSet.grids().size(),
+                           &gpu_nbv->ncxy_na,
+                           &gpu_nbv->ncxy_na_alloc,
+                           *gpu_nbv->deviceContext_);
+    reallocateDeviceBuffer(&gpu_nbv->cxy_ind,
+                           maxNumColumns * gridSet.grids().size(),
+                           &gpu_nbv->ncxy_ind,
+                           &gpu_nbv->ncxy_ind_alloc,
+                           *gpu_nbv->deviceContext_);
 
     for (unsigned int g = 0; g < gridSet.grids().size(); g++)
     {
@@ -595,8 +550,11 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
         const int* cxy_na          = grid.cxy_na().data();
         const int* cxy_ind         = grid.cxy_ind().data();
 
-        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+        reallocateDeviceBuffer(&gpu_nbv->atomIndices,
+                               atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc,
+                               *gpu_nbv->deviceContext_);
 
         if (atomIndicesSize > 0)
         {
@@ -606,8 +564,13 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
                 gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
             }
 
-            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndices,
+                               atomIndices,
+                               0,
+                               atomIndicesSize,
+                               deviceStream,
+                               GpuApiCallBehavior::Async,
+                               nullptr);
 
             if (bDoTime)
             {
@@ -623,8 +586,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
             }
 
             int* destPtr = &gpu_nbv->cxy_na[maxNumColumns * g];
-            copyToDeviceBuffer(&destPtr, cxy_na, 0, numColumns, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(
+                    &destPtr, cxy_na, 0, numColumns, deviceStream, GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)
             {
@@ -637,8 +600,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
             }
 
             destPtr = &gpu_nbv->cxy_ind[maxNumColumns * g];
-            copyToDeviceBuffer(&destPtr, cxy_ind, 0, numColumns, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(
+                    &destPtr, cxy_ind, 0, numColumns, deviceStream, GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)
             {
@@ -655,29 +618,6 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
     nbnxnInsertNonlocalGpuDependency(gpu_nbv, Nbnxm::InteractionLocality::Local);
     // ...and this call instructs the nonlocal stream to wait on that event:
     nbnxnInsertNonlocalGpuDependency(gpu_nbv, Nbnxm::InteractionLocality::NonLocal);
-
-    return;
-}
-
-/* Initialization for F buffer operations on GPU. */
-void nbnxn_gpu_init_add_nbat_f_to_f(const int*                  cell,
-                                    NbnxmGpu*                   gpu_nbv,
-                                    int                         natoms_total,
-                                    GpuEventSynchronizer* const localReductionDone)
-{
-
-    const DeviceStream& deviceStream = *gpu_nbv->deviceStreams[InteractionLocality::Local];
-
-    GMX_ASSERT(localReductionDone, "localReductionDone should be a valid pointer");
-    gpu_nbv->localFReductionDone = localReductionDone;
-
-    if (natoms_total > 0)
-    {
-        reallocateDeviceBuffer(&gpu_nbv->cell, natoms_total, &gpu_nbv->ncell, &gpu_nbv->ncell_alloc,
-                               *gpu_nbv->deviceContext_);
-        copyToDeviceBuffer(&gpu_nbv->cell, cell, 0, natoms_total, deviceStream,
-                           GpuApiCallBehavior::Async, nullptr);
-    }
 
     return;
 }

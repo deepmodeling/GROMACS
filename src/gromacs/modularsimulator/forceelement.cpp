@@ -54,6 +54,7 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/mdtypes/mdrunoptions.h"
+#include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/pbcutil/pbc.h"
 
 #include "energydata.h"
@@ -93,7 +94,8 @@ ForceElement::ForceElement(StatePropagatorData*        statePropagatorData,
                                 globalTopology,
                                 constr ? constr->numFlexibleConstraints() : 0,
                                 inputrec->nstcalcenergy,
-                                DOMAINDECOMP(cr))),
+                                DOMAINDECOMP(cr),
+                                runScheduleWork->simulationWork.useGpuPme)),
     doShellFC_(shellfc_ != nullptr),
     nextNSStep_(-1),
     nextEnergyCalculationStep_(-1),
@@ -192,12 +194,38 @@ void ForceElement::run(Step step, Time time, unsigned int flags)
     {
         auto v = statePropagatorData_->velocitiesView();
 
-        relax_shell_flexcon(
-                fplog_, cr_, ms, isVerbose_, enforcedRotation_, step, inputrec_, imdSession_,
-                pull_work_, step == nextNSStep_, static_cast<int>(flags), localTopology_, constr_,
-                energyData_->enerdata(), statePropagatorData_->localNumAtoms(), x, v, box, lambda,
-                hist, &forces, force_vir, mdAtoms_->mdatoms(), nrnb_, wcycle_, shellfc_, fr_,
-                runScheduleWork_, time, energyData_->muTot(), vsite_, ddBalanceRegionHandler_);
+        relax_shell_flexcon(fplog_,
+                            cr_,
+                            ms,
+                            isVerbose_,
+                            enforcedRotation_,
+                            step,
+                            inputrec_,
+                            imdSession_,
+                            pull_work_,
+                            step == nextNSStep_,
+                            static_cast<int>(flags),
+                            localTopology_,
+                            constr_,
+                            energyData_->enerdata(),
+                            statePropagatorData_->localNumAtoms(),
+                            x,
+                            v,
+                            box,
+                            lambda,
+                            hist,
+                            &forces,
+                            force_vir,
+                            mdAtoms_->mdatoms(),
+                            nrnb_,
+                            wcycle_,
+                            shellfc_,
+                            fr_,
+                            runScheduleWork_,
+                            time,
+                            energyData_->muTot(),
+                            vsite_,
+                            ddBalanceRegionHandler_);
         nShellRelaxationSteps_++;
     }
     else
@@ -206,10 +234,34 @@ void ForceElement::run(Step step, Time time, unsigned int flags)
         Awh*       awh = nullptr;
         gmx_edsam* ed  = nullptr;
 
-        do_force(fplog_, cr_, ms, inputrec_, awh, enforcedRotation_, imdSession_, pull_work_, step,
-                 nrnb_, wcycle_, localTopology_, box, x, hist, &forces, force_vir,
-                 mdAtoms_->mdatoms(), energyData_->enerdata(), lambda, fr_, runScheduleWork_, vsite_,
-                 energyData_->muTot(), time, ed, static_cast<int>(flags), ddBalanceRegionHandler_);
+        do_force(fplog_,
+                 cr_,
+                 ms,
+                 inputrec_,
+                 awh,
+                 enforcedRotation_,
+                 imdSession_,
+                 pull_work_,
+                 step,
+                 nrnb_,
+                 wcycle_,
+                 localTopology_,
+                 box,
+                 x,
+                 hist,
+                 &forces,
+                 force_vir,
+                 mdAtoms_->mdatoms(),
+                 energyData_->enerdata(),
+                 lambda,
+                 fr_,
+                 runScheduleWork_,
+                 vsite_,
+                 energyData_->muTot(),
+                 time,
+                 ed,
+                 static_cast<int>(flags),
+                 ddBalanceRegionHandler_);
     }
     energyData_->addToForceVirial(force_vir, step);
 }
@@ -259,12 +311,25 @@ ForceElement::getElementPointerImpl(LegacySimulatorData*                    lega
 {
     const bool isVerbose    = legacySimulatorData->mdrunOptions.verbose;
     const bool isDynamicBox = inputrecDynamicBox(legacySimulatorData->inputrec);
-    return builderHelper->storeElement(std::make_unique<ForceElement>(
-            statePropagatorData, energyData, freeEnergyPerturbationData, isVerbose, isDynamicBox,
-            legacySimulatorData->fplog, legacySimulatorData->cr, legacySimulatorData->inputrec,
-            legacySimulatorData->mdAtoms, legacySimulatorData->nrnb, legacySimulatorData->fr,
-            legacySimulatorData->wcycle, legacySimulatorData->runScheduleWork, legacySimulatorData->vsite,
-            legacySimulatorData->imdSession, legacySimulatorData->pull_work, legacySimulatorData->constr,
-            legacySimulatorData->top_global, legacySimulatorData->enforcedRotation));
+    return builderHelper->storeElement(
+            std::make_unique<ForceElement>(statePropagatorData,
+                                           energyData,
+                                           freeEnergyPerturbationData,
+                                           isVerbose,
+                                           isDynamicBox,
+                                           legacySimulatorData->fplog,
+                                           legacySimulatorData->cr,
+                                           legacySimulatorData->inputrec,
+                                           legacySimulatorData->mdAtoms,
+                                           legacySimulatorData->nrnb,
+                                           legacySimulatorData->fr,
+                                           legacySimulatorData->wcycle,
+                                           legacySimulatorData->runScheduleWork,
+                                           legacySimulatorData->vsite,
+                                           legacySimulatorData->imdSession,
+                                           legacySimulatorData->pull_work,
+                                           legacySimulatorData->constr,
+                                           legacySimulatorData->top_global,
+                                           legacySimulatorData->enforcedRotation));
 }
 } // namespace gmx

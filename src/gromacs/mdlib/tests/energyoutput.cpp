@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -320,10 +320,6 @@ public:
         mtop_.groups.groups[SimulationAtomGroupType::TemperatureCoupling][1] = 1;
         mtop_.groups.groups[SimulationAtomGroupType::TemperatureCoupling][2] = 2;
 
-        mtop_.groups.groups[SimulationAtomGroupType::Acceleration].resize(2);
-        mtop_.groups.groups[SimulationAtomGroupType::Acceleration][0] = 0;
-        mtop_.groups.groups[SimulationAtomGroupType::Acceleration][1] = 2;
-
         // Nose-Hoover chains
         inputrec_.bPrintNHChains     = true;
         inputrec_.opts.nhchainlength = 2;
@@ -344,7 +340,6 @@ public:
 
         // Kinetic energy and related data
         ekindata_.tcstat.resize(mtop_.groups.groups[SimulationAtomGroupType::TemperatureCoupling].size());
-        ekindata_.grpstat.resize(mtop_.groups.groups[SimulationAtomGroupType::Acceleration].size());
 
         // This is needed so that the ebin space will be allocated
         inputrec_.cos_accel = 1.0;
@@ -374,8 +369,8 @@ public:
         // TODO EnergyOutput should not take Constraints object
         // TODO This object will always return zero as RMSD value.
         //      It is more relevant to have non-zero value for testing.
-        constraints_ = makeConstraints(mtop_, inputrec_, nullptr, false, nullptr, &cr_, nullptr,
-                                       nullptr, nullptr, false);
+        constraints_ = makeConstraints(
+                mtop_, inputrec_, nullptr, false, nullptr, &cr_, nullptr, nullptr, nullptr, false);
     }
 
     /*! \brief Helper function to generate synthetic data to output
@@ -435,12 +430,9 @@ public:
             tcstat.T      = (*testValue += 0.1);
             tcstat.lambda = (*testValue += 0.1);
         }
-        for (auto& grpstat : ekindata_.grpstat)
-        {
-            grpstat.u[XX] = (*testValue += 0.1);
-            grpstat.u[YY] = (*testValue += 0.1);
-            grpstat.u[ZZ] = (*testValue += 0.1);
-        }
+        // Removing constant acceleration removed a total increment of 0.6
+        // To avoid unnecessary changes in reference data, we keep the increment
+        (*testValue += 0.6);
 
         // This conditional is to check whether the ebin was allocated.
         // Otherwise it will print cosacc data into the first bin.
@@ -625,25 +617,47 @@ TEST_P(EnergyOutputTest, CheckOutput)
     }
 
     MdModulesNotifier             mdModulesNotifier;
-    std::unique_ptr<EnergyOutput> energyOutput = std::make_unique<EnergyOutput>(
-            energyFile_, &mtop_, &inputrec_, nullptr, nullptr, parameters.isRerun,
-            StartingBehavior::NewSimulation, mdModulesNotifier);
+    std::unique_ptr<EnergyOutput> energyOutput =
+            std::make_unique<EnergyOutput>(energyFile_,
+                                           &mtop_,
+                                           &inputrec_,
+                                           nullptr,
+                                           nullptr,
+                                           parameters.isRerun,
+                                           StartingBehavior::NewSimulation,
+                                           false,
+                                           mdModulesNotifier);
 
     // Add synthetic data for a single step
     double testValue = 10.0;
     for (int frame = 0; frame < parameters.numFrames; frame++)
     {
         setStepData(&testValue);
-        energyOutput->addDataAtEnergyStep(
-                false, true, time_, tmass_, enerdata_.get(), nullptr, nullptr, box_,
-                PTCouplingArrays({ state_.boxv, state_.nosehoover_xi, state_.nosehoover_vxi,
-                                   state_.nhpres_xi, state_.nhpres_vxi }),
-                state_.fep_state, constraintsVirial_, forceVirial_, totalVirial_, pressure_,
-                &ekindata_, muTotal_, constraints_.get());
+        energyOutput->addDataAtEnergyStep(false,
+                                          true,
+                                          time_,
+                                          tmass_,
+                                          enerdata_.get(),
+                                          nullptr,
+                                          nullptr,
+                                          box_,
+                                          PTCouplingArrays({ state_.boxv,
+                                                             state_.nosehoover_xi,
+                                                             state_.nosehoover_vxi,
+                                                             state_.nhpres_xi,
+                                                             state_.nhpres_vxi }),
+                                          state_.fep_state,
+                                          constraintsVirial_,
+                                          forceVirial_,
+                                          totalVirial_,
+                                          pressure_,
+                                          &ekindata_,
+                                          muTotal_,
+                                          constraints_.get());
 
         energyOutput->printAnnealingTemperatures(log_, &mtop_.groups, &inputrec_.opts);
-        energyOutput->printStepToEnergyFile(energyFile_, true, false, false, log_, 100 * frame,
-                                            time_, nullptr, nullptr);
+        energyOutput->printStepToEnergyFile(
+                energyFile_, true, false, false, log_, 100 * frame, time_, nullptr, nullptr);
         time_ += 1.0;
     }
 

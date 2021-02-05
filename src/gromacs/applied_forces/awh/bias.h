@@ -355,18 +355,10 @@ public:
      */
     bool hasFepLambdaDimension() const
     {
-        return std::any_of(std::begin(dimParams_), std::end(dimParams_),
-                           [](const auto& dimParam) { return dimParam.isFepLambdaDimension(); });
+        return std::any_of(std::begin(dimParams_), std::end(dimParams_), [](const auto& dimParam) {
+            return dimParam.isFepLambdaDimension();
+        });
     }
-
-    /*! \brief Returns whether the specified dimension is a free energy lambda
-     * state dimension.
-     *
-     * \param[in] dim      The dimension to check.
-     *
-     * \returns true if the specified dimension is a free energy lambda state dimension.
-     */
-    bool isFepLambdaDimension(int dim) const;
 
     /*! \brief
      * Returns whether we should sample the coordinate.

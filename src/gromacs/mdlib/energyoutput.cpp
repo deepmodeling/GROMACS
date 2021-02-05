@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -85,6 +85,8 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
+#include "energydrifttracker.h"
+
 //! Labels for energy file quantities
 //! \{
 static const char* conrmsd_nm[] = { "Constr. rmsd", "Constr.2 rmsd" };
@@ -127,6 +129,7 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
                            FILE*                    fp_dhdl,
                            bool                     isRerun,
                            const StartingBehavior   startingBehavior,
+                           const bool               simulationsShareState,
                            const MdModulesNotifier& mdModulesNotifier)
 {
     const char*        ener_nm[F_NRE];
@@ -239,7 +242,7 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
     bEner_[F_DISPCORR]   = (ir->eDispCorr != edispcNO);
     bEner_[F_DISRESVIOL] = (gmx_mtop_ftype_count(mtop, F_DISRES) > 0);
     bEner_[F_ORIRESDEV]  = (gmx_mtop_ftype_count(mtop, F_ORIRES) > 0);
-    bEner_[F_COM_PULL]   = ((ir->bPull && pull_have_potential(pull_work)) || ir->bRot);
+    bEner_[F_COM_PULL]   = ((ir->bPull && pull_have_potential(*pull_work)) || ir->bRot);
 
     MdModulesEnergyOutputToDensityFittingRequestChecker mdModulesAddOutputToDensityFittingFieldRequest;
     mdModulesNotifier.simulationSetupNotifications_.notify(&mdModulesAddOutputToDensityFittingFieldRequest);
@@ -284,8 +287,10 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
     }
     if (bDynBox_)
     {
-        ib_    = get_ebin_space(ebin_, bTricl_ ? tricl_boxs_nm.size() : boxs_nm.size(),
-                             bTricl_ ? tricl_boxs_nm.data() : boxs_nm.data(), unit_length);
+        ib_    = get_ebin_space(ebin_,
+                             bTricl_ ? tricl_boxs_nm.size() : boxs_nm.size(),
+                             bTricl_ ? tricl_boxs_nm.data() : boxs_nm.data(),
+                             unit_length);
         ivol_  = get_ebin_space(ebin_, 1, vol_nm, unit_volume);
         idens_ = get_ebin_space(ebin_, 1, dens_nm, unit_density_SI);
         if (bDiagPres_)
@@ -368,7 +373,10 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
                 {
                     if (bEInd_[k])
                     {
-                        sprintf(gnm[kk], "%s:%s-%s", egrp_nm[k], *(groups->groupNames[ni]),
+                        sprintf(gnm[kk],
+                                "%s:%s-%s",
+                                egrp_nm[k],
+                                *(groups->groupNames[ni]),
                                 *(groups->groupNames[nj]));
                         kk++;
                     }
@@ -510,29 +518,6 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
     }
     sfree(grpnms);
 
-    nU_ = groups->groups[SimulationAtomGroupType::Acceleration].size();
-    snew(tmp_v_, nU_);
-    if (nU_ > 1)
-    {
-        snew(grpnms, 3 * nU_);
-        for (i = 0; (i < nU_); i++)
-        {
-            ni = groups->groups[SimulationAtomGroupType::Acceleration][i];
-            sprintf(buf, "Ux-%s", *(groups->groupNames[ni]));
-            grpnms[3 * i + XX] = gmx_strdup(buf);
-            sprintf(buf, "Uy-%s", *(groups->groupNames[ni]));
-            grpnms[3 * i + YY] = gmx_strdup(buf);
-            sprintf(buf, "Uz-%s", *(groups->groupNames[ni]));
-            grpnms[3 * i + ZZ] = gmx_strdup(buf);
-        }
-        iu_ = get_ebin_space(ebin_, 3 * nU_, grpnms, unit_vel);
-        for (i = 0; i < 3 * nU_; i++)
-        {
-            sfree(grpnms[i]);
-        }
-        sfree(grpnms);
-    }
-
     /* Note that fp_ene should be valid on the master rank and null otherwise */
     if (fp_ene != nullptr && startingBehavior != StartingBehavior::RestartWithAppending)
     {
@@ -571,6 +556,11 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
     else
     {
         numTemperatures_ = 0;
+    }
+
+    if (EI_MD(ir->eI) && !simulationsShareState)
+    {
+        conservedEnergyTracker_ = std::make_unique<EnergyDriftTracker>(mtop->natoms);
     }
 }
 
@@ -685,8 +675,8 @@ FILE* open_dhdl(const char* filename, const t_inputrec* ir, const gmx_output_env
     {
         title   = gmx::formatString("%s and %s", dhdl, deltag);
         label_x = gmx::formatString("Time (ps)");
-        label_y = gmx::formatString("%s and %s (%s %s)", dhdl, deltag, unit_energy,
-                                    "[\\8l\\4]\\S-1\\N");
+        label_y = gmx::formatString(
+                "%s and %s (%s %s)", dhdl, deltag, unit_energy, "[\\8l\\4]\\S-1\\N");
     }
     fp = gmx_fio_fopen(filename, "w+");
     xvgr_header(fp, title.c_str(), label_x, label_y, exvggtXNY, oenv);
@@ -707,8 +697,8 @@ FILE* open_dhdl(const char* filename, const t_inputrec* ir, const gmx_output_env
         {
             print_lambda_vector(fep, fep->init_fep_state, true, false, lambda_vec_str);
             print_lambda_vector(fep, fep->init_fep_state, true, true, lambda_name_str);
-            buf += gmx::formatString("%s %d: %s = %s", lambdastate, fep->init_fep_state,
-                                     lambda_name_str, lambda_vec_str);
+            buf += gmx::formatString(
+                    "%s %d: %s = %s", lambdastate, fep->init_fep_state, lambda_name_str, lambda_vec_str);
         }
     }
     xvgr_subtitle(fp, buf.c_str(), oenv);
@@ -1042,15 +1032,6 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
         }
     }
 
-    if (ekind && nU_ > 1)
-    {
-        for (int i = 0; (i < nU_); i++)
-        {
-            copy_rvec(ekind->grpstat[i].u, tmp_v_[i]);
-        }
-        add_ebin(ebin_, iu_, 3 * nU_, tmp_v_[0], bSum);
-    }
-
     ebin_increase_count(1, ebin_, bSum);
 
     // BAR + thermodynamic integration values
@@ -1138,9 +1119,15 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
             }
             store_energy = enerd->term[F_ETOT];
             /* store_dh is dE */
-            mde_delta_h_coll_add_dh(dhc_, static_cast<double>(fep_state), store_energy, pv,
-                                    store_dhdl, dE_ + fep->lambda_start_n, time);
+            mde_delta_h_coll_add_dh(
+                    dhc_, static_cast<double>(fep_state), store_energy, pv, store_dhdl, dE_ + fep->lambda_start_n, time);
         }
+    }
+
+    if (conservedEnergyTracker_)
+    {
+        conservedEnergyTracker_->addPoint(
+                time, bEner_[F_ECONSERVED] ? enerd->term[F_ECONSERVED] : enerd->term[F_ETOT]);
     }
 }
 
@@ -1156,7 +1143,10 @@ void EnergyOutput::printHeader(FILE* log, int64_t steps, double time)
     fprintf(log,
             "   %12s   %12s\n"
             "   %12s   %12.5f\n\n",
-            "Step", "Time", gmx_step_str(steps, buf), time);
+            "Step",
+            "Time",
+            gmx_step_str(steps, buf),
+            time);
 }
 
 void EnergyOutput::printStepToEnergyFile(ener_file* fp_ene,
@@ -1298,7 +1288,7 @@ void EnergyOutput::printStepToEnergyFile(ener_file* fp_ene,
     }
 }
 
-void EnergyOutput::printAnnealingTemperatures(FILE* log, const SimulationGroups* groups, t_grpopts* opts)
+void EnergyOutput::printAnnealingTemperatures(FILE* log, const SimulationGroups* groups, const t_grpopts* opts)
 {
     if (log)
     {
@@ -1308,7 +1298,8 @@ void EnergyOutput::printAnnealingTemperatures(FILE* log, const SimulationGroups*
             {
                 if (opts->annealing[i] != eannNO)
                 {
-                    fprintf(log, "Current ref_t for group %s: %8.1f\n",
+                    fprintf(log,
+                            "Current ref_t for group %s: %8.1f\n",
                             *(groups->groupNames[groups->groups[SimulationAtomGroupType::TemperatureCoupling][i]]),
                             opts->ref_t[i]);
                 }
@@ -1337,8 +1328,10 @@ void EnergyOutput::printAverages(FILE* log, const SimulationGroups* groups)
         fprintf(log, "\t<====  A V E R A G E S  ====>\n");
         fprintf(log, "\t<==  ###############  ======>\n\n");
 
-        fprintf(log, "\tStatistics over %s steps using %s frames\n",
-                gmx_step_str(ebin_->nsteps_sim, buf1), gmx_step_str(ebin_->nsum_sim, buf2));
+        fprintf(log,
+                "\tStatistics over %s steps using %s frames\n",
+                gmx_step_str(ebin_->nsteps_sim, buf1),
+                gmx_step_str(ebin_->nsum_sim, buf2));
         fprintf(log, "\n");
 
         fprintf(log, "   Energies (%s)\n", unit_energy);
@@ -1397,8 +1390,7 @@ void EnergyOutput::printAverages(FILE* log, const SimulationGroups* groups)
                     int nj = groups->groups[SimulationAtomGroupType::EnergyOutput][j];
                     int padding =
                             14 - (strlen(*(groups->groupNames[ni])) + strlen(*(groups->groupNames[nj])));
-                    fprintf(log, "%*s%s-%s", padding, "", *(groups->groupNames[ni]),
-                            *(groups->groupNames[nj]));
+                    fprintf(log, "%*s%s-%s", padding, "", *(groups->groupNames[ni]), *(groups->groupNames[nj]));
                     pr_ebin(log, ebin_, igrp_[n], nEc_, nEc_, eprAVER, false);
                     n++;
                 }
@@ -1408,17 +1400,6 @@ void EnergyOutput::printAverages(FILE* log, const SimulationGroups* groups)
         if (nTC_ > 1)
         {
             pr_ebin(log, ebin_, itemp_, nTC_, 4, eprAVER, true);
-            fprintf(log, "\n");
-        }
-        if (nU_ > 1)
-        {
-            fprintf(log, "%15s   %12s   %12s   %12s\n", "Group", "Ux", "Uy", "Uz");
-            for (int i = 0; (i < nU_); i++)
-            {
-                int ni = groups->groups[SimulationAtomGroupType::Acceleration][i];
-                fprintf(log, "%15s", *groups->groupNames[ni]);
-                pr_ebin(log, ebin_, iu_ + 3 * i, 3, 3, eprAVER, false);
-            }
             fprintf(log, "\n");
         }
     }
@@ -1472,7 +1453,9 @@ void EnergyOutput::restoreFromEnergyHistory(const energyhistory_t& enerhist)
         gmx_fatal(FARGS,
                   "Mismatch between number of energies in run input (%u) and checkpoint file (%zu "
                   "or %zu).",
-                  nener, enerhist.ener_sum.size(), enerhist.ener_sum_sim.size());
+                  nener,
+                  enerhist.ener_sum.size(),
+                  enerhist.ener_sum_sim.size());
     }
 
     ebin_->nsteps     = enerhist.nsteps;
@@ -1495,6 +1478,26 @@ void EnergyOutput::restoreFromEnergyHistory(const energyhistory_t& enerhist)
 int EnergyOutput::numEnergyTerms() const
 {
     return ebin_->nener;
+}
+
+void EnergyOutput::printEnergyConservation(FILE* fplog, int simulationPart, bool usingMdIntegrator) const
+{
+    if (fplog == nullptr)
+    {
+        return;
+    }
+
+    if (conservedEnergyTracker_)
+    {
+        std::string partName = formatString("simulation part #%d", simulationPart);
+        fprintf(fplog, "\n%s\n", conservedEnergyTracker_->energyDriftString(partName).c_str());
+    }
+    else if (usingMdIntegrator)
+    {
+        fprintf(fplog,
+                "\nCannot report drift of the conserved energy quantity because simulations share "
+                "state\n\n");
+    }
 }
 
 } // namespace gmx

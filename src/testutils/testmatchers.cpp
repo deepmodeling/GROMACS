@@ -42,11 +42,13 @@
  */
 #include "gmxpre.h"
 
-#include "testmatchers.h"
+#include "testutils/testmatchers.h"
 
 #include <memory>
 
 #include <gmock/gmock.h>
+
+#include "gromacs/math/vectypes.h"
 
 #include "testutils/testasserts.h"
 

@@ -1,7 +1,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -32,11 +32,13 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+# The legacy public API headers may still be installed,
+# but may be removed or changed without warning.
+add_subdirectory(legacy)
 
 # Activate targets for new C++ API components and docs.
-if(GMX_NATIVE_WINDOWS OR GMX_BUILD_MDRUN_ONLY)
+if(GMX_NATIVE_WINDOWS)
     # GMXAPI has not been tested in Microsoft environments.
-    # GMXAPI relies on libgromacs and is incompatible with an `mdrun`-only build.
     # GMXAPI requires position-independent code
     set(_GMXAPI_DEFAULT OFF)
 else()
@@ -45,4 +47,21 @@ endif()
 option(GMXAPI "Install GROMACS API." ${_GMXAPI_DEFAULT})
 if (GMXAPI)
     add_subdirectory(gmxapi)
+endif()
+
+# Activate targets NBLIB
+if(GMX_NATIVE_WINDOWS OR NOT BUILD_SHARED_LIBS)
+    # NBLIB has not been tested in Microsoft environments.
+    # NBLIB requires position-independent code
+    set(_NBLIB_DEFAULT OFF)
+else()
+    set(_NBLIB_DEFAULT ON)
+endif()
+option(GMX_INSTALL_NBLIB_API "Install nblib headers" ${_NBLIB_DEFAULT})
+if (GMX_INSTALL_NBLIB_API)
+    if(NOT ${BUILD_SHARED_LIBS})
+        message(FATAL_ERROR "NBLIB requires position-independent code. Set -DGMX_INSTALL_NBLIB_API=OFF or -DBUILD_SHARED_LIBS=ON.")
+    else()
+        add_subdirectory(nblib)
+    endif()
 endif()

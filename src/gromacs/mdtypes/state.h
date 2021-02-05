@@ -234,8 +234,8 @@ public:
     // All things public
     int natoms; //!< Number of atoms, local + non-local; this is the size of \p x, \p v and \p cg_p, when used
     int ngtc;          //!< The number of temperature coupling groups
-    int nnhpres;       //!< The NH-chain length for the MTTK barostat
-    int nhchainlength; //!< The NH-chain length for temperature coupling
+    int nnhpres;       //!< The number of NH-chains for the MTTK barostat (always 1 or 0)
+    int nhchainlength; //!< The NH-chain length for temperature coupling and MTTK barostat
     int flags; //!< Set of bit-flags telling which entries are present, see enum at the top of the file
     int                      fep_state;      //!< indicates which of the alchemical states we are in
     std::array<real, efptNR> lambda;         //!< Free-energy lambda vector
@@ -358,7 +358,7 @@ static inline gmx::ArrayRef<const gmx::RVec> positionsFromStatePointer(const t_s
  * \param[in] lambda The array of lambda values.
  * \param[in] isInitialOutput Whether this output is the initial lambda state or not.
  */
-void printLambdaStateToLog(FILE* fplog, gmx::ArrayRef<real> lambda, bool isInitialOutput);
+void printLambdaStateToLog(FILE* fplog, gmx::ArrayRef<const real> lambda, bool isInitialOutput);
 
 
 /*! \brief Fills fep_state and lambda if needed

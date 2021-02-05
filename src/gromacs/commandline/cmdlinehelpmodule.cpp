@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -59,6 +59,7 @@
 #include "gromacs/options/options.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/baseversion.h"
+#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fileredirector.h"
 #include "gromacs/utility/gmxassert.h"
@@ -528,7 +529,8 @@ HelpExportReStructuredText::HelpExportReStructuredText(const CommandLineHelpModu
     while (linksFile.readLine(&line))
     {
         links_.addLink("[REF]." + line + "[ref]",
-                       formatString(":ref:`.%s <%s>`", line.c_str(), line.c_str()), line);
+                       formatString(":ref:`.%s <%s>`", line.c_str(), line.c_str()),
+                       line);
         links_.addLink("[REF]" + line + "[ref]", formatString(":ref:`%s`", line.c_str()), line);
     }
     linksFile.close();
@@ -539,8 +541,8 @@ void HelpExportReStructuredText::startModuleExport()
 {
     indexFile_ = std::make_unique<TextWriter>(
             outputRedirector_->openTextOutputFile("fragments/byname.rst"));
-    indexFile_->writeLine(formatString("* :doc:`%s </onlinehelp/%s>` - %s", binaryName_.c_str(),
-                                       binaryName_.c_str(), RootHelpText::title));
+    indexFile_->writeLine(formatString(
+            "* :doc:`%s </onlinehelp/%s>` - %s", binaryName_.c_str(), binaryName_.c_str(), RootHelpText::title));
     manPagesFile_ =
             std::make_unique<TextWriter>(outputRedirector_->openTextOutputFile("conf-man.py"));
     manPagesFile_->writeLine("man_pages = [");
@@ -554,12 +556,6 @@ void HelpExportReStructuredText::exportModuleHelp(const ICommandLineModule& modu
             outputRedirector_->openTextOutputFile("onlinehelp/" + tag + ".rst");
     TextWriter writer(file);
     writer.writeLine(formatString(".. _%s:", displayName.c_str()));
-    if (displayName == binaryName_ + " mdrun")
-    {
-        // Make an extra link target for the convenience of
-        // MPI-specific documentation
-        writer.writeLine(".. _mdrun_mpi:");
-    }
     writer.ensureEmptyLine();
 
     CommandLineHelpContext context(&writer, eHelpOutputFormat_Rst, &links_, binaryName_);
@@ -579,10 +575,12 @@ void HelpExportReStructuredText::exportModuleHelp(const ICommandLineModule& modu
             "   More information about |Gromacs| is available at <http://www.gromacs.org/>.");
     file->close();
 
-    indexFile_->writeLine(formatString("* :doc:`%s </onlinehelp/%s>` - %s", displayName.c_str(),
-                                       tag.c_str(), module.shortDescription()));
+    indexFile_->writeLine(formatString(
+            "* :doc:`%s </onlinehelp/%s>` - %s", displayName.c_str(), tag.c_str(), module.shortDescription()));
     manPagesFile_->writeLine(formatString("    ('onlinehelp/%s', '%s', \"%s\", '', 1),",
-                                          tag.c_str(), tag.c_str(), module.shortDescription()));
+                                          tag.c_str(),
+                                          tag.c_str(),
+                                          module.shortDescription()));
 }
 
 void HelpExportReStructuredText::finishModuleExport()
@@ -591,7 +589,9 @@ void HelpExportReStructuredText::finishModuleExport()
     indexFile_.reset();
     // TODO: Generalize.
     manPagesFile_->writeLine(formatString("    ('onlinehelp/%s', '%s', '%s', '', 1)",
-                                          binaryName_.c_str(), binaryName_.c_str(), RootHelpText::title));
+                                          binaryName_.c_str(),
+                                          binaryName_.c_str(),
+                                          RootHelpText::title));
     manPagesFile_->writeLine("]");
     manPagesFile_->close();
     manPagesFile_.reset();
@@ -625,8 +625,8 @@ void HelpExportReStructuredText::exportModuleGroup(const char* title, const Modu
         GMX_RELEASE_ASSERT(dashPos != std::string::npos,
                            "There should always be at least one dash in the tag");
         displayName[dashPos] = ' ';
-        indexFile_->writeLine(formatString(":doc:`%s </onlinehelp/%s>`\n  %s", displayName.c_str(),
-                                           tag.c_str(), module->second));
+        indexFile_->writeLine(formatString(
+                ":doc:`%s </onlinehelp/%s>`\n  %s", displayName.c_str(), tag.c_str(), module->second));
         manPagesFile_->writeLine(formatString(":manpage:`%s(1)`\n  %s", tag.c_str(), module->second));
     }
 }

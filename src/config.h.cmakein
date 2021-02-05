@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2009,2010,2011,2012,2013 by the GROMACS development team.
  * Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -94,29 +94,23 @@
 /* AVX2 128-bit SIMD instruction set level was selected */
 #cmakedefine01 GMX_SIMD_X86_AVX2_128
 
-/* MIC (Xeon Phi) SIMD instruction set level was selected */
-#cmakedefine01 GMX_SIMD_X86_MIC
-
 /* AVX-512F foundation level instruction SIMD */
 #cmakedefine01 GMX_SIMD_X86_AVX_512
 
 /* AVX-512ER foundation level instruction SIMD */
 #cmakedefine01 GMX_SIMD_X86_AVX_512_KNL
 
-/* 32-bit ARM NEON SIMD instruction set level was selected */
-#cmakedefine01 GMX_SIMD_ARM_NEON
-
 /* ARM (AArch64) NEON Advanced SIMD instruction set level was selected */
 #cmakedefine01 GMX_SIMD_ARM_NEON_ASIMD
 
-/* IBM VMX was selected as SIMD instructions (Power 6 and later) */
-#cmakedefine01 GMX_SIMD_IBM_VMX
+/* ARM (SVE) Scalable Vector extensions */
+#cmakedefine01 GMX_SIMD_ARM_SVE
+
+/* SVE vector length */
+#define GMX_SIMD_ARM_SVE_LENGTH_VALUE @GMX_SIMD_ARM_SVE_LENGTH_VALUE@
 
 /* IBM VSX was selected as SIMD instructions (Power 7 and later) */
 #cmakedefine01 GMX_SIMD_IBM_VSX
-
-/* Fujitsu Sparc64 HPC-ACE SIMD acceleration */
-#cmakedefine01 GMX_SIMD_SPARC64_HPC_ACE
 
 /* Reference SIMD implementation for testing */
 #cmakedefine01 GMX_SIMD_REFERENCE
@@ -139,9 +133,6 @@
 /* Whether NBNXM and other SIMD kernels should be compiled */
 #cmakedefine01 GMX_USE_SIMD_KERNELS
 
-/* Whether a double-precision configuration may target accuracy equivalent to single precision */
-#cmakedefine01 GMX_RELAXED_DOUBLE_PRECISION
-
 /* Integer byte order is big endian. */
 #cmakedefine01 GMX_INTEGER_BIG_ENDIAN
 
@@ -163,9 +154,6 @@
 /* Make a parallel version of GROMACS using message passing
    (MPI or thread_mpi) */
 #define GMX_MPI (GMX_LIB_MPI || GMX_THREAD_MPI)
-
-/* MPI_IN_PLACE exists for collective operations */
-#cmakedefine01 MPI_IN_PLACE_EXISTS
 
 /* Use OpenMP multithreading */
 #cmakedefine01 GMX_OPENMP

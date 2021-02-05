@@ -55,10 +55,17 @@
 #if GMX_GPU_OPENCL
 #    include "gromacs/gpu_utils/gmxopencl.h"
 #endif
+
+#if GMX_GPU_SYCL
+#    include "gromacs/gpu_utils/gmxsycl.h"
+#endif
+
 #include "gromacs/utility/enumerationhelpers.h"
 
 //! Constant used to help minimize preprocessed code
 static constexpr bool c_binarySupportsGpus = (GMX_GPU != 0);
+static constexpr bool c_canSerializeDeviceInformation =
+        (!GMX_GPU_OPENCL && !GMX_GPU_SYCL); /*NOLINT(misc-redundant-expression)*/
 
 //! Possible results of the GPU detection/check.
 enum class DeviceStatus : int
@@ -71,16 +78,18 @@ enum class DeviceStatus : int
     Incompatible = 2,
     //! OpenCL device has incompatible cluster size for non-bonded kernels.
     IncompatibleClusterSize = 3,
+    //! There are known issues with NVIDIA Volta and newer.
+    IncompatibleNvidiaVolta = 4,
     /*! \brief An error occurred during the functionality checks.
      * That indicates malfunctioning of the device, driver, or incompatible driver/runtime.
      */
-    NonFunctional = 4,
+    NonFunctional = 5,
     /*! \brief CUDA devices are busy or unavailable.
      * typically due to use of \p cudaComputeModeExclusive, \p cudaComputeModeProhibited modes.
      */
-    Unavailable = 5,
+    Unavailable = 6,
     //! Enumeration size
-    Count = 6
+    Count = 7
 };
 
 /*! \brief Names of the GPU detection/check results
@@ -93,12 +102,16 @@ enum class DeviceStatus : int
  * missing, so that is suppressed.
  */
 static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateString = {
-    "compatible", "nonexistent", "incompatible",
+    "compatible",
+    "nonexistent",
+    "incompatible",
     // clang-format off
     // NOLINTNEXTLINE(bugprone-suspicious-missing-comma)
     "incompatible (please recompile with correct GMX" "_OPENCL_NB_CLUSTER_SIZE of 4)",
     // clang-format on
-    "non-functional", "unavailable"
+    "incompatible (please use CUDA build for NVIDIA Volta GPUs or newer)",
+    "non-functional",
+    "unavailable"
 };
 
 //! Device vendors
@@ -129,7 +142,8 @@ struct DeviceInformation
     DeviceStatus status;
     //! ID of the device.
     int id;
-
+    //! Device vendor.
+    DeviceVendor deviceVendor;
 #if GMX_GPU_CUDA
     //! CUDA device properties.
     cudaDeviceProp prop;
@@ -141,9 +155,10 @@ struct DeviceInformation
     char           vendorName[256];     //!< Device vendor name.
     int            compute_units;       //!< Number of compute units.
     int            adress_bits;         //!< Number of address bits the device is capable of.
-    DeviceVendor   deviceVendor;        //!< Device vendor.
     size_t         maxWorkItemSizes[3]; //!< Workgroup size limits (CL_DEVICE_MAX_WORK_ITEM_SIZES).
     size_t         maxWorkGroupSize;    //!< Workgroup total size limit (CL_DEVICE_MAX_WORK_GROUP_SIZE).
+#elif GMX_GPU_SYCL
+    cl::sycl::device syclDevice;
 #endif
 };
 

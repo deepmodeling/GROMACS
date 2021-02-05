@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -38,13 +38,14 @@
 #ifndef GMX_MDLIB_UPDATE_H
 #define GMX_MDLIB_UPDATE_H
 
+#include <memory>
+
 #include "gromacs/math/paddedvector.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/real.h"
 
 class ekinstate_t;
@@ -148,12 +149,17 @@ public:
      *
      * \param[in]  inputRecord  Input record.
      * \param[in]  step         Current timestep.
-     * \param[in]  dvdlambda    Free energy derivative. Contribution to be added to the bonded
-     * interactions. \param[in]  md           MD atoms data. \param[in]  state        System state
-     * object. \param[in]  cr           Comunication record. \param[in]  nrnb         Cycle
-     * counters. \param[in]  wcycle       Wall-clock cycle counter. \param[in]  constr Constraints
-     * object. The constraints are applied on coordinates after update. \param[in]  do_log       If
-     * this is logging step. \param[in]  do_ene       If this is an energy evaluation step.
+     * \param[in]  dvdlambda    Free energy derivative. Contribution to be added to
+     *                          the bonded interactions.
+     * \param[in]  md           MD atoms data.
+     * \param[in]  state        System state object.
+     * \param[in]  cr           Comunication record.
+     * \param[in]  nrnb         Cycle counters.
+     * \param[in]  wcycle       Wall-clock cycle counter.
+     * \param[in]  constr       Constraints object. The constraints are applied
+     *                          on coordinates after update.
+     * \param[in]  do_log       If this is logging step.
+     * \param[in]  do_ene       If this is an energy evaluation step.
      */
     void update_sd_second_half(const t_inputrec& inputRecord,
                                int64_t           step,
@@ -166,6 +172,16 @@ public:
                                gmx::Constraints* constr,
                                bool              do_log,
                                bool              do_ene);
+
+    /*! \brief Performs a leap-frog update without updating \p state so the constrain virial
+     * can be computed.
+     */
+    void update_for_constraint_virial(const t_inputrec&                                inputRecord,
+                                      const t_mdatoms&                                 md,
+                                      const t_state&                                   state,
+                                      const gmx::ArrayRefWithPadding<const gmx::RVec>& f,
+                                      const gmx_ekindata_t&                            ekind);
+
     /*! \brief Update pre-computed constants that depend on the reference temperature for coupling.
      *
      * This could change e.g. in simulated annealing.
@@ -193,7 +209,7 @@ private:
     //! Implementation type.
     class Impl;
     //! Implementation object.
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 }; // namespace gmx

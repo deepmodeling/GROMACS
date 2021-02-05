@@ -54,12 +54,54 @@
 #include "gromacs/pbcutil/rmpbc.h"
 #include "gromacs/topology/index.h"
 #include "gromacs/topology/topology.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/arraysize.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/sysinfo.h"
+
+
+namespace gmx
+{
+
+namespace
+{
+
+/*! \brief Throw an error if any element in index exceeds a given number.
+ *
+ * \param[in] indices to be acessed
+ * \param[in] largestOkayIndex to be accessed
+ * \param[in] indexUsagePurpose to be more explicit in the error message
+ *
+ * \throws RangeError if largestOkayIndex is larger than any element in indices
+ *
+ */
+void throwErrorIfIndexOutOfBounds(ArrayRef<const int> indices,
+                                  const int           largestOkayIndex,
+                                  const std::string&  indexUsagePurpose)
+{
+    // do nothing if index is empty
+    if (indices.ssize() == 0)
+    {
+        return;
+    }
+    const int largestIndex = *std::max_element(indices.begin(), indices.end());
+    if (largestIndex < largestOkayIndex)
+    {
+        GMX_THROW(RangeError("The provided structure file only contains "
+                             + std::to_string(largestOkayIndex) + " coordinates, but coordinate index "
+                             + std::to_string(largestIndex) + " was requested for " + indexUsagePurpose
+                             + ". Make sure to update structure files "
+                               "and index files if you store only a part of your system."));
+    }
+};
+
+} // namespace
+
+} // namespace gmx
 
 int gmx_covar(int argc, char* argv[])
 {
@@ -146,8 +188,8 @@ int gmx_covar(int argc, char* argv[])
     };
 #define NFILE asize(fnm)
 
-    if (!parse_common_args(&argc, argv, PCA_CAN_TIME | PCA_TIME_UNIT, NFILE, fnm, asize(pa), pa,
-                           asize(desc), desc, 0, nullptr, &oenv))
+    if (!parse_common_args(
+                &argc, argv, PCA_CAN_TIME | PCA_TIME_UNIT, NFILE, fnm, asize(pa), pa, asize(desc), desc, 0, nullptr, &oenv))
     {
         return 0;
     }
@@ -172,6 +214,8 @@ int gmx_covar(int argc, char* argv[])
     {
         printf("\nChoose a group for the least squares fit\n");
         get_index(atoms, ndxfile, 1, &nfit, &ifit, &fitname);
+        // Make sure that we never attempt to access a coordinate out of range
+        gmx::throwErrorIfIndexOutOfBounds({ ifit, ifit + nfit }, atoms->nr, "fitting");
         if (nfit < 3)
         {
             gmx_fatal(FARGS, "Need >= 3 points to fit!\n");
@@ -183,6 +227,7 @@ int gmx_covar(int argc, char* argv[])
     }
     printf("\nChoose a group for the covariance analysis\n");
     get_index(atoms, ndxfile, 1, &natoms, &index, &ananame);
+    gmx::throwErrorIfIndexOutOfBounds({ index, index + natoms }, atoms->nr, "analysis");
 
     bDiffMass1 = FALSE;
     if (bFit)
@@ -261,9 +306,15 @@ int gmx_covar(int argc, char* argv[])
     nat      = read_first_x(oenv, &status, trxfile, &t, &xread, box);
     if (nat != atoms->nr)
     {
-        fprintf(stderr, "\nWARNING: number of atoms in tpx (%d) and trajectory (%d) do not match\n",
-                natoms, nat);
+        fprintf(stderr,
+                "\nWARNING: number of atoms in structure file (%d) and trajectory (%d) do not "
+                "match\n",
+                natoms,
+                nat);
     }
+    gmx::throwErrorIfIndexOutOfBounds({ ifit, ifit + nfit }, nat, "fitting");
+    gmx::throwErrorIfIndexOutOfBounds({ index, index + natoms }, nat, "analysis");
+
     do
     {
         nframes0++;
@@ -293,11 +344,13 @@ int gmx_covar(int argc, char* argv[])
             xread[index[i]][d] = xav[i][d];
         }
     }
-    write_sto_conf_indexed(opt2fn("-av", NFILE, fnm), "Average structure", atoms, xread, nullptr,
-                           PbcType::No, zerobox, natoms, index);
+    write_sto_conf_indexed(
+            opt2fn("-av", NFILE, fnm), "Average structure", atoms, xread, nullptr, PbcType::No, zerobox, natoms, index);
     sfree(xread);
 
-    fprintf(stderr, "Constructing covariance matrix (%dx%d) ...\n", static_cast<int>(ndim),
+    fprintf(stderr,
+            "Constructing covariance matrix (%dx%d) ...\n",
+            static_cast<int>(ndim),
             static_cast<int>(ndim));
     nframes = 0;
     nat     = read_first_x(oenv, &status, trxfile, &t, &xread, box);
@@ -407,8 +460,7 @@ int gmx_covar(int argc, char* argv[])
         {
             for (i = 0; i < ndim; i += 3)
             {
-                fprintf(out, "%g %g %g\n", mat[ndim * j + i], mat[ndim * j + i + 1],
-                        mat[ndim * j + i + 2]);
+                fprintf(out, "%g %g %g\n", mat[ndim * j + i], mat[ndim * j + i + 1], mat[ndim * j + i + 2]);
             }
         }
         gmx_ffclose(out);
@@ -450,8 +502,24 @@ int gmx_covar(int argc, char* argv[])
         rhi.b   = 0;
         out     = gmx_ffopen(xpmfile, "w");
         nlevels = 80;
-        write_xpm3(out, 0, "Covariance", bM ? "u nm^2" : "nm^2", "dim", "dim", ndim, ndim, axis,
-                   axis, mat2, min, 0.0, max, rlo, rmi, rhi, &nlevels);
+        write_xpm3(out,
+                   0,
+                   "Covariance",
+                   bM ? "u nm^2" : "nm^2",
+                   "dim",
+                   "dim",
+                   ndim,
+                   ndim,
+                   axis,
+                   axis,
+                   mat2,
+                   min,
+                   0.0,
+                   max,
+                   rlo,
+                   rmi,
+                   rhi,
+                   &nlevels);
         gmx_ffclose(out);
         sfree(axis);
         sfree(mat2);
@@ -502,8 +570,24 @@ int gmx_covar(int argc, char* argv[])
         rhi.b   = 0;
         out     = gmx_ffopen(xpmafile, "w");
         nlevels = 80;
-        write_xpm3(out, 0, "Covariance", bM ? "u nm^2" : "nm^2", "atom", "atom", ndim / gmx::c_dim,
-                   ndim / gmx::c_dim, axis, axis, mat2, min, 0.0, max, rlo, rmi, rhi, &nlevels);
+        write_xpm3(out,
+                   0,
+                   "Covariance",
+                   bM ? "u nm^2" : "nm^2",
+                   "atom",
+                   "atom",
+                   ndim / gmx::c_dim,
+                   ndim / gmx::c_dim,
+                   axis,
+                   axis,
+                   mat2,
+                   min,
+                   0.0,
+                   max,
+                   rlo,
+                   rmi,
+                   rhi,
+                   &nlevels);
         gmx_ffclose(out);
         sfree(axis);
         for (i = 0; i < ndim / gmx::c_dim; i++)
@@ -545,8 +629,7 @@ int gmx_covar(int argc, char* argv[])
         if (nframes - 1 < ndim)
         {
             end = nframes - 1;
-            fprintf(stderr,
-                    "\nWARNING: there are fewer frames in your trajectory than there are\n");
+            fprintf(stderr, "\nWARNING: there are fewer frames in your trajectory than there are\n");
             fprintf(stderr, "degrees of freedom in your system. Only generating the first\n");
             fprintf(stderr, "%d out of %d eigenvectors and eigenvalues.\n", end, static_cast<int>(ndim));
         }
@@ -588,8 +671,8 @@ int gmx_covar(int argc, char* argv[])
         WriteXref = eWXR_NOFIT;
     }
 
-    write_eigenvectors(eigvecfile, natoms, mat, TRUE, 1, end, WriteXref, x, bDiffMass1, xproj, bM,
-                       eigenvalues);
+    write_eigenvectors(
+            eigvecfile, natoms, mat, TRUE, 1, end, WriteXref, x, bDiffMass1, xproj, bM, eigenvalues);
 
     out = gmx_ffopen(logfile, "w");
 
@@ -600,8 +683,12 @@ int gmx_covar(int argc, char* argv[])
 
     fprintf(out, "Working directory: %s\n\n", str);
 
-    fprintf(out, "Read %d frames from %s (time %g to %g %s)\n", nframes, trxfile,
-            output_env_conv_time(oenv, tstart), output_env_conv_time(oenv, tend),
+    fprintf(out,
+            "Read %d frames from %s (time %g to %g %s)\n",
+            nframes,
+            trxfile,
+            output_env_conv_time(oenv, tstart),
+            output_env_conv_time(oenv, tend),
             output_env_get_time_unit(oenv).c_str());
     if (bFit)
     {
@@ -627,8 +714,7 @@ int gmx_covar(int argc, char* argv[])
     {
         fprintf(out, "Fit is %smass weighted\n", bDiffMass1 ? "" : "non-");
     }
-    fprintf(out, "Diagonalized the %dx%d covariance matrix\n", static_cast<int>(ndim),
-            static_cast<int>(ndim));
+    fprintf(out, "Diagonalized the %dx%d covariance matrix\n", static_cast<int>(ndim), static_cast<int>(ndim));
     fprintf(out, "Trace of the covariance matrix before diagonalizing: %g\n", trace);
     fprintf(out, "Trace of the covariance matrix after diagonalizing: %g\n\n", sum);
 

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -107,19 +107,7 @@ static void pullAllReduce(const t_commrec* cr, pull_comm_t* comm, int n, T* data
         {
             /* Separate branch because gmx_sum uses cr->mpi_comm_mygroup */
 #if GMX_MPI
-#    if MPI_IN_PLACE_EXISTS
             MPI_Allreduce(MPI_IN_PLACE, data, n, mpiDatatype(data), MPI_SUM, comm->mpi_comm_com);
-#    else
-            std::vector<T> buf(n);
-
-            MPI_Allreduce(data, buf.data(), n, mpiDatatype(data), MPI_SUM, comm->mpi_comm_com);
-
-            /* Copy the result from the buffer to the input/output data */
-            for (int i = 0; i < n; i++)
-            {
-                data[i] = buf[i];
-            }
-#    endif
 #else
             gmx_incons("comm->bParticipateAll=FALSE without GMX_MPI");
 #endif
@@ -362,10 +350,18 @@ make_cyl_refgrps(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc* p
 
             if (debug)
             {
-                fprintf(debug, "Pull cylinder group %zu:%8.3f%8.3f%8.3f m:%8.3f\n", c, pdyna->x[0],
-                        pdyna->x[1], pdyna->x[2], 1.0 / pdyna->invtm);
-                fprintf(debug, "ffrad %8.3f %8.3f %8.3f\n", spatialData.ffrad[XX],
-                        spatialData.ffrad[YY], spatialData.ffrad[ZZ]);
+                fprintf(debug,
+                        "Pull cylinder group %zu:%8.3f%8.3f%8.3f m:%8.3f\n",
+                        c,
+                        pdyna->x[0],
+                        pdyna->x[1],
+                        pdyna->x[2],
+                        1.0 / pdyna->invtm);
+                fprintf(debug,
+                        "ffrad %8.3f %8.3f %8.3f\n",
+                        spatialData.ffrad[XX],
+                        spatialData.ffrad[YY],
+                        spatialData.ffrad[ZZ]);
             }
         }
     }
@@ -518,11 +514,6 @@ static void sum_com_part_cosweight(const pull_group_work_t* pgrp,
 }
 
 /* calculates center of mass of selection index from all coordinates x */
-// Compiler segfault with 2019_update_5 and 2020_initial
-#if defined(__INTEL_COMPILER) \
-        && ((__INTEL_COMPILER == 1900 && __INTEL_COMPILER_UPDATE >= 5) || __INTEL_COMPILER >= 1910)
-#    pragma intel optimization_level 2
-#endif
 void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc* pbc, double t, const rvec x[], rvec* xp)
 {
     real         twopi_box = 0;
@@ -610,7 +601,7 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
                  * Note that with constraint pulling the mass does matter, but
                  * in that case a check group mass != 0 has been done before.
                  */
-                if (pgrp->params.nat == 1 && pgrp->atomSet.numAtomsLocal() == 1
+                if (pgrp->params.ind.size() == 1 && pgrp->atomSet.numAtomsLocal() == 1
                     && masses[pgrp->atomSet.localIndex()[0]] == 0)
                 {
                     GMX_ASSERT(xp == nullptr,
@@ -628,8 +619,7 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
                 }
                 else if (pgrp->atomSet.numAtomsLocal() <= c_pullMaxNumLocalAtomsSingleThreaded)
                 {
-                    sum_com_part(pgrp, 0, pgrp->atomSet.numAtomsLocal(), x, xp, masses, pbc, x_pbc,
-                                 &comSumsTotal);
+                    sum_com_part(pgrp, 0, pgrp->atomSet.numAtomsLocal(), x, xp, masses, pbc, x_pbc, &comSumsTotal);
                 }
                 else
                 {
@@ -638,8 +628,8 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
                     {
                         int ind_start = (pgrp->atomSet.numAtomsLocal() * (t + 0)) / pull->nthreads;
                         int ind_end   = (pgrp->atomSet.numAtomsLocal() * (t + 1)) / pull->nthreads;
-                        sum_com_part(pgrp, ind_start, ind_end, x, xp, masses, pbc, x_pbc,
-                                     &pull->comSums[t]);
+                        sum_com_part(
+                                pgrp, ind_start, ind_end, x, xp, masses, pbc, x_pbc, &pull->comSums[t]);
                     }
 
                     /* Reduce the thread contributions to sum_com[0] */
@@ -677,8 +667,8 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
                 {
                     int ind_start = (pgrp->atomSet.numAtomsLocal() * (t + 0)) / pull->nthreads;
                     int ind_end   = (pgrp->atomSet.numAtomsLocal() * (t + 1)) / pull->nthreads;
-                    sum_com_part_cosweight(pgrp, ind_start, ind_end, pull->cosdim, twopi_box, x, xp,
-                                           masses, &pull->comSums[t]);
+                    sum_com_part_cosweight(
+                            pgrp, ind_start, ind_end, pull->cosdim, twopi_box, x, xp, masses, &pull->comSums[t]);
                 }
 
                 /* Reduce the thread contributions to comSums[0] */
@@ -714,7 +704,9 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
         }
     }
 
-    pullAllReduce(cr, comm, pull->group.size() * c_comBufferStride * gmx::c_dim,
+    pullAllReduce(cr,
+                  comm,
+                  pull->group.size() * c_comBufferStride * gmx::c_dim,
                   static_cast<double*>(comm->comBuffer[0]));
 
     for (size_t g = 0; g < pull->group.size(); g++)
@@ -724,7 +716,7 @@ void pull_calc_coms(const t_commrec* cr, pull_t* pull, const real* masses, t_pbc
         pgrp = &pull->group[g];
         if (pgrp->needToCalcCom)
         {
-            GMX_ASSERT(pgrp->params.nat > 0,
+            GMX_ASSERT(!pgrp->params.ind.empty(),
                        "Normal pull groups should have atoms, only group 0, which should have "
                        "bCalcCom=FALSE has nat=0");
 
@@ -980,8 +972,8 @@ bool pullCheckPbcWithinGroup(const pull_t&                  pull,
         }
     }
 
-    return (pullGroupObeysPbcRestrictions(group, dimUsed, as_rvec_array(x.data()), pbc,
-                                          pull.comm.pbcAtomBuffer[groupNr], pbcMargin));
+    return (pullGroupObeysPbcRestrictions(
+            group, dimUsed, as_rvec_array(x.data()), pbc, pull.comm.pbcAtomBuffer[groupNr], pbcMargin));
 }
 
 void setPrevStepPullComFromState(struct pull_t* pull, const t_state* state)
@@ -1049,7 +1041,7 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
 
         if (pgrp->needToCalcCom && pgrp->epgrppbc == epgrppbcPREVSTEPCOM)
         {
-            GMX_ASSERT(pgrp->params.nat > 1,
+            GMX_ASSERT(pgrp->params.ind.size() > 1,
                        "Groups with no atoms, or only one atom, should not "
                        "use the COM from the previous step as reference.");
 
@@ -1073,8 +1065,7 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
 
             if (pgrp->atomSet.numAtomsLocal() <= c_pullMaxNumLocalAtomsSingleThreaded)
             {
-                sum_com_part(pgrp, 0, pgrp->atomSet.numAtomsLocal(), x, nullptr, masses, pbc, x_pbc,
-                             &comSumsTotal);
+                sum_com_part(pgrp, 0, pgrp->atomSet.numAtomsLocal(), x, nullptr, masses, pbc, x_pbc, &comSumsTotal);
             }
             else
             {
@@ -1083,8 +1074,8 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
                 {
                     int ind_start = (pgrp->atomSet.numAtomsLocal() * (t + 0)) / pull->nthreads;
                     int ind_end   = (pgrp->atomSet.numAtomsLocal() * (t + 1)) / pull->nthreads;
-                    sum_com_part(pgrp, ind_start, ind_end, x, nullptr, masses, pbc, x_pbc,
-                                 &pull->comSums[t]);
+                    sum_com_part(
+                            pgrp, ind_start, ind_end, x, nullptr, masses, pbc, x_pbc, &pull->comSums[t]);
                 }
 
                 /* Reduce the thread contributions to sum_com[0] */
@@ -1148,8 +1139,7 @@ void initPullComFromPrevStep(const t_commrec* cr, pull_t* pull, const real* mass
                 }
                 if (debug)
                 {
-                    fprintf(debug, "Pull group %zu wmass %f invtm %f\n", g, 1.0 / pgrp->mwscale,
-                            pgrp->invtm);
+                    fprintf(debug, "Pull group %zu wmass %f invtm %f\n", g, 1.0 / pgrp->mwscale, pgrp->invtm);
                     fprintf(debug, "Initialising prev step COM of pull group %zu to", g);
                     for (int m = 0; m < gmx::c_dim; m++)
                     {

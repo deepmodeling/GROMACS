@@ -82,22 +82,23 @@ class SimulatorComparisonTest :
 
 TEST_P(SimulatorComparisonTest, WithinTolerances)
 {
-    auto params              = GetParam();
-    auto mdpParams           = std::get<0>(params);
-    auto simulationName      = std::get<0>(mdpParams);
-    auto integrator          = std::get<1>(mdpParams);
-    auto tcoupling           = std::get<2>(mdpParams);
-    auto pcoupling           = std::get<3>(mdpParams);
-    auto environmentVariable = std::get<1>(params);
+    const auto& params              = GetParam();
+    const auto& mdpParams           = std::get<0>(params);
+    const auto& simulationName      = std::get<0>(mdpParams);
+    const auto& integrator          = std::get<1>(mdpParams);
+    const auto& tcoupling           = std::get<2>(mdpParams);
+    const auto& pcoupling           = std::get<3>(mdpParams);
+    const auto& environmentVariable = std::get<1>(params);
 
     // TODO At some point we should also test PME-only ranks.
-    int numRanksAvailable = getNumberOfTestMpiRanks();
+    const int numRanksAvailable = getNumberOfTestMpiRanks();
     if (!isNumberOfPpRanksSupported(simulationName, numRanksAvailable))
     {
         fprintf(stdout,
                 "Test system '%s' cannot run with %d ranks.\n"
                 "The supported numbers are: %s\n",
-                simulationName.c_str(), numRanksAvailable,
+                simulationName.c_str(),
+                numRanksAvailable,
                 reportNumbersOfPpRanksSupported(simulationName).c_str());
         return;
     }
@@ -109,21 +110,32 @@ TEST_P(SimulatorComparisonTest, WithinTolerances)
         return;
     }
 
-    auto hasConservedField = !(tcoupling == "no" && pcoupling == "no");
+    const std::string envVariableModSimOn  = "GMX_USE_MODULAR_SIMULATOR";
+    const std::string envVariableModSimOff = "GMX_DISABLE_MODULAR_SIMULATOR";
+
+    GMX_RELEASE_ASSERT(
+            environmentVariable == envVariableModSimOn || environmentVariable == envVariableModSimOff,
+            ("Expected tested environment variable to be " + envVariableModSimOn + " or " + envVariableModSimOff)
+                    .c_str());
+
+    const auto hasConservedField = !(tcoupling == "no" && pcoupling == "no");
 
     SCOPED_TRACE(formatString(
             "Comparing two simulations of '%s' "
             "with integrator '%s', '%s' temperature coupling, and '%s' pressure coupling "
             "switching environment variable '%s'",
-            simulationName.c_str(), integrator.c_str(), tcoupling.c_str(), pcoupling.c_str(),
+            simulationName.c_str(),
+            integrator.c_str(),
+            tcoupling.c_str(),
+            pcoupling.c_str(),
             environmentVariable.c_str()));
 
-    auto mdpFieldValues = prepareMdpFieldValues(simulationName.c_str(), integrator.c_str(),
-                                                tcoupling.c_str(), pcoupling.c_str());
+    const auto mdpFieldValues = prepareMdpFieldValues(
+            simulationName.c_str(), integrator.c_str(), tcoupling.c_str(), pcoupling.c_str());
 
     EnergyTermsToCompare energyTermsToCompare{ {
-            { interaction_function[F_EPOT].longname, relativeToleranceAsPrecisionDependentUlp(10.0, 100, 80) },
-            { interaction_function[F_EKIN].longname, relativeToleranceAsPrecisionDependentUlp(60.0, 100, 80) },
+            { interaction_function[F_EPOT].longname, relativeToleranceAsPrecisionDependentUlp(60.0, 200, 160) },
+            { interaction_function[F_EKIN].longname, relativeToleranceAsPrecisionDependentUlp(60.0, 200, 160) },
             { interaction_function[F_PRES].longname,
               relativeToleranceAsPrecisionDependentFloatingPoint(10.0, 0.01, 0.001) },
     } };
@@ -152,12 +164,13 @@ TEST_P(SimulatorComparisonTest, WithinTolerances)
     }
 
     // Specify how trajectory frame matching must work.
-    TrajectoryFrameMatchSettings trajectoryMatchSettings{ true,
-                                                          true,
-                                                          true,
-                                                          ComparisonConditions::MustCompare,
-                                                          ComparisonConditions::MustCompare,
-                                                          ComparisonConditions::MustCompare };
+    const TrajectoryFrameMatchSettings trajectoryMatchSettings{ true,
+                                                                true,
+                                                                true,
+                                                                ComparisonConditions::MustCompare,
+                                                                ComparisonConditions::MustCompare,
+                                                                ComparisonConditions::MustCompare,
+                                                                MaxNumFrames::compareAllFrames() };
     TrajectoryTolerances trajectoryTolerances = TrajectoryComparison::s_defaultTrajectoryTolerances;
     if (simulationName != "argon12")
     {
@@ -166,13 +179,13 @@ TEST_P(SimulatorComparisonTest, WithinTolerances)
 
     // Build the functor that will compare reference and test
     // trajectory frames in the chosen way.
-    TrajectoryComparison trajectoryComparison{ trajectoryMatchSettings, trajectoryTolerances };
+    const TrajectoryComparison trajectoryComparison{ trajectoryMatchSettings, trajectoryTolerances };
 
     // Set file names
-    auto simulator1TrajectoryFileName = fileManager_.getTemporaryFilePath("sim1.trr");
-    auto simulator1EdrFileName        = fileManager_.getTemporaryFilePath("sim1.edr");
-    auto simulator2TrajectoryFileName = fileManager_.getTemporaryFilePath("sim2.trr");
-    auto simulator2EdrFileName        = fileManager_.getTemporaryFilePath("sim2.edr");
+    const auto simulator1TrajectoryFileName = fileManager_.getTemporaryFilePath("sim1.trr");
+    const auto simulator1EdrFileName        = fileManager_.getTemporaryFilePath("sim1.edr");
+    const auto simulator2TrajectoryFileName = fileManager_.getTemporaryFilePath("sim2.trr");
+    const auto simulator2EdrFileName        = fileManager_.getTemporaryFilePath("sim2.edr");
 
     // Run grompp
     runner_.tprFileName_ = fileManager_.getTemporaryFilePath("sim.tpr");
@@ -180,16 +193,18 @@ TEST_P(SimulatorComparisonTest, WithinTolerances)
     runner_.useStringAsMdpFile(prepareMdpFileContents(mdpFieldValues));
     runGrompp(&runner_);
 
-    // Backup current state of environment variable and unset it
-    char* environmentVariableBackup = getenv(environmentVariable.c_str());
-    gmxUnsetenv(environmentVariable.c_str());
+    // Backup current state of both environment variables and unset them
+    const char* environmentVariableBackupOn  = getenv(envVariableModSimOn.c_str());
+    const char* environmentVariableBackupOff = getenv(envVariableModSimOff.c_str());
+    gmxUnsetenv(envVariableModSimOn.c_str());
+    gmxUnsetenv(envVariableModSimOff.c_str());
 
     // Do first mdrun
     runner_.fullPrecisionTrajectoryFileName_ = simulator1TrajectoryFileName;
     runner_.edrFileName_                     = simulator1EdrFileName;
     runMdrun(&runner_);
 
-    // Set environment variable
+    // Set tested environment variable
     const int overWriteEnvironmentVariable = 1;
     gmxSetenv(environmentVariable.c_str(), "ON", overWriteEnvironmentVariable);
 
@@ -198,16 +213,16 @@ TEST_P(SimulatorComparisonTest, WithinTolerances)
     runner_.edrFileName_                     = simulator2EdrFileName;
     runMdrun(&runner_);
 
-    // Reset or unset environment variable to leave further tests undisturbed
-    if (environmentVariableBackup != nullptr)
+    // Unset tested environment variable
+    gmxUnsetenv(environmentVariable.c_str());
+    // Reset both environment variables to leave further tests undisturbed
+    if (environmentVariableBackupOn != nullptr)
     {
-        // set environment variable
-        gmxSetenv(environmentVariable.c_str(), environmentVariableBackup, overWriteEnvironmentVariable);
+        gmxSetenv(environmentVariable.c_str(), environmentVariableBackupOn, overWriteEnvironmentVariable);
     }
-    else
+    if (environmentVariableBackupOff != nullptr)
     {
-        // unset environment variable
-        gmxUnsetenv(environmentVariable.c_str());
+        gmxSetenv(environmentVariable.c_str(), environmentVariableBackupOff, overWriteEnvironmentVariable);
     }
 
     // Compare simulation results
@@ -221,35 +236,37 @@ TEST_P(SimulatorComparisonTest, WithinTolerances)
 // These tests are very sensitive, so we only run them in double precision.
 // As we change call ordering, they might actually become too strict to be useful.
 #if !GMX_GPU_OPENCL && GMX_DOUBLE
-INSTANTIATE_TEST_CASE_P(SimulatorsAreEquivalentDefaultModular,
-                        SimulatorComparisonTest,
-                        ::testing::Combine(::testing::Combine(::testing::Values("argon12", "tip3p5"),
-                                                              ::testing::Values("md-vv"),
-                                                              ::testing::Values("no", "v-rescale"),
-                                                              ::testing::Values("no")),
-                                           ::testing::Values("GMX_DISABLE_MODULAR_SIMULATOR")));
+INSTANTIATE_TEST_CASE_P(
+        SimulatorsAreEquivalentDefaultModular,
+        SimulatorComparisonTest,
+        ::testing::Combine(::testing::Combine(::testing::Values("argon12", "tip3p5"),
+                                              ::testing::Values("md-vv"),
+                                              ::testing::Values("no", "v-rescale", "berendsen"),
+                                              ::testing::Values("no")),
+                           ::testing::Values("GMX_DISABLE_MODULAR_SIMULATOR")));
 INSTANTIATE_TEST_CASE_P(
         SimulatorsAreEquivalentDefaultLegacy,
         SimulatorComparisonTest,
         ::testing::Combine(::testing::Combine(::testing::Values("argon12", "tip3p5"),
                                               ::testing::Values("md"),
-                                              ::testing::Values("no", "v-rescale"),
+                                              ::testing::Values("no", "v-rescale", "berendsen"),
                                               ::testing::Values("no", "Parrinello-Rahman")),
                            ::testing::Values("GMX_USE_MODULAR_SIMULATOR")));
 #else
-INSTANTIATE_TEST_CASE_P(DISABLED_SimulatorsAreEquivalentDefaultModular,
-                        SimulatorComparisonTest,
-                        ::testing::Combine(::testing::Combine(::testing::Values("argon12", "tip3p5"),
-                                                              ::testing::Values("md-vv"),
-                                                              ::testing::Values("no", "v-rescale"),
-                                                              ::testing::Values("no")),
-                                           ::testing::Values("GMX_DISABLE_MODULAR_SIMULATOR")));
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_SimulatorsAreEquivalentDefaultModular,
+        SimulatorComparisonTest,
+        ::testing::Combine(::testing::Combine(::testing::Values("argon12", "tip3p5"),
+                                              ::testing::Values("md-vv"),
+                                              ::testing::Values("no", "v-rescale", "berendsen"),
+                                              ::testing::Values("no")),
+                           ::testing::Values("GMX_DISABLE_MODULAR_SIMULATOR")));
 INSTANTIATE_TEST_CASE_P(
         DISABLED_SimulatorsAreEquivalentDefaultLegacy,
         SimulatorComparisonTest,
         ::testing::Combine(::testing::Combine(::testing::Values("argon12", "tip3p5"),
                                               ::testing::Values("md"),
-                                              ::testing::Values("no", "v-rescale"),
+                                              ::testing::Values("no", "v-rescale", "berendsen"),
                                               ::testing::Values("no", "Parrinello-Rahman")),
                            ::testing::Values("GMX_USE_MODULAR_SIMULATOR")));
 #endif

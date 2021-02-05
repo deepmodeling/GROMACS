@@ -39,7 +39,7 @@
 
 #include "md_enums.h"
 
-const char* enum_name(int index, int max_index, const char* names[])
+const char* enum_name(int index, int max_index, const char* const names[])
 {
     if (index < 0 || index >= max_index)
     {
@@ -99,12 +99,15 @@ const char* etcoupl_names[etcNR + 1] = {
     "No", "Berendsen", "Nose-Hoover", "yes", "Andersen", "Andersen-massive", "V-rescale", nullptr
 }; /* yes is alias for berendsen */
 
-const char* epcoupl_names[epcNR + 1] = {
-    "No", "Berendsen", "Parrinello-Rahman", "Isotropic", "MTTK", nullptr
-}; /* isotropic is alias for berendsen */
+const char* epcoupl_names[epcNR + 1] = { "No",        "Berendsen", "Parrinello-Rahman",
+                                         "Isotropic", "MTTK",      "C-rescale",
+                                         nullptr }; /* isotropic is alias for berendsen */
 
-const char* epcoupltype_names[epctNR + 1] = { "Isotropic", "Semiisotropic", "Anisotropic",
-                                              "Surface-Tension", nullptr };
+const char* epcoupltype_names[epctNR + 1] = { "Isotropic",
+                                              "Semiisotropic",
+                                              "Anisotropic",
+                                              "Surface-Tension",
+                                              nullptr };
 
 const char* edisre_names[edrNR + 1] = { "No", "Simple", "Ensemble", nullptr };
 
@@ -182,7 +185,8 @@ const char* gmx_nblist_geometry_names[GMX_NBLIST_GEOMETRY_NR + 1] = {
 };
 
 const char* gmx_nblist_interaction_names[GMX_NBLIST_INTERACTION_NR + 1] = { "Standard",
-                                                                            "Free_Energy", nullptr };
+                                                                            "Free_Energy",
+                                                                            nullptr };
 
 const char* gmx_nbkernel_elec_names[GMX_NBKERNEL_ELEC_NR + 1] = {
     "None", "Coulomb", "Reaction-Field", "Cubic-Spline-Table", "Ewald", nullptr

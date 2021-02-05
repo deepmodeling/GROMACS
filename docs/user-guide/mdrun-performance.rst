@@ -213,6 +213,20 @@ of the better clock frequency available. Consider building :ref:`mdrun <gmx mdru
 configured with ``GMX_SIMD=AVX2_256`` instead of ``GMX_SIMD=AVX512`` for better
 performance in GPU accelerated or highly parallel MPI runs.
 
+Some of the latest ARM based CPU, such as the Fujitsu A64fx, support the Scalable Vector Extensions (SVE).
+Though SVE can be used to generate fairly efficient Vector Length Agnostic (VLA) code,
+this is not a good fit for |Gromacs| (as the SIMD vector length assumed to be known at
+CMake time). Consequently, the SVE vector length must be fixed at CMake time. The default
+is to automatically detect the default vector length at CMake time
+(via the ``/proc/sys/abi/sve_default_vector_length`` pseudo-file, and this can be changed by
+configuring with ``GMX_SIMD_ARM_SVE_LENGTH=<len>``.
+The supported vector lengths are 128, 256, 512 and 1024. Since the SIMD short-range non-bonded kernels
+only support up to 16 floating point numbers per SIMD vector, 1024 bits vector length is only
+valid in double precision (e.g. ``-DGMX_DOUBLE=on``).
+Note that even if `mdrun` does check the SIMD vector length at runtime, running with a different
+vector length than the one used at CMake time is undefined behavior, and `mdrun` might crash before reaching
+the check (that would abort with a user-friendly error message).
+
 Process(-or) level parallelization via OpenMP
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -745,7 +759,7 @@ Running :ref:`mdrun <gmx mdrun>` on more than one node
 
 This requires configuring |Gromacs| to build with an external MPI
 library. By default, this :ref:`mdrun <gmx mdrun>` executable is run with
-:ref:`mdrun_mpi`. All of the considerations for running single-node
+``gmx_mpi mdrun``. All of the considerations for running single-node
 :ref:`mdrun <gmx mdrun>` still apply, except that ``-ntmpi`` and ``-nt`` cause a fatal
 error, and instead the number of ranks is controlled by the
 MPI environment.
@@ -816,7 +830,7 @@ to choose the number of MPI ranks.
 
     mpirun -np 16 gmx_mpi mdrun
 
-Starts :ref:`mdrun_mpi` with 16 ranks, which are mapped to
+Starts :ref:`gmx mdrun` with 16 ranks, which are mapped to
 the hardware by the MPI library, e.g. as specified
 in an MPI hostfile. The available cores will be
 automatically split among ranks using OpenMP threads,
@@ -827,7 +841,7 @@ such as ``OMP_NUM_THREADS``.
 
     mpirun -np 16 gmx_mpi mdrun -npme 5
 
-Starts :ref:`mdrun_mpi` with 16 ranks, as above, and
+Starts :ref:`gmx mdrun` with 16 ranks, as above, and
 require that 5 of them are dedicated to the PME
 component.
 
@@ -835,7 +849,7 @@ component.
 
     mpirun -np 11 gmx_mpi mdrun -ntomp 2 -npme 6 -ntomp_pme 1
 
-Starts :ref:`mdrun_mpi` with 11 ranks, as above, and
+Starts :ref:`gmx mdrun` with 11 ranks, as above, and
 require that six of them are dedicated to the PME
 component with one OpenMP thread each. The remaining
 five do the PP component, with two OpenMP threads
@@ -845,7 +859,7 @@ each.
 
     mpirun -np 4 gmx_mpi mdrun -ntomp 6 -nb gpu -gputasks 00
 
-Starts :ref:`mdrun_mpi` on a machine with two nodes, using
+Starts :ref:`gmx mdrun` on a machine with two nodes, using
 four total ranks, each rank with six OpenMP threads,
 and both ranks on a node sharing GPU with ID 0.
 
@@ -854,7 +868,7 @@ and both ranks on a node sharing GPU with ID 0.
     mpirun -np 8 gmx_mpi mdrun -ntomp 3 -gputasks 0000
 
 Using a same/similar hardware as above,
-starts :ref:`mdrun_mpi` on a machine with two nodes, using
+starts :ref:`gmx mdrun` on a machine with two nodes, using
 eight total ranks, each rank with three OpenMP threads,
 and all four ranks on a node sharing GPU with ID 0.
 This may or may not be faster than the previous setup
@@ -864,7 +878,7 @@ on the same hardware.
 
     mpirun -np 20 gmx_mpi mdrun -ntomp 4 -gputasks 00
 
-Starts :ref:`mdrun_mpi` with 20 ranks, and assigns the CPU cores evenly
+Starts :ref:`gmx mdrun` with 20 ranks, and assigns the CPU cores evenly
 across ranks each to one OpenMP thread. This setup is likely to be
 suitable when there are ten nodes, each with one GPU, and each node
 has two sockets each of four cores.
@@ -873,7 +887,7 @@ has two sockets each of four cores.
 
     mpirun -np 10 gmx_mpi mdrun -gpu_id 1
 
-Starts :ref:`mdrun_mpi` with 20 ranks, and assigns the CPU cores evenly
+Starts :ref:`gmx mdrun` with 20 ranks, and assigns the CPU cores evenly
 across ranks each to one OpenMP thread. This setup is likely to be
 suitable when there are ten nodes, each with two GPUs, but another
 job on each node is using GPU 0. The job scheduler should set the
@@ -884,7 +898,7 @@ performance of :ref:`mdrun <gmx mdrun>` will suffer greatly.
 
     mpirun -np 20 gmx_mpi mdrun -gpu_id 01
 
-Starts :ref:`mdrun_mpi` with 20 ranks. This setup is likely
+Starts :ref:`gmx mdrun` with 20 ranks. This setup is likely
 to be suitable when there are ten nodes, each with two
 GPUs, but there is no need to specify ``-gpu_id`` for the
 normal case where all the GPUs on the node are available
@@ -1348,7 +1362,7 @@ of 2. So it can be useful go through the checklist.
 * Don't use double precision unless you're absolute sure you need it.
 * Compile the FFTW library (yourself) with the correct flags on x86 (in most
   cases, the correct flags are automatically configured).
-* On x86, use gcc or icc as the compiler (not pgi or the Cray compiler).
+* On x86, use gcc as the compiler (not icc, pgi or the Cray compiler).
 * On POWER, use gcc instead of IBM's xlc.
 * Use a new compiler version, especially for gcc (e.g. from version 5 to 6
   the performance of the compiled code improved a lot).

@@ -33,6 +33,8 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+# Set up the module library
+add_library(ewald INTERFACE)
 gmx_add_libgromacs_sources(
     calculate_spline_moduli.cpp
     ewald.cpp
@@ -70,6 +72,11 @@ if (GMX_GPU_CUDA)
         pme_gpu_internal.cpp
         pme_gpu_timings.cpp
         )
+    _gmx_add_files_to_property(CUDA_SOURCES
+        # Must add these files so they can include device_information.h
+        pme_gpu_internal.cpp
+        pme_gpu_timings.cpp
+	)
 elseif (GMX_GPU_OPENCL)
     gmx_add_libgromacs_sources(
         # OpenCL-specific sources
@@ -80,12 +87,53 @@ elseif (GMX_GPU_OPENCL)
         pme_gpu_internal.cpp
         pme_gpu_timings.cpp
         )
+elseif (GMX_GPU_SYCL)
+    # SYCL-TODO: proper implementation
+    gmx_add_libgromacs_sources(
+        pme_gpu_program_impl.cpp
+        )
+    _gmx_add_files_to_property(SYCL_SOURCES
+        pme_gpu_program_impl.cpp
+        pme_gpu_program.cpp
+        )
 else()
     gmx_add_libgromacs_sources(
         # Files that implement stubs
         pme_gpu_program_impl.cpp
         )
 endif()
+
+# Source files have the following private module dependencies.
+target_link_libraries(ewald PRIVATE
+                      #                      gmxlib
+                      #                      math
+                      #                      mdtypes
+                      #                      tng_io
+                      )
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(ewald PUBLIC
+target_include_directories(ewald INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(ewald PUBLIC
+target_link_libraries(ewald INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when fileio is an OBJECT target
+#target_link_libraries(ewald PUBLIC legacy_api)
+#target_link_libraries(ewald PRIVATE common)
+
+# Module dependencies
+# This module convey transitive dependence on these modules.
+#target_link_libraries(ewald PUBLIC
+target_link_libraries(ewald INTERFACE
+                      #                      utility
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(ewald PRIVATE tng_io)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(ewald PRIVATE legacy_modules)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

@@ -125,7 +125,7 @@ gmx_bool zoom_3d(t_3dview* view, real fac)
     int  i;
 
     dr2 = 0;
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         dr = view->eye[i];
         dr2 += dr * dr;
@@ -140,7 +140,7 @@ gmx_bool zoom_3d(t_3dview* view, real fac)
         }
     }
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         view->eye[i] *= fac;
     }
@@ -154,7 +154,7 @@ static void init_rotate_3d(t_3dview* view)
     real rot = DEG2RAD * 15;
     int  i;
 
-    for (i = 0; (i < DIM); i++)
+    for (i = 0; (i < gmx::c_dim); i++)
     {
         gmx_mat4_init_rotation(i, rot, view->RotP[i]);
         gmx_mat4_init_rotation(i, -rot, view->RotM[i]);

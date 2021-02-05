@@ -73,8 +73,10 @@ endfunction ()
 #     All the normal CUDA .cu source files
 #   OPENCL_CPP_SOURCE_FILES   file1.cpp file2.cpp ...
 #     All the other C++ .cpp source files needed only with OpenCL
+#   SYCL_CPP_SOURCE_FILES   file1.cpp file2.cpp ...
+#     All the C++ .cpp source files needed only with SYCL
 #   NON_GPU_CPP_SOURCE_FILES  file1.cpp file2.cpp ...
-#     All the other C++ .cpp source files needed only with neither OpenCL nor CUDA
+#     All the other C++ .cpp source files needed only with neither OpenCL nor CUDA nor SYCL
 function (gmx_add_gtest_executable EXENAME)
     if (GMX_BUILD_UNITTESTS AND BUILD_TESTING)
         set(_options MPI HARDWARE_DETECTION)
@@ -83,6 +85,7 @@ function (gmx_add_gtest_executable EXENAME)
             CUDA_CU_SOURCE_FILES
             GPU_CPP_SOURCE_FILES
             OPENCL_CPP_SOURCE_FILES
+            SYCL_CPP_SOURCE_FILES
             NON_GPU_CPP_SOURCE_FILES
             )
         cmake_parse_arguments(ARG "${_options}" "" "${_multi_value_keywords}" ${ARGN})
@@ -116,12 +119,10 @@ function (gmx_add_gtest_executable EXENAME)
             cuda_add_executable(${EXENAME} ${UNITTEST_TARGET_OPTIONS}
                 ${ARG_CPP_SOURCE_FILES}
                 ${ARG_CUDA_CU_SOURCE_FILES}
-                ${ARG_GPU_CPP_SOURCE_FILES}
-                ${TESTUTILS_DIR}/unittest_main.cpp)
+                ${ARG_GPU_CPP_SOURCE_FILES})
         else()
             add_executable(${EXENAME} ${UNITTEST_TARGET_OPTIONS}
-                ${ARG_CPP_SOURCE_FILES}
-                ${TESTUTILS_DIR}/unittest_main.cpp)
+                ${ARG_CPP_SOURCE_FILES})
         endif()
 
         if (GMX_GPU_CUDA)
@@ -131,6 +132,7 @@ function (gmx_add_gtest_executable EXENAME)
                     ${ARG_GPU_CPP_SOURCE_FILES})
                 set_source_files_properties(${ARG_GPU_CPP_SOURCE_FILES} PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
                 gmx_compile_cuda_file_with_clang(${ARG_CUDA_CU_SOURCE_FILES})
+                gmx_compile_cuda_file_with_clang(${ARG_GPU_CPP_SOURCE_FILES})
                 if(ARG_CUDA_CU_SOURCE_FILES OR ARG_GPU_CPP_SOURCE_FILES)
                     target_link_libraries(${EXENAME} PRIVATE ${GMX_EXTRA_LIBRARIES})
                 endif()
@@ -139,6 +141,13 @@ function (gmx_add_gtest_executable EXENAME)
             target_sources(${EXENAME} PRIVATE ${ARG_OPENCL_CPP_SOURCE_FILES} ${ARG_GPU_CPP_SOURCE_FILES})
             if(ARG_OPENCL_CPP_SOURCE_FILES OR ARG_GPU_CPP_SOURCE_FILES)
                 target_link_libraries(${EXENAME} PRIVATE ${OpenCL_LIBRARIES})
+            endif()
+        elseif (GMX_GPU_SYCL)
+            target_sources(${EXENAME} PRIVATE ${ARG_SYCL_CPP_SOURCE_FILES} ${ARG_GPU_CPP_SOURCE_FILES})
+            set_source_files_properties(${ARG_GPU_CPP_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "${SYCL_CXX_FLAGS}")
+            set_source_files_properties(${ARG_SYCL_CPP_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "${SYCL_CXX_FLAGS}")
+            if(ARG_SYCL_CPP_SOURCE_FILES OR ARG_GPU_CPP_SOURCE_FILES)
+                target_link_libraries(${EXENAME} PRIVATE ${SYCL_CXX_FLAGS})
             endif()
         else()
             target_sources(${EXENAME} PRIVATE ${ARG_NON_GPU_CPP_SOURCE_FILES} ${ARG_GPU_CPP_SOURCE_FILES})
@@ -158,7 +167,7 @@ function (gmx_add_gtest_executable EXENAME)
         endif()
 
         target_link_libraries(${EXENAME} PRIVATE
-            testutils libgromacs gmock
+            testutils common libgromacs gmock
             ${GMX_COMMON_LIBRARIES} ${GMX_EXE_LINKER_FLAGS})
 
         if(GMX_CLANG_TIDY)

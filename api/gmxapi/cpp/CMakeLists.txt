@@ -35,19 +35,20 @@
 # This list file provides the Gromacs::gmxapi cmake target.
 
 target_sources(gmxapi PRIVATE
-            context.cpp
-            exceptions.cpp
-            gmxapi.cpp
-            md.cpp
-            mdmodule.cpp
-            mdsignals.cpp
-            session.cpp
-            status.cpp
-            system.cpp
-            version.cpp
-            workflow.cpp
-            tpr.cpp
-            )
+               resourceassignment.cpp
+               context.cpp
+               exceptions.cpp
+               gmxapi.cpp
+               md.cpp
+               mdmodule.cpp
+               mdsignals.cpp
+               session.cpp
+               status.cpp
+               system.cpp
+               version.cpp
+               workflow.cpp
+               tpr.cpp
+               )
 set_target_properties(gmxapi PROPERTIES POSITION_INDEPENDENT_CODE ON)
 gmx_target_compile_options(gmxapi)
 target_compile_definitions(gmxapi PRIVATE HAVE_CONFIG_H)
@@ -83,6 +84,9 @@ set_target_properties(gmxapi PROPERTIES
                       )
 
 target_link_libraries(gmxapi PRIVATE libgromacs)
+target_link_libraries(gmxapi PRIVATE common)
+# TODO: Explicitly link specific modules: mdlib, mdtypes, utility, commandline
+target_link_libraries(gmxapi PRIVATE legacy_modules)
 
 
 ################################################
@@ -109,11 +113,13 @@ add_library(Gromacs::gmxapi ALIAS gmxapi )
 
 include(CMakePackageConfigHelpers)
 
+get_target_property(_mpi Gromacs::gmxapi MPI)
 configure_package_config_file(
     cmake/gmxapi-config.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/cmake/gmxapi-config.cmake"
     INSTALL_DESTINATION share/cmake/gmxapi/
 )
+unset(_mpi)
 get_target_property(GMXAPI_RELEASE gmxapi RELEASE)
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/cmake/gmxapi-config-version.cmake

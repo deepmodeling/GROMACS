@@ -78,6 +78,9 @@ class RestraintManager;
 class SimulationContext;
 class StopHandlerBuilder;
 
+//! Work-around for GCC bug 58265 still present in CentOS 7 devtoolset-7
+constexpr bool BUGFREE_NOEXCEPT_STRING = std::is_nothrow_move_assignable<std::string>::value;
+
 /*! \libinternal \brief Runner object for supporting setup and execution of mdrun.
  *
  * This class has responsibility for the lifetime of data structures
@@ -143,7 +146,8 @@ public:
      * \{
      */
     Mdrunner(Mdrunner&& handle) noexcept;
-    Mdrunner& operator=(Mdrunner&& handle) noexcept;
+    //NOLINTNEXTLINE(performance-noexcept-move-constructor) working around GCC bug 58265 in CentOS 7
+    Mdrunner& operator=(Mdrunner&& handle) noexcept(BUGFREE_NOEXCEPT_STRING);
     /* \} */
 
     /*! \brief Driver routine, that calls the different simulation methods. */
@@ -306,6 +310,9 @@ private:
     //! The modules that comprise mdrun.
     std::unique_ptr<MDModules> mdModules_;
 
+    //! Non-owning handle to the results of the hardware detection.
+    const gmx_hw_info_t* hwinfo_ = nullptr;
+
     /*!
      * \brief Holds simulation input specification provided by client, if any.
      *
@@ -401,6 +408,17 @@ public:
      * \throws APIError if a required component has not been added before calling build().
      */
     Mdrunner build();
+
+    /*!
+     * \brief Supply the result of hardware detection to the gmx::Mdrunner
+     *
+     * \param hwinfo  Non-owning not-null handle to result of hardware detection.
+     *
+     * \todo It would be better to express this as either a not-null const pointer or
+     * a const reference, but neither of those is consistent with incremental
+     * building of an object. This motivates future work to be able to make a deep copy
+     * of the detection result. See https://gitlab.com/gromacs/gromacs/-/issues/3650 */
+    MdrunnerBuilder& addHardwareDetectionResult(const gmx_hw_info_t* hwinfo);
 
     /*!
      * \brief Set up non-bonded short-range force calculations.

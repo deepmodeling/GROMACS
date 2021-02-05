@@ -64,6 +64,7 @@
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/topology/topology.h"
+#include "gromacs/trajectory/trajectoryframe.h"
 
 #include "freeenergyperturbationdata.h"
 #include "modularsimulator.h"
@@ -133,10 +134,10 @@ StatePropagatorData::StatePropagatorData(int                numAtoms,
 
     if (DOMAINDECOMP(cr) && MASTER(cr))
     {
-        xGlobal_.reserveWithPadding(totalNumAtoms_);
-        previousXGlobal_.reserveWithPadding(totalNumAtoms_);
-        vGlobal_.reserveWithPadding(totalNumAtoms_);
-        fGlobal_.reserveWithPadding(totalNumAtoms_);
+        xGlobal_.resizeWithPadding(totalNumAtoms_);
+        previousXGlobal_.resizeWithPadding(totalNumAtoms_);
+        vGlobal_.resizeWithPadding(totalNumAtoms_);
+        fGlobal_.resizeWithPadding(totalNumAtoms_);
     }
 
     if (!inputrec->bContinuation)
@@ -436,10 +437,18 @@ void StatePropagatorData::Element::write(gmx_mdoutf_t outf, Step currentStep, Ti
     // TODO: This is only used for CPT - needs to be filled when we turn CPT back on
     ObservablesHistory* observablesHistory = nullptr;
 
-    mdoutf_write_to_trajectory_files(
-            fplog_, cr_, outf, static_cast<int>(mdof_flags), statePropagatorData_->totalNumAtoms_,
-            currentStep, currentTime, localStateBackup_.get(), statePropagatorData_->globalState_,
-            observablesHistory, statePropagatorData_->f_.view().force(), &dummyCheckpointDataHolder_);
+    mdoutf_write_to_trajectory_files(fplog_,
+                                     cr_,
+                                     outf,
+                                     static_cast<int>(mdof_flags),
+                                     statePropagatorData_->totalNumAtoms_,
+                                     currentStep,
+                                     currentTime,
+                                     localStateBackup_.get(),
+                                     statePropagatorData_->globalState_,
+                                     observablesHistory,
+                                     statePropagatorData_->f_.view().force(),
+                                     &dummyCheckpointDataHolder_);
 
     if (currentStep != lastStep_ || !isRegularSimulationEnd_)
     {
@@ -481,57 +490,120 @@ constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count
 } // namespace
 
 template<CheckpointDataOperation operation>
-void StatePropagatorData::Element::doCheckpointData(CheckpointData<operation>* checkpointData,
-                                                    const t_commrec*           cr)
+void StatePropagatorData::doCheckpointData(CheckpointData<operation>* checkpointData)
 {
-    ArrayRef<RVec> xGlobalRef;
-    ArrayRef<RVec> vGlobalRef;
+    checkpointVersion(checkpointData, "StatePropagatorData version", c_currentVersion);
+    checkpointData->scalar("numAtoms", &totalNumAtoms_);
+
+    if (operation == CheckpointDataOperation::Read)
+    {
+        xGlobal_.resizeWithPadding(totalNumAtoms_);
+        vGlobal_.resizeWithPadding(totalNumAtoms_);
+    }
+
+    checkpointData->arrayRef("positions", makeCheckpointArrayRef<operation>(xGlobal_));
+    checkpointData->arrayRef("velocities", makeCheckpointArrayRef<operation>(vGlobal_));
+    checkpointData->tensor("box", box_);
+    checkpointData->scalar("ddpCount", &ddpCount_);
+    checkpointData->scalar("ddpCountCgGl", &ddpCountCgGl_);
+    checkpointData->arrayRef("cgGl", makeCheckpointArrayRef<operation>(cgGl_));
+}
+
+void StatePropagatorData::Element::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                                       const t_commrec*                   cr)
+{
     if (DOMAINDECOMP(cr))
     {
-        if (MASTER(cr))
-        {
-            xGlobalRef = statePropagatorData_->xGlobal_;
-            vGlobalRef = statePropagatorData_->vGlobal_;
-        }
-        if (operation == CheckpointDataOperation::Write)
-        {
-            dd_collect_vec(cr->dd, statePropagatorData_->ddpCount_, statePropagatorData_->ddpCountCgGl_,
-                           statePropagatorData_->cgGl_, statePropagatorData_->x_, xGlobalRef);
-            dd_collect_vec(cr->dd, statePropagatorData_->ddpCount_, statePropagatorData_->ddpCountCgGl_,
-                           statePropagatorData_->cgGl_, statePropagatorData_->v_, vGlobalRef);
-        }
+        // Collect state from all ranks into global vectors
+        dd_collect_vec(cr->dd,
+                       statePropagatorData_->ddpCount_,
+                       statePropagatorData_->ddpCountCgGl_,
+                       statePropagatorData_->cgGl_,
+                       statePropagatorData_->x_,
+                       statePropagatorData_->xGlobal_);
+        dd_collect_vec(cr->dd,
+                       statePropagatorData_->ddpCount_,
+                       statePropagatorData_->ddpCountCgGl_,
+                       statePropagatorData_->cgGl_,
+                       statePropagatorData_->v_,
+                       statePropagatorData_->vGlobal_);
     }
     else
     {
-        xGlobalRef = statePropagatorData_->x_;
-        vGlobalRef = statePropagatorData_->v_;
+        // Everything is local - copy local vectors into global ones
+        statePropagatorData_->xGlobal_.resizeWithPadding(statePropagatorData_->totalNumAtoms());
+        statePropagatorData_->vGlobal_.resizeWithPadding(statePropagatorData_->totalNumAtoms());
+        std::copy(statePropagatorData_->x_.begin(),
+                  statePropagatorData_->x_.end(),
+                  statePropagatorData_->xGlobal_.begin());
+        std::copy(statePropagatorData_->v_.begin(),
+                  statePropagatorData_->v_.end(),
+                  statePropagatorData_->vGlobal_.begin());
     }
     if (MASTER(cr))
     {
-        checkpointVersion(checkpointData, "StatePropagatorData version", c_currentVersion);
-
-        checkpointData->arrayRef("positions", makeCheckpointArrayRef<operation>(xGlobalRef));
-        checkpointData->arrayRef("velocities", makeCheckpointArrayRef<operation>(vGlobalRef));
-        checkpointData->tensor("box", statePropagatorData_->box_);
-        checkpointData->scalar("ddpCount", &statePropagatorData_->ddpCount_);
-        checkpointData->scalar("ddpCountCgGl", &statePropagatorData_->ddpCountCgGl_);
-        checkpointData->arrayRef("cgGl", makeCheckpointArrayRef<operation>(statePropagatorData_->cgGl_));
+        statePropagatorData_->doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
     }
 }
 
-void StatePropagatorData::Element::writeCheckpoint(WriteCheckpointData checkpointData, const t_commrec* cr)
+/*!
+ * \brief Update the legacy global state
+ *
+ * When restoring from checkpoint, data will be distributed during domain decomposition at setup stage.
+ * Domain decomposition still uses the legacy global t_state object so make sure it's up-to-date.
+ */
+static void updateGlobalState(t_state*                      globalState,
+                              const PaddedHostVector<RVec>& x,
+                              const PaddedHostVector<RVec>& v,
+                              const tensor                  box,
+                              int                           ddpCount,
+                              int                           ddpCountCgGl,
+                              const std::vector<int>&       cgGl)
 {
-    doCheckpointData<CheckpointDataOperation::Write>(&checkpointData, cr);
+    globalState->x = x;
+    globalState->v = v;
+    copy_mat(box, globalState->box);
+    globalState->ddp_count       = ddpCount;
+    globalState->ddp_count_cg_gl = ddpCountCgGl;
+    globalState->cg_gl           = cgGl;
 }
 
-void StatePropagatorData::Element::readCheckpoint(ReadCheckpointData checkpointData, const t_commrec* cr)
+void StatePropagatorData::Element::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                          const t_commrec*                  cr)
 {
-    doCheckpointData<CheckpointDataOperation::Read>(&checkpointData, cr);
+    if (MASTER(cr))
+    {
+        statePropagatorData_->doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
+
+    // Copy data to global state to be distributed by DD at setup stage
+    if (DOMAINDECOMP(cr) && MASTER(cr))
+    {
+        updateGlobalState(statePropagatorData_->globalState_,
+                          statePropagatorData_->xGlobal_,
+                          statePropagatorData_->vGlobal_,
+                          statePropagatorData_->box_,
+                          statePropagatorData_->ddpCount_,
+                          statePropagatorData_->ddpCountCgGl_,
+                          statePropagatorData_->cgGl_);
+    }
+    // Everything is local - copy global vectors to local ones
+    if (!DOMAINDECOMP(cr))
+    {
+        statePropagatorData_->x_.resizeWithPadding(statePropagatorData_->totalNumAtoms_);
+        statePropagatorData_->v_.resizeWithPadding(statePropagatorData_->totalNumAtoms_);
+        std::copy(statePropagatorData_->xGlobal_.begin(),
+                  statePropagatorData_->xGlobal_.end(),
+                  statePropagatorData_->x_.begin());
+        std::copy(statePropagatorData_->vGlobal_.begin(),
+                  statePropagatorData_->vGlobal_.end(),
+                  statePropagatorData_->v_.begin());
+    }
 }
 
 const std::string& StatePropagatorData::Element::clientID()
 {
-    return identifier_;
+    return StatePropagatorData::checkpointID();
 }
 
 void StatePropagatorData::Element::trajectoryWriterTeardown(gmx_mdoutf* gmx_unused outf)
@@ -551,12 +623,20 @@ void StatePropagatorData::Element::trajectoryWriterTeardown(gmx_mdoutf* gmx_unus
     {
         auto globalXRef =
                 MASTER(cr_) ? statePropagatorData_->globalState_->x : gmx::ArrayRef<gmx::RVec>();
-        dd_collect_vec(cr_->dd, localStateBackup_->ddp_count, localStateBackup_->ddp_count_cg_gl,
-                       localStateBackup_->cg_gl, localStateBackup_->x, globalXRef);
+        dd_collect_vec(cr_->dd,
+                       localStateBackup_->ddp_count,
+                       localStateBackup_->ddp_count_cg_gl,
+                       localStateBackup_->cg_gl,
+                       localStateBackup_->x,
+                       globalXRef);
         auto globalVRef =
                 MASTER(cr_) ? statePropagatorData_->globalState_->v : gmx::ArrayRef<gmx::RVec>();
-        dd_collect_vec(cr_->dd, localStateBackup_->ddp_count, localStateBackup_->ddp_count_cg_gl,
-                       localStateBackup_->cg_gl, localStateBackup_->v, globalVRef);
+        dd_collect_vec(cr_->dd,
+                       localStateBackup_->ddp_count,
+                       localStateBackup_->ddp_count_cg_gl,
+                       localStateBackup_->cg_gl,
+                       localStateBackup_->v,
+                       globalVRef);
     }
     else
     {
@@ -570,12 +650,17 @@ void StatePropagatorData::Element::trajectoryWriterTeardown(gmx_mdoutf* gmx_unus
         if (canMoleculesBeDistributedOverPBC_ && !systemHasPeriodicMolecules_)
         {
             // Make molecules whole only for confout writing
-            do_pbc_mtop(pbcType_, localStateBackup_->box, top_global_,
+            do_pbc_mtop(pbcType_,
+                        localStateBackup_->box,
+                        top_global_,
                         statePropagatorData_->globalState_->x.rvec_array());
         }
-        write_sto_conf_mtop(finalConfigurationFilename_.c_str(), *top_global_->name, top_global_,
+        write_sto_conf_mtop(finalConfigurationFilename_.c_str(),
+                            *top_global_->name,
+                            top_global_,
                             statePropagatorData_->globalState_->x.rvec_array(),
-                            statePropagatorData_->globalState_->v.rvec_array(), pbcType_,
+                            statePropagatorData_->globalState_->v.rvec_array(),
+                            pbcType_,
                             localStateBackup_->box);
     }
     wallcycle_stop(mdoutf_get_wcycle(outf), ewcTRAJ);
@@ -636,6 +721,27 @@ ISimulatorElement* StatePropagatorData::Element::getElementPointerImpl(
 {
     statePropagatorData->element()->setFreeEnergyPerturbationData(freeEnergyPerturbationData);
     return statePropagatorData->element();
+}
+
+void StatePropagatorData::readCheckpointToTrxFrame(t_trxframe* trxFrame, ReadCheckpointData readCheckpointData)
+{
+    StatePropagatorData statePropagatorData;
+    statePropagatorData.doCheckpointData(&readCheckpointData);
+
+    trxFrame->natoms = statePropagatorData.totalNumAtoms_;
+    trxFrame->bX     = true;
+    trxFrame->x  = makeRvecArray(statePropagatorData.xGlobal_, statePropagatorData.totalNumAtoms_);
+    trxFrame->bV = true;
+    trxFrame->v  = makeRvecArray(statePropagatorData.vGlobal_, statePropagatorData.totalNumAtoms_);
+    trxFrame->bF = false;
+    trxFrame->bBox = true;
+    copy_mat(statePropagatorData.box_, trxFrame->box);
+}
+
+const std::string& StatePropagatorData::checkpointID()
+{
+    static const std::string identifier = "StatePropagatorData";
+    return identifier;
 }
 
 } // namespace gmx

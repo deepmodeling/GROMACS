@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -50,6 +50,7 @@
 #include "gromacs/utility/mdmodulenotification-impl.h"
 
 struct t_commrec;
+struct gmx_mtop_t;
 enum class PbcType : int;
 
 namespace gmx
@@ -59,6 +60,7 @@ class KeyValueTreeObject;
 class KeyValueTreeObjectBuilder;
 class LocalAtomSetManager;
 class IndexGroupsAndNames;
+class SeparatePmeRanksPermitted;
 struct MdModulesCheckpointReadingDataOnMaster;
 struct MdModulesCheckpointReadingBroadcast;
 struct MdModulesWriteCheckpointData;
@@ -197,9 +199,12 @@ struct MdModulesNotifier
      *                           wrote to .tpr files
      * LocalAtomSetManager* enables modules to add atom indices to local atom sets
      *                      to be managed
+     * const gmx_mtop_t& provides the topology of the system to the modules
      * MdModulesEnergyOutputToDensityFittingRequestChecker* enables modules to
      *                      report if they want to write their energy output
      *                      to the density fitting field in the energy files
+     * SeparatePmeRanksPermitted* enables modules to report if they want
+     *                      to disable dedicated PME ranks
      * const PbcType& provides modules with the periodic boundary condition type
      *                that is used during the simulation
      * const SimulationTimeStep& provides modules with the simulation time-step
@@ -210,7 +215,9 @@ struct MdModulesNotifier
      */
     registerMdModuleNotification<const KeyValueTreeObject&,
                                  LocalAtomSetManager*,
+                                 const gmx_mtop_t&,
                                  MdModulesEnergyOutputToDensityFittingRequestChecker*,
+                                 SeparatePmeRanksPermitted*,
                                  const PbcType&,
                                  const SimulationTimeStep&,
                                  const t_commrec&>::type simulationSetupNotifications_;

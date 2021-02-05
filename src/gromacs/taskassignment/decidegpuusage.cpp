@@ -57,6 +57,7 @@
 #include "gromacs/hardware/detecthardware.h"
 #include "gromacs/hardware/hardwaretopology.h"
 #include "gromacs/hardware/hw_info.h"
+#include "gromacs/listed_forces/gpubonded.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdlib/update_constrain_gpu.h"
 #include "gromacs/mdtypes/commrec.h"
@@ -96,8 +97,10 @@ const char* g_specifyEverythingFormatString =
         // is AMD OpenCL, which offers this variable.
         "GPU_DEVICE_ORDINAL"
 #    elif GMX_GPU_SYCL
-        // SYCL-TODO:
-        "How to restrict visible devices in SYCL?"
+        // As with OpenCL, there are no portable way to do it.
+        // Intel reference: https://github.com/intel/llvm/blob/sycl/sycl/doc/EnvironmentVariables.md
+        // While SYCL_DEVICE_FILTER is a better option, as of 2021.1-beta10 it is not yet supported.
+        "SYCL_DEVICE_ALLOWLIST"
 #    else
 #        error "Unreachable branch"
 #    endif
@@ -109,7 +112,7 @@ const char* g_specifyEverythingFormatString =
 } // namespace
 
 bool decideWhetherToUseGpusForNonbondedWithThreadMpi(const TaskTarget        nonbondedTarget,
-                                                     const std::vector<int>& gpuIdsToUse,
+                                                     const int               numDevicesToUse,
                                                      const std::vector<int>& userGpuTaskAssignment,
                                                      const EmulateGpuNonbonded emulateGpuNonbonded,
                                                      const bool buildSupportsNonbondedOnGpu,
@@ -145,15 +148,13 @@ bool decideWhetherToUseGpusForNonbondedWithThreadMpi(const TaskTarget        non
     // Because this is thread-MPI, we already know about the GPUs that
     // all potential ranks can use, and can use that in a global
     // decision that will later be consistent.
-    auto haveGpus = !gpuIdsToUse.empty();
-
     // If we get here, then the user permitted or required GPUs.
-    return haveGpus;
+    return (numDevicesToUse > 0);
 }
 
 bool decideWhetherToUseGpusForPmeWithThreadMpi(const bool              useGpuForNonbonded,
                                                const TaskTarget        pmeTarget,
-                                               const std::vector<int>& gpuIdsToUse,
+                                               const int               numDevicesToUse,
                                                const std::vector<int>& userGpuTaskAssignment,
                                                const gmx_hw_info_t&    hardwareInfo,
                                                const t_inputrec&       inputrec,
@@ -222,7 +223,7 @@ bool decideWhetherToUseGpusForPmeWithThreadMpi(const bool              useGpuFor
     {
         // PME can run well on a GPU shared with NB, and we permit
         // mdrun to default to try that.
-        return !gpuIdsToUse.empty();
+        return numDevicesToUse > 0;
     }
 
     if (numRanksPerSimulation < 1)
@@ -230,7 +231,7 @@ bool decideWhetherToUseGpusForPmeWithThreadMpi(const bool              useGpuFor
         // Full automated mode for thread-MPI (the default). PME can
         // run well on a GPU shared with NB, and we permit mdrun to
         // default to it if there is only one GPU available.
-        return (gpuIdsToUse.size() == 1);
+        return (numDevicesToUse == 1);
     }
 
     // Not enough support for PME on GPUs for anything else
@@ -321,7 +322,7 @@ bool decideWhetherToUseGpusForNonbonded(const TaskTarget          nonbondedTarge
 
     // If we get here, then the user permitted GPUs, which we should
     // use for nonbonded interactions.
-    return gpusWereDetected;
+    return buildSupportsNonbondedOnGpu && gpusWereDetected;
 }
 
 bool decideWhetherToUseGpusForPme(const bool              useGpuForNonbonded,
@@ -460,27 +461,36 @@ PmeRunMode determinePmeRunMode(const bool useGpuForPme, const TaskTarget& pmeFft
     }
 }
 
-bool decideWhetherToUseGpusForBonded(const bool       useGpuForNonbonded,
-                                     const bool       useGpuForPme,
-                                     const TaskTarget bondedTarget,
-                                     const bool       canUseGpuForBonded,
-                                     const bool       usingLJPme,
-                                     const bool       usingElecPmeOrEwald,
-                                     const int        numPmeRanksPerSimulation,
-                                     const bool       gpusWereDetected)
+bool decideWhetherToUseGpusForBonded(bool              useGpuForNonbonded,
+                                     bool              useGpuForPme,
+                                     TaskTarget        bondedTarget,
+                                     const t_inputrec& inputrec,
+                                     const gmx_mtop_t& mtop,
+                                     int               numPmeRanksPerSimulation,
+                                     bool              gpusWereDetected)
 {
     if (bondedTarget == TaskTarget::Cpu)
     {
         return false;
     }
 
-    if (!canUseGpuForBonded)
+    std::string errorMessage;
+
+    if (!buildSupportsGpuBondeds(&errorMessage))
     {
         if (bondedTarget == TaskTarget::Gpu)
         {
-            GMX_THROW(InconsistentInputError(
-                    "Bonded interactions on the GPU were required, but not supported for these "
-                    "simulation settings. Change your settings, or do not require using GPUs."));
+            GMX_THROW(InconsistentInputError(errorMessage.c_str()));
+        }
+
+        return false;
+    }
+
+    if (!inputSupportsGpuBondeds(inputrec, mtop, &errorMessage))
+    {
+        if (bondedTarget == TaskTarget::Gpu)
+        {
+            GMX_THROW(InconsistentInputError(errorMessage.c_str()));
         }
 
         return false;
@@ -516,7 +526,8 @@ bool decideWhetherToUseGpusForBonded(const bool       useGpuForNonbonded,
     // Note that here we assume that the auto setting of PME ranks will not
     // choose seperate PME ranks when nonBonded are assigned to the GPU.
     bool usingOurCpuForPmeOrEwald =
-            (usingLJPme || (usingElecPmeOrEwald && !useGpuForPme && numPmeRanksPerSimulation <= 0));
+            (EVDW_PME(inputrec.vdwtype)
+             || (EEL_PME_EWALD(inputrec.coulombtype) && !useGpuForPme && numPmeRanksPerSimulation <= 0));
 
     return gpusWereDetected && usingOurCpuForPmeOrEwald;
 }
@@ -552,26 +563,19 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
 
     if (isDomainDecomposition)
     {
-        if (!devFlags.enableGpuHaloExchange)
+        if (hasAnyConstraints && !useUpdateGroups)
         {
-            errorMessage += "Domain decomposition without GPU halo exchange is not supported.\n ";
+            errorMessage +=
+                    "Domain decomposition is only supported with constraints when update "
+                    "groups "
+                    "are used. This means constraining all bonds is not supported, except for "
+                    "small molecules, and box sizes close to half the pair-list cutoff are not "
+                    "supported.\n ";
         }
-        else
-        {
-            if (hasAnyConstraints && !useUpdateGroups)
-            {
-                errorMessage +=
-                        "Domain decomposition is only supported with constraints when update "
-                        "groups "
-                        "are used. This means constraining all bonds is not supported, except for "
-                        "small molecules, and box sizes close to half the pair-list cutoff are not "
-                        "supported.\n ";
-            }
 
-            if (pmeUsesCpu)
-            {
-                errorMessage += "With domain decomposition, PME must run fully on the GPU.\n";
-            }
+        if (pmeUsesCpu)
+        {
+            errorMessage += "With domain decomposition, PME must run fully on the GPU.\n";
         }
     }
 
@@ -581,11 +585,11 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
         {
             errorMessage += "With separate PME rank(s), PME must run fully on the GPU.\n";
         }
+    }
 
-        if (!devFlags.enableGpuPmePPComm)
-        {
-            errorMessage += "With separate PME rank(s), PME must use direct communication.\n";
-        }
+    if (inputrec.useMts)
+    {
+        errorMessage += "Multiple time stepping is not supported.\n";
     }
 
     if (inputrec.eConstrAlg == econtSHAKE && hasAnyConstraints && gmx_mtop_ftype_count(mtop, F_CONSTR) > 0)
@@ -617,9 +621,12 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     {
         errorMessage += "Nose-Hoover temperature coupling is not supported.\n";
     }
-    if (!(inputrec.epc == epcNO || inputrec.epc == epcPARRINELLORAHMAN || inputrec.epc == epcBERENDSEN))
+    if (!(inputrec.epc == epcNO || inputrec.epc == epcPARRINELLORAHMAN
+          || inputrec.epc == epcBERENDSEN || inputrec.epc == epcCRESCALE))
     {
-        errorMessage += "Only Parrinello-Rahman and Berendsen pressure coupling are supported.\n";
+        errorMessage +=
+                "Only Parrinello-Rahman, Berendsen, and C-rescale pressure coupling are "
+                "supported.\n";
     }
     if (EEL_PME_EWALD(inputrec.coulombtype) && inputrec.epsilon_surface != 0)
     {
@@ -634,7 +641,7 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     {
         errorMessage += "Essential dynamics is not supported.\n";
     }
-    if (inputrec.bPull && pull_have_constraint(inputrec.pull))
+    if (inputrec.bPull && pull_have_constraint(*inputrec.pull))
     {
         errorMessage += "Constraints pulling is not supported.\n";
     }
@@ -643,8 +650,7 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
         // The graph is needed, but not supported
         errorMessage += "Orientation restraints are not supported.\n";
     }
-    if (inputrec.efep != efepNO
-        && (haveFreeEnergyType(inputrec, efptBONDED) || haveFreeEnergyType(inputrec, efptMASS)))
+    if (inputrec.efep != efepNO && (haveFepPerturbedMasses(mtop) || havePerturbedConstraints(mtop)))
     {
         errorMessage += "Free energy perturbation for mass and constraints are not supported.\n";
     }
@@ -704,6 +710,17 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
 
     return (updateTarget == TaskTarget::Gpu
             || (updateTarget == TaskTarget::Auto && devFlags.forceGpuUpdateDefault));
+}
+
+bool decideWhetherToUseGpuForHalo(const DevelopmentFeatureFlags& devFlags,
+                                  bool                           havePPDomainDecomposition,
+                                  bool                           useGpuForNonbonded,
+                                  bool                           useModularSimulator,
+                                  bool                           doRerun,
+                                  bool                           haveEnergyMinimization)
+{
+    return havePPDomainDecomposition && devFlags.enableGpuHaloExchange && useGpuForNonbonded
+           && !useModularSimulator && !doRerun && !haveEnergyMinimization;
 }
 
 } // namespace gmx
