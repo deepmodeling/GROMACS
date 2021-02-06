@@ -208,6 +208,9 @@ enum class TwoDimDiffType : int
 //! Holds per-group coordinates, analysis, and results.
 struct MsdGroupData
 {
+    explicit MsdGroupData(const Selection& sel)
+            : sel(sel){}
+
     //! Selection associated with this group.
     const Selection& sel;
 
@@ -417,9 +420,7 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     for (int i = 0; i < numSelections; i++)
     {
         // Initialize per group data with test-global references.
-        groupData_.push_back({
-                .sel        = sel_[i],
-        });
+        groupData_.emplace_back(sel_[i]);
     }
 
 

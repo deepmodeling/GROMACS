@@ -91,6 +91,7 @@ public:
 
     void checkStream(TextInputStream* stream, TestReferenceChecker* checker) override
     {
+        checker->setDefaultTolerance(gmx::test::FloatingPointTolerance(gmx::test::absoluteTolerance(1.0e-5)));
         TestReferenceChecker dCoefficientChecker(
                 checker->checkCompound("XvgLegend", "DiffusionCoefficient"));
         TestReferenceChecker legendChecker(checker->checkCompound("XvgLegend", "Legend"));
