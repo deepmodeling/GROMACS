@@ -208,8 +208,7 @@ enum class TwoDimDiffType : int
 //! Holds per-group coordinates, analysis, and results.
 struct MsdGroupData
 {
-    explicit MsdGroupData(const Selection& sel)
-            : sel(sel){}
+    explicit MsdGroupData(const Selection& sel) : sel(sel) {}
 
     //! Selection associated with this group.
     const Selection& sel;
@@ -271,14 +270,14 @@ private:
     //! Picoseconds between restarts
     real trestart_ = 10.0;
     //! Initial time
-    real t0_       = 0;
+    real t0_ = 0;
     //! Inter-frame delta-t
-    real dt_       = -1;
+    real dt_ = -1;
 
     //! First tau value to fit from for diffusion coefficient, defaults to 0.1 * max tau
     real beginFit_ = -1.0;
     //! Final tau value to fit to for diffusion coefficient, defaults to 0.9 * max tau
-    real endFit_   = -1.0;
+    real endFit_ = -1.0;
 
     //! All selection group-specific data stored here.
     std::vector<MsdGroupData> groupData_;
