@@ -136,6 +136,8 @@ std::vector<real> MsdData::AverageMsds() const
 
 //! \brief Calculates 1,2, or 3D distance for two vectors.
 //!
+//! \todo Remove NOLINTs once clang-tidy is updated to v11, it should be able to handler constexpr.
+//!
 //! \tparam x If true, calculate x dimension of displacement
 //! \tparam y If true, calculate y dimension of displacement
 //! \tparam z If true, calculate z dimension of displacement
@@ -150,15 +152,15 @@ inline real CalcSingleSquaredDistance(const RVec c1, const RVec c2)
     {
         result += (c1[XX] - c2[XX]) * (c1[XX] - c2[XX]);
     }
-    if constexpr (y)
+    if constexpr (y) // NOLINT: clang-tidy-9 can't handle constexpr (https://bugs.llvm.org/show_bug.cgi?id=32203)
     {
         result += (c1[YY] - c2[YY]) * (c1[YY] - c2[YY]);
     }
-    if constexpr (z)
+    if constexpr (z) // NOLINT
     {
         result += (c1[ZZ] - c2[ZZ]) * (c1[ZZ] - c2[ZZ]);
     }
-    return result;
+    return result; // NOLINT
 }
 
 //! \brief Calculate average displacement between sets of points
@@ -225,9 +227,9 @@ struct MsdGroupData
     //! Collector for processed MSD averages per tau
     std::vector<real> msdSums;
     //! Fitted diffusion coefficient
-    real diffusionCoefficient;
+    real diffusionCoefficient = 0.0;
     //! Uncertainty of diffusion coefficient
-    real sigma;
+    real sigma = 0.0;
 };
 
 } // namespace
@@ -487,7 +489,7 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     }
 }
 
-void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings&, const t_trxframe& fr)
+void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings& gmx_unused settings, const t_trxframe& fr)
 {
     t0_ = std::round(fr.time);
     for (MsdGroupData& msdData : groupData_)
@@ -520,6 +522,7 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
 
     for (MsdGroupData& msdData : groupData_)
     {
+        //NOLINTNEXTLINE(readability-static-accessed-through-instance)
         const Selection& sel = pdata->parallelSelection(msdData.sel);
 
         std::vector<RVec> coords(sel.coordinates().begin(), sel.coordinates().end());
@@ -603,7 +606,7 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
     }
 }
 
-void Msd::finishAnalysis(int)
+void Msd::finishAnalysis(int gmx_unused nframes)
 {
 
     // If unspecified, calculate beginfit and endfit as 10% and 90%.
@@ -692,17 +695,18 @@ void Msd::writeOutput()
     // can't be determined until simulation end, so AnalysisData objects can't be easily used here.
     // Since the plotting modules are completely wired into the analysis data, we can't use the nice
     // plotting functionality.
-    FILE* out = xvgropen(out_file_.c_str(),
-                         "Mean Square Displacement",
-                         output_env_get_xvgr_tlabel(oenv_),
-                         "MSD (nm\\S2\\N)",
-                         oenv_);
-    fprintf(out,
+    std::unique_ptr<FILE, decltype(&xvgrclose)> out(xvgropen(out_file_.c_str(),
+                                                             "Mean Square Displacement",
+                                                             output_env_get_xvgr_tlabel(oenv_),
+                                                             "MSD (nm\\S2\\N)",
+                                                             oenv_),
+                                                    &xvgrclose);
+    fprintf(out.get(),
             "# MSD gathered over %g %s with %zu restarts\n",
             times_.back() - times_[0],
             output_env_get_time_unit(oenv_).c_str(),
             groupData_[0].frames.size());
-    fprintf(out,
+    fprintf(out.get(),
             "# Diffusion constants fitted from time %g to %g %s\n",
             beginFit_,
             endFit_,
@@ -712,38 +716,38 @@ void Msd::writeOutput()
         const real D = msdData.diffusionCoefficient;
         if (D > 0.01 && D < 1e4)
         {
-            fprintf(out, "# D[%10s] = %.4f (+/- %.4f) (1e-5 cm^2/s)\n", msdData.sel.name(), D, msdData.sigma);
+            fprintf(out.get(), "# D[%10s] = %.4f (+/- %.4f) (1e-5 cm^2/s)\n", msdData.sel.name(), D, msdData.sigma);
         }
         else
         {
-            fprintf(out, "# D[%10s] = %.4g (+/- %.4f) (1e-5 cm^2/s)\n", msdData.sel.name(), D, msdData.sigma);
+            fprintf(out.get(), "# D[%10s] = %.4g (+/- %.4f) (1e-5 cm^2/s)\n", msdData.sel.name(), D, msdData.sigma);
         }
     }
 
     for (size_t i = 0; i < taus_.size(); i++)
     {
-        fprintf(out, "%10g", taus_[i]);
+        fprintf(out.get(), "%10g", taus_[i]);
         for (const MsdGroupData& msdData : groupData_)
         {
-            fprintf(out, "  %10g", msdData.msdSums[i]);
+            fprintf(out.get(), "  %10g", msdData.msdSums[i]);
         }
-        fprintf(out, "\n");
+        fprintf(out.get(), "\n");
     }
-    xvgrclose(out);
 
     // Handle per mol stuff if needed.
     if (mol_selected_)
     {
-        out = xvgropen(mol_file_.c_str(),
-                       "Diffusion Coefficients / Molecule",
-                       "Molecule",
-                       "D (1e-5 cm^2/s)",
-                       oenv_);
+        std::unique_ptr<FILE, decltype(&xvgrclose)> molOut(
+                xvgropen(mol_file_.c_str(),
+                         "Diffusion Coefficients / Molecule",
+                         "Molecule",
+                         "D (1e-5 cm^2/s)",
+                         oenv_),
+                &xvgrclose);
         for (size_t i = 0; i < perMolDiffusionCoefficients_.size(); i++)
         {
-            fprintf(out, "%10zu  %10g\n", i, perMolDiffusionCoefficients_[i]);
+            fprintf(molOut.get(), "%10zu  %10g\n", i, perMolDiffusionCoefficients_[i]);
         }
-        xvgrclose(out);
     }
 }
 
