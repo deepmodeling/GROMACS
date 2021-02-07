@@ -278,7 +278,8 @@ void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*             d_qAPtr,
                                                       const float       sc_sigma6_def,
                                                       const float       sc_sigma6_min,
                                                       const float       lambda_q,
-                                                      const float       lambda_v)
+                                                      const float       lambda_v,
+                                                      const float       lambda_b)
 {
     d_qA_     = static_cast<float*>(d_qAPtr);
     d_qB_     = static_cast<float*>(d_qBPtr);
@@ -296,6 +297,7 @@ void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*             d_qAPtr,
     bonded_fep.sc_sigma6_min = sc_sigma6_min;
     bonded_fep.lambda_q   = lambda_q;
     bonded_fep.lambda_v   = lambda_v;
+    bonded_fep.lambda_b   = lambda_b;
 
     copyToDeviceBuffer(&d_fepParams_, &bonded_fep, 0, sizeof(BondedFepParameters), stream_,
                        GpuApiCallBehavior::Sync, nullptr);
@@ -382,9 +384,10 @@ void GpuBonded::updateFepValuesAndDeviceBuffers(void*             d_qA,
                                                 const float       sc_sigma6_def,
                                                 const float       sc_sigma6_min,
                                                 const float       lambda_q,
-                                                const float       lambda_v)
+                                                const float       lambda_v,
+                                                const float       lambda_b)
 {
-    impl_->updateFepValuesAndDeviceBuffers(d_qA, d_qB, bFEP, alpha_coul, alpha_vdw, alpha_bond, sc_sigma6_def, sc_sigma6_min, lambda_q, lambda_v);
+    impl_->updateFepValuesAndDeviceBuffers(d_qA, d_qB, bFEP, alpha_coul, alpha_vdw, alpha_bond, sc_sigma6_def, sc_sigma6_min, lambda_q, lambda_v, lambda_b);
 }
 
 bool GpuBonded::haveInteractions() const
