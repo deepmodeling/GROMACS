@@ -439,6 +439,16 @@ public:
      */
     void finishFrameSerial(int frameIndex);
 
+    /*! \brief
+     * Returns true if the module supports per-frame parallel analysis.
+     *
+     * Note that not all uses of a trajectory analysis module may use
+     * multithreading. If (in general) a module supports parallel analysis,
+     * it is up to that module to enforce that no more than 1 thread is used
+     * if a non-parallel-supported mode is selected.
+     */
+    virtual bool supportsMultiThreading() const;
+
 protected:
     /*! \brief
      * Initializes the dataset registration mechanism.

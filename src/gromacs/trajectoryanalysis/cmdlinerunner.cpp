@@ -90,23 +90,26 @@ public:
     TrajectoryAnalysisSettings      settings_;
     TrajectoryAnalysisRunnerCommon  common_;
     SelectionCollection             selections_;
+
+    // Needs to persist past initOptions for .
+    std::shared_ptr<SelectionOptionBehavior> selectionOptionBehavior_;
 };
 
 void RunnerModule::initOptions(IOptionsContainer* options, ICommandLineOptionsModuleSettings* settings)
 {
     std::shared_ptr<TimeUnitBehavior>        timeUnitBehavior(new TimeUnitBehavior());
-    std::shared_ptr<SelectionOptionBehavior> selectionOptionBehavior(
-            new SelectionOptionBehavior(&selections_, common_.topologyProvider()));
+    selectionOptionBehavior_ = std::make_shared<SelectionOptionBehavior>(&selections_, common_.topologyProvider());
     settings->addOptionsBehavior(timeUnitBehavior);
-    settings->addOptionsBehavior(selectionOptionBehavior);
+    settings->addOptionsBehavior(selectionOptionBehavior_);
     IOptionsContainer& commonOptions = options->addGroup();
     IOptionsContainer& moduleOptions = options->addGroup();
 
     settings_.setOptionsModuleSettings(settings);
     module_->initOptions(&moduleOptions, &settings_);
     settings_.setOptionsModuleSettings(nullptr);
-    common_.initOptions(&commonOptions, timeUnitBehavior.get());
-    selectionOptionBehavior->initOptions(&commonOptions);
+    common_.initOptions(&commonOptions, timeUnitBehavior.get(), module_->supportsMultiThreading());
+    selectionOptionBehavior_->initOptions(&commonOptions);
+
 }
 
 void RunnerModule::optionsFinished()
@@ -131,7 +134,17 @@ int RunnerModule::run()
 
     int                                 nframes = 0;
     AnalysisDataParallelOptions         dataOptions;
-    TrajectoryAnalysisModuleDataPointer pdata(module_->startFrames(dataOptions, selections_));
+
+    std::vector<SelectionCollection> frameLocalSelections;
+    std::vector<TrajectoryAnalysisModuleDataPointer> frameLocalData;
+    for (int i = 0; i < common_.nThreads(); i++)
+    {
+        SelectionCollection sc2(selections_);
+        // frameLocalSelections.emplace_back(selections_);
+        // frameLocalData.emplace_back(module_->startFrames(dataOptions, frameLocalSelections.back()));
+
+        frameLocalData.emplace_back(module_->startFrames(dataOptions, selections_));
+    }
     do
     {
         common_.initFrame();
@@ -142,17 +155,20 @@ int RunnerModule::run()
         }
 
         selections_.evaluate(&frame, ppbc);
-        module_->analyzeFrame(nframes, frame, ppbc, pdata.get());
+        module_->analyzeFrame(nframes, frame, ppbc, frameLocalData[0].get());
         module_->finishFrameSerial(nframes);
 
         ++nframes;
     } while (common_.readNextFrame());
-    module_->finishFrames(pdata.get());
-    if (pdata.get() != nullptr)
-    {
-        pdata->finish();
+    for (int i = 0; i < common_.nThreads(); i++) {
+        TrajectoryAnalysisModuleData* pdata = frameLocalData[i].get();
+        module_->finishFrames(pdata);
+        if (pdata != nullptr)
+        {
+            pdata->finish();
+        }
+        frameLocalData[i].reset();
     }
-    pdata.reset();
 
     if (common_.hasTrajectory())
     {

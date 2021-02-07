@@ -95,7 +95,6 @@ public:
         const bool isInteractive = StandardInputStream::isInteractive();
         initIndexGroups();
         manager_.parseRequestedFromStdin(isInteractive);
-        doneIndexGroups();
     }
     void initIndexGroups()
     {
@@ -121,15 +120,6 @@ public:
             gmx_ana_indexgrps_init(&grps_, nullptr, ndxfile_.c_str());
         }
         selections_.setIndexGroups(grps_);
-    }
-    void doneIndexGroups()
-    {
-        if (grps_ != nullptr)
-        {
-            selections_.setIndexGroups(nullptr);
-            gmx_ana_indexgrps_free(grps_);
-            grps_ = nullptr;
-        }
     }
 
     void compileSelections()

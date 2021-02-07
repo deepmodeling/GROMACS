@@ -87,7 +87,7 @@ public:
      * \param[in,out] timeUnitBehavior  Time unit behavior to use for adding
      *    and handling the `-tu` option.
      */
-    void initOptions(IOptionsContainer* options, TimeUnitBehavior* timeUnitBehavior);
+    void initOptions(IOptionsContainer* options, TimeUnitBehavior* timeUnitBehavior, bool supportsMultiThreading);
     //! Processes common option values after they have been parsed.
     void optionsFinished();
     //! Load topology information if provided and/or required.
@@ -125,6 +125,8 @@ public:
     const TopologyInformation& topologyInformation() const;
     //! Returns the currently loaded frame.
     t_trxframe& frame() const;
+    //! Returns the number of threads for parallel analysis
+    int64_t nThreads() const;
 
 private:
     class Impl;

@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2010-2018, The GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -115,6 +115,9 @@ public:
 
     TrajectoryAnalysisSettings& settings_;
     TopologyInformation         topInfo_;
+
+    //! Number of threads to run in parallel
+    int64_t nThreads_ = 1;
 
     //! Name of the trajectory file (empty if not provided).
     std::string trjfile_;
@@ -323,7 +326,9 @@ ITopologyProvider* TrajectoryAnalysisRunnerCommon::topologyProvider()
 }
 
 
-void TrajectoryAnalysisRunnerCommon::initOptions(IOptionsContainer* options, TimeUnitBehavior* timeUnitBehavior)
+void TrajectoryAnalysisRunnerCommon::initOptions(IOptionsContainer* options,
+                                                 TimeUnitBehavior*  timeUnitBehavior,
+                                                 const bool         supportsMultiThreading)
 {
     TrajectoryAnalysisSettings& settings = impl_->settings_;
 
@@ -385,6 +390,12 @@ void TrajectoryAnalysisRunnerCommon::initOptions(IOptionsContainer* options, Tim
                 BooleanOption("pbc")
                         .store(&settings.impl_->bPBC)
                         .description("Use periodic boundary conditions for distance calculation"));
+    }
+
+    if (supportsMultiThreading)
+    {
+        options->addOption(
+                Int64Option("nt").store(&impl_->nThreads_).defaultValue(1).description("Number of threads to run in parallel"));
     }
 }
 
@@ -478,6 +489,11 @@ t_trxframe& TrajectoryAnalysisRunnerCommon::frame() const
 {
     GMX_RELEASE_ASSERT(impl_->fr != nullptr, "Frame not available when accessed");
     return *impl_->fr;
+}
+
+int64_t TrajectoryAnalysisRunnerCommon::nThreads() const
+{
+    return impl_->nThreads_;
 }
 
 } // namespace gmx
