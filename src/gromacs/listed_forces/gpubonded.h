@@ -130,7 +130,8 @@ public:
                                          const float       sc_sigma6_def,
                                          const float       sc_sigma6_min,
                                          const float       lambda_q,
-                                         const float       lambda_v);
+                                         const float       lambda_v,
+                                         const float       lambda_b);
     /*! \brief Returns whether there are bonded interactions
      * assigned to the GPU */
     bool haveInteractions() const;
