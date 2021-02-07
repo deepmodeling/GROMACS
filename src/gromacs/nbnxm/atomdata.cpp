@@ -420,7 +420,8 @@ nbnxn_atomdata_t::Params::Params(gmx::PinningPolicy pinningPolicy) :
     q({}, { pinningPolicy }),
     nenergrp(0),
     neg_2log(0),
-    energrp({}, { pinningPolicy })
+    energrp({}, { pinningPolicy }),
+    energrp_gpu({}, { pinningPolicy })
 {
 }
 
@@ -933,6 +934,9 @@ static void nbnxn_atomdata_set_energygroups(nbnxn_atomdata_t::Params* params,
     }
 
     params->energrp.resize(gridSet.numGridAtomsTotal());
+    params->energrp_gpu.resize(gridSet.numGridAtomsTotal());
+
+    printf("numGridAtomsTotal: %d", gridSet.numGridAtomsTotal());
 
     for (const Nbnxm::Grid& grid : gridSet.grids())
     {
@@ -945,6 +949,9 @@ static void nbnxn_atomdata_set_energygroups(nbnxn_atomdata_t::Params* params,
             copy_egp_to_nbat_egps(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
                                   numAtoms, c_nbnxnCpuIClusterSize, params->neg_2log, atinfo,
                                   params->energrp.data() + grid.atomToCluster(atomOffset));
+            copy_egp_to_nbat_egps(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
+                                  numAtoms, c_nbnxnGpuClusterSize, params->neg_2log, atinfo,
+                                  params->energrp_gpu.data() + grid.atomToCluster(atomOffset));
         }
     }
 }
