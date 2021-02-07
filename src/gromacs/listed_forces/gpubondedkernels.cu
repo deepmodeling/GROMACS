@@ -243,7 +243,7 @@ __device__ void bonds_fep_gpu(const int       i,
         float vbond;
         float fbond;
         harmonic_softbond_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB, d_forceparams[type].harmonic.rA, d_forceparams[type].harmonic.rB, 
-                              dr, d_fepparams->alpha_bond, d_fepparams->lambda_q, &vbond, &fbond);
+                              dr, d_fepparams->alpha_bond, d_fepparams->lambda_b, &vbond, &fbond);
 
         if (calcEner)
         {
@@ -397,7 +397,7 @@ __device__ void angles_fep_gpu(const int       i,
         float va;
         float dVdt;
         harmonic_fep_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB,
-                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, d_forceparams[type].harmonic.rB * CUDA_DEG2RAD_F, theta, d_fepparams->lambda_q, &va, &dVdt);
+                     d_forceparams[type].harmonic.rA * CUDA_DEG2RAD_F, d_forceparams[type].harmonic.rB * CUDA_DEG2RAD_F, theta, d_fepparams->lambda_b, &va, &dVdt);
 
         if (calcEner)
         {
@@ -595,7 +595,7 @@ __device__ void urey_bradley_fep_gpu(const int       i,
         float va;
         float dVdt;
         // harmonic_gpu(kthA, th0A, theta, &va, &dVdt);
-        harmonic_fep_gpu(kthA, kthB, th0A, th0B, theta, d_fepparams->lambda_q, &va, &dVdt);
+        harmonic_fep_gpu(kthA, kthB, th0A, th0B, theta, d_fepparams->lambda_b, &va, &dVdt);
 
         if (calcEner)
         {
@@ -880,7 +880,7 @@ __device__ void pdihs_fep_gpu(const int       i,
         float vpd;
         float ddphi;
         dopdihs_fep_gpu(d_forceparams[type].pdihs.cpA, d_forceparams[type].pdihs.cpB, d_forceparams[type].pdihs.phiA, d_forceparams[type].pdihs.phiB,
-                    d_forceparams[type].pdihs.mult, phi, d_fepparams->lambda_q, &vpd, &ddphi);
+                    d_forceparams[type].pdihs.mult, phi, d_fepparams->lambda_b, &vpd, &ddphi);
 
         if (calcEner)
         {
@@ -1028,7 +1028,7 @@ __device__ void rbdihs_fep_gpu(const int       i,
         int   t3;
         float phi = dih_angle_gpu<calcVir>(gm_xq[ai], gm_xq[aj], gm_xq[ak], gm_xq[al], pbcAiuc,
                                            r_ij, r_kj, r_kl, m, n, &t1, &t2, &t3);
-        float lambda = d_fepparams->lambda_q;
+        float lambda = d_fepparams->lambda_b;
 
         /* Change to polymer convention */
         if (phi < c0)
@@ -1225,7 +1225,7 @@ __device__ void idihs_fep_gpu(const int       i,
         make_dp_periodic_gpu(&dpA);
         make_dp_periodic_gpu(&dpB);
 
-        float lambda = d_fepparams->lambda_q;
+        float lambda = d_fepparams->lambda_b;
 
         float ddphi = -((1 - lambda) * kA * dpA + lambda * kB * dpB);
 

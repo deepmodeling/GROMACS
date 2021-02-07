@@ -80,6 +80,7 @@ struct BondedFepParameters
     float sc_sigma6_min;
     float lambda_q; /**< free energy λ for coulomb interaction */
     float lambda_v; /**< free energy λ for vdw interaction     */
+    float lambda_b; /**< free energy λ for bonded interaction  */
 
     BondedFepParameters()
     {
@@ -91,6 +92,7 @@ struct BondedFepParameters
         sc_sigma6_min = 0.0;
         lambda_q      = 0.0;
         lambda_v      = 0.0;
+        lambda_b      = 0.0;
     }
 };
 
@@ -182,7 +184,8 @@ public:
                                          const float       sc_sigma6_def,
                                          const float       sc_sigma6_min,
                                          const float       lambda_q,
-                                         const float       lambda_v);
+                                         const float       lambda_v,
+                                         const float       lambda_b);
 
     /*! \brief Launches bonded kernel on a GPU */
     template<bool calcVir, bool calcEner>
