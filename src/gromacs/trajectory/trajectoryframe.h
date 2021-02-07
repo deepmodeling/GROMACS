@@ -55,38 +55,42 @@
 struct t_atoms;
 enum class PbcType : int;
 
-typedef struct t_trxframe // NOLINT (clang-analyzer-optin.performance.Padding)
+struct t_trxframe // NOLINT (clang-analyzer-optin.performance.Padding)
 {
-    int      not_ok;  /* integrity flags                  */
-    gmx_bool bDouble; /* Double precision?                */
-    int      natoms;  /* number of atoms (atoms, x, v, f, index) */
-    gmx_bool bStep;
-    int64_t  step; /* MD step number                   */
-    gmx_bool bTime;
-    real     time; /* time of the frame                */
-    gmx_bool bLambda;
-    gmx_bool bFepState; /* does it contain fep_state?       */
-    real     lambda;    /* free energy perturbation lambda  */
-    int      fep_state; /* which fep state are we in? */
-    gmx_bool bAtoms;
-    t_atoms* atoms; /* atoms struct (natoms)            */
-    gmx_bool bPrec;
-    real     prec; /* precision of x, fraction of 1 nm */
-    gmx_bool bX;
-    rvec*    x; /* coordinates (natoms)             */
-    gmx_bool bV;
-    rvec*    v; /* velocities (natoms)              */
-    gmx_bool bF;
-    rvec*    f; /* forces (natoms)                  */
-    gmx_bool bBox;
-    matrix   box; /* the 3 box vectors                */
-    gmx_bool bPBC;
+    int      not_ok = 0;  /* integrity flags                  */
+    gmx_bool bDouble = false; /* Double precision?                */
+    int      natoms = 0;  /* number of atoms (atoms, x, v, f, index) */
+    gmx_bool bStep = false;
+    int64_t  step = 0; /* MD step number                   */
+    gmx_bool bTime = false;
+    real     time = 0; /* time of the frame                */
+    gmx_bool bLambda = false;
+    gmx_bool bFepState = false; /* does it contain fep_state?       */
+    real     lambda = 0;    /* free energy perturbation lambda  */
+    int      fep_state =0; /* which fep state are we in? */
+    gmx_bool bAtoms = false;
+    t_atoms* atoms = nullptr; /* atoms struct (natoms)            */
+    gmx_bool bPrec = false;
+    real     prec = 0; /* precision of x, fraction of 1 nm */
+    gmx_bool bX =false;
+    rvec*    x = nullptr; /* coordinates (natoms)             */
+    gmx_bool bV = false;
+    rvec*    v = nullptr; /* velocities (natoms)              */
+    gmx_bool bF = false;
+    rvec*    f = nullptr; /* forces (natoms)                  */
+    gmx_bool bBox = false;
+    matrix   box = {{0}}; /* the 3 box vectors                */
+    gmx_bool bPBC = false;
     PbcType  pbcType; /* the type of pbc                  */
-    gmx_bool bIndex;
-    int*     index; /* atom indices of contained coordinates */
-} t_trxframe;
+    gmx_bool bIndex = false;
+    int*     index = nullptr; /* atom indices of contained coordinates */
+};
+
+t_trxframe copyFrame(const t_trxframe& src)
 
 void comp_frame(FILE* fp, t_trxframe* fr1, t_trxframe* fr2, gmx_bool bRMSD, real ftol, real abstol);
+
+
 
 void done_frame(t_trxframe* frame);
 

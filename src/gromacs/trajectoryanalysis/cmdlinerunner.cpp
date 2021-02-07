@@ -59,6 +59,7 @@
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/filestream.h"
 #include "gromacs/utility/gmxassert.h"
+#include "gromacs/utility/gmxomp.h"
 
 #include "runnercommon.h"
 
@@ -130,7 +131,7 @@ int RunnerModule::run()
     module_->initAfterFirstFrame(settings_, common_.frame());
 
     t_pbc  pbc;
-    t_pbc* ppbc = settings_.hasPBC() ? &pbc : nullptr;
+    const bool hasPbc = settings_.hasPBC();
 
     int                                 nframes = 0;
     AnalysisDataParallelOptions         dataOptions;
@@ -145,21 +146,41 @@ int RunnerModule::run()
 
         frameLocalData.emplace_back(module_->startFrames(dataOptions, selections_));
     }
+
+    int nThreads = 1;
+    gmx_omp_set_num_threads(nThreads);
+    bool framesRemaining = true;
+    t_trxframe frame;
+    int thisFrameNum = 0;
+    int localDataIndex = 0;
+
+#pragma omp parallel shared(ppbc, topology, frameLocalData, framesRemaining, nframes) private(frame, thisFrameNum, localDataIndex, pbc) default(none)
     do
     {
-        common_.initFrame();
-        t_trxframe& frame = common_.frame();
-        if (ppbc != nullptr)
+#pragma ordered
         {
-            set_pbc(ppbc, topology.pbcType(), frame.box);
+            thisFrameNum = nframes;
+            localDataIndex = thisFrameNum % nThreads;
+            common_.initFrame();
+            frame = common_.frame();
+            if (hasPbc)
+            {
+                set_pbc(&pbc, topology.pbcType(), frame.box);
+            }
+            selections_.evaluate(&frame, hasPbc ? &pbc: nullptr);
         }
 
-        selections_.evaluate(&frame, ppbc);
-        module_->analyzeFrame(nframes, frame, ppbc, frameLocalData[0].get());
+        module_->analyzeFrame(thisFrameNum, frame, hasPbc ? &pbc: nullptr, frameLocalData[localDataIndex].get());
         module_->finishFrameSerial(nframes);
 
-        ++nframes;
-    } while (common_.readNextFrame());
+#pragma ordered
+        {
+            ++nframes;
+            framesRemaining = common_.readNextFrame();
+        }
+    } while (framesRemaining) ;
+
+
     for (int i = 0; i < common_.nThreads(); i++) {
         TrajectoryAnalysisModuleData* pdata = frameLocalData[i].get();
         module_->finishFrames(pdata);

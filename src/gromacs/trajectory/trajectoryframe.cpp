@@ -38,14 +38,51 @@
 
 #include <cstdio>
 
-#include <algorithm>
-
+#include "gromacs/math/vec.h"
 #include "gromacs/math/veccompare.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/utility/compare.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
+
+t_trxframe copyFrame(const t_trxframe& src, t_trxframe& dest)
+{
+    // Performs a shallow copy, including all the booleans.
+    t_trxframe newFrame(src);
+
+    // atoms
+    if (newFrame.bAtoms)
+    {
+        newFrame.atoms = copy_t_atoms(src.atoms);
+    }
+    // matrix
+    if (newFrame.bBox) {
+        copy_mat(src.box, newFrame.box);
+    }
+    //x
+    if (newFrame.bX) {
+        snew(newFrame.x, newFrame.natoms);
+        std::memcpy(newFrame.x, src.x, newFrame.natoms);
+
+    }
+    //v
+    if (newFrame.bV) {
+        snew(newFrame.v, newFrame.natoms);
+        std::memcpy(newFrame.v, src.v, newFrame.natoms);
+
+    }
+    //f
+    if (newFrame.bF) {
+        snew(newFrame.f, newFrame.natoms);
+        std::memcpy(newFrame.f, src.f, newFrame.natoms);
+    }
+    //index
+    if (newFrame.bIndex) {
+        snew(newFrame.index, newFrame.natoms);
+        std::memcpy(newFrame.index, src.index, newFrame.natoms);
+    }
+}
 
 void comp_frame(FILE* fp, t_trxframe* fr1, t_trxframe* fr2, gmx_bool bRMSD, real ftol, real abstol)
 {
