@@ -86,16 +86,19 @@ public:
      * \param[in]  cr       Communication record structure
      * \param[in]  box      The simulation box
      * \param[in]  time     The current time in the simulation
+     * \param[in]  step     The current step in the simulation
      * \param[in]  mdatoms  The atomic data
      */
     ForceProviderInput(ArrayRef<const RVec> x,
                        const t_mdatoms&     mdatoms,
                        double               time,
+                       int64_t              step,
                        const matrix         box,
                        const t_commrec&     cr) :
         x_(x),
         mdatoms_(mdatoms),
         t_(time),
+        step_(step),
         cr_(cr)
     {
         copy_mat(box, box_);
@@ -104,6 +107,7 @@ public:
     ArrayRef<const RVec> x_;       //!< The atomic positions
     const t_mdatoms&     mdatoms_; //!< Atomic data
     double               t_;       //!< The current time in the simulation
+    int64_t              step_;    //!< The current step in the simulation
     matrix               box_ = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } }; //!< The simulation box
     const t_commrec&     cr_; //!< Communication record structure
 };

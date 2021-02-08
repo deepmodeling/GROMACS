@@ -112,7 +112,7 @@ public:
         md.chargeA = chargeA.data();
         t_commrec          cr;
         matrix             boxDummy = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
-        ForceProviderInput forceProviderInput({}, md, 0.0, boxDummy, cr);
+        ForceProviderInput forceProviderInput({}, md, 0.0, 0, boxDummy, cr);
 
         // Prepare a ForceProviderOutput
         PaddedVector<RVec>  f = { { 0, 0, 0 } };

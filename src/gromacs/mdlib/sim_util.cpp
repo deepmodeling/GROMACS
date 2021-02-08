@@ -633,7 +633,7 @@ static void computeSpecialForces(FILE*                          fplog,
      */
     if (stepWork.computeForces)
     {
-        gmx::ForceProviderInput  forceProviderInput(x, *mdatoms, t, box, *cr);
+        gmx::ForceProviderInput  forceProviderInput(x, *mdatoms, t, step, box, *cr);
         gmx::ForceProviderOutput forceProviderOutput(forceWithVirialMtsLevel0, enerd);
 
         /* Collect forces from modules */
