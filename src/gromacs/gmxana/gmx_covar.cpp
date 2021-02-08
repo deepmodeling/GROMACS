@@ -73,7 +73,7 @@ namespace
 /*! \brief Throw an error if any element in index exceeds a given number.
  *
  * \param[in] indices to be acessed
- * \param[in] largestOkayIndex to be accessed
+ * \param[in] numAtoms to be accessed
  * \param[in] indexUsagePurpose to be more explicit in the error message
  *
  * \throws RangeError if any element in indices is larger than largestOkayIndex
