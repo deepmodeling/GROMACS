@@ -46,41 +46,55 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-t_trxframe copyFrame(const t_trxframe& src, t_trxframe& dest)
-{
-    // Performs a shallow copy, including all the booleans.
-    t_trxframe newFrame(src);
-
-    // atoms
-    if (newFrame.bAtoms)
+void initFrame(t_trxframe* frame, int numAtoms, t_atoms* atoms) {
+    if (atoms != nullptr)
     {
-        newFrame.atoms = copy_t_atoms(src.atoms);
-    }
-    // matrix
-    if (newFrame.bBox) {
-        copy_mat(src.box, newFrame.box);
+        frame->atoms = copy_t_atoms(atoms);
     }
     //x
-    if (newFrame.bX) {
-        snew(newFrame.x, newFrame.natoms);
-        std::memcpy(newFrame.x, src.x, newFrame.natoms);
-
+    if (frame->bX) {
+        snew(frame->x, numAtoms);
     }
     //v
-    if (newFrame.bV) {
-        snew(newFrame.v, newFrame.natoms);
-        std::memcpy(newFrame.v, src.v, newFrame.natoms);
+    if (frame->bV) {
+        snew(frame->v, numAtoms);
 
     }
     //f
-    if (newFrame.bF) {
-        snew(newFrame.f, newFrame.natoms);
-        std::memcpy(newFrame.f, src.f, newFrame.natoms);
+    if (frame->bF) {
+        snew(frame->f, numAtoms);
     }
     //index
-    if (newFrame.bIndex) {
-        snew(newFrame.index, newFrame.natoms);
-        std::memcpy(newFrame.index, src.index, newFrame.natoms);
+    if (frame->bIndex) {
+        snew(frame->index, numAtoms);
+    }
+}
+
+void copyFrame(const t_trxframe* src, t_trxframe* dest)
+{
+
+
+    // matrix
+    if (dest->bBox) {
+        copy_mat(src->box, dest->box);
+    }
+    //x
+    if (dest->bX) {
+        std::memcpy(dest->x, src->x, dest->natoms * sizeof(rvec));
+
+    }
+    //v
+    if (dest->bV) {
+        std::memcpy(dest->v, src->v, dest->natoms * sizeof(rvec));
+
+    }
+    //f
+    if (dest->bF) {
+        std::memcpy(dest->f, src->f, dest->natoms * sizeof(rvec));
+    }
+    //index
+    if (dest->bIndex) {
+        std::memcpy(dest->index, src->index, dest->natoms * sizeof(int));
     }
 }
 

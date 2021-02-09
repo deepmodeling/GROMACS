@@ -58,7 +58,6 @@
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/filestream.h"
-#include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/gmxomp.h"
 
 #include "runnercommon.h"
@@ -134,51 +133,50 @@ int RunnerModule::run()
     const bool hasPbc = settings_.hasPBC();
 
     int                                 nframes = 0;
-    AnalysisDataParallelOptions         dataOptions;
 
     std::vector<SelectionCollection> frameLocalSelections;
     std::vector<TrajectoryAnalysisModuleDataPointer> frameLocalData;
+    AnalysisDataParallelOptions dataOptions;
+
     for (int i = 0; i < common_.nThreads(); i++)
     {
-        SelectionCollection sc2(selections_);
-        // frameLocalSelections.emplace_back(selections_);
-        // frameLocalData.emplace_back(module_->startFrames(dataOptions, frameLocalSelections.back()));
-
-        frameLocalData.emplace_back(module_->startFrames(dataOptions, selections_));
+        frameLocalSelections.emplace_back(selections_);
+        frameLocalData.push_back(module_->startFrames(dataOptions, frameLocalSelections.back()));
     }
 
     int nThreads = 1;
     gmx_omp_set_num_threads(nThreads);
-    bool framesRemaining = true;
-    t_trxframe frame;
-    int thisFrameNum = 0;
-    int localDataIndex = 0;
+    std::vector<t_trxframe> localFrames;
+    for (int i = 0; i < nThreads; i ++) {
+        t_trxframe& back = localFrames.emplace_back(common_.frame());
+        initFrame(&back, common_.frame().natoms, common_.frame().atoms);
+    }
 
-#pragma omp parallel shared(ppbc, topology, frameLocalData, framesRemaining, nframes) private(frame, thisFrameNum, localDataIndex, pbc) default(none)
-    do
-    {
-#pragma ordered
+    if (module_->supportsMultiThreading()) {
+        do
         {
-            thisFrameNum = nframes;
-            localDataIndex = thisFrameNum % nThreads;
+            int localDataIndex = nframes % nThreads;
             common_.initFrame();
-            frame = common_.frame();
+            copyFrame(&common_.frame(), &localFrames[localDataIndex]);
+
             if (hasPbc)
             {
-                set_pbc(&pbc, topology.pbcType(), frame.box);
+                set_pbc(&pbc, topology.pbcType(), localFrames[localDataIndex].box);
             }
-            selections_.evaluate(&frame, hasPbc ? &pbc: nullptr);
-        }
+            frameLocalSelections[localDataIndex].evaluate(&localFrames[localDataIndex], hasPbc ? &pbc: nullptr);
 
-        module_->analyzeFrame(thisFrameNum, frame, hasPbc ? &pbc: nullptr, frameLocalData[localDataIndex].get());
-        module_->finishFrameSerial(nframes);
+//#pragma omp task shared(localFrames, frameLocalData) firstprivate(nframes, pbc)
+            {
+                module_->analyzeFrame(nframes, localFrames[localDataIndex], hasPbc ? &pbc: nullptr, frameLocalData.at(localDataIndex).get());
+                module_->finishFrameSerial(nframes);
+            }
 
-#pragma ordered
-        {
             ++nframes;
-            framesRemaining = common_.readNextFrame();
-        }
-    } while (framesRemaining) ;
+        } while (common_.readNextFrame()) ;
+//#pragma omp taskwait
+    } else {
+
+    }
 
 
     for (int i = 0; i < common_.nThreads(); i++) {
@@ -188,7 +186,7 @@ int RunnerModule::run()
         {
             pdata->finish();
         }
-        frameLocalData[i].reset();
+        frameLocalData.at(i).reset();
     }
 
     if (common_.hasTrajectory())

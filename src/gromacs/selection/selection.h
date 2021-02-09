@@ -125,7 +125,7 @@ public:
     //! Sets the flags for this selection.
     void setFlags(SelectionFlags flags) { flags_ = flags; }
     //! Returns the current flags.
-    SelectionFlags flags() const { return flags_; };
+    SelectionFlags flags() const { return flags_; }
 
     //! \copydoc Selection::initCoveredFraction()
     bool initCoveredFraction(e_coverfrac_t type);

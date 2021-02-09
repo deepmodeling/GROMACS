@@ -86,6 +86,8 @@ class TrajectoryAnalysisSettings;
 class TrajectoryAnalysisModuleData
 {
 public:
+    TrajectoryAnalysisModuleData(const TrajectoryAnalysisModuleData&) = delete;
+    TrajectoryAnalysisModuleData& operator=(const TrajectoryAnalysisModuleData&) = delete;
     virtual ~TrajectoryAnalysisModuleData();
 
     /*! \brief
@@ -129,7 +131,7 @@ public:
      *
      * Does not throw.
      */
-    static Selection parallelSelection(const Selection& selection);
+    Selection parallelSelection(const Selection& selection);
     /*! \brief
      * Returns a set of selection that corresponds to the given selections.
      *
@@ -139,7 +141,7 @@ public:
      *
      * \see parallelSelection()
      */
-    static SelectionList parallelSelections(const SelectionList& selections);
+    SelectionList parallelSelections(const SelectionList& selections);
 
 protected:
     /*! \brief
