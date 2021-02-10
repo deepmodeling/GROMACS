@@ -36,3 +36,5 @@ gmx_add_unit_test(GmxlibTests nonbonded-fep-test
     CPP_SOURCE_FILES
         nb_free_energy.cpp
     )
+
+gmx_add_unit_test(MyTests my-test CPP_SOURCE_FILES test.cpp)
