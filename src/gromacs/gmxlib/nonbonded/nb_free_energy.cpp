@@ -997,7 +997,8 @@ static KernelFunction dispatchKernel(const bool                 scLambdasOrAlpha
                                      const bool                 useSimd,
                                      const interaction_const_t& ic)
 {
-    if (ic.softCoreParameters->alphaCoulomb == 0 && ic.softCoreParameters->alphaVdw == 0)
+    if ((ic.softCoreParameters->alphaCoulomb == 0 && ic.softCoreParameters->alphaVdw == 0)
+        || ic.softCoreParameters->softcoreType == SoftcoreType::None)
     {
         return (dispatchKernelOnScLambdasOrAlphasDifference<SoftcoreType::None>(
                 scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
