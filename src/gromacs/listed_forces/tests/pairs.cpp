@@ -133,7 +133,16 @@ void checkOutput(TestReferenceChecker*    checker,
 class ForcerecHelper
 {
 public:
-    ForcerecHelper() : ft_(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP, GMX_TABLE_FORMAT_CUBICSPLINE_YFGH) {}
+    ForcerecHelper() : ft_(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP, GMX_TABLE_FORMAT_CUBICSPLINE_YFGH)
+    {
+        fepVals_.sc_alpha         = 0.3;
+        fepVals_.sc_power         = 1;
+        fepVals_.sc_r_power       = 6.0;
+        fepVals_.sc_sigma         = 0.3;
+        fepVals_.sc_sigma_min     = 0.3;
+        fepVals_.bScCoul          = true;
+        fepVals_.softcoreFunction = SoftcoreType::None;
+    }
 
     //! initialize data structure to construct forcerec
     void initForcerec(bool fep)
@@ -188,13 +197,7 @@ private:
     bool         fep_;
     bool         useSimd_;
     bool         molPBC_;
-    t_lambda     fepVals_ = { .sc_alpha         = 0.3,
-                          .sc_power         = 1,
-                          .sc_r_power       = 6.0,
-                          .sc_sigma         = 0.3,
-                          .sc_sigma_min     = 0.3,
-                          .bScCoul          = true,
-                          .softcoreFunction = SoftcoreType::None };
+    t_lambda     fepVals_;
 };
 
 /*! \brief Input structure for listed forces tests

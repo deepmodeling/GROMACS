@@ -288,7 +288,16 @@ private:
 class ForcerecHelper
 {
 public:
-    ForcerecHelper() {}
+    ForcerecHelper()
+    {
+        fepVals_.sc_alpha         = 0.3;
+        fepVals_.sc_power         = 1;
+        fepVals_.sc_r_power       = 6.0;
+        fepVals_.sc_sigma         = 0.3;
+        fepVals_.sc_sigma_min     = 0.3;
+        fepVals_.bScCoul          = true;
+        fepVals_.softcoreFunction = SoftcoreType::None;
+    }
 
     //! initialize data structure to construct forcerec
     void initForcerec(const gmx_ffparams_t* idef, int coulType, int vdwType, int vdwMod)
@@ -321,13 +330,7 @@ private:
     InteractionConstHelper icHelper_;
     std::vector<real>      ljPmeC6Grid_;
     std::vector<real>      nbfp_;
-    t_lambda               fepVals_ = { .sc_alpha         = 0.3,
-                                        .sc_power         = 1,
-                                        .sc_r_power       = 6.0,
-                                        .sc_sigma         = 0.3,
-                                        .sc_sigma_min     = 0.3,
-                                        .bScCoul          = true,
-                                        .softcoreFunction = SoftcoreType::None };
+    t_lambda               fepVals_;
 };
 
 /*! \brief Utility structure to hold atoms data
@@ -336,18 +339,24 @@ private:
  */
 struct AtomData
 {
+    AtomData()
+    {
+        idef.atnr = 2;
+        idef.iparams.resize(4);
+        idef.iparams[0].lj = { 0.001458, 1.0062882e-6 };
+        idef.iparams[1].lj = { 0.0, 0.0};
+        idef.iparams[2].lj = { 0.0, 0.0};
+        idef.iparams[3].lj = { 0.0, 0.0};
+    }
+
+    // forcefield parameters
+    gmx_ffparams_t idef;
+
     // atom data
     std::vector<real> chargeA = { 1.0, -1.0 };
     std::vector<real> chargeB = { 1.0, 0.0 };
     std::vector<int>  typeA   = { 0, 0 };
     std::vector<int>  typeB   = { 0, 1 };
-
-    // forcefield parameters
-    gmx_ffparams_t idef = { .atnr    = 2,
-                            .iparams = { { .lj = { 0.001458, 1.0062882e-6 } },
-                                         { .lj = { 0.0, 0.0 } },
-                                         { .lj = { 0.0, 0.0 } },
-                                         { .lj = { 0.0, 0.0 } } } };
 
     // neighbourhood information
     std::vector<int> iAtoms     = { 0, 1 };
