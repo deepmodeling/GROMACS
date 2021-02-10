@@ -126,49 +126,76 @@ void checkOutput(TestReferenceChecker*    checker,
     checker->checkSequence(std::begin(output.f), std::end(output.f), "Forces");
 }
 
-/*! \brief Utility to initialize interaction_const_t
+/* \brief Utility class to setup forcerec and interaction parameters
  *
- * \param[out] ic pointer to interaction parameters
+ * Data is only initialized as necessary for the 1-4 interactions to work!
  */
-void initInteractions(interaction_const_t* ic)
+class ForcerecHelper
 {
-    // fep mdp parameters
-    t_lambda fepVals;
-    fepVals.sc_alpha = 0.3;
-    fepVals.sc_r_power = 6.0;
-    fepVals.bScCoul = true;
-    fepVals.sc_power = 1;
-    fepVals.sc_sigma = 0.3;
-    fepVals.sc_sigma_min = 0.3;
-    // softcore type will be set in test fixture
-    fepVals.softcoreFunction = SoftcoreType::None;
+public:
+    ForcerecHelper() : ft_(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP, GMX_TABLE_FORMAT_CUBICSPLINE_YFGH) {}
 
-    ic->softCoreParameters = std::unique_ptr<interaction_const_t::SoftCoreParameters>(
-            new interaction_const_t::SoftCoreParameters(fepVals));
-}
+    //! initialize data structure to construct forcerec
+    void initForcerec(bool fep)
+    {
+        fep_ = fep;
 
-/*! \brief Utility to initialize t_forcerec struct
- *
- * \param[in]  hasFep fep flag
- * \param[in]  ic     pointer to interaction parameters
- * \param[out] fr     pointer to t_forcetable
- * \param[out] ft     pointer to t_forcerec struct
- */
-void initForcerec(bool hasFep, interaction_const_t* ic, t_forcerec* fr, t_forcetable* ft)
-{
-    fr->ic = ic;
+        // make_tables returns a raw pointer created with new. In order to
+        // allow for proper clean-up, give its value here to some externally
+        // handled resource (i.e., to member ft_) that takes responsibility.
+        t_forcetable* ftTemp;
+        interaction_const_t ic; // a default interaction_const_t is sufficient here
+        ftTemp = make_tables(nullptr, &ic, "table.xvg", 2.9, GMX_MAKETABLES_14ONLY);
+        ft_    = *ftTemp;
+        delete ftTemp;
+    }
 
-    // make_tables return as raw pointer created with new. In order to
-    // allow for proper clean-up, give its value here to some externally
-    // handled resource (i.e., to ft) that takes responsibility.
-    t_forcetable* ftTemp;
-    ftTemp = make_tables(nullptr, fr->ic, "table.xvg", 2.9, GMX_MAKETABLES_14ONLY);
-    *ft = *ftTemp;
-    delete ftTemp;
-    fr->pairsTable = ft;
-    fr->efep       = hasFep;
-    fr->fudgeQQ    = 0.5;
-}
+    //! set use of some type of softcore function
+    void setSoftcore(const SoftcoreType softcoreType)
+    {
+        fepVals_.softcoreFunction = softcoreType;
+    }
+
+    //! set use of simd if available
+    void setUseSimd(const bool useSimd)
+    {
+        useSimd_ = useSimd;
+    }
+
+    //! set use mol pbc
+    void setMolPBC(const bool molPBC)
+    {
+        molPBC_ = molPBC;
+    }
+
+    //! get forcerec data as wanted by the 1-4 interactions
+    void getForcerec(t_forcerec* fr, interaction_const_t* ic)
+    {
+        // set data in ic
+        ic->softCoreParameters = std::unique_ptr<interaction_const_t::SoftCoreParameters>(
+                new interaction_const_t::SoftCoreParameters(fepVals_));
+
+        // set data in fr
+        fr->pairsTable       = &ft_;
+        fr->efep             = fep_;
+        fr->fudgeQQ          = 0.5;
+        fr->ic               = ic;
+        fr->use_simd_kernels = useSimd_;
+    }
+
+private:
+    t_forcetable ft_;
+    bool         fep_;
+    bool         useSimd_;
+    bool         molPBC_;
+    t_lambda     fepVals_ = { .sc_alpha         = 0.3,
+                          .sc_power         = 1,
+                          .sc_r_power       = 6.0,
+                          .sc_sigma         = 0.3,
+                          .sc_sigma_min     = 0.3,
+                          .bScCoul          = true,
+                          .softcoreFunction = SoftcoreType::None };
+};
 
 /*! \brief Input structure for listed forces tests
  */
@@ -185,12 +212,8 @@ public:
     double doubleToler = 1e-8;
     //! Interaction parameters
     t_iparams iparams = { { 0 } };
-    //! forcerec
-    std::shared_ptr<t_forcerec> fr;
-    //! interaction const
-    std::shared_ptr<interaction_const_t> ic;
-    //! forcetable
-    std::shared_ptr<t_forcetable> ft;
+    //! forcerec setup helper
+    ForcerecHelper frHelper;
 
     friend std::ostream& operator<<(std::ostream& out, const ListInput& input);
 
@@ -227,12 +250,7 @@ public:
         iparams.lj14.c6B  = c6B;
         iparams.lj14.c12B = c12B;
 
-        ic = std::make_shared<interaction_const_t>();
-        initInteractions(ic.get());
-        fr = std::make_shared<t_forcerec>();
-        ft = std::make_shared<t_forcetable>(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP,
-                                            GMX_TABLE_FORMAT_CUBICSPLINE_YFGH);
-        initForcerec(fep, ic.get(), fr.get(), ft.get());
+        frHelper.initForcerec(fep);
 
         return *this;
     }
@@ -254,7 +272,7 @@ std::ostream& operator<<(std::ostream& out, const ListInput& input)
         printInteractionParameters(&writer, input.fType, input.iparams);
     }
     out << "Function parameters " << stream.toString();
-    out << "Parameters trigger FEP? " << (input.fr->efep ? "true" : "false") << endl;
+    out << "Parameters trigger FEP? " << (input.fep ? "true" : "false") << endl;
     return out;
 }
 
@@ -332,18 +350,18 @@ protected:
         // upon query
         mdatoms.nPerturbed = 0;
 
-        input_.fr->ic->softCoreParameters->softcoreType = softcoreType;
+        input_.frHelper.setSoftcore(softcoreType);
 
         if (pbcType_ != PbcType::No)
         {
-            input_.fr->bMolPBC = true;
+            input_.frHelper.setMolPBC(true);
         }
 
         std::vector<BondedKernelFlavor> flavors = { BondedKernelFlavor::ForcesAndVirialAndEnergy };
 
         if (!input_.fep || lambda == 0)
         {
-            input_.fr->use_simd_kernels = true;
+            input_.frHelper.setUseSimd(true);
             flavors.push_back(BondedKernelFlavor::ForcesSimdWhenAvailable);
         }
 
@@ -361,12 +379,16 @@ protected:
                 havePerturbedInteractions = false;
             }
 
+            t_forcerec fr;
+            interaction_const_t ic;
+            input_.frHelper.getForcerec(&fr, &ic);
+
             OutputQuantities output(egLJ14);
             std::vector<real> lambdas(efptNR, lambda);
 
             do_pairs(input_.fType, iatoms.size(), iatoms.data(), &input_.iparams,
                      as_rvec_array(x_.data()), output.f, output.fShift, &pbc_, lambdas.data(),
-                     output.dvdLambda.data(), &mdatoms, input_.fr.get(), havePerturbedInteractions,
+                     output.dvdLambda.data(), &mdatoms, &fr, havePerturbedInteractions,
                      stepWork, &output.energy, ddgatindex.data());
 
             checkOutput(checker, output, flavor);
@@ -394,7 +416,7 @@ protected:
 
         std::vector<t_iatom> iatoms;
         fillIatoms(input_.fType, &iatoms);
-        if (input_.fr->efep)
+        if (input_.fep)
         {
             const int numLambdas = 3;
             for (int i = 0; i < numLambdas; ++i)
