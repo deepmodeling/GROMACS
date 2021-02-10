@@ -68,9 +68,9 @@ class IThreadAffinityAccess
 public:
     //! Return whether setting thread affinity is supported.
     virtual bool isThreadAffinitySupported() const = 0;
-    /*! \brief Set the affinity of the current thread to core \c
+    /*! \brief Set the affinity of the current thread to \p core
      *
-     * The value of \c core must be a valid core ID, or the
+     * The value of \p core must be a valid core ID, or the
      * affinity will not be set.
      *
      * \return Whether affinity was successfully set.
