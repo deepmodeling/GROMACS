@@ -176,7 +176,7 @@ inline real calcSingleSquaredDistance(const RVec c1, const RVec c2)
 //! \param num_vals
 //! \return Per-particle averaged distance
 template<bool x, bool y, bool z>
-real CalcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
+real calcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
 {
     real result = 0;
     for (int i = 0; i < num_vals; i++)
@@ -280,7 +280,7 @@ private:
     double diffusionCoefficientDimensionFactor_ = c_3DdiffusionDimensionFactor;
     //! Method used to calculate MSD - changes based on dimensonality.
     std::function<real(const RVec*, const RVec*, int)> calcMsd_ =
-            CalcAverageDisplacement<true, true, true>;
+            calcAverageDisplacement<true, true, true>;
 
     //! Picoseconds between restarts
     real trestart_ = 10.0;
@@ -314,9 +314,9 @@ private:
 
     // Output stuff
     //! Per-tau MSDs for each selected group
-    std::string out_file_;
+    std::string output;
     //! Per molecule diffusion coefficients if -mol is selected.
-    std::string       mol_file_;
+    std::string       moleculeOutput_;
     gmx_output_env_t* oenv_ = nullptr;
 };
 
@@ -393,14 +393,14 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
     options->addOption(FileNameOption("o")
                                .filetype(eftPlot)
                                .outputFile()
-                               .store(&out_file_)
+                               .store(&output)
                                .defaultBasename("msdout")
                                .description("MSD output"));
     options->addOption(
             FileNameOption("mol")
                     .filetype(eftPlot)
                     .outputFile()
-                    .store(&mol_file_)
+                    .store(&moleculeOutput_)
                     .storeIsSet(&molSelected_)
                     .defaultBasename("diff_mol")
                     .description("Report diffusion coefficients for each molecule in selection"));
@@ -438,15 +438,15 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     switch (singleDimType_)
     {
         case SingleDimDiffType::X:
-            calcMsd_                             = CalcAverageDisplacement<true, false, false>;
+            calcMsd_                             = calcAverageDisplacement<true, false, false>;
             diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
             break;
         case SingleDimDiffType::Y:
-            calcMsd_                             = CalcAverageDisplacement<false, true, false>;
+            calcMsd_                             = calcAverageDisplacement<false, true, false>;
             diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
             break;
         case SingleDimDiffType::Z:
-            calcMsd_                             = CalcAverageDisplacement<false, false, true>;
+            calcMsd_                             = calcAverageDisplacement<false, false, true>;
             diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
             break;
         default: break;
@@ -454,15 +454,15 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     switch (twoDimType_)
     {
         case TwoDimDiffType::NormalToX:
-            calcMsd_                             = CalcAverageDisplacement<false, true, true>;
+            calcMsd_                             = calcAverageDisplacement<false, true, true>;
             diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
             break;
         case TwoDimDiffType::NormalToY:
-            calcMsd_                             = CalcAverageDisplacement<true, false, true>;
+            calcMsd_                             = calcAverageDisplacement<true, false, true>;
             diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
             break;
         case TwoDimDiffType::NormalToZ:
-            calcMsd_                             = CalcAverageDisplacement<true, true, false>;
+            calcMsd_                             = calcAverageDisplacement<true, true, false>;
             diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
             break;
         default: break;
@@ -703,7 +703,7 @@ void Msd::writeOutput()
     // can't be determined until simulation end, so AnalysisData objects can't be easily used here.
     // Since the plotting modules are completely wired into the analysis data, we can't use the nice
     // plotting functionality.
-    std::unique_ptr<FILE, decltype(&xvgrclose)> out(xvgropen(out_file_.c_str(),
+    std::unique_ptr<FILE, decltype(&xvgrclose)> out(xvgropen(output.c_str(),
                                                              "Mean Square Displacement",
                                                              output_env_get_xvgr_tlabel(oenv_),
                                                              "MSD (nm\\S2\\N)",
@@ -746,7 +746,7 @@ void Msd::writeOutput()
     if (molSelected_)
     {
         std::unique_ptr<FILE, decltype(&xvgrclose)> molOut(
-                xvgropen(mol_file_.c_str(),
+                xvgropen(moleculeOutput_.c_str(),
                          "Diffusion Coefficients / Molecule",
                          "Molecule",
                          "D (1e-5 cm^2/s)",
