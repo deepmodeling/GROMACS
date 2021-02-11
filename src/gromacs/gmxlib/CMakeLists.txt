@@ -75,6 +75,6 @@ target_link_libraries(gmxlib INTERFACE
 # TODO: Explicitly link specific modules.
 #target_link_libraries(gmxlib PRIVATE legacy_modules)
 
-# if(BUILD_TESTING)
-#     add_subdirectory(tests)
-# endif()
+if(BUILD_TESTING)
+    add_subdirectory(nonbonded/tests)
+endif()
