@@ -438,14 +438,11 @@ std::vector<PaddedVector<RVec>> c_coordinatesFor14Interaction = {
     { { 0.0, 0.0, 0.0 }, { 1.0, 1.0, 1.0 }, { 1.1, 1.2, 1.3 } }
 };
 
-// Those tests give errors with the Intel compiler (as of October 2019) and nothing else, so we disable them only there.
-#if !defined(__INTEL_COMPILER) || (__INTEL_COMPILER >= 2021)
 INSTANTIATE_TEST_CASE_P(14Interaction,
                         ListedForcesPairsTest,
                         ::testing::Combine(::testing::ValuesIn(c_14Interaction),
                                            ::testing::ValuesIn(c_coordinatesFor14Interaction),
                                            ::testing::ValuesIn(c_pbcForTests)));
-#endif
 
 } // namespace
 
