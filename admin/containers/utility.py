@@ -120,6 +120,9 @@ parser.add_argument('--mpi', type=str, nargs='?', const='openmpi', default=None,
 parser.add_argument('--tsan', type=str, nargs='?', const='llvm', default=None,
                     help='Build special compiler versions with TSAN OpenMP support')
 
+parser.add_argument('--hipsycl', type=str, nargs='?', const="213c683c", default=None,
+                    help='Select hipSYCL repository tag/commit/branch.')
+
 parser.add_argument('--clfft', type=str, nargs='?', const='master', default=None,
                     help='Add external clFFT libraries to the build image')
 

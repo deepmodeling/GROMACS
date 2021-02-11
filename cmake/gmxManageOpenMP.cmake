@@ -2,7 +2,7 @@
 # This file is part of the GROMACS molecular simulation package.
 #
 # Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
-# Copyright (c) 2017,2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2017,2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -38,6 +38,12 @@
 # and then does some additional tests for flags afterwards.
 
 if(GMX_OPENMP)
+    # CMake does not properly detect OpenMP flags for hipSYCL, so we offer a little help
+    if(CMAKE_CXX_COMPILER MATCHES "syclcc")
+        set(OpenMP_CXX_FLAGS "-fopenmp=libomp")
+        set(OpenMP_CXX_LIB_NAMES "omp")
+    endif()
+
     # We should do OpenMP detection if we get here
     # OpenMP check must come before other CFLAGS!
     find_package(OpenMP)
