@@ -40,6 +40,11 @@
  * 'calculateSimpleBond'. To keep the test setup uncluttered this test is
  * therefore not merged into the bonded test but implemented standalone.
  *
+ * The test setup consists of 2 atom pairs that are tested in an fep setting
+ * (vanishing charge and lennard-jones parameters of one atom) and without
+ * fep. Placement of the atoms in the box is such that shift-forces and pbc
+ * paths in do_pairs are covered.
+ *
  * \author David van der Spoel <david.vanderspoel@icm.uu.se>
  * \ingroup module_listed_forces
  */
