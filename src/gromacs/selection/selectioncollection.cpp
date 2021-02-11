@@ -921,7 +921,7 @@ void SelectionCollection::evaluateFinal(int nframes)
     evaluator.evaluateFinal(this, nframes);
 }
 
-std::optional<Selection> SelectionCollection::selection(std::string_view selName)
+std::optional<Selection> SelectionCollection::selection(std::string_view selName) const
 {
     for (const auto& sel : impl_->sc_.sel)
     {

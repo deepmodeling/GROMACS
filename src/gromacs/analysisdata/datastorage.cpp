@@ -48,6 +48,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "gromacs/analysisdata/abstractdata.h"
@@ -264,6 +265,9 @@ public:
      * frame (see \a frames_).
      */
     int nextIndex_;
+
+    std::mutex builderMutex_;
+    std::mutex managerMutex_;
 };
 
 /********************************************************************
@@ -468,6 +472,7 @@ void AnalysisDataStorageImpl::rotateBuffer()
 
 AnalysisDataFrameBuilderPointer AnalysisDataStorageImpl::getFrameBuilder()
 {
+    std::lock_guard<std::mutex> lock(builderMutex_);
     if (builders_.empty())
     {
         return AnalysisDataFrameBuilderPointer(new AnalysisDataStorageFrame(*data_));
@@ -480,6 +485,8 @@ AnalysisDataFrameBuilderPointer AnalysisDataStorageImpl::getFrameBuilder()
 
 void AnalysisDataStorageImpl::finishFrame(int index)
 {
+    std::unique_lock<std::mutex> lock(builderMutex_);
+
     const int storageIndex = computeStorageLocation(index);
     GMX_RELEASE_ASSERT(storageIndex >= 0, "Out of bounds frame index");
 
@@ -489,7 +496,9 @@ void AnalysisDataStorageImpl::finishFrame(int index)
     GMX_RELEASE_ASSERT(!storedFrame.isFinished(), "finishFrame() called twice for the same frame");
     GMX_RELEASE_ASSERT(storedFrame.frameIndex() == index, "Inconsistent internal frame indexing");
     builders_.push_back(storedFrame.finishFrame(isMultipoint()));
+    managerMutex_.lock();
     modules_->notifyParallelFrameFinish(storedFrame.header());
+    managerMutex_.unlock();
     if (pendingLimit_ == 1)
     {
         finishFrameSerial(index);
@@ -508,6 +517,7 @@ void AnalysisDataStorageImpl::finishFrameSerial(int index)
     GMX_RELEASE_ASSERT(storedFrame.isFinished(), "finishFrameSerial() called before finishFrame()");
     GMX_RELEASE_ASSERT(!storedFrame.isNotified(),
                        "finishFrameSerial() called twice for the same frame");
+    std::lock_guard<std::mutex> lock(managerMutex_);
     // Increment before the notifications to make the frame available
     // in the module callbacks.
     ++firstUnnotifiedIndex_;

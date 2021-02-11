@@ -402,7 +402,7 @@ public:
      * @param selName name of the selection to return
      * @return The selection with the given name, or nullopt if no such selection exists.
      */
-    std::optional<Selection> selection(std::string_view selName);
+    [[nodiscard]] std::optional<Selection> selection(std::string_view selName) const;
     /*! \brief
      * Prints a human-readable version of the internal selection element
      * tree.

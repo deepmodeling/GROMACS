@@ -44,6 +44,7 @@
 
 #include "datamodulemanager.h"
 
+#include <atomic>
 #include <utility>
 #include <vector>
 
@@ -157,7 +158,7 @@ public:
      * methods.
      */
     //! Whether notifyDataStart() has been called.
-    mutable State state_;
+    mutable std::atomic<State> state_;
     //! Index of currently active frame or the next frame if not in frame.
     mutable int currIndex_;
 };

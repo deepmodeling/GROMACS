@@ -42,6 +42,8 @@
  */
 #include "gmxpre.h"
 
+#include <future>
+
 #include "cmdlinerunner.h"
 
 #include "gromacs/analysisdata/paralleloptions.h"
@@ -133,61 +135,104 @@ int RunnerModule::run()
     const bool hasPbc = settings_.hasPBC();
 
     int                                 nframes = 0;
+    AnalysisDataParallelOptions dataOptions(common_.nThreads() > 0 ? common_.nThreads() : 1);
+    int localDataIndex = 0;
 
-    std::vector<SelectionCollection> frameLocalSelections;
-    std::vector<TrajectoryAnalysisModuleDataPointer> frameLocalData;
-    AnalysisDataParallelOptions dataOptions;
 
-    for (int i = 0; i < common_.nThreads(); i++)
-    {
-        frameLocalSelections.emplace_back(selections_);
-        frameLocalData.push_back(module_->startFrames(dataOptions, frameLocalSelections.back()));
-    }
 
-    int nThreads = 1;
-    gmx_omp_set_num_threads(nThreads);
-    std::vector<t_trxframe> localFrames;
-    for (int i = 0; i < nThreads; i ++) {
-        t_trxframe& back = localFrames.emplace_back(common_.frame());
-        initFrame(&back, common_.frame().natoms, common_.frame().atoms);
-    }
-
-    if (module_->supportsMultiThreading()) {
+    if (module_->supportsMultiThreading() && common_.nThreads() > 0) {
+        std::vector<SelectionCollection> frameLocalSelections;
+        std::vector<TrajectoryAnalysisModuleDataPointer> frameLocalData;
+        std::vector<std::future<int>> waiters;
+        std::vector<t_pbc> pbcs;
+        for (int i = 0; i < common_.nThreads(); i++)
+        {
+            pbcs.emplace_back();
+            waiters.emplace_back();
+            frameLocalSelections.emplace_back(selections_);
+        }
+        for (int i = 0; i < common_.nThreads(); i++) {
+            frameLocalData.push_back(module_->startFrames(dataOptions, frameLocalSelections[i]));
+        }
+        const int nThreads = common_.nThreads();
+        printf("\n\nParallel execution with %d threads\n\n", nThreads);
+        gmx_omp_set_num_threads(nThreads);
+        std::vector<t_trxframe> localFrames;
+        for (int i = 0; i < nThreads; i ++) {
+            t_trxframe& back = localFrames.emplace_back(common_.frame());
+            initFrame(&back, common_.frame().natoms, common_.frame().atoms);
+        }
         do
         {
-            int localDataIndex = nframes % nThreads;
+            localDataIndex = nframes % nThreads;
+            printf("Start loop %d\n", nframes);
+            printf("Local data indeex %d\n", localDataIndex);
+            if (nframes >= nThreads) {
+                printf("Waits for thread %d\n", nframes - nThreads);
+                module_->finishFrameSerial(waiters[localDataIndex].get());
+            }
             common_.initFrame();
             copyFrame(&common_.frame(), &localFrames[localDataIndex]);
-
+            t_pbc* ppbc = &pbcs[localDataIndex];
             if (hasPbc)
             {
-                set_pbc(&pbc, topology.pbcType(), localFrames[localDataIndex].box);
-            }
-            frameLocalSelections[localDataIndex].evaluate(&localFrames[localDataIndex], hasPbc ? &pbc: nullptr);
-
-//#pragma omp task shared(localFrames, frameLocalData) firstprivate(nframes, pbc)
-            {
-                module_->analyzeFrame(nframes, localFrames[localDataIndex], hasPbc ? &pbc: nullptr, frameLocalData.at(localDataIndex).get());
-                module_->finishFrameSerial(nframes);
-            }
+                set_pbc(ppbc, topology.pbcType(), localFrames[localDataIndex].box);
+            } else  {
+                  ppbc = nullptr;
+                }
+            frameLocalSelections[localDataIndex].evaluate(&localFrames[localDataIndex], ppbc);
+            printf("Dispatches thread frame %d\n", nframes);
+            waiters[localDataIndex] = std::async(std::launch::async,[&, ppbc, localDataIndex, nframes]() -> int{
+                module_->analyzeFrame(nframes, localFrames[localDataIndex], ppbc, frameLocalData.at(localDataIndex).get());
+                return nframes;
+            });
 
             ++nframes;
         } while (common_.readNextFrame()) ;
-//#pragma omp taskwait
+        printf("Finishes loops\n");
+        for (auto& waiter: waiters) {
+            if (waiter.valid()) {
+                printf("Waits for thread\n");
+                waiter.wait();
+            }
+        }
+
+        for (int i = 0; i < common_.nThreads(); i++) {
+            TrajectoryAnalysisModuleData* pdata = frameLocalData[i].get();
+            module_->finishFrames(pdata);
+        }
+        for (int i = 0; i < common_.nThreads(); i++) {
+            frameLocalData[i]->finish();
+        }
     } else {
+        auto pdata =             module_->startFrames(dataOptions, selections_);
+        printf("\n\nSerial execution\n\n");
+        do
+        {
+            common_.initFrame();
+            t_trxframe& frame = common_.frame();
+            if (hasPbc)
+            {
+                set_pbc(&pbc, topology.pbcType(), frame.box);
+            }
 
-    }
+            selections_.evaluate(&frame, &pbc);
+            module_->analyzeFrame(nframes, frame, &pbc, pdata.get());
+            module_->finishFrameSerial(nframes);
 
+            ++nframes;
+        } while (common_.readNextFrame());
 
-    for (int i = 0; i < common_.nThreads(); i++) {
-        TrajectoryAnalysisModuleData* pdata = frameLocalData[i].get();
-        module_->finishFrames(pdata);
+        module_->finishFrames(pdata.get());
         if (pdata != nullptr)
         {
             pdata->finish();
         }
-        frameLocalData.at(i).reset();
+        pdata.reset();
     }
+
+
+
 
     if (common_.hasTrajectory())
     {

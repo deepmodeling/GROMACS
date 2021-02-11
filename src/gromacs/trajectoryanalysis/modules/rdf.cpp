@@ -122,6 +122,7 @@ class Rdf : public TrajectoryAnalysisModule
 public:
     Rdf();
 
+    [[nodiscard]] bool supportsMultiThreading() const override;
     void initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings) override;
     void optionsFinished(TrajectoryAnalysisSettings* settings) override;
     void initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top) override;
@@ -187,6 +188,7 @@ private:
     AnalysisNeighborhood nb_;
     //! Topology exclusions used by neighborhood searching.
     const gmx_localtop_t* localTop_;
+    const gmx_mtop_t* globalTop_;
 
     // User input options.
     double        binwidth_;
@@ -210,6 +212,7 @@ Rdf::Rdf() :
     pairCounts_(new AnalysisDataSimpleHistogramModule()),
     normAve_(new AnalysisDataAverageModule()),
     localTop_(nullptr),
+    globalTop_(nullptr),
     binwidth_(0.002),
     cutoff_(0.0),
     rmax_(0.0),
@@ -228,6 +231,10 @@ Rdf::Rdf() :
 
     normFactors_.addModule(normAve_);
     registerAnalysisDataset(&normFactors_, "norm");
+}
+
+bool Rdf::supportsMultiThreading() const {
+    return true;
 }
 
 void Rdf::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings)
@@ -353,6 +360,7 @@ void Rdf::optionsFinished(TrajectoryAnalysisSettings* settings)
 
 void Rdf::initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top)
 {
+    globalTop_ = top.mtop();
     pairDist_.setDataSetCount(sel_.size());
     for (size_t i = 0; i < sel_.size(); ++i)
     {
@@ -362,17 +370,6 @@ void Rdf::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     nb_.setXYMode(bXY_);
 
     normFactors_.setColumnCount(0, sel_.size() + 1);
-
-    const bool bSurface = (surface_ != SurfaceType::None);
-    if (bSurface)
-    {
-        if (!refSel_.hasOnlyAtoms())
-        {
-            GMX_THROW(InconsistentInputError("-surf only works with -ref that consists of atoms"));
-        }
-        const e_index_t type = (surface_ == SurfaceType::Molecule ? INDEX_MOL : INDEX_RES);
-        surfaceGroupCount_   = refSel_.initOriginalIdsToGroup(top.mtop(), type);
-    }
 
     if (bExclusions_)
     {
@@ -452,7 +449,9 @@ public:
         surfaceDist2_.resize(surfaceGroupCount);
     }
 
-    void finish() override { finishDataHandles(); }
+    void finish() override {
+
+        finishDataHandles(); }
 
     /*! \brief
      * Minimum distance to each surface group.
@@ -471,7 +470,24 @@ public:
 TrajectoryAnalysisModuleDataPointer Rdf::startFrames(const AnalysisDataParallelOptions& opt,
                                                      const SelectionCollection&         selections)
 {
-    return TrajectoryAnalysisModuleDataPointer(new RdfModuleData(this, opt, selections, surfaceGroupCount_));
+
+    const e_index_t type = (surface_ == SurfaceType::Molecule ? INDEX_MOL : INDEX_RES);
+    if (surface_ != SurfaceType::None)
+    {
+        if (!refSel_.hasOnlyAtoms())
+        {
+            GMX_THROW(InconsistentInputError("-surf only works with -ref that consists of atoms"));
+        }
+        surfaceGroupCount_   = refSel_.initOriginalIdsToGroup(globalTop_, type);
+    }
+    TrajectoryAnalysisModuleDataPointer data = std::make_unique<RdfModuleData>(this, opt, selections, surfaceGroupCount_);
+
+    if (surface_ != SurfaceType::None)
+    {
+        Selection refSel = data->parallelSelection(refSel_);
+        refSel.initOriginalIdsToGroup(globalTop_, type);
+    }
+    return data;
 }
 
 void Rdf::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata)
@@ -493,6 +509,7 @@ void Rdf::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
     }
     const real inverseVolume = 1.0 / det(boxForVolume);
 
+    printf("Module starts frame %d\n", frnr);
     nh.startFrame(frnr, fr.time);
     // Compute the normalization factor for the number of reference positions.
     if (bSurface)

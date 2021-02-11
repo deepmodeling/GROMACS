@@ -44,13 +44,16 @@
 
 #include "analysismodule.h"
 
+#include <cstring>
 #include <map>
 #include <utility>
 
 #include "gromacs/analysisdata/analysisdata.h"
 #include "gromacs/selection/selection.h"
+#include "gromacs/selection/selectioncollection.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
+#include "gromacs/utility/stringutil.h"
 
 namespace gmx
 {
@@ -185,14 +188,14 @@ AnalysisDataHandle TrajectoryAnalysisModuleData::dataHandle(const AnalysisData& 
 
 Selection TrajectoryAnalysisModuleData::parallelSelection(const Selection& selection)
 {
-    // TODO: Implement properly.
-    return selection;
+    std::optional<Selection> parSel = impl_->selections_.selection(selection.name());
+    GMX_ASSERT(parSel != std::nullopt, "Unknown selection requested");
+    return *parSel;
 }
 
 
 SelectionList TrajectoryAnalysisModuleData::parallelSelections(const SelectionList& selections)
 {
-    // TODO: Consider an implementation that does not allocate memory every time.
     SelectionList newSelections;
     newSelections.reserve(selections.size());
     SelectionList::const_iterator i = selections.begin();
