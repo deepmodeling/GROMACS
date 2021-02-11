@@ -149,9 +149,9 @@ public:
     }
 
     //! initialize data structure to construct forcerec
-    void initForcerec(bool fep)
+    void initForcerec(bool haveFep)
     {
-        fep_ = fep;
+        haveFep_ = haveFep;
 
         // make_tables returns a raw pointer created with new. In order to
         // allow for proper clean-up, give its value here to some externally
@@ -170,9 +170,9 @@ public:
     }
 
     //! set use mol pbc
-    void setMolPBC(const bool molPBC)
+    void setMolPBC(const bool haveMolPBC)
     {
-        molPBC_ = molPBC;
+        haveMolPBC_ = haveMolPBC;
     }
 
     //! get forcerec data as wanted by the 1-4 interactions
@@ -184,18 +184,18 @@ public:
 
         // set data in fr
         fr->pairsTable       = &ft_;
-        fr->efep             = fep_ ? efepYES : efepNO;
+        fr->efep             = haveFep_ ? efepYES : efepNO;
         fr->fudgeQQ          = 0.5;
         fr->ic               = ic;
         fr->use_simd_kernels = useSimd_;
-        fr->bMolPBC          = molPBC_;
+        fr->bMolPBC          = haveMolPBC_;
     }
 
 private:
     t_forcetable ft_;
-    bool         fep_;
-    bool         useSimd_ = false;
-    bool         molPBC_  = false;
+    bool         haveFep_;
+    bool         useSimd_     = false;
+    bool         haveMolPBC_  = false;
     t_lambda     fepVals_;
 };
 
