@@ -136,7 +136,7 @@ std::vector<real> MsdData::averageMsds() const
 
 //! \brief Calculates 1,2, or 3D distance for two vectors.
 //!
-//! \todo Remove NOLINTs once clang-tidy is updated to v11, it should be able to handler constexpr.
+//! \todo Remove NOLINTs once clang-tidy is updated to v11, it should be able to handle constexpr.
 //!
 //! \tparam x If true, calculate x dimension of displacement
 //! \tparam y If true, calculate y dimension of displacement
@@ -152,7 +152,7 @@ inline real calcSingleSquaredDistance(const RVec c1, const RVec c2)
     {
         result += (c1[XX] - c2[XX]) * (c1[XX] - c2[XX]);
     }
-    if constexpr (y) // NOLINT: clang-tidy-9 can't handle constexpr (https://bugs.llvm.org/show_bug.cgi?id=32203)
+    if constexpr (y) // NOLINT: clang-tidy-9 can't handle if constexpr (https://bugs.llvm.org/show_bug.cgi?id=32203)
     {
         result += (c1[YY] - c2[YY]) * (c1[YY] - c2[YY]);
     }
@@ -190,22 +190,23 @@ real calcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
 //! Describes 1D MSDs, in the given dimension.
 enum class SingleDimDiffType : int
 {
-    Unused = 0,
-    X,
+    X = 0,
     Y,
     Z,
+    Unused,
     Count,
 };
 
 //! Describes 2D MSDs, in the plane normal to the given dimension.
 enum class TwoDimDiffType : int
 {
-    Unused = 0,
-    NormalToX,
+    NormalToX = 0,
     NormalToY,
     NormalToZ,
+    Unused,
     Count,
 };
+
 
 //! Holds per-group coordinates, analysis, and results.
 struct MsdGroupData
@@ -371,8 +372,8 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
                                .description("Selections to compute MSDs for from the reference"));
 
     // Select MSD type - defaults to 3D if neither option is selected.
-    EnumerationArray<SingleDimDiffType, const char*> enumTypeNames = { "unselected", "x", "y", "z" };
-    EnumerationArray<TwoDimDiffType, const char*> enumLateralNames = { "unselected", "x", "y", "z" };
+    EnumerationArray<SingleDimDiffType, const char*> enumTypeNames = { "x", "y", "z", "unselected" };
+    EnumerationArray<TwoDimDiffType, const char*> enumLateralNames = { "x", "y", "z", "unselected" };
     options->addOption(EnumOption<SingleDimDiffType>("type")
                                .enumValue(enumTypeNames)
                                .store(&singleDimType_)
@@ -433,39 +434,27 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
         groupData_.emplace_back(selections_[i]);
     }
 
+    // Enumeration helpers for dispatching the right MSD calculation type.
+    const EnumerationArray<SingleDimDiffType, std::function<real(const RVec*, const RVec*, int)>>
+            oneDimensionalMsdFunctions = { calcAverageDisplacement<true, false, false>,
+                                           calcAverageDisplacement<false, true, false>,
+                                           calcAverageDisplacement<false, false, true> };
+    const EnumerationArray<TwoDimDiffType, std::function<real(const RVec*, const RVec*, int)>>
+            twoDimensionalMsdFunctions = { calcAverageDisplacement<false, true, true>,
+                                           calcAverageDisplacement<true, false, true>,
+                                           calcAverageDisplacement<true, true, false> };
 
     // Parse dimensionality and assign the MSD calculating function.
-    switch (singleDimType_)
+    // Note if we don't hit either of these cases, we're computing 3D MSDs.
+    if (singleDimType_ != SingleDimDiffType::Unused)
     {
-        case SingleDimDiffType::X:
-            calcMsd_                             = calcAverageDisplacement<true, false, false>;
-            diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
-            break;
-        case SingleDimDiffType::Y:
-            calcMsd_                             = calcAverageDisplacement<false, true, false>;
-            diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
-            break;
-        case SingleDimDiffType::Z:
-            calcMsd_                             = calcAverageDisplacement<false, false, true>;
-            diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
-            break;
-        default: break;
+        calcMsd_                             = oneDimensionalMsdFunctions[singleDimType_];
+        diffusionCoefficientDimensionFactor_ = c_1DdiffusionDimensionFactor;
     }
-    switch (twoDimType_)
+    else if (twoDimType_ != TwoDimDiffType::Unused)
     {
-        case TwoDimDiffType::NormalToX:
-            calcMsd_                             = calcAverageDisplacement<false, true, true>;
-            diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
-            break;
-        case TwoDimDiffType::NormalToY:
-            calcMsd_                             = calcAverageDisplacement<true, false, true>;
-            diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
-            break;
-        case TwoDimDiffType::NormalToZ:
-            calcMsd_                             = calcAverageDisplacement<true, true, false>;
-            diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
-            break;
-        default: break;
+        calcMsd_                             = twoDimensionalMsdFunctions[twoDimType_];
+        diffusionCoefficientDimensionFactor_ = c_2DdiffusionDimensionFactor;
     }
 
     // TODO validate that we have mol info and not atom only - and masses, and topology.
