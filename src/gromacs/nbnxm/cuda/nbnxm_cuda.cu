@@ -806,7 +806,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* determine interaction locality from atom locality */
     const InteractionLocality iloc = gpuAtomToInteractionLocality(atomLocality);
     GMX_ASSERT(iloc == InteractionLocality::Local
-                       || (iloc == InteractionLocality::NonLocal && nb->bNonLocalStreamDoneMarked == false),
+                       || (iloc == InteractionLocality::NonLocal && !nb->nonlocal_done.hasEventTriggered()),
                "Non-local stream is indicating that the copy back event is enqueued at the "
                "beginning of the copy back function.");
 
@@ -819,7 +819,6 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     /* don't launch non-local copy-back if there was no non-local work to do */
     if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(*nb, iloc))
     {
-        nb->bNonLocalStreamDoneMarked = false;
         return;
     }
 
@@ -833,10 +832,9 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
 
     /* With DD the local D2H transfer can only start after the non-local
        kernel has finished. */
-    if (iloc == InteractionLocality::Local && nb->bNonLocalStreamDoneMarked)
+    if (iloc == InteractionLocality::Local && nb->nonlocal_done.hasEventTriggered())
     {
         nb->nonlocal_done.enqueueWaitEvent(deviceStream);
-        nb->bNonLocalStreamDoneMarked = false;
     }
 
     /* DtoH f
@@ -863,7 +861,6 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     if (iloc == InteractionLocality::NonLocal)
     {
         nb->nonlocal_done.markEvent(deviceStream);
-        nb->bNonLocalStreamDoneMarked = true;
     }
 
     /* only transfer energies in the local stream */

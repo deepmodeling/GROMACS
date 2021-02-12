@@ -241,8 +241,6 @@ struct NbnxmGpu
 
     //! true if doing both local/non-local NB work on GPU
     bool bUseTwoStreams = false;
-    //! true indicates that the nonlocal_done event was marked
-    bool bNonLocalStreamDoneMarked = false;
 
     //! atom data
     cl_atomdata_t* atdat = nullptr;
