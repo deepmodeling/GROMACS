@@ -45,6 +45,25 @@
  * fep. Placement of the atoms in the box is such that shift-forces and pbc
  * paths in do_pairs are covered.
  *
+ * The reference values were generated with Gromacs 2022-dev using the
+ * following configuration:
+ *
+ * Precision:          double
+ * Memory model:       64 bit
+ * MPI library:        thread_mpi
+ * OpenMP support:     enabled (GMX_OPENMP_MAX_THREADS = 64)
+ * GPU support:        disabled
+ * SIMD instructions:  AVX2_256
+ * FFT library:        fftpack (built-in)
+ * RDTSCP usage:       enabled
+ * TNG support:        enabled
+ * Hwloc support:      disabled
+ * Tracing support:    disabled
+ * C compiler:         GNU 10.2.1
+ * C compiler flags:   -mavx2 -mfma -fno-inline -g
+ * C++ compiler:       GNU 10.2.1
+ * C++ compiler flags: -mavx2 -mfma -fno-inline -fopenmp -g
+ *
  * \author David van der Spoel <david.vanderspoel@icm.uu.se>
  * \ingroup module_listed_forces
  */
