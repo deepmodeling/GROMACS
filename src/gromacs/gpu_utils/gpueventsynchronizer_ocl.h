@@ -121,7 +121,7 @@ public:
         bool hasTriggered = (result == CL_COMPLETE);
         if (hasTriggered)
         {
-            releaseEvent();
+            reset();
         }
         return hasTriggered;
     }
