@@ -110,6 +110,17 @@ public:
         event_->wait_and_throw();
         event_.reset();
     }
+    /*! \brief Checks whether the event has been triggered. */
+    inline bool hasEventTriggered()
+    {
+        auto info         = event_->get_info<cl::sycl::info::event::command_execution_status>();
+        bool hasTriggered = (info == cl::sycl::info::event_command_status::complete);
+        if (hasTriggered)
+        {
+            event_.reset();
+        }
+        return hasTriggered;
+    }
     /*! \brief Enqueues a wait for the recorded event in stream \p deviceStream.
      * As in the OpenCL implementation, the event is released.
      */

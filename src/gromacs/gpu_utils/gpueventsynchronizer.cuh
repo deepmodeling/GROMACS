@@ -99,6 +99,14 @@ public:
         GMX_ASSERT(stat == cudaSuccess,
                    ("cudaEventSynchronize failed. " + gmx::getDeviceErrorString(stat)).c_str());
     }
+    /*! \brief Checks whether the event has been triggered. */
+    inline bool hasEventTriggered()
+    {
+        cudaError_t gmx_used_in_debug stat = cudaEventQuery(event_);
+        GMX_ASSERT((stat == cudaSuccess) || (stat == cudaErrorNotReady),
+                   ("cudaEventQuery failed" + gmx::getDeviceErrorString(stat)).c_str());
+        return (stat == cudaSuccess);
+    }
     /*! \brief Enqueues a wait for the recorded event in stream \p stream */
     inline void enqueueWaitEvent(const DeviceStream& deviceStream)
     {

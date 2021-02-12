@@ -108,6 +108,23 @@ public:
 
         reset();
     }
+    /*! \brief Returns whether the event has been triggered. Reset the object if it was. */
+    inline bool hasEventTriggered()
+    {
+        cl_int result;
+        cl_int clError = clGetEventInfo(
+                event_, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(cl_int), &result, nullptr);
+        if (CL_SUCCESS != clError)
+        {
+            GMX_THROW(gmx::InternalError("Failed to retrieve event info: " + ocl_get_error_string(clError)));
+        }
+        bool hasTriggered = (result == CL_COMPLETE);
+        if (hasTriggered)
+        {
+            releaseEvent();
+        }
+        return hasTriggered;
+    }
     /*! \brief Enqueues a wait for the recorded event in stream \p stream
      *
      *  After enqueue, the associated event is released, so this method should
