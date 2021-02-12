@@ -284,11 +284,11 @@ private:
             calcAverageDisplacement<true, true, true>;
 
     //! Picoseconds between restarts
-    real trestart_ = 10.0;
+    double trestart_ = 10.0;
     //! Initial time
-    real t0_ = 0;
+    double t0_ = 0;
     //! Inter-frame delta-t
-    real dt_ = -1;
+    std::optional<double> dt_ = std::nullopt;
 
     //! First tau value to fit from for diffusion coefficient, defaults to 0.1 * max tau
     real beginFit_ = -1.0;
@@ -299,11 +299,11 @@ private:
     std::vector<MsdGroupData> groupData_;
 
     //! Time of stored frames only.
-    std::vector<real> frameTimes_;
+    std::vector<double> frameTimes_;
     //! Time of all frames.
-    std::vector<real> times_;
+    std::vector<double> times_;
     //! Taus for output - won't know the size until the end.
-    std::vector<real> taus_;
+    std::vector<double> taus_;
 
     // MSD per-molecule stuff
     //! Are we doing molecule COM-based MSDs?
@@ -383,7 +383,7 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
                                .store(&twoDimType_)
                                .defaultValue(TwoDimDiffType::Unused));
 
-    options->addOption(RealOption("trestart")
+    options->addOption(DoubleOption("trestart")
                                .description("Time between restarting points in trajectory (ps)")
                                .defaultValue(10.0)
                                .store(&trestart_));
@@ -493,7 +493,7 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
 {
     const real time = std::round(fr.time);
     // Need to populate dt on frame 2;
-    if (dt_ < 0 && !times_.empty())
+    if (!dt_.has_value() && !times_.empty())
     {
         dt_ = time - times_[0];
     }
@@ -574,7 +574,7 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
         for (size_t i = 0; i < msdData.frames.size(); i++)
         {
             real    tau      = time - frameTimes_[i];
-            int64_t tauIndex = gmx::roundToInt64(tau / dt_);
+            int64_t tauIndex = gmx::roundToInt64(tau / *dt_);
             msdData.msds.addPoint(tauIndex,
                                   calcMsd_(coords.data(),
                                            msdData.frames[i].data(),
@@ -611,7 +611,7 @@ void Msd::finishAnalysis(int gmx_unused nframes)
     }
     else
     {
-        beginFitIndex = std::max<size_t>(beginFitIndex, gmx::roundToInt(beginFit_ / dt_));
+        beginFitIndex = std::max<size_t>(beginFitIndex, gmx::roundToInt(beginFit_ / *dt_));
     }
     if (endFit_ < 0)
     {
@@ -620,7 +620,7 @@ void Msd::finishAnalysis(int gmx_unused nframes)
     }
     else
     {
-        endFitIndex = std::min<size_t>(endFitIndex, gmx::roundToInt(endFit_ / dt_));
+        endFitIndex = std::min<size_t>(endFitIndex, gmx::roundToInt(endFit_ / *dt_));
     }
     const int numTaus = 1 + endFitIndex - beginFitIndex;
 
@@ -638,14 +638,14 @@ void Msd::finishAnalysis(int gmx_unused nframes)
             const int secondaryStartIndex = beginFitIndex + halfNumTaus;
             // Split the fit in 2, and compare the results of each fit;
             real a = 0.0, a2 = 0.0;
-            lsq_y_ax_b(halfNumTaus,
+            lsq_y_ax_b_xdouble(halfNumTaus,
                        &taus_[beginFitIndex],
                        &msdData.msdSums[beginFitIndex],
                        &a,
                        &b,
                        &correlationCoefficient,
                        &chiSquared);
-            lsq_y_ax_b(halfNumTaus,
+            lsq_y_ax_b_xdouble(halfNumTaus,
                        &taus_[secondaryStartIndex],
                        &msdData.msdSums[secondaryStartIndex],
                        &a2,
@@ -654,7 +654,7 @@ void Msd::finishAnalysis(int gmx_unused nframes)
                        &chiSquared);
             msdData.sigma = std::abs(a - a2);
         }
-        lsq_y_ax_b(numTaus,
+        lsq_y_ax_b_xdouble(numTaus,
                    &taus_[beginFitIndex],
                    &msdData.msdSums[beginFitIndex],
                    &msdData.diffusionCoefficient,
@@ -673,7 +673,7 @@ void Msd::finishAnalysis(int gmx_unused nframes)
     for (MoleculeData& molecule : molecules_)
     {
         std::vector<real> msds = molecule.msdData.averageMsds();
-        lsq_y_ax_b(numTaus,
+        lsq_y_ax_b_xdouble(numTaus,
                    &taus_[beginFitIndex],
                    &msds[beginFitIndex],
                    &molecule.diffusionCoefficient,
