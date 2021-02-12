@@ -138,7 +138,7 @@ void checkOutput(TestReferenceChecker*    checker,
 class ForcerecHelper
 {
 public:
-    ForcerecHelper() : ft_(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP, GMX_TABLE_FORMAT_CUBICSPLINE_YFGH)
+    ForcerecHelper()
     {
         fepVals_.sc_alpha         = 0.3;
         fepVals_.sc_power         = 1;
@@ -152,15 +152,6 @@ public:
     void initForcerec(bool haveFep)
     {
         haveFep_ = haveFep;
-
-        // make_tables returns a raw pointer created with new. In order to
-        // allow for proper clean-up, give its value here to some externally
-        // handled resource (i.e., to member ft_) that takes responsibility.
-        t_forcetable* ftTemp;
-        interaction_const_t ic; // a default interaction_const_t is sufficient here
-        ftTemp = make_tables(nullptr, &ic, nullptr, 2.9, GMX_MAKETABLES_14ONLY);
-        ft_    = *ftTemp;
-        delete ftTemp;
     }
 
     //! set use of simd if available
@@ -179,11 +170,10 @@ public:
     void getForcerec(t_forcerec* fr, interaction_const_t* ic)
     {
         // set data in ic
-        ic->softCoreParameters = std::unique_ptr<interaction_const_t::SoftCoreParameters>(
-                new interaction_const_t::SoftCoreParameters(fepVals_));
+        ic->softCoreParameters = std::make_unique<interaction_const_t::SoftCoreParameters>(fepVals_);
 
         // set data in fr
-        fr->pairsTable       = &ft_;
+        fr->pairsTable       = make_tables(nullptr, ic, nullptr, 2.9, GMX_MAKETABLES_14ONLY);
         fr->efep             = haveFep_ ? efepYES : efepNO;
         fr->fudgeQQ          = 0.5;
         fr->ic               = ic;
@@ -192,7 +182,6 @@ public:
     }
 
 private:
-    t_forcetable ft_;
     bool         haveFep_;
     bool         useSimd_     = false;
     bool         haveMolPBC_  = false;
