@@ -266,26 +266,6 @@ std::ostream& operator<<(std::ostream& out, const ListInput& input)
     return out;
 }
 
-/*! \brief Utility to fill iatoms struct
- *
- * \param[in]  fType  Function type
- * \param[out] iatoms Pointer to iatoms struct
- */
-void fillIatoms(int fType, std::vector<t_iatom>* iatoms)
-{
-    // map: 'num of atoms per bond/pair' (nral) -> 'definition of pairs'
-    // 'definition of pairs' is a concatenation of #npairs
-    // 'nral+1'-tuples (fType a_0 a_i ... a_nral)
-    std::unordered_map<int, std::vector<int>> ia = { { 2, { 0, 1, 2, 0, 0, 2} } };
-
-    EXPECT_TRUE(fType >= 0 && fType < F_NRE);
-    int nral = interaction_function[fType].nratoms;
-    for (auto& i : ia[nral])
-    {
-        iatoms->push_back(i);
-    }
-}
-
 class ListedForcesPairsTest :
     public ::testing::TestWithParam<std::tuple<ListInput, PaddedVector<RVec>, PbcType>>
 {
@@ -312,9 +292,13 @@ protected:
         checker_.setDefaultTolerance(tolerance);
     }
 
-    void testOneIfunc(TestReferenceChecker* checker, const std::vector<t_iatom>& iatoms, const real lambda)
+    void testOneIfunc(TestReferenceChecker* checker, const real lambda)
     {
         SCOPED_TRACE(std::string("Testing PBC type: ") + c_pbcTypeNames[pbcType_]);
+
+        // 'definition of pairs' is a concatenation of #npairs (here 2)
+        // 'nAtomsPerPair+1'-tuples (fType a_0 a_i ... a_nAtomsPerPair)
+        std::vector<t_iatom >       iatoms     = { 0, 1, 2, 0, 0, 2 };
 
         std::vector<int>            ddgatindex = { 0, 1, 2 };
         std::vector<real>           chargeA    = { 1.0, -0.5, -0.5 };
@@ -391,8 +375,6 @@ protected:
                 checker_.checkCompound("FunctionType", interaction_function[input_.fType].name)
                         .checkCompound("FEP", (input_.fep ? "Yes" : "No"));
 
-        std::vector<t_iatom> iatoms;
-        fillIatoms(input_.fType, &iatoms);
         if (input_.fep)
         {
             const int numLambdas = 3;
@@ -400,12 +382,12 @@ protected:
             {
                 const real lambda       = i / (numLambdas - 1.0);
                 auto       lambdaChecker = thisChecker.checkCompound("Lambda", toString(lambda));
-                testOneIfunc(&lambdaChecker, iatoms, lambda);
+                testOneIfunc(&lambdaChecker, lambda);
             }
         }
         else
         {
-            testOneIfunc(&thisChecker, iatoms, 0.0);
+            testOneIfunc(&thisChecker, 0.0);
         }
     }
 };
