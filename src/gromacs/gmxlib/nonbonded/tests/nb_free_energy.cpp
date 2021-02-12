@@ -64,6 +64,7 @@
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/nblist.h"
 #include "gromacs/mdtypes/forceoutput.h"
+#include "gromacs/mdlib/forcerec.h"
 #include "gromacs/tables/forcetable.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
@@ -128,36 +129,6 @@ static std::vector<real> make_ljpme_c6grid(const gmx_ffparams_t* idef)
     }
 
     return grid;
-}
-
-//! Generate Coulomb and/or Van der Waals Ewald long-range correction tables
-static void init_ewald_f_table(const interaction_const_t& ic,
-                               const real                 tableExtensionLength,
-                               EwaldCorrectionTables&     coulombTables,
-                               EwaldCorrectionTables&     vdwTables)
-{
-    const bool useCoulombTable = EEL_PME_EWALD(ic.eeltype);
-    const bool useVdwTable     = EVDW_PME(ic.vdwtype);
-
-    const real tableScale = ewald_spline3_table_scale(ic, useCoulombTable, useVdwTable);
-
-    real tableLen = ic.rcoulomb;
-    if (useCoulombTable && tableExtensionLength > 0.0)
-    {
-        tableLen = ic.rcoulomb + tableExtensionLength;
-    }
-    const int tableSize = static_cast<int>(tableLen * tableScale) + 2;
-
-    if (useCoulombTable)
-    {
-        coulombTables =
-                generateEwaldCorrectionTables(tableSize, tableScale, ic.ewaldcoeff_q, v_q_ewald_lr);
-    }
-
-    if (useVdwTable)
-    {
-        vdwTables = generateEwaldCorrectionTables(tableSize, tableScale, ic.ewaldcoeff_lj, v_lj_ewald_lr);
-    }
 }
 //@}
 
@@ -230,8 +201,12 @@ public:
         tmp.ewaldcoeff_lj = calc_ewaldcoeff_lj(1.0, 1.0e-5);
         tmp.eeltype       = coulType;
         tmp.vdwtype       = vdwType;
+        tmp.coulombEwaldTables = std::make_unique<EwaldCorrectionTables>();
+        tmp.vdwEwaldTables     = std::make_unique<EwaldCorrectionTables>();
 
-        init_ewald_f_table(tmp, 1.0, coulombTables_, vdwTables_);
+        init_interaction_const_tables(nullptr, &tmp, 1.0, 0.0);
+        coulombTables_ = *tmp.coulombEwaldTables;
+        vdwTables_     = *tmp.vdwEwaldTables;
     }
 
     /*! \brief Setup interaction_const_t
