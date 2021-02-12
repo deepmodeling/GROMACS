@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -106,7 +106,7 @@ public:
                                          + ocl_get_error_string(clError)));
         }
 
-        releaseEvent();
+        reset();
     }
     /*! \brief Enqueues a wait for the recorded event in stream \p stream
      *
@@ -122,11 +122,11 @@ public:
                                          + ocl_get_error_string(clError)));
         }
 
-        releaseEvent();
+        reset();
     }
 
-private:
-    inline void releaseEvent()
+    //! Reset (release) the event to unmarked state.
+    inline void reset()
     {
         cl_int clError = clReleaseEvent(event_);
         if (CL_SUCCESS != clError)
@@ -137,6 +137,7 @@ private:
         event_ = nullptr;
     }
 
+private:
     cl_event event_;
 };
 
