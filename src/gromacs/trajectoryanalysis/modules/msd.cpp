@@ -488,6 +488,57 @@ void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings& gmx_unused setti
     }
 }
 
+//! Constructs the coordinates to calculate MSDs for a given selection. If individual molecules
+//! are requested, molecular center-of-masses are returned.
+static std::vector<RVec> buildCoordinates(const Selection& sel, ArrayRef<const MoleculeData> molecules, ArrayRef<const int> moleculeIndexMapping) {
+    // If not molecule based, we work on the individual coordinates of the selection.
+    if (molecules.empty()) {
+        return {sel.coordinates().begin(), sel.coordinates().end()};
+    }
+    // Do COM gathering for group 0 to get mol stuff. Note that per-molecule PBC removal is
+    // already done. First create a clear buffer.
+    std::vector<RVec> moleculePositions(molecules.size(), { 0.0, 0.0, 0.0 });
+
+    // Sum up all positions
+    gmx::ArrayRef<const real> masses = sel.masses();
+    for (int i = 0; i < sel.posCount(); i++)
+    {
+        const int moleculeIndex = moleculeIndexMapping[i];
+        // accumulate ri * mi, and do division at the end to minimize number of divisions.
+        moleculePositions[moleculeIndex] += RVec(sel.position(i).x()) * masses[i];
+    }
+    // Divide accumulated mass * positions to get COM, reaccumulate in mol_masses.
+    std::transform(moleculePositions.begin(),
+                   moleculePositions.end(),
+                   molecules.begin(),
+                   moleculePositions.begin(),
+                   [](const RVec& position, const MoleculeData& molecule) -> RVec {
+                     return position / molecule.mass;
+                   });
+    return moleculePositions;
+}
+
+//! Removes jumps across periodic boundaries for currentFrame, based on the positions in previousFrame.
+//! Updates currentCoords in place.
+static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> previousCoords, t_pbc* pbc) {
+    // There are two types of "pbc removal" in gmx msd. The first happens in the trajectoryanalysis
+    // framework, which makes molecules whole across periodic boundaries and is done
+    // automatically where the inputs support it. This lambda performs the second PBC correction, where
+    // any "jump" across periodic boundaries BETWEEN FRAMES is put back. The order of these
+    // operations is important - since the first transformation may only apply to part of a
+    // molecule (e.g., one half in/out of the box is put on one side of the box), the
+    // subsequent step needs to be applied to the molecule COM rather than individual atoms, or
+    // we'd have a clash where the per-mol PBC removal moves an atom that gets put back into
+    // it's original position by the second transformation. Therefore, this second transformation
+    // is applied *after* per molecule coordinates have been consolidated into COMs.
+    auto pbcRemover = [pbc](RVec in, RVec prev) {
+      rvec dx;
+      pbc_dx(pbc, in, prev, dx);
+      return prev + dx;
+    };
+    std::transform(currentCoords.begin(), currentCoords.end(), previousCoords.begin(), currentCoords.begin(), pbcRemover);
+}
+
 
 void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata)
 {
@@ -515,57 +566,12 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
         //NOLINTNEXTLINE(readability-static-accessed-through-instance)
         const Selection& sel = pdata->parallelSelection(msdData.sel);
 
-        std::vector<RVec> coords(sel.coordinates().begin(), sel.coordinates().end());
+        std::vector<RVec> coords = buildCoordinates(sel, molecules_, moleculeIndexMappings_);
 
-        if (molSelected_)
-        {
-            // Do COM gathering for group 0 to get mol stuff. Note that per-molecule PBC removal is
-            // already done. First create a clear buffer.
-            std::vector<RVec> moleculePositions(molecules_.size(), { 0.0, 0.0, 0.0 });
-
-            // Sum up all positions
-            gmx::ArrayRef<const real> masses = sel.masses();
-            for (int i = 0; i < sel.posCount(); i++)
-            {
-                const int moleculeIndex = moleculeIndexMappings_[i];
-                // accumulate ri * mi, and do division at the end to minimize number of divisions.
-                moleculePositions[moleculeIndex] += coords[i] * masses[i];
-            }
-            // Divide accumulated mass * positions to get COM, reaccumulate in mol_masses.
-            std::transform(moleculePositions.begin(),
-                           moleculePositions.end(),
-                           molecules_.begin(),
-                           moleculePositions.begin(),
-                           [](const RVec& position, const MoleculeData& molecule) -> RVec {
-                               return position / molecule.mass;
-                           });
-
-            // Override the current coordinates.
-            coords = std::move(moleculePositions);
+        if (frnr > 0) {
+            removePbcJumps(coords, msdData.previousFrame, pbc);
         }
 
-        // There are two types of "pbc removal" in gmx msd. The first happens in the trajectoryanalysis
-        // framework, which makes molecules whole across periodic boundaries and is done
-        // automatically where the inputs support it. This lambda performs the second PBC correction, where
-        // any "jump" across periodic boundaries BETWEEN FRAMES is put back. The order of these
-        // operations is important - since the first transformation may only apply to part of a
-        // molecule (e.g., one half in/out of the box is put on one side of the box), the
-        // subsequent step needs to be applied to the molecule COM rather than individual atoms, or
-        // we'd have a clash where the per-mol PBC removal moves an atom that gets put back into
-        // it's original position by the second transformation. Therefore, this second transformation
-        // is applied *after* per molecule coordinates have been consolidated into COMs.
-        auto pbcRemover = [pbc](RVec in, RVec prev) {
-            rvec dx;
-            pbc_dx(pbc, in, prev, dx);
-            return prev + dx;
-        };
-        // No cross-box pbc handling for the first frame - note
-        // that while initAfterFirstFrame does not do per-mol PBC handling, it is done prior to
-        // AnalyzeFrame for frame 0, so when we store frame 0 there's no wonkiness.
-        if (frnr != 0)
-        {
-            std::transform(coords.begin(), coords.end(), msdData.previousFrame.begin(), coords.begin(), pbcRemover);
-        }
         // Update "previous frame" for next rounds pbc handling. Note that for msd mol these coords
         // are actually the molecule COM.
         std::copy(coords.begin(), coords.end(), msdData.previousFrame.begin());
