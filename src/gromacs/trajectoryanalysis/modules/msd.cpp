@@ -79,22 +79,40 @@ constexpr double c_3DdiffusionDimensionFactor = 6.0;
 constexpr double c_2DdiffusionDimensionFactor = 4.0;
 constexpr double c_1DdiffusionDimensionFactor = 2.0;
 
+
+//! Proxy to a MsdData tau column. Supports only push_back.
+class MsdColumnProxy
+{
+public:
+    MsdColumnProxy(std::vector<real>& column) : column_(column) {}
+
+    void push_back(real value) { column_.push_back(value); }
+
+private:
+    std::vector<real>& column_;
+};
+
+
 //! \brief Mean Squared Displacement data accumulator
 //!
 //! This class is used to accumulate individual MSD data points
 //! and emit tau-averaged results once data is finished collecting.
+//!
+//! Data columns per tau are accessed via operator[], which always guarantees
+//! a column is initialized and returns a proxy to the column that can push data.
 class MsdData
 {
 public:
-    //! \brief Add an MSD data point for the given tau index
-    //!
-    //! Tau values have no correspondence to time, so whatever
-    //! indices are used for accumulation should be multiplied
-    //! by dt to recoup the actual tau value.
-    //!
-    //! \param tauIndex  Time bucket the value corresponds to
-    //! \param value      MSD data point
-    void addPoint(size_t tauIndex, real value);
+    //! Returns a proxy to the column for the given tau index. Guarantees that the column
+    //! is initialized.
+    MsdColumnProxy operator[](size_t index)
+    {
+        if (msds_.size() <= index)
+        {
+            msds_.resize(index + 1);
+        }
+        return MsdColumnProxy(msds_[index]);
+    }
     //! \brief Compute per-tau MSDs averaged over all added points.
     //!
     //! The resulting vector is size(max tau index). Any indices
@@ -108,14 +126,6 @@ private:
     std::vector<std::vector<real>> msds_;
 };
 
-void MsdData::addPoint(size_t tauIndex, real value)
-{
-    if (msds_.size() <= tauIndex)
-    {
-        msds_.resize(tauIndex + 1);
-    }
-    msds_[tauIndex].push_back(value);
-}
 
 std::vector<real> MsdData::averageMsds() const
 {
@@ -306,7 +316,7 @@ private:
     std::vector<double> taus_;
     //! Tau indices for fitting.
     size_t beginFitIndex_ = 0;
-    size_t endFitIndex_ = 0;
+    size_t endFitIndex_   = 0;
 
     // MSD per-molecule stuff
     //! Are we doing molecule COM-based MSDs?
@@ -493,10 +503,14 @@ void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings gmx_unused& setti
 
 //! Constructs the coordinates to calculate MSDs for a given selection. If individual molecules
 //! are requested, molecular center-of-masses are returned.
-static std::vector<RVec> buildCoordinates(const Selection& sel, ArrayRef<const MoleculeData> molecules, ArrayRef<const int> moleculeIndexMapping) {
+static std::vector<RVec> buildCoordinates(const Selection&             sel,
+                                          ArrayRef<const MoleculeData> molecules,
+                                          ArrayRef<const int>          moleculeIndexMapping)
+{
     // If not molecule based, we work on the individual coordinates of the selection.
-    if (molecules.empty()) {
-        return {sel.coordinates().begin(), sel.coordinates().end()};
+    if (molecules.empty())
+    {
+        return { sel.coordinates().begin(), sel.coordinates().end() };
     }
     // Do COM gathering for group 0 to get mol stuff. Note that per-molecule PBC removal is
     // already done. First create a clear buffer.
@@ -516,14 +530,15 @@ static std::vector<RVec> buildCoordinates(const Selection& sel, ArrayRef<const M
                    molecules.begin(),
                    moleculePositions.begin(),
                    [](const RVec& position, const MoleculeData& molecule) -> RVec {
-                     return position / molecule.mass;
+                       return position / molecule.mass;
                    });
     return moleculePositions;
 }
 
-//! Removes jumps across periodic boundaries for currentFrame, based on the positions in previousFrame.
-//! Updates currentCoords in place.
-static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> previousCoords, t_pbc* pbc) {
+//! Removes jumps across periodic boundaries for currentFrame, based on the positions in
+//! previousFrame. Updates currentCoords in place.
+static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> previousCoords, t_pbc* pbc)
+{
     // There are two types of "pbc removal" in gmx msd. The first happens in the trajectoryanalysis
     // framework, which makes molecules whole across periodic boundaries and is done
     // automatically where the inputs support it. This lambda performs the second PBC correction, where
@@ -535,11 +550,12 @@ static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> pr
     // it's original position by the second transformation. Therefore, this second transformation
     // is applied *after* per molecule coordinates have been consolidated into COMs.
     auto pbcRemover = [pbc](RVec in, RVec prev) {
-      rvec dx;
-      pbc_dx(pbc, in, prev, dx);
-      return prev + dx;
+        rvec dx;
+        pbc_dx(pbc, in, prev, dx);
+        return prev + dx;
     };
-    std::transform(currentCoords.begin(), currentCoords.end(), previousCoords.begin(), currentCoords.begin(), pbcRemover);
+    std::transform(
+            currentCoords.begin(), currentCoords.end(), previousCoords.begin(), currentCoords.begin(), pbcRemover);
 }
 
 
@@ -571,7 +587,8 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
 
         std::vector<RVec> coords = buildCoordinates(sel, molecules_, moleculeIndexMappings_);
 
-        if (frnr > 0) {
+        if (frnr > 0)
+        {
             removePbcJumps(coords, msdData.previousFrame, pbc);
         }
 
@@ -584,17 +601,14 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
         {
             real    tau      = time - frameTimes_[i];
             int64_t tauIndex = gmx::roundToInt64(tau / *dt_);
-            msdData.msds.addPoint(tauIndex,
-                                  calcMsd_(coords.data(),
-                                           msdData.frames[i].data(),
-                                           coords.size()));
+            msdData.msds[tauIndex].push_back(
+                    calcMsd_(coords.data(), msdData.frames[i].data(), coords.size()));
 
             for (size_t molInd = 0; molInd < molecules_.size(); molInd++)
             {
-                molecules_[molInd].msdData.addPoint(
-                        tauIndex, calcMsd_(&coords[molInd], &msdData.frames[i][molInd], 1));
+                molecules_[molInd].msdData[tauIndex].push_back(
+                        calcMsd_(&coords[molInd], &msdData.frames[i][molInd], 1));
             }
-
         }
 
 
@@ -607,21 +621,25 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
 }
 
 //! Calculate the tau index for fitting. If userFitTau < 0, uses the default fraction of max tau.
-static size_t calculateFitIndex(const int userFitTau, const double defaultTauFraction, const int numTaus, const double dt)
+static size_t calculateFitIndex(const int    userFitTau,
+                                const double defaultTauFraction,
+                                const int    numTaus,
+                                const double dt)
 {
-    if (userFitTau < 0) {
+    if (userFitTau < 0)
+    {
         return gmx::roundToInt((numTaus - 1) * defaultTauFraction);
     }
     return std::min<size_t>(numTaus - 1, gmx::roundToInt(static_cast<double>(userFitTau) / dt));
 }
 
 static constexpr double c_defaultStartFitIndexFraction = 0.1;
-static constexpr double c_defaultEndFitIndexFraction = 0.9;
+static constexpr double c_defaultEndFitIndexFraction   = 0.9;
 
 void Msd::finishAnalysis(int gmx_unused nframes)
 {
     beginFitIndex_ = calculateFitIndex(beginFit_, c_defaultStartFitIndexFraction, taus_.size(), *dt_);
-    endFitIndex_ = calculateFitIndex(endFit_, c_defaultEndFitIndexFraction, taus_.size(), *dt_);
+    endFitIndex_   = calculateFitIndex(endFit_, c_defaultEndFitIndexFraction, taus_.size(), *dt_);
     const int numTausForFit = 1 + endFitIndex_ - beginFitIndex_;
 
     // These aren't used, except for correlationCoefficient, which is used to estimate error if
