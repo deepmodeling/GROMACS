@@ -578,15 +578,14 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
             msdData.msds.addPoint(tauIndex,
                                   calcMsd_(coords.data(),
                                            msdData.frames[i].data(),
-                                           molSelected_ ? molecules_.size() : sel.posCount()));
-            if (molSelected_)
+                                           coords.size()));
+
+            for (size_t molInd = 0; molInd < molecules_.size(); molInd++)
             {
-                for (size_t molInd = 0; molInd < molecules_.size(); molInd++)
-                {
-                    molecules_[molInd].msdData.addPoint(
-                            tauIndex, calcMsd_(&coords[molInd], &msdData.frames[i][molInd], 1));
-                }
+                molecules_[molInd].msdData.addPoint(
+                        tauIndex, calcMsd_(&coords[molInd], &msdData.frames[i][molInd], 1));
             }
+
         }
 
 
@@ -639,47 +638,42 @@ void Msd::finishAnalysis(int gmx_unused nframes)
             // Split the fit in 2, and compare the results of each fit;
             real a = 0.0, a2 = 0.0;
             lsq_y_ax_b_xdouble(halfNumTaus,
-                       &taus_[beginFitIndex],
-                       &msdData.msdSums[beginFitIndex],
-                       &a,
-                       &b,
-                       &correlationCoefficient,
-                       &chiSquared);
+                               &taus_[beginFitIndex],
+                               &msdData.msdSums[beginFitIndex],
+                               &a,
+                               &b,
+                               &correlationCoefficient,
+                               &chiSquared);
             lsq_y_ax_b_xdouble(halfNumTaus,
-                       &taus_[secondaryStartIndex],
-                       &msdData.msdSums[secondaryStartIndex],
-                       &a2,
-                       &b,
-                       &correlationCoefficient,
-                       &chiSquared);
+                               &taus_[secondaryStartIndex],
+                               &msdData.msdSums[secondaryStartIndex],
+                               &a2,
+                               &b,
+                               &correlationCoefficient,
+                               &chiSquared);
             msdData.sigma = std::abs(a - a2);
         }
         lsq_y_ax_b_xdouble(numTaus,
-                   &taus_[beginFitIndex],
-                   &msdData.msdSums[beginFitIndex],
-                   &msdData.diffusionCoefficient,
-                   &b,
-                   &correlationCoefficient,
-                   &chiSquared);
+                           &taus_[beginFitIndex],
+                           &msdData.msdSums[beginFitIndex],
+                           &msdData.diffusionCoefficient,
+                           &b,
+                           &correlationCoefficient,
+                           &chiSquared);
         msdData.diffusionCoefficient *= c_diffusionConversionFactor / diffusionCoefficientDimensionFactor_;
         msdData.sigma *= c_diffusionConversionFactor / diffusionCoefficientDimensionFactor_;
-    }
-
-    if (!molSelected_)
-    {
-        return;
     }
 
     for (MoleculeData& molecule : molecules_)
     {
         std::vector<real> msds = molecule.msdData.averageMsds();
         lsq_y_ax_b_xdouble(numTaus,
-                   &taus_[beginFitIndex],
-                   &msds[beginFitIndex],
-                   &molecule.diffusionCoefficient,
-                   &b,
-                   &correlationCoefficient,
-                   &chiSquared);
+                           &taus_[beginFitIndex],
+                           &msds[beginFitIndex],
+                           &molecule.diffusionCoefficient,
+                           &b,
+                           &correlationCoefficient,
+                           &chiSquared);
         molecule.diffusionCoefficient *= c_diffusionConversionFactor / diffusionCoefficientDimensionFactor_;
     }
 }
