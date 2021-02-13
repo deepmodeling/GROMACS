@@ -304,6 +304,9 @@ private:
     std::vector<double> times_;
     //! Taus for output - won't know the size until the end.
     std::vector<double> taus_;
+    //! Tau indices for fitting.
+    size_t beginFitIndex_ = 0;
+    size_t endFitIndex_ = 0;
 
     // MSD per-molecule stuff
     //! Are we doing molecule COM-based MSDs?
@@ -603,31 +606,23 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
     }
 }
 
+//! Calculate the tau index for fitting. If userFitTau < 0, uses the default fraction of max tau.
+static size_t calculateFitIndex(const int userFitTau, const double defaultTauFraction, const int numTaus, const double dt)
+{
+    if (userFitTau < 0) {
+        return gmx::roundToInt((numTaus - 1) * defaultTauFraction);
+    }
+    return std::min<size_t>(numTaus - 1, gmx::roundToInt(static_cast<double>(userFitTau) / dt));
+}
+
+static constexpr double c_defaultStartFitIndexFraction = 0.1;
+static constexpr double c_defaultEndFitIndexFraction = 0.9;
+
 void Msd::finishAnalysis(int gmx_unused nframes)
 {
-
-    // If unspecified, calculate beginfit and endfit as 10% and 90%.
-    size_t beginFitIndex = 0;
-    size_t endFitIndex   = taus_.size() - 1;
-    if (beginFit_ < 0)
-    {
-        beginFitIndex = std::max<size_t>(beginFitIndex, gmx::roundToInt((taus_.size() - 1) * 0.1));
-        beginFit_     = taus_[beginFitIndex];
-    }
-    else
-    {
-        beginFitIndex = std::max<size_t>(beginFitIndex, gmx::roundToInt(beginFit_ / *dt_));
-    }
-    if (endFit_ < 0)
-    {
-        endFitIndex = std::min<size_t>(endFitIndex, gmx::roundToInt((taus_.size() - 1) * 0.9));
-        endFit_     = taus_[endFitIndex];
-    }
-    else
-    {
-        endFitIndex = std::min<size_t>(endFitIndex, gmx::roundToInt(endFit_ / *dt_));
-    }
-    const int numTaus = 1 + endFitIndex - beginFitIndex;
+    beginFitIndex_ = calculateFitIndex(beginFit_, c_defaultStartFitIndexFraction, taus_.size(), *dt_);
+    endFitIndex_ = calculateFitIndex(endFit_, c_defaultEndFitIndexFraction, taus_.size(), *dt_);
+    const int numTausForFit = 1 + endFitIndex_ - beginFitIndex_;
 
     // These aren't used, except for correlationCoefficient, which is used to estimate error if
     // enough points are available.
@@ -637,15 +632,15 @@ void Msd::finishAnalysis(int gmx_unused nframes)
     {
         msdData.msdSums = msdData.msds.averageMsds();
 
-        if (numTaus >= 4)
+        if (numTausForFit >= 4)
         {
-            const int halfNumTaus         = numTaus / 2;
-            const int secondaryStartIndex = beginFitIndex + halfNumTaus;
+            const int halfNumTaus         = numTausForFit / 2;
+            const int secondaryStartIndex = beginFitIndex_ + halfNumTaus;
             // Split the fit in 2, and compare the results of each fit;
             real a = 0.0, a2 = 0.0;
             lsq_y_ax_b_xdouble(halfNumTaus,
-                               &taus_[beginFitIndex],
-                               &msdData.msdSums[beginFitIndex],
+                               &taus_[beginFitIndex_],
+                               &msdData.msdSums[beginFitIndex_],
                                &a,
                                &b,
                                &correlationCoefficient,
@@ -659,9 +654,9 @@ void Msd::finishAnalysis(int gmx_unused nframes)
                                &chiSquared);
             msdData.sigma = std::abs(a - a2);
         }
-        lsq_y_ax_b_xdouble(numTaus,
-                           &taus_[beginFitIndex],
-                           &msdData.msdSums[beginFitIndex],
+        lsq_y_ax_b_xdouble(numTausForFit,
+                           &taus_[beginFitIndex_],
+                           &msdData.msdSums[beginFitIndex_],
                            &msdData.diffusionCoefficient,
                            &b,
                            &correlationCoefficient,
@@ -673,9 +668,9 @@ void Msd::finishAnalysis(int gmx_unused nframes)
     for (MoleculeData& molecule : molecules_)
     {
         std::vector<real> msds = molecule.msdData.averageMsds();
-        lsq_y_ax_b_xdouble(numTaus,
-                           &taus_[beginFitIndex],
-                           &msds[beginFitIndex],
+        lsq_y_ax_b_xdouble(numTausForFit,
+                           &taus_[beginFitIndex_],
+                           &msds[beginFitIndex_],
                            &molecule.diffusionCoefficient,
                            &b,
                            &correlationCoefficient,
@@ -705,8 +700,8 @@ void Msd::writeOutput()
             groupData_[0].frames.size());
     fprintf(out.get(),
             "# Diffusion constants fitted from time %g to %g %s\n",
-            beginFit_,
-            endFit_,
+            taus_[beginFitIndex_],
+            taus_[endFitIndex_],
             output_env_get_time_unit(oenv_).c_str());
     for (const MsdGroupData& msdData : groupData_)
     {

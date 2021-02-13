@@ -6,7 +6,7 @@
     <File Name="-o">
       <XvgLegend Name="DiffusionCoefficient">
         <String>MSD gathered over 40 ps with 21 restarts</String>
-        <String>Diffusion constants fitted from time 4 to 25 ps</String>
+        <String>Diffusion constants fitted from time 4 to 24 ps</String>
         <String>D[some_water_subset] = 4.2360 (+/- 0.4344) (1e-5 cm^2/s)</String>
       </XvgLegend>
       <XvgLegend Name="Legend">
