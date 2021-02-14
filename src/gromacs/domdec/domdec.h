@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2005 - 2014, The GROMACS development team.
  * Copyright (c) 2015,2016,2017,2018,2019 by the GROMACS development team.
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -305,44 +305,5 @@ void dd_bonded_cg_distance(const gmx::MDLogger&           mdlog,
                            gmx_bool                       bBCheck,
                            real*                          r_2b,
                            real*                          r_mb);
-
-/*! \brief Construct the GPU halo exchange object(s).
- *
- * \param[in] mdlog               The logger object.
- * \param[in] cr                  The commrec object.
- * \param[in] deviceStreamManager Manager of the GPU context and streams.
- * \param[in] wcycle              The wallclock counter.
- */
-void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
-                              const t_commrec&                cr,
-                              const gmx::DeviceStreamManager& deviceStreamManager,
-                              gmx_wallcycle*                  wcycle);
-
-/*! \brief
- * (Re-) Initialization for GPU halo exchange
- * \param [in] cr                   The commrec object
- * \param [in] d_coordinatesBuffer  pointer to coordinates buffer in GPU memory
- * \param [in] d_forcesBuffer       pointer to forces buffer in GPU memory
- */
-void reinitGpuHaloExchange(const t_commrec&        cr,
-                           DeviceBuffer<gmx::RVec> d_coordinatesBuffer,
-                           DeviceBuffer<gmx::RVec> d_forcesBuffer);
-
-
-/*! \brief GPU halo exchange of coordinates buffer.
- * \param [in] cr                             The commrec object
- * \param [in] box                            Coordinate box (from which shifts will be constructed)
- * \param [in] coordinatesReadyOnDeviceEvent  event recorded when coordinates have been copied to device
- */
-void communicateGpuHaloCoordinates(const t_commrec&      cr,
-                                   const matrix          box,
-                                   GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
-
-
-/*! \brief GPU halo exchange of force buffer.
- * \param [in] cr                The commrec object
- * \param [in] accumulateForces  True if forces should accumulate, otherwise they are set
- */
-void communicateGpuHaloForces(const t_commrec& cr, bool accumulateForces);
 
 #endif
