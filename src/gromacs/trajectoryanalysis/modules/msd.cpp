@@ -85,12 +85,12 @@ constexpr double c_1DdiffusionDimensionFactor = 2.0;
 class MsdColumnProxy
 {
 public:
-    MsdColumnProxy(std::vector<real>& column) : column_(column) {}
+    MsdColumnProxy(std::vector<double>& column) : column_(column) {}
 
-    void push_back(real value) { column_.push_back(value); }
+    void push_back(double value) { column_.push_back(value); }
 
 private:
-    std::vector<real>& column_;
+    std::vector<double>& column_;
 };
 
 
@@ -124,7 +124,7 @@ public:
 
 private:
     //! Results - first indexed by tau, then data points
-    std::vector<std::vector<real>> msds_;
+    std::vector<std::vector<double>> msds_;
 };
 
 
@@ -132,7 +132,7 @@ std::vector<real> MsdData::averageMsds() const
 {
     std::vector<real> msdSums;
     msdSums.reserve(msds_.size());
-    for (gmx::ArrayRef<const real> msdValues : msds_)
+    for (gmx::ArrayRef<const double> msdValues : msds_)
     {
         if (msdValues.empty())
         {
@@ -156,20 +156,22 @@ std::vector<real> MsdData::averageMsds() const
 //! \param c2 Second point
 //! \return Euclidian distance for the given dimension.
 template<bool x, bool y, bool z>
-inline real calcSingleSquaredDistance(const RVec c1, const RVec c2)
+inline double calcSingleSquaredDistance(const RVec c1, const RVec c2)
 {
-    real result = 0;
+    const DVec firstCoords  = c1.toDVec();
+    const DVec secondCoords = c2.toDVec();
+    double     result       = 0;
     if constexpr (x)
     {
-        result += (c1[XX] - c2[XX]) * (c1[XX] - c2[XX]);
+        result += (firstCoords[XX] - secondCoords[XX]) * (firstCoords[XX] - secondCoords[XX]);
     }
     if constexpr (y) // NOLINT: clang-tidy-9 can't handle if constexpr (https://bugs.llvm.org/show_bug.cgi?id=32203)
     {
-        result += (c1[YY] - c2[YY]) * (c1[YY] - c2[YY]);
+        result += (firstCoords[YY] - secondCoords[YY]) * (firstCoords[YY] - secondCoords[YY]);
     }
     if constexpr (z) // NOLINT
     {
-        result += (c1[ZZ] - c2[ZZ]) * (c1[ZZ] - c2[ZZ]);
+        result += (firstCoords[ZZ] - secondCoords[ZZ]) * (firstCoords[ZZ] - secondCoords[ZZ]);
     }
     return result; // NOLINT
 }
@@ -187,9 +189,9 @@ inline real calcSingleSquaredDistance(const RVec c1, const RVec c2)
 //! \param num_vals
 //! \return Per-particle averaged distance
 template<bool x, bool y, bool z>
-real calcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
+double calcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
 {
-    real result = 0;
+    double result = 0;
     for (int i = 0; i < num_vals; i++)
     {
         result += calcSingleSquaredDistance<x, y, z>(c1[i], c2[i]);
@@ -241,7 +243,7 @@ struct MsdGroupData
     //! Fitted diffusion coefficient
     real diffusionCoefficient = 0.0;
     //! Uncertainty of diffusion coefficient
-    real sigma = 0.0;
+    double sigma = 0.0;
 };
 
 //! Holds data needed for MSD calculations for a single molecule, if requested.
@@ -249,7 +251,7 @@ struct MoleculeData
 {
     int atomCount = 0;
     //! Total mass.
-    real mass = 0;
+    double mass = 0;
     //! MSD accumulator and calculator for the molecule
     MsdData msdData;
     //! Calculated diffusion coefficient
@@ -294,7 +296,7 @@ private:
     //! Diffusion coefficient conversion factor
     double diffusionCoefficientDimensionFactor_ = c_3DdiffusionDimensionFactor;
     //! Method used to calculate MSD - changes based on dimensonality.
-    std::function<real(const RVec*, const RVec*, int)> calcMsd_ =
+    std::function<double(const RVec*, const RVec*, int)> calcMsd_ =
             calcAverageDisplacement<true, true, true>;
 
     //! Picoseconds between restarts
@@ -457,11 +459,11 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     }
 
     // Enumeration helpers for dispatching the right MSD calculation type.
-    const EnumerationArray<SingleDimDiffType, std::function<real(const RVec*, const RVec*, int)>>
+    const EnumerationArray<SingleDimDiffType, std::function<double(const RVec*, const RVec*, int)>>
             oneDimensionalMsdFunctions = { calcAverageDisplacement<true, false, false>,
                                            calcAverageDisplacement<false, true, false>,
                                            calcAverageDisplacement<false, false, true> };
-    const EnumerationArray<TwoDimDiffType, std::function<real(const RVec*, const RVec*, int)>>
+    const EnumerationArray<TwoDimDiffType, std::function<double(const RVec*, const RVec*, int)>>
             twoDimensionalMsdFunctions = { calcAverageDisplacement<false, true, true>,
                                            calcAverageDisplacement<true, false, true>,
                                            calcAverageDisplacement<true, true, false> };
@@ -608,7 +610,7 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
         // For each preceding frame, calculate tau and do comparison.
         for (size_t i = 0; i < msdData.frames.size(); i++)
         {
-            real    tau      = time - frameTimes_[i];
+            double  tau      = time - frameTimes_[i];
             int64_t tauIndex = gmx::roundToInt64(tau / *dt_);
             msdData.msds[tauIndex].push_back(
                     calcMsd_(coords.data(), msdData.frames[i].data(), coords.size()));
