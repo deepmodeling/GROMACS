@@ -65,7 +65,7 @@ enum class HaloQuantity
 };
 
 /*! \internal \brief Class with interfaces and data for GPU Halo Exchange */
-class GpuHaloExchange::Impl
+class GpuHaloExchange
 {
 
 public:
@@ -80,15 +80,15 @@ public:
      * \param [in]    pulse                    the communication pulse for this instance
      * \param [in]    wcycle                   The wallclock counter
      */
-    Impl(gmx_domdec_t*        dd,
-         int                  dimIndex,
-         MPI_Comm             mpi_comm_mysim,
-         const DeviceContext& deviceContext,
-         const DeviceStream&  localStream,
-         const DeviceStream&  nonLocalStream,
-         int                  pulse,
-         gmx_wallcycle*       wcycle);
-    ~Impl();
+    GpuHaloExchange(gmx_domdec_t*        dd,
+                    int                  dimIndex,
+                    MPI_Comm             mpi_comm_mysim,
+                    const DeviceContext& deviceContext,
+                    const DeviceStream&  localStream,
+                    const DeviceStream&  nonLocalStream,
+                    int                  pulse,
+                    gmx_wallcycle*       wcycle);
+    ~GpuHaloExchange();
 
     /*! \brief
      * (Re-) Initialization for GPU halo exchange

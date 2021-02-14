@@ -58,61 +58,6 @@ namespace gmx
 {
 
 /*!\brief Impl class stub. */
-class GpuHaloExchange::Impl
-{
-};
-
-/*!\brief Constructor stub. */
-GpuHaloExchange::GpuHaloExchange(gmx_domdec_t* /* dd */,
-                                 int /* dimIndex */,
-                                 MPI_Comm /* mpi_comm_mysim */,
-                                 const DeviceContext& /* deviceContext */,
-                                 const DeviceStream& /*streamLocal */,
-                                 const DeviceStream& /*streamNonLocal */,
-                                 int /*pulse */,
-                                 gmx_wallcycle* /*wcycle*/) :
-    impl_(nullptr)
-{
-    GMX_ASSERT(false,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-GpuHaloExchange::~GpuHaloExchange() = default;
-
-GpuHaloExchange::GpuHaloExchange(GpuHaloExchange&&) noexcept = default;
-
-GpuHaloExchange& GpuHaloExchange::operator=(GpuHaloExchange&& other) noexcept
-{
-    std::swap(impl_, other.impl_);
-    return *this;
-}
-
-/*!\brief init halo exhange stub. */
-void GpuHaloExchange::reinitHalo(DeviceBuffer<RVec> /* d_coordinatesBuffer */,
-                                 DeviceBuffer<RVec> /* d_forcesBuffer */)
-{
-    GMX_ASSERT(!impl_,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-/*!\brief apply X halo exchange stub. */
-void GpuHaloExchange::communicateHaloCoordinates(const matrix /* box */,
-                                                 GpuEventSynchronizer* /*coordinatesOnDeviceEvent*/)
-{
-    GMX_ASSERT(!impl_,
-               "A CPU stub for GPU Halo Exchange exchange was called insted of the correct "
-               "implementation.");
-}
-
-/*!\brief apply F halo exchange stub. */
-void GpuHaloExchange::communicateHaloForces(bool /* accumulateForces */)
-{
-    GMX_ASSERT(!impl_,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-
-/*!\brief Impl class stub. */
 class GpuHaloExchangeList::Impl
 {
 };
@@ -149,7 +94,6 @@ void GpuHaloExchangeList::communicateGpuHaloForces(const bool /* accumulateForce
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-/*!\brief get forces ready on device event stub. */
 GpuEventSynchronizer* GpuHaloExchangeList::getForcesReadyOnDeviceEvent()
 {
     GMX_ASSERT(!impl_,
