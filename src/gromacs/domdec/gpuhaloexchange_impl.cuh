@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -110,11 +110,6 @@ public:
      */
     void communicateHaloForces(bool accumulateForces);
 
-    /*! \brief Get the event synchronizer for the forces ready on device.
-     *  \returns  The event to synchronize the stream that consumes forces on device.
-     */
-    GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
-
 private:
     /*! \brief Data transfer wrapper for GPU halo exchange
      * \param [inout] d_ptr      pointer to coordinates or force buffer in GPU memory
@@ -208,6 +203,62 @@ private:
     gmx_wallcycle* wcycle_ = nullptr;
     //! The atom offset for receive (x) or send (f) for dimension index and pulse corresponding to this halo exchange instance
     int atomOffset_ = 0;
+};
+
+
+/*! \internal \brief Class with interfaces and data for GPU Halo Exchange */
+class GpuHaloExchangeList::Impl
+{
+
+public:
+    /*! \brief Construct the GPU halo exchange object(s).
+     *
+     * \param[in] mdlog               The logger object.
+     * \param[in] cr                  The commrec object.
+     * \param[in] deviceStreamManager Manager of the GPU context and streams.
+     * \param[in] wcycle              The wallclock counter.
+     */
+    Impl(const gmx::MDLogger&            mdlog,
+         const t_commrec&                cr,
+         const gmx::DeviceStreamManager& deviceStreamManager,
+         gmx_wallcycle*                  wcycle);
+    ~Impl() = default;
+
+    /*! \brief
+     * (Re-) Initialization for GPU halo exchange
+     * \param [in] d_coordinatesBuffer  pointer to coordinates buffer in GPU memory
+     * \param [in] d_forcesBuffer       pointer to forces buffer in GPU memory
+     */
+    void reinitGpuHaloExchange(DeviceBuffer<gmx::RVec> d_coordinatesBuffer,
+                               DeviceBuffer<gmx::RVec> d_forcesBuffer);
+
+
+    /*! \brief GPU halo exchange of coordinates buffer.
+     * \param [in] box                            Coordinate box (from which shifts will be constructed)
+     * \param [in] coordinatesReadyOnDeviceEvent  Event recorded when coordinates have been copied to device
+     */
+    void communicateGpuHaloCoordinates(const matrix box, GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+
+    /*! \brief GPU halo exchange of force buffer.
+     *
+     *  \param [in] accumulateForces  True if forces should accumulate, otherwise they are set
+     */
+    void communicateGpuHaloForces(const bool accumulateForces);
+
+    /*! \brief Get the event synchronizer for the forces ready on device.
+     *  \returns  The event to synchronize the stream that consumes forces on device.
+     */
+    GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
+
+private:
+    std::vector<std::unique_ptr<GpuHaloExchange>> gpuHaloExchangeList_;
+
+    //! CUDA stream for non-local non-bonded calculations
+    const DeviceStream& nonLocalStream_;
+    //! An event recorded once the exchanged forces are ready on the GPU
+    GpuEventSynchronizer forcesReadyOnDeviceEvent_;
+    //! The wallclock counter
+    gmx_wallcycle* wcycle_ = nullptr;
 };
 
 } // namespace gmx

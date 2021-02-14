@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -62,11 +62,14 @@
 #include "gromacs/domdec/gpuhaloexchange.h"
 #if GMX_GPU_CUDA
 #    include "gromacs/gpu_utils/device_stream.h"
+#    include "gromacs/gpu_utils/device_stream_manager.h"
 #    include "gromacs/gpu_utils/devicebuffer.h"
 #    include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #endif
 #include "gromacs/gpu_utils/hostallocator.h"
+#include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/inputrec.h"
+#include "gromacs/mdtypes/simulation_workload.h"
 
 #include "testutils/mpitest.h"
 #include "testutils/test_hardware_environment.h"
@@ -128,9 +131,17 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int         numDevices = getTestHardwareEnvironment()->getTestDeviceList().size();
     const auto& testDevice = getTestHardwareEnvironment()->getTestDeviceList()[rank % numDevices];
-    const auto& deviceContext = testDevice->deviceContext();
-    setActiveDevice(testDevice->deviceInfo());
-    DeviceStream deviceStream(deviceContext, DeviceStreamPriority::Normal, false);
+    const auto& deviceContext           = testDevice->deviceContext();
+    const DeviceInformation& deviceInfo = testDevice->deviceInfo();
+    setActiveDevice(deviceInfo);
+    SimulationWorkload simulationWork;
+    simulationWork.useGpuPme                = false;
+    simulationWork.useGpuPmePpCommunication = false;
+    simulationWork.useGpuUpdate             = false;
+    bool       havePpDomainDecomposition    = true;
+    const bool useTiming                    = false;
+    DeviceStreamManager deviceStreamManager(deviceInfo, havePpDomainDecomposition, simulationWork, useTiming);
+    const DeviceStream& localStream = deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal);
 
     // Set up GPU buffer and copy input data from host
     DeviceBuffer<RVec> d_x;
@@ -138,40 +149,29 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
     int                d_x_size_alloc = -1;
     reallocateDeviceBuffer(&d_x, numAtomsTotal, &d_x_size, &d_x_size_alloc, deviceContext);
 
-    copyToDeviceBuffer(&d_x, h_x->data(), 0, numAtomsTotal, deviceStream, GpuApiCallBehavior::Sync, nullptr);
+    copyToDeviceBuffer(&d_x, h_x->data(), 0, numAtomsTotal, localStream, GpuApiCallBehavior::Sync, nullptr);
 
     GpuEventSynchronizer coordinatesReadyOnDeviceEvent;
-    coordinatesReadyOnDeviceEvent.markEvent(deviceStream);
+    coordinatesReadyOnDeviceEvent.markEvent(localStream);
 
-    std::array<std::vector<GpuHaloExchange>, DIM> gpuHaloExchange;
+    t_commrec cr;
+    cr.mpi_comm_mysim = MPI_COMM_WORLD;
+    cr.dd             = dd;
+    gmx::MDLogger mdlog;
 
-    // Create halo exchange objects
-    for (int d = 0; d < dd->ndim; d++)
-    {
-        for (int pulse = 0; pulse < dd->comm->cd[d].numPulses(); pulse++)
-        {
-            gpuHaloExchange[d].push_back(GpuHaloExchange(
-                    dd, d, MPI_COMM_WORLD, deviceContext, deviceStream, deviceStream, pulse, nullptr));
-        }
-    }
 
+    // Create and initialize halo exchange objects
+    GpuHaloExchangeList gpuHaloExchangeList(mdlog, cr, deviceStreamManager, nullptr);
+    gpuHaloExchangeList.reinitGpuHaloExchange(d_x, nullptr);
     // Perform GPU halo exchange
-    for (int d = 0; d < dd->ndim; d++)
-    {
-        for (int pulse = 0; pulse < dd->comm->cd[d].numPulses(); pulse++)
-        {
-            gpuHaloExchange[d][pulse].reinitHalo(d_x, nullptr);
-            gpuHaloExchange[d][pulse].communicateHaloCoordinates(box, &coordinatesReadyOnDeviceEvent);
-        }
-    }
+    gpuHaloExchangeList.communicateGpuHaloCoordinates(box, &coordinatesReadyOnDeviceEvent);
 
     GpuEventSynchronizer haloCompletedEvent;
-    haloCompletedEvent.markEvent(deviceStream);
+    haloCompletedEvent.markEvent(localStream);
     haloCompletedEvent.waitForEvent();
 
     // Copy results back to host
-    copyFromDeviceBuffer(
-            h_x->data(), &d_x, 0, numAtomsTotal, deviceStream, GpuApiCallBehavior::Sync, nullptr);
+    copyFromDeviceBuffer(h_x->data(), &d_x, 0, numAtomsTotal, localStream, GpuApiCallBehavior::Sync, nullptr);
 
     freeDeviceBuffer(d_x);
 #else
@@ -180,7 +180,7 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
     GMX_UNUSED_VALUE(h_x);
     GMX_UNUSED_VALUE(numAtomsTotal);
 #endif
-}
+} // namespace
 
 /*! \brief Define 1D rank topology with 4 MPI tasks
  *
