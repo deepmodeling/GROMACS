@@ -49,9 +49,9 @@
 #include "gromacs/analysisdata/analysisdata.h"
 #include "gromacs/analysisdata/modules/average.h"
 #include "gromacs/analysisdata/modules/plot.h"
+#include "gromacs/analysisdata/paralleloptions.h"
 #include "gromacs/fileio/oenv.h"
 #include "gromacs/fileio/trxio.h"
-#include "gromacs/fileio/xvgr.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/options/basicoptions.h"
@@ -64,6 +64,7 @@
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 #include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/utility/programcontext.h"
+#include "gromacs/utility/stringutil.h"
 #include "gromacs/utility.h"
 
 namespace gmx::analysismodules
@@ -274,7 +275,10 @@ public:
     void initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings) override;
     void initAfterFirstFrame(const TrajectoryAnalysisSettings& settings, const t_trxframe& fr) override;
     void initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top) override;
-    void analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata) override;
+    void analyzeFrame(int                           frameNumber,
+                      const t_trxframe&             frame,
+                      t_pbc*                        pbc,
+                      TrajectoryAnalysisModuleData* pdata) override;
     void finishAnalysis(int nframes) override;
     void writeOutput() override;
 
@@ -327,8 +331,12 @@ private:
     std::vector<int> moleculeIndexMappings_;
 
     // Output stuff
+    AnalysisData msdPlotData_;
+    AnalysisData msdMoleculePlotData_;
+
+    AnalysisDataPlotSettings plotSettings_;
     //! Per-tau MSDs for each selected group
-    std::string output;
+    std::string output_;
     //! Per molecule diffusion coefficients if -mol is selected.
     std::string       moleculeOutput_;
     gmx_output_env_t* oenv_ = nullptr;
@@ -407,7 +415,7 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
     options->addOption(FileNameOption("o")
                                .filetype(eftPlot)
                                .outputFile()
-                               .store(&output)
+                               .store(&output_)
                                .defaultBasename("msdout")
                                .description("MSD output"));
     options->addOption(
@@ -422,6 +430,7 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
 
 void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top)
 {
+    plotSettings_ = settings.plotSettings();
     // Initial parameter consistency checks.
     if (singleDimType_ != SingleDimDiffType::Unused && twoDimType_ != TwoDimDiffType::Unused)
     {
@@ -559,9 +568,9 @@ static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> pr
 }
 
 
-void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata)
+void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata)
 {
-    const real time = std::round(fr.time);
+    const real time = std::round(frame.time);
     // Need to populate dt on frame 2;
     if (!dt_.has_value() && !times_.empty())
     {
@@ -587,7 +596,7 @@ void Msd::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryAna
 
         std::vector<RVec> coords = buildCoordinates(sel, molecules_, moleculeIndexMappings_);
 
-        if (frnr > 0)
+        if (frameNumber > 0)
         {
             removePbcJumps(coords, msdData.previousFrame, pbc);
         }
@@ -699,65 +708,67 @@ void Msd::finishAnalysis(int gmx_unused nframes)
 
 void Msd::writeOutput()
 {
-
-    // Ideally we'd use the trajectory analysis framework with a plot module for output.
-    // Unfortunately MSD is one of the few analyses where the number of datasets and data columns
-    // can't be determined until simulation end, so AnalysisData objects can't be easily used here.
-    // Since the plotting modules are completely wired into the analysis data, we can't use the nice
-    // plotting functionality.
-    std::unique_ptr<FILE, decltype(&xvgrclose)> out(xvgropen(output.c_str(),
-                                                             "Mean Square Displacement",
-                                                             output_env_get_xvgr_tlabel(oenv_),
-                                                             "MSD (nm\\S2\\N)",
-                                                             oenv_),
-                                                    &xvgrclose);
-    fprintf(out.get(),
-            "# MSD gathered over %g %s with %zu restarts\n",
-            times_.back() - times_[0],
-            output_env_get_time_unit(oenv_).c_str(),
-            groupData_[0].frames.size());
-    fprintf(out.get(),
-            "# Diffusion constants fitted from time %g to %g %s\n",
-            taus_[beginFitIndex_],
-            taus_[endFitIndex_],
-            output_env_get_time_unit(oenv_).c_str());
-    for (const MsdGroupData& msdData : groupData_)
+    // AnalysisData currently doesn't support changing column counts after analysis has started.
+    // We can't determine the number of tau values until the trajectory is fully read, so analysis
+    // data construction and plotting are done here.
+    AnalysisDataPlotModulePointer msdPlotModule(new AnalysisDataPlotModule(plotSettings_));
+    msdPlotModule->setFileName(output_);
+    msdPlotModule->setTitle("Mean Squared Displacement");
+    msdPlotModule->setXLabel("tau (ps)");
+    msdPlotModule->setYLabel(R"(MSD (nm\\S2\\N))");
+    msdPlotModule->setYFormat(10, 6, 'g');
+    for (const auto& group : groupData_)
     {
-        const real D = msdData.diffusionCoefficient;
+        const real D = group.diffusionCoefficient;
         if (D > 0.01 && D < 1e4)
         {
-            fprintf(out.get(), "# D[%10s] = %.4f (+/- %.4f) (1e-5 cm^2/s)\n", msdData.sel.name(), D, msdData.sigma);
+            msdPlotModule->appendLegend(formatString(
+                    "D[%10s] = %.4f (+/- %.4f) (1e-5 cm^2/s)\n", group.sel.name(), D, group.sigma));
         }
         else
         {
-            fprintf(out.get(), "# D[%10s] = %.4g (+/- %.4f) (1e-5 cm^2/s)\n", msdData.sel.name(), D, msdData.sigma);
+            msdPlotModule->appendLegend(formatString(
+                    "D[%10s] = %.4g (+/- %.4f) (1e-5 cm^2/s)\n", group.sel.name(), D, group.sigma));
         }
     }
-
-    for (size_t i = 0; i < taus_.size(); i++)
+    msdPlotData_.addModule(msdPlotModule);
+    msdPlotData_.setDataSetCount(groupData_.size());
+    for (size_t i = 0; i < groupData_.size(); i++)
     {
-        fprintf(out.get(), "%10g", taus_[i]);
-        for (const MsdGroupData& msdData : groupData_)
-        {
-            fprintf(out.get(), "  %10g", msdData.msdSums[i]);
-        }
-        fprintf(out.get(), "\n");
+        msdPlotData_.setColumnCount(i, 1);
     }
+    AnalysisDataHandle dh = msdPlotData_.startData({});
+    for (size_t tauIndex = 0; tauIndex < taus_.size(); tauIndex++)
+    {
+        dh.startFrame(tauIndex, taus_[tauIndex]);
+        for (size_t dataSetIndex = 0; dataSetIndex < groupData_.size(); dataSetIndex++)
+        {
+            dh.selectDataSet(dataSetIndex);
+            dh.setPoint(0, groupData_[dataSetIndex].msdSums[tauIndex]);
+        }
+        dh.finishFrame();
+    }
+    dh.finishData();
 
-    // Handle per mol stuff if needed.
     if (molSelected_)
     {
-        std::unique_ptr<FILE, decltype(&xvgrclose)> molOut(
-                xvgropen(moleculeOutput_.c_str(),
-                         "Diffusion Coefficients / Molecule",
-                         "Molecule",
-                         "D (1e-5 cm^2/s)",
-                         oenv_),
-                &xvgrclose);
-        for (size_t i = 0; i < molecules_.size(); i++)
+        AnalysisDataPlotModulePointer molPlotModule(new AnalysisDataPlotModule(plotSettings_));
+        molPlotModule->setFileName(moleculeOutput_);
+        molPlotModule->setTitle("Mean Squared Displacement / Molecule");
+        molPlotModule->setXLabel("Molecule");
+        molPlotModule->setYLabel("D(1e-5 cm^2/s");
+        molPlotModule->setYFormat(10, 6, 'g');
+        msdMoleculePlotData_.addModule(msdPlotModule);
+        msdMoleculePlotData_.setDataSetCount(1);
+        msdPlotData_.setColumnCount(0, 1);
+        AnalysisDataHandle molDh = msdMoleculePlotData_.startData({});
+        for (size_t moleculeIndex = 0; moleculeIndex < molecules_.size(); moleculeIndex++)
         {
-            fprintf(molOut.get(), "%10zu  %10g\n", i, molecules_[i].diffusionCoefficient);
+            molDh.startFrame(moleculeIndex, moleculeIndex);
+            molDh.setPoint(0, molecules_[moleculeIndex].diffusionCoefficient);
+            molDh.finishFrame();
         }
+        molDh.finishData();
     }
 }
 
