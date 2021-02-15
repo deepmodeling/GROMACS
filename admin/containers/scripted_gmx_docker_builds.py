@@ -285,7 +285,7 @@ def get_hipsycl(args):
     if args.hipsycl is None:
         return None
     if args.llvm is None:
-        raise RuntimeError('Can not buils hipSYCL without llvm')
+        raise RuntimeError('Can not build hipSYCL without llvm')
 
     llvm_version = str(args.llvm)
 
@@ -296,15 +296,6 @@ def get_hipsycl(args):
     if args.cuda is not None:
         cmake_opts += [f'-DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-{args.cuda}',
                        '-DWITH_CUDA_BACKEND=ON']
-    # If we don't set DEFAULT_GPU_ARCH, then even simple commands like `syclcc --version` will fail.
-    # CMake does not like it.
-    # We set it to some random-ish value.
-    # Alternatively, we can edit /usr/local/etc/hipSYCL/syclcc.json after installing.
-    if args.cuda is None:
-        # Without CUDA, the default platform is HIP
-        cmake_opts += ['-DDEFAULT_GPU_ARCH=gfx900']
-    else:
-        cmake_opts += ['-DDEFAULT_GPU_ARCH=sm_60']
 
     postinstall = [
             # https://github.com/illuhad/hipSYCL/issues/361#issuecomment-718943645

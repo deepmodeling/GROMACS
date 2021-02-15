@@ -303,7 +303,7 @@ endif()
 # Only add the -fsycl flag to sources that really need it
 if (GMX_GPU_SYCL)
     get_property(SYCL_SOURCES GLOBAL PROPERTY SYCL_SOURCES)
-    set_source_files_properties(${SYCL_SOURCES} PROPERTIES COMPILE_FLAGS "${SYCL_CXX_FLAGS}")
+    add_sycl_to_target(TARGET libgromacs SOURCES ${SYCL_SOURCES})
 endif()
 
 gmx_setup_tng_for_libgromacs()
