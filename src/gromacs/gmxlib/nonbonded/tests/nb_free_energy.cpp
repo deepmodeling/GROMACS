@@ -81,57 +81,6 @@
 #include "testutils/refdata.h"
 #include "testutils/testasserts.h"
 
-//@{
-/*
- * Utility functions to setup t_forcerec and interaction_const_t structures
- *
- * These functions are similar to some static functions from forcerec.cpp
- * which is reflected in the nameing that is not according to the style guide.
- */
-static std::vector<real> mk_nbfp(const gmx_ffparams_t* idef)
-{
-    std::vector<real> nbfp;
-    int               atnr;
-
-    atnr = idef->atnr;
-    nbfp.resize(2 * atnr * atnr);
-    int k = 0;
-    for (int i = 0; (i < atnr); i++)
-    {
-        for (int j = 0; (j < atnr); j++, k++)
-        {
-            /* nbfp now includes the 6.0/12.0 derivative prefactors */
-            C6(nbfp, atnr, i, j)  = idef->iparams[k].lj.c6 * 6.0;
-            C12(nbfp, atnr, i, j) = idef->iparams[k].lj.c12 * 12.0;
-        }
-    }
-
-    return nbfp;
-}
-
-static std::vector<real> make_ljpme_c6grid(const gmx_ffparams_t* idef)
-{
-    std::vector<real> grid;
-    int   i, j, k, atnr;
-    real  c6, c6i, c6j;
-
-    atnr = idef->atnr;
-    grid.resize(2 * atnr * atnr);
-    for (i = k = 0; (i < atnr); i++)
-    {
-        for (j = 0; (j < atnr); j++, k++)
-        {
-            c6i  = idef->iparams[i * (atnr + 1)].lj.c6;
-            c6j  = idef->iparams[j * (atnr + 1)].lj.c6;
-            c6   = std::sqrt(c6i * c6j);
-            grid[2 * (atnr * i + j)] = c6 * 6.0;
-        }
-    }
-
-    return grid;
-}
-//@}
-
 namespace gmx
 {
 namespace test
@@ -274,11 +223,12 @@ public:
     }
 
     //! initialize data structure to construct forcerec
-    void initForcerec(const gmx_ffparams_t* idef, int coulType, int vdwType, int vdwMod)
+    void initForcerec(const gmx_ffparams_t& idef, int coulType, int vdwType, int vdwMod)
     {
         icHelper_.initInteractionConst(coulType, vdwType, vdwMod);
-        nbfp_        = mk_nbfp(idef);
-        ljPmeC6Grid_ = make_ljpme_c6grid(idef);
+        nbfp_        = makeNonBondedParameterLists(idef, false);
+        t_forcerec frTmp;
+        ljPmeC6Grid_ = makeLJPmeC6GridCorrectionParameters(idef,frTmp);
     }
 
     void setSoftcoreAlpha(const real scAlpha)
@@ -293,7 +243,7 @@ public:
         icHelper_.getInteractionConst(fepVals_, ic);
 
         // set data in fr
-        fr->ljpme_c6grid = ljPmeC6Grid_.data();
+        fr->ljpme_c6grid = ljPmeC6Grid_;
         fr->nbfp         = nbfp_;
         snew(fr->shift_vec, 1); //this test uses just 1 shift vector
         fr->ic = ic;
@@ -404,7 +354,7 @@ public:
      */
     ListInput setInteraction(int coulType, int vdwType, int vdwMod)
     {
-        frHelper.initForcerec(&atoms.idef, coulType, vdwType, vdwMod);
+        frHelper.initForcerec(atoms.idef, coulType, vdwType, vdwMod);
         return *this;
     }
 };
