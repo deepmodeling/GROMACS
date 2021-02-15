@@ -233,10 +233,10 @@ public:
      *
      * Fep is used if either c6A != c6B or c12A != c12B.
      *
-     * \param[in] c6 state A
-     * \param[in] c12 state A
-     * \param[in] c6 state B
-     * \param[in] c12 state B
+     * \param[in] c6A  lj-c6 of state A
+     * \param[in] c12A lj-c12 of state A
+     * \param[in] c6B  lj-c6 of state B
+     * \param[in] c12B lj-c12 of state B
      */
     ListInput set14Interaction(real c6A, real c12A, real c6B, real c12B)
     {
