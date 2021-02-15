@@ -167,10 +167,10 @@ public:
 
         // initialize correction tables
         interaction_const_t tmp;
-        tmp.ewaldcoeff_q  = calc_ewaldcoeff_q(1.0, 1.0e-5);
-        tmp.ewaldcoeff_lj = calc_ewaldcoeff_lj(1.0, 1.0e-5);
-        tmp.eeltype       = coulType;
-        tmp.vdwtype       = vdwType;
+        tmp.ewaldcoeff_q       = calc_ewaldcoeff_q(1.0, 1.0e-5);
+        tmp.ewaldcoeff_lj      = calc_ewaldcoeff_lj(1.0, 1.0e-5);
+        tmp.eeltype            = coulType;
+        tmp.vdwtype            = vdwType;
         tmp.coulombEwaldTables = std::make_unique<EwaldCorrectionTables>();
         tmp.vdwEwaldTables     = std::make_unique<EwaldCorrectionTables>();
 
@@ -201,13 +201,13 @@ public:
         ic->vdw_modifier = vdwMod_;
 
         // some non default parameters used in this testcase
-        ic->epsfac = ONE_4PI_EPS0 * 0.25;
-        ic->k_rf    = 0.0;
-        ic->c_rf    = 1.0;
-        ic->sh_ewald = 1.0e-5;
-        ic->sh_lj_ewald = -1.0;
+        ic->epsfac                = ONE_4PI_EPS0 * 0.25;
+        ic->k_rf                  = 0.0;
+        ic->c_rf                  = 1.0;
+        ic->sh_ewald              = 1.0e-5;
+        ic->sh_lj_ewald           = -1.0;
         ic->dispersion_shift.cpot = -1.0;
-        ic->repulsion_shift.cpot = -1.0;
+        ic->repulsion_shift.cpot  = -1.0;
     }
 
 private:
@@ -235,27 +235,24 @@ class ForcerecHelper
 public:
     ForcerecHelper()
     {
-        fepVals_.sc_alpha         = 0.3;
-        fepVals_.sc_power         = 1;
-        fepVals_.sc_r_power       = 6.0;
-        fepVals_.sc_sigma         = 0.3;
-        fepVals_.sc_sigma_min     = 0.3;
-        fepVals_.bScCoul          = true;
+        fepVals_.sc_alpha     = 0.3;
+        fepVals_.sc_power     = 1;
+        fepVals_.sc_r_power   = 6.0;
+        fepVals_.sc_sigma     = 0.3;
+        fepVals_.sc_sigma_min = 0.3;
+        fepVals_.bScCoul      = true;
     }
 
     //! initialize data structure to construct forcerec
     void initForcerec(const gmx_ffparams_t& idef, int coulType, int vdwType, int vdwMod)
     {
         icHelper_.initInteractionConst(coulType, vdwType, vdwMod);
-        nbfp_        = makeNonBondedParameterLists(idef, false);
+        nbfp_ = makeNonBondedParameterLists(idef, false);
         t_forcerec frTmp;
-        ljPmeC6Grid_ = makeLJPmeC6GridCorrectionParameters(idef,frTmp);
+        ljPmeC6Grid_ = makeLJPmeC6GridCorrectionParameters(idef, frTmp);
     }
 
-    void setSoftcoreAlpha(const real scAlpha)
-    {
-        fepVals_.sc_alpha = scAlpha;
-    }
+    void setSoftcoreAlpha(const real scAlpha) { fepVals_.sc_alpha = scAlpha; }
 
     //! get forcerec data as wanted by the nonbonded kernel
     void getForcerec(t_forcerec* fr, interaction_const_t* ic)
@@ -266,8 +263,8 @@ public:
         // set data in fr
         fr->ljpme_c6grid = ljPmeC6Grid_;
         fr->nbfp         = nbfp_;
-        snew(fr->shift_vec, 1); //this test uses just 1 shift vector
-        fr->ic = ic;
+        snew(fr->shift_vec, 1); // this test uses just 1 shift vector
+        fr->ic    = ic;
         fr->rlist = rlist_;
     }
 
@@ -290,9 +287,9 @@ struct AtomData
         idef.atnr = 2;
         idef.iparams.resize(4);
         idef.iparams[0].lj = { 0.001458, 1.0062882e-6 };
-        idef.iparams[1].lj = { 0.0, 0.0};
-        idef.iparams[2].lj = { 0.0, 0.0};
-        idef.iparams[3].lj = { 0.0, 0.0};
+        idef.iparams[1].lj = { 0.0, 0.0 };
+        idef.iparams[2].lj = { 0.0, 0.0 };
+        idef.iparams[3].lj = { 0.0, 0.0 };
     }
 
     // forcefield parameters
@@ -361,7 +358,7 @@ public:
      */
     ListInput(float ftol, double dtol)
     {
-        floatToler = ftol;
+        floatToler  = ftol;
         doubleToler = dtol;
     }
 
@@ -378,22 +375,21 @@ public:
     }
 };
 
-class NonbondedFepTest :
-    public ::testing::TestWithParam<std::tuple<ListInput, PaddedVector<RVec>>>
+class NonbondedFepTest : public ::testing::TestWithParam<std::tuple<ListInput, PaddedVector<RVec>>>
 {
 protected:
-    PaddedVector<RVec>     x_;
-    ListInput              input_;
-    TestReferenceData      refData_;
-    TestReferenceChecker   checker_;
+    PaddedVector<RVec>   x_;
+    ListInput            input_;
+    TestReferenceData    refData_;
+    TestReferenceChecker checker_;
 
     NonbondedFepTest() : checker_(refData_.rootChecker())
     {
-        input_   = std::get<0>(GetParam());
-        x_       = std::get<1>(GetParam());
+        input_ = std::get<0>(GetParam());
+        x_     = std::get<1>(GetParam());
 
-        test::FloatingPointTolerance tolerance(input_.floatToler, input_.doubleToler, 1.0e-6,
-                                               1.0e-12, 10000, 100, false);
+        test::FloatingPointTolerance tolerance(
+                input_.floatToler, input_.doubleToler, 1.0e-6, 1.0e-12, 10000, 100, false);
         checker_.setDefaultTolerance(tolerance);
     }
 
@@ -402,7 +398,7 @@ protected:
         input_.frHelper.setSoftcoreAlpha(scAlpha);
 
         // get forcerec and interaction_const
-        t_forcerec fr;
+        t_forcerec          fr;
         interaction_const_t ic;
         input_.frHelper.getForcerec(&fr, &ic);
 
@@ -412,7 +408,7 @@ protected:
         input_.atoms.fillAtoms(&mdatoms, &nbl);
 
         // force buffers and kernel data get pointed here:
-        OutputQuantities output;
+        OutputQuantities  output;
         std::vector<real> lambdas(efptNR, lambda);
 
         // fep kernel data
@@ -429,7 +425,7 @@ protected:
         kernel_data.energygrp_vdw  = output.energy.ener[egLJSR].data();
 
         // force buffers
-        bool unusedBool = true; // this bool has no effect in the kernel
+        bool                      unusedBool = true; // this bool has no effect in the kernel
         gmx::ForceWithShiftForces forces(output.f.arrayRefWithPadding(), unusedBool, output.fShift);
 
         // dummy counter
@@ -446,11 +442,11 @@ protected:
         const int numLambdas = 3;
         for (int i = 0; i < numLambdas; ++i)
         {
-            const real lambda       = i / (numLambdas - 1.0);
-            std::vector<real> alphas = {0.0, 0.3};
+            const real        lambda = i / (numLambdas - 1.0);
+            std::vector<real> alphas = { 0.0, 0.3 };
             for (real alpha : alphas)
             {
-                auto lambdaChecker = checker_.checkCompound("Lambda", toString(lambda));
+                auto lambdaChecker   = checker_.checkCompound("Lambda", toString(lambda));
                 auto softcoreChecker = lambdaChecker.checkCompound("Softcore-alpha", toString(alpha));
                 testOneIfunc(&softcoreChecker, lambda, alpha);
             }
@@ -471,9 +467,7 @@ std::vector<ListInput> c_interaction = {
 };
 
 //! Coordinates for testing
-std::vector<PaddedVector<RVec>> c_coordinates = {
-    { { 1.0, 1.0, 1.0 }, { 1.1, 1.15, 1.2 } }
-};
+std::vector<PaddedVector<RVec>> c_coordinates = { { { 1.0, 1.0, 1.0 }, { 1.1, 1.15, 1.2 } } };
 
 INSTANTIATE_TEST_CASE_P(NBInteraction,
                         NonbondedFepTest,
