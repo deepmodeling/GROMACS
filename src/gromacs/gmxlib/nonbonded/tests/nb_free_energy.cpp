@@ -40,6 +40,27 @@
  * nonbonded fep kernel. This requires setting up some more input
  * structures that in the bonded case.
  *
+ * The test setup consists of an atom pair that is evaluated in an fep setting
+ * (vanishing charge and lennard-jones parameters of atom #2) with and without
+ * softcore Potentials.
+ *
+ * GROMACS version:    2022-dev
+ * Precision:          double
+ * Memory model:       64 bit
+ * MPI library:        thread_mpi
+ * OpenMP support:     enabled (GMX_OPENMP_MAX_THREADS = 64)
+ * GPU support:        disabled
+ * SIMD instructions:  AVX2_256
+ * FFT library:        fftpack (built-in)
+ * RDTSCP usage:       enabled
+ * TNG support:        enabled
+ * Hwloc support:      disabled
+ * Tracing support:    disabled
+ * C compiler:         GNU 10.2.1
+ * C compiler flags:   -mavx2 -mfma -fno-inline -g
+ * C++ compiler:       GNU 10.2.1
+ * C++ compiler flags: -mavx2 -mfma -fno-inline -fopenmp -g
+ *
  * \author Sebastian Kehl <sebastian.kehl@mpcdf.mpg.de>
  * \ingroup module_gmxlib_nonbonded
  */
