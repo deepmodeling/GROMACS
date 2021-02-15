@@ -330,8 +330,6 @@ public:
     //! forcerec helper
     ForcerecHelper frHelper;
 
-    friend std::ostream& operator<<(std::ostream& out, const ListInput& input);
-
     //! Constructor
     ListInput() {}
 
@@ -358,29 +356,6 @@ public:
         return *this;
     }
 };
-
-//! Prints the interaction and parameters to a stream
-std::ostream& operator<<(std::ostream& out, const ListInput& input)
-{
-    using std::endl;
-    out << "Function type " << input.fType << " called " << interaction_function[input.fType].name
-        << " ie. labelled '" << interaction_function[input.fType].longname << "' in an energy file"
-        << endl;
-
-    // Organize to print the legacy C union t_iparams, whose
-    // relevant contents vary with fType.
-    StringOutputStream stream;
-    {
-        TextWriter writer(&stream);
-        for (auto ip : input.atoms.idef.iparams)
-        {
-            printInteractionParameters(&writer, input.fType, ip);
-        }
-    }
-    out << "Function parameters " << stream.toString();
-    return out;
-}
-
 
 class NonbondedFepTest :
     public ::testing::TestWithParam<std::tuple<ListInput, PaddedVector<RVec>>>
