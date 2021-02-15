@@ -225,8 +225,6 @@ public:
     //! forcerec setup helper
     ForcerecHelper frHelper;
 
-    friend std::ostream& operator<<(std::ostream& out, const ListInput& input);
-
     //! Constructor
     ListInput() {}
 
@@ -264,26 +262,6 @@ public:
         return *this;
     }
 };
-
-//! Prints the interaction and parameters to a stream
-std::ostream& operator<<(std::ostream& out, const ListInput& input)
-{
-    using std::endl;
-    out << "Function type " << input.fType << " called " << interaction_function[input.fType].name
-        << " ie. labelled '" << interaction_function[input.fType].longname << "' in an energy file"
-        << endl;
-
-    // Organize to print the legacy C union t_iparams, whose
-    // relevant contents vary with fType.
-    StringOutputStream stream;
-    {
-        TextWriter writer(&stream);
-        printInteractionParameters(&writer, input.fType, input.iparams);
-    }
-    out << "Function parameters " << stream.toString();
-    out << "Parameters trigger FEP? " << (input.fep ? "true" : "false") << endl;
-    return out;
-}
 
 class ListedForcesPairsTest :
     public ::testing::TestWithParam<std::tuple<ListInput, PaddedVector<RVec>, PbcType>>
