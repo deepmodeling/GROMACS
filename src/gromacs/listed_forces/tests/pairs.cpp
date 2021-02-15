@@ -332,7 +332,7 @@ protected:
             stepWork.computeVirial = computeVirial(flavor);
             stepWork.computeEnergy = computeEnergy(flavor);
 
-            gmx_bool havePerturbedInteractions = input_.fep;
+            bool havePerturbedInteractions = input_.fep;
             if (flavor == BondedKernelFlavor::ForcesSimdWhenAvailable)
             {
                 havePerturbedInteractions = false;
