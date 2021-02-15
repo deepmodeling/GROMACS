@@ -39,6 +39,8 @@ set(REQUIRED_SYCL_MIN_VERSION ${REQUIRED_SYCL_MIN_VERSION_MAJOR}.${REQUIRED_SYCL
 
 set(GMX_GPU_SYCL ON)
 
+option(GMX_SYCL_HIPSYCL "Use hipSYCL instead of Intel/Clang for SYCL compilation" OFF)
+
 if(GMX_DOUBLE)
     message(FATAL_ERROR "SYCL acceleration is not available in double precision")
 endif()
