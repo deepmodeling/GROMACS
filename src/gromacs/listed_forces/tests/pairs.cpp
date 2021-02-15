@@ -64,7 +64,7 @@
  * C++ compiler:       GNU 10.2.1
  * C++ compiler flags: -mavx2 -mfma -fno-inline -fopenmp -g
  *
- * \author David van der Spoel <david.vanderspoel@icm.uu.se>
+ * \author Sebastian Kehl <sebastian.kehl@mpcdf.mpg.de>
  * \ingroup module_listed_forces
  */
 #include "gmxpre.h"
