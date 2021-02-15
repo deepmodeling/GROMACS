@@ -118,8 +118,7 @@ constexpr int c_numAtoms = 2;
  */
 struct OutputQuantities
 {
-    OutputQuantities(int energyGroup) :
-        energy(energyGroup), dvdLambda(efptNR, 0.0) {}
+    OutputQuantities(int energyGroup) : energy(energyGroup), dvdLambda(efptNR, 0.0) {}
 
     //! Energy of this interaction
     gmx_grppairener_t energy;
@@ -159,31 +158,22 @@ class ForcerecHelper
 public:
     ForcerecHelper()
     {
-        fepVals_.sc_alpha         = 0.3;
-        fepVals_.sc_power         = 1;
-        fepVals_.sc_r_power       = 6.0;
-        fepVals_.sc_sigma         = 0.3;
-        fepVals_.sc_sigma_min     = 0.3;
-        fepVals_.bScCoul          = true;
+        fepVals_.sc_alpha     = 0.3;
+        fepVals_.sc_power     = 1;
+        fepVals_.sc_r_power   = 6.0;
+        fepVals_.sc_sigma     = 0.3;
+        fepVals_.sc_sigma_min = 0.3;
+        fepVals_.bScCoul      = true;
     }
 
     //! initialize data structure to construct forcerec
-    void initForcerec(bool haveFep)
-    {
-        haveFep_ = haveFep;
-    }
+    void initForcerec(bool haveFep) { haveFep_ = haveFep; }
 
     //! set use of simd if available
-    void setUseSimd(const bool useSimd)
-    {
-        useSimd_ = useSimd;
-    }
+    void setUseSimd(const bool useSimd) { useSimd_ = useSimd; }
 
     //! set use mol pbc
-    void setMolPBC(const bool haveMolPBC)
-    {
-        haveMolPBC_ = haveMolPBC;
-    }
+    void setMolPBC(const bool haveMolPBC) { haveMolPBC_ = haveMolPBC; }
 
     //! get forcerec data as wanted by the 1-4 interactions
     void getForcerec(t_forcerec* fr, interaction_const_t* ic)
@@ -201,10 +191,10 @@ public:
     }
 
 private:
-    bool         haveFep_;
-    bool         useSimd_     = false;
-    bool         haveMolPBC_  = false;
-    t_lambda     fepVals_;
+    bool     haveFep_;
+    bool     useSimd_    = false;
+    bool     haveMolPBC_ = false;
+    t_lambda fepVals_;
 };
 
 /*! \brief Input structure for listed forces tests
@@ -235,7 +225,7 @@ public:
      */
     ListInput(float ftol, double dtol)
     {
-        floatToler = ftol;
+        floatToler  = ftol;
         doubleToler = dtol;
     }
 
@@ -267,13 +257,13 @@ class ListedForcesPairsTest :
     public ::testing::TestWithParam<std::tuple<ListInput, PaddedVector<RVec>, PbcType>>
 {
 protected:
-    matrix                 box_;
-    t_pbc                  pbc_;
-    PaddedVector<RVec>     x_;
-    PbcType                pbcType_;
-    ListInput              input_;
-    TestReferenceData      refData_;
-    TestReferenceChecker   checker_;
+    matrix               box_;
+    t_pbc                pbc_;
+    PaddedVector<RVec>   x_;
+    PbcType              pbcType_;
+    ListInput            input_;
+    TestReferenceData    refData_;
+    TestReferenceChecker checker_;
 
     ListedForcesPairsTest() : checker_(refData_.rootChecker())
     {
@@ -284,7 +274,8 @@ protected:
         box_[0][0] = box_[1][1] = box_[2][2] = 1.0;
         set_pbc(&pbc_, pbcType_, box_);
 
-        FloatingPointTolerance tolerance = relativeToleranceAsPrecisionDependentFloatingPoint(1.0, input_.floatToler, input_.doubleToler);
+        FloatingPointTolerance tolerance = relativeToleranceAsPrecisionDependentFloatingPoint(
+                1.0, input_.floatToler, input_.doubleToler);
 
         checker_.setDefaultTolerance(tolerance);
     }
@@ -295,17 +286,17 @@ protected:
 
         // 'definition of pairs' is a concatenation of #npairs (here 2)
         // 'nAtomsPerPair+1'-tuples (fType a_0 a_i ... a_nAtomsPerPair)
-        std::vector<t_iatom >       iatoms     = { 0, 1, 2, 0, 0, 2 };
+        std::vector<t_iatom> iatoms = { 0, 1, 2, 0, 0, 2 };
 
         std::vector<int>            ddgatindex = { 0, 1, 2 };
         std::vector<real>           chargeA    = { 1.0, -0.5, -0.5 };
-        std::vector<real>           chargeB    = { 0.0, 0.0 , 0.0};
-        std::vector<unsigned short> egrp       = { 0, 0, 0};
+        std::vector<real>           chargeB    = { 0.0, 0.0, 0.0 };
+        std::vector<unsigned short> egrp       = { 0, 0, 0 };
         t_mdatoms                   mdatoms    = { 0 };
 
-        mdatoms.chargeA                        = chargeA.data();
-        mdatoms.chargeB                        = chargeB.data();
-        mdatoms.cENER                          = egrp.data();
+        mdatoms.chargeA = chargeA.data();
+        mdatoms.chargeB = chargeB.data();
+        mdatoms.cENER   = egrp.data();
         // nPerturbed is not decisive for fep to be used; it is overruled by
         // other conditions in do_pairs_general; just here to not segfault
         // upon query
@@ -338,17 +329,29 @@ protected:
                 havePerturbedInteractions = false;
             }
 
-            t_forcerec fr;
+            t_forcerec          fr;
             interaction_const_t ic;
             input_.frHelper.getForcerec(&fr, &ic);
 
-            OutputQuantities output(egLJ14);
+            OutputQuantities  output(egLJ14);
             std::vector<real> lambdas(efptNR, lambda);
 
-            do_pairs(input_.fType, iatoms.size(), iatoms.data(), &input_.iparams,
-                     as_rvec_array(x_.data()), output.f, output.fShift, &pbc_, lambdas.data(),
-                     output.dvdLambda.data(), &mdatoms, &fr, havePerturbedInteractions,
-                     stepWork, &output.energy, ddgatindex.data());
+            do_pairs(input_.fType,
+                     iatoms.size(),
+                     iatoms.data(),
+                     &input_.iparams,
+                     as_rvec_array(x_.data()),
+                     output.f,
+                     output.fShift,
+                     &pbc_,
+                     lambdas.data(),
+                     output.dvdLambda.data(),
+                     &mdatoms,
+                     &fr,
+                     havePerturbedInteractions,
+                     stepWork,
+                     &output.energy,
+                     ddgatindex.data());
 
             checkOutput(checker, output, flavor);
             auto shiftForcesChecker = checker->checkCompound("Shift-Forces", "Shift-forces");
@@ -377,7 +380,7 @@ protected:
             const int numLambdas = 3;
             for (int i = 0; i < numLambdas; ++i)
             {
-                const real lambda       = i / (numLambdas - 1.0);
+                const real lambda        = i / (numLambdas - 1.0);
                 auto       lambdaChecker = thisChecker.checkCompound("Lambda", toString(lambda));
                 testOneIfunc(&lambdaChecker, lambda);
             }
