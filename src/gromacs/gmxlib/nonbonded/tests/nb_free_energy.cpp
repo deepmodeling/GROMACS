@@ -182,7 +182,7 @@ public:
     /*! \brief Setup interaction_const_t
      *
      * \param[in]  fepVals t_lambda struct of fep values
-     * \parma[out] ic      interaction_const_t pointer with data
+     * \param[out] ic      interaction_const_t pointer with data
      */
     void getInteractionConst(const t_lambda& fepVals, interaction_const_t* ic)
     {
