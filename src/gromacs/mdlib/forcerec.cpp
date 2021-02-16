@@ -71,7 +71,7 @@
 #include "gromacs/mdlib/forcerec_threading.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdlib/md_support.h"
-#include "gromacs/mdlib/rf_util.h"
+#include "gromacs/mdlib/reactionfieldfactors.h"
 #include "gromacs/mdlib/wall.h"
 #include "gromacs/mdlib/wholemoleculetransform.h"
 #include "gromacs/mdtypes/commrec.h"
@@ -905,7 +905,7 @@ static void init_interaction_const(FILE*                 fp,
         GMX_RELEASE_ASSERT(ic->eeltype != eelGRF_NOTUSED, "GRF is no longer supported");
         ic->epsilon_rf = ir->epsilon_rf;
 
-        calc_rffac(fp, ic->epsilon_r, ic->epsilon_rf, ic->rcoulomb, &ic->k_rf, &ic->c_rf);
+        gmx::reactionFieldFactors(fp, ic->epsilon_r, ic->epsilon_rf, ic->rcoulomb, &ic->k_rf, &ic->c_rf);
     }
     else
     {

@@ -158,8 +158,11 @@ struct interaction_const_t
     real epsfac    = 1;
 
     /* Constants for reaction-field or plain cut-off */
+    //! Reaction field dielectric
     real epsilon_rf = 1;
+    //! Reaction field constant
     real k_rf       = 0;
+    //! Reaction field cutoff
     real c_rf       = 0;
 
     // Coulomb Ewald correction table

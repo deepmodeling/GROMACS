@@ -32,19 +32,25 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-#ifndef GMX_MDLIB_RF_UTIL_H
-#define GMX_MDLIB_RF_UTIL_H
+#ifndef GMX_MDLIB_REACTIONFIELDFACTORS_H
+#define GMX_MDLIB_REACTIONFIELDFACTORS_H
 
 #include <cstdio>
 
-#include "gromacs/math/vectypes.h"
 #include "gromacs/utility/real.h"
 
-struct gmx_mtop_t;
-struct t_forcerec;
-struct t_inputrec;
+namespace gmx
+{
 
-void calc_rffac(FILE* fplog, real eps_r, real eps_rf, real Rc, real* krf, real* crf);
-/* Determine the reaction-field constants */
+//! \brief  Determine the reaction-field constants
+//!
+//! \param fplog Handle to write to log, can be nullptr
+//! \param eps_r dielectric constant
+//! \param eps_rf reaction field dielectric constant
+//! \param Rc Coulomb radius
+//! \param krf reaction field cutoff
+//! \param crf reaction field correction
+void reactionFieldFactors(FILE* fplog, real eps_r, real eps_rf, real Rc, real* krf, real* crf);
 
-#endif
+}
+#endif // GMX_MDLIB_REACTIONFIELDFACTORS_H

@@ -43,7 +43,6 @@
 #include "nblib/gmxcalculator.h"
 #include "gromacs/ewald/ewald_utils.h"
 #include "gromacs/gmxlib/nrnb.h"
-#include "gromacs/mdlib/rf_util.h"
 #include "gromacs/mdtypes/enerdata.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/interaction_const.h"

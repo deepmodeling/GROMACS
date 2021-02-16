@@ -1,10 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
- * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -35,48 +32,44 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+/*! \internal \file
+ * \brief Reaction field parameters tests
+ *
+ * \author Joe Jordan <ejjordan@kth.se>
+ * \ingroup module_mdlib
+ */
 #include "gmxpre.h"
 
-#include "rf_util.h"
+#include "config.h"
 
-#include <cmath>
 
-#include "gromacs/math/functions.h"
-#include "gromacs/math/units.h"
-#include "gromacs/math/vec.h"
-#include "gromacs/mdtypes/forcerec.h"
-#include "gromacs/mdtypes/inputrec.h"
-#include "gromacs/mdtypes/md_enums.h"
-#include "gromacs/topology/topology.h"
-#include "gromacs/utility/fatalerror.h"
-#include "gromacs/utility/pleasecite.h"
+#include <gtest/gtest.h>
 
-void calc_rffac(FILE* fplog, real eps_r, real eps_rf, real Rc, real* krf, real* crf)
+#include "gromacs/mdlib/reactionfieldfactors.h"
+
+#include "testutils/testasserts.h"
+
+namespace gmx
 {
-    /* eps == 0 signals infinite dielectric */
-    if (eps_rf == 0)
-    {
-        *krf = 1 / (2 * Rc * Rc * Rc);
-    }
-    else
-    {
-        *krf = (eps_rf - eps_r) / (2 * eps_rf + eps_r) / (Rc * Rc * Rc);
-    }
-    *crf = 1 / Rc + *krf * Rc * Rc;
+namespace test
+{
+namespace
+{
 
-    if (fplog)
-    {
-        fprintf(fplog,
-                "%s:\n"
-                "epsRF = %g, rc = %g, krf = %g, crf = %g, epsfac = %g\n",
-                eel_names[eelRF],
-                eps_rf,
-                Rc,
-                *krf,
-                *crf,
-                ONE_4PI_EPS0 / eps_r);
-        // Make sure we don't lose resolution in pow() by casting real arg to double
-        real rmin = gmx::invcbrt(static_cast<double>(*krf * 2.0));
-        fprintf(fplog, "The electrostatics potential has its minimum at r = %g\n", rmin);
-    }
+class reactionFieldFactorsTest : public ::testing::Test
+{
+};
+
+TEST_F(reactionFieldFactorsTest, ReactionFieldFactorSetupWorks)
+{
+    real cutoff;
+    real correction;
+
+    reactionFieldFactors(nullptr, 1, 1, 1, &cutoff, &correction);
+    EXPECT_EQ(cutoff, 0);
+    EXPECT_EQ(correction, 1);
 }
+
+} // namespace
+} // namespace test
+} // namespace gmx

@@ -45,7 +45,7 @@
 #include "gromacs/gmxlib/nrnb.h"
 #include "gromacs/mdlib/forcerec.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
-#include "gromacs/mdlib/rf_util.h"
+#include "gromacs/mdlib/reactionfieldfactors.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/simulation_workload.h"
@@ -269,12 +269,12 @@ void NbvSetupUtil::setupInteractionConst(const NBKernelOptions& options)
         gmxForceCalculator_->interactionConst_->epsfac = 0;
     }
 
-    calc_rffac(nullptr,
-               gmxForceCalculator_->interactionConst_->epsilon_r,
-               gmxForceCalculator_->interactionConst_->epsilon_rf,
-               gmxForceCalculator_->interactionConst_->rcoulomb,
-               &gmxForceCalculator_->interactionConst_->k_rf,
-               &gmxForceCalculator_->interactionConst_->c_rf);
+    gmx::reactionFieldFactors(nullptr,
+                         gmxForceCalculator_->interactionConst_->epsilon_r,
+                         gmxForceCalculator_->interactionConst_->epsilon_rf,
+                         gmxForceCalculator_->interactionConst_->rcoulomb,
+                         &gmxForceCalculator_->interactionConst_->k_rf,
+                         &gmxForceCalculator_->interactionConst_->c_rf);
 
     if (EEL_PME_EWALD(gmxForceCalculator_->interactionConst_->eeltype))
     {

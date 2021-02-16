@@ -52,6 +52,7 @@
 #include "gromacs/mdlib/force_flags.h"
 #include "gromacs/mdlib/forcerec.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
+#include "gromacs/mdlib/reactionfieldfactors.h"
 #include "gromacs/mdtypes/enerdata.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/interaction_const.h"
@@ -155,9 +156,7 @@ static interaction_const_t setupInteractionConst(const KernelBenchOptions& optio
     ic.rcoulomb         = options.pairlistCutoff;
 
     // Reaction-field with epsilon_rf=inf
-    // TODO: Replace by calc_rffac() after refactoring that
-    ic.k_rf = 0.5 * std::pow(ic.rcoulomb, -3);
-    ic.c_rf = 1 / ic.rcoulomb + ic.k_rf * ic.rcoulomb * ic.rcoulomb;
+    gmx::reactionFieldFactors(nullptr, ic.epsilon_r, ic.epsilon_rf, ic.rcoulomb, &ic.k_rf, &ic.c_rf);
 
     if (EEL_PME_EWALD(ic.eeltype))
     {
