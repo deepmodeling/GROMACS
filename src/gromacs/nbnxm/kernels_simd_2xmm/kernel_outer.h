@@ -426,7 +426,7 @@
                     int  ia;
 
 #    ifdef CALC_COUL_RF
-                    Vc_sub_self = 0.5 * ic->ic->ReactionFieldCoefficients->correction_;
+                    Vc_sub_self = 0.5 * ic->ReactionFieldCoefficients->correction_;
 #    endif
 #    ifdef CALC_COUL_TAB
 #        ifdef TAB_FDV0
