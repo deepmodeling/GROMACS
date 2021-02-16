@@ -270,11 +270,11 @@ void NbvSetupUtil::setupInteractionConst(const NBKernelOptions& options)
     }
 
     gmx::reactionFieldFactors(nullptr,
-                         gmxForceCalculator_->interactionConst_->epsilon_r,
-                         gmxForceCalculator_->interactionConst_->epsilon_rf,
-                         gmxForceCalculator_->interactionConst_->rcoulomb,
-                         &gmxForceCalculator_->interactionConst_->k_rf,
-                         &gmxForceCalculator_->interactionConst_->c_rf);
+                              gmxForceCalculator_->interactionConst_->epsilon_r,
+                              gmxForceCalculator_->interactionConst_->epsilon_rf,
+                              gmxForceCalculator_->interactionConst_->rcoulomb,
+                              &gmxForceCalculator_->interactionConst_->k_rf,
+                              &gmxForceCalculator_->interactionConst_->c_rf);
 
     if (EEL_PME_EWALD(gmxForceCalculator_->interactionConst_->eeltype))
     {

@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -161,9 +161,9 @@ struct interaction_const_t
     //! Reaction field dielectric
     real epsilon_rf = 1;
     //! Reaction field constant
-    real k_rf       = 0;
+    real k_rf = 0;
     //! Reaction field cutoff
-    real c_rf       = 0;
+    real c_rf = 0;
 
     // Coulomb Ewald correction table
     std::unique_ptr<EwaldCorrectionTables> coulombEwaldTables;
