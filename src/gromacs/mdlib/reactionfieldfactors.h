@@ -42,15 +42,25 @@
 namespace gmx
 {
 
-//! \brief  Determine the reaction-field constants
-//!
-//! \param fplog Handle to write to log, can be nullptr
-//! \param eps_r dielectric constant
-//! \param eps_rf reaction field dielectric constant
-//! \param Rc Coulomb radius
-//! \param krf reaction field cutoff
-//! \param crf reaction field correction
-void reactionFieldFactors(FILE* fplog, real eps_r, real eps_rf, real Rc, real* krf, real* crf);
+struct ReactionFieldCoefficients
+{
+    ReactionFieldCoefficients(real dielectric,
+                              real reactionFieldDielectric,
+                              real rCoulomb,
+                              bool useReactionField,
+                              int  coulombModifier);
+
+    void ReactionFieldLog(FILE* fplog, real rCoulomb, real dielectric);
+
+    ~ReactionFieldCoefficients();
+
+    //! Reaction field dielectric
+    real dielectric_ = 1;
+    //! Reaction field constant
+    real constant_ = 0;
+    //! Reaction field cutoff
+    real correction_ = 0;
+};
 
 } // namespace gmx
 #endif // GMX_MDLIB_REACTIONFIELDFACTORS_H

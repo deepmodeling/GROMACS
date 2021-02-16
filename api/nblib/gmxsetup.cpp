@@ -254,8 +254,8 @@ void NbvSetupUtil::setupInteractionConst(const NBKernelOptions& options)
 
     // These are the initialized values but we leave them here so that later
     // these can become options.
-    gmxForceCalculator_->interactionConst_->epsilon_r  = 1.0;
-    gmxForceCalculator_->interactionConst_->epsilon_rf = 1.0;
+    gmxForceCalculator_->interactionConst_->epsilon_r = 1.0;
+    real epsilon_rf                                   = 1.0;
 
     /* Set the Coulomb energy conversion factor */
     if (gmxForceCalculator_->interactionConst_->epsilon_r != 0)
@@ -269,12 +269,12 @@ void NbvSetupUtil::setupInteractionConst(const NBKernelOptions& options)
         gmxForceCalculator_->interactionConst_->epsfac = 0;
     }
 
-    gmx::reactionFieldFactors(nullptr,
-                              gmxForceCalculator_->interactionConst_->epsilon_r,
-                              gmxForceCalculator_->interactionConst_->epsilon_rf,
-                              gmxForceCalculator_->interactionConst_->rcoulomb,
-                              &gmxForceCalculator_->interactionConst_->k_rf,
-                              &gmxForceCalculator_->interactionConst_->c_rf);
+    std::make_unique<gmx::ReactionFieldCoefficients>(
+            gmxForceCalculator_->interactionConst_->epsilon_r,
+            epsilon_rf,
+            gmxForceCalculator_->interactionConst_->rcoulomb,
+            false,
+            gmxForceCalculator_->interactionConst_->coulomb_modifier);
 
     if (EEL_PME_EWALD(gmxForceCalculator_->interactionConst_->eeltype))
     {

@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -190,10 +190,10 @@ void
 #endif
 
 #ifdef CALC_COUL_RF
-    k_rf2 = 2 * ic->k_rf;
+    k_rf2 = 2 * ic->ReactionFieldCoefficients->constant_;
 #    ifdef CALC_ENERGIES
-    k_rf = ic->k_rf;
-    c_rf = ic->c_rf;
+    k_rf = ic->ReactionFieldCoefficients->constant_;
+    c_rf = ic->ReactionFieldCoefficients->correction_;
 #    endif
 #endif
 #ifdef CALC_COUL_TAB

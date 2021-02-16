@@ -46,6 +46,7 @@
 #include <gtest/gtest.h>
 
 #include "gromacs/mdlib/reactionfieldfactors.h"
+#include "gromacs/mdtypes/md_enums.h"
 
 #include "testutils/testasserts.h"
 
@@ -60,14 +61,18 @@ class reactionFieldFactorsTest : public ::testing::Test
 {
 };
 
-TEST_F(reactionFieldFactorsTest, ReactionFieldFactorSetupWorks)
+TEST_F(reactionFieldFactorsTest, ReactionFieldFactorPOTSHIFT)
 {
-    real cutoff;
-    real correction;
+    ReactionFieldCoefficients RFCoeffs(1, 1, 1, false, eintmodPOTSHIFT);
+    EXPECT_EQ(RFCoeffs.constant_, 0);
+    EXPECT_EQ(RFCoeffs.correction_, 1);
+}
 
-    reactionFieldFactors(nullptr, 1, 1, 1, &cutoff, &correction);
-    EXPECT_EQ(cutoff, 0);
-    EXPECT_EQ(correction, 1);
+TEST_F(reactionFieldFactorsTest, ReactionFieldFactorNONE)
+{
+    ReactionFieldCoefficients RFCoeffs(1, 1, 1, false, eintmodNONE);
+    EXPECT_EQ(RFCoeffs.constant_, 0);
+    EXPECT_EQ(RFCoeffs.correction_, 0);
 }
 
 } // namespace

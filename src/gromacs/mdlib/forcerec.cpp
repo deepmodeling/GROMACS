@@ -900,26 +900,12 @@ static void init_interaction_const(FILE*                 fp,
     }
 
     /* Reaction-field */
+    ic->ReactionFieldCoefficients = std::make_unique<gmx::ReactionFieldCoefficients>(
+            ic->epsilon_r, ir->epsilon_rf, ic->rcoulomb, EEL_RF(ic->eeltype), ir->coulomb_modifier);
     if (EEL_RF(ic->eeltype))
     {
         GMX_RELEASE_ASSERT(ic->eeltype != eelGRF_NOTUSED, "GRF is no longer supported");
-        ic->epsilon_rf = ir->epsilon_rf;
-
-        gmx::reactionFieldFactors(fp, ic->epsilon_r, ic->epsilon_rf, ic->rcoulomb, &ic->k_rf, &ic->c_rf);
-    }
-    else
-    {
-        /* For plain cut-off we might use the reaction-field kernels */
-        ic->epsilon_rf = ic->epsilon_r;
-        ic->k_rf       = 0;
-        if (ir->coulomb_modifier == eintmodPOTSHIFT)
-        {
-            ic->c_rf = 1 / ic->rcoulomb;
-        }
-        else
-        {
-            ic->c_rf = 0;
-        }
+        ic->ReactionFieldCoefficients->ReactionFieldLog(fp, ic->epsilon_r, ic->rcoulomb);
     }
 
     initCoulombEwaldParameters(fp, ir, systemHasNetCharge, ic);
@@ -937,7 +923,7 @@ static void init_interaction_const(FILE*                 fp,
 
         if (ic->eeltype == eelCUT)
         {
-            fprintf(fp, ", Coulomb %.e", -ic->c_rf);
+            fprintf(fp, ", Coulomb %.e", -ic->ReactionFieldCoefficients->correction_);
         }
         else if (EEL_PME(ic->eeltype))
         {

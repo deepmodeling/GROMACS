@@ -46,34 +46,61 @@
 namespace gmx
 {
 
-void reactionFieldFactors(FILE* fplog, real eps_r, real eps_rf, real Rc, real* krf, real* crf)
+ReactionFieldCoefficients::ReactionFieldCoefficients(real dielectric,
+                                                     real reactionFieldDielectric,
+                                                     real rCoulomb,
+                                                     bool useReactionField,
+                                                     int  coulombModifier)
 {
-    /* eps == 0 signals infinite dielectric */
-    if (eps_rf == 0)
+    if (useReactionField)
     {
-        *krf = 1 / (2 * Rc * Rc * Rc);
+        real rCoulombCubed = std::pow(rCoulomb, 3);
+        dielectric_        = reactionFieldDielectric;
+
+        /* eps == 0 signals infinite dielectric */
+        if (reactionFieldDielectric == 0)
+        {
+            constant_ = 1 / (2 * rCoulombCubed);
+        }
+        else
+        {
+            constant_ = (reactionFieldDielectric - dielectric)
+                        / (2 * reactionFieldDielectric + dielectric) / rCoulombCubed;
+        }
+        correction_ = 1 / rCoulomb + constant_ * rCoulomb * rCoulomb;
     }
     else
     {
-        *krf = (eps_rf - eps_r) / (2 * eps_rf + eps_r) / (Rc * Rc * Rc);
-    }
-    *crf = 1 / Rc + *krf * Rc * Rc;
-
-    if (fplog)
-    {
-        fprintf(fplog,
-                "%s:\n"
-                "epsRF = %g, rc = %g, krf = %g, crf = %g, epsfac = %g\n",
-                eel_names[eelRF],
-                eps_rf,
-                Rc,
-                *krf,
-                *crf,
-                ONE_4PI_EPS0 / eps_r);
-        // Make sure we don't lose resolution in pow() by casting real arg to double
-        real rmin = gmx::invcbrt(static_cast<double>(*krf * 2.0));
-        fprintf(fplog, "The electrostatics potential has its minimum at r = %g\n", rmin);
+        /* For plain cut-off we might use the reaction-field kernels */
+        dielectric_ = dielectric;
+        constant_   = 0;
+        if (coulombModifier == eintmodPOTSHIFT)
+        {
+            correction_ = 1 / rCoulomb;
+        }
+        else
+        {
+            correction_ = 0;
+        }
     }
 }
+
+void ReactionFieldCoefficients::ReactionFieldLog(FILE* fplog, real rCoulomb, real dielectric)
+{
+    fprintf(fplog,
+            "%s:\n"
+            "epsRF = %g, rc = %g, krf = %g, crf = %g, epsfac = %g\n",
+            eel_names[eelRF],
+            dielectric_,
+            rCoulomb,
+            constant_,
+            correction_,
+            ONE_4PI_EPS0 / dielectric);
+    // Make sure we don't lose resolution in pow() by casting real arg to double
+    real rmin = gmx::invcbrt(static_cast<double>(constant_ * 2.0));
+    fprintf(fplog, "The electrostatics potential has its minimum at r = %g\n", rmin);
+}
+
+ReactionFieldCoefficients::~ReactionFieldCoefficients() = default;
 
 } // namespace gmx

@@ -156,7 +156,8 @@ static interaction_const_t setupInteractionConst(const KernelBenchOptions& optio
     ic.rcoulomb         = options.pairlistCutoff;
 
     // Reaction-field with epsilon_rf=inf
-    gmx::reactionFieldFactors(nullptr, ic.epsilon_r, ic.epsilon_rf, ic.rcoulomb, &ic.k_rf, &ic.c_rf);
+    ic.ReactionFieldCoefficients = std::make_unique<gmx::ReactionFieldCoefficients>(
+            ic.epsilon_r, 1, ic.rcoulomb, false, ic.coulomb_modifier);
 
     if (EEL_PME_EWALD(ic.eeltype))
     {

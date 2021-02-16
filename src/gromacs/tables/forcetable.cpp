@@ -49,6 +49,7 @@
 #include "gromacs/math/units.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"
+#include "gromacs/mdlib/reactionfieldfactors.h"
 #include "gromacs/mdspan/extensions.h"
 #include "gromacs/mdtypes/fcdata.h"
 #include "gromacs/mdtypes/interaction_const.h"
@@ -1042,8 +1043,9 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
                 break;
             case etabRF:
             case etabRF_ZERO:
-                Vtab = 1.0 / r + ic->k_rf * r2 - ic->c_rf;
-                Ftab = 1.0 / r2 - 2 * ic->k_rf * r;
+                Vtab = 1.0 / r + ic->ReactionFieldCoefficients->constant_ * r2
+                       - ic->ReactionFieldCoefficients->correction_;
+                Ftab = 1.0 / r2 - 2 * ic->ReactionFieldCoefficients->constant_ * r;
                 if (tp == etabRF_ZERO && r >= rc)
                 {
                     Vtab = 0;

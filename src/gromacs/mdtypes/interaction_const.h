@@ -46,6 +46,11 @@
 
 struct t_lambda;
 
+namespace gmx
+{
+struct ReactionFieldCoefficients;
+}
+
 /* Used with force switching or a constant potential shift:
  * rsw       = max(r - r_switch, 0)
  * force/p   = r^-(p+1) + c2*rsw^2 + c3*rsw^3
@@ -158,12 +163,7 @@ struct interaction_const_t
     real epsfac    = 1;
 
     /* Constants for reaction-field or plain cut-off */
-    //! Reaction field dielectric
-    real epsilon_rf = 1;
-    //! Reaction field constant
-    real k_rf = 0;
-    //! Reaction field cutoff
-    real c_rf = 0;
+    std::unique_ptr<gmx::ReactionFieldCoefficients> ReactionFieldCoefficients;
 
     // Coulomb Ewald correction table
     std::unique_ptr<EwaldCorrectionTables> coulombEwaldTables;

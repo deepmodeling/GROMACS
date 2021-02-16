@@ -71,6 +71,7 @@
 #include "gromacs/mdlib/force_flags.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdlib/mdatoms.h"
+#include "gromacs/mdlib/reactionfieldfactors.h"
 #include "gromacs/mdlib/tgroup.h"
 #include "gromacs/mdlib/update.h"
 #include "gromacs/mdlib/vsite.h"
@@ -144,13 +145,15 @@ static real reactionFieldExclusionCorrection(gmx::ArrayRef<const gmx::RVec> x,
     for (int i = beginAtom; i < mdatoms.homenr; i++)
     {
         const real qi = mdatoms.chargeA[i];
-        energy -= 0.5 * qi * qi * ic.c_rf;
+        energy -= 0.5 * qi * qi * ic.ReactionFieldCoefficients->correction_;
 
         for (int j = i + 1; j < mdatoms.homenr; j++)
         {
             const real qj  = mdatoms.chargeA[j];
             const real rsq = distance2(x[i], x[j]);
-            energy += qi * qj * (ic.k_rf * rsq - ic.c_rf);
+            energy += qi * qj
+                      * (ic.ReactionFieldCoefficients->constant_ * rsq
+                         - ic.ReactionFieldCoefficients->correction_);
         }
     }
 

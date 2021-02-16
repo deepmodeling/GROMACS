@@ -50,6 +50,7 @@
 #include "gromacs/gmxlib/nonbonded/nonbonded.h"
 #include "gromacs/math/functions.h"
 #include "gromacs/math/vec.h"
+#include "gromacs/mdlib/reactionfieldfactors.h"
 #include "gromacs/mdtypes/forceoutput.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/interaction_const.h"
@@ -261,8 +262,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     // Extract data from interaction_const_t
     const real facel           = ic->epsfac;
     const real rCoulomb        = ic->rcoulomb;
-    const real krf             = ic->k_rf;
-    const real crf             = ic->c_rf;
+    const real krf             = ic->ReactionFieldCoefficients->constant_;
+    const real crf             = ic->ReactionFieldCoefficients->correction_;
     const real shLjEwald       = ic->sh_lj_ewald;
     const real rVdw            = ic->rvdw;
     const real dispersionShift = ic->dispersion_shift.cpot;
