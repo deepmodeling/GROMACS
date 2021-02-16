@@ -94,18 +94,18 @@ private:
 };
 
 
-//! \brief Mean Squared Displacement data accumulator
-//!
-//! This class is used to accumulate individual MSD data points
-//! and emit tau-averaged results once data is finished collecting.
-//!
-//! Data columns per tau are accessed via operator[], which always guarantees
-//! a column is initialized and returns a proxy to the column that can push data.
+/*! \brief Mean Squared Displacement data accumulator
+ *
+ * This class is used to accumulate individual MSD data points
+ * and emit tau-averaged results once data is finished collecting.
+ *
+ * Data columns per tau are accessed via operator[], which always guarantees
+ * a column is initialized and returns a proxy to the column that can push data.
+ */
 class MsdData
 {
 public:
-    //! Returns a proxy to the column for the given tau index. Guarantees that the column
-    //! is initialized.
+    //! Returns a proxy to the column for the given tau index. Guarantees that the column is initialized.
     MsdColumnProxy operator[](size_t index)
     {
         if (msds_.size() <= index)
@@ -114,12 +114,13 @@ public:
         }
         return MsdColumnProxy(msds_[index]);
     }
-    //! \brief Compute per-tau MSDs averaged over all added points.
-    //!
-    //! The resulting vector is size(max tau index). Any indices
-    //! that have no data points have MSD set to 0.
-    //!
-    //! \return Average MSD per tau
+    /*! \brief Compute per-tau MSDs averaged over all added points.
+     *
+     * The resulting vector is size(max tau index). Any indices
+     * that have no data points have MSD set to 0.
+     *
+     * \return Average MSD per tau
+     */
     [[nodiscard]] std::vector<real> averageMsds() const;
 
 private:
@@ -145,16 +146,17 @@ std::vector<real> MsdData::averageMsds() const
     return msdSums;
 }
 
-//! \brief Calculates 1,2, or 3D distance for two vectors.
-//!
-//! \todo Remove NOLINTs once clang-tidy is updated to v11, it should be able to handle constexpr.
-//!
-//! \tparam x If true, calculate x dimension of displacement
-//! \tparam y If true, calculate y dimension of displacement
-//! \tparam z If true, calculate z dimension of displacement
-//! \param c1 First point
-//! \param c2 Second point
-//! \return Euclidian distance for the given dimension.
+/*! \brief Calculates 1,2, or 3D distance for two vectors.
+ *
+ * \todo Remove NOLINTs once clang-tidy is updated to v11, it should be able to handle constexpr.
+ *
+ * \tparam x If true, calculate x dimension of displacement
+ * \tparam y If true, calculate y dimension of displacement
+ * \tparam z If true, calculate z dimension of displacement
+ * \param c1 First point
+ * \param c2 Second point
+ * \return Euclidian distance for the given dimension.
+ */
 template<bool x, bool y, bool z>
 inline double calcSingleSquaredDistance(const RVec c1, const RVec c2)
 {
@@ -176,18 +178,19 @@ inline double calcSingleSquaredDistance(const RVec c1, const RVec c2)
     return result; // NOLINT
 }
 
-//! \brief Calculate average displacement between sets of points
-//!
-//! Each displacement c1[i] - c2[i] is calculated and the distances
-//! are averaged.
-//!
-//! \tparam x If true, calculate x dimension of displacement
-//! \tparam y If true, calculate y dimension of displacement
-//! \tparam z If true, calculate z dimension of displacement
-//! \param c1 First vector
-//! \param c2 Second vector
-//! \param num_vals
-//! \return Per-particle averaged distance
+/*! \brief Calculate average displacement between sets of points
+ *
+ * Each displacement c1[i] - c2[i] is calculated and the distances
+ * are averaged.
+ *
+ * \tparam x If true, calculate x dimension of displacement
+ * \tparam y If true, calculate y dimension of displacement
+ * \tparam z If true, calculate z dimension of displacement
+ * \param c1 First vector
+ * \param c2 Second vector
+ * \param num_vals
+ * \return Per-particle averaged distance
+ */
 template<bool x, bool y, bool z>
 double calcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
 {
@@ -229,13 +232,11 @@ struct MsdGroupData
     //! Selection associated with this group.
     const Selection& sel;
 
-    // Coordinate storage
     //! Stored coordinates, indexed by frame then atom number.
     std::vector<std::vector<RVec>> frames;
     //! Frame n-1 - used for removing PBC jumps.
     std::vector<RVec> previousFrame;
 
-    // Result accumulation and calculation
     //! MSD result accumulator
     MsdData msds;
     //! Collector for processed MSD averages per tau
@@ -249,6 +250,7 @@ struct MsdGroupData
 //! Holds data needed for MSD calculations for a single molecule, if requested.
 struct MoleculeData
 {
+    //! Number of atoms in the molecule.
     int atomCount = 0;
     //! Total mass.
     double mass = 0;
@@ -260,15 +262,16 @@ struct MoleculeData
 
 } // namespace
 
-//! \brief Implements the gmx msd module
-//!
-//! \todo Implement -(no)mw. Right now, all calculations are mass-weighted with -mol, and not otherwise
-//! \todo Implement -tensor for full MSD tensor calculation
-//! \todo Implement -rmcomm for total-frame COM removal
-//! \todo Implement -pdb for molecule B factors
-//! \todo Implement -maxtau option proposed at https://gitlab.com/gromacs/gromacs/-/issues/3870
-//! \todo Update help text as options are added and clarifications decided on at https://gitlab.com/gromacs/gromacs/-/issues/3869
-class Msd : public TrajectoryAnalysisModule
+/*! \brief Implements the gmx msd module
+ *
+ * \todo Implement -(no)mw. Right now, all calculations are mass-weighted with -mol, and not otherwise
+ * \todo Implement -tensor for full MSD tensor calculation
+ * \todo Implement -rmcomm for total-frame COM removal
+ * \todo Implement -pdb for molecule B factors
+ * \todo Implement -maxtau option proposed at https://gitlab.com/gromacs/gromacs/-/issues/3870
+ * \todo Update help text as options are added and clarifications decided on at https://gitlab.com/gromacs/gromacs/-/issues/3869
+ */
+ class Msd : public TrajectoryAnalysisModule
 {
 public:
     Msd();
@@ -288,7 +291,6 @@ private:
     //! Selections for MSD output
     SelectionList selections_;
 
-    // MSD dimensionality related quantities
     //! MSD type information, for -type {x,y,z}
     SingleDimDiffType singleDimType_ = SingleDimDiffType::Unused;
     //! MSD type information, for -lateral {x,y,z}
@@ -512,11 +514,13 @@ void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings gmx_unused& setti
     }
 }
 
-//! Constructs the coordinates to calculate MSDs for a given selection. If individual molecules
-//! are requested, molecular center-of-masses are returned.
+/*! \brief Constructs the coordinates to calculate MSDs for a given selection.
+ *
+ * If individual molecules are requested, molecular center-of-masses are returned.
+ */
 static std::vector<RVec> buildCoordinates(const Selection&             sel,
-                                          ArrayRef<const MoleculeData> molecules,
-                                          ArrayRef<const int>          moleculeIndexMapping)
+                                      ArrayRef<const MoleculeData> molecules,
+                                      ArrayRef<const int>          moleculeIndexMapping)
 {
     // If not molecule based, we work on the individual coordinates of the selection.
     if (molecules.empty())
@@ -546,8 +550,9 @@ static std::vector<RVec> buildCoordinates(const Selection&             sel,
     return moleculePositions;
 }
 
-//! Removes jumps across periodic boundaries for currentFrame, based on the positions in
-//! previousFrame. Updates currentCoords in place.
+/*! \brief Removes jumps across periodic boundaries for currentFrame, based on the positions in
+ * previousFrame. Updates currentCoords in place.
+ */
 static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> previousCoords, t_pbc* pbc)
 {
     // There are two types of "pbc removal" in gmx msd. The first happens in the trajectoryanalysis
@@ -633,9 +638,9 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
 
 //! Calculate the tau index for fitting. If userFitTau < 0, uses the default fraction of max tau.
 static size_t calculateFitIndex(const int    userFitTau,
-                                const double defaultTauFraction,
-                                const int    numTaus,
-                                const double dt)
+                            const double defaultTauFraction,
+                            const int    numTaus,
+                            const double dt)
 {
     if (userFitTau < 0)
     {
