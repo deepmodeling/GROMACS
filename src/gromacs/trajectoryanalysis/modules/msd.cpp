@@ -271,7 +271,7 @@ struct MoleculeData
  * \todo Implement -maxtau option proposed at https://gitlab.com/gromacs/gromacs/-/issues/3870
  * \todo Update help text as options are added and clarifications decided on at https://gitlab.com/gromacs/gromacs/-/issues/3869
  */
- class Msd : public TrajectoryAnalysisModule
+class Msd : public TrajectoryAnalysisModule
 {
 public:
     Msd();
@@ -316,8 +316,6 @@ private:
     //! All selection group-specific data stored here.
     std::vector<MsdGroupData> groupData_;
 
-    //! Time of stored frames only.
-    std::vector<double> frameTimes_;
     //! Time of all frames.
     std::vector<double> times_;
     //! Taus for output - won't know the size until the end.
@@ -519,8 +517,8 @@ void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings gmx_unused& setti
  * If individual molecules are requested, molecular center-of-masses are returned.
  */
 static std::vector<RVec> buildCoordinates(const Selection&             sel,
-                                      ArrayRef<const MoleculeData> molecules,
-                                      ArrayRef<const int>          moleculeIndexMapping)
+                                          ArrayRef<const MoleculeData> molecules,
+                                          ArrayRef<const int>          moleculeIndexMapping)
 {
     // If not molecule based, we work on the individual coordinates of the selection.
     if (molecules.empty())
@@ -586,10 +584,6 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
 
     // Each frame gets an entry in times, but frameTimes only updates if we're at a restart.
     times_.push_back(time);
-    if (bRmod(time, t0_, trestart_))
-    {
-        frameTimes_.push_back(time);
-    }
 
     // Each frame will get a tau between it and frame 0, and all other frame combos should be
     // covered by this.
@@ -615,7 +609,8 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
         // For each preceding frame, calculate tau and do comparison.
         for (size_t i = 0; i < msdData.frames.size(); i++)
         {
-            double  tau      = time - frameTimes_[i];
+            // If dt > trestart, the tau increment will be dt rather than trestart.
+            double  tau      = time - (t0_ + std::max<double>(trestart_, *dt_) * i);
             int64_t tauIndex = gmx::roundToInt64(tau / *dt_);
             msdData.msds[tauIndex].push_back(
                     calcMsd_(coords.data(), msdData.frames[i].data(), coords.size()));
@@ -638,9 +633,9 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
 
 //! Calculate the tau index for fitting. If userFitTau < 0, uses the default fraction of max tau.
 static size_t calculateFitIndex(const int    userFitTau,
-                            const double defaultTauFraction,
-                            const int    numTaus,
-                            const double dt)
+                                const double defaultTauFraction,
+                                const int    numTaus,
+                                const double dt)
 {
     if (userFitTau < 0)
     {
