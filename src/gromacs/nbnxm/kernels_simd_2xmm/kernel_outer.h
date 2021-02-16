@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -219,10 +219,10 @@
 
 #ifdef CALC_COUL_RF
     /* Reaction-field constants */
-    mrc_3_S = SimdReal(-2 * ic->k_rf);
+    mrc_3_S = SimdReal(-2 * ic->ReactionFieldCoefficients->constant_);
 #    ifdef CALC_ENERGIES
-    hrc_3_S  = SimdReal(ic->k_rf);
-    moh_rc_S = SimdReal(-ic->c_rf);
+    hrc_3_S  = SimdReal(ic->ReactionFieldCoefficients->constant_);
+    moh_rc_S = SimdReal(-ic->ReactionFieldCoefficients->correction_);
 #    endif
 #endif
 

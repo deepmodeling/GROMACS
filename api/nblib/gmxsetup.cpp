@@ -269,12 +269,13 @@ void NbvSetupUtil::setupInteractionConst(const NBKernelOptions& options)
         gmxForceCalculator_->interactionConst_->epsfac = 0;
     }
 
-    std::make_unique<gmx::ReactionFieldCoefficients>(
-            gmxForceCalculator_->interactionConst_->epsilon_r,
-            epsilon_rf,
-            gmxForceCalculator_->interactionConst_->rcoulomb,
-            false,
-            gmxForceCalculator_->interactionConst_->coulomb_modifier);
+    gmxForceCalculator_->interactionConst_->ReactionFieldCoefficients =
+            std::make_unique<gmx::ReactionFieldCoefficients>(
+                    gmxForceCalculator_->interactionConst_->epsilon_r,
+                    epsilon_rf,
+                    gmxForceCalculator_->interactionConst_->rcoulomb,
+                    false,
+                    gmxForceCalculator_->interactionConst_->coulomb_modifier);
 
     if (EEL_PME_EWALD(gmxForceCalculator_->interactionConst_->eeltype))
     {
