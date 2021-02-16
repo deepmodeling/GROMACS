@@ -41,6 +41,9 @@
 #ifdef CALC_COUL_EWALD
 #    include "gromacs/math/utilities.h"
 #endif
+#ifdef CALC_COUL_RF
+#    include "gromacs/mdlib/reactionfieldfactors.h"
+#endif
 
 #include "config.h"
 
