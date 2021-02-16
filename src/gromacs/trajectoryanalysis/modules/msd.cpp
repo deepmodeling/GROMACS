@@ -223,6 +223,122 @@ enum class TwoDimDiffType : int
     Count,
 };
 
+/*! \brief Removes jumps across periodic boundaries for currentFrame, based on the positions in
+ * previousFrame. Updates currentCoords in place.
+ */
+void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> previousCoords, t_pbc* pbc)
+{
+    // There are two types of "pbc removal" in gmx msd. The first happens in the trajectoryanalysis
+    // framework, which makes molecules whole across periodic boundaries and is done
+    // automatically where the inputs support it. This lambda performs the second PBC correction, where
+    // any "jump" across periodic boundaries BETWEEN FRAMES is put back. The order of these
+    // operations is important - since the first transformation may only apply to part of a
+    // molecule (e.g., one half in/out of the box is put on one side of the box), the
+    // subsequent step needs to be applied to the molecule COM rather than individual atoms, or
+    // we'd have a clash where the per-mol PBC removal moves an atom that gets put back into
+    // it's original position by the second transformation. Therefore, this second transformation
+    // is applied *after* per molecule coordinates have been consolidated into COMs.
+    auto pbcRemover = [pbc](RVec in, RVec prev) {
+        rvec dx;
+        pbc_dx(pbc, in, prev, dx);
+        return prev + dx;
+    };
+    std::transform(
+            currentCoords.begin(), currentCoords.end(), previousCoords.begin(), currentCoords.begin(), pbcRemover);
+}
+
+//! Holds data needed for MSD calculations for a single molecule, if requested.
+struct MoleculeData
+{
+    //! Number of atoms in the molecule.
+    int atomCount = 0;
+    //! Total mass.
+    double mass = 0;
+    //! MSD accumulator and calculator for the molecule
+    MsdData msdData;
+    //! Calculated diffusion coefficient
+    real diffusionCoefficient = 0;
+};
+
+/*! \brief Handles coordinate operations for MSD calculations.
+ *
+ * Can be used to hold coordinates for individual atoms as well as molecules COMs. Handles PBC
+ * jump removal between consecutive frames.
+ */
+class MsdCoordinateManager
+{
+public:
+    /*! \brief Prepares coordinates for the current frame.
+     *
+     * Reads in selection data, and returns an ArrayRef of the particle positions or molecule centers
+     * of mass (if the molecules input is not empty). Removes jumps across periodic boundaries based
+     * on the previous frame coordinates, except for the first frame built with builtCoordinates(),
+     * which has no previous frame as a reference.
+     *
+     * @param sel                   The selection object which holds coordinates
+     * @param molecules             Per-molecule description of atom counts and masses
+     * @param moleculeIndexMapping  Mapping of atom index to molecule index.
+     * @return                      The current frames coordinates in proper format.
+     */
+    ArrayRef<const RVec> buildCoordinates(const Selection&             sel,
+                                          ArrayRef<const MoleculeData> molecules,
+                                          ArrayRef<const int>          moleculeIndexMapping,
+                                          t_pbc*                       pbc);
+
+private:
+    //! The current coordinates.
+    std::vector<RVec> current_;
+    //! The previous frame's coordinates.
+    std::vector<RVec> previous_;
+};
+
+ArrayRef<const RVec> MsdCoordinateManager::buildCoordinates(const Selection&             sel,
+                                                            ArrayRef<const MoleculeData> molecules,
+                                                            ArrayRef<const int> moleculeIndexMapping,
+                                                            t_pbc*              pbc)
+{
+    if (current_.empty())
+    {
+        current_.resize(molecules.empty() ? sel.posCount() : molecules.size());
+    }
+
+    if (molecules.empty())
+    {
+        std::copy(sel.coordinates().begin(), sel.coordinates().end(), current_.begin());
+    }
+    else
+    {
+        // Prepare for molecule COM calculation, then sum up all positions per molecule.
+
+        std::fill(current_.begin(), current_.end(), RVec(0, 0, 0));
+        gmx::ArrayRef<const real> masses = sel.masses();
+        for (int i = 0; i < sel.posCount(); i++)
+        {
+            const int moleculeIndex = moleculeIndexMapping[i];
+            // accumulate ri * mi, and do division at the end to minimize number of divisions.
+            current_[moleculeIndex] += RVec(sel.position(i).x()) * masses[i];
+        }
+        // Divide accumulated mass * positions to get COM, reaccumulate in mol_masses.
+        std::transform(current_.begin(),
+                       current_.end(),
+                       molecules.begin(),
+                       current_.begin(),
+                       [](const RVec& position, const MoleculeData& molecule) -> RVec {
+                           return position / molecule.mass;
+                       });
+    }
+
+    if (!previous_.empty())
+    {
+        removePbcJumps(current_, previous_, pbc);
+    }
+
+    // Previous is no longer needed, swap with current and return "current" coordinates which
+    // now reside in previous.
+    current_.swap(previous_);
+    return previous_;
+}
+
 
 //! Holds per-group coordinates, analysis, and results.
 struct MsdGroupData
@@ -239,25 +355,14 @@ struct MsdGroupData
 
     //! MSD result accumulator
     MsdData msds;
+    //! Coordinate handler for the group.
+    MsdCoordinateManager coordinateManager_;
     //! Collector for processed MSD averages per tau
     std::vector<real> msdSums;
     //! Fitted diffusion coefficient
     real diffusionCoefficient = 0.0;
     //! Uncertainty of diffusion coefficient
     double sigma = 0.0;
-};
-
-//! Holds data needed for MSD calculations for a single molecule, if requested.
-struct MoleculeData
-{
-    //! Number of atoms in the molecule.
-    int atomCount = 0;
-    //! Total mass.
-    double mass = 0;
-    //! MSD accumulator and calculator for the molecule
-    MsdData msdData;
-    //! Calculated diffusion coefficient
-    real diffusionCoefficient = 0;
 };
 
 } // namespace
@@ -512,68 +617,11 @@ void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings gmx_unused& setti
     }
 }
 
-/*! \brief Constructs the coordinates to calculate MSDs for a given selection.
- *
- * If individual molecules are requested, molecular center-of-masses are returned.
- */
-static std::vector<RVec> buildCoordinates(const Selection&             sel,
-                                          ArrayRef<const MoleculeData> molecules,
-                                          ArrayRef<const int>          moleculeIndexMapping)
-{
-    // If not molecule based, we work on the individual coordinates of the selection.
-    if (molecules.empty())
-    {
-        return { sel.coordinates().begin(), sel.coordinates().end() };
-    }
-    // Do COM gathering for group 0 to get mol stuff. Note that per-molecule PBC removal is
-    // already done. First create a clear buffer.
-    std::vector<RVec> moleculePositions(molecules.size(), { 0.0, 0.0, 0.0 });
 
-    // Sum up all positions
-    gmx::ArrayRef<const real> masses = sel.masses();
-    for (int i = 0; i < sel.posCount(); i++)
-    {
-        const int moleculeIndex = moleculeIndexMapping[i];
-        // accumulate ri * mi, and do division at the end to minimize number of divisions.
-        moleculePositions[moleculeIndex] += RVec(sel.position(i).x()) * masses[i];
-    }
-    // Divide accumulated mass * positions to get COM, reaccumulate in mol_masses.
-    std::transform(moleculePositions.begin(),
-                   moleculePositions.end(),
-                   molecules.begin(),
-                   moleculePositions.begin(),
-                   [](const RVec& position, const MoleculeData& molecule) -> RVec {
-                       return position / molecule.mass;
-                   });
-    return moleculePositions;
-}
-
-/*! \brief Removes jumps across periodic boundaries for currentFrame, based on the positions in
- * previousFrame. Updates currentCoords in place.
- */
-static void removePbcJumps(ArrayRef<RVec> currentCoords, ArrayRef<const RVec> previousCoords, t_pbc* pbc)
-{
-    // There are two types of "pbc removal" in gmx msd. The first happens in the trajectoryanalysis
-    // framework, which makes molecules whole across periodic boundaries and is done
-    // automatically where the inputs support it. This lambda performs the second PBC correction, where
-    // any "jump" across periodic boundaries BETWEEN FRAMES is put back. The order of these
-    // operations is important - since the first transformation may only apply to part of a
-    // molecule (e.g., one half in/out of the box is put on one side of the box), the
-    // subsequent step needs to be applied to the molecule COM rather than individual atoms, or
-    // we'd have a clash where the per-mol PBC removal moves an atom that gets put back into
-    // it's original position by the second transformation. Therefore, this second transformation
-    // is applied *after* per molecule coordinates have been consolidated into COMs.
-    auto pbcRemover = [pbc](RVec in, RVec prev) {
-        rvec dx;
-        pbc_dx(pbc, in, prev, dx);
-        return prev + dx;
-    };
-    std::transform(
-            currentCoords.begin(), currentCoords.end(), previousCoords.begin(), currentCoords.begin(), pbcRemover);
-}
-
-
-void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, TrajectoryAnalysisModuleData* pdata)
+void Msd::analyzeFrame(int gmx_unused                frameNumber,
+                       const t_trxframe&             frame,
+                       t_pbc*                        pbc,
+                       TrajectoryAnalysisModuleData* pdata)
 {
     const real time = std::round(frame.time);
     // Need to populate dt on frame 2;
@@ -595,16 +643,8 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
         //NOLINTNEXTLINE(readability-static-accessed-through-instance)
         const Selection& sel = pdata->parallelSelection(msdData.sel);
 
-        std::vector<RVec> coords = buildCoordinates(sel, molecules_, moleculeIndexMappings_);
-
-        if (frameNumber > 0)
-        {
-            removePbcJumps(coords, msdData.previousFrame, pbc);
-        }
-
-        // Update "previous frame" for next rounds pbc handling. Note that for msd mol these coords
-        // are actually the molecule COM.
-        std::copy(coords.begin(), coords.end(), msdData.previousFrame.begin());
+        ArrayRef<const RVec> coords = msdData.coordinateManager_.buildCoordinates(
+                sel, molecules_, moleculeIndexMappings_, pbc);
 
         // For each preceding frame, calculate tau and do comparison.
         for (size_t i = 0; i < msdData.frames.size(); i++)
@@ -626,7 +666,7 @@ void Msd::analyzeFrame(int frameNumber, const t_trxframe& frame, t_pbc* pbc, Tra
         // We only store the frame for the future if it's a restart per -trestart.
         if (bRmod(time, t0_, trestart_))
         {
-            msdData.frames.push_back(std::move(coords));
+            msdData.frames.emplace_back(coords.begin(), coords.end());
         }
     }
 }
