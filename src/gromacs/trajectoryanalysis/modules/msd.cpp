@@ -725,12 +725,12 @@ void Msd::writeOutput()
         if (D > 0.01 && D < 1e4)
         {
             msdPlotModule->appendLegend(formatString(
-                    "D[%10s] = %.4f (+/- %.4f) (1e-5 cm^2/s)\n", group.sel.name(), D, group.sigma));
+                    "D[%10s] = %.4f (+/- %.4f) (1e-5 cm^2/s)", group.sel.name(), D, group.sigma));
         }
         else
         {
             msdPlotModule->appendLegend(formatString(
-                    "D[%10s] = %.4g (+/- %.4f) (1e-5 cm^2/s)\n", group.sel.name(), D, group.sigma));
+                    "D[%10s] = %.4g (+/- %.4f) (1e-5 cm^2/s)", group.sel.name(), D, group.sigma));
         }
     }
     msdPlotData_.addModule(msdPlotModule);
@@ -758,11 +758,11 @@ void Msd::writeOutput()
         molPlotModule->setFileName(moleculeOutput_);
         molPlotModule->setTitle("Mean Squared Displacement / Molecule");
         molPlotModule->setXLabel("Molecule");
-        molPlotModule->setYLabel("D(1e-5 cm^2/s");
-        molPlotModule->setYFormat(10, 6, 'g');
-        msdMoleculePlotData_.addModule(msdPlotModule);
+        molPlotModule->setYLabel("D(1e-5 cm^2/s)");
+        molPlotModule->setYFormat(10, 0, 'g');
+        msdMoleculePlotData_.addModule(molPlotModule);
         msdMoleculePlotData_.setDataSetCount(1);
-        msdPlotData_.setColumnCount(0, 1);
+        msdMoleculePlotData_.setColumnCount(0, 1);
         AnalysisDataHandle molDh = msdMoleculePlotData_.startData({});
         for (size_t moleculeIndex = 0; moleculeIndex < molecules_.size(); moleculeIndex++)
         {

@@ -101,13 +101,6 @@ public:
         int                  rowCount = 0;
         while (stream->readLine(&line))
         {
-            // Comments that report coefficients / fitting
-            if (startsWith(line, "# D[") || contains(line, "MSD gathered over")
-                || contains(line, "Diffusion constants fitted from time"))
-            {
-                dCoefficientChecker.checkString(stripString(line.substr(1)), nullptr);
-                continue;
-            }
             // Legend and titles.
             if (isRelevantXvgHeader(line))
             {
