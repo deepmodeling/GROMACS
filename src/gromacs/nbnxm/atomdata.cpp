@@ -606,7 +606,7 @@ static void nbnxn_atomdata_params_init(const gmx::MDLogger&      mdlog,
     if (!simple)
     {
         // We now check for energy groups already when starting mdrun
-        GMX_RELEASE_ASSERT(n_energygroups == 1, "GPU kernels do not support energy groups");
+        // GMX_RELEASE_ASSERT(n_energygroups == 1, "GPU kernels do not support energy groups");
     }
     /* Temporary storage goes as #grp^3*simd_width^2/2, so limit to 64 */
     if (params->nenergrp > 64)

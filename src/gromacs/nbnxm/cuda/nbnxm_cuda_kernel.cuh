@@ -222,6 +222,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
     unsigned int widx  = tidx / warp_size; /* warp index */
 
     int          sci, ci, cj, ai, aj, cij4_start, cij4_end;
+    int          egp_mask, egp_ind;
+    int          egp_sh_j[8], egp_sh_i[8];
+    egp_mask = (1 << atdat.neg_2log) - 1;
 #    ifndef LJ_COMB
     int          typei, typej;
 #    endif
@@ -402,6 +405,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
                     cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
                     aj = cj * c_clSize + tidxj;
+                    egp_sh_j[tidxj] = ((atdat.energrp[cj] >> (tidxj * atdat.neg_2log)) & egp_mask);
 
                     /* load j atom data */
                     xqbuf = xq[aj];
@@ -423,6 +427,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                         if (imask & mask_ji)
                         {
                             ci = sci * c_numClPerSupercl + i; /* i cluster index */
+                            egp_sh_i[tidxi] = (atdat.energrp[ci] >> (tidxi * atdat.neg_2log)) & egp_mask;
+                            egp_ind = egp_sh_j[tidxj] * atdat.nenergrp + egp_sh_i[tidxi];
 
                             /* all threads load an atom from i cluster ci into shmem! */
                             xqbuf = xqib[i * c_clSize + tidxi];
@@ -453,6 +459,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                             {
                                 /* load the rest of the i-atom parameters */
                                 qi = xqbuf.w;
+                                printf("egp_i=%d, qi=%e, egp_j=%d, qj=%e\n", egp_sh_i[tidxi], qi, egp_sh_j[tidxj], qj_f);
 
 #    ifndef LJ_COMB
                                 /* LJ 6*C6 and 12*C12 */

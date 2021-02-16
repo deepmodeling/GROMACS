@@ -500,7 +500,8 @@ static bool gpuAccelerationOfNonbondedIsUseful(const MDLogger& mdlog, const t_in
         /* The GPU code does not support more than one energy group.
          * If the user requested GPUs explicitly, a fatal error is given later.
          */
-        gpuIsUseful = false;
+        // gpuIsUseful = false;
+        gpuIsUseful = true;
         warning =
                 "Multiple energy groups is not implemented for GPUs, falling back to the CPU. "
                 "For better performance, run on the GPU without energy groups and then do "

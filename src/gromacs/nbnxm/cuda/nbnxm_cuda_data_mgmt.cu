@@ -633,6 +633,12 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
         timers->atdat.openTimingRegion(ls);
     }
 
+    if (nbat->params().nenergrp > 1)
+    {
+        d_atdat->nenergrp = nbat->params().nenergrp;
+        d_atdat->neg_2log = nbat->params().neg_2log;
+    }
+
     /* need to reallocate if we have to copy more atoms than the amount of space
        available and only allocate if we haven't initialized yet, i.e d_atdat->natoms == -1 */
     if (natoms > d_atdat->nalloc)
@@ -646,6 +652,7 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->xq);
             freeDeviceBuffer(&d_atdat->atom_types);
             freeDeviceBuffer(&d_atdat->lj_comb);
+            freeDeviceBuffer(&d_atdat->energrp);
         }
 
         stat = cudaMalloc((void**)&d_atdat->f, nalloc * sizeof(*d_atdat->f));
@@ -661,6 +668,11 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
         {
             stat = cudaMalloc((void**)&d_atdat->atom_types, nalloc * sizeof(*d_atdat->atom_types));
             CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_types");
+        }
+        if (nbat->params().nenergrp > 1)
+        {
+            stat = cudaMalloc((void**)&d_atdat->energrp, nalloc * sizeof(*d_atdat->energrp));
+            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->energrp");
         }
 
         d_atdat->nalloc = nalloc;
@@ -685,6 +697,12 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
     {
         cu_copy_H2D_async(d_atdat->atom_types, nbat->params().type.data(),
                           natoms * sizeof(*d_atdat->atom_types), ls);
+    }
+
+    if (nbat->params().nenergrp > 1)
+    {
+        cu_copy_H2D_async(d_atdat->energrp, nbat->params().energrp.data(),
+                          natoms * sizeof(*d_atdat->energrp), ls);
     }
 
     if (bDoTime)
@@ -757,6 +775,7 @@ void gpu_free(gmx_nbnxn_cuda_t* nb)
     freeDeviceBuffer(&atdat->xq);
     freeDeviceBuffer(&atdat->atom_types);
     freeDeviceBuffer(&atdat->lj_comb);
+    freeDeviceBuffer(&atdat->energrp);
 
     /* Free plist */
     auto* plist = nb->plist[InteractionLocality::Local];
