@@ -270,10 +270,10 @@ class MsdCoordinateManager
 public:
     /*! \brief Prepares coordinates for the current frame.
      *
-     * Reads in selection data, and returns an ArrayRef of the particle positions or molecule centers
-     * of mass (if the molecules input is not empty). Removes jumps across periodic boundaries based
-     * on the previous frame coordinates, except for the first frame built with builtCoordinates(),
-     * which has no previous frame as a reference.
+     * Reads in selection data, and returns an ArrayRef of the particle positions or molecule
+     * centers of mass (if the molecules input is not empty). Removes jumps across periodic
+     * boundaries based on the previous frame coordinates, except for the first frame built with
+     * builtCoordinates(), which has no previous frame as a reference.
      *
      * @param sel                   The selection object which holds coordinates
      * @param molecules             Per-molecule description of atom counts and masses
@@ -564,11 +564,11 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     }
 
     // Enumeration helpers for dispatching the right MSD calculation type.
-    const EnumerationArray<SingleDimDiffType, std::function<double(const RVec*, const RVec*, int)>>
-            oneDimensionalMsdFunctions = { calcAverageDisplacement<true, false, false>,
-                                           calcAverageDisplacement<false, true, false>,
-                                           calcAverageDisplacement<false, false, true> };
-    const EnumerationArray<TwoDimDiffType, std::function<double(const RVec*, const RVec*, int)>>
+    const EnumerationArray<SingleDimDiffType, decltype(&calcAverageDisplacement<true, true, true>)>
+            oneDimensionalMsdFunctions = { &calcAverageDisplacement<true, false, false>,
+                                           &calcAverageDisplacement<false, true, false>,
+                                           &calcAverageDisplacement<false, false, true> };
+    const EnumerationArray<TwoDimDiffType, decltype(&calcAverageDisplacement<true, true, true>)>
             twoDimensionalMsdFunctions = { calcAverageDisplacement<false, true, true>,
                                            calcAverageDisplacement<true, false, true>,
                                            calcAverageDisplacement<true, true, false> };
