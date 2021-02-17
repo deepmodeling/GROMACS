@@ -240,10 +240,10 @@ void nbnxn_kernel_gpu_ref(const NbnxnPairlistGpu*    nbl,
                                 else
                                 {
                                     const real  r    = rsq * rinv;
-                                    const real  rt   = r * iconst->coulombEwaldTables->scale;
+                                    const real  rt   = r * iconst->coulombEwaldTables.scale;
                                     const int   n0   = static_cast<int>(rt);
                                     const real  eps  = rt - static_cast<real>(n0);
-                                    const real* Ftab = iconst->coulombEwaldTables->tableF.data();
+                                    const real* Ftab = iconst->coulombEwaldTables.tableF.data();
 
                                     const real fexcl = (1 - eps) * Ftab[n0] + eps * Ftab[n0 + 1];
 

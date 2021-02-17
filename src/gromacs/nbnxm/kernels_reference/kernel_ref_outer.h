@@ -147,17 +147,17 @@ void
 #    endif
 #endif
 #ifdef CALC_COUL_TAB
-    const real tab_coul_scale = ic->coulombEwaldTables->scale;
+    const real tab_coul_scale = ic->coulombEwaldTables.scale;
 #    ifdef CALC_ENERGIES
     const real halfsp = 0.5 / tab_coul_scale;
 #    endif
 
 #    if !GMX_DOUBLE
-    const real* tab_coul_FDV0 = ic->coulombEwaldTables->tableFDV0.data();
+    const real* tab_coul_FDV0 = ic->coulombEwaldTables.tableFDV0.data();
 #    else
-    const real* tab_coul_F = ic->coulombEwaldTables->tableF.data();
+    const real* tab_coul_F = ic->coulombEwaldTables.tableF.data();
 #        ifdef CALC_ENERGIES
-    const real* tab_coul_V = ic->coulombEwaldTables->tableV.data();
+    const real* tab_coul_V = ic->coulombEwaldTables.tableV.data();
 #        endif
 #    endif
 #endif

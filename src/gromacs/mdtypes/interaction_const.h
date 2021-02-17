@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -37,6 +37,7 @@
 #define GMX_MDTYPES_INTERACTION_CONST_H
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "gromacs/mdtypes/md_enums.h"
@@ -73,29 +74,31 @@ struct switch_consts_t
     real c5;
 };
 
-/* Convenience type for vector with aligned memory */
+//! Convenience type for vector with aligned memory
 template<typename T>
 using AlignedVector = std::vector<T, gmx::AlignedAllocator<T>>;
 
-/* Force/energy interpolation tables for Ewald long-range corrections
+/*! \brief Force/energy interpolation tables for Ewald long-range corrections
  *
  * Interpolation is linear for the force, quadratic for the potential.
  */
 struct EwaldCorrectionTables
 {
-    // 1/table_spacing, units 1/nm
+    //! 1/table_spacing, units 1/nm
     real scale = 0;
-    // Force table
+    //! Force table
     AlignedVector<real> tableF;
-    // Energy table
+    //! Energy table
     AlignedVector<real> tableV;
-    // Coulomb force+energy table, size of array is tabq_size*4,
-    // entry quadruplets are: F[i], F[i+1]-F[i], V[i], 0,
-    // this is used with 4-wide SIMD for aligned loads
+    /*! \brief Coulomb force+energy table.
+     *
+     * Size of array is tabq_size*4, entry quadruplets
+     * are: F[i], F[i+1]-F[i], V[i], 0, this is used with
+     * 4-wide SIMD for aligned loads */
     AlignedVector<real> tableFDV0;
 };
 
-/* The physical interaction parameters for non-bonded interaction calculations
+/*! \brief The physical interaction parameters for non-bonded interaction calculations
  *
  * This struct contains copies of the physical interaction parameters
  * from the user input as well as processed values that are need in
@@ -106,24 +109,23 @@ struct EwaldCorrectionTables
  */
 struct interaction_const_t
 {
-    /* This struct contains the soft-core parameters from t_lambda,
-     * but processed for direct use in the kernels.
-     */
+    /*! \brief This struct contains the soft-core parameters from
+     * t_lambda, but processed for direct use in the kernels. */
     struct SoftCoreParameters
     {
-        // Constructor
-        SoftCoreParameters(const t_lambda& fepvals);
+        SoftCoreParameters() = default;
+        explicit SoftCoreParameters(const t_lambda& fepvals);
 
-        // Alpha parameter for Van der Waals interactions
-        real alphaVdw;
-        // Alpha parameter for Coulomb interactions
-        real alphaCoulomb;
-        // Exponent for the dependence of the soft-core on lambda
-        int lambdaPower;
-        // Value for sigma^6 for LJ interaction with C6<=0 and/or C12<=0
-        real sigma6WithInvalidSigma;
-        // Minimum value for sigma^6, used when soft-core is applied to Coulomb interactions
-        real sigma6Minimum;
+        //! Alpha parameter for Van der Waals interactions
+        real alphaVdw = 0.;
+        //! Alpha parameter for Coulomb interactions
+        real alphaCoulomb = 0.;
+        //! Exponent for the dependence of the soft-core on lambda
+        int lambdaPower = 0;
+        //! Value for sigma^6 for LJ interaction with C6<=0 and/or C12<=0
+        real sigma6WithInvalidSigma = 0.;
+        //! Minimum value for sigma^6, used when soft-core is applied to Coulomb interactions
+        real sigma6Minimum = 0.;
     };
 
     /* VdW */
@@ -162,13 +164,13 @@ struct interaction_const_t
     real k_rf       = 0;
     real c_rf       = 0;
 
-    // Coulomb Ewald correction table
-    std::unique_ptr<EwaldCorrectionTables> coulombEwaldTables;
-    // Van der Waals Ewald correction table
-    std::unique_ptr<EwaldCorrectionTables> vdwEwaldTables;
+    //! Coulomb Ewald correction table
+    EwaldCorrectionTables coulombEwaldTables;
+    //! Van der Waals Ewald correction table
+    EwaldCorrectionTables vdwEwaldTables;
 
-    // Free-energy parameters, only present when free-energy calculations are requested
-    std::unique_ptr<SoftCoreParameters> softCoreParameters;
+    //! Free-energy parameters, only present when free-energy calculations are requested
+    std::optional<SoftCoreParameters> softCoreParameters;
 };
 
 #endif

@@ -47,6 +47,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <tuple>
 
 #include "gromacs/commandline/filenm.h"
 #include "gromacs/domdec/domdec.h"
@@ -728,21 +729,18 @@ static void initVdwEwaldParameters(FILE* fp, const t_inputrec& ir, interaction_c
  * are non-null. The spacing for both table sets is the same and obeys
  * both accuracy requirements, when relevant.
  */
-static void init_ewald_f_table(const interaction_const_t& ic,
-                               const real                 rlist,
-                               const real                 tabext,
-                               EwaldCorrectionTables*     coulombTables,
-                               EwaldCorrectionTables*     vdwTables)
+static std::tuple<EwaldCorrectionTables, EwaldCorrectionTables>
+init_ewald_f_table(const interaction_const_t& ic, const real rlist, const real tabext)
 {
-    const bool useCoulombTable = (EEL_PME_EWALD(ic.eeltype) && coulombTables != nullptr);
-    const bool useVdwTable     = (EVDW_PME(ic.vdwtype) && vdwTables != nullptr);
+    const bool useCoulombTable = EEL_PME_EWALD(ic.eeltype);
+    const bool useVdwTable     = EVDW_PME(ic.vdwtype);
 
     /* Get the Ewald table spacing based on Coulomb and/or LJ
      * Ewald coefficients and rtol.
      */
     const real tableScale = ewald_spline3_table_scale(ic, useCoulombTable, useVdwTable);
 
-    const bool havePerturbedNonbondeds = (ic.softCoreParameters != nullptr);
+    const bool havePerturbedNonbondeds = ic.softCoreParameters.has_value();
 
     real tableLen = ic.rcoulomb;
     if ((useCoulombTable || useVdwTable) && havePerturbedNonbondeds && rlist + tabext > 0.0)
@@ -757,30 +755,24 @@ static void init_ewald_f_table(const interaction_const_t& ic,
     }
     const int tableSize = static_cast<int>(tableLen * tableScale) + 2;
 
-    if (useCoulombTable)
-    {
-        *coulombTables =
-                generateEwaldCorrectionTables(tableSize, tableScale, ic.ewaldcoeff_q, v_q_ewald_lr);
-    }
-
-    if (useVdwTable)
-    {
-        *vdwTables = generateEwaldCorrectionTables(tableSize, tableScale, ic.ewaldcoeff_lj, v_lj_ewald_lr);
-    }
+    return { (useCoulombTable ? generateEwaldCorrectionTables(tableSize, tableScale, ic.ewaldcoeff_q, v_q_ewald_lr)
+                              : EwaldCorrectionTables()),
+             (useVdwTable ? generateEwaldCorrectionTables(tableSize, tableScale, ic.ewaldcoeff_lj, v_lj_ewald_lr)
+                          : EwaldCorrectionTables()) };
 }
 
 void init_interaction_const_tables(FILE* fp, interaction_const_t* ic, const real rlist, const real tableExtensionLength)
 {
     if (EEL_PME_EWALD(ic->eeltype) || EVDW_PME(ic->vdwtype))
     {
-        init_ewald_f_table(
-                *ic, rlist, tableExtensionLength, ic->coulombEwaldTables.get(), ic->vdwEwaldTables.get());
+        std::tie(ic->coulombEwaldTables, ic->vdwEwaldTables) =
+                init_ewald_f_table(*ic, rlist, tableExtensionLength);
         if (fp != nullptr)
         {
             fprintf(fp,
                     "Initialized non-bonded Ewald tables, spacing: %.2e size: %zu\n\n",
-                    1 / ic->coulombEwaldTables->scale,
-                    ic->coulombEwaldTables->tableF.size());
+                    1 / ic->coulombEwaldTables.scale,
+                    ic->coulombEwaldTables.tableF.size());
         }
     }
 }
@@ -836,9 +828,6 @@ static void init_interaction_const(FILE*                 fp,
                                    bool                  systemHasNetCharge)
 {
     interaction_const_t* ic = new interaction_const_t;
-
-    ic->coulombEwaldTables = std::make_unique<EwaldCorrectionTables>();
-    ic->vdwEwaldTables     = std::make_unique<EwaldCorrectionTables>();
 
     /* Lennard-Jones */
     ic->vdwtype         = ir.vdwtype;
@@ -949,7 +938,7 @@ static void init_interaction_const(FILE*                 fp,
     if (ir.efep != efepNO)
     {
         GMX_RELEASE_ASSERT(ir.fepvals, "ir.fepvals should be set wth free-energy");
-        ic->softCoreParameters = std::make_unique<interaction_const_t::SoftCoreParameters>(*ir.fepvals);
+        ic->softCoreParameters = std::make_optional<interaction_const_t::SoftCoreParameters>(*ir.fepvals);
     }
 
     *interaction_const = ic;

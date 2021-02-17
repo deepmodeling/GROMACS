@@ -284,8 +284,6 @@ void NbvSetupUtil::setupInteractionConst(const NBKernelOptions& options)
         {
             throw InputException("Ewald coefficient should be > 0");
         }
-        gmxForceCalculator_->interactionConst_->coulombEwaldTables =
-                std::make_unique<EwaldCorrectionTables>();
         init_interaction_const_tables(nullptr, gmxForceCalculator_->interactionConst_.get(), 0, 0);
     }
 }

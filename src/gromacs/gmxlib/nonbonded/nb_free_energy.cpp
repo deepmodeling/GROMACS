@@ -316,18 +316,16 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     }
     if (elecInteractionTypeIsEwald)
     {
-        const auto& coulombTables = *ic->coulombEwaldTables;
-        ewtab                     = coulombTables.tableFDV0.data();
-        coulombTableScale         = coulombTables.scale;
-        coulombTableScaleInvHalf  = half / coulombTableScale;
+        ewtab                    = ic->coulombEwaldTables.tableFDV0.data();
+        coulombTableScale        = ic->coulombEwaldTables.scale;
+        coulombTableScaleInvHalf = half / coulombTableScale;
     }
     if (vdwInteractionTypeIsEwald)
     {
-        const auto& vdwTables = *ic->vdwEwaldTables;
-        tab_ewald_F_lj        = vdwTables.tableF.data();
-        tab_ewald_V_lj        = vdwTables.tableV.data();
-        vdwTableScale         = vdwTables.scale;
-        vdwTableScaleInvHalf  = half / vdwTableScale;
+        tab_ewald_F_lj       = ic->vdwEwaldTables.tableF.data();
+        tab_ewald_V_lj       = ic->vdwEwaldTables.tableV.data();
+        vdwTableScale        = ic->vdwEwaldTables.scale;
+        vdwTableScaleInvHalf = half / vdwTableScale;
     }
 
     /* For Ewald/PME interactions we cannot easily apply the soft-core component to
