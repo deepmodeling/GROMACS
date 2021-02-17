@@ -100,16 +100,46 @@ static inline cl::sycl::id<3> unflattenId(cl::sycl::id<1> id1d)
     return cl::sycl::id<3>(xy % rangeX, xy / rangeX, z);
 }
 
+/*
+ * Intel DPCPP compiler has sycl::atomic_ref, but has no sycl::atomic_fetch_add for floats.
+ * However, atomic_ref can not be constructed from sycl::atomic, so we can not use
+ * atomic accessors.
+ *
+ * hipSYCL does not have sycl::atomic_ref, but has sycl::atomic_fetch_add for floats, which
+ * requires using atomic accessors.
+ */
+#if defined(__SYCL_COMPILER_VERSION) // Intel SYCL compiler
+static constexpr auto mode_atomic = cl::sycl::access::mode::read_write;
+#elif defined(__HIPSYCL__)
+static constexpr auto mode_atomic = cl::sycl::access::mode::atomic;
+#endif
+
+
 //! \brief Convenience wrapper to do atomic addition to a global buffer
-template<cl::sycl::access::mode Mode, class IndexType>
-static inline void atomicFetchAdd(DeviceAccessor<float, Mode> acc, const IndexType idx, const float val)
+template<class IndexType>
+static inline void atomicFetchAdd(DeviceAccessor<float, mode_atomic> acc, const IndexType idx, const float val)
 {
+#if defined(__SYCL_COMPILER_VERSION)
     if (cl::sycl::isnormal(val))
     {
         sycl_2020::atomic_ref<float, sycl_2020::memory_order::relaxed, sycl_2020::memory_scope::device, cl::sycl::access::address_space::global_space>
                 fout_atomic(acc[idx]);
         fout_atomic.fetch_add(val);
     }
+#elif defined(__HIPSYCL__)
+    if (std::isnormal(val))
+    {
+#    ifdef SYCL_DEVICE_ONLY
+        /* While there is support for float atomics on device, the host implementation uses
+         * Clang's __atomic_fetch_add intrinsic, that, at least in Clang 11, does not support
+         * floats. Luckily, we don't want to run on host. */
+        acc[idx].fetch_add(val);
+#    else
+        GMX_UNUSED_VALUE(acc);
+        GMX_UNUSED_VALUE(idx);
+#    endif
+    }
+#endif
 }
 
 static inline float shuffleDown(float var, unsigned int delta, sycl_2020::sub_group sg)

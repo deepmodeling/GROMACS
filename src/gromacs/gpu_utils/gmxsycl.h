@@ -69,6 +69,29 @@
 #    pragma clang diagnostic ignored "-Wpass-failed"
 #endif
 
+// For hipSYCL, we need to activate floating-point atomics
+#if defined(__HIPSYCL__)
+#    define HIPSYCL_EXT_FP_ATOMICS
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wunused-variable"
+#    pragma clang diagnostic ignored "-Wunused-parameter"
+#    pragma clang diagnostic ignored "-Wmissing-noreturn"
+#    pragma clang diagnostic ignored "-Wshadow-field"
+#    pragma clang diagnostic ignored "-Wctad-maybe-unsupported"
+#    pragma clang diagnostic ignored "-Wdeprecated-copy-dtor"
+#    pragma clang diagnostic ignored "-Winconsistent-missing-destructor-override"
+#    pragma clang diagnostic ignored "-Wunused-template"
+#    pragma clang diagnostic ignored "-Wsign-compare"
+#    pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#    pragma clang diagnostic ignored "-Wdeprecated-copy"
+#    pragma clang diagnostic ignored "-Wnewline-eof"
+#    pragma clang diagnostic ignored "-Wextra-semi"
+#    pragma clang diagnostic ignored "-Wsuggest-override"
+#    pragma clang diagnostic ignored "-Wsuggest-destructor-override"
+#    pragma clang diagnostic ignored "-Wgcc-compat"
+#endif
+
+
 #ifdef DIM
 #    if DIM != 3
 #        error "The workaround here assumes we use DIM=3."
@@ -81,7 +104,7 @@
 #    include <CL/sycl.hpp>
 #endif
 
-#if DISABLE_UNROLL_WARNINGS
+#if DISABLE_UNROLL_WARNINGS || defined(__HIPSYCL__)
 #    pragma clang diagnostic pop
 #endif
 
@@ -125,7 +148,7 @@ auto group_reduce(Args&&... args) -> decltype(detail::origin::reduce(std::forwar
     return detail::origin::reduce(std::forward<Args>(args)...);
 }
 #elif defined(__HIPSYCL__)
-// No atomic_ref in hipSYCL yet (2021-01-29)
+// No atomic_ref in hipSYCL yet (2021-02-17)
 using detail::origin::group_any_of;
 using detail::origin::group_reduce;
 #else

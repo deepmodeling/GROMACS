@@ -344,13 +344,13 @@ static inline void reduceForceJShuffle(float3                                  f
 static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read_write, target::local> sm_buf,
                                          const float3 fCiBuf[c_nbnxnGpuNumClusterPerSupercluster],
                                          const bool   calcFShift,
-                                         const cl::sycl::nd_item<1>              itemIdx,
-                                         const int                               tidxi,
-                                         const int                               tidxj,
-                                         const int                               sci,
-                                         const int                               shift,
-                                         DeviceAccessor<float, mode::read_write> a_f,
-                                         DeviceAccessor<float, mode::read_write> a_fShift)
+                                         const cl::sycl::nd_item<1>         itemIdx,
+                                         const int                          tidxi,
+                                         const int                          tidxj,
+                                         const int                          sci,
+                                         const int                          shift,
+                                         DeviceAccessor<float, mode_atomic> a_f,
+                                         DeviceAccessor<float, mode_atomic> a_fShift)
 {
     static constexpr int bufStride  = c_clSize * c_clSize;
     static constexpr int clSizeLog2 = gmx::StaticLog2<c_clSize>::value;
@@ -417,13 +417,13 @@ static inline void reduceForceIAndFShift(cl::sycl::accessor<float, 1, mode::read
  *
  */
 template<bool doPruneNBL, bool doCalcEnergies, enum ElecType elecType, enum VdwType vdwType>
-auto nbnxmKernel(cl::sycl::handler&                                        cgh,
-                 DeviceAccessor<float4, mode::read>                        a_xq,
-                 DeviceAccessor<float, mode::read_write>                   a_f,
-                 DeviceAccessor<float3, mode::read>                        a_shiftVec,
-                 DeviceAccessor<float, mode::read_write>                   a_fShift,
-                 OptionalAccessor<float, mode::read_write, doCalcEnergies> a_energyElec,
-                 OptionalAccessor<float, mode::read_write, doCalcEnergies> a_energyVdw,
+auto nbnxmKernel(cl::sycl::handler&                                   cgh,
+                 DeviceAccessor<float4, mode::read>                   a_xq,
+                 DeviceAccessor<float, mode_atomic>                   a_f,
+                 DeviceAccessor<float3, mode::read>                   a_shiftVec,
+                 DeviceAccessor<float, mode_atomic>                   a_fShift,
+                 OptionalAccessor<float, mode_atomic, doCalcEnergies> a_energyElec,
+                 OptionalAccessor<float, mode_atomic, doCalcEnergies> a_energyVdw,
                  DeviceAccessor<nbnxn_cj4_t, doPruneNBL ? mode::read_write : mode::read> a_plistCJ4,
                  DeviceAccessor<nbnxn_sci_t, mode::read>                                 a_plistSci,
                  DeviceAccessor<nbnxn_excl_t, mode::read>                    a_plistExcl,
