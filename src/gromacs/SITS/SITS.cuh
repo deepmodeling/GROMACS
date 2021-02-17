@@ -77,8 +77,8 @@ public:
         float3* d_force_tot;
         float3* d_force_pw;
 
-        float3* d_force_nbat_tot;
-        float3* d_force_nbat_pw;
+        float3* d_force_tot_nbat;
+        float3* d_force_pw_nbat;
     } gpu_sits;
 
     int init_SITS(int na);
