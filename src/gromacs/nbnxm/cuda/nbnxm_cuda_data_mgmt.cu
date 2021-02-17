@@ -928,13 +928,13 @@ void gpu_free(gmx_nbnxn_cuda_t* nb)
     freeDeviceBuffer(&atdat->atom_types);
     freeDeviceBuffer(&atdat->lj_comb);
 
-    if (d_atdat->qA != NULL){
-        freeDeviceBuffer(&d_atdat->qA);
-        freeDeviceBuffer(&d_atdat->atom_typesA);
-        freeDeviceBuffer(&d_atdat->lj_combA);
-        freeDeviceBuffer(&d_atdat->qB);
-        freeDeviceBuffer(&d_atdat->atom_typesB);
-        freeDeviceBuffer(&d_atdat->lj_combB);
+    if (atdat->qA != NULL){
+        freeDeviceBuffer(&atdat->qA);
+        freeDeviceBuffer(&atdat->atom_typesA);
+        freeDeviceBuffer(&atdat->lj_combA);
+        freeDeviceBuffer(&atdat->qB);
+        freeDeviceBuffer(&atdat->atom_typesB);
+        freeDeviceBuffer(&atdat->lj_combB);
     }
 
     /* Free plist */
