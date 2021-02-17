@@ -1201,7 +1201,7 @@ void do_force(FILE*                               fplog,
                     fr->gpuBonded->updateFepValuesAndDeviceBuffers(
                         Nbnxm::gpu_get_qA(nbv->gpu_nbv), Nbnxm::gpu_get_qB(nbv->gpu_nbv),
                         1, fr->sc_alphacoul, fr->sc_alphavdw, fr->sb_alpha, fr->sc_sigma6_def, fr->sc_sigma6_min,
-                        lambda[efptCOUL], lambda[efptVDW]);
+                        lambda[efptCOUL], lambda[efptVDW], lambda[efptBONDED]);
                 }
             }
             wallcycle_stop(wcycle, ewcLAUNCH_GPU);
