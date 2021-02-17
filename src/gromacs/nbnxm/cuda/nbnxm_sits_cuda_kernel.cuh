@@ -157,7 +157,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 #endif     /* PRUNE_NBL */
-                (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_plist_t plist, bool bCalcFshift)
+                (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_plist_t plist, const SITS_cuda sits, bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY
                         ; /* Only do function declaration, omit the function body. */
 #else
@@ -178,6 +178,11 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif
     const float4*        xq          = atdat.xq;
     float3*              f           = atdat.f;
+
+    // SITS forces
+    float3*              f_sits_tot  = sits.d_force_nbat_tot;
+    float3*              f_sits_pw   = sits.d_force_nbat_pw;
+
     const float3*        shift_vec   = atdat.shift_vec;
     float                rcoulomb_sq = nbparam.rcoulomb_sq;
 #    ifdef VDW_CUTOFF_CHECK
@@ -222,6 +227,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
     unsigned int widx  = tidx / warp_size; /* warp index */
 
     int          sci, ci, cj, ai, aj, cij4_start, cij4_end;
+    int          egp_mask, egp_ind;
+    int          egp_sh_j[8], egp_sh_i[8];
+    egp_mask = (1 << atdat.neg_2log) - 1;
 #    ifndef LJ_COMB
     int          typei, typej;
 #    endif
@@ -402,6 +410,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
                     cj = cjs[jm + (tidxj & 4) * c_nbnxnGpuJgroupSize / c_splitClSize];
                     aj = cj * c_clSize + tidxj;
+                    egp_sh_j[tidxj] = ((atdat.energrp[cj] >> (tidxj * atdat.neg_2log)) & egp_mask);
 
                     /* load j atom data */
                     xqbuf = xq[aj];
@@ -423,6 +432,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                         if (imask & mask_ji)
                         {
                             ci = sci * c_numClPerSupercl + i; /* i cluster index */
+                            egp_sh_i[tidxi] = (atdat.energrp[ci] >> (tidxi * atdat.neg_2log)) & egp_mask;
+                            egp_ind = egp_sh_j[tidxj] * atdat.nenergrp + egp_sh_i[tidxi];
 
                             /* all threads load an atom from i cluster ci into shmem! */
                             xqbuf = xqib[i * c_clSize + tidxi];

@@ -10,6 +10,7 @@
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/arrayrefwithpadding.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/math/utilities.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/mdtypes/locality.h"
 #include "gromacs/utility/arrayref.h"
@@ -17,10 +18,17 @@
 #include "gromacs/utility/range.h"
 #include "gromacs/utility/real.h"
 
-enum SITS_MODE
+enum SITS_CALC_MODE
 {
-    SIMPLE_SITS_MODE    = 0x00000001,
-    CLASSICAL_SITS_MODE = 0x00000002,
+    SIMPLE_SITS    = 0x00000001,
+    CLASSICAL_SITS = 0x00000002,
+};
+
+enum SITS_ENH_MODE
+{
+    PP_AND_PW;
+    INTRA_MOL;
+    INTER_MOL;
 };
 
 struct SITS
@@ -30,7 +38,7 @@ private:
 
     struct FC_BALL_INFORMATION
     {
-        float fc_ball     = 1.;   // simpleSITS的强化因子
+        float fc_ball     = 1.;   // simpleSITS enhancing factor
         float move_length = 0.01; // simpleSITS中fcball随机游走的最大步长
         float fc_max      = 1.2;  //游走的上限，对应最低的温度T正比于1/fc_ball
         float fc_min      = 0.5;  //游走的下限，对应最高的温度
@@ -50,19 +58,32 @@ private:
 public:
     struct SITS_INFORMATION
     {
-        int sits_mode = 0; //选择SITS模式
-        int atom_numbers = 0; //体系的所有原子数，但不一定要和MD_INFORMATION一样，根据需要
-        int protein_atom_numbers =
-                0; //进行SITS增强的原子数，原子序数一定要是[0-protein_atom_numbers)里的，因此需要预先排序
-        int max_neighbor_numbers = 800; //这个数一般与neighbor_list里面的一样
+        int sits_calc_mode = 0; //选择SITS模式
+        int sits_enh_mode = PP_AND_PW; //
     } info;
 
-    float*         d_total_pp_atom_energy      = NULL; // AA总能量
-    float*         d_total_ww_atom_energy      = NULL; // BB总能量
-    float*         d_total_protein_water_atom_energy = NULL; // AB总能量
+    gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
     gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
 
-    int init_SITS(CONTROLLER* controller, int atom_numbers);
+    struct SITS_cuda
+    {
+        int sits_calc_mode = 0; // SITS calculation mode: classical or simple
+        int sits_enh_mode = PP_AND_PW; // SITS enhancing region: solvate, intramolecular or intermolecular
+
+        float* d_Ener_pp; // AA总能量
+        float* d_Ener_ww; // BB总能量
+        float* d_Ener_pw; // AB总能量
+
+        float3* d_force_tot;
+        float3* d_force_pw;
+
+        float3* d_force_nbat_tot;
+        float3* d_force_nbat_pw;
+    } gpu_sits;
+
+    int init_SITS(int na);
+
+    void gpu_init_SITS();
 
     //根据统计热力学原理，增强的力只需要和能量匹配就好，因此不需要对所有的相互作用进行增强
     //目前主要增强的力是bond,angle,dihedral,LJ，PME_Direct,nb_14。其他部分不增强（不影响结果正确性）

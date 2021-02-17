@@ -701,7 +701,7 @@ void gpu_init_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
 
     if (nbat->params().nenergrp > 1)
     {
-        cu_copy_H2D_async(d_atdat->energrp, nbat->params().energrp.data(),
+        cu_copy_H2D_async(d_atdat->energrp, nbat->params().energrp_gpu.data(),
                           natoms * sizeof(*d_atdat->energrp), ls);
     }
 
