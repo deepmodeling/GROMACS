@@ -59,7 +59,7 @@
  * However, the use of float3 in CPU code makes it hard to compile with hipSYCL until
  * Issue #3312 is resolved.
  */
-#define HAVE_GPU_LEAPFROG (GMX_GPU_CUDA || (GMX_GPU_SYCL && !defined(__HIPSYCL__)))
+#define HAVE_GPU_LEAPFROG (GMX_GPU_CUDA || (GMX_GPU_SYCL && !GMX_SYCL_HIPSYCL))
 
 namespace gmx
 {
