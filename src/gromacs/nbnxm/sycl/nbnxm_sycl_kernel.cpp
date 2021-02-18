@@ -745,8 +745,13 @@ auto nbnxmKernel(cl::sycl::handler&                                   cgh,
 
                             // Ensure distance do not become so small that r^-12 overflows
                             r2 = std::max(r2, c_nbnxnMinDistanceSquared);
+#if defined(__HIPSYCL__)
+                            // No fast/native functions in some compilation passes
+                            const float rInv = cl::sycl::rsqrt(r2);
+#else
                             // SYCL-TODO: sycl::half_precision::rsqrt?
-                            const float rInv  = cl::sycl::native::rsqrt(r2);
+                            const float rInv = cl::sycl::native::rsqrt(r2);
+#endif
                             const float r2Inv = rInv * rInv;
                             float       r6Inv, fInvR, energyLJPair;
                             if constexpr (!props.vdwCombLB || doCalcEnergies)
