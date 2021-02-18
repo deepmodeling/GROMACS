@@ -301,11 +301,11 @@ static inline float interpolateCoulombForceR(const DeviceAccessor<float, mode::r
     return lerp(left, right, fraction); // TODO: cl::sycl::mix
 }
 
-static inline void reduceForceJShuffle(Float3                                  f,
-                                       const cl::sycl::nd_item<1>              itemIdx,
-                                       const int                               tidxi,
-                                       const int                               aidx,
-                                       DeviceAccessor<float, mode::read_write> a_f)
+static inline void reduceForceJShuffle(Float3                             f,
+                                       const cl::sycl::nd_item<1>         itemIdx,
+                                       const int                          tidxi,
+                                       const int                          aidx,
+                                       DeviceAccessor<float, mode_atomic> a_f)
 {
     static_assert(c_clSize == 8 || c_clSize == 4);
     sycl_2020::sub_group sg = itemIdx.get_sub_group();
