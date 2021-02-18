@@ -144,12 +144,38 @@ static inline void atomicFetchAdd(DeviceAccessor<float, mode_atomic> acc, const 
 
 static inline float shuffleDown(float var, unsigned int delta, sycl_2020::sub_group sg)
 {
+#ifdef __HIPSYCL__
+// No sycl::sub_group::shuffle_down in hipSYCL yet
+#    ifdef SYCL_DEVICE_ONLY
+#        ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+    static const unsigned int sc_cudaFullWarpMask = 0xffffffff;
+    __shfl_down_sync(sc_fullWarpMask, var, delta);
+#        elif defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+    // Do we need more ifdefs? https://github.com/ROCm-Developer-Tools/HIP/issues/1491
+    __shfl_down(var, delta);
+#        endif
+#    endif
+#else
     return sg.shuffle_down(var, delta);
+#endif
 }
 
 static inline float shuffleUp(float var, unsigned int delta, sycl_2020::sub_group sg)
 {
+#ifdef __HIPSYCL__
+    // No sycl::sub_group::shuffle_up in hipSYCL yet
+#    ifdef SYCL_DEVICE_ONLY
+#        ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+    static const unsigned int sc_cudaFullWarpMask = 0xffffffff;
+    __shfl_up_sync(sc_fullWarpMask, var, delta);
+#        elif defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+    // Do we need more ifdefs? https://github.com/ROCm-Developer-Tools/HIP/issues/1491
+    __shfl_up(var, delta);
+#        endif
+#    endif
+#else
     return sg.shuffle_up(var, delta);
+#endif
 }
 
 } // namespace Nbnxm
