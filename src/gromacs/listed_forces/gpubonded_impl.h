@@ -53,9 +53,11 @@
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/listed_forces/gpubonded.h"
 #include "gromacs/pbcutil/pbc_aiuc.h"
+#include "gromacs/sits/sits.h"
 
 struct gmx_ffparams_t;
 struct t_forcerec;
+struct sits_cuda;
 
 namespace gmx
 {
@@ -103,6 +105,8 @@ struct BondedCudaKernelParameters
     fvec* d_fShift;
     //! Total Energy (on GPU)
     float* d_vTot;
+
+    sits_cuda* gpu_sits;
     //! Interaction list atoms (on GPU)
     t_iatom* d_iatoms[numFTypesOnGpu];
 
@@ -118,6 +122,7 @@ struct BondedCudaKernelParameters
         d_f           = nullptr;
         d_fShift      = nullptr;
         d_vTot        = nullptr;
+        gpu_sits      = nullptr;
     }
 };
 
@@ -142,6 +147,8 @@ public:
                                                 void*               xqDevice,
                                                 void*               forceDevice,
                                                 void*               fshiftDevice);
+    
+    void updateSITSDeviceBuffers(void* sitsDevice);
 
     /*! \brief Launches bonded kernel on a GPU */
     template<bool calcVir, bool calcEner>

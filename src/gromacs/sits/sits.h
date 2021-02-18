@@ -18,6 +18,8 @@
 #include "gromacs/utility/range.h"
 #include "gromacs/utility/real.h"
 
+#include "gromacs/sits/cuda/sits_cuda_types.h"
+
 enum SITS_CALC_MODE
 {
     SIMPLE_SITS    = 0x00000001,
@@ -31,15 +33,22 @@ enum SITS_ENH_MODE
     INTER_MOL;
 };
 
-struct SITS
+struct sits_info
+{
+    int sits_calc_mode = 0; //选择sits模式
+    int sits_enh_mode = PP_AND_PW; //
+    int sits_enh_bias = false; //
+}
+
+struct sits
 {
 private:
     FILE* sits_enerd_log = NULL;
 
     struct FC_BALL_INFORMATION
     {
-        float fc_ball     = 1.;   // simpleSITS enhancing factor
-        float move_length = 0.01; // simpleSITS中fcball随机游走的最大步长
+        float fc_ball     = 1.;   // simplesits enhancing factor
+        float move_length = 0.01; // simplesits中fcball随机游走的最大步长
         float fc_max      = 1.2;  //游走的上限，对应最低的温度T正比于1/fc_ball
         float fc_min      = 0.5;  //游走的下限，对应最高的温度
 
@@ -56,48 +65,30 @@ private:
     } simple_info;
 
 public:
-    struct SITS_INFORMATION
-    {
-        int sits_calc_mode = 0; //选择SITS模式
-        int sits_enh_mode = PP_AND_PW; //
-    } info;
+    sits_info info;
 
     gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
     gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
 
-    struct SITS_cuda
-    {
-        int sits_calc_mode = 0; // SITS calculation mode: classical or simple
-        int sits_enh_mode = PP_AND_PW; // SITS enhancing region: solvate, intramolecular or intermolecular
+    sits_cuda* gpu_sits;
 
-        float* d_Ener_pp; // AA总能量
-        float* d_Ener_ww; // BB总能量
-        float* d_Ener_pw; // AB总能量
+    int init_sits(int na);
 
-        float3* d_force_tot;
-        float3* d_force_pw;
-
-        float3* d_force_tot_nbat;
-        float3* d_force_pw_nbat;
-    } gpu_sits;
-
-    int init_SITS(int na);
-
-    void gpu_init_SITS();
+    void gpu_init_sits();
 
     //根据统计热力学原理，增强的力只需要和能量匹配就好，因此不需要对所有的相互作用进行增强
     //目前主要增强的力是bond,angle,dihedral,LJ，PME_Direct,nb_14。其他部分不增强（不影响结果正确性）
-    //在计算各种SITS相关的能量之前先清空一次
+    //在计算各种sits相关的能量之前先清空一次
 
-    void Clear_SITS_Energy();
+    void Clear_sits_Energy();
     //在上下两个函数中间就可以填入所有需要增强的能量计算子模块的原子能量计算函数
-    //在计算完各SITS分能量后进行能量求和
-    void Calculate_Total_SITS_Energy(int is_fprintf);
+    //在计算完各sits分能量后进行能量求和
+    void Calculate_Total_sits_Energy(int is_fprintf);
 
     //改变frc，使得需要增强的frc被选择性增强，由于共用的frc，因此这步frc增强需要放到刚好计算完所有要增强的frc的函数下方，而避免增强不应该增强的子模块frc
     //因此，体系的所有可能的frc需要先算待增强的frc，插入此函数，再算不应增强的frc
-    void SITS_Enhanced_Force(VECTOR* frc);
+    void sits_Enhanced_Force(VECTOR* frc);
 
-    //程序结束后，释放SITS内的各个指针
-    void Clear_SITS();
+    //程序结束后，释放sits内的各个指针
+    void Clear_sits();
 };
