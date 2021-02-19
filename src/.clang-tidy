@@ -47,7 +47,7 @@ Checks:  clang-diagnostic-*,-clang-analyzer-*,-clang-analyzer-security.insecureA
          modernize-redundant-void-arg,modernize-use-bool-literals,
          cppcoreguidelines-*,-cppcoreguidelines-pro-*,-cppcoreguidelines-owning-memory,
          -cppcoreguidelines-no-malloc,-cppcoreguidelines-special-member-functions,
-         -cppcoreguidelines-avoid-goto,-cppcoreguidelines-avoid-non-const-global-variables,
+         -cppcoreguidelines-avoid-goto,-cppcoreguidelines-init-variables,
          google-*,-google-build-using-namespace,-google-explicit-constructor,
          -google-readability-function-size,-google-readability-todo,-google-runtime-int,
          -cppcoreguidelines-non-private-member-variables-in-classes,
