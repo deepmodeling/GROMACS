@@ -33,6 +33,9 @@
 # We need to use underscores for readability for our legacy types
 # and command-line parameter names
 #
+#         -cppcoreguidelines-init-variables
+# There is way too much code that doesn't initialize variables to fix all
+# at once.
 Checks:  clang-diagnostic-*,-clang-analyzer-*,-clang-analyzer-security.insecureAPI.strcpy,
          bugprone-*,misc-*,readability-*,performance-*,mpi-*,
          -readability-inconsistent-declaration-parameter-name,
