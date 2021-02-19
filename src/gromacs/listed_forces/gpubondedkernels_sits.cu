@@ -129,6 +129,12 @@ __device__ void bonds_gpu(const int       i,
             *vtot_loc += vbond;
         }
 
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[aj];
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
+
         if (dr2 != 0.0f)
         {
             fbond *= rsqrtf(dr2);
@@ -143,6 +149,17 @@ __device__ void bonds_gpu(const int       i,
                 {
                     atomicAdd(&sm_fShiftLoc[ki][m], fij);
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fij);
+                }
+
+                if (egp_i == egp_j)
+                {
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), fij);
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -fij);
+                }
+                else
+                {
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), fij);
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -fij);
                 }
             }
         }
@@ -208,6 +225,12 @@ __device__ void angles_gpu(const int       i,
             *vtot_loc += va;
         }
 
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[ak];
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
+
         float cos_theta2 = cos_theta * cos_theta;
         if (cos_theta2 < 1.0f)
         {
@@ -240,6 +263,19 @@ __device__ void angles_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[t1][m], f_i[m]);
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], f_j[m]);
                     atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
+                }
+
+                if (egp_i == egp_j)
+                {
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f_i[m]);
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), f_j[m]);
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ak][m]), f_k[m]);
+                }
+                else
+                {
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f_i[m]);
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), f_j[m]);
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ak][m]), f_k[m]);
                 }
             }
         }
@@ -288,6 +324,12 @@ __device__ void urey_bradley_gpu(const int       i,
             *vtot_loc += va;
         }
 
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[ak];
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), va);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), va);
+
         fvec r_ik;
         int  ki = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[ai], gm_xq[ak], r_ik);
 
@@ -329,6 +371,19 @@ __device__ void urey_bradley_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], f_j[m]);
                     atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
                 }
+
+                if (egp_i == egp_j)
+                {
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f_i[m]);
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), f_j[m]);
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ak][m]), f_k[m]);
+                }
+                else
+                {
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f_i[m]);
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), f_j[m]);
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ak][m]), f_k[m]);
+                }
             }
         }
 
@@ -339,6 +394,9 @@ __device__ void urey_bradley_gpu(const int       i,
             {
                 *vtot_loc += vbond;
             }
+
+            if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
+            else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
 
             fbond *= rsqrtf(dr2);
 
@@ -353,6 +411,17 @@ __device__ void urey_bradley_gpu(const int       i,
                 {
                     atomicAdd(&sm_fShiftLoc[ki][m], fik);
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fik);
+                }
+
+                if (egp_i == egp_j)
+                {
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), fij);
+                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -fij);
+                }
+                else
+                {
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), fij);
+                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -fij);
                 }
             }
         }
@@ -414,6 +483,7 @@ __device__ static void do_dih_fup_gpu(const int      i,
                                       fvec           gm_f[],
                                       fvec           sm_fShiftLoc[],
                                       const PbcAiuc& pbcAiuc,
+                                      sits_cuda       gpu_sits,
                                       const float4   gm_xq[],
                                       const int      t1,
                                       const int      t2,
@@ -423,6 +493,10 @@ __device__ static void do_dih_fup_gpu(const int      i,
     float iprn  = iprod_gpu(n, n);
     float nrkj2 = iprod_gpu(r_kj, r_kj);
     float toler = nrkj2 * GMX_REAL_EPS;
+    
+    int  egp_i    = gpu_sits.energrp[i];
+    int  egp_j    = gpu_sits.energrp[l];
+
     if ((iprm > toler) && (iprn > toler))
     {
         float nrkj_1 = rsqrtf(nrkj2); // replacing std::invsqrt call
@@ -471,6 +545,29 @@ __device__ static void do_dih_fup_gpu(const int      i,
                 atomicAdd(&sm_fShiftLoc[t3][m], f_l[m]);
             }
         }
+
+        if (egp_i == egp_j)
+        {
+#pragma unroll
+            for (int m = 0; (m < DIM); m++)
+            {
+                atomicAdd(&(gpu_sits.d_force_tot_nbat[i][m]), f_i[m]);
+                atomicAdd(&(gpu_sits.d_force_tot_nbat[j][m]), -f_j[m]);
+                atomicAdd(&(gpu_sits.d_force_tot_nbat[k][m]), -f_k[m]);
+                atomicAdd(&(gpu_sits.d_force_tot_nbat[l][m]), f_l[m]);
+            }
+        }
+        else
+        {
+#pragma unroll
+            for (int m = 0; (m < DIM); m++)
+            {
+                atomicAdd(&(gpu_sits.d_force_pw_nbat[i][m]), f_i[m]);
+                atomicAdd(&(gpu_sits.d_force_pw_nbat[j][m]), -f_j[m]);
+                atomicAdd(&(gpu_sits.d_force_pw_nbat[k][m]), -f_k[m]);
+                atomicAdd(&(gpu_sits.d_force_pw_nbat[l][m]), f_l[m]);
+            }
+        }
     }
 }
 
@@ -515,8 +612,14 @@ __device__ void pdihs_gpu(const int       i,
             *vtot_loc += vpd;
         }
 
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[al];
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vpd);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), vpd);
+
         do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, gm_xq, t1, t2, t3);
+                                pbcAiuc, gpu_sits, gm_xq, t1, t2, t3);
     }
 }
 
@@ -617,11 +720,17 @@ __device__ void rbdihs_gpu(const int       i,
         ddphi = -ddphi * sin_phi;
 
         do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, gm_xq, t1, t2, t3);
+                                pbcAiuc, gpu_sits, gm_xq, t1, t2, t3);
         if (calcEner)
         {
             *vtot_loc += v;
         }
+
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[al];
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), v);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), v);
     }
 }
 
@@ -688,12 +797,18 @@ __device__ void idihs_gpu(const int       i,
         float ddphi = -kA * dp;
 
         do_dih_fup_gpu<calcVir>(ai, aj, ak, al, -ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, gm_xq, t1, t2, t3);
+                                pbcAiuc, gpu_sits, gm_xq, t1, t2, t3);
 
         if (calcEner)
         {
             *vtot_loc += -0.5f * ddphi * dp;
         }
+
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[al];
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), -0.5f * ddphi * dp);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), -0.5f * ddphi * dp);
     }
 }
 
@@ -741,6 +856,9 @@ __device__ void pairs_gpu(const int       i,
         fvec  f;
         svmul_gpu(finvr, dr, f);
 
+        int  egp_i    = gpu_sits.energrp[ai];
+        int  egp_j    = gpu_sits.energrp[aj];
+
         /* Add the forces */
 #pragma unroll
         for (int m = 0; m < DIM; m++)
@@ -752,6 +870,17 @@ __device__ void pairs_gpu(const int       i,
                 atomicAdd(&sm_fShiftLoc[fshift_index][m], f[m]);
                 atomicAdd(&sm_fShiftLoc[CENTRAL][m], -f[m]);
             }
+
+            if (egp_i == egp_j)
+            {
+                atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f[m]);
+                atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -f[m]);
+            }
+            else
+            {
+                atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f[m]);
+                atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -f[m]);
+            }
         }
 
         if (calcEner)
@@ -759,6 +888,9 @@ __device__ void pairs_gpu(const int       i,
             *vtotVdw_loc += (c12 * rinv6 - c6) * rinv6;
             *vtotElec_loc += velec;
         }
+
+        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), (c12 * rinv6 - c6) * rinv6 + velec);
+        else atomicAdd(&(gpu_sits.d_enerd[1]), (c12 * rinv6 - c6) * rinv6 + velec);
     }
 }
 

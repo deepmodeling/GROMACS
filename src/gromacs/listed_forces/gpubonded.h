@@ -126,6 +126,8 @@ public:
     bool haveInteractions() const;
     /*! \brief Launches bonded kernel on a GPU */
     void launchKernel(const t_forcerec* fr, const gmx::StepWorkload& stepWork, const matrix box);
+    /*! \brief Launches bonded kernel on a GPU */
+    void launchSITSKernel(const t_forcerec* fr, const gmx::StepWorkload& stepWork, const matrix box);
     /*! \brief Launches the transfer of computed bonded energies. */
     void launchEnergyTransfer();
     /*! \brief Waits on the energy transfer, and accumulates bonded energies to \c enerd. */

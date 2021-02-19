@@ -148,11 +148,14 @@ public:
                                                 void*               forceDevice,
                                                 void*               fshiftDevice);
     
-    void updateSITSDeviceBuffers(void* sitsDevice);
+    // void updateSITSDeviceBuffers(void* sitsDevice);
 
     /*! \brief Launches bonded kernel on a GPU */
     template<bool calcVir, bool calcEner>
     void launchKernel(const t_forcerec* fr, const matrix box);
+    /*! \brief Launches bonded SITS kernel on a GPU */
+    template<bool calcVir, bool calcEner>
+    void launchSITSKernel(const t_forcerec* fr, const matrix box);
     /*! \brief Returns whether there are bonded interactions
      * assigned to the GPU */
     bool haveInteractions() const;
