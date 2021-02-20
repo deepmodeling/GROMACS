@@ -1128,7 +1128,7 @@ static void setupGpuForceReductions(gmx::MdrunScheduleWorkload* runScheduleWork,
     if (runScheduleWork->simulationWork.useGpuHaloExchange)
     {
         fr->gpuForceReduction[gmx::AtomLocality::Local]->addDependency(
-                cr->dd->gpuHaloExchangeList->getForcesReadyOnDeviceEvent());
+                cr->dd->gpuHaloExchange->getForcesReadyOnDeviceEvent());
     }
 
     if (havePPDomainDecomposition(cr))
@@ -1257,7 +1257,7 @@ void do_force(FILE*                               fplog,
             !thisRankHasDuty(cr, DUTY_PME) && !simulationWork.useGpuPmePpCommunication;
 
     GMX_ASSERT(simulationWork.useGpuHaloExchange
-                       == ((cr->dd != nullptr) && (cr->dd->gpuHaloExchangeList != nullptr)),
+                       == ((cr->dd != nullptr) && (cr->dd->gpuHaloExchange != nullptr)),
                "The GPU halo exchange is active, but it has not been constructed.");
     const bool haveHostHaloExchangeComms =
             havePPDomainDecomposition(cr) && !simulationWork.useGpuHaloExchange;
@@ -1525,8 +1525,8 @@ void do_force(FILE*                               fplog,
             // re-initialization has similarly been refactored
             if (simulationWork.useGpuHaloExchange)
             {
-                cr->dd->gpuHaloExchangeList->reinitGpuHaloExchange(stateGpu->getCoordinates(),
-                                                                   stateGpu->getForces());
+                cr->dd->gpuHaloExchange->reinitGpuHaloExchange(stateGpu->getCoordinates(),
+                                                               stateGpu->getForces());
             }
         }
         else
@@ -1535,7 +1535,7 @@ void do_force(FILE*                               fplog,
             {
                 // The following must be called after local setCoordinates (which records an event
                 // when the coordinate data has been copied to the device).
-                cr->dd->gpuHaloExchangeList->communicateGpuHaloCoordinates(box, localXReadyOnDevice);
+                cr->dd->gpuHaloExchange->communicateGpuHaloCoordinates(box, localXReadyOnDevice);
 
                 if (domainWork.haveCpuBondedWork || domainWork.haveFreeEnergyWork)
                 {
@@ -2021,7 +2021,7 @@ void do_force(FILE*                               fplog,
 
             if (stepWork.useGpuFHalo)
             {
-                cr->dd->gpuHaloExchangeList->communicateGpuHaloForces(domainWork.haveCpuLocalForceWork);
+                cr->dd->gpuHaloExchange->communicateGpuHaloForces(domainWork.haveCpuLocalForceWork);
             }
             else
             {

@@ -77,7 +77,7 @@ namespace gmx
 template<typename T>
 class HashedMap;
 class LocalAtomSetManager;
-class GpuHaloExchangeList;
+class GpuHaloExchange;
 } // namespace gmx
 
 /*! \internal
@@ -237,7 +237,7 @@ struct gmx_domdec_t
     std::vector<gmx::RVec> pmeForceReceiveBuffer;
 
     /* GPU halo exchange objects: this structure supports a vector of pulses for each dimension */
-    std::unique_ptr<gmx::GpuHaloExchangeList> gpuHaloExchangeList;
+    std::unique_ptr<gmx::GpuHaloExchange> gpuHaloExchange;
 };
 
 //! Are we the master node for domain decomposition

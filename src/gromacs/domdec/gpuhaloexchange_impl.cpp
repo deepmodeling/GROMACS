@@ -58,19 +58,69 @@ namespace gmx
 {
 
 /*!\brief Impl class stub. */
-class GpuHaloExchange::Impl
+class GpuHaloExchangePulse::Impl
 {
 };
 
 /*!\brief Constructor stub. */
-GpuHaloExchange::GpuHaloExchange(gmx_domdec_t* /* dd */,
-                                 int /* dimIndex */,
-                                 MPI_Comm /* mpi_comm_mysim */,
-                                 const DeviceContext& /* deviceContext */,
-                                 const DeviceStream& /*streamLocal */,
-                                 const DeviceStream& /*streamNonLocal */,
-                                 int /*pulse */,
-                                 gmx_wallcycle* /*wcycle*/) :
+GpuHaloExchangePulse::GpuHaloExchangePulse(gmx_domdec_t* /* dd */,
+                                           int /* dimIndex */,
+                                           MPI_Comm /* mpi_comm_mysim */,
+                                           const DeviceContext& /* deviceContext */,
+                                           const DeviceStream& /*streamLocal */,
+                                           const DeviceStream& /*streamNonLocal */,
+                                           int /*pulse */,
+                                           gmx_wallcycle* /*wcycle*/) :
+    impl_(nullptr)
+{
+    GMX_ASSERT(false,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+GpuHaloExchangePulse::~GpuHaloExchangePulse() = default;
+
+GpuHaloExchangePulse::GpuHaloExchangePulse(GpuHaloExchangePulse&&) noexcept = default;
+
+GpuHaloExchangePulse& GpuHaloExchangePulse::operator=(GpuHaloExchangePulse&& other) noexcept
+{
+    std::swap(impl_, other.impl_);
+    return *this;
+}
+
+/*!\brief init halo exhange stub. */
+void GpuHaloExchangePulse::reinitHalo(DeviceBuffer<RVec> /* d_coordinatesBuffer */,
+                                      DeviceBuffer<RVec> /* d_forcesBuffer */)
+{
+    GMX_ASSERT(!impl_,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+/*!\brief apply X halo exchange stub. */
+void GpuHaloExchangePulse::communicateHaloCoordinates(const matrix /* box */,
+                                                      GpuEventSynchronizer* /*coordinatesOnDeviceEvent*/)
+{
+    GMX_ASSERT(!impl_,
+               "A CPU stub for GPU Halo Exchange exchange was called insted of the correct "
+               "implementation.");
+}
+
+/*!\brief apply F halo exchange stub. */
+void GpuHaloExchangePulse::communicateHaloForces(bool /* accumulateForces */)
+{
+    GMX_ASSERT(!impl_,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+
+/*!\brief Impl class stub. */
+class GpuHaloExchange::Impl
+{
+};
+
+GpuHaloExchange::GpuHaloExchange(const gmx::MDLogger& /* mdlog */,
+                                 const t_commrec& /* cr */,
+                                 const gmx::DeviceStreamManager& /* deviceStreamManager */,
+                                 gmx_wallcycle* /* wcycle */) :
     impl_(nullptr)
 {
     GMX_ASSERT(false,
@@ -79,78 +129,28 @@ GpuHaloExchange::GpuHaloExchange(gmx_domdec_t* /* dd */,
 
 GpuHaloExchange::~GpuHaloExchange() = default;
 
-GpuHaloExchange::GpuHaloExchange(GpuHaloExchange&&) noexcept = default;
-
-GpuHaloExchange& GpuHaloExchange::operator=(GpuHaloExchange&& other) noexcept
-{
-    std::swap(impl_, other.impl_);
-    return *this;
-}
-
-/*!\brief init halo exhange stub. */
-void GpuHaloExchange::reinitHalo(DeviceBuffer<RVec> /* d_coordinatesBuffer */,
-                                 DeviceBuffer<RVec> /* d_forcesBuffer */)
-{
-    GMX_ASSERT(!impl_,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-/*!\brief apply X halo exchange stub. */
-void GpuHaloExchange::communicateHaloCoordinates(const matrix /* box */,
-                                                 GpuEventSynchronizer* /*coordinatesOnDeviceEvent*/)
-{
-    GMX_ASSERT(!impl_,
-               "A CPU stub for GPU Halo Exchange exchange was called insted of the correct "
-               "implementation.");
-}
-
-/*!\brief apply F halo exchange stub. */
-void GpuHaloExchange::communicateHaloForces(bool /* accumulateForces */)
-{
-    GMX_ASSERT(!impl_,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-
-/*!\brief Impl class stub. */
-class GpuHaloExchangeList::Impl
-{
-};
-
-GpuHaloExchangeList::GpuHaloExchangeList(const gmx::MDLogger& /* mdlog */,
-                                         const t_commrec& /* cr */,
-                                         const gmx::DeviceStreamManager& /* deviceStreamManager */,
-                                         gmx_wallcycle* /* wcycle */) :
-    impl_(nullptr)
+void GpuHaloExchange::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
+                                            const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)
 {
     GMX_ASSERT(false,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-GpuHaloExchangeList::~GpuHaloExchangeList() = default;
-
-void GpuHaloExchangeList::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
-                                                const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)
+void GpuHaloExchange::communicateGpuHaloCoordinates(const matrix /* box */,
+                                                    GpuEventSynchronizer* /* coordinatesReadyOnDeviceEvent */)
 {
     GMX_ASSERT(false,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-void GpuHaloExchangeList::communicateGpuHaloCoordinates(const matrix /* box */,
-                                                        GpuEventSynchronizer* /* coordinatesReadyOnDeviceEvent */)
-{
-    GMX_ASSERT(false,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-void GpuHaloExchangeList::communicateGpuHaloForces(const bool /* accumulateForces */)
+void GpuHaloExchange::communicateGpuHaloForces(const bool /* accumulateForces */)
 {
     GMX_ASSERT(false,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
 /*!\brief get forces ready on device event stub. */
-GpuEventSynchronizer* GpuHaloExchangeList::getForcesReadyOnDeviceEvent()
+GpuEventSynchronizer* GpuHaloExchange::getForcesReadyOnDeviceEvent()
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
@@ -159,35 +159,5 @@ GpuEventSynchronizer* GpuHaloExchangeList::getForcesReadyOnDeviceEvent()
 
 } // namespace gmx
 
-void constructGpuHaloExchange(const gmx::MDLogger& /* mdlog */,
-                              const t_commrec& /* cr */,
-                              const gmx::DeviceStreamManager& /* deviceStreamManager */,
-                              gmx_wallcycle* /* wcycle */)
-{
-    GMX_ASSERT(false,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-void reinitGpuHaloExchange(const t_commrec& /* cr */,
-                           const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
-                           const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)
-{
-    GMX_ASSERT(false,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-void communicateGpuHaloCoordinates(const t_commrec& /* cr */,
-                                   const matrix /* box */,
-                                   GpuEventSynchronizer* /* coordinatesReadyOnDeviceEvent */)
-{
-    GMX_ASSERT(false,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
-
-void communicateGpuHaloForces(const t_commrec& /* cr */, bool /* accumulateForces */)
-{
-    GMX_ASSERT(false,
-               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
-}
 
 #endif // !GMX_GPU_CUDA

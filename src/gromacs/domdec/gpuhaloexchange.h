@@ -64,7 +64,7 @@ class DeviceStreamManager;
 
 /*! \libinternal
  * \brief Manages GPU Halo Exchange object */
-class GpuHaloExchange
+class GpuHaloExchangePulse
 {
 
 public:
@@ -95,17 +95,17 @@ public:
      * \param [in]    pulse                    the communication pulse for this instance
      * \param [in]    wcycle                   The wallclock counter
      */
-    GpuHaloExchange(gmx_domdec_t*        dd,
-                    int                  dimIndex,
-                    MPI_Comm             mpi_comm_mysim,
-                    const DeviceContext& deviceContext,
-                    const DeviceStream&  streamLocal,
-                    const DeviceStream&  streamNonLocal,
-                    int                  pulse,
-                    gmx_wallcycle*       wcycle);
-    ~GpuHaloExchange();
-    GpuHaloExchange(GpuHaloExchange&& source) noexcept;
-    GpuHaloExchange& operator=(GpuHaloExchange&& source) noexcept;
+    GpuHaloExchangePulse(gmx_domdec_t*        dd,
+                         int                  dimIndex,
+                         MPI_Comm             mpi_comm_mysim,
+                         const DeviceContext& deviceContext,
+                         const DeviceStream&  streamLocal,
+                         const DeviceStream&  streamNonLocal,
+                         int                  pulse,
+                         gmx_wallcycle*       wcycle);
+    ~GpuHaloExchangePulse();
+    GpuHaloExchangePulse(GpuHaloExchangePulse&& source) noexcept;
+    GpuHaloExchangePulse& operator=(GpuHaloExchangePulse&& source) noexcept;
 
     /*! \brief
      *
@@ -138,7 +138,7 @@ private:
 
 /*! \libinternal
  * \brief Manages GPU Halo Exchange object */
-class GpuHaloExchangeList
+class GpuHaloExchange
 {
 
 public:
@@ -149,11 +149,11 @@ public:
      * \param[in] deviceStreamManager Manager of the GPU context and streams.
      * \param[in] wcycle              The wallclock counter.
      */
-    GpuHaloExchangeList(const gmx::MDLogger&            mdlog,
-                        const t_commrec&                cr,
-                        const gmx::DeviceStreamManager& deviceStreamManager,
-                        gmx_wallcycle*                  wcycle);
-    ~GpuHaloExchangeList();
+    GpuHaloExchange(const gmx::MDLogger&            mdlog,
+                    const t_commrec&                cr,
+                    const gmx::DeviceStreamManager& deviceStreamManager,
+                    gmx_wallcycle*                  wcycle);
+    ~GpuHaloExchange();
 
     /*! \brief
      * (Re-) Initialization for GPU halo exchange
@@ -187,44 +187,5 @@ private:
 };
 
 } // namespace gmx
-
-/*! \brief Construct the GPU halo exchange object(s).
- *
- * \param[in] mdlog               The logger object.
- * \param[in] cr                  The commrec object.
- * \param[in] deviceStreamManager Manager of the GPU context and streams.
- * \param[in] wcycle              The wallclock counter.
- */
-void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
-                              const t_commrec&                cr,
-                              const gmx::DeviceStreamManager& deviceStreamManager,
-                              gmx_wallcycle*                  wcycle);
-
-/*! \brief
- * (Re-) Initialization for GPU halo exchange
- * \param [in] cr                   The commrec object
- * \param [in] d_coordinatesBuffer  pointer to coordinates buffer in GPU memory
- * \param [in] d_forcesBuffer       pointer to forces buffer in GPU memory
- */
-void reinitGpuHaloExchange(const t_commrec&        cr,
-                           DeviceBuffer<gmx::RVec> d_coordinatesBuffer,
-                           DeviceBuffer<gmx::RVec> d_forcesBuffer);
-
-
-/*! \brief GPU halo exchange of coordinates buffer.
- * \param [in] cr                             The commrec object
- * \param [in] box                            Coordinate box (from which shifts will be constructed)
- * \param [in] coordinatesReadyOnDeviceEvent  event recorded when coordinates have been copied to device
- */
-void communicateGpuHaloCoordinates(const t_commrec&      cr,
-                                   const matrix          box,
-                                   GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
-
-
-/*! \brief GPU halo exchange of force buffer.
- * \param [in] cr                The commrec object
- * \param [in] accumulateForces  True if forces should accumulate, otherwise they are set
- */
-void communicateGpuHaloForces(const t_commrec& cr, bool accumulateForces);
 
 #endif

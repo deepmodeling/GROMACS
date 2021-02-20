@@ -65,7 +65,7 @@ enum class HaloQuantity
 };
 
 /*! \internal \brief Class with interfaces and data for GPU Halo Exchange */
-class GpuHaloExchange::Impl
+class GpuHaloExchangePulse::Impl
 {
 
 public:
@@ -207,7 +207,7 @@ private:
 
 
 /*! \internal \brief Class with interfaces and data for GPU Halo Exchange */
-class GpuHaloExchangeList::Impl
+class GpuHaloExchange::Impl
 {
 
 public:
@@ -251,7 +251,7 @@ public:
     GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
 
 private:
-    std::vector<std::unique_ptr<GpuHaloExchange>> gpuHaloExchangeList_;
+    std::vector<std::unique_ptr<GpuHaloExchangePulse>> gpuHaloExchangeList_;
 
     //! CUDA stream for non-local non-bonded calculations
     const DeviceStream& nonLocalStream_;
