@@ -81,23 +81,15 @@ constexpr double c_2DdiffusionDimensionFactor = 4.0;
 constexpr double c_1DdiffusionDimensionFactor = 2.0;
 
 
-//! Proxy to a MsdData tau column. Supports only push_back.
-class MsdColumnProxy
-{
-public:
-    MsdColumnProxy(std::vector<double>& column) : column_(column) {}
-
-    void push_back(double value) { column_.push_back(value); }
-
-private:
-    std::vector<double>& column_;
-};
-
-
 /*! \brief Mean Squared Displacement data accumulator
  *
  * This class is used to accumulate individual MSD data points
- * and emit tau-averaged results once data is finished collecting.
+ * and emit tau-averaged results once data is finished collecting. Displacements at each observed
+ * time difference (tau) are recorded from the trajectory. Because it is not known in advance which
+ * time differences will be observed from the trajectory, this data structure is built adaptively.
+ * New columns corresponding to observed time differences are added as needed, and additional
+ * observations at formerly observed time differences are added to those columns. Separate time lags
+ * will likely have differing total data points.
  *
  * Data columns per tau are accessed via operator[], which always guarantees
  * a column is initialized and returns an MsdColumProxy to the column that can push data.
@@ -105,6 +97,17 @@ private:
 class MsdData
 {
 public:
+    //! Proxy to a MsdData tau column vector. Supports only push_back.
+    class MsdColumnProxy
+    {
+    public:
+        MsdColumnProxy(std::vector<double>& column) : column_(column) {}
+
+        void push_back(double value) { column_.push_back(value); }
+
+    private:
+        std::vector<double>& column_;
+    };
     //! Returns a proxy to the column for the given tau index. Guarantees that the column is initialized.
     MsdColumnProxy operator[](size_t index)
     {
@@ -167,15 +170,15 @@ inline double calcSingleSquaredDistance(const RVec c1, const RVec c2)
     {
         result += (firstCoords[XX] - secondCoords[XX]) * (firstCoords[XX] - secondCoords[XX]);
     }
-    if constexpr (y) // NOLINT: clang-tidy-9 can't handle if constexpr (https://bugs.llvm.org/show_bug.cgi?id=32203)
+    if constexpr (y) // NOLINT(readability-misleading-indentation): clang-tidy-9 can't handle if constexpr (https://bugs.llvm.org/show_bug.cgi?id=32203)
     {
         result += (firstCoords[YY] - secondCoords[YY]) * (firstCoords[YY] - secondCoords[YY]);
     }
-    if constexpr (z) // NOLINT
+    if constexpr (z) // NOLINT(readability-misleading-indentation)
     {
         result += (firstCoords[ZZ] - secondCoords[ZZ]) * (firstCoords[ZZ] - secondCoords[ZZ]);
     }
-    return result; // NOLINT
+    return result; // NOLINT(readability-misleading-indentation)
 }
 
 /*! \brief Calculate average displacement between sets of points
@@ -264,10 +267,22 @@ struct MoleculeData
  *
  * Can be used to hold coordinates for individual atoms as well as molecules COMs. Handles PBC
  * jump removal between consecutive frames.
+ *
+ * Only previous_ contains valid data between calls to buildCoordinates(), although both vectors
+ * are maintained at the correct size for the number of coordinates needed.
  */
 class MsdCoordinateManager
 {
 public:
+    MsdCoordinateManager(const int                    numAtoms,
+                         ArrayRef<const MoleculeData> molecules,
+                         ArrayRef<const int>          moleculeIndexMapping) :
+        current_(numAtoms),
+        previous_(numAtoms),
+        molecules_(molecules),
+        moleculeIndexMapping_(moleculeIndexMapping)
+    {
+    }
     /*! \brief Prepares coordinates for the current frame.
      *
      * Reads in selection data, and returns an ArrayRef of the particle positions or molecule
@@ -280,29 +295,25 @@ public:
      * @param moleculeIndexMapping  Mapping of atom index to molecule index.
      * @return                      The current frames coordinates in proper format.
      */
-    ArrayRef<const RVec> buildCoordinates(const Selection&             sel,
-                                          ArrayRef<const MoleculeData> molecules,
-                                          ArrayRef<const int>          moleculeIndexMapping,
-                                          t_pbc*                       pbc);
+    ArrayRef<const RVec> buildCoordinates(const Selection& sel, t_pbc* pbc);
 
 private:
     //! The current coordinates.
     std::vector<RVec> current_;
     //! The previous frame's coordinates.
     std::vector<RVec> previous_;
+    //! Molecule data.
+    ArrayRef<const MoleculeData> molecules_;
+    //! Mapping of atom indices to molecle indices;
+    ArrayRef<const int> moleculeIndexMapping_;
+    //! Tracks if a previous frame exists to compare with for PBC handling.
+    bool containsPreviousFrame_ = false;
 };
 
-ArrayRef<const RVec> MsdCoordinateManager::buildCoordinates(const Selection&             sel,
-                                                            ArrayRef<const MoleculeData> molecules,
-                                                            ArrayRef<const int> moleculeIndexMapping,
-                                                            t_pbc*              pbc)
+ArrayRef<const RVec> MsdCoordinateManager::buildCoordinates(const Selection& sel, t_pbc* pbc)
 {
-    if (current_.empty())
-    {
-        current_.resize(molecules.empty() ? sel.posCount() : molecules.size());
-    }
 
-    if (molecules.empty())
+    if (molecules_.empty())
     {
         std::copy(sel.coordinates().begin(), sel.coordinates().end(), current_.begin());
     }
@@ -314,23 +325,27 @@ ArrayRef<const RVec> MsdCoordinateManager::buildCoordinates(const Selection&    
         gmx::ArrayRef<const real> masses = sel.masses();
         for (int i = 0; i < sel.posCount(); i++)
         {
-            const int moleculeIndex = moleculeIndexMapping[i];
+            const int moleculeIndex = moleculeIndexMapping_[i];
             // accumulate ri * mi, and do division at the end to minimize number of divisions.
             current_[moleculeIndex] += RVec(sel.position(i).x()) * masses[i];
         }
-        // Divide accumulated mass * positions to get COM, reaccumulate in mol_masses.
+        // Divide accumulated mass * positions to get COM.
         std::transform(current_.begin(),
                        current_.end(),
-                       molecules.begin(),
+                       molecules_.begin(),
                        current_.begin(),
                        [](const RVec& position, const MoleculeData& molecule) -> RVec {
                            return position / molecule.mass;
                        });
     }
 
-    if (!previous_.empty())
+    if (containsPreviousFrame_)
     {
         removePbcJumps(current_, previous_, pbc);
+    }
+    else
+    {
+        containsPreviousFrame_ = true;
     }
 
     // Previous is no longer needed, swap with current and return "current" coordinates which
@@ -343,15 +358,19 @@ ArrayRef<const RVec> MsdCoordinateManager::buildCoordinates(const Selection&    
 //! Holds per-group coordinates, analysis, and results.
 struct MsdGroupData
 {
-    explicit MsdGroupData(const Selection& inputSel) : sel(inputSel) {}
+    explicit MsdGroupData(const Selection&             inputSel,
+                          ArrayRef<const MoleculeData> molecules,
+                          ArrayRef<const int>          moleculeAtomMapping) :
+        sel(inputSel),
+        coordinateManager_(molecules.empty() ? sel.posCount() : molecules.size(), molecules, moleculeAtomMapping)
+    {
+    }
 
     //! Selection associated with this group.
     const Selection& sel;
 
     //! Stored coordinates, indexed by frame then atom number.
     std::vector<std::vector<RVec>> frames;
-    //! Frame n-1 - used for removing PBC jumps.
-    std::vector<RVec> previousFrame;
 
     //! MSD result accumulator
     MsdData msds;
@@ -556,13 +575,6 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
     output_env_init(
             &oenv_, getProgramContext(), settings.timeUnit(), FALSE, settings.plotSettings().plotFormat(), 0);
 
-    const int numSelections = selections_.size();
-    // Accumulated frames and results
-    for (int i = 0; i < numSelections; i++)
-    {
-        groupData_.emplace_back(selections_[i]);
-    }
-
     // Enumeration helpers for dispatching the right MSD calculation type.
     const EnumerationArray<SingleDimDiffType, decltype(&calcAverageDisplacement<true, true, true>)>
             oneDimensionalMsdFunctions = { &calcAverageDisplacement<true, false, false>,
@@ -606,15 +618,17 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
             molecules_[mappedIds[i]].mass += masses[i];
         }
     }
+
+    // Accumulated frames and results
+    for (const Selection& sel : selections_)
+    {
+        groupData_.emplace_back(sel, molecules_, moleculeIndexMappings_);
+    }
 }
 
 void Msd::initAfterFirstFrame(const TrajectoryAnalysisSettings gmx_unused& settings, const t_trxframe& fr)
 {
     t0_ = std::round(fr.time);
-    for (MsdGroupData& msdData : groupData_)
-    {
-        msdData.previousFrame.resize(molSelected_ ? molecules_.size() : msdData.sel.posCount());
-    }
 }
 
 
@@ -643,8 +657,7 @@ void Msd::analyzeFrame(int gmx_unused                frameNumber,
         //NOLINTNEXTLINE(readability-static-accessed-through-instance)
         const Selection& sel = pdata->parallelSelection(msdData.sel);
 
-        ArrayRef<const RVec> coords = msdData.coordinateManager_.buildCoordinates(
-                sel, molecules_, moleculeIndexMappings_, pbc);
+        ArrayRef<const RVec> coords = msdData.coordinateManager_.buildCoordinates(sel, pbc);
 
         // For each preceding frame, calculate tau and do comparison.
         for (size_t i = 0; i < msdData.frames.size(); i++)

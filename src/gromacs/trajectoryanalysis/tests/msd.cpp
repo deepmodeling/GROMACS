@@ -273,7 +273,8 @@ TEST_F(MsdModuleTest, endFit)
 TEST_F(MsdModuleTest, notEnoughPointsForFitErrorEstimate)
 {
     setAllInputs("alanine_vsite_solvated");
-    const char* const cmdline[] = { "-trestart", "2", "-beginfit", "5", "-endfit", "9", "-lateral", "x", "-sel", "all"};
+    const char* const cmdline[] = { "-trestart", "2",        "-beginfit", "5",    "-endfit",
+                                    "9",         "-lateral", "x",         "-sel", "all" };
     runTest(CommandLine(cmdline));
 }
 
