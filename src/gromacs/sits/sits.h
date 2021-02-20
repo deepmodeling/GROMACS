@@ -40,7 +40,7 @@ struct sits_info
     int sits_enh_bias = false; //
 }
 
-struct sits
+struct sits_t
 {
 private:
     FILE* sits_enerd_log = NULL;
@@ -92,3 +92,20 @@ public:
     //程序结束后，释放sits内的各个指针
     void Clear_sits();
 };
+
+namespace Sits
+{
+
+/*! \brief Creates an Nbnxm object */
+std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
+                                  gmx_bool                 bFEP_SITS,
+                                  const t_inputrec*        ir,
+                                  const t_forcerec*        fr,
+                                  const t_commrec*         cr,
+                                  const gmx_hw_info_t&     hardwareInfo,
+                                  const gmx_device_info_t* deviceInfo,
+                                  const gmx_mtop_t*        mtop,
+                                  matrix                   box,
+                                  gmx_wallcycle*           wcycle);
+
+} // namespace Sits
