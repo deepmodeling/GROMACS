@@ -145,7 +145,6 @@ public:
     /*! \brief Construct the GPU halo exchange object(s).
      *
      * \param[in] mdlog               The logger object.
-     * \param[in] cr                  The commrec object.
      * \param[in] deviceStreamManager Manager of the GPU context and streams.
      * \param[in] wcycle              The wallclock counter.
      */
