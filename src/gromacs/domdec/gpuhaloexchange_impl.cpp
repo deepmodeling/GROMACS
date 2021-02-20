@@ -58,43 +58,48 @@ namespace gmx
 {
 
 /*!\brief Impl class stub. */
-class GpuHaloExchangeList::Impl
+class GpuHaloExchange::Impl
 {
 };
 
-GpuHaloExchangeList::GpuHaloExchangeList(const gmx::MDLogger& /* mdlog */,
-                                         const t_commrec& /* cr */,
-                                         const gmx::DeviceStreamManager& /* deviceStreamManager */,
-                                         gmx_wallcycle* /* wcycle */) :
+GpuHaloExchange::GpuHaloExchange(const gmx::MDLogger& /* mdlog */,
+                                 const gmx::DeviceStreamManager& /* deviceStreamManager */,
+                                 gmx_wallcycle* /* wcycle */) :
     impl_(nullptr)
 {
-    GMX_ASSERT(false,
+    GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-GpuHaloExchangeList::~GpuHaloExchangeList() = default;
+GpuHaloExchange::~GpuHaloExchange() = default;
 
-void GpuHaloExchangeList::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
-                                                const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)
+void GpuHaloExchange::addPulsesIfNeeded(const t_commrec& /* cr */)
 {
-    GMX_ASSERT(false,
+    GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-void GpuHaloExchangeList::communicateGpuHaloCoordinates(const matrix /* box */,
-                                                        GpuEventSynchronizer* /* coordinatesReadyOnDeviceEvent */)
+void GpuHaloExchange::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
+                                            const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)
 {
-    GMX_ASSERT(false,
+    GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-void GpuHaloExchangeList::communicateGpuHaloForces(const bool /* accumulateForces */)
+void GpuHaloExchange::communicateGpuHaloCoordinates(const matrix /* box */,
+                                                    GpuEventSynchronizer* /* coordinatesReadyOnDeviceEvent */)
 {
-    GMX_ASSERT(false,
+    GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
 }
 
-GpuEventSynchronizer* GpuHaloExchangeList::getForcesReadyOnDeviceEvent()
+void GpuHaloExchange::communicateGpuHaloForces(const bool /* accumulateForces */)
+{
+    GMX_ASSERT(!impl_,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+GpuEventSynchronizer* GpuHaloExchange::getForcesReadyOnDeviceEvent()
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
@@ -102,5 +107,6 @@ GpuEventSynchronizer* GpuHaloExchangeList::getForcesReadyOnDeviceEvent()
 }
 
 } // namespace gmx
+
 
 #endif // !GMX_GPU_CUDA

@@ -976,7 +976,7 @@ void relax_shell_flexcon(FILE*                         fplog,
                          ArrayRefWithPadding<RVec>     vPadded,
                          const matrix                  box,
                          ArrayRef<real>                lambda,
-                         history_t*                    hist,
+                         const history_t*              hist,
                          gmx::ForceBuffersView*        f,
                          tensor                        force_vir,
                          const t_mdatoms*              md,
@@ -1084,7 +1084,7 @@ void relax_shell_flexcon(FILE*                         fplog,
     do_force(fplog,
              cr,
              ms,
-             inputrec,
+             *inputrec,
              nullptr,
              enforcedRotation,
              imdSession,
@@ -1186,7 +1186,7 @@ void relax_shell_flexcon(FILE*                         fplog,
     {
         if (vsite)
         {
-            vsite->construct(pos[Min], inputrec->delta_t, v, box);
+            vsite->construct(pos[Min], v, box, gmx::VSiteOperation::PositionsAndVelocities);
         }
 
         if (nflexcon)
@@ -1224,7 +1224,7 @@ void relax_shell_flexcon(FILE*                         fplog,
         do_force(fplog,
                  cr,
                  ms,
-                 inputrec,
+                 *inputrec,
                  nullptr,
                  enforcedRotation,
                  imdSession,

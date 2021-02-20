@@ -65,7 +65,7 @@ enum class HaloQuantity
 };
 
 /*! \internal \brief Class with interfaces and data for GPU Halo Exchange */
-class GpuHaloExchange
+class GpuHaloExchangePulse
 {
 
 public:
@@ -80,15 +80,15 @@ public:
      * \param [in]    pulse                    the communication pulse for this instance
      * \param [in]    wcycle                   The wallclock counter
      */
-    GpuHaloExchange(gmx_domdec_t*        dd,
-                    int                  dimIndex,
-                    MPI_Comm             mpi_comm_mysim,
-                    const DeviceContext& deviceContext,
-                    const DeviceStream&  localStream,
-                    const DeviceStream&  nonLocalStream,
-                    int                  pulse,
-                    gmx_wallcycle*       wcycle);
-    ~GpuHaloExchange();
+    GpuHaloExchangePulse(gmx_domdec_t*        dd,
+                         int                  dimIndex,
+                         MPI_Comm             mpi_comm_mysim,
+                         const DeviceContext& deviceContext,
+                         const DeviceStream&  localStream,
+                         const DeviceStream&  nonLocalStream,
+                         int                  pulse,
+                         gmx_wallcycle*       wcycle);
+    ~GpuHaloExchangePulse();
 
     /*! \brief
      * (Re-) Initialization for GPU halo exchange
@@ -207,7 +207,7 @@ private:
 
 
 /*! \internal \brief Class with interfaces and data for GPU Halo Exchange */
-class GpuHaloExchangeList::Impl
+class GpuHaloExchange::Impl
 {
 
 public:
@@ -218,11 +218,14 @@ public:
      * \param[in] deviceStreamManager Manager of the GPU context and streams.
      * \param[in] wcycle              The wallclock counter.
      */
-    Impl(const gmx::MDLogger&            mdlog,
-         const t_commrec&                cr,
-         const gmx::DeviceStreamManager& deviceStreamManager,
-         gmx_wallcycle*                  wcycle);
+    Impl(const gmx::MDLogger& mdlog, const gmx::DeviceStreamManager& deviceStreamManager, gmx_wallcycle* wcycle);
     ~Impl() = default;
+
+    /*! \brief Adds extra pulses if needed.
+     *
+     * \param[in] cr                  The commrec object.
+     */
+    void addPulsesIfNeeded(const t_commrec& cr);
 
     /*! \brief
      * (Re-) Initialization for GPU halo exchange
@@ -251,8 +254,15 @@ public:
     GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
 
 private:
-    std::vector<std::unique_ptr<GpuHaloExchange>> gpuHaloExchangeList_;
+    //! GPU halo exchange objects: this structure supports a vector of pulses for each dimension
+    std::vector<std::unique_ptr<gmx::GpuHaloExchangePulse>> gpuHaloExchangeList_[DIM];
+    //! Number of GPU halo exchange dimentions
+    int numDimentions_ = 0;
 
+    //! CUDA stream for local non-bonded calculations
+    const DeviceContext& deviceContext_;
+    //! CUDA stream for local non-bonded calculations
+    const DeviceStream& localStream_;
     //! CUDA stream for non-local non-bonded calculations
     const DeviceStream& nonLocalStream_;
     //! An event recorded once the exchanged forces are ready on the GPU

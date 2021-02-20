@@ -56,6 +56,10 @@
 #    include "opencl/nbnxm_ocl_types.h"
 #endif
 
+#if GMX_GPU_SYCL
+#    include "sycl/nbnxm_sycl_types.h"
+#endif
+
 #include "nbnxm_gpu_data_mgmt.h"
 
 #include "gromacs/hardware/device_information.h"
@@ -63,6 +67,7 @@
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/timing/gpu_timing.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/fatalerror.h"
 
 #include "nbnxm_gpu.h"
 #include "pairlistsets.h"
@@ -147,8 +152,8 @@ void set_cutoff_parameters(NBParamGpu* nbp, const interaction_const_t* ic, const
     nbp->ewald_beta        = ic->ewaldcoeff_q;
     nbp->sh_ewald          = ic->sh_ewald;
     nbp->epsfac            = ic->epsfac;
-    nbp->two_k_rf          = 2.0 * ic->k_rf;
-    nbp->c_rf              = ic->c_rf;
+    nbp->two_k_rf          = 2.0 * ic->reactionFieldCoefficient;
+    nbp->c_rf              = ic->reactionFieldShift;
     nbp->rvdw_sq           = ic->rvdw * ic->rvdw;
     nbp->rcoulomb_sq       = ic->rcoulomb * ic->rcoulomb;
     nbp->rlistOuter_sq     = listParams.rlistOuter * listParams.rlistOuter;

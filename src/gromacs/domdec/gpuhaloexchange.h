@@ -64,24 +64,26 @@ class DeviceStreamManager;
 
 /*! \libinternal
  * \brief Manages GPU Halo Exchange object */
-class GpuHaloExchangeList
+class GpuHaloExchange
 {
 
 public:
     /*! \brief Construct the GPU halo exchange object(s).
      *
      * \param[in] mdlog               The logger object.
-     * \param[in] cr                  The commrec object.
      * \param[in] deviceStreamManager Manager of the GPU context and streams.
      * \param[in] wcycle              The wallclock counter.
      */
-    GpuHaloExchangeList(const gmx::MDLogger&            mdlog,
-                        const t_commrec&                cr,
-                        const gmx::DeviceStreamManager& deviceStreamManager,
-                        gmx_wallcycle*                  wcycle);
-    ~GpuHaloExchangeList();
-    GpuHaloExchangeList(GpuHaloExchangeList&& source) noexcept;
-    GpuHaloExchangeList& operator=(GpuHaloExchangeList&& source) noexcept;
+    GpuHaloExchange(const gmx::MDLogger&            mdlog,
+                    const gmx::DeviceStreamManager& deviceStreamManager,
+                    gmx_wallcycle*                  wcycle);
+    ~GpuHaloExchange();
+
+    /*! \brief Adds extra pulses if needed.
+     *
+     * \param[in] cr                  The commrec object.
+     */
+    void addPulsesIfNeeded(const t_commrec& cr);
 
     /*! \brief
      * (Re-) Initialization for GPU halo exchange

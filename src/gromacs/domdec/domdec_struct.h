@@ -77,7 +77,7 @@ namespace gmx
 template<typename T>
 class HashedMap;
 class LocalAtomSetManager;
-class GpuHaloExchangeList;
+class GpuHaloExchange;
 } // namespace gmx
 
 /*! \internal
@@ -116,13 +116,13 @@ struct gmx_domdec_zones_t
     /* The number of zones including the home zone */
     int n = 0;
     /* The shift of the zones with respect to the home zone */
-    ivec shift[DD_MAXZONE] = {};
+    std::array<ivec, DD_MAXZONE> shift;
     /* The charge group boundaries for the zones */
-    int cg_range[DD_MAXZONE + 1] = {};
+    std::array<int, DD_MAXZONE + 1> cg_range;
     /* The pair interaction zone and atom ranges per each i-zone */
     std::vector<DDPairInteractionRanges> iZones;
     /* Boundaries of the zones */
-    gmx_domdec_zone_size_t size[DD_MAXZONE];
+    std::array<gmx_domdec_zone_size_t, DD_MAXZONE> size;
     /* The cg density of the home zone */
     real dens_zone0 = 0;
 };
@@ -237,7 +237,7 @@ struct gmx_domdec_t
     std::vector<gmx::RVec> pmeForceReceiveBuffer;
 
     /* GPU halo exchange objects: this structure supports a vector of pulses for each dimension */
-    std::unique_ptr<gmx::GpuHaloExchangeList> gpuHaloExchangeList;
+    std::unique_ptr<gmx::GpuHaloExchange> gpuHaloExchange;
 };
 
 //! Are we the master node for domain decomposition

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -92,7 +92,7 @@ class VirtualSitesHandler;
 void do_force(FILE*                               log,
               const t_commrec*                    cr,
               const gmx_multisim_t*               ms,
-              const t_inputrec*                   inputrec,
+              const t_inputrec&                   inputrec,
               gmx::Awh*                           awh,
               gmx_enfrot*                         enforcedRotation,
               gmx::ImdSession*                    imdSession,
@@ -103,7 +103,7 @@ void do_force(FILE*                               log,
               const gmx_localtop_t*               top,
               const matrix                        box,
               gmx::ArrayRefWithPadding<gmx::RVec> coordinates,
-              history_t*                          hist,
+              const history_t*                    hist,
               gmx::ForceBuffersView*              force,
               tensor                              vir_force,
               const t_mdatoms*                    mdatoms,
@@ -134,7 +134,7 @@ void do_force(FILE*                               log,
  * on whether the PME-mesh contribution is computed on a separate PME rank or on a GPU.
  */
 void calculateLongRangeNonbondeds(t_forcerec*                    fr,
-                                  const t_inputrec*              ir,
+                                  const t_inputrec&              ir,
                                   const t_commrec*               cr,
                                   t_nrnb*                        nrnb,
                                   gmx_wallcycle*                 wcycle,

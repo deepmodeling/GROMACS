@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -56,6 +56,7 @@ struct gmx_multisim_t;
 class history_t;
 struct t_commrec;
 struct t_disresdata;
+struct t_oriresdata;
 struct t_fcdata;
 struct t_inputrec;
 struct t_pbc;
@@ -103,21 +104,23 @@ void calc_disres_R_6(const t_commrec*      cr,
                      const rvec*           x,
                      const t_pbc*          pbc,
                      t_disresdata*         disresdata,
-                     history_t*            hist);
+                     const history_t*      hist);
 
 //! Calculates the distance restraint forces, return the potential.
 real ta_disres(int              nfa,
-               const t_iatom    forceatoms[],
-               const t_iparams  ip[],
-               const rvec       x[],
-               rvec4            f[],
-               rvec             fshift[],
+               const t_iatom*   forceatoms,
+               const t_iparams* ip,
+               const rvec*      x,
+               rvec4*           f,
+               rvec*            fshift,
                const t_pbc*     pbc,
                real             lambda,
                real*            dvdlambda,
                const t_mdatoms* md,
-               t_fcdata*        fcdata,
-               int*             global_atom_index);
+               t_fcdata gmx_unused* fcd,
+               t_disresdata*        disresdata,
+               t_oriresdata gmx_unused* oriresdata,
+               int*                     global_atom_index);
 
 //! Copies the new time averages that have been calculated in calc_disres_R_6.
 void update_disres_history(const t_disresdata& disresdata, history_t* hist);

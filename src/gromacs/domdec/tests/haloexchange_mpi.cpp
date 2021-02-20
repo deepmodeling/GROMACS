@@ -161,10 +161,11 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
 
 
     // Create and initialize halo exchange objects
-    GpuHaloExchangeList gpuHaloExchangeList(mdlog, cr, deviceStreamManager, nullptr);
-    gpuHaloExchangeList.reinitGpuHaloExchange(d_x, nullptr);
+    GpuHaloExchange gpuHaloExchange(mdlog, deviceStreamManager, nullptr);
+    gpuHaloExchange.addPulsesIfNeeded(cr);
+    gpuHaloExchange.reinitGpuHaloExchange(d_x, nullptr);
     // Perform GPU halo exchange
-    gpuHaloExchangeList.communicateGpuHaloCoordinates(box, &coordinatesReadyOnDeviceEvent);
+    gpuHaloExchange.communicateGpuHaloCoordinates(box, &coordinatesReadyOnDeviceEvent);
 
     GpuEventSynchronizer haloCompletedEvent;
     haloCompletedEvent.markEvent(localStream);
