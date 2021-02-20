@@ -100,7 +100,7 @@ private:
  * and emit tau-averaged results once data is finished collecting.
  *
  * Data columns per tau are accessed via operator[], which always guarantees
- * a column is initialized and returns a proxy to the column that can push data.
+ * a column is initialized and returns an MsdColumProxy to the column that can push data.
  */
 class MsdData
 {
