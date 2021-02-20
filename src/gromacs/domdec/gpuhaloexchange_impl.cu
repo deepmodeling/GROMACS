@@ -577,6 +577,7 @@ GpuHaloExchange::Impl::Impl(const gmx::MDLogger&            mdlog,
                             const t_commrec&                cr,
                             const gmx::DeviceStreamManager& deviceStreamManager,
                             gmx_wallcycle*                  wcycle) :
+    numDimentions_(cr.dd->ndim),
     nonLocalStream_(deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal)),
     wcycle_(wcycle)
 
@@ -588,7 +589,7 @@ GpuHaloExchange::Impl::Impl(const gmx::MDLogger&            mdlog,
                        "Non-local non-bonded stream should be valid when using "
                        "GPU halo exchange.");
 
-    if (gpuHaloExchangeList_.empty())
+    if (gpuHaloExchangeList_[0].empty())
     {
         GMX_LOG(mdlog.warning)
                 .asParagraph()
@@ -598,11 +599,11 @@ GpuHaloExchange::Impl::Impl(const gmx::MDLogger&            mdlog,
                         "GMX_GPU_DD_COMMS environment variable.");
     }
 
-    for (int d = 0; d < cr.dd->ndim; d++)
+    for (int d = 0; d < numDimentions_; d++)
     {
-        for (int pulse = 0; pulse < cr.dd->comm->cd[d].numPulses(); pulse++)
+        for (int pulse = gpuHaloExchangeList_[d].size(); pulse < cr.dd->comm->cd[d].numPulses(); pulse++)
         {
-            gpuHaloExchangeList_.push_back(std::make_unique<gmx::GpuHaloExchangePulse>(
+            gpuHaloExchangeList_[d].push_back(std::make_unique<gmx::GpuHaloExchangePulse>(
                     cr.dd,
                     d,
                     cr.mpi_comm_mysim,
@@ -620,9 +621,12 @@ void GpuHaloExchange::Impl::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> 
 {
     wallcycle_start(wcycle_, ewcDOMDEC);
     wallcycle_sub_start(wcycle_, ewcsDD_GPU);
-    for (auto& gpuHaloExchangePulse : gpuHaloExchangeList_)
+    for (int d = 0; d < numDimentions_; d++)
     {
-        gpuHaloExchangePulse->reinitHalo(d_coordinatesBuffer, d_forcesBuffer);
+        for (auto& gpuHaloExchangePulse : gpuHaloExchangeList_[d])
+        {
+            gpuHaloExchangePulse->reinitHalo(d_coordinatesBuffer, d_forcesBuffer);
+        }
     }
     wallcycle_sub_stop(wcycle_, ewcsDD_GPU);
     wallcycle_stop(wcycle_, ewcDOMDEC);
@@ -635,17 +639,23 @@ void GpuHaloExchange::Impl::communicateGpuHaloCoordinates(const matrix box,
     // Ensure stream waits until coordinate data is available on device
     coordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
-    for (auto& gpuHaloExchangePulse : gpuHaloExchangeList_)
+    for (int d = 0; d < numDimentions_; d++)
     {
-        gpuHaloExchangePulse->communicateHaloCoordinates(box, coordinatesReadyOnDeviceEvent);
+        for (auto& gpuHaloExchangePulse : gpuHaloExchangeList_[d])
+        {
+            gpuHaloExchangePulse->communicateHaloCoordinates(box, coordinatesReadyOnDeviceEvent);
+        }
     }
 }
 
 void GpuHaloExchange::Impl::communicateGpuHaloForces(const bool accumulateForces)
 {
-    for (auto& gpuHaloExchangePulse : gpuHaloExchangeList_)
+    for (int d = 0; d < numDimentions_; d++)
     {
-        gpuHaloExchangePulse->communicateHaloForces(accumulateForces);
+        for (auto& gpuHaloExchangePulse : gpuHaloExchangeList_[d])
+        {
+            gpuHaloExchangePulse->communicateHaloForces(accumulateForces);
+        }
     }
 
     wallcycle_start_nocount(wcycle_, ewcLAUNCH_GPU);

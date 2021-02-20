@@ -251,7 +251,10 @@ public:
     GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
 
 private:
-    std::vector<std::unique_ptr<GpuHaloExchangePulse>> gpuHaloExchangeList_;
+    //! GPU halo exchange objects: this structure supports a vector of pulses for each dimension
+    std::vector<std::unique_ptr<gmx::GpuHaloExchangePulse>> gpuHaloExchangeList_[DIM];
+    //! Number of GPU halo exchange dimentions
+    int numDimentions_ = 0;
 
     //! CUDA stream for non-local non-bonded calculations
     const DeviceStream& nonLocalStream_;
