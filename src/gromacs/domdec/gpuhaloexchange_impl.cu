@@ -574,13 +574,12 @@ void GpuHaloExchangePulse::communicateHaloForces(bool accumulateForces)
 }
 
 GpuHaloExchange::Impl::Impl(const gmx::MDLogger&            mdlog,
-                            const t_commrec&                cr,
                             const gmx::DeviceStreamManager& deviceStreamManager,
                             gmx_wallcycle*                  wcycle) :
-    numDimentions_(cr.dd->ndim),
+    deviceContext_(deviceStreamManager.context()),
+    localStream_(deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal)),
     nonLocalStream_(deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal)),
     wcycle_(wcycle)
-
 {
     GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedLocal),
                        "Local non-bonded stream should be valid when using"
@@ -588,30 +587,23 @@ GpuHaloExchange::Impl::Impl(const gmx::MDLogger&            mdlog,
     GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedNonLocal),
                        "Non-local non-bonded stream should be valid when using "
                        "GPU halo exchange.");
+    GMX_LOG(mdlog.warning)
+            .asParagraph()
+            .appendTextFormatted(
+                    "NOTE: Activating the 'GPU halo exchange' feature, enabled "
+                    "by the "
+                    "GMX_GPU_DD_COMMS environment variable.");
+}
 
-    if (gpuHaloExchangeList_[0].empty())
-    {
-        GMX_LOG(mdlog.warning)
-                .asParagraph()
-                .appendTextFormatted(
-                        "NOTE: Activating the 'GPU halo exchange' feature, enabled "
-                        "by the "
-                        "GMX_GPU_DD_COMMS environment variable.");
-    }
-
+void GpuHaloExchange::Impl::addPulsesIfNeeded(const t_commrec& cr)
+{
+    numDimentions_ = cr.dd->ndim;
     for (int d = 0; d < numDimentions_; d++)
     {
         for (int pulse = gpuHaloExchangeList_[d].size(); pulse < cr.dd->comm->cd[d].numPulses(); pulse++)
         {
             gpuHaloExchangeList_[d].push_back(std::make_unique<gmx::GpuHaloExchangePulse>(
-                    cr.dd,
-                    d,
-                    cr.mpi_comm_mysim,
-                    deviceStreamManager.context(),
-                    deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal),
-                    deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal),
-                    pulse,
-                    wcycle));
+                    cr.dd, d, cr.mpi_comm_mysim, deviceContext_, localStream_, nonLocalStream_, pulse, wcycle_));
         }
     }
 }
@@ -671,14 +663,18 @@ GpuEventSynchronizer* GpuHaloExchange::Impl::getForcesReadyOnDeviceEvent()
 }
 
 GpuHaloExchange::GpuHaloExchange(const gmx::MDLogger&            mdlog,
-                                 const t_commrec&                cr,
                                  const gmx::DeviceStreamManager& deviceStreamManager,
                                  gmx_wallcycle*                  wcycle) :
-    impl_(new Impl(mdlog, cr, deviceStreamManager, wcycle))
+    impl_(new Impl(mdlog, deviceStreamManager, wcycle))
 {
 }
 
 GpuHaloExchange::~GpuHaloExchange() = default;
+
+void GpuHaloExchange::addPulsesIfNeeded(const t_commrec& cr)
+{
+    return impl_->addPulsesIfNeeded(cr);
+}
 
 void GpuHaloExchange::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> d_coordinatesBuffer,
                                             const DeviceBuffer<gmx::RVec> d_forcesBuffer)

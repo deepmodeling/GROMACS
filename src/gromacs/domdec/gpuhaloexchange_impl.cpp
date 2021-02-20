@@ -118,7 +118,6 @@ class GpuHaloExchange::Impl
 };
 
 GpuHaloExchange::GpuHaloExchange(const gmx::MDLogger& /* mdlog */,
-                                 const t_commrec& /* cr */,
                                  const gmx::DeviceStreamManager& /* deviceStreamManager */,
                                  gmx_wallcycle* /* wcycle */) :
     impl_(nullptr)
@@ -128,6 +127,12 @@ GpuHaloExchange::GpuHaloExchange(const gmx::MDLogger& /* mdlog */,
 }
 
 GpuHaloExchange::~GpuHaloExchange() = default;
+
+void GpuHaloExchange::addPulsesIfNeeded(const t_commrec& /* cr */)
+{
+    GMX_ASSERT(false,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
 
 void GpuHaloExchange::reinitGpuHaloExchange(const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
                                             const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)

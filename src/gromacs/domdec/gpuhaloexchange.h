@@ -150,10 +150,15 @@ public:
      * \param[in] wcycle              The wallclock counter.
      */
     GpuHaloExchange(const gmx::MDLogger&            mdlog,
-                    const t_commrec&                cr,
                     const gmx::DeviceStreamManager& deviceStreamManager,
                     gmx_wallcycle*                  wcycle);
     ~GpuHaloExchange();
+
+    /*! \brief Adds extra pulses if needed.
+     *
+     * \param[in] cr                  The commrec object.
+     */
+    void addPulsesIfNeeded(const t_commrec& cr);
 
     /*! \brief
      * (Re-) Initialization for GPU halo exchange
