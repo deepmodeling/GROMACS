@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,6 +48,7 @@
 
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gmxopencl.h"
+#include "gromacs/gpu_utils/gpueventsynchronizer_ocl.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/mdtypes/interaction_const.h"
@@ -59,23 +60,7 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/real.h"
 
-#include "nbnxm_ocl_consts.h"
-
 struct gmx_wallclock_gpu_nbnxn_t;
-
-/* kernel does #include "gromacs/math/utilities.h" */
-/* Move the actual useful stuff here: */
-
-//! Define 1/sqrt(pi)
-#define M_FLOAT_1_SQRTPI 0.564189583547756f
-
-/*! \brief Constants for platform-dependent defaults for the prune kernel's j4 processing concurrency.
- *
- *  Initialized using macros that can be overridden at compile-time (using #GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY).
- */
-/*! @{ */
-const int c_oclPruneKernelJ4ConcurrencyDEFAULT = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY_DEFAULT;
-/*! @} */
 
 /*! \brief Pruning kernel flavors.
  *
@@ -240,8 +225,8 @@ struct NbnxmGpu
 
     //! true if doing both local/non-local NB work on GPU
     bool bUseTwoStreams = false;
-    //! true indicates that the nonlocal_done event was enqueued
-    bool bNonLocalStreamActive = false;
+    //! true indicates that the nonlocal_done event was marked
+    bool bNonLocalStreamDoneMarked = false;
 
     //! atom data
     cl_atomdata_t* atdat = nullptr;
@@ -259,13 +244,13 @@ struct NbnxmGpu
     /*! \{ */
     /*! \brief Event triggered when the non-local non-bonded
      * kernel is done (and the local transfer can proceed) */
-    cl_event nonlocal_done = nullptr;
+    GpuEventSynchronizer nonlocal_done;
     /*! \brief Event triggered when the tasks issued in the local
      * stream that need to precede the non-local force or buffer
      * operation calculations are done (e.g. f buffer 0-ing, local
      * x/q H2D, buffer op initialization in local stream that is
      * required also by nonlocal stream ) */
-    cl_event misc_ops_and_local_H2D_done = nullptr;
+    GpuEventSynchronizer misc_ops_and_local_H2D_done;
     /*! \} */
 
     //! True if there has been local/nonlocal GPU work, either bonded or nonbonded, scheduled

@@ -159,4 +159,35 @@ GpuEventSynchronizer* GpuHaloExchangeList::getForcesReadyOnDeviceEvent()
 
 } // namespace gmx
 
+void constructGpuHaloExchange(const gmx::MDLogger& /* mdlog */,
+                              const t_commrec& /* cr */,
+                              const gmx::DeviceStreamManager& /* deviceStreamManager */,
+                              gmx_wallcycle* /* wcycle */)
+{
+    GMX_ASSERT(false,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+void reinitGpuHaloExchange(const t_commrec& /* cr */,
+                           const DeviceBuffer<gmx::RVec> /* d_coordinatesBuffer */,
+                           const DeviceBuffer<gmx::RVec> /* d_forcesBuffer */)
+{
+    GMX_ASSERT(false,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+void communicateGpuHaloCoordinates(const t_commrec& /* cr */,
+                                   const matrix /* box */,
+                                   GpuEventSynchronizer* /* coordinatesReadyOnDeviceEvent */)
+{
+    GMX_ASSERT(false,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
+void communicateGpuHaloForces(const t_commrec& /* cr */, bool /* accumulateForces */)
+{
+    GMX_ASSERT(false,
+               "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");
+}
+
 #endif // !GMX_GPU_CUDA

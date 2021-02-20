@@ -130,8 +130,8 @@ void do_edsam(const t_inputrec* ir,
 std::unique_ptr<gmx::EssentialDynamics> init_edsam(const gmx::MDLogger&    mdlog,
                                                    const char*             ediFileName,
                                                    const char*             edoFileName,
-                                                   const gmx_mtop_t*       mtop,
-                                                   const t_inputrec*       ir,
+                                                   const gmx_mtop_t&       mtop,
+                                                   const t_inputrec&       ir,
                                                    const t_commrec*        cr,
                                                    gmx::Constraints*       constr,
                                                    const t_state*          globalState,
@@ -161,12 +161,12 @@ void dd_make_local_ed_indices(gmx_domdec_t* dd, gmx_edsam* ed);
  * \param bNS               Are we in a neighbor searching step?
  */
 void do_flood(const t_commrec*  cr,
-              const t_inputrec* ir,
+              const t_inputrec& ir,
               const rvec        x[],
               rvec              force[],
               gmx_edsam*        ed,
               const matrix      box,
               int64_t           step,
-              gmx_bool          bNS);
+              bool              bNS);
 
 #endif

@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2014,2015,2017,2018,2019, by the GROMACS development team.
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -43,10 +44,7 @@
 
 #include "config.h"
 
-#include <cassert>
-
 #include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
 #ifdef _MSC_VER
@@ -78,10 +76,6 @@ bool buildSupportsNonbondedOnGpu(std::string* error)
     if (!GMX_GPU)
     {
         errorReasons.emplace_back("non-GPU build of GROMACS");
-    }
-    if (GMX_GPU_SYCL)
-    {
-        errorReasons.emplace_back("SYCL build of GROMACS");
     }
     return addMessageIfNotSupported(errorReasons, error);
 }

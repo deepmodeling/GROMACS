@@ -470,6 +470,8 @@ real calc_one_bond(int                           thread,
                           &(dvdl[efptFTYPE]),
                           md,
                           fcd,
+                          nullptr,
+                          nullptr,
                           global_atom_index);
         }
         else
@@ -486,6 +488,8 @@ real calc_one_bond(int                           thread,
                                     &(dvdl[efptFTYPE]),
                                     md,
                                     fcd,
+                                    fcd->disres,
+                                    fcd->orires,
                                     global_atom_index,
                                     flavor);
         }
@@ -783,7 +787,7 @@ void ListedForces::calculate(struct gmx_wallcycle*                     wcycle,
                              gmx::ArrayRefWithPadding<const gmx::RVec> coordinates,
                              gmx::ArrayRef<const gmx::RVec>            xWholeMolecules,
                              t_fcdata*                                 fcdata,
-                             history_t*                                hist,
+                             const history_t*                          hist,
                              gmx::ForceOutputs*                        forceOutputs,
                              const t_forcerec*                         fr,
                              const struct t_pbc*                       pbc,
