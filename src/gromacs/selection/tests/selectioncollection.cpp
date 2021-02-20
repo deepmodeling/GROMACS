@@ -1463,7 +1463,8 @@ TEST_F(SelectionCollectionDataTest, CopiedSelectionWorksPreCompilation)
     ASSERT_NO_FATAL_FAILURE(runParser(selections));
     ASSERT_NO_FATAL_FAILURE(loadTopology("simple.gro"));
     std::vector<std::string> selNames;
-    for (const auto& sel: sel_) {
+    for (const auto& sel : sel_)
+    {
         selNames.push_back(sel.name());
     }
     // Swap copied selection with original and update selections, to reuse the testing machinery.
@@ -1495,7 +1496,8 @@ TEST_F(SelectionCollectionDataTest, CopiedSelectionWorksPostCompilation)
     ASSERT_NO_FATAL_FAILURE(runCompiler());
     // Note the copy is made post-compilation.
     std::vector<std::string> selNames;
-    for (const auto& sel: sel_) {
+    for (const auto& sel : sel_)
+    {
         selNames.push_back(sel.name());
     }
     gmx::SelectionCollection sc2(sc_);
@@ -1546,7 +1548,8 @@ TEST_F(SelectionCollectionDataTest, CopiedSelectionWithIndexPostCompilation)
     ASSERT_NO_FATAL_FAILURE(loadTopology("simple.gro"));
     ASSERT_NO_FATAL_FAILURE(runCompiler());
     std::vector<std::string> selNames;
-    for (const auto& sel: sel_) {
+    for (const auto& sel : sel_)
+    {
         selNames.push_back(sel.name());
     }
     gmx::SelectionCollection sc2(sc_);

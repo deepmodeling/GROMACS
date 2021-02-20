@@ -533,8 +533,10 @@ SelectionCollection::~SelectionCollection() = default;
 
 SelectionCollection::SelectionCollection(const SelectionCollection& rhs) : impl_(new Impl)
 {
-    setReferencePosType(rhs.impl_->rpost_.empty() ? PositionCalculationCollection::typeEnumValues[0]: rhs.impl_->rpost_.c_str());
-    setOutputPosType(rhs.impl_->spost_.empty() ? PositionCalculationCollection::typeEnumValues[0]: rhs.impl_->spost_.c_str());
+    setReferencePosType(rhs.impl_->rpost_.empty() ? PositionCalculationCollection::typeEnumValues[0]
+                                                  : rhs.impl_->rpost_.c_str());
+    setOutputPosType(rhs.impl_->spost_.empty() ? PositionCalculationCollection::typeEnumValues[0]
+                                               : rhs.impl_->spost_.c_str());
     setDebugLevel(static_cast<int>(rhs.impl_->debugLevel_));
     gmx_ana_index_copy(&impl_->sc_.gall, &rhs.impl_->sc_.gall, /*balloc=*/true);
 
@@ -553,7 +555,8 @@ SelectionCollection::SelectionCollection(const SelectionCollection& rhs) : impl_
         setTopology(rhs.impl_->sc_.top, rhs.impl_->sc_.gall.isize);
     }
 
-    if (rhs.impl_->grps_ != nullptr) {
+    if (rhs.impl_->grps_ != nullptr)
+    {
         setIndexGroups(rhs.impl_->grps_);
     }
 

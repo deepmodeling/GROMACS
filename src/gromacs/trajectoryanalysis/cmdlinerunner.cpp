@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2010-2018, The GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -99,8 +99,9 @@ public:
 
 void RunnerModule::initOptions(IOptionsContainer* options, ICommandLineOptionsModuleSettings* settings)
 {
-    std::shared_ptr<TimeUnitBehavior>        timeUnitBehavior(new TimeUnitBehavior());
-    selectionOptionBehavior_ = std::make_shared<SelectionOptionBehavior>(&selections_, common_.topologyProvider());
+    std::shared_ptr<TimeUnitBehavior> timeUnitBehavior(new TimeUnitBehavior());
+    selectionOptionBehavior_ =
+            std::make_shared<SelectionOptionBehavior>(&selections_, common_.topologyProvider());
     settings->addOptionsBehavior(timeUnitBehavior);
     settings->addOptionsBehavior(selectionOptionBehavior_);
     IOptionsContainer& commonOptions = options->addGroup();
@@ -111,7 +112,6 @@ void RunnerModule::initOptions(IOptionsContainer* options, ICommandLineOptionsMo
     settings_.setOptionsModuleSettings(nullptr);
     common_.initOptions(&commonOptions, timeUnitBehavior.get(), module_->supportsMultiThreading());
     selectionOptionBehavior_->initOptions(&commonOptions);
-
 }
 
 void RunnerModule::optionsFinished()
@@ -131,34 +131,36 @@ int RunnerModule::run()
     common_.initFrameIndexGroup();
     module_->initAfterFirstFrame(settings_, common_.frame());
 
-    t_pbc  pbc;
+    t_pbc      pbc;
     const bool hasPbc = settings_.hasPBC();
 
-    int                                 nframes = 0;
+    int                         nframes = 0;
     AnalysisDataParallelOptions dataOptions(common_.nThreads() > 0 ? common_.nThreads() : 1);
-    int localDataIndex = 0;
+    int                         localDataIndex = 0;
 
 
-
-    if (module_->supportsMultiThreading() && common_.nThreads() > 0) {
-        std::vector<SelectionCollection> frameLocalSelections;
+    if (module_->supportsMultiThreading() && common_.nThreads() > 0)
+    {
+        std::vector<SelectionCollection>                 frameLocalSelections;
         std::vector<TrajectoryAnalysisModuleDataPointer> frameLocalData;
-        std::vector<std::future<int>> waiters;
-        std::vector<t_pbc> pbcs;
+        std::vector<std::future<int>>                    waiters;
+        std::vector<t_pbc>                               pbcs;
         for (int i = 0; i < common_.nThreads(); i++)
         {
             pbcs.emplace_back();
             waiters.emplace_back();
             frameLocalSelections.emplace_back(selections_);
         }
-        for (int i = 0; i < common_.nThreads(); i++) {
+        for (int i = 0; i < common_.nThreads(); i++)
+        {
             frameLocalData.push_back(module_->startFrames(dataOptions, frameLocalSelections[i]));
         }
         const int nThreads = common_.nThreads();
         printf("\n\nParallel execution with %d threads\n\n", nThreads);
         gmx_omp_set_num_threads(nThreads);
         std::vector<t_trxframe> localFrames;
-        for (int i = 0; i < nThreads; i ++) {
+        for (int i = 0; i < nThreads; i++)
+        {
             t_trxframe& back = localFrames.emplace_back(common_.frame());
             initFrame(&back, common_.frame().natoms, common_.frame().atoms);
         }
@@ -167,7 +169,8 @@ int RunnerModule::run()
             localDataIndex = nframes % nThreads;
             printf("Start loop %d\n", nframes);
             printf("Local data indeex %d\n", localDataIndex);
-            if (nframes >= nThreads) {
+            if (nframes >= nThreads)
+            {
                 printf("Waits for thread %d\n", nframes - nThreads);
                 module_->finishFrameSerial(waiters[localDataIndex].get());
             }
@@ -177,35 +180,47 @@ int RunnerModule::run()
             if (hasPbc)
             {
                 set_pbc(ppbc, topology.pbcType(), localFrames[localDataIndex].box);
-            } else  {
-                  ppbc = nullptr;
-                }
+            }
+            else
+            {
+                ppbc = nullptr;
+            }
             frameLocalSelections[localDataIndex].evaluate(&localFrames[localDataIndex], ppbc);
             printf("Dispatches thread frame %d\n", nframes);
-            waiters[localDataIndex] = std::async(std::launch::async,[&, ppbc, localDataIndex, nframes]() -> int{
-                module_->analyzeFrame(nframes, localFrames[localDataIndex], ppbc, frameLocalData.at(localDataIndex).get());
-                return nframes;
-            });
+            waiters[localDataIndex] =
+                    std::async(std::launch::async, [&, ppbc, localDataIndex, nframes]() -> int {
+                        module_->analyzeFrame(nframes,
+                                              localFrames[localDataIndex],
+                                              ppbc,
+                                              frameLocalData.at(localDataIndex).get());
+                        return nframes;
+                    });
 
             ++nframes;
-        } while (common_.readNextFrame()) ;
+        } while (common_.readNextFrame());
         printf("Finishes loops\n");
-        for (auto& waiter: waiters) {
-            if (waiter.valid()) {
+        for (auto& waiter : waiters)
+        {
+            if (waiter.valid())
+            {
                 printf("Waits for thread\n");
                 waiter.wait();
             }
         }
 
-        for (int i = 0; i < common_.nThreads(); i++) {
+        for (int i = 0; i < common_.nThreads(); i++)
+        {
             TrajectoryAnalysisModuleData* pdata = frameLocalData[i].get();
             module_->finishFrames(pdata);
         }
-        for (int i = 0; i < common_.nThreads(); i++) {
+        for (int i = 0; i < common_.nThreads(); i++)
+        {
             frameLocalData[i]->finish();
         }
-    } else {
-        auto pdata =             module_->startFrames(dataOptions, selections_);
+    }
+    else
+    {
+        auto pdata = module_->startFrames(dataOptions, selections_);
         printf("\n\nSerial execution\n\n");
         do
         {
@@ -230,8 +245,6 @@ int RunnerModule::run()
         }
         pdata.reset();
     }
-
-
 
 
     if (common_.hasTrajectory())

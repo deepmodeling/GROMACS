@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,26 +46,30 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
 
-void initFrame(t_trxframe* frame, int numAtoms, t_atoms* atoms) {
+void initFrame(t_trxframe* frame, int numAtoms, t_atoms* atoms)
+{
     if (atoms != nullptr)
     {
         frame->atoms = copy_t_atoms(atoms);
     }
-    //x
-    if (frame->bX) {
+    // x
+    if (frame->bX)
+    {
         snew(frame->x, numAtoms);
     }
-    //v
-    if (frame->bV) {
+    // v
+    if (frame->bV)
+    {
         snew(frame->v, numAtoms);
-
     }
-    //f
-    if (frame->bF) {
+    // f
+    if (frame->bF)
+    {
         snew(frame->f, numAtoms);
     }
-    //index
-    if (frame->bIndex) {
+    // index
+    if (frame->bIndex)
+    {
         snew(frame->index, numAtoms);
     }
 }
@@ -75,25 +79,28 @@ void copyFrame(const t_trxframe* src, t_trxframe* dest)
 
 
     // matrix
-    if (dest->bBox) {
+    if (dest->bBox)
+    {
         copy_mat(src->box, dest->box);
     }
-    //x
-    if (dest->bX) {
+    // x
+    if (dest->bX)
+    {
         std::memcpy(dest->x, src->x, dest->natoms * sizeof(rvec));
-
     }
-    //v
-    if (dest->bV) {
+    // v
+    if (dest->bV)
+    {
         std::memcpy(dest->v, src->v, dest->natoms * sizeof(rvec));
-
     }
-    //f
-    if (dest->bF) {
+    // f
+    if (dest->bF)
+    {
         std::memcpy(dest->f, src->f, dest->natoms * sizeof(rvec));
     }
-    //index
-    if (dest->bIndex) {
+    // index
+    if (dest->bIndex)
+    {
         std::memcpy(dest->index, src->index, dest->natoms * sizeof(int));
     }
 }

@@ -188,7 +188,7 @@ private:
     AnalysisNeighborhood nb_;
     //! Topology exclusions used by neighborhood searching.
     const gmx_localtop_t* localTop_;
-    const gmx_mtop_t* globalTop_;
+    const gmx_mtop_t*     globalTop_;
 
     // User input options.
     double        binwidth_;
@@ -233,7 +233,8 @@ Rdf::Rdf() :
     registerAnalysisDataset(&normFactors_, "norm");
 }
 
-bool Rdf::supportsMultiThreading() const {
+bool Rdf::supportsMultiThreading() const
+{
     return true;
 }
 
@@ -449,9 +450,7 @@ public:
         surfaceDist2_.resize(surfaceGroupCount);
     }
 
-    void finish() override {
-
-        finishDataHandles(); }
+    void finish() override { finishDataHandles(); }
 
     /*! \brief
      * Minimum distance to each surface group.
@@ -478,9 +477,10 @@ TrajectoryAnalysisModuleDataPointer Rdf::startFrames(const AnalysisDataParallelO
         {
             GMX_THROW(InconsistentInputError("-surf only works with -ref that consists of atoms"));
         }
-        surfaceGroupCount_   = refSel_.initOriginalIdsToGroup(globalTop_, type);
+        surfaceGroupCount_ = refSel_.initOriginalIdsToGroup(globalTop_, type);
     }
-    TrajectoryAnalysisModuleDataPointer data = std::make_unique<RdfModuleData>(this, opt, selections, surfaceGroupCount_);
+    TrajectoryAnalysisModuleDataPointer data =
+            std::make_unique<RdfModuleData>(this, opt, selections, surfaceGroupCount_);
 
     if (surface_ != SurfaceType::None)
     {

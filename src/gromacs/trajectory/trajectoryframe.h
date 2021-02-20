@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -73,7 +73,7 @@ struct t_trxframe // NOLINT (clang-analyzer-optin.performance.Padding)
     gmx_bool bPrec;
     real     prec; /* precision of x, fraction of 1 nm */
     gmx_bool bX;
-    rvec*    x ; /* coordinates (natoms)             */
+    rvec*    x; /* coordinates (natoms)             */
     gmx_bool bV;
     rvec*    v; /* velocities (natoms)              */
     gmx_bool bF;
@@ -98,7 +98,6 @@ void initFrame(t_trxframe* frame, int numAtoms, t_atoms* atoms);
 void copyFrame(const t_trxframe* src, t_trxframe* dest);
 
 void comp_frame(FILE* fp, t_trxframe* fr1, t_trxframe* fr2, gmx_bool bRMSD, real ftol, real abstol);
-
 
 
 void done_frame(t_trxframe* frame);
