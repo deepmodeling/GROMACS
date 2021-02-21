@@ -226,6 +226,23 @@ gmx_domdec_zones_t* domdec_zones(gmx_domdec_t* dd)
     return &dd->comm->zones;
 }
 
+std::vector<std::tuple<gmx::RVec, gmx::RVec>> domdecZoneSizes(const gmx_domdec_zones_t& domdecZones)
+{
+    std::vector<std::tuple<gmx::RVec, gmx::RVec>> zoneSizes;
+    zoneSizes.resize(domdecZones.n);
+    for (int zone = 1; zone < domdecZones.n; zone++)
+    {
+        gmx::RVec c0, c1;
+        for (int d = 0; d < DIM; d++)
+        {
+            c0[d] = domdecZones.size[zone].bb_x0[d];
+            c1[d] = domdecZones.size[zone].bb_x1[d];
+        }
+        zoneSizes[zone] = std::tuple<gmx::RVec, gmx::RVec>{ c0, c1 };
+    }
+    return zoneSizes;
+}
+
 int dd_numAtomsZones(const gmx_domdec_t& dd)
 {
     return dd.comm->atomRanges.end(DDAtomRanges::Type::Zones);

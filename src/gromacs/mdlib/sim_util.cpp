@@ -1381,7 +1381,9 @@ void do_force(FILE*                               fplog,
         else
         {
             wallcycle_sub_start(wcycle, ewcsNBS_GRID_NONLOCAL);
-            nbnxn_put_on_grid_nonlocal(nbv, domdec_zones(cr->dd), fr->cginfo, x.unpaddedArrayRef());
+            auto* zones = domdec_zones(cr->dd);
+            nbnxn_put_on_grid_nonlocal(
+                    nbv, zones->cg_range, domdecZoneSizes(*zones), fr->cginfo, x.unpaddedArrayRef());
             wallcycle_sub_stop(wcycle, ewcsNBS_GRID_NONLOCAL);
         }
 

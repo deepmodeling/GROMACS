@@ -116,6 +116,9 @@ void dd_store_state(struct gmx_domdec_t* dd, t_state* state);
 /*! \brief Returns a pointer to the gmx_domdec_zones_t struct */
 struct gmx_domdec_zones_t* domdec_zones(struct gmx_domdec_t* dd);
 
+//! Returns the zone sizes as consumed by nbnxn_put_on_grid_nonlocal
+std::vector<std::tuple<gmx::RVec, gmx::RVec>> domdecZoneSizes(const gmx_domdec_zones_t& domdecZones);
+
 /*! \brief Returns the range for atoms in zones*/
 int dd_numAtomsZones(const gmx_domdec_t& dd);
 

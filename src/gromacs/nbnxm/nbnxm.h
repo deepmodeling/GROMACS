@@ -121,7 +121,6 @@
 #include "gromacs/utility/real.h"
 
 struct DeviceInformation;
-struct gmx_domdec_zones_t;
 struct gmx_enerdata_t;
 struct gmx_hw_info_t;
 struct gmx_mtop_t;
@@ -496,9 +495,10 @@ void nbnxn_put_on_grid(nonbonded_verlet_t*            nb_verlet,
  * with domain decomposition. Should be called after calling
  * nbnxn_search_put_on_grid for the local atoms / home zone.
  */
-void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*              nb_verlet,
-                                const struct gmx_domdec_zones_t* zones,
-                                gmx::ArrayRef<const int>         atomInfo,
-                                gmx::ArrayRef<const gmx::RVec>   x);
+void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*                             nb_verlet,
+                                gmx::ArrayRef<int>                              cg_range,
+                                gmx::ArrayRef<std::tuple<gmx::RVec, gmx::RVec>> zoneSizes,
+                                gmx::ArrayRef<const int>                        atomInfo,
+                                gmx::ArrayRef<const gmx::RVec>                  x);
 
 #endif // GMX_NBNXN_NBNXM_H

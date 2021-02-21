@@ -83,27 +83,21 @@ void nbnxn_put_on_grid(nonbonded_verlet_t*            nb_verlet,
 }
 
 /* Calls nbnxn_put_on_grid for all non-local domains */
-void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*              nbv,
-                                const struct gmx_domdec_zones_t* zones,
-                                gmx::ArrayRef<const int>         atomInfo,
-                                gmx::ArrayRef<const gmx::RVec>   x)
+void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*                             nbv,
+                                gmx::ArrayRef<int>                              cg_range,
+                                gmx::ArrayRef<std::tuple<gmx::RVec, gmx::RVec>> zoneSizes,
+                                gmx::ArrayRef<const int>                        atomInfo,
+                                gmx::ArrayRef<const gmx::RVec>                  x)
 {
-    for (int zone = 1; zone < zones->n; zone++)
+    for (int zone = 1; zone < zoneSizes.ssize(); zone++)
     {
-        rvec c0, c1;
-        for (int d = 0; d < DIM; d++)
-        {
-            c0[d] = zones->size[zone].bb_x0[d];
-            c1[d] = zones->size[zone].bb_x1[d];
-        }
-
         nbnxn_put_on_grid(nbv,
                           nullptr,
                           zone,
-                          c0,
-                          c1,
+                          std::get<0>(zoneSizes[zone]),
+                          std::get<1>(zoneSizes[zone]),
                           nullptr,
-                          { zones->cg_range[zone], zones->cg_range[zone + 1] },
+                          { cg_range[zone], cg_range[zone + 1] },
                           -1,
                           atomInfo,
                           x,
