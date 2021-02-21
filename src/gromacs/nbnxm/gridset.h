@@ -106,6 +106,13 @@ public:
         std::array<bool, DIM> haveMultipleDomainsPerDim;
         //! The domain decomposition zone setup
         const gmx_domdec_zones_t* zones;
+        gmx::Range<int>           iZoneRange;
+        gmx::Range<int>           jZoneRanges;
+        int                       numDomdecZones;
+        int                       numIZones;
+        /* The charge group boundaries for the zones */
+        std::array<int, 9> cg_range;
+        bool               haveDomdecZones;
     };
 
     //! Constructs a grid set for 1 or multiple DD zones, when numDDCells!=nullptr

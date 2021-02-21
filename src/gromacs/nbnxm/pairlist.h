@@ -45,6 +45,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/defaultinitializationallocator.h"
 #include "gromacs/utility/enumerationhelpers.h"
+#include "gromacs/utility/range.h"
 #include "gromacs/utility/real.h"
 
 #include "pairlistparams.h"
@@ -52,6 +53,7 @@
 struct NbnxnPairlistCpuWork;
 struct NbnxnPairlistGpuWork;
 struct t_nblist;
+struct gmx_domdec_zones_t;
 
 
 //! Convenience type for vector with aligned memory
@@ -298,5 +300,15 @@ struct NbnxnPairlistGpu
     //! Cache protection
     gmx_cache_protect_t cp1;
 };
+
+/* Returns the i-zone range for pairlist construction for the give locality */
+gmx::Range<int> getIZoneRange(bool                           doTestParticleInsertion,
+                              int                            numIZones,
+                              const gmx::InteractionLocality locality);
+
+/* Returns the j-zone range for pairlist construction for the give locality and i-zone */
+gmx::Range<int> getJZoneRange(const gmx_domdec_zones_t*      ddZones,
+                              const gmx::InteractionLocality locality,
+                              const int                      iZone);
 
 #endif

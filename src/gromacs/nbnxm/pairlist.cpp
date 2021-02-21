@@ -654,8 +654,7 @@ NbnxnPairlistGpu::NbnxnPairlistGpu(gmx::PinningPolicy pinningPolicy) :
 }
 
 // TODO: Move to pairlistset.cpp
-PairlistSet::PairlistSet(const InteractionLocality locality, const PairlistParams& pairlistParams) :
-    locality_(locality),
+PairlistSet::PairlistSet(const PairlistParams& pairlistParams) :
     params_(pairlistParams),
     combineLists_(sc_isGpuPairListType[pairlistParams.pairlistType]), // Currently GPU lists are always combined
     isCpuType_(!sc_isGpuPairListType[pairlistParams.pairlistType])
@@ -2482,7 +2481,7 @@ static void get_nsubpair_target(const Nbnxm::GridSet&     gridSet,
     const real r_eff_sup = rlist + nbnxn_get_rlist_effective_inc(numAtomsCluster, ls);
 
     real nsp_est_nl = 0;
-    if (gridSet.domainSetup().haveMultipleDomains && gridSet.domainSetup().zones->n != 1)
+    if (gridSet.domainSetup().haveMultipleDomains && gridSet.domainSetup().numDomdecZones != 1)
     {
         nsp_est_nl = gmx::square(dims.atomDensity / numAtomsCluster)
                      * nonlocal_vol2(gridSet.domainSetup().zones, ls, r_eff_sup);
@@ -3822,11 +3821,9 @@ static void sort_sci(NbnxnPairlistGpu* nbl)
     std::swap(nbl->sci, work.sci_sort);
 }
 
-/* Returns the i-zone range for pairlist construction for the give locality */
-static Range<int> getIZoneRange(const Nbnxm::GridSet::DomainSetup& domainSetup,
-                                const InteractionLocality          locality)
+Range<int> getIZoneRange(bool doTestParticleInsertion, int numIZones, const InteractionLocality locality)
 {
-    if (domainSetup.doTestParticleInsertion)
+    if (doTestParticleInsertion)
     {
         /* With TPI we do grid 1, the inserted molecule, versus grid 0, the rest */
         return { 1, 2 };
@@ -3839,14 +3836,11 @@ static Range<int> getIZoneRange(const Nbnxm::GridSet::DomainSetup& domainSetup,
     else
     {
         /* Non-local: we need all i-zones */
-        return { 0, int(domainSetup.zones->iZones.size()) };
+        return { 0, numIZones };
     }
 }
 
-/* Returns the j-zone range for pairlist construction for the give locality and i-zone */
-static Range<int> getJZoneRange(const gmx_domdec_zones_t* ddZones,
-                                const InteractionLocality locality,
-                                const int                 iZone)
+Range<int> getJZoneRange(const gmx_domdec_zones_t* ddZones, const InteractionLocality locality, const int iZone)
 {
     if (locality == InteractionLocality::Local)
     {
@@ -3874,7 +3868,8 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
                                      const ListOfLists<int>&       exclusions,
                                      const int                     minimumIlistCountForGpuBalancing,
                                      t_nrnb*                       nrnb,
-                                     SearchCycleCounting*          searchCycleCounting)
+                                     SearchCycleCounting*          searchCycleCounting,
+                                     InteractionLocality           locality)
 {
     const real rlist = params_.rlistOuter;
 
@@ -3887,7 +3882,7 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
 
     nbat->bUseBufferFlags = (nbat->out.size() > 1);
     /* We should re-init the flags before making the first list */
-    if (nbat->bUseBufferFlags && locality_ == InteractionLocality::Local)
+    if (nbat->bUseBufferFlags && locality == InteractionLocality::Local)
     {
         resizeAndZeroBufferFlags(&nbat->buffer_flags, nbat->numAtoms());
     }
@@ -3897,7 +3892,7 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
     if (!isCpuType_ && minimumIlistCountForGpuBalancing > 0)
     {
         get_nsubpair_target(
-                gridSet, locality_, rlist, minimumIlistCountForGpuBalancing, &nsubpair_target, &nsubpair_tot_est);
+                gridSet, locality, rlist, minimumIlistCountForGpuBalancing, &nsubpair_target, &nsubpair_tot_est);
     }
 
     /* Clear all pair-lists */
@@ -3918,17 +3913,18 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
         }
     }
 
-    const gmx_domdec_zones_t* ddZones = gridSet.domainSetup().zones;
-    GMX_ASSERT(locality_ == InteractionLocality::Local || ddZones != nullptr,
+    const auto& domainSetup = gridSet.domainSetup();
+    GMX_ASSERT(locality == InteractionLocality::Local || domainSetup.haveDomdecZones,
                "Nonlocal interaction locality with null ddZones.");
 
-    const auto iZoneRange = getIZoneRange(gridSet.domainSetup(), locality_);
+    const auto iZoneRange =
+            getIZoneRange(domainSetup.doTestParticleInsertion, domainSetup.numIZones, locality);
 
     for (const int iZone : iZoneRange)
     {
         const Grid& iGrid = gridSet.grids()[iZone];
 
-        const auto jZoneRange = getJZoneRange(ddZones, locality_, iZone);
+        const auto jZoneRange = getJZoneRange(domainSetup.zones, locality, iZone);
 
         for (int jZone : jZoneRange)
         {
@@ -3947,7 +3943,8 @@ void PairlistSet::constructPairlists(const Nbnxm::GridSet&         gridSet,
             /* With GPU: generate progressively smaller lists for
              * load balancing for local only or non-local with 2 zones.
              */
-            const bool progBal = (locality_ == InteractionLocality::Local || ddZones->n <= 2);
+            const bool progBal =
+                    (locality == InteractionLocality::Local || domainSetup.numDomdecZones <= 2);
 
 #pragma omp parallel for num_threads(numLists) schedule(static)
             for (int th = 0; th < numLists; th++)
@@ -4168,15 +4165,17 @@ void PairlistSets::construct(const InteractionLocality iLocality,
                              const int64_t             step,
                              t_nrnb*                   nrnb)
 {
-    const auto& gridSet = pairSearch->gridSet();
-    const auto* ddZones = gridSet.domainSetup().zones;
+    const auto& gridSet     = pairSearch->gridSet();
+    const auto& domainSetup = gridSet.domainSetup();
 
     /* The Nbnxm code can also work with more exclusions than those in i-zones only
      * when using DD, but the equality check can catch more issues.
      */
     GMX_RELEASE_ASSERT(
-            exclusions.empty() || (!ddZones && exclusions.ssize() == gridSet.numRealAtomsTotal())
-                    || (ddZones && exclusions.ssize() == ddZones->cg_range[ddZones->iZones.size()]),
+            exclusions.empty()
+                    || (!domainSetup.haveDomdecZones && exclusions.ssize() == gridSet.numRealAtomsTotal())
+                    || (domainSetup.haveDomdecZones
+                        && exclusions.ssize() == domainSetup.cg_range[domainSetup.numIZones]),
             "exclusions should either be empty or the number of lists should match the number of "
             "local i-atoms");
 
@@ -4186,7 +4185,8 @@ void PairlistSets::construct(const InteractionLocality iLocality,
                                               exclusions,
                                               minimumIlistCountForGpuBalancing_,
                                               nrnb,
-                                              &pairSearch->cycleCounting_);
+                                              &pairSearch->cycleCounting_,
+                                              iLocality);
 
     if (iLocality == InteractionLocality::Local)
     {

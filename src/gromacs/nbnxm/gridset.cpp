@@ -44,8 +44,11 @@
 
 #include "gmxpre.h"
 
+#include <type_traits>
+
 #include "gridset.h"
 
+#include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdlib/updategroupscog.h"
 #include "gromacs/nbnxm/atomdata.h"
@@ -84,8 +87,23 @@ GridSet::DomainSetup::DomainSetup(const PbcType             pbcType,
     pbcType(pbcType),
     doTestParticleInsertion(doTestParticleInsertion),
     haveMultipleDomains(numDDCells != nullptr),
-    zones(ddZones)
+    zones(ddZones),
+    haveDomdecZones(std::is_null_pointer<decltype(ddZones)>::value)
 {
+    if (haveDomdecZones)
+    {
+        numDomdecZones = ddZones->n;
+        numIZones      = int(ddZones->iZones.size());
+        cg_range       = ddZones->cg_range;
+        // iZoneRange = getIZoneRange(domainSetup.doTestParticleInsertion, domainSetup.numIZones,
+        // locality_); getJZoneRange(domainSetup.zones, locality_, iZone);
+    }
+    else
+    {
+        numDomdecZones = 0;
+        numIZones      = 0;
+        cg_range       = {};
+    }
     for (int d = 0; d < DIM; d++)
     {
         haveMultipleDomainsPerDim[d] = (numDDCells != nullptr && (*numDDCells)[d] > 1);

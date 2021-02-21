@@ -83,7 +83,7 @@ class PairlistSet
 {
 public:
     //! Constructor: initializes the pairlist set as empty
-    PairlistSet(gmx::InteractionLocality locality, const PairlistParams& listParams);
+    PairlistSet(const PairlistParams& listParams);
 
     ~PairlistSet();
 
@@ -94,13 +94,11 @@ public:
                             const gmx::ListOfLists<int>&  exclusions,
                             int                           minimumIlistCountForGpuBalancing,
                             t_nrnb*                       nrnb,
-                            SearchCycleCounting*          searchCycleCounting);
+                            SearchCycleCounting*          searchCycleCounting,
+                            gmx::InteractionLocality      locality);
 
     //! Dispatch the kernel for dynamic pairlist pruning
     void dispatchPruneKernel(const nbnxn_atomdata_t* nbat, const rvec* shift_vec);
-
-    //! Returns the locality
-    gmx::InteractionLocality locality() const { return locality_; }
 
     //! Returns the lists of CPU pairlists
     gmx::ArrayRef<const NbnxnPairlistCpu> cpuLists() const { return cpuLists_; }
@@ -122,8 +120,6 @@ public:
     gmx::ArrayRef<const std::unique_ptr<t_nblist>> fepLists() const { return fepLists_; }
 
 private:
-    //! The locality of the pairlist set
-    gmx::InteractionLocality locality_;
     //! List of pairlists in CPU layout
     std::vector<NbnxnPairlistCpu> cpuLists_;
     //! List of working list for rebalancing CPU lists
