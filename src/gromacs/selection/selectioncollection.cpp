@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2010-2018, The GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -57,7 +57,6 @@
 #include "gromacs/options/ioptionscontainer.h"
 #include "gromacs/selection/selection.h"
 #include "gromacs/selection/selhelp.h"
-#include "gromacs/topology/mtop_util.h"
 #include "gromacs/topology/topology.h"
 #include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/utility/exceptions.h"
@@ -530,8 +529,56 @@ SelectionCollection::Impl::requiredTopologyPropertiesForPositionType(const std::
 SelectionCollection::SelectionCollection() : impl_(new Impl) {}
 
 
-SelectionCollection::~SelectionCollection() {}
+SelectionCollection::~SelectionCollection() = default;
 
+SelectionCollection::SelectionCollection(const SelectionCollection& rhs) :
+    impl_(std::make_unique<Impl>())
+{
+    setReferencePosType(rhs.impl_->rpost_.empty() ? PositionCalculationCollection::typeEnumValues[0]
+                                                  : rhs.impl_->rpost_.c_str());
+    setOutputPosType(rhs.impl_->spost_.empty() ? PositionCalculationCollection::typeEnumValues[0]
+                                               : rhs.impl_->spost_.c_str());
+    setDebugLevel(static_cast<int>(rhs.impl_->debugLevel_));
+    gmx_ana_index_copy(&impl_->sc_.gall, &rhs.impl_->sc_.gall, /*balloc=*/true);
+
+    for (size_t i = 0; i < rhs.impl_->sc_.sel.size(); i++)
+    {
+        const auto& selectionOption = rhs.impl_->sc_.sel[i];
+        parseFromString(selectionOption->selectionText());
+        impl_->sc_.sel[i]->setFlags(selectionOption->flags());
+    }
+
+    // Topology has been initialized in rhs if top is non-null or natoms is set.
+    // Note this needs to be set after selections are parsed to register topology requirements properly.
+    if (rhs.impl_->sc_.top != nullptr || rhs.impl_->sc_.gall.isize > 0)
+    {
+        setTopology(rhs.impl_->sc_.top, rhs.impl_->sc_.gall.isize);
+    }
+
+    if (rhs.impl_->grps_ != nullptr)
+    {
+        setIndexGroups(rhs.impl_->grps_);
+    }
+
+    // Only compile the selection if rhs is compiled.
+    if (rhs.impl_->sc_.mempool != nullptr)
+    {
+        compile();
+    }
+}
+
+SelectionCollection& SelectionCollection::operator=(SelectionCollection rhs)
+{
+    rhs.swap(*this);
+    return *this;
+}
+
+void SelectionCollection::swap(SelectionCollection& rhs)
+{
+    auto tmp  = std::move(impl_);
+    impl_     = std::move(rhs.impl_);
+    rhs.impl_ = std::move(tmp);
+}
 
 void SelectionCollection::initOptions(IOptionsContainer* options, SelectionTypeOption selectionTypeOption)
 {
@@ -594,7 +641,7 @@ void SelectionCollection::setDebugLevel(int debugLevel)
 }
 
 
-void SelectionCollection::setTopology(gmx_mtop_t* top, int natoms)
+void SelectionCollection::setTopology(const gmx_mtop_t* top, int natoms)
 {
     GMX_RELEASE_ASSERT(natoms > 0 || top != nullptr,
                        "The number of atoms must be given if there is no topology");
@@ -875,6 +922,20 @@ void SelectionCollection::evaluateFinal(int nframes)
 {
     SelectionEvaluator evaluator;
     evaluator.evaluateFinal(this, nframes);
+}
+
+std::optional<Selection> SelectionCollection::selection(std::string_view selName) const
+{
+    const auto& selections = impl_->sc_.sel;
+    if (const auto foundIter = std::find_if(
+                selections.cbegin(),
+                selections.cend(),
+                [selName](const auto& selection) { return selection->name() == selName; });
+        foundIter != selections.end())
+    {
+        return Selection(foundIter->get());
+    }
+    return std::nullopt;
 }
 
 
