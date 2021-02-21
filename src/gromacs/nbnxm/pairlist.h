@@ -41,7 +41,6 @@
 
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/vectypes.h"
-#include "gromacs/mdtypes/locality.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/defaultinitializationallocator.h"
 #include "gromacs/utility/enumerationhelpers.h"
@@ -298,5 +297,12 @@ struct NbnxnPairlistGpu
     //! Cache protection
     gmx_cache_protect_t cp1;
 };
+
+/* Clears an atom-atom-style pair list */
+void clear_pairlist_fep(t_nblist* nl);
+/* Clears an NbnxnPairlistGpu data structure */
+void clear_pairlist(NbnxnPairlistGpu* nbl);
+/* Clears an NbnxnPairlistCpu data structure */
+void clear_pairlist(NbnxnPairlistCpu* nbl);
 
 #endif
