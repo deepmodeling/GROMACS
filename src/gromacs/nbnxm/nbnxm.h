@@ -496,7 +496,7 @@ void nbnxn_put_on_grid(nonbonded_verlet_t*            nb_verlet,
  * nbnxn_search_put_on_grid for the local atoms / home zone.
  */
 void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*                             nb_verlet,
-                                gmx::ArrayRef<int>                              cg_range,
+                                gmx::ArrayRef<const int>                        cg_range,
                                 gmx::ArrayRef<std::tuple<gmx::RVec, gmx::RVec>> zoneSizes,
                                 gmx::ArrayRef<const int>                        atomInfo,
                                 gmx::ArrayRef<const gmx::RVec>                  x);

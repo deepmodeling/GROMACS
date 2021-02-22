@@ -84,7 +84,7 @@ void nbnxn_put_on_grid(nonbonded_verlet_t*            nb_verlet,
 
 /* Calls nbnxn_put_on_grid for all non-local domains */
 void nbnxn_put_on_grid_nonlocal(nonbonded_verlet_t*                             nbv,
-                                gmx::ArrayRef<int>                              cg_range,
+                                gmx::ArrayRef<const int>                        cg_range,
                                 gmx::ArrayRef<std::tuple<gmx::RVec, gmx::RVec>> zoneSizes,
                                 gmx::ArrayRef<const int>                        atomInfo,
                                 gmx::ArrayRef<const gmx::RVec>                  x)
