@@ -45,12 +45,22 @@
  * \ingroup module_gpu_utils
  */
 #include <cuda_runtime.h>
+#include "gromacs/math/vectypes.h"
 
 //! Device texture for fast read-only data fetching
 using DeviceTexture = cudaTextureObject_t;
 
 //! \brief Single GPU call timing event - meaningless in CUDA
 using CommandEvent = void;
+
+//! Convenience alias for 2-wide float
+using Float2 = float2;
+
+//! Convenience alias for 3-wide float
+using Float3 = gmx::RVec;
+
+//! Convenience alias for 4-wide float.
+using Float4 = float4;
 
 /*! \internal \brief
  * GPU kernels scheduling description. This is same in OpenCL/CUDA.
