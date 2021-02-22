@@ -20,6 +20,22 @@
 
 #include "gromacs/sits/cuda/sits_cuda_types.h"
 
+struct gmx_device_info_t;
+struct gmx_domdec_zones_t;
+struct gmx_enerdata_t;
+struct gmx_hw_info_t;
+struct gmx_mtop_t;
+struct gmx_wallcycle;
+struct interaction_const_t;
+struct sits_t;
+struct t_blocka;
+struct t_commrec;
+struct t_lambda;
+struct t_mdatoms;
+struct t_nrnb;
+struct t_forcerec;
+struct t_inputrec;
+
 enum SITS_CALC_MODE
 {
     SIMPLE_SITS    = 0x00000001,
@@ -42,6 +58,17 @@ struct sits_info
 
 struct sits_t
 {
+public:
+    //! Constructs an object from its components
+    sits_t(std::unique_ptr<PairlistSets>     pairlistSets,
+                       std::unique_ptr<PairSearch>       pairSearch,
+                       std::unique_ptr<nbnxn_atomdata_t> nbat,
+                       const Nbnxm::KernelSetup&         kernelSetup,
+                       sits_cuda*                  gpu_sits,
+                       gmx_wallcycle*                    wcycle);
+
+    ~sits_t();
+
 private:
     FILE* sits_enerd_log = NULL;
 
