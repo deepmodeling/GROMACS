@@ -919,7 +919,6 @@ void cuda_set_cacheconfig()
 
 /* X buffer operations on GPU: performs conversion from rvec to nb format. */
 void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
-                           bool                      setFillerCoords,
                            NbnxmGpu*                 nb,
                            DeviceBuffer<gmx::RVec>   d_x,
                            GpuEventSynchronizer*     xReadyOnDevice,

@@ -251,7 +251,6 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet gmx_unused& gridSet,
  */
 CUDA_FUNC_QUALIFIER
 void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid gmx_unused& grid,
-                           bool gmx_unused setFillerCoords,
                            NbnxmGpu gmx_unused*    gpu_nbv,
                            DeviceBuffer<gmx::RVec> gmx_unused d_x,
                            GpuEventSynchronizer gmx_unused* xReadyOnDevice,
