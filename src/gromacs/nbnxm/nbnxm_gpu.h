@@ -240,7 +240,6 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet gmx_unused& gridSet,
 /*! \brief X buffer operations on GPU: performs conversion from rvec to nb format.
  *
  * \param[in]     grid             Grid to be converted.
- * \param[in]     setFillerCoords  If the filler coordinates are used.
  * \param[in,out] gpu_nbv          The nonbonded data GPU structure.
  * \param[in]     d_x              Device-side coordinates in plain rvec format.
  * \param[in]     xReadyOnDevice   Event synchronizer indicating that the coordinates are ready in
