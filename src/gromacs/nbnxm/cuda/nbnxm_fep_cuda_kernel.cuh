@@ -678,7 +678,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     r2C   = rcbrt(rpinvC);
                                     rinvC = rsqrt(r2C);
 
-                                    if ((alpha_coul_eff != alpha_vdw_eff) || (!useScBetaNO))
+                                    if ((alpha_coul_eff != alpha_vdw_eff) || (lfac_vdw[k] != lfac_coul[k]) || (!useScBetaNO))
                                     {
                                         rpinvV = 1.0f / (alpha_vdw_eff * lfac_vdw[k] * sigma6[k] + rp);
 #    if defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH || defined LJ_EWALD
