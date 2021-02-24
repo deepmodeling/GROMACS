@@ -45,7 +45,6 @@
 #include "abstractoption.h"
 
 #include "gromacs/options/abstractoptionstorage.h"
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 
@@ -115,7 +114,7 @@ void AbstractOptionStorage::startSet()
     bSetValuesHadErrors_ = false;
 }
 
-void AbstractOptionStorage::appendValue(const Any& value)
+void AbstractOptionStorage::appendValue(const std::any& value)
 {
     GMX_RELEASE_ASSERT(bInSet_, "startSet() not called");
     try
@@ -253,7 +252,7 @@ std::string OptionInfo::formatDescription() const
     return description;
 }
 
-std::vector<Any> OptionInfo::defaultValues() const
+std::vector<std::any> OptionInfo::defaultValues() const
 {
     return option().defaultValues();
 }
@@ -263,7 +262,7 @@ std::vector<std::string> OptionInfo::defaultValuesAsStrings() const
     return option().defaultValuesAsStrings();
 }
 
-std::vector<Any> OptionInfo::normalizeValues(const std::vector<Any>& values) const
+std::vector<std::any> OptionInfo::normalizeValues(const std::vector<std::any>& values) const
 {
     return option().normalizeValues(values);
 }

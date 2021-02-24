@@ -46,6 +46,7 @@
 #ifndef GMX_OPTIONS_OPTIONSASSIGNER_H
 #define GMX_OPTIONS_OPTIONSASSIGNER_H
 
+#include <any>
 #include <memory>
 #include <string>
 
@@ -53,7 +54,6 @@ namespace gmx
 {
 
 class Options;
-class Any;
 
 /*! \libinternal \brief
  * Decorator class for assigning values to Options.
@@ -167,13 +167,13 @@ public:
      * OptionStorageTemplate::convertValue() method of the storage class
      * implementing the option where the value is assigned to.
      */
-    void appendValue(const Any& value);
+    void appendAnyValue(const std::any& value);
     /*! \brief
      * Appends a value to the value list of the current option.
      *
      * \param[in] value  Value to assign.
      *
-     * See appendValue(const Any &) for more details.
+     * See appendValue(const std::any &) for more details.
      */
     void appendValue(const std::string& value);
     /*! \brief

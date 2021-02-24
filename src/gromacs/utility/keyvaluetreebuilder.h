@@ -56,7 +56,6 @@
 #include <utility>
 #include <vector>
 
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/keyvaluetree.h"
 
@@ -92,7 +91,7 @@ private:
     template<typename T>
     static KeyValueTreeValue createValue(const T& value)
     {
-        return KeyValueTreeValue(Any::create<T>(value));
+        return KeyValueTreeValue(std::make_any<T>(value));
     }
     /*! \brief
      * Helper function for other builders to create default-constructed
@@ -101,7 +100,7 @@ private:
     template<typename T>
     static KeyValueTreeValue createValue()
     {
-        return KeyValueTreeValue(Any::create<T>(T()));
+        return KeyValueTreeValue(std::any(T()));
     }
 
     KeyValueTreeObject root_;
@@ -131,10 +130,10 @@ public:
     template<typename T>
     void setValue(const T& value)
     {
-        value_ = Any::create<T>(value);
+        value_ = std::any(value);
     }
-    //! Assigns a Any value to the built value.
-    void setAnyValue(Any&& value) { value_ = std::move(value); }
+    //! Assigns a std::any value to the built value.
+    void setAnyValue(std::any&& value) { value_ = std::move(value); }
     /*! \brief
      * Returns an object builder for building an object into this value.
      *
@@ -158,7 +157,7 @@ public:
     KeyValueTreeValue build() { return KeyValueTreeValue(std::move(value_)); }
 
 private:
-    Any value_;
+    std::any value_;
 };
 
 class KeyValueTreeArrayBuilderBase
@@ -167,8 +166,8 @@ protected:
     //! Creates an array builder for populating given array object.
     explicit KeyValueTreeArrayBuilderBase(KeyValueTreeArray* array) : array_(array) {}
 
-    //! Appends a raw Any value to the array.
-    KeyValueTreeValue& addRawValue(Any&& value)
+    //! Appends a raw std::any value to the array.
+    KeyValueTreeValue& addRawValue(std::any&& value)
     {
         KeyValueTreeValueBuilder builder;
         builder.setAnyValue(std::move(value));
@@ -262,7 +261,7 @@ private:
  * Builder for KeyValueTreeObject objects.
  *
  * The builder does not own the object being constructed, but instead holds a
- * reference to an object within a tree rooted in KeyValueTreeBuilder or
+ * handle to an object within a tree rooted in KeyValueTreeBuilder or
  * KeyValueTreeValueBuilder.
  *
  * \inlibraryapi
@@ -276,8 +275,8 @@ public:
     {
         addProperty(key, std::move(value));
     }
-    //! Adds a property with given key from a Any value.
-    void addRawValue(const std::string& key, Any&& value)
+    //! Adds a property with given key from a std::any value.
+    void addRawValue(const std::string& key, std::any&& value)
     {
         addProperty(key, KeyValueTreeValue(std::move(value)));
     }
@@ -307,7 +306,7 @@ public:
     KeyValueTreeArrayBuilder addArray(const std::string& key)
     {
         auto iter = addProperty(key, KeyValueTreeBuilder::createValue<KeyValueTreeArray>());
-        return KeyValueTreeArrayBuilder(&iter->second.asArray());
+        return KeyValueTreeArrayBuilder(iter->second.asArray());
     }
     /*! \brief
      * Adds an array-valued property with uniform value types with given
@@ -322,7 +321,7 @@ public:
     KeyValueTreeUniformArrayBuilder<T> addUniformArray(const std::string& key)
     {
         auto iter = addProperty(key, KeyValueTreeBuilder::createValue<KeyValueTreeArray>());
-        return KeyValueTreeUniformArrayBuilder<T>(&iter->second.asArray());
+        return KeyValueTreeUniformArrayBuilder<T>(iter->second.asArray());
     }
     /*! \brief
      * Adds an array-valued property with uniform value types with given
@@ -351,7 +350,7 @@ public:
     KeyValueTreeObjectArrayBuilder addObjectArray(const std::string& key)
     {
         auto iter = addProperty(key, KeyValueTreeBuilder::createValue<KeyValueTreeArray>());
-        return KeyValueTreeObjectArrayBuilder(&iter->second.asArray());
+        return KeyValueTreeObjectArrayBuilder(iter->second.asArray());
     }
 
     //! Whether a property with given key exists.
@@ -363,7 +362,7 @@ public:
     {
         GMX_ASSERT(keyExists(key), "Requested non-existent value");
         GMX_ASSERT((*this)[key].isObject(), "Accessing non-object value as object");
-        return KeyValueTreeObjectBuilder(&object_->valueMap_.at(key).asObject());
+        return KeyValueTreeObjectBuilder(object_->valueMap_.at(key).asObject());
     }
 
     /*! \brief
@@ -390,7 +389,7 @@ public:
 
 private:
     explicit KeyValueTreeObjectBuilder(KeyValueTreeObject* object) : object_(object) {}
-    explicit KeyValueTreeObjectBuilder(KeyValueTreeValue* value) : object_(&value->asObject()) {}
+    explicit KeyValueTreeObjectBuilder(KeyValueTreeValue* value) : object_(value->asObject()) {}
 
     std::map<std::string, KeyValueTreeValue>::iterator addProperty(const std::string&  key,
                                                                    KeyValueTreeValue&& value)
@@ -420,14 +419,14 @@ inline KeyValueTreeObjectBuilder KeyValueTreeBuilder::rootObject()
 
 inline KeyValueTreeObjectBuilder KeyValueTreeValueBuilder::createObject()
 {
-    value_ = Any::create<KeyValueTreeObject>(KeyValueTreeObject());
-    return KeyValueTreeObjectBuilder(&value_.castRef<KeyValueTreeObject>());
+    value_.emplace<KeyValueTreeObject>();
+    return KeyValueTreeObjectBuilder(std::any_cast<KeyValueTreeObject>(&value_));
 }
 
 inline KeyValueTreeArrayBuilder KeyValueTreeValueBuilder::createArray()
 {
-    value_ = Any::create<KeyValueTreeArray>(KeyValueTreeArray());
-    return KeyValueTreeArrayBuilder(&value_.castRef<KeyValueTreeArray>());
+    value_.emplace<KeyValueTreeArray>();
+    return KeyValueTreeArrayBuilder(std::any_cast<KeyValueTreeArray>(&value_));
 }
 
 inline KeyValueTreeObjectBuilder KeyValueTreeObjectArrayBuilder::addObject()

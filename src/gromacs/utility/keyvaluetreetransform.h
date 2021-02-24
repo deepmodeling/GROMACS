@@ -45,13 +45,13 @@
 #ifndef GMX_UTILITY_KEYVALUETREETRANSFORM_H
 #define GMX_UTILITY_KEYVALUETREETRANSFORM_H
 
+#include <any>
 #include <functional>
 #include <memory>
 #include <string>
 #include <typeindex>
 #include <vector>
 
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/keyvaluetree.h"
 
 namespace gmx
@@ -193,8 +193,8 @@ public:
          */
         void transformWith(std::function<ToType(const FromType&)> transform)
         {
-            builder_->addTransformToAny([transform](const Any& value) {
-                return Any::create<ToType>(transform(value.cast<FromType>()));
+            builder_->addTransformToAny([transform](const std::any& value) {
+                return std::make_any<ToType>(transform(std::any_cast<FromType>(value)));
             });
         }
     };
@@ -220,9 +220,10 @@ public:
          */
         void transformWith(std::function<void(KeyValueTreeObjectBuilder*, const FromType&)> transform)
         {
-            builder_->addTransformToObject([transform](KeyValueTreeObjectBuilder* builder, const Any& value) {
-                transform(builder, value.cast<FromType>());
-            });
+            builder_->addTransformToObject(
+                    [transform](KeyValueTreeObjectBuilder* builder, const std::any& value) {
+                        transform(builder, std::any_cast<FromType>(value));
+                    });
         }
     };
 
@@ -328,8 +329,8 @@ private:
     void setExpectedType(const std::type_index& type);
     void setToPath(const KeyValueTreePath& path);
     void setKeyMatchType(StringCompareType keyMatchType);
-    void addTransformToAny(const std::function<Any(const Any&)>& transform);
-    void addTransformToObject(const std::function<void(KeyValueTreeObjectBuilder*, const Any&)>& transform);
+    void addTransformToAny(const std::function<std::any(const std::any&)>& transform);
+    void addTransformToObject(const std::function<void(KeyValueTreeObjectBuilder*, const std::any&)>& transform);
 
     class Data;
 

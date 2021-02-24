@@ -325,4 +325,38 @@ void compareKeyValueTrees(TextWriter*               writer,
 }
 //! \endcond
 
+//! \cond libapi
+std::string simpleValueToString(const KeyValueTreeValue& value)
+{
+    if (value.isType<bool>())
+    {
+        // TODO: Consider if this would be better as yes/no instead of
+        // true/false.
+        return toString(std::any_cast<bool>(value.asAny()));
+    }
+    else if (value.isType<float>())
+    {
+        return toString(std::any_cast<float>(value.asAny()));
+    }
+    else if (value.isType<double>())
+    {
+        return toString(std::any_cast<double>(value.asAny()));
+    }
+    else if (value.isType<int>())
+    {
+        return toString(std::any_cast<int>(value.asAny()));
+    }
+    else if (value.isType<int64_t>())
+    {
+        return toString(std::any_cast<int64_t>(value.asAny()));
+    }
+    else if (value.isType<std::string>())
+    {
+        return std::any_cast<std::string>(value.asAny());
+    }
+    GMX_RELEASE_ASSERT(false, "Unknown value type");
+    return std::string();
+}
+//! \endcond
+
 } // namespace gmx

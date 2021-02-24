@@ -75,10 +75,10 @@ public:
      */
     SelectionOptionStorage(const SelectionOption& settings, SelectionOptionManager* manager);
 
-    OptionInfo&      optionInfo() override { return info_; }
-    std::string      typeString() const override { return "selection"; }
-    std::string      formatSingleValue(const Selection& value) const override;
-    std::vector<Any> normalizeValues(const std::vector<Any>& values) const override;
+    OptionInfo&           optionInfo() override { return info_; }
+    std::string           typeString() const override { return "selection"; }
+    std::string           formatSingleValue(const Selection& value) const override;
+    std::vector<std::any> normalizeValues(const std::vector<std::any>& values) const override;
 
     /*! \brief
      * Adds selections to the storage.
@@ -124,7 +124,7 @@ public:
     void setSelectionFlag(SelectionFlag flag, bool bSet);
 
 private:
-    void convertValue(const Any& value) override;
+    void convertValue(const std::any& value) override;
     void processSetValues(ValueList* values) override;
     void processAll() override;
 

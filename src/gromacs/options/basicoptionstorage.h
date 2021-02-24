@@ -236,7 +236,7 @@ public:
     std::string typeString() const override { return "enum"; }
     std::string formatExtraDescription() const override;
     std::string formatSingleValue(const int& value) const override;
-    Any         normalizeValue(const int& value) const override;
+    std::any    normalizeValue(const int& value) const override;
 
     //! \copydoc EnumOptionInfo::allowedValues()
     const std::vector<std::string>& allowedValues() const { return allowed_; }

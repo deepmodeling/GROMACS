@@ -50,6 +50,7 @@
 
 #include "gromacs/options/optionsassigner.h"
 
+#include <any>
 #include <limits>
 #include <vector>
 
@@ -58,7 +59,6 @@
 #include "gromacs/options/basicoptions.h"
 #include "gromacs/options/options.h"
 #include "gromacs/options/optionsection.h"
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/stringutil.h"
 
@@ -642,7 +642,7 @@ TEST(OptionsAssignerDoubleTest, StoresValueFromFloat)
     gmx::OptionsAssigner assigner(&options);
     EXPECT_NO_THROW(assigner.start());
     ASSERT_NO_THROW(assigner.startOption("p"));
-    ASSERT_NO_THROW(assigner.appendValue(gmx::Any::create<float>(2.7)));
+    ASSERT_NO_THROW(assigner.appendAnyValue(std::make_any<float>(2.7)));
     EXPECT_NO_THROW(assigner.finishOption());
     EXPECT_NO_THROW(assigner.finish());
     EXPECT_NO_THROW(options.finish());

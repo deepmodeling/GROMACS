@@ -48,7 +48,6 @@
 
 #include "gromacs/options/abstractoptionstorage.h"
 #include "gromacs/options/options.h"
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 
@@ -201,10 +200,10 @@ bool OptionsAssigner::tryStartOption(const char* name)
 
 void OptionsAssigner::appendValue(const std::string& value)
 {
-    appendValue(Any(value));
+    appendAnyValue(std::make_any<std::string>(value));
 }
 
-void OptionsAssigner::appendValue(const Any& value)
+void OptionsAssigner::appendAnyValue(const std::any& value)
 {
     AbstractOptionStorage* option = impl_->currentOption_;
     GMX_RELEASE_ASSERT(option != nullptr, "startOption() not called");
@@ -222,7 +221,7 @@ void OptionsAssigner::finishOption()
         if (impl_->currentValueCount_ == 0)
         {
             // Should not throw, otherwise something is wrong.
-            option->appendValue(Any::create<bool>(!impl_->reverseBoolean_));
+            option->appendValue(std::make_any<bool>(!impl_->reverseBoolean_));
         }
         else if (impl_->reverseBoolean_)
         {

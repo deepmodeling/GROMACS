@@ -388,9 +388,9 @@ void KeyValueTreeTransformerImpl::Transformer::applyTransformedValue(const Rule*
         GMX_RELEASE_ASSERT(objBuilder[rule->targetKey_].isObject(),
                            "Inconsistent transform (different items map to same path)");
         objBuilder = objBuilder.getObjectBuilder(rule->targetKey_);
-        GMX_RELEASE_ASSERT(objBuilder.objectHasDistinctProperties(value.asObject()),
+        GMX_RELEASE_ASSERT(objBuilder.objectHasDistinctProperties(*value.asObject()),
                            "Inconsistent transform (different items map to same path)");
-        objBuilder.mergeObject(std::move(value.asObject()));
+        objBuilder.mergeObject(std::move(*value.asObject()));
     }
     else
     {
@@ -546,7 +546,7 @@ void KeyValueTreeTransformRuleBuilder::setKeyMatchType(StringCompareType keyMatc
     data_->keyMatchRule_ = true;
 }
 
-void KeyValueTreeTransformRuleBuilder::addTransformToAny(const std::function<Any(const Any&)>& transform)
+void KeyValueTreeTransformRuleBuilder::addTransformToAny(const std::function<std::any(const std::any&)>& transform)
 {
     data_->transform_ = [transform](KeyValueTreeValueBuilder* builder, const KeyValueTreeValue& value) {
         builder->setAnyValue(transform(value.asAny()));
@@ -554,7 +554,7 @@ void KeyValueTreeTransformRuleBuilder::addTransformToAny(const std::function<Any
 }
 
 void KeyValueTreeTransformRuleBuilder::addTransformToObject(
-        const std::function<void(KeyValueTreeObjectBuilder*, const Any&)>& transform)
+        const std::function<void(KeyValueTreeObjectBuilder*, const std::any&)>& transform)
 {
     data_->transform_ = [transform](KeyValueTreeValueBuilder* builder, const KeyValueTreeValue& value) {
         KeyValueTreeObjectBuilder obj = builder->createObject();

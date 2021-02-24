@@ -86,7 +86,7 @@ std::string SelectionOptionStorage::formatSingleValue(const Selection& value) co
 }
 
 
-std::vector<Any> SelectionOptionStorage::normalizeValues(const std::vector<Any>& /*values*/) const
+std::vector<std::any> SelectionOptionStorage::normalizeValues(const std::vector<std::any>& /*values*/) const
 {
     GMX_THROW(NotImplementedError("Selection options not supported in this context"));
 }
@@ -124,9 +124,9 @@ void SelectionOptionStorage::addSelections(const SelectionList& selections, bool
 }
 
 
-void SelectionOptionStorage::convertValue(const Any& value)
+void SelectionOptionStorage::convertValue(const std::any& value)
 {
-    manager_.convertOptionValue(this, value.cast<std::string>(), false);
+    manager_.convertOptionValue(this, std::any_cast<std::string>(value), false);
 }
 
 void SelectionOptionStorage::processSetValues(ValueList* values)
@@ -282,7 +282,7 @@ void SelectionFileOptionStorage::clearSet()
     bValueParsed_ = false;
 }
 
-void SelectionFileOptionStorage::convertValue(const Any& value)
+void SelectionFileOptionStorage::convertValue(const std::any& value)
 {
     if (bValueParsed_)
     {
@@ -290,7 +290,7 @@ void SelectionFileOptionStorage::convertValue(const Any& value)
     }
     bValueParsed_ = true;
     // TODO: Should we throw an InvalidInputError if the file does not exist?
-    manager_.parseRequestedFromFile(value.cast<std::string>());
+    manager_.parseRequestedFromFile(std::any_cast<std::string>(value));
 }
 
 void SelectionFileOptionStorage::processSet()

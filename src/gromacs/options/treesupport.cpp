@@ -105,7 +105,7 @@ private:
                 assigner_.startOption(prop.key().c_str());
                 try
                 {
-                    assigner_.appendValue(prop.value().asAny());
+                    assigner_.appendAnyValue(prop.value().asAny());
                 }
                 catch (UserInputError& ex)
                 {
@@ -136,7 +136,7 @@ private:
             assigner_.startOption(key.c_str());
             for (const KeyValueTreeValue& value : array.values())
             {
-                assigner_.appendValue(value.asAny());
+                assigner_.appendAnyValue(value.asAny());
             }
             assigner_.finishOption();
         }
@@ -245,7 +245,7 @@ private:
         const std::string& name = option.name();
         if (currentSourceObject_ == nullptr || !currentSourceObject_->keyExists(name))
         {
-            std::vector<Any> values = option.defaultValues();
+            std::vector<std::any> values = option.defaultValues();
             if (values.size() == 1)
             {
                 currentObjectBuilder_.addRawValue(name, std::move(values[0]));
@@ -253,7 +253,7 @@ private:
             else if (values.size() > 1)
             {
                 auto arrayBuilder = currentObjectBuilder_.addArray(name);
-                for (Any& value : values)
+                for (std::any& value : values)
                 {
                     arrayBuilder.addRawValue(std::move(value));
                 }
@@ -263,7 +263,7 @@ private:
         {
             const KeyValueTreeValue& value = (*currentSourceObject_)[name];
             GMX_RELEASE_ASSERT(!value.isObject(), "Value objects not supported in this context");
-            std::vector<Any> values;
+            std::vector<std::any> values;
             if (value.isArray())
             {
                 for (const auto& arrayValue : value.asArray().values())

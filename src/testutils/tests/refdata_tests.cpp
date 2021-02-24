@@ -50,7 +50,6 @@
 #include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
 
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/keyvaluetree.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
 
@@ -353,22 +352,21 @@ TEST(ReferenceDataTest, HandlesUncheckedDataInCompound)
 
 TEST(ReferenceDataTest, HandlesAnys)
 {
-    using gmx::Any;
     {
         TestReferenceData    data(ReferenceDataMode::UpdateAll);
         TestReferenceChecker checker(data.rootChecker());
-        checker.checkAny(Any::create<bool>(true), "bool");
-        checker.checkAny(Any::create<int>(1), "int");
-        checker.checkAny(Any::create<double>(3.5), "real");
-        checker.checkAny(Any::create<std::string>("foo"), "str");
+        checker.checkAny(std::make_any<bool>(true), "bool");
+        checker.checkAny(std::make_any<int>(1), "int");
+        checker.checkAny(std::make_any<double>(3.5), "real");
+        checker.checkAny(std::make_any<std::string>("foo"), "str");
     }
     {
         TestReferenceData    data(ReferenceDataMode::Compare);
         TestReferenceChecker checker(data.rootChecker());
-        checker.checkAny(Any::create<bool>(true), "bool");
-        checker.checkAny(Any::create<int>(1), "int");
-        checker.checkAny(Any::create<double>(3.5), "real");
-        checker.checkAny(Any::create<std::string>("foo"), "str");
+        checker.checkAny(std::make_any<bool>(true), "bool");
+        checker.checkAny(std::make_any<int>(1), "int");
+        checker.checkAny(std::make_any<double>(3.5), "real");
+        checker.checkAny(std::make_any<std::string>("foo"), "str");
     }
 }
 
@@ -441,42 +439,40 @@ TEST(ReferenceDataTest, HandlesKeyValueTreeMissingKey)
 
 TEST(ReferenceDataTest, HandlesAnysWithIncorrectValue)
 {
-    using gmx::Any;
     {
         TestReferenceData    data(ReferenceDataMode::UpdateAll);
         TestReferenceChecker checker(data.rootChecker());
-        checker.checkAny(Any::create<bool>(true), "bool");
-        checker.checkAny(Any::create<int>(1), "int");
-        checker.checkAny(Any::create<double>(3.5), "real");
-        checker.checkAny(Any::create<std::string>("foo"), "str");
+        checker.checkAny(std::make_any<bool>(true), "bool");
+        checker.checkAny(std::make_any<int>(1), "int");
+        checker.checkAny(std::make_any<double>(3.5), "real");
+        checker.checkAny(std::make_any<std::string>("foo"), "str");
     }
     {
         TestReferenceData    data(ReferenceDataMode::Compare);
         TestReferenceChecker checker(data.rootChecker());
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<bool>(false), "bool"), "");
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<int>(2), "int"), "");
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<double>(2.5), "real"), "");
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<std::string>("bar"), "str"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<bool>(false), "bool"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<int>(2), "int"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<double>(2.5), "real"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<std::string>("bar"), "str"), "");
     }
 }
 
 
 TEST(ReferenceDataTest, HandlesAnysWithIncorrectType)
 {
-    using gmx::Any;
     {
         TestReferenceData    data(ReferenceDataMode::UpdateAll);
         TestReferenceChecker checker(data.rootChecker());
-        checker.checkAny(Any::create<bool>(true), "bool");
-        checker.checkAny(Any::create<int>(1), "int");
-        checker.checkAny(Any::create<double>(3.5), "real");
+        checker.checkAny(std::make_any<bool>(true), "bool");
+        checker.checkAny(std::make_any<int>(1), "int");
+        checker.checkAny(std::make_any<double>(3.5), "real");
     }
     {
         TestReferenceData    data(ReferenceDataMode::Compare);
         TestReferenceChecker checker(data.rootChecker());
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<int>(1), "bool"), "");
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<bool>(true), "int"), "");
-        EXPECT_NONFATAL_FAILURE(checker.checkAny(Any::create<int>(2), "real"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<int>(1), "bool"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<bool>(true), "int"), "");
+        EXPECT_NONFATAL_FAILURE(checker.checkAny(std::make_any<int>(2), "real"), "");
     }
 }
 

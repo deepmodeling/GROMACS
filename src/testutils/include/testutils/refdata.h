@@ -46,6 +46,7 @@
 #ifndef GMX_TESTUTILS_REFDATA_H
 #define GMX_TESTUTILS_REFDATA_H
 
+#include <any>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -59,7 +60,6 @@ namespace gmx
 class IOptionsContainer;
 class KeyValueTreeObject;
 class KeyValueTreeValue;
-class Any;
 
 template<typename ValueType>
 class BasicVector;
@@ -405,7 +405,7 @@ public:
     //! Check a single floating-point value from a string.
     void checkRealFromString(const std::string& value, const char* id);
     //! Checks a any value that contains a supported simple type.
-    void checkAny(const Any& value, const char* id);
+    void checkAny(const std::any& value, const char* id);
     //! Checks a key-value tree rooted at a object.
     void checkKeyValueTreeObject(const KeyValueTreeObject& tree, const char* id);
     //! Checks a generic key-value tree value.

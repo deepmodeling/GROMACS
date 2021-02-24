@@ -45,6 +45,7 @@
  */
 #include "gmxpre.h"
 
+#include <any>
 #include <string>
 #include <vector>
 
@@ -105,12 +106,15 @@ public:
     // These are not used.
     std::string typeString() const override { return "mock"; }
     std::string formatSingleValue(const std::string& /*value*/) const override { return ""; }
-    std::vector<gmx::Any> normalizeValues(const std::vector<gmx::Any>& values) const override
+    std::vector<std::any> normalizeValues(const std::vector<std::any>& values) const override
     {
         return values;
     }
 
-    void convertValue(const gmx::Any& value) override { convertValue(value.cast<std::string>()); }
+    void convertValue(const std::any& value) override
+    {
+        convertValue(std::any_cast<std::string>(value));
+    }
 
     MOCK_METHOD1(convertValue, void(const std::string& value));
     MOCK_METHOD1(processSetValues, void(ValueList* values));

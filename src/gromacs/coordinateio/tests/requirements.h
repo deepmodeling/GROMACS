@@ -47,11 +47,12 @@
 
 #include "gmxpre.h"
 
+#include <any>
+
 #include <gtest/gtest.h>
 
 #include "gromacs/coordinateio/requirements.h"
 #include "gromacs/options/options.h"
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/stringutil.h"
 
 #include "gromacs/coordinateio/tests/coordinate_test.h"
@@ -89,9 +90,7 @@ static void splitAndAddValues(OptionsAssigner* assigner, const std::string& opti
         {
             case (TestEnums::efTestFloat):
             {
-                real value = std::stod(entry);
-                Any  var(value);
-                assigner->appendValue(var);
+                assigner->appendAnyValue(std::make_any<real>(std::stod(entry)));
                 break;
             }
             case (TestEnums::efTestString):
@@ -101,9 +100,7 @@ static void splitAndAddValues(OptionsAssigner* assigner, const std::string& opti
             }
             case (TestEnums::efTestInt):
             {
-                int value = std::stoi(entry);
-                Any var(value);
-                assigner->appendValue(var);
+                assigner->appendAnyValue(std::make_any<real>(std::stoi(entry)));
                 break;
             }
             default: GMX_THROW(InternalError("No such input type"));

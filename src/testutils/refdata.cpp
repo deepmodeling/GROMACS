@@ -48,6 +48,7 @@
 #include <cstdlib>
 
 #include <algorithm>
+#include <any>
 #include <limits>
 #include <string>
 
@@ -56,7 +57,6 @@
 #include "gromacs/math/vectypes.h"
 #include "gromacs/options/basicoptions.h"
 #include "gromacs/options/ioptionscontainer.h"
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/keyvaluetree.h"
@@ -1005,44 +1005,49 @@ void TestReferenceChecker::checkVector(const double value[3], const char* id)
     checkVector(BasicVector<double>(value), id);
 }
 
-
-void TestReferenceChecker::checkAny(const Any& any, const char* id)
+template<typename T>
+bool anyHasType(const std::any& any)
 {
-    if (any.isType<bool>())
+    return any.type() == typeid(T);
+}
+
+void TestReferenceChecker::checkAny(const std::any& any, const char* id)
+{
+    if (anyHasType<bool>(any))
     {
-        checkBoolean(any.cast<bool>(), id);
+        checkBoolean(std::any_cast<bool>(any), id);
     }
-    else if (any.isType<int>())
+    else if (anyHasType<int>(any))
     {
-        checkInteger(any.cast<int>(), id);
+        checkInteger(std::any_cast<int>(any), id);
     }
-    else if (any.isType<int32_t>())
+    else if (anyHasType<int32_t>(any))
     {
-        checkInt32(any.cast<int32_t>(), id);
+        checkInt32(std::any_cast<int32_t>(any), id);
     }
-    else if (any.isType<uint32_t>())
+    else if (anyHasType<uint32_t>(any))
     {
-        checkInt32(any.cast<uint32_t>(), id);
+        checkInt32(std::any_cast<uint32_t>(any), id);
     }
-    else if (any.isType<int64_t>())
+    else if (anyHasType<int64_t>(any))
     {
-        checkInt64(any.cast<int64_t>(), id);
+        checkInt64(std::any_cast<int64_t>(any), id);
     }
-    else if (any.isType<uint64_t>())
+    else if (anyHasType<uint64_t>(any))
     {
-        checkInt64(any.cast<uint64_t>(), id);
+        checkInt64(std::any_cast<uint64_t>(any), id);
     }
-    else if (any.isType<float>())
+    else if (anyHasType<float>(any))
     {
-        checkFloat(any.cast<float>(), id);
+        checkFloat(std::any_cast<float>(any), id);
     }
-    else if (any.isType<double>())
+    else if (anyHasType<double>(any))
     {
-        checkDouble(any.cast<double>(), id);
+        checkDouble(std::any_cast<double>(any), id);
     }
-    else if (any.isType<std::string>())
+    else if (anyHasType<std::string>(any))
     {
-        checkString(any.cast<std::string>(), id);
+        checkString(std::any_cast<std::string>(any), id);
     }
     else
     {

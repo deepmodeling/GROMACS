@@ -44,6 +44,7 @@
 #ifndef GMX_OPTIONS_ABSTRACTOPTIONSTORAGE_H
 #define GMX_OPTIONS_ABSTRACTOPTIONSTORAGE_H
 
+#include <any>
 #include <memory>
 #include <string>
 #include <vector>
@@ -58,7 +59,6 @@ namespace gmx
 class AbstractOption;
 class OptionInfo;
 class Options;
-class Any;
 
 /*! \libinternal \brief
  * Abstract base class for converting, validating, and storing option values.
@@ -141,11 +141,11 @@ public:
      */
     virtual int valueCount() const = 0;
     //! \copydoc OptionInfo::defaultValues()
-    virtual std::vector<Any> defaultValues() const = 0;
+    virtual std::vector<std::any> defaultValues() const = 0;
     //! \copydoc OptionInfo::defaultValuesAsStrings()
     virtual std::vector<std::string> defaultValuesAsStrings() const = 0;
     //! \copydoc OptionInfo::normalizeValues()
-    virtual std::vector<Any> normalizeValues(const std::vector<Any>& values) const = 0;
+    virtual std::vector<std::any> normalizeValues(const std::vector<std::any>& values) const = 0;
 
     /*! \brief
      * Starts adding values from a new source for the option.
@@ -179,7 +179,7 @@ public:
      * This method should only be called between startSet() and
      * finishSet().
      */
-    void appendValue(const Any& value);
+    void appendValue(const std::any& value);
     /*! \brief
      * Performs validation and/or actions once a set of values has been
      * added.
@@ -276,7 +276,7 @@ protected:
      *
      * \see OptionStorageTemplate::convertValue()
      */
-    virtual void convertValue(const Any& value) = 0;
+    virtual void convertValue(const std::any& value) = 0;
     /*! \brief
      * Performs validation and/or actions once a set of values has been
      * added.

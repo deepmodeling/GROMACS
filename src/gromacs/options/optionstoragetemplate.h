@@ -50,7 +50,6 @@
 
 #include "gromacs/options/abstractoption.h"
 #include "gromacs/options/abstractoptionstorage.h"
-#include "gromacs/utility/any.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/exceptions.h"
@@ -103,7 +102,7 @@ public:
     //! \copydoc gmx::AbstractOptionStorage::valueCount()
     int valueCount() const override { return store_->valueCount(); }
     //! \copydoc gmx::AbstractOptionStorage::defaultValues()
-    std::vector<Any> defaultValues() const override;
+    std::vector<std::any> defaultValues() const override;
     /*! \copydoc gmx::AbstractOptionStorage::defaultValuesAsStrings()
      *
      * OptionStorageTemplate implements handling of defaultValueIfSet()
@@ -151,7 +150,7 @@ protected:
      * should be considered whether the implementation can be made strongly
      * exception safe.
      */
-    void convertValue(const Any& value) override = 0;
+    void convertValue(const std::any& value) override = 0;
     /*! \brief
      * Processes values for a set after all have been converted.
      *
@@ -322,10 +321,10 @@ protected:
     {
     }
 
-    std::vector<Any> normalizeValues(const std::vector<Any>& values) const override
+    std::vector<std::any> normalizeValues(const std::vector<std::any>& values) const override
     {
         const_cast<MyBase*>(this)->ensureConverterInitialized();
-        std::vector<Any> result;
+        std::vector<std::any> result;
         result.reserve(values.size());
         for (const auto& value : values)
         {
@@ -358,10 +357,13 @@ protected:
      * This can be overridden to serialize a different type than `T`
      * when using the option with KeyValueTreeObject.
      */
-    virtual Any normalizeValue(const T& value) const { return Any::create<T>(processValue(value)); }
+    virtual std::any normalizeValue(const T& value) const
+    {
+        return std::make_any<T>(processValue(value));
+    }
 
 private:
-    void convertValue(const Any& any) override
+    void convertValue(const std::any& any) override
     {
         ensureConverterInitialized();
         this->addValue(processValue(converter_.convert(any)));
@@ -460,9 +462,9 @@ std::unique_ptr<IOptionValueStore<T>> OptionStorageTemplate<T>::createStore(Valu
 
 
 template<typename T>
-std::vector<Any> OptionStorageTemplate<T>::defaultValues() const
+std::vector<std::any> OptionStorageTemplate<T>::defaultValues() const
 {
-    std::vector<Any> result;
+    std::vector<std::any> result;
     if (hasFlag(efOption_NoDefaultValue))
     {
         return result;
@@ -472,7 +474,7 @@ std::vector<Any> OptionStorageTemplate<T>::defaultValues() const
             "Current option implementation can only provide default values before assignment");
     for (const auto& value : values())
     {
-        result.push_back(Any::create<T>(value));
+        result.push_back(std::make_any<T>(value));
     }
     return normalizeValues(result);
 }

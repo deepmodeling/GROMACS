@@ -594,9 +594,9 @@ std::string EnumOptionStorage::formatSingleValue(const int& value) const
     return allowed_[value];
 }
 
-Any EnumOptionStorage::normalizeValue(const int& value) const
+std::any EnumOptionStorage::normalizeValue(const int& value) const
 {
-    return Any::create<std::string>(formatSingleValue(value));
+    return std::make_any<std::string>(formatSingleValue(value));
 }
 
 void EnumOptionStorage::initConverter(ConverterType* converter)

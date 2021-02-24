@@ -55,6 +55,7 @@
 #ifndef GMX_OPTIONS_ABSTRACTOPTION_H
 #define GMX_OPTIONS_ABSTRACTOPTION_H
 
+#include <any>
 #include <memory>
 #include <string>
 #include <vector>
@@ -70,7 +71,6 @@ class AbstractOptionStorage;
 template<typename T>
 class OptionStorageTemplate;
 class OptionManagerContainer;
-class Any;
 
 namespace internal
 {
@@ -547,7 +547,7 @@ public:
      * Currently, this can only be called before option values have been
      * assigned.
      */
-    std::vector<Any> defaultValues() const;
+    std::vector<std::any> defaultValues() const;
     /*! \brief
      * Returns the default value(s) of the option as strings.
      *
@@ -568,7 +568,7 @@ public:
      * value of the option, and the current value in the option is not
      * changed.
      */
-    std::vector<Any> normalizeValues(const std::vector<Any>& values) const;
+    std::vector<std::any> normalizeValues(const std::vector<std::any>& values) const;
 
 protected:
     /*! \cond libapi */

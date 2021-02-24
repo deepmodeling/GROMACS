@@ -65,13 +65,15 @@
 #define GMX_UTILITY_KEYVALUETREE_H
 
 #include <algorithm>
+#include <any>
 #include <functional>
 #include <map>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "gromacs/utility/any.h"
+#include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/real.h"
 
 namespace gmx
@@ -175,28 +177,53 @@ public:
     template<typename T>
     bool isType() const
     {
-        return value_.isType<T>();
+        return type() == typeid(T);
     }
     //! Returns the type of the value.
     std::type_index type() const { return value_.type(); }
 
-    KeyValueTreeArray&        asArray();
-    KeyValueTreeObject&       asObject();
+    KeyValueTreeArray*        asArray();
+    KeyValueTreeObject*       asObject();
     const KeyValueTreeArray&  asArray() const;
     const KeyValueTreeObject& asObject() const;
     template<typename T>
     const T& cast() const
     {
-        return value_.cast<T>();
+        if (!value_.has_value())
+        {
+            GMX_THROW(
+                    InternalError("Attempt to access KeyValueTreeValue object as KeyValueTreeArray "
+                                  "when nothing is present"));
+        }
+        if (!isType<T>())
+        {
+            throw std::bad_any_cast();
+        }
+        return *std::any_cast<T>(&value_);
+    }
+    template<typename T>
+    T* castAsPointer()
+    {
+        if (!value_.has_value())
+        {
+            GMX_THROW(
+                    InternalError("Attempt to access KeyValueTreeValue object as KeyValueTreeArray "
+                                  "when nothing is present"));
+        }
+        if (!isType<T>())
+        {
+            throw std::bad_any_cast();
+        }
+        return std::any_cast<T>(&value_);
     }
 
-    //! Returns the raw Any value (always possible).
-    const Any& asAny() const { return value_; }
+    //! Returns the raw std::any value (always possible).
+    const std::any& asAny() const { return value_; }
 
 private:
-    explicit KeyValueTreeValue(Any&& value) : value_(std::move(value)) {}
+    explicit KeyValueTreeValue(std::any&& value) : value_(std::move(value)) {}
 
-    Any value_;
+    std::any value_;
 
     friend class KeyValueTreeBuilder;
     friend class KeyValueTreeObjectBuilder;
@@ -238,6 +265,111 @@ private:
     friend class KeyValueTreeObjectBuilder;
 };
 
+} // namespace gmx
+
+// The KeyValueTreeObject copy constructor needs to work around a
+// libstdc++ bug with std::is_constructible applied to std::any,
+// because of some non-standard content in the implementation of
+// std::any. The fix of
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90415 should solve
+// this in libstdc++ 9.4 and 10.1 and later (note that 10.0 is a
+// pre-release version). Note that e.g. libstdc++ is used by default
+// by clang on linux, so the issue can affect builds by any compiler.
+//
+// Fortunately, we can work around the bug by declaring a template
+// specialization that a gmx type that contains a std::any is
+// constructible. One is generally not supposed to extend the std
+// namespace, but this seems a suitable exception.
+//
+// The copy constructor of KeyValueTreeObject has a static_assert
+// that checks whether this work-around is needed and missing.
+//
+// This work-around and the matching static_assert can be removed when
+// gcc 10 or later is required.
+#if defined _GLIBCXX_RELEASE && _GLIBCXX_RELEASE < 10
+
+namespace std
+{
+//! Declare the necessary custom specialization of std::is_constructible
+template<>
+struct is_constructible<gmx::KeyValueTreeValue, const gmx::KeyValueTreeValue&&>
+{
+    //! Declare the type of \c value
+    using value_type = bool;
+    //! Declare that gmx::KeyValueTreeValue is constructible
+    const static value_type value = true;
+    using type                    = std::integral_constant<bool, value>;
+
+               operator bool() { return value; }
+    value_type operator()() { return value; }
+};
+
+//! Declare the necessary custom specialization of std::is_constructible
+template<>
+struct is_constructible<gmx::KeyValueTreeValue, gmx::KeyValueTreeValue&&>
+{
+    //! Declare the type of \c value
+    using value_type = bool;
+    //! Declare that gmx::KeyValueTreeValue is constructible
+    const static value_type value = true;
+    using type                    = std::integral_constant<bool, value>;
+
+               operator bool() { return value; }
+    value_type operator()() { return value; }
+};
+
+//! Declare the necessary custom specialization of std::is_constructible
+template<>
+struct is_constructible<gmx::KeyValueTreeValue, const gmx::KeyValueTreeValue&>
+{
+    //! Declare the type of \c value
+    using value_type = bool;
+    //! Declare that gmx::KeyValueTreeValue is constructible
+    const static value_type value = true;
+    using type                    = std::integral_constant<bool, value>;
+
+               operator bool() { return value; }
+    value_type operator()() { return value; }
+};
+
+/* Not needed
+//! Declare the necessary custom specialization of std::is_copy_constructible
+template<>
+struct is_copy_constructible<gmx::KeyValueTreeValue>
+{
+    //! Declare the type of \c value
+    using value_type = bool;
+    //! Declare that gmx::KeyValueTreeValue is copy constructible
+    const static value_type value = true;
+    using type                    = std::integral_constant<bool, value>;
+
+        operator bool() { return value; }
+    value_type operator()() { return value; }
+};
+*/
+
+/* Something I tried in desperation, doesn't do anything
+template <>
+struct __is_move_insertable<std::allocator<gmx::KeyValueTreeValue>>
+{
+    //! Declare the type of \c value
+    using value_type = bool;
+    //! Declare that gmx::KeyValueTreeValue is move insertable
+    const static value_type value = true;
+    using type                    = std::integral_constant<bool, value>;
+
+        operator bool() { return value; }
+    value_type operator()() { return value; }
+};
+*/
+
+} // namespace std
+
+#endif // _GLIBCXX_RELEASE
+
+namespace gmx
+{
+
 class KeyValueTreeObject
 {
 public:
@@ -247,6 +379,9 @@ public:
     {
         for (const auto& value : other.values_)
         {
+            // Assert that the work-around is effective when it is active.
+            static_assert(std::is_copy_constructible_v<KeyValueTreeValue>,
+                          "Can copy-construct KVTV");
             auto iter = valueMap_.insert(std::make_pair(value.key(), value.value())).first;
             values_.push_back(KeyValueTreeProperty(iter));
         }
@@ -301,27 +436,27 @@ private:
 
 inline bool KeyValueTreeValue::isArray() const
 {
-    return value_.isType<KeyValueTreeArray>();
+    return isType<KeyValueTreeArray>();
 }
 inline bool KeyValueTreeValue::isObject() const
 {
-    return value_.isType<KeyValueTreeObject>();
+    return isType<KeyValueTreeObject>();
 }
 inline const KeyValueTreeArray& KeyValueTreeValue::asArray() const
 {
-    return value_.cast<KeyValueTreeArray>();
+    return cast<KeyValueTreeArray>();
 }
 inline const KeyValueTreeObject& KeyValueTreeValue::asObject() const
 {
-    return value_.cast<KeyValueTreeObject>();
+    return cast<KeyValueTreeObject>();
 }
-inline KeyValueTreeArray& KeyValueTreeValue::asArray()
+inline KeyValueTreeArray* KeyValueTreeValue::asArray()
 {
-    return value_.castRef<KeyValueTreeArray>();
+    return castAsPointer<KeyValueTreeArray>();
 }
-inline KeyValueTreeObject& KeyValueTreeValue::asObject()
+inline KeyValueTreeObject* KeyValueTreeValue::asObject()
 {
-    return value_.castRef<KeyValueTreeObject>();
+    return castAsPointer<KeyValueTreeObject>();
 }
 
 //! \cond libapi
@@ -347,11 +482,8 @@ void compareKeyValueTrees(TextWriter*               writer,
                           real                      ftol,
                           real                      abstol);
 
-//! Helper function to format a simple KeyValueTreeValue.
-static inline std::string simpleValueToString(const KeyValueTreeValue& value)
-{
-    return simpleValueToString(value.asAny());
-}
+//! Helper function to format a simple type within a KeyValueTreeValue.
+std::string simpleValueToString(const KeyValueTreeValue& value);
 
 //! \endcond
 
