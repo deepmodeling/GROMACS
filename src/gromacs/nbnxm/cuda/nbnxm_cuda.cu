@@ -390,6 +390,54 @@ static inline nbnxn_cu_kfunc_ptr_t select_nbnxn_kernel(int                     e
     return res;
 }
 
+/*! Return a pointer to the kernel version to be executed at the current step. */
+static inline nbnxn_sits_cu_kfunc_ptr_t select_nbnxn_sits_kernel(int                     eeltype,
+                                                       int                     evdwtype,
+                                                       bool                    bDoEne,
+                                                       bool                    bDoPrune,
+                                                       const gmx_device_info_t gmx_unused* devInfo)
+{
+    nbnxn_cu_kfunc_ptr_t res;
+
+    GMX_ASSERT(eeltype < eelCuNR,
+               "The electrostatics type requested is not implemented in the CUDA kernels.");
+    GMX_ASSERT(evdwtype < evdwCuNR,
+               "The VdW type requested is not implemented in the CUDA kernels.");
+
+    /* assert assumptions made by the kernels */
+    GMX_ASSERT(c_nbnxnGpuClusterSize * c_nbnxnGpuClusterSize / c_nbnxnGpuClusterpairSplit
+                       == devInfo->prop.warpSize,
+               "The CUDA kernels require the "
+               "cluster_size_i*cluster_size_j/nbnxn_gpu_clusterpair_split to match the warp size "
+               "of the architecture targeted.");
+
+    // if (bDoEne)
+    if (1)
+    {
+        if (bDoPrune)
+        {
+            res = nb_sits_kfunc_ener_prune_ptr[eeltype][evdwtype];
+        }
+        else
+        {
+            res = nb_sits_kfunc_ener_noprune_ptr[eeltype][evdwtype];
+        }
+    }
+    // else
+    // {
+    //     if (bDoPrune)
+    //     {
+    //         res = nb_kfunc_noener_prune_ptr[eeltype][evdwtype];
+    //     }
+    //     else
+    //     {
+    //         res = nb_kfunc_noener_noprune_ptr[eeltype][evdwtype];
+    //     }
+    // }
+
+    return res;
+}
+
 /*! \brief Calculates the amount of shared memory required by the nonbonded kernel in use. */
 static inline int calc_shmem_required_nonbonded(const int               num_threads_z,
                                                 const gmx_device_info_t gmx_unused* dinfo,
