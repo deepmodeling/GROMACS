@@ -157,7 +157,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 #endif     /* PRUNE_NBL */
-                (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_plist_t plist, const SITS_cuda gpu_sits, bool bCalcFshift)
+                (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_plist_t plist, const sits_cuda gpu_sits, bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY
                         ; /* Only do function declaration, omit the function body. */
 #else
@@ -244,6 +244,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        int_bit, F_invr;
 #    ifdef CALC_ENERGIES
     float        E_lj, E_el;
+    float        E_lj_buf, E_el_buf;
+    float3       E_lj_decomp, E_el_decomp;
+    float        factor_buf;
 #    endif
 #    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
     float        E_lj_p;
@@ -252,6 +255,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float4       xqbuf;
     float3       xi, xj, rv, f_ij, fcj_buf;
     float3       fci_buf[c_numClPerSupercl]; /* i force buffer */
+    float3       fcj_pw_buf, fcj_tot_buf;
+    float3       fci_pw_buf[c_numClPerSupercl], fci_tot_buf[c_numClPerSupercl];
     nbnxn_sci_t  nb_sci;
 
     /*! i-cluster interaction mask for a super-cluster with all c_numClPerSupercl=8 bits set */
@@ -330,43 +335,62 @@ __launch_bounds__(THREADS_PER_BLOCK)
     E_lj         = 0.0f;
     E_el         = 0.0f;
 
+    E_lj_tot     = 0.0f;
+    E_el_tot     = 0.0f;
+    E_lj_pw      = 0.0f;
+    E_el_pw      = 0.0f;
+
 #        ifdef EXCLUSION_FORCES /* Ewald or RF */
     if (nb_sci.shift == CENTRAL && pl_cj4[cij4_start].cj[0] == sci * c_numClPerSupercl)
     {
         /* we have the diagonal: add the charge and LJ self interaction energy term */
         for (i = 0; i < c_numClPerSupercl; i++)
         {
+            egp_sh_i[tidxi] = (atdat.energrp[i] >> (tidxi * atdat.neg_2log)) & egp_mask;
+            egp_ind = min(2, 2*egp_sh_i[tidxi]);
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
             qi = xqib[i * c_clSize + tidxi].w;
-            E_el += qi * qi;
+            E_el_buf = qi * qi;
+            E_el += E_el_buf;
+            if (egp_sh_i[tidxi] == 0) E_el_decomp.x += E_el_buf;
+            else E_el_decomp.z += E_el_buf;
 #            endif
 
 #            ifdef LJ_EWALD
 #                if DISABLE_CUDA_TEXTURES
-            E_lj += LDG(
+            E_lj_buf = LDG(
                     &nbparam.nbfp[atom_types[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2]);
 #                else
-            E_lj += tex1Dfetch<float>(
+            E_lj_buf = tex1Dfetch<float>(
                     nbparam.nbfp_texobj,
                     atom_types[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
 #                endif
+            E_lj += E_lj_buf;
+            if (egp_sh_i[tidxi] == 0) E_lj_decomp.x += E_lj_buf;
+            else E_lj_decomp.z += E_lj_buf;
 #            endif
         }
 
         /* divide the self term(s) equally over the j-threads, then multiply with the coefficients. */
 #            ifdef LJ_EWALD
-        E_lj /= c_clSize * NTHREAD_Z;
-        E_lj *= 0.5f * c_oneSixth * lje_coeff6_6;
+        egp_ind = c_clSize * NTHREAD_Z;
+        E_lj /= egp_ind;
+        E_lj_decomp.x /= egp_ind;  E_lj_decomp.z /= egp_ind;
+        factor_buf = 0.5f * c_oneSixth * lje_coeff6_6;
+        E_lj *= factor_buf;
+        E_lj_decomp.x *= factor_buf;   E_lj_decomp.z *= factor_buf;
 #            endif
 
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
         /* Correct for epsfac^2 due to adding qi^2 */
-        E_el /= nbparam.epsfac * c_clSize * NTHREAD_Z;
+        factor_buf = 1.0 / nbparam.epsfac * c_clSize * NTHREAD_Z;
 #                if defined EL_RF || defined EL_CUTOFF
-        E_el *= -0.5f * c_rf;
+        factor_buf *= -0.5f * c_rf;
 #                else
-        E_el *= -beta * M_FLOAT_1_SQRTPI; /* last factor 1/sqrt(pi) */
+        factor_buf *= -beta * M_FLOAT_1_SQRTPI; /* last factor 1/sqrt(pi) */
 #                endif
+        E_el *= factor_buf;
+        E_el_decomp.x *= factor_buf;   E_el_decomp.z *= factor_buf;
 #            endif /* EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF */
     }
 #        endif     /* EXCLUSION_FORCES */
@@ -566,6 +590,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifdef CALC_ENERGIES
                                 E_lj += E_lj_p;
+                                if (egp_sh_i[tidxi] == 0) E_lj_decomp.x += E_lj_p;
+                                else E_lj_decomp.z += E_lj_p;
 #    endif
 
 
@@ -591,16 +617,19 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifdef CALC_ENERGIES
 #        ifdef EL_CUTOFF
-                                E_el += qi * qj_f * (int_bit * inv_r - c_rf);
+                                E_el_buf = qi * qj_f * (int_bit * inv_r - c_rf);
 #        endif
 #        ifdef EL_RF
-                                E_el += qi * qj_f * (int_bit * inv_r + 0.5f * two_k_rf * r2 - c_rf);
+                                E_el_buf = qi * qj_f * (int_bit * inv_r + 0.5f * two_k_rf * r2 - c_rf);
 #        endif
 #        ifdef EL_EWALD_ANY
                                 /* 1.0f - erff is faster than erfcf */
-                                E_el += qi * qj_f
+                                E_el_buf = qi * qj_f
                                         * (inv_r * (int_bit - erff(r2 * inv_r * beta)) - int_bit * ewald_shift);
 #        endif /* EL_EWALD_ANY */
+                                E_el += E_el_buf;
+                                if (egp_sh_i[tidxi] == 0) E_el_decomp.x += E_el_buf;
+                                else E_el_decomp.z += E_el_buf;
 #    endif
                                 f_ij = rv * F_invr;
 
@@ -609,6 +638,18 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
                                 /* accumulate i forces in registers */
                                 fci_buf[i] += f_ij;
+
+                                /* accumulate i, j forces in sits registers */
+                                if (egp_sh_i[tidxi] == egp_sh_j[tidxj])
+                                {
+                                    fcj_tot_buf -= f_ij;
+                                    fci_tot_buf[i] += f_ij;
+                                }
+                                else
+                                {
+                                    fcj_pw_buf -= f_ij;
+                                    fci_pw_buf[i] += f_ij;
+                                }
                             }
                         }
 
@@ -618,6 +659,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
                     /* reduce j forces */
                     reduce_force_j_warp_shfl(fcj_buf, f, tidxi, aj, c_fullWarpMask);
+
+                    reduce_force_j_warp_shfl(fcj_tot_buf, gpu_sits.d_force_tot_nbat, tidxi, aj, c_fullWarpMask);
+                    reduce_force_j_warp_shfl(fcj_pw_buf, gpu_sits.d_force_pw_nbat, tidxi, aj, c_fullWarpMask);
                 }
             }
 #    ifdef PRUNE_NBL
@@ -643,6 +687,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
     {
         ai = (sci * c_numClPerSupercl + i) * c_clSize + tidxi;
         reduce_force_i_warp_shfl(fci_buf[i], f, &fshift_buf, bCalcFshift, tidxj, ai, c_fullWarpMask);
+
+        reduce_force_i_warp_shfl(fci_tot_buf[i], gpu_sits.d_force_tot_nbat, &fshift_buf, 0, tidxj, ai, c_fullWarpMask);
+        reduce_force_i_warp_shfl(fci_pw_buf[i], gpu_sits.d_force_pw_nbat, &fshift_buf, 0, tidxj, ai, c_fullWarpMask);
     }
 
     /* add up local shift forces into global mem, tidxj indexes x,y,z */
@@ -654,6 +701,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef CALC_ENERGIES
     /* reduce the energies over warps and store into global memory */
     reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.x, E_el_decomp.x, gpu_sits.d_enerd.x, gpu_sits.d_enerd.x, tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.y, E_el_decomp.y, gpu_sits.d_enerd.y, gpu_sits.d_enerd.y, tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.z, E_el_decomp.z, gpu_sits.d_enerd.z, gpu_sits.d_enerd.z, tidx, c_fullWarpMask);
+
 #    endif
 }
 #endif /* FUNCTION_DECLARATION_ONLY */

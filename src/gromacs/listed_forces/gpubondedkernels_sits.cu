@@ -129,11 +129,11 @@ __device__ void bonds_gpu(const int       i,
             *vtot_loc += vbond;
         }
 
-        int  egp_i    = gpu_sits.energrp[ai];
-        int  egp_j    = gpu_sits.energrp[aj];
+        // int  egp_i    = gpu_sits.energrp[ai];
+        // int  egp_j    = gpu_sits.energrp[aj];
 
-        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
-        else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
+        // if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
+        // else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
 
         if (dr2 != 0.0f)
         {
@@ -151,16 +151,16 @@ __device__ void bonds_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fij);
                 }
 
-                if (egp_i == egp_j)
-                {
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), fij);
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -fij);
-                }
-                else
-                {
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), fij);
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -fij);
-                }
+                // if (egp_i == egp_j)
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), fij);
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -fij);
+                // }
+                // else
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), fij);
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -fij);
+                // }
             }
         }
     }
@@ -225,11 +225,11 @@ __device__ void angles_gpu(const int       i,
             *vtot_loc += va;
         }
 
-        int  egp_i    = gpu_sits.energrp[ai];
-        int  egp_j    = gpu_sits.energrp[ak];
+        // int  egp_i    = gpu_sits.energrp[ai];
+        // int  egp_j    = gpu_sits.energrp[ak];
 
-        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
-        else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
+        // if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
+        // else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
 
         float cos_theta2 = cos_theta * cos_theta;
         if (cos_theta2 < 1.0f)
@@ -265,18 +265,18 @@ __device__ void angles_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
                 }
 
-                if (egp_i == egp_j)
-                {
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f_i[m]);
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), f_j[m]);
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ak][m]), f_k[m]);
-                }
-                else
-                {
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f_i[m]);
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), f_j[m]);
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ak][m]), f_k[m]);
-                }
+                // if (egp_i == egp_j)
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f_i[m]);
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), f_j[m]);
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[ak][m]), f_k[m]);
+                // }
+                // else
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f_i[m]);
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), f_j[m]);
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[ak][m]), f_k[m]);
+                // }
             }
         }
     }
@@ -324,11 +324,11 @@ __device__ void urey_bradley_gpu(const int       i,
             *vtot_loc += va;
         }
 
-        int  egp_i    = gpu_sits.energrp[ai];
-        int  egp_j    = gpu_sits.energrp[ak];
+        // int  egp_i    = gpu_sits.energrp[ai];
+        // int  egp_j    = gpu_sits.energrp[ak];
 
-        if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), va);
-        else atomicAdd(&(gpu_sits.d_enerd[1]), va);
+        // if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), va);
+        // else atomicAdd(&(gpu_sits.d_enerd[1]), va);
 
         fvec r_ik;
         int  ki = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[ai], gm_xq[ak], r_ik);
@@ -372,18 +372,18 @@ __device__ void urey_bradley_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
                 }
 
-                if (egp_i == egp_j)
-                {
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f_i[m]);
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), f_j[m]);
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ak][m]), f_k[m]);
-                }
-                else
-                {
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f_i[m]);
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), f_j[m]);
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ak][m]), f_k[m]);
-                }
+                // if (egp_i == egp_j)
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), f_i[m]);
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), f_j[m]);
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[ak][m]), f_k[m]);
+                // }
+                // else
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), f_i[m]);
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), f_j[m]);
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[ak][m]), f_k[m]);
+                // }
             }
         }
 
@@ -395,8 +395,8 @@ __device__ void urey_bradley_gpu(const int       i,
                 *vtot_loc += vbond;
             }
 
-            if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
-            else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
+            // if (egp_i == egp_j) atomicAdd(&(gpu_sits.d_enerd[min(2, egp_i + egp_j)]), vbond);
+            // else atomicAdd(&(gpu_sits.d_enerd[1]), vbond);
 
             fbond *= rsqrtf(dr2);
 
@@ -413,16 +413,16 @@ __device__ void urey_bradley_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fik);
                 }
 
-                if (egp_i == egp_j)
-                {
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), fij);
-                    atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -fij);
-                }
-                else
-                {
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), fij);
-                    atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -fij);
-                }
+                // if (egp_i == egp_j)
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[ai][m]), fij);
+                //     atomicAdd(&(gpu_sits.d_force_tot_nbat[aj][m]), -fij);
+                // }
+                // else
+                // {
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[ai][m]), fij);
+                //     atomicAdd(&(gpu_sits.d_force_pw_nbat[aj][m]), -fij);
+                // }
             }
         }
     }
