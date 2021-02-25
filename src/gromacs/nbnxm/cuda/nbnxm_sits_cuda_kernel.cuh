@@ -590,8 +590,15 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifdef CALC_ENERGIES
                                 E_lj += E_lj_p;
-                                if (egp_sh_i[tidxi] == 0) E_lj_decomp.x += E_lj_p;
-                                else E_lj_decomp.z += E_lj_p;
+                                if (egp_sh_i[tidxi] == 0){
+                                    if (egp_sh_j[tidxj] == 0) E_lj_decomp.x += E_lj_p;
+                                    else E_lj_decomp.y += E_lj_p;
+                                }
+                                else
+                                {
+                                    if (egp_sh_j[tidxj] == 0) E_lj_decomp.y += E_lj_p;
+                                    else E_lj_decomp.z += E_lj_p;
+                                }
 #    endif
 
 
@@ -628,8 +635,15 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                         * (inv_r * (int_bit - erff(r2 * inv_r * beta)) - int_bit * ewald_shift);
 #        endif /* EL_EWALD_ANY */
                                 E_el += E_el_buf;
-                                if (egp_sh_i[tidxi] == 0) E_el_decomp.x += E_el_buf;
-                                else E_el_decomp.z += E_el_buf;
+                                if (egp_sh_i[tidxi] == 0){
+                                    if (egp_sh_j[tidxj] == 0) E_el_decomp.x += E_el_buf;
+                                    else E_el_decomp.y += E_el_buf;
+                                }
+                                else
+                                {
+                                    if (egp_sh_j[tidxj] == 0) E_el_decomp.y += E_el_buf;
+                                    else E_el_decomp.z += E_el_buf;
+                                }
 #    endif
                                 f_ij = rv * F_invr;
 
