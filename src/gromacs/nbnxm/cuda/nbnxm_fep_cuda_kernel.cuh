@@ -177,9 +177,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float       alpha_coul_eff = alpha_coul;
     float       alpha_vdw_eff  = alpha_vdw;
     const bool  useSoftCore    = (alpha_vdw != 0.0);
-    const bool  useScBetaNO    = (alpha_coul == 0.0);
     const float sigma6_def     = nbparam.sc_sigma6;
     const float sigma6_min     = nbparam.sc_sigma6_min;
+    const bool  useScBetaNO    = (alpha_coul == 0.0) && (sigma6_min != 0.0);
     const float lambda_q       = nbparam.lambda_q;
     const float _lambda_q      = 1 - lambda_q;
     const float lambda_v       = nbparam.lambda_v;
