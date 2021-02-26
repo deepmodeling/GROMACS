@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020 by the GROMACS development team.
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,6 +47,7 @@
 
 #include <array>
 
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/utility/stringutil.h"
@@ -68,7 +70,7 @@ class GpuRegionTimerImpl
      * The maximum size is chosen arbitrarily to work with current code, and can be changed.
      * There is simply no need for run-time resizing, and it's unlikely we'll ever need more than 10.
      */
-    std::array<cl_event, 10> events_ = { { nullptr } };
+    std::array<DeviceEvent, 10> events_ = { {} };
     //! Index of the active event
     size_t currentEvent_ = 0;
 
@@ -92,26 +94,9 @@ public:
         double milliseconds = 0.0;
         for (size_t i = 0; i < currentEvent_; i++)
         {
-            if (events_[i]) // This conditional is ugly, but is required to make some tests (e.g. empty domain) pass
+            if (events_[i].isValid()) // This conditional is ugly, but is required to make some tests (e.g. empty domain) pass
             {
-                cl_ulong start_ns, end_ns;
-                cl_int gmx_unused cl_error;
-
-                cl_error = clGetEventProfilingInfo(
-                        events_[i], CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start_ns, nullptr);
-                GMX_ASSERT(CL_SUCCESS == cl_error,
-                           gmx::formatString("GPU timing update failure (OpenCL error %d: %s).",
-                                             cl_error,
-                                             ocl_get_error_string(cl_error).c_str())
-                                   .c_str());
-                cl_error = clGetEventProfilingInfo(
-                        events_[i], CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end_ns, nullptr);
-                GMX_ASSERT(CL_SUCCESS == cl_error,
-                           gmx::formatString("GPU timing update failure (OpenCL error %d: %s).",
-                                             cl_error,
-                                             ocl_get_error_string(cl_error).c_str())
-                                   .c_str());
-                milliseconds += (end_ns - start_ns) / 1000000.0;
+                milliseconds += (events_[i].getExecutionTime()) / 1000000.0;
             }
         }
         reset();
@@ -122,24 +107,21 @@ public:
     {
         for (size_t i = 0; i < currentEvent_; i++)
         {
-            if (events_[i]) // This conditional is ugly, but is required to make some tests (e.g. empty domain) pass
+            if (events_[i].isValid()) // This conditional is ugly, but is required to make some tests (e.g. empty domain) pass
             {
-                cl_int gmx_unused cl_error = clReleaseEvent(events_[i]);
-                GMX_ASSERT(CL_SUCCESS == cl_error, "OpenCL event release failure");
+                events_[i].resetNative();
             }
         }
         currentEvent_ = 0;
-        // As long as we're doing nullptr checks, we might want to be extra cautious.
-        events_.fill(nullptr);
     }
     /*! \brief Returns a new raw timing event
      * for passing into individual GPU API calls
      * within the region if the API requires it (e.g. on OpenCL).
      */
-    inline CommandEvent* fetchNextEvent()
+    inline DeviceEvent* fetchNextEvent()
     {
         GMX_ASSERT(currentEvent_ < events_.size(), "Increase c_maxEventNumber_ if needed");
-        cl_event* result = &events_[currentEvent_];
+        DeviceEvent* result = &events_[currentEvent_];
         currentEvent_++;
         return result;
     }

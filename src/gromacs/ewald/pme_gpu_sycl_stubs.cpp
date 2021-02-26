@@ -71,7 +71,7 @@ GpuParallel3dFft::GpuParallel3dFft(PmeGpu const* /*pmeGpu*/, int /*gridIndex*/)
 
 GpuParallel3dFft::~GpuParallel3dFft() = default;
 
-void GpuParallel3dFft::perform3dFft(gmx_fft_direction /*dir*/, CommandEvent* /*timingEvent*/)
+void GpuParallel3dFft::perform3dFft(gmx_fft_direction /*dir*/, DeviceEvent* /*timingEvent*/)
 {
     GMX_THROW(gmx::NotImplementedError("Not implemented on SYCL yet"));
 }

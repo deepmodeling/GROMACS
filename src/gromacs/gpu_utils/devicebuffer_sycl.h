@@ -50,6 +50,7 @@
 #include <utility>
 
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
@@ -278,7 +279,7 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
                         size_t                   numValues,
                         const DeviceStream&      deviceStream,
                         GpuApiCallBehavior       transferKind,
-                        CommandEvent* gmx_unused timingEvent)
+                        DeviceEvent* gmx_unused timingEvent)
 {
     if (numValues == 0)
     {
@@ -330,7 +331,7 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
                           size_t                   numValues,
                           const DeviceStream&      deviceStream,
                           GpuApiCallBehavior       transferKind,
-                          CommandEvent* gmx_unused timingEvent)
+                          DeviceEvent* gmx_unused timingEvent)
 {
     if (numValues == 0)
     {

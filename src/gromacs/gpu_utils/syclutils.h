@@ -43,6 +43,7 @@
 
 #include <string>
 
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/exceptions.h"
@@ -106,7 +107,7 @@ void* prepareGpuKernelArguments(void* /*kernel*/, const KernelLaunchConfig& /*co
 inline void launchGpuKernel(void* /*kernel*/,
                             const KernelLaunchConfig& /*config*/,
                             const DeviceStream& /*deviceStream*/,
-                            CommandEvent* /*timingEvent*/,
+                            DeviceEvent* /*timingEvent*/,
                             const char* /*kernelName*/,
                             const void* /*kernelArgs*/)
 {

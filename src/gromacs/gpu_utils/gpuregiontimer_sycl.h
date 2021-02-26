@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,6 +44,7 @@
 #ifndef GMX_GPU_UTILS_GPUREGIONTIMER_SYCL_H
 #define GMX_GPU_UTILS_GPUREGIONTIMER_SYCL_H
 
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/devicebuffer_sycl.h"
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/stringutil.h"
@@ -85,7 +86,7 @@ public:
      * for passing into individual GPU API calls
      * within the region if the API requires it (e.g. on OpenCL).
      */
-    inline CommandEvent* fetchNextEvent() { return nullptr; }
+    inline DeviceEvent* fetchNextEvent() { return nullptr; }
 };
 
 //! Short-hand for external use

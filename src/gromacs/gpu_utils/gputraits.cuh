@@ -50,9 +50,6 @@
 //! Device texture for fast read-only data fetching
 using DeviceTexture = cudaTextureObject_t;
 
-//! \brief Single GPU call timing event - meaningless in CUDA
-using CommandEvent = void;
-
 //! Convenience alias for 2-wide float
 using Float2 = float2;
 

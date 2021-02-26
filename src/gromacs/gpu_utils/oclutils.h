@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -45,6 +45,7 @@
 #include <string>
 
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gmxopencl.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
@@ -176,7 +177,7 @@ void* prepareGpuKernelArguments(cl_kernel kernel, const KernelLaunchConfig& conf
 inline void launchGpuKernel(cl_kernel                 kernel,
                             const KernelLaunchConfig& config,
                             const DeviceStream&       deviceStream,
-                            CommandEvent*             timingEvent,
+                            DeviceEvent*              timingEvent,
                             const char*               kernelName,
                             const void* /*kernelArgs*/)
 {
@@ -185,6 +186,7 @@ inline void launchGpuKernel(cl_kernel                 kernel,
     const size_t    waitListSize     = 0;
     const cl_event* waitList         = nullptr;
     size_t          globalWorkSize[3];
+    cl_event*       timingEventNative = DeviceEvent::getNativePtrForApiCall(timingEvent);
     for (int i = 0; i < workDimensions; i++)
     {
         globalWorkSize[i] = config.gridSize[i] * config.blockSize[i];
@@ -197,7 +199,7 @@ inline void launchGpuKernel(cl_kernel                 kernel,
                                             config.blockSize,
                                             waitListSize,
                                             waitList,
-                                            timingEvent);
+                                            timingEventNative);
     if (CL_SUCCESS != clError)
     {
         const std::string errorMessage = "GPU kernel (" + std::string(kernelName)

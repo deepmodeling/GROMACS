@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -49,6 +49,8 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
+
+class DeviceEvent;
 
 namespace gmx
 {
@@ -277,7 +279,7 @@ template<typename... Args>
 void launchGpuKernel(void (*kernel)(Args...),
                      const KernelLaunchConfig& config,
                      const DeviceStream&       deviceStream,
-                     CommandEvent* /*timingEvent */,
+                     DeviceEvent* /*timingEvent */,
                      const char*                               kernelName,
                      const std::array<void*, sizeof...(Args)>& kernelArgs)
 {

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,6 +46,7 @@
 
 #include "config.h"
 
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/smalloc.h" // TODO: this is only for over_alloc_large

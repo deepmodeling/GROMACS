@@ -62,6 +62,7 @@
 #endif
 
 #include "gromacs/fft/fft.h" // for the enum gmx_fft_direction
+#include "gromacs/gpu_utils/device_event.h"
 
 struct PmeGpu;
 
@@ -86,7 +87,7 @@ public:
      * \param[in]  dir           FFT transform direction specifier
      * \param[out] timingEvent   pointer to the timing event where timing data is recorded
      */
-    void perform3dFft(gmx_fft_direction dir, CommandEvent* timingEvent);
+    void perform3dFft(gmx_fft_direction dir, DeviceEvent* timingEvent);
 
 private:
 #if GMX_GPU_CUDA

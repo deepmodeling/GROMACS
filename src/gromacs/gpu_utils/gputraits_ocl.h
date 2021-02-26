@@ -50,9 +50,6 @@
 
 using DeviceTexture = void*;
 
-//! \brief Single GPU call timing event
-using CommandEvent = cl_event;
-
 //! Convenience alias for 2-wide float
 using Float2 = cl_float2;
 

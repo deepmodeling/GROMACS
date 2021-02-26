@@ -51,9 +51,6 @@
 
 using DeviceTexture = void*;
 
-//! \brief Single GPU call timing event, not used with SYCL
-using CommandEvent = void*;
-
 // TODO: Issue #3312
 //! Convenience alias.
 using Float4 = cl::sycl::float4;

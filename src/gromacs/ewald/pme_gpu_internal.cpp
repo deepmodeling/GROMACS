@@ -80,6 +80,7 @@
 #    include "gromacs/gpu_utils/syclutils.h"
 #endif
 
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/ewald/pme.h"
 
 #include "pme_gpu_3dfft.h"
@@ -1020,9 +1021,9 @@ void pme_gpu_reinit_atoms(PmeGpu* pmeGpu, const int nAtoms, const real* chargesA
  * \param[in] pmeGpu         The PME GPU data structure.
  * \param[in] PMEStageId     The PME GPU stage gtPME_ index from the enum in src/gromacs/timing/gpu_timing.h
  */
-static CommandEvent* pme_gpu_fetch_timing_event(const PmeGpu* pmeGpu, size_t PMEStageId)
+static DeviceEvent* pme_gpu_fetch_timing_event(const PmeGpu* pmeGpu, size_t PMEStageId)
 {
-    CommandEvent* timingEvent = nullptr;
+    DeviceEvent* timingEvent = nullptr;
     if (pme_gpu_timings_enabled(pmeGpu))
     {
         GMX_ASSERT(PMEStageId < pmeGpu->archSpecific->timingEvents.size(),

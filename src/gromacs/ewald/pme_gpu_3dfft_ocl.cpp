@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020 by the GROMACS development team.
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -141,7 +142,7 @@ GpuParallel3dFft::~GpuParallel3dFft()
     clfftDestroyPlan(&planC2R_);
 }
 
-void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, CommandEvent* timingEvent)
+void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, DeviceEvent* timingEvent)
 {
     cl_mem                            tempBuffer = nullptr;
     constexpr std::array<cl_event, 0> waitEvents{ {} };
@@ -149,6 +150,7 @@ void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, CommandEvent* timingE
     clfftPlanHandle plan;
     clfftDirection  direction;
     cl_mem *        inputGrids, *outputGrids;
+    cl_event*       timingEventNative = DeviceEvent::getNativePtrForApiCall(timingEvent);
 
     switch (dir)
     {
@@ -174,7 +176,7 @@ void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, CommandEvent* timingE
                                            deviceStreams_.data(),
                                            waitEvents.size(),
                                            waitEvents.data(),
-                                           timingEvent,
+                                           timingEventNative,
                                            inputGrids,
                                            outputGrids,
                                            tempBuffer),
