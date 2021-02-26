@@ -289,26 +289,15 @@ static void cuda_init_const(gmx_nbnxn_cuda_t*               nb,
 
 gmx_nbnxn_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
                                 const interaction_const_t* ic,
-                                const nbnxn_atomdata_t*    nbat,
-                                int /*rank*/,
-                                gmx_bool bLocalAndNonlocal)
+                                const sits_atomdata_t*     sits_at,
+                                int /*rank*/)
 {
     cudaError_t stat;
 
     gmx_sits_cuda_t* gpu_sits;
-    snew(nb, 1);
-    snew(nb->atdat, 1);
-    snew(nb->nbparam, 1);
-    snew(nb->plist[InteractionLocality::Local], 1);
-    if (bLocalAndNonlocal)
-    {
-        snew(nb->plist[InteractionLocality::NonLocal], 1);
-    }
-
-    nb->bUseTwoStreams = bLocalAndNonlocal;
-
-    nb->timers = new cu_timers_t();
-    snew(nb->timings, 1);
+    snew(gpu_sits, 1);
+    snew(gpu_sits->sits_atdat, 1);
+    snew(gpu_sits->sits_param, 1);
 
     /* init nbst */
     pmalloc((void**)&nb->nbst.e_lj, sizeof(*nb->nbst.e_lj));
@@ -318,47 +307,10 @@ gmx_nbnxn_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
     init_plist(nb->plist[InteractionLocality::Local]);
 
     /* set device info, just point it to the right GPU among the detected ones */
-    nb->dev_info = deviceInfo;
+    gpu_sits->dev_info = deviceInfo;
 
     /* local/non-local GPU streams */
     stat = cudaStreamCreate(&nb->stream[InteractionLocality::Local]);
-    CU_RET_ERR(stat, "cudaStreamCreate on stream[InterationLocality::Local] failed");
-    if (nb->bUseTwoStreams)
-    {
-        init_plist(nb->plist[InteractionLocality::NonLocal]);
-
-        /* Note that the device we're running on does not have to support
-         * priorities, because we are querying the priority range which in this
-         * case will be a single value.
-         */
-        int highest_priority;
-        stat = cudaDeviceGetStreamPriorityRange(nullptr, &highest_priority);
-        CU_RET_ERR(stat, "cudaDeviceGetStreamPriorityRange failed");
-
-        stat = cudaStreamCreateWithPriority(&nb->stream[InteractionLocality::NonLocal],
-                                            cudaStreamDefault, highest_priority);
-        CU_RET_ERR(stat,
-                   "cudaStreamCreateWithPriority on stream[InteractionLocality::NonLocal] failed");
-    }
-
-    /* init events for sychronization (timing disabled for performance reasons!) */
-    stat = cudaEventCreateWithFlags(&nb->nonlocal_done, cudaEventDisableTiming);
-    CU_RET_ERR(stat, "cudaEventCreate on nonlocal_done failed");
-    stat = cudaEventCreateWithFlags(&nb->misc_ops_and_local_H2D_done, cudaEventDisableTiming);
-    CU_RET_ERR(stat, "cudaEventCreate on misc_ops_and_local_H2D_done failed");
-
-    nb->xNonLocalCopyD2HDone = new GpuEventSynchronizer();
-
-    /* WARNING: CUDA timings are incorrect with multiple streams.
-     *          This is the main reason why they are disabled by default.
-     */
-    // TODO: Consider turning on by default when we can detect nr of streams.
-    nb->bDoTime = (getenv("GMX_ENABLE_GPU_TIMING") != nullptr);
-
-    if (nb->bDoTime)
-    {
-        init_timings(nb->timings);
-    }
 
     /* set the kernel type for the current GPU */
     /* pick L1 cache configuration */
