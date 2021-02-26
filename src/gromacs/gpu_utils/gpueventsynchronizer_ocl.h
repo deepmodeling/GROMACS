@@ -153,8 +153,14 @@ public:
         }
         event_ = nullptr;
     }
+    /*! \brief Check if the event is in a marked state
+     *
+     * \returns Whether event was marked
+     */
+    inline bool isMarked() { return event_ != nullptr; }
 
 private:
+    //! Wrapped OpenCL event
     cl_event event_;
 };
 

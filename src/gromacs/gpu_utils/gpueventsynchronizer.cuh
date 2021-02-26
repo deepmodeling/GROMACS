@@ -91,6 +91,7 @@ public:
         cudaError_t gmx_used_in_debug stat = cudaEventRecord(event_, deviceStream.stream());
         GMX_ASSERT(stat == cudaSuccess,
                    ("cudaEventRecord failed. " + gmx::getDeviceErrorString(stat)).c_str());
+        isMarked_ = true;
     }
     /*! \brief Synchronizes the host thread on the marked event. */
     inline void waitForEvent()
@@ -98,6 +99,7 @@ public:
         cudaError_t gmx_used_in_debug stat = cudaEventSynchronize(event_);
         GMX_ASSERT(stat == cudaSuccess,
                    ("cudaEventSynchronize failed. " + gmx::getDeviceErrorString(stat)).c_str());
+        reset();
     }
     /*! \brief Checks the completion of the underlying event and resets the object if it was. */
     inline bool isReady()
@@ -113,12 +115,27 @@ public:
         cudaError_t gmx_used_in_debug stat = cudaStreamWaitEvent(deviceStream.stream(), event_, 0);
         GMX_ASSERT(stat == cudaSuccess,
                    ("cudaStreamWaitEvent failed. " + gmx::getDeviceErrorString(stat)).c_str());
+        reset();
     }
     //! Reset the event (not needed in CUDA)
-    inline void reset() {}
+    inline void reset() { isMarked_ = false; }
+    /*! \brief Check if the event is in a marked state
+     *
+     * \returns Whether event was marked
+     */
+    inline bool isMarked() { return isMarked_; }
 
 private:
+    //! CUDA event this class is wrapping
     cudaEvent_t event_;
+    /*! \brief A boolean to track the state of event
+     *
+     * Every event has to be marked and than enqueued once. This boolean is set to true
+     * when marking. The mark is removed when event is reset. This allows to make sure that:
+     * 1. We are not waiting for an event that was not marked.
+     * 2. We are not marking an event twice, without enqueueing a wait for it.
+     */
+    bool isMarked_ = false;
 };
 
 #endif

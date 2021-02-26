@@ -630,9 +630,6 @@ void gpu_free(NbnxmGpu* nb)
     pfree(nb->nbst.eElec);
     nb->nbst.eElec = nullptr;
 
-    pfree(nb->nbst.fShift);
-    nb->nbst.fShift = nullptr;
-
     freeGpuProgram(nb->dev_rundata->program);
     delete nb->dev_rundata;
 

@@ -133,8 +133,14 @@ public:
     }
     //! Reset the event to unmarked state.
     inline void reset() { event_.reset(); }
+    /*! \brief Check if the event is in a marked state
+     *
+     * \returns Whether event was marked
+     */
+    inline bool isMarked() { return event_ != std::nullopt; }
 
 private:
+    //! SYCL event this class is wrapping
     std::optional<cl::sycl::event> event_ = std::nullopt;
 };
 
