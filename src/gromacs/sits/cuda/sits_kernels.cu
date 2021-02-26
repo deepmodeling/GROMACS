@@ -74,8 +74,8 @@ static __global__ void SITS_Update_log_pk(const int kn, float *log_pk,
 }
 
 
-static __global__ void SITS_Update_log_mk_inverse(const int kn, 
-	float *log_weight, float *log_mk_inverse, float *log_norm_old, 
+static __global__ void SITS_Update_log_mk_inv(const int kn, 
+	float *log_weight, float *log_mk_inv, float *log_norm_old, 
 	float *log_norm, const float *log_pk, const float *log_nk)
 {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -83,30 +83,30 @@ static __global__ void SITS_Update_log_mk_inverse(const int kn,
 	{
 		log_weight[i] = (log_pk[i] + log_pk[i + 1]) * 0.5;
 		//printf("DEBUG log_weight: %d %f %f\n", i, log_pk[i], log_pk[i + 1]);
-		log_mk_inverse[i] = log_nk[i] - log_nk[i + 1];
+		log_mk_inv[i] = log_nk[i] - log_nk[i + 1];
 		log_norm_old[i] = log_norm[i];
 		log_norm[i] = log_add_log(log_norm[i], log_weight[i]);
-		log_mk_inverse[i] = log_add_log(log_mk_inverse[i] + log_norm_old[i] - log_norm[i], log_pk[i + 1] - log_pk[i] + log_mk_inverse[i] + log_weight[i] - log_norm[i]);
+		log_mk_inv[i] = log_add_log(log_mk_inv[i] + log_norm_old[i] - log_norm[i], log_pk[i + 1] - log_pk[i] + log_mk_inv[i] + log_weight[i] - log_norm[i]);
 		//printf("DEBUG log_norm: %d %f %f\n", i, log_norm[i], log_weight[i]);
 	}
 }
 
-static __global__ void SITS_Update_log_nk_inverse(const int kn,
-	float *log_nk_inverse, 	const float *log_mk_inverse)
+static __global__ void SITS_Update_log_nk_inv(const int kn,
+	float *log_nk_inv, 	const float *log_mk_inv)
 {
 	for (int i = 0; i < kn - 1; i++)
 	{
-		log_nk_inverse[i + 1] = log_nk_inverse[i] + log_mk_inverse[i];
+		log_nk_inv[i + 1] = log_nk_inv[i] + log_mk_inv[i];
 	}
 }
 
 static __global__ void SITS_Update_nk(const int kn,
-	float *log_nk, float *nk, const float *log_nk_inverse)
+	float *log_nk, float *nk, const float *log_nk_inv)
 {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	if (i < kn )
 	{
-		log_nk[i] = -log_nk_inverse[i];
+		log_nk[i] = -log_nk_inv[i];
 		nk[i] = exp(log_nk[i]);
 	}
 }
@@ -222,8 +222,6 @@ const float beta_0, const float pe_a, const float pe_b, const float fb_bias)
 		(protein_atom_numbers, atom_numbers, md_frc, pw_frc, pwwp_factor * fc + 1.0 - pwwp_factor);
 }
 
-
-
 void SITS::SITS_Classical_Update_Info(int steps)
 {
 	if (!classical_info.constant_nk && steps % classical_info.record_interval == 0)
@@ -246,15 +244,15 @@ void SITS::SITS_Classical_Update_Info(int steps)
 	
 		if (classical_info.record_count % classical_info.update_interval == 0)
 		{
-			SITS_Update_log_mk_inverse << <ceilf((float)classical_info.k_numbers / 32.), 32 >> >(classical_info.k_numbers,
-				classical_info.log_weight, classical_info.log_mk_inverse, classical_info.log_norm_old,
+			SITS_Update_log_mk_inv << <ceilf((float)classical_info.k_numbers / 32.), 32 >> >(classical_info.k_numbers,
+				classical_info.log_weight, classical_info.log_mk_inv, classical_info.log_norm_old,
 				classical_info.log_norm, classical_info.log_pk, classical_info.log_nk);
 	
-			SITS_Update_log_nk_inverse << <1, 1 >> >(classical_info.k_numbers,
-				classical_info.log_nk_inverse, classical_info.log_mk_inverse);
+			SITS_Update_log_nk_inv << <1, 1 >> >(classical_info.k_numbers,
+				classical_info.log_nk_inv, classical_info.log_mk_inv);
 	
 			SITS_Update_nk << <ceilf((float)classical_info.k_numbers / 32.), 32 >> >(classical_info.k_numbers,
-				classical_info.log_nk, classical_info.Nk, classical_info.log_nk_inverse);
+				classical_info.log_nk, classical_info.Nk, classical_info.log_nk_inv);
 	
 					
 			classical_info.record_count = 0;
@@ -515,11 +513,11 @@ void SITS::Initial_SITS(CONTROLLER *controller,int atom_numbers)
 		Cuda_Malloc_Safely((void**)&classical_info.gf, sizeof(float)* classical_info.k_numbers);
 		Cuda_Malloc_Safely((void**)&classical_info.gfsum, sizeof(float));
 		Cuda_Malloc_Safely((void**)&classical_info.log_weight, sizeof(float)* classical_info.k_numbers);
-		Cuda_Malloc_Safely((void**)&classical_info.log_mk_inverse, sizeof(float)* classical_info.k_numbers);
+		Cuda_Malloc_Safely((void**)&classical_info.log_mk_inv, sizeof(float)* classical_info.k_numbers);
 		Cuda_Malloc_Safely((void**)&classical_info.log_norm_old, sizeof(float)* classical_info.k_numbers);
 		Cuda_Malloc_Safely((void**)&classical_info.log_norm, sizeof(float)* classical_info.k_numbers);
 		Cuda_Malloc_Safely((void**)&classical_info.log_pk, sizeof(float)* classical_info.k_numbers);
-		Cuda_Malloc_Safely((void**)&classical_info.log_nk_inverse, sizeof(float)* classical_info.k_numbers);
+		Cuda_Malloc_Safely((void**)&classical_info.log_nk_inv, sizeof(float)* classical_info.k_numbers);
 		Cuda_Malloc_Safely((void**)&classical_info.log_nk, sizeof(float)* classical_info.k_numbers);
 		Malloc_Safely((void**)&classical_info.log_nk_recorded_cpu, sizeof(float)*classical_info.k_numbers);
 		Malloc_Safely((void**)&classical_info.log_norm_recorded_cpu, sizeof(float)*classical_info.k_numbers);
@@ -635,7 +633,7 @@ void SITS::Initial_SITS(CONTROLLER *controller,int atom_numbers)
     }
 	printf("End (Selective Integrated Tempering Sampling)\n\n");
 }
-void SITS::Clear_SITS_Energy()
+void SITS::clear_sits_energy()
 {
 	Reset_List << <ceilf((float)info.atom_numbers / 32), 32 >> >
 		(info.protein_atom_numbers, d_protein_water_atom_energy, 0.);//清空用于记录AB相互作用的列表
@@ -669,10 +667,10 @@ void SITS::Prepare_For_Calculate_Force(int *need_atom_energy, int isPrintStep)
 	if (info.sits_mode <= 1 && isPrintStep)
 		*need_atom_energy += 1;
 	if (*need_atom_energy > 0)
-		Clear_SITS_Energy();
+		clear_sits_energy();
 }
 
-void SITS::SITS_Enhanced_Force(int steps, VECTOR *frc)
+void SITS::sits_enhance_force(int steps, VECTOR *frc)
 {
 	if (info.sits_mode == SIMPLE_SITS_MODE)
 	{

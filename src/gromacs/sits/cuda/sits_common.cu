@@ -53,8 +53,8 @@ __global__ void SITS_Update_log_pk(const int kn, float *log_pk,
 }
 
 
-__global__ void SITS_Update_log_mk_inverse(const int kn, 
-	float *log_weight, float *log_mk_inverse, float *log_norm_old, 
+__global__ void SITS_Update_log_mk_inv(const int kn, 
+	float *log_weight, float *log_mk_inv, float *log_norm_old, 
 	float *log_norm, const float *log_pk, const float *log_nk)
 {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -62,30 +62,30 @@ __global__ void SITS_Update_log_mk_inverse(const int kn,
 	{
 		log_weight[i] = (log_pk[i] + log_pk[i + 1]) * 0.5;
 		//printf("DEBUG log_weight: %d %f %f\n", i, log_pk[i], log_pk[i + 1]);
-		log_mk_inverse[i] = log_nk[i] - log_nk[i + 1];
+		log_mk_inv[i] = log_nk[i] - log_nk[i + 1];
 		log_norm_old[i] = log_norm[i];
 		log_norm[i] = log_add_log(log_norm[i], log_weight[i]);
-		log_mk_inverse[i] = log_add_log(log_mk_inverse[i] + log_norm_old[i] - log_norm[i], log_pk[i + 1] - log_pk[i] + log_mk_inverse[i] + log_weight[i] - log_norm[i]);
+		log_mk_inv[i] = log_add_log(log_mk_inv[i] + log_norm_old[i] - log_norm[i], log_pk[i + 1] - log_pk[i] + log_mk_inv[i] + log_weight[i] - log_norm[i]);
 		//printf("DEBUG log_norm: %d %f %f\n", i, log_norm[i], log_weight[i]);
 	}
 }
 
-__global__ void SITS_Update_log_nk_inverse(const int kn,
-	float *log_nk_inverse, 	const float *log_mk_inverse)
+__global__ void SITS_Update_log_nk_inv(const int kn,
+	float *log_nk_inv, 	const float *log_mk_inv)
 {
 	for (int i = 0; i < kn - 1; i++)
 	{
-		log_nk_inverse[i + 1] = log_nk_inverse[i] + log_mk_inverse[i];
+		log_nk_inv[i + 1] = log_nk_inv[i] + log_mk_inv[i];
 	}
 }
 
 __global__ void SITS_Update_nk(const int kn,
-	float *log_nk, float *nk, const float *log_nk_inverse)
+	float *log_nk, float *nk, const float *log_nk_inv)
 {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	if (i < kn )
 	{
-		log_nk[i] = -log_nk_inverse[i];
+		log_nk[i] = -log_nk_inv[i];
 		nk[i] = exp(log_nk[i]);
 	}
 }

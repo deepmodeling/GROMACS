@@ -57,7 +57,7 @@
 
 struct gmx_ffparams_t;
 struct t_forcerec;
-struct sits_cuda;
+struct cu_sits_atdat_t;
 
 namespace gmx
 {
@@ -106,7 +106,7 @@ struct BondedCudaKernelParameters
     //! Total Energy (on GPU)
     float* d_vTot;
 
-    sits_cuda* gpu_sits;
+    cu_sits_atdat_t* gpu_sits;
     //! Interaction list atoms (on GPU)
     t_iatom* d_iatoms[numFTypesOnGpu];
 

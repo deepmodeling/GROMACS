@@ -104,7 +104,7 @@ __device__ void bonds_gpu(const int       i,
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
                           const PbcAiuc   pbcAiuc,
-                          sits_cuda       gpu_sits)
+                          cu_sits_atdat_t sits_atdat)
 {
     if (i < numBonds)
     {
@@ -197,7 +197,7 @@ __device__ void angles_gpu(const int       i,
                            fvec            gm_f[],
                            fvec            sm_fShiftLoc[],
                            const PbcAiuc   pbcAiuc,
-                           sits_cuda       gpu_sits)
+                           cu_sits_atdat_t sits_atdat)
 {
     if (i < numBonds)
     {
@@ -292,7 +292,7 @@ __device__ void urey_bradley_gpu(const int       i,
                                  fvec            gm_f[],
                                  fvec            sm_fShiftLoc[],
                                  const PbcAiuc   pbcAiuc,
-                                 sits_cuda       gpu_sits)
+                                 cu_sits_atdat_t sits_atdat)
 {
     if (i < numBonds)
     {
@@ -483,7 +483,7 @@ __device__ static void do_dih_fup_gpu(const int      i,
                                       fvec           gm_f[],
                                       fvec           sm_fShiftLoc[],
                                       const PbcAiuc& pbcAiuc,
-                                      sits_cuda       gpu_sits,
+                                      cu_sits_atdat_t sits_atdat,
                                       const float4   gm_xq[],
                                       const int      t1,
                                       const int      t2,
@@ -581,7 +581,7 @@ __device__ void pdihs_gpu(const int       i,
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
                           const PbcAiuc   pbcAiuc,
-                          sits_cuda       gpu_sits)
+                          cu_sits_atdat_t sits_atdat)
 {
     if (i < numBonds)
     {
@@ -633,7 +633,7 @@ __device__ void rbdihs_gpu(const int       i,
                            fvec            gm_f[],
                            fvec            sm_fShiftLoc[],
                            const PbcAiuc   pbcAiuc,
-                           sits_cuda       gpu_sits)
+                           cu_sits_atdat_t sits_atdat)
 {
     constexpr float c0 = 0.0f, c1 = 1.0f, c2 = 2.0f, c3 = 3.0f, c4 = 4.0f, c5 = 5.0f;
 
@@ -757,7 +757,7 @@ __device__ void idihs_gpu(const int       i,
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
                           const PbcAiuc   pbcAiuc,
-                          sits_cuda       gpu_sits)
+                          cu_sits_atdat_t sits_atdat)
 {
     if (i < numBonds)
     {
@@ -821,7 +821,7 @@ __device__ void pairs_gpu(const int       i,
                           fvec            gm_f[],
                           fvec            sm_fShiftLoc[],
                           const PbcAiuc   pbcAiuc,
-                          sits_cuda       gpu_sits,
+                          cu_sits_atdat_t sits_atdat,
                           const float     scale_factor,
                           float*          vtotVdw_loc,
                           float*          vtotElec_loc)
@@ -939,38 +939,38 @@ __global__ void exec_sits_kernel_gpu(BondedCudaKernelParameters kernelParams)
                 case F_BONDS:
                     bonds_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
                                                  kernelParams.d_forceParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.gpu_sits);
+                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.sits_atdat);
                     break;
                 case F_ANGLES:
                     angles_gpu<calcVir, calcEner>(
                             fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.gpu_sits);
+                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.sits_atdat);
                     break;
                 case F_UREY_BRADLEY:
                     urey_bradley_gpu<calcVir, calcEner>(
                             fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.gpu_sits);
+                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.sits_atdat);
                     break;
                 case F_PDIHS:
                 case F_PIDIHS:
                     pdihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
                                                  kernelParams.d_forceParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.gpu_sits);
+                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.sits_atdat);
                     break;
                 case F_RBDIHS:
                     rbdihs_gpu<calcVir, calcEner>(
                             fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.gpu_sits);
+                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.sits_atdat);
                     break;
                 case F_IDIHS:
                     idihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
                                                  kernelParams.d_forceParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.gpu_sits);
+                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc, kernelParams.sits_atdat);
                     break;
                 case F_LJ14:
                     pairs_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
                                                  kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc,
-                                                 kernelParams.pbcAiuc, kernelParams.gpu_sits, kernelParams.scaleFactor,
+                                                 kernelParams.pbcAiuc, kernelParams.sits_atdat, kernelParams.scaleFactor,
                                                  &vtotVdw_loc, &vtotElec_loc);
                     break;
             }
@@ -1031,7 +1031,7 @@ void GpuBonded::Impl::launchSITSKernel(const t_forcerec* fr, const matrix box)
     auto kernelPtr            = exec_sits_kernel_gpu<calcVir, calcEner>;
     kernelParams_.scaleFactor = fr->ic->epsfac * fr->fudgeQQ;
     kernelParams_.pbcAiuc     = pbcAiuc;
-    kernelParams_.gpu_sits    = fr->sits->gpu_sits;
+    kernelParams_.sits_atdat    = fr->sits->gpu_sits->sits_atdat;
 
     const auto kernelArgs = prepareGpuKernelArguments(kernelPtr, config, &kernelParams_);
 

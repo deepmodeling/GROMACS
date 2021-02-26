@@ -53,22 +53,22 @@ struct SITS_INFORMATION
 	//gf - gf - log( n_k * exp(-beta_k * ene) )
 	//gfsum - gfsum - log( Sum_(k=1)^N ( log( n_k * exp(-beta_k * ene) ) ) )
 	//log_weight - rb - log of the weighting function
-	//log_mk_inverse - ratio - log(m_k^-1)
+	//log_mk_inv - ratio - log(m_k^-1)
 	//log_norm_old - normlold - W(j-1)
 	//log_norm - norml - W(j)
 	//log_pk - rbfb - log(p_k)
-	//log_nk_inverse - pratio - log(n_k^-1)
+	//log_nk_inv - pratio - log(n_k^-1)
 	//log_nk - fb - log(n_k)
 
 	float *ene_recorded;
 	float *gf;
 	float *gfsum;
 	float *log_weight;
-	float *log_mk_inverse;
+	float *log_mk_inv;
 	float *log_norm_old;
 	float *log_norm;
 	float *log_pk;
-	float *log_nk_inverse;
+	float *log_nk_inv;
 	float *log_nk;
 
 
@@ -88,15 +88,15 @@ __global__ void SITS_Update_log_pk(const int kn, float *log_pk,
 
 //迭代时更新函数
 
-__global__ void SITS_Update_log_mk_inverse(const int kn,
-	float *log_weight, float *log_mk_inverse, float *log_norm_old,
+__global__ void SITS_Update_log_mk_inv(const int kn,
+	float *log_weight, float *log_mk_inv, float *log_norm_old,
 	float *log_norm, const float *log_pk, const float *log_nk);
 
-__global__ void SITS_Update_log_nk_inverse(const int kn,
-	float *log_nk_inverse, const float *log_mk_inverse);
+__global__ void SITS_Update_log_nk_inv(const int kn,
+	float *log_nk_inv, const float *log_mk_inv);
 
 __global__ void SITS_Update_nk(const int kn,
-	float *log_nk, float *nk, const float *log_nk_inverse);
+	float *log_nk, float *nk, const float *log_nk_inv);
 
 
 

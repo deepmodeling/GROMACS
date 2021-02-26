@@ -124,7 +124,7 @@ constexpr static int c_bufOpsThreadsPerBlock = 128;
 typedef void (*nbnxn_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_plist_t, bool);
 
 /*! Nonbonded SITS kernel function pointer type */
-typedef void (*nbnxn_sits_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_plist_t, const sits_cuda, bool);
+typedef void (*nbnxn_sits_cu_kfunc_ptr_t)(const cu_atomdata_t, const cu_nbparam_t, const cu_plist_t, const cu_sits_atdat_t, bool);
 
 /*********************************/
 

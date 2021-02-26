@@ -107,7 +107,7 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
                         fr->nbfp, mimimumNumEnergyGroupNonbonded,
                         (useGpu || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
 
-    sits_cuda* gpu_sits = nullptr;
+    gmx_sits_cuda_t* gpu_sits = nullptr;
     if (useGpu)
     {
         /* init the NxN GPU data; the last argument tells whether we'll have
