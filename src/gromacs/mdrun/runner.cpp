@@ -167,6 +167,7 @@
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/stringutil.h"
+#include "gromacs/utility/mpiinfo.h"
 
 #include "isimulator.h"
 #include "membedholder.h"
@@ -206,12 +207,66 @@ static DevelopmentFeatureFlags manageDevelopmentFeatures(const gmx::MDLogger& md
 
     devFlags.enableGpuBufferOps =
             GMX_GPU_CUDA && useGpuForNonbonded && (getenv("GMX_USE_GPU_BUFFER_OPS") != nullptr);
-    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_DD_COMMS") != nullptr;
+    devFlags.enableGpuHaloExchange = GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI)
+                                     && getenv("GMX_GPU_DD_COMMS") != nullptr;
     devFlags.forceGpuUpdateDefault = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr) || GMX_FAHCORE;
-    devFlags.enableGpuPmePPComm =
-            GMX_GPU_CUDA && GMX_THREAD_MPI && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
+    devFlags.enableGpuPmePPComm = GMX_GPU_CUDA && (GMX_THREAD_MPI || CUDA_AWARE_MPI)
+                                  && getenv("GMX_GPU_PME_PP_COMMS") != nullptr;
 
 #pragma GCC diagnostic pop
+
+    // Direct GPU comm path is being used with CUDA_AWARE_MPI
+    // make sure underlying MPI implementation is CUDA-aware
+    if (CUDA_AWARE_MPI && (devFlags.enableGpuPmePPComm || devFlags.enableGpuHaloExchange))
+    {
+        CudaAwareMpiStatus mpiStatus = checkMpiCudaAwareSupport();
+        if (CudaAwareMpiStatus::Supported == mpiStatus)
+        {
+            GMX_LOG(mdlog.warning)
+                    .asParagraph()
+                    .appendTextFormatted(
+                            "Using CUDA-aware MPI for 'GPU halo exchange' or 'GPU PME-PP "
+                            "communications' feature.");
+        }
+        else if (CudaAwareMpiStatus::NotSupported == mpiStatus)
+        {
+            if (devFlags.enableGpuHaloExchange)
+            {
+                GMX_LOG(mdlog.warning)
+                        .asParagraph()
+                        .appendTextFormatted(
+                                "GMX_GPU_DD_COMMS environment variable detected, but the 'GPU "
+                                "halo exchange' feature will not be enabled as underlying MPI "
+                                "implementation "
+                                "is not CUDA-aware.");
+                devFlags.enableGpuHaloExchange = false;
+            }
+            if (devFlags.enableGpuPmePPComm)
+            {
+                GMX_LOG(mdlog.warning)
+                        .asParagraph()
+                        .appendText(
+                                "GMX_GPU_PME_PP_COMMS environment variable detected, but the "
+                                "'GPU PME-PP communications' feature was not enabled as "
+                                " underlying MPI implementation is not CUDA-aware.");
+                devFlags.enableGpuPmePPComm = false;
+            }
+        }
+        else
+        {
+            GMX_LOG(mdlog.warning)
+                    .asParagraph()
+                    .appendTextFormatted(
+                            "This run has requested for 'GPU halo exchange' or 'GPU PME-PP "
+                            "communications' feature "
+                            "with CUDA-aware MPI. But, GROMACS cannot determine if underlying MPI "
+                            "is "
+                            "CUDA-aware. "
+                            "If you observe failures at runtime, please make sure MPI "
+                            "implementation "
+                            "is CUDA-aware.");
+        }
+    }
 
     if (devFlags.enableGpuBufferOps)
     {
@@ -1981,6 +2036,7 @@ int Mdrunner::mdrunner()
                     walltime_accounting,
                     inputrec.get(),
                     pmeRunMode,
+                    runScheduleWork.simulationWork.useGpuPmePpCommunication,
                     deviceStreamManager.get());
     }
 
@@ -2049,7 +2105,13 @@ int Mdrunner::mdrunner()
     {
         physicalNodeComm.barrier();
     }
+
+#if !CUDA_AWARE_MPI
+    // Don't reset GPU in case of CUDA_AWARE_MPI
+    // UCX creates CUDA buffers which are cleaned-up as part of MPI_Finalize()
+    // resetting the device before MPI_Finalize() results in crashes inside UCX
     releaseDevice(deviceInfo);
+#endif
 
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());

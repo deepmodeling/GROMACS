@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020,2021, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -32,44 +32,23 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
-/*! \libinternal \file
- *
- * \brief This file contains function declarations necessary for
- * running on an MPI rank doing only PME long-ranged work.
- *
- * \author Berk Hess <hess@kth.se>
- * \inlibraryapi
- * \ingroup module_ewald
- */
+#ifndef GMX_UTILITY_MPIINFO_H
+#define GMX_UTILITY_MPIINFO_H
 
-#ifndef GMX_EWALD_PME_ONLY_H
-#define GMX_EWALD_PME_ONLY_H
-
-#include <string>
-
-#include "gromacs/timing/walltime_accounting.h"
-
-struct t_commrec;
-struct t_inputrec;
-struct t_nrnb;
-struct gmx_pme_t;
-struct gmx_wallcycle;
-
-enum class PmeRunMode;
 namespace gmx
 {
-class DeviceStreamManager;
-}
+/*! \brief Enum describing CUDA-aware support in underlying MPI library.
+ */
+enum class CudaAwareMpiStatus
+{
+    Supported,    //!< CUDA-aware support available.
+    NotSupported, //!< CUDA-aware support NOT available.
+    NotKnown      //!< CUDA-aware support status not known.
+};
 
-/*! \brief Called on the nodes that do PME exclusively */
-int gmx_pmeonly(gmx_pme_t*                      pme,
-                const t_commrec*                cr,
-                t_nrnb*                         mynrnb,
-                gmx_wallcycle*                  wcycle,
-                gmx_walltime_accounting_t       walltime_accounting,
-                t_inputrec*                     ir,
-                PmeRunMode                      runMode,
-                bool                            useGpuPmePpCommunication,
-                const gmx::DeviceStreamManager* deviceStreamManager);
+//! Returns CUDA-aware status in MPI implementation
+CudaAwareMpiStatus checkMpiCudaAwareSupport();
+
+} // namespace gmx
 
 #endif

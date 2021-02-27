@@ -1102,12 +1102,13 @@ static void setupGpuForceReductions(gmx::MdrunScheduleWorkload* runScheduleWork,
     const bool accumulate =
             runScheduleWork->domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr);
     const int atomStart = 0;
-    fr->gpuForceReduction[gmx::AtomLocality::Local]->reinit(stateGpu->getForces(),
-                                                            nbv->getNumAtoms(AtomLocality::Local),
-                                                            nbv->getGridIndices(),
-                                                            atomStart,
-                                                            accumulate,
-                                                            stateGpu->fReducedOnDevice());
+    fr->gpuForceReduction[gmx::AtomLocality::Local]->reinit(
+            stateGpu->getForces(),
+            nbv->getNumAtoms(AtomLocality::Local),
+            nbv->getGridIndices(),
+            atomStart,
+            accumulate,
+            stateGpu->fReducedOnDevice(gmx::AtomLocality::Local));
 
     // register forces and add dependencies
     fr->gpuForceReduction[gmx::AtomLocality::Local]->registerNbnxmForce(nbv->getGpuForces());
@@ -1124,7 +1125,12 @@ static void setupGpuForceReductions(gmx::MdrunScheduleWorkload* runScheduleWork,
                 (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
                                                : // PME force buffer on same GPU
                          fr->pmePpCommGpu->getForcesReadySynchronizer()); // buffer received from other GPU
-        fr->gpuForceReduction[gmx::AtomLocality::Local]->addDependency(pmeSynchronizer);
+
+        if (GMX_THREAD_MPI)
+        {
+            GMX_ASSERT(pmeSynchronizer != nullptr, "PME force ready cuda event should not be NULL");
+            fr->gpuForceReduction[gmx::AtomLocality::Local]->addDependency(pmeSynchronizer);
+        }
     }
 
     if ((runScheduleWork->domainWork.haveCpuLocalForceWork || havePPDomainDecomposition(cr))
@@ -1148,11 +1154,13 @@ static void setupGpuForceReductions(gmx::MdrunScheduleWorkload* runScheduleWork,
         const bool accumulate = runScheduleWork->domainWork.haveCpuBondedWork
                                 || runScheduleWork->domainWork.haveFreeEnergyWork;
         const int atomStart = dd_numHomeAtoms(*cr->dd);
-        fr->gpuForceReduction[gmx::AtomLocality::NonLocal]->reinit(stateGpu->getForces(),
-                                                                   nbv->getNumAtoms(AtomLocality::NonLocal),
-                                                                   nbv->getGridIndices(),
-                                                                   atomStart,
-                                                                   accumulate);
+        fr->gpuForceReduction[gmx::AtomLocality::NonLocal]->reinit(
+                stateGpu->getForces(),
+                nbv->getNumAtoms(AtomLocality::NonLocal),
+                nbv->getGridIndices(),
+                atomStart,
+                accumulate,
+                stateGpu->fReducedOnDevice(gmx::AtomLocality::NonLocal));
 
         // register forces and add dependencies
         fr->gpuForceReduction[gmx::AtomLocality::NonLocal]->registerNbnxmForce(nbv->getGpuForces());
@@ -2040,7 +2048,10 @@ void do_force(FILE*                               fplog,
 
             if (stepWork.useGpuFHalo)
             {
-                communicateGpuHaloForces(*cr, domainWork.haveCpuLocalForceWork);
+                communicateGpuHaloForces(*cr,
+                                         domainWork.haveCpuLocalForceWork,
+                                         stateGpu->getForcesReadyOnDeviceEvent(
+                                                 gmx::AtomLocality::NonLocal, stepWork.useGpuFBufferOps));
             }
             else
             {

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -83,19 +83,25 @@ void PmePpCommGpu::reinit(int /* size */)
                "correct implementation.");
 }
 
-void PmePpCommGpu::receiveForceFromPmeCudaDirect(void* /* recvPtr */,
-                                                 int /* recvSize */,
-                                                 bool /* receivePmeForceToGpu */)
+void PmePpCommGpu::receiveForceFromPme(RVec* /* recvPtr */, int /* recvSize */, bool /* receivePmeForceToGpu */)
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for PME-PP GPU communication was called instead of the correct "
                "implementation.");
 }
 
-void PmePpCommGpu::sendCoordinatesToPmeCudaDirect(void* /* sendPtr */,
-                                                  int /* sendSize */,
-                                                  bool /* sendPmeCoordinatesFromGpu */,
-                                                  GpuEventSynchronizer* /* coordinatesOnDeviceEvent */)
+void PmePpCommGpu::sendCoordinatesToPmeFromGPU(DeviceBuffer<RVec> /* sendPtr */,
+                                               int /* sendSize */,
+                                               GpuEventSynchronizer* /* coordinatesOnDeviceEvent */)
+{
+    GMX_ASSERT(!impl_,
+               "A CPU stub for PME-PP GPU communication was called instead of the correct "
+               "implementation.");
+}
+
+void PmePpCommGpu::sendCoordinatesToPmeFromCPU(RVec* /* sendPtr */,
+                                               int /* sendSize */,
+                                               GpuEventSynchronizer* /* coordinatesOnDeviceEvent */)
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for PME-PP GPU communication was called instead of the correct "

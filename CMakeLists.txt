@@ -197,6 +197,12 @@ gmx_option_multichoice(
     OFF CUDA OpenCL SYCL)
 
 gmx_option_multichoice(
+    GMX_CUDA_AWARE_MPI
+    "Enable this option to use an MPI implementations which is CUDA-aware. This enables faster direct GPU communication."
+    AUTO
+    AUTO ON OFF)
+
+gmx_option_multichoice(
     GMX_SIMD
     "SIMD instruction set for CPU kernels and compiler optimization"
     "AUTO"
@@ -383,6 +389,28 @@ test_big_endian(GMX_INTEGER_BIG_ENDIAN)
 gmx_set_boolean(GMX_USE_NICE "HAVE_UNISTD_H AND HAVE_NICE")
 
 ########################################################################
+#Process GPU settings
+########################################################################
+if(GMX_GPU)
+
+    string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
+    if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
+        include(gmxManageCuda)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
+        message(STATUS "GPU support with OpenCL is deprecated. It is still fully supported (and " 
+            "recommended for AMD and Intel GPUs). It may be replaced by different approaches in "
+            "future releases of GROMACS.")
+        include(gmxManageOpenCL)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
+        include(gmxManageSYCL)
+    endif()
+    if(NOT GMX_OPENMP)
+        message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
+    endif()
+
+endif()
+
+########################################################################
 #Process MPI settings
 ########################################################################
 include(gmxManageMPI)
@@ -530,6 +558,11 @@ tmpi_enable_core("${CMAKE_SOURCE_DIR}/src/external/thread_mpi/include")
 if(GMX_THREAD_MPI)
     # enable MPI functions
     tmpi_enable()
+    
+    # thread MPI is not cuda-aware
+    set(CUDA_AWARE_MPI 0)
+    # thread MPI doesn't have mpi-ext.h
+    set(MPIEXT_HEADER_AVAILABLE 0)
 endif()
 # If atomics are manually disabled a define is needed because atomics.h doesn't depend on config.h
 if (TMPI_ATOMICS_DISABLED)
@@ -539,25 +572,6 @@ endif()
 include(gmxManageTNG)
 
 include(gmxManageLmfit)
-
-if(GMX_GPU)
-
-    string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
-    if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
-        include(gmxManageCuda)
-    elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
-        message(STATUS "GPU support with OpenCL is deprecated. It is still fully supported (and " 
-            "recommended for AMD and Intel GPUs). It may be replaced by different approaches in "
-            "future releases of GROMACS.")
-        include(gmxManageOpenCL)
-    elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
-        include(gmxManageSYCL)
-    endif()
-    if(NOT GMX_OPENMP)
-        message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
-    endif()
-
-endif()
 
 if(CYGWIN)
     set(GMX_CYGWIN 1)

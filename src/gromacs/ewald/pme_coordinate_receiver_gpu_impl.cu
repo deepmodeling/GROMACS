@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -58,55 +58,69 @@ namespace gmx
 PmeCoordinateReceiverGpu::Impl::Impl(const DeviceStream&    pmeStream,
                                      MPI_Comm               comm,
                                      gmx::ArrayRef<PpRanks> ppRanks) :
-    pmeStream_(pmeStream),
     comm_(comm),
-    ppRanks_(ppRanks)
+    ppRanks_(ppRanks),
+    pmeStream_(pmeStream)
 {
-    GMX_RELEASE_ASSERT(
-            GMX_THREAD_MPI,
-            "PME-PP GPU Communication is currently only supported with thread-MPI enabled");
     request_.resize(ppRanks.size());
     ppSync_.resize(ppRanks.size());
 }
 
 PmeCoordinateReceiverGpu::Impl::~Impl() = default;
 
+
 void PmeCoordinateReceiverGpu::Impl::sendCoordinateBufferAddressToPpRanks(DeviceBuffer<RVec> d_x)
 {
-
-    int ind_start = 0;
-    int ind_end   = 0;
-    for (const auto& receiver : ppRanks_)
+    if (GMX_THREAD_MPI)
     {
-        ind_start = ind_end;
-        ind_end   = ind_start + receiver.numAtoms;
+        int ind_start = 0;
+        int ind_end   = 0;
+        for (const auto& receiver : ppRanks_)
+        {
+            ind_start = ind_end;
+            ind_end   = ind_start + receiver.numAtoms;
 
-        // Data will be transferred directly from GPU.
-        void* sendBuf = reinterpret_cast<void*>(&d_x[ind_start]);
-
+            // Data will be transferred directly from GPU.
+            void* sendBuf = reinterpret_cast<void*>(&d_x[ind_start]);
 #if GMX_MPI
-        MPI_Send(&sendBuf, sizeof(void**), MPI_BYTE, receiver.rankId, 0, comm_);
+            MPI_Send(&sendBuf, sizeof(void**), MPI_BYTE, receiver.rankId, 0, comm_);
 #else
-        GMX_UNUSED_VALUE(sendBuf);
+            GMX_UNUSED_VALUE(sendBuf);
 #endif
+        }
     }
 }
 
 /*! \brief Receive coordinate data directly using CUDA memory copy */
-void PmeCoordinateReceiverGpu::Impl::launchReceiveCoordinatesFromPpCudaDirect(int ppRank)
+void PmeCoordinateReceiverGpu::Impl::launchReceiveCoordinatesFromPp(DeviceBuffer<RVec> recvbuf,
+                                                                    int                nat,
+                                                                    int                numBytes,
+                                                                    int                ppRank)
 {
     // Data will be pushed directly from PP task
 
 #if GMX_MPI
-    // Receive event from PP task
-    MPI_Irecv(&ppSync_[recvCount_], sizeof(GpuEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_, &request_[recvCount_]);
+
+    if (GMX_THREAD_MPI)
+    {
+        // Receive event from PP task
+        MPI_Irecv(&ppSync_[recvCount_], sizeof(GpuEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_, &request_[recvCount_]);
+    }
+    else
+    {
+        MPI_Irecv(&recvbuf[nat], numBytes, MPI_BYTE, ppRank, 0, comm_, &request_[recvCount_]);
+    }
+
     recvCount_++;
 #else
+    GMX_UNUSED_VALUE(recvbuf);
+    GMX_UNUSED_VALUE(nat);
+    GMX_UNUSED_VALUE(numBytes);
     GMX_UNUSED_VALUE(ppRank);
 #endif
 }
 
-void PmeCoordinateReceiverGpu::Impl::enqueueWaitReceiveCoordinatesFromPpCudaDirect()
+void PmeCoordinateReceiverGpu::Impl::waitOrEnqueueWaitReceiveCoordinatesFromPp()
 {
     if (recvCount_ > 0)
     {
@@ -114,10 +128,15 @@ void PmeCoordinateReceiverGpu::Impl::enqueueWaitReceiveCoordinatesFromPpCudaDire
 #if GMX_MPI
         MPI_Waitall(recvCount_, request_.data(), MPI_STATUS_IGNORE);
 #endif
-        for (int i = 0; i < recvCount_; i++)
+
+        if (GMX_THREAD_MPI)
         {
-            ppSync_[i]->enqueueWaitEvent(pmeStream_);
+            for (int i = 0; i < recvCount_; i++)
+            {
+                ppSync_[i]->enqueueWaitEvent(pmeStream_);
+            }
         }
+
         // reset receive counter
         recvCount_ = 0;
     }
@@ -137,14 +156,17 @@ void PmeCoordinateReceiverGpu::sendCoordinateBufferAddressToPpRanks(DeviceBuffer
     impl_->sendCoordinateBufferAddressToPpRanks(d_x);
 }
 
-void PmeCoordinateReceiverGpu::launchReceiveCoordinatesFromPpCudaDirect(int ppRank)
+void PmeCoordinateReceiverGpu::launchReceiveCoordinatesFromPp(DeviceBuffer<RVec> recvbuf,
+                                                              int                nat,
+                                                              int                numBytes,
+                                                              int                ppRank)
 {
-    impl_->launchReceiveCoordinatesFromPpCudaDirect(ppRank);
+    impl_->launchReceiveCoordinatesFromPp(recvbuf, nat, numBytes, ppRank);
 }
 
-void PmeCoordinateReceiverGpu::enqueueWaitReceiveCoordinatesFromPpCudaDirect()
+void PmeCoordinateReceiverGpu::waitOrEnqueueWaitReceiveCoordinatesFromPp()
 {
-    impl_->enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+    impl_->waitOrEnqueueWaitReceiveCoordinatesFromPp();
 }
 
 } // namespace gmx

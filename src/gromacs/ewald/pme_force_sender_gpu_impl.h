@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -68,23 +68,45 @@ public:
      * sends force buffer address to PP rank
      * \param[in] d_f   force buffer in GPU memory
      */
-    void sendForceBufferAddressToPpRanks(rvec* d_f);
+    void sendForceBufferAddressToPpRanks(float3* d_f);
 
     /*! \brief
      * Send PP data to PP rank
-     * \param[in] ppRank           PP rank to receive data
+     * \param[in] sendbuf  force buffer in GPU memory
+     * \param[in] numBytes number of bytes to transfer
+     * \param[in] ppRank   PP rank to receive data
+     * \param[in] request  MPI request to track asynchronous MPI call status
+     */
+    void sendFToPp(float3* sendbuf, int numBytes, int ppRank, MPI_Request* request);
+
+private:
+    /*! \brief
+     * Send PP data to PP rank
+     * \param[in] ppRank   PP rank to receive data
      */
     void sendFToPpCudaDirect(int ppRank);
 
-private:
+    /*! \brief
+     * Send force data to PP rank with CUDA-aware MPI
+     * \param[in] sendbuf  force buffer in GPU memory
+     * \param[in] numBytes number of bytes to transfer
+     * \param[in] ppRank   PP rank to receive data
+     * \param[in] request  MPI request to track asynchronous MPI call status
+     */
+    void sendFToPpCudaMpi(float3* sendbuf, int numBytes, int ppRank, MPI_Request* request);
+
     //! CUDA stream for PME operations
     const DeviceStream& pmeStream_;
-    //! Event triggered when to allow remote PP stream to syn with pme stream
-    GpuEventSynchronizer pmeSync_;
     //! communicator for simulation
     MPI_Comm comm_;
     //! list of PP ranks
     gmx::ArrayRef<PpRanks> ppRanks_;
+
+    //! Event triggered when to allow remote PP stream to syn with pme stream
+    GpuEventSynchronizer pmeSync_;
+
+    //! counter of messages to receive
+    int sendCount_ = 0;
 };
 
 } // namespace gmx

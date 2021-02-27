@@ -296,6 +296,11 @@ void gmx_print_version_info(gmx::TextWriter* writer)
 #else
     writer->writeLine("MPI library:        none");
 #endif
+#if CUDA_AWARE_MPI
+    writer->writeLine("CUDA-Aware MPI:     enabled");
+#else
+    writer->writeLine("CUDA-Aware MPI:     disabled");
+#endif
 #if GMX_OPENMP
     writer->writeLine(formatString("OpenMP support:     enabled (GMX_OPENMP_MAX_THREADS = %d)",
                                    GMX_OPENMP_MAX_THREADS));
