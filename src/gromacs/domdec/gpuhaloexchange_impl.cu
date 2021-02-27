@@ -468,10 +468,14 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaMPI(float3*              
                                                            int                   recvRank,
                                                            GpuEventSynchronizer* haloDataReadyOnDevice)
 {
-    // wait for non local stream to complete all outstanding
-    // activities, to ensure that buffer is up-to-date in GPU memory
-    // before transferring to remote rank
-    haloDataReadyOnDevice->waitForEvent();
+    // no need to wait for haloDataReadyOnDevice event if this rank is not sending any data
+    if (sendSize > 0)
+    {
+        // wait for non local stream to complete all outstanding
+        // activities, to ensure that buffer is up-to-date in GPU memory
+        // before transferring to remote rank
+        haloDataReadyOnDevice->waitForEvent();
+    }
 
     // perform halo exchange directly in device buffers
 #if GMX_MPI
