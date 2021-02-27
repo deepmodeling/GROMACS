@@ -18,9 +18,9 @@ This migration comes with about a 20% speedup in execution time.
 TODO: Modify/Delete this segment as features are added back in.
 Some rarely used features have yet to be migrated, including:
 
-- Mass weighting of MSDs cannot currently be turned on or off. It is set to on when -mol is set, otherwise off
-- The -tensor option is not yet implemented
-- System COM removal with -rmcomm has not yet been implemented
+- Mass weighting of MSDs cannot currently be turned on or off. It is set to on when -mol is set, otherwise off.
+- The -tensor option is not yet implemented.
+- System COM removal with -rmcomm has not yet been implemented.
 - B-factor writing using the -pdb option is not yet supported.
 
 :issue:`2368`
