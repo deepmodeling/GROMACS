@@ -240,7 +240,7 @@ void copyBetweenDeviceBuffers(DeviceBuffer<ValueType>* /* destinationDeviceBuffe
                               size_t /* numValues */,
                               const DeviceStream& /* deviceStream */,
                               GpuApiCallBehavior /* transferKind */,
-                              CommandEvent* /*timingEvent*/)
+                              DeviceEvent* /*timingEvent*/)
 {
     // OpenCL-TODO
     gmx_fatal(FARGS, "D2D copy stub was called. Not yet implemented in OpenCL.");

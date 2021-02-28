@@ -230,7 +230,7 @@ void copyBetweenDeviceBuffers(DeviceBuffer<ValueType>* destinationDeviceBuffer,
                               size_t                   numValues,
                               const DeviceStream&      deviceStream,
                               GpuApiCallBehavior       transferKind,
-                              CommandEvent* /*timingEvent*/)
+                              DeviceEvent* /*timingEvent*/)
 {
     if (numValues == 0)
     {
