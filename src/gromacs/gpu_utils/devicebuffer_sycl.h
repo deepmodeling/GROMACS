@@ -50,6 +50,7 @@
 #include <utility>
 
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
@@ -59,7 +60,6 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-class DeviceEvent;
 
 #ifndef DOXYGEN
 template<typename T>
@@ -280,7 +280,7 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
                         size_t                   numValues,
                         const DeviceStream&      deviceStream,
                         GpuApiCallBehavior       transferKind,
-                        DeviceEvent* /*timingEvent*/)
+                        DeviceEvent*             timingEvent)
 {
     if (numValues == 0)
     {
@@ -307,6 +307,10 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
     {
         ev.wait_and_throw();
     }
+    if (timingEvent)
+    {
+        timingEvent->setNative(ev);
+    }
 }
 
 /*! \brief
@@ -332,7 +336,7 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
                           size_t                   numValues,
                           const DeviceStream&      deviceStream,
                           GpuApiCallBehavior       transferKind,
-                          DeviceEvent* /*timingEvent*/)
+                          DeviceEvent*             timingEvent)
 {
     if (numValues == 0)
     {
@@ -355,6 +359,10 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
     if (transferKind == GpuApiCallBehavior::Sync)
     {
         ev.wait_and_throw();
+    }
+    if (timingEvent)
+    {
+        timingEvent->setNative(ev);
     }
 }
 

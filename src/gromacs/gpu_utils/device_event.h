@@ -92,7 +92,7 @@ public:
     //! Construct uninitialized event in OpenCL/SYCL, initialized but unsubmitted in CUDA.
     DeviceEvent();
     //! Construct from native event. Take ownership of it.
-    DeviceEvent(NativeType event);
+    DeviceEvent(DeviceEvent::NativeType event);
     DeviceEvent(const DeviceEvent&) = delete;
     DeviceEvent& operator=(const DeviceEvent&) = delete;
     DeviceEvent(DeviceEvent&& other) noexcept;
@@ -160,7 +160,7 @@ public:
     void resetNative();
 #endif
 
-#if GMX_GPU_OPENCL
+#if GMX_GPU_OPENCL || defined(DOXYGEN)
     /*! Convert \c DeviceEvent* to \c cl_event* that can be to OpenCL API calls returning an event.
      *
      * Many OpenCL API calls take a pointer to \c cl_event to return a handle of an event associated
