@@ -46,7 +46,6 @@
 
 #include "config.h"
 
-#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/smalloc.h" // TODO: this is only for over_alloc_large

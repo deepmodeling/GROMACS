@@ -50,7 +50,6 @@
 #include <utility>
 
 #include "gromacs/gpu_utils/device_context.h"
-#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
@@ -59,6 +58,8 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
+
+class DeviceEvent;
 
 #ifndef DOXYGEN
 template<typename T>
@@ -279,7 +280,7 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
                         size_t                   numValues,
                         const DeviceStream&      deviceStream,
                         GpuApiCallBehavior       transferKind,
-                        DeviceEvent* gmx_unused timingEvent)
+                        DeviceEvent* /*timingEvent*/)
 {
     if (numValues == 0)
     {
@@ -331,7 +332,7 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
                           size_t                   numValues,
                           const DeviceStream&      deviceStream,
                           GpuApiCallBehavior       transferKind,
-                          DeviceEvent* gmx_unused timingEvent)
+                          DeviceEvent* /*timingEvent*/)
 {
     if (numValues == 0)
     {

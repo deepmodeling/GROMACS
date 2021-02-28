@@ -45,6 +45,7 @@
 
 #include <array>
 
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"

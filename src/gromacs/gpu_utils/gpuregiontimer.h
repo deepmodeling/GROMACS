@@ -46,8 +46,9 @@
 
 #include <string>
 
-#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/utility/gmxassert.h"
+
+class DeviceEvent;
 
 //! Debug GPU timers in debug builds only
 #if defined(NDEBUG)

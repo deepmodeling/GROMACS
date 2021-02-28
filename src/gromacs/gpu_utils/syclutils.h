@@ -43,13 +43,13 @@
 
 #include <string>
 
-#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
+class DeviceEvent;
 class DeviceStream;
 enum class GpuApiCallBehavior;
 
