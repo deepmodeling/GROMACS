@@ -62,8 +62,8 @@
 #endif
 
 #include "gromacs/fft/fft.h" // for the enum gmx_fft_direction
-#include "gromacs/gpu_utils/device_event.h"
 
+class DeviceEvent;
 struct PmeGpu;
 
 /*! \internal \brief
