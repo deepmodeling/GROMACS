@@ -10,7 +10,7 @@ Improvements to |Gromacs| tools
 gmx msd has been migrated to the trajectoryanalysis framework
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The tool now uses the Gromacs selection syntax. Rather than piping selections via stdin,
+The tool now uses the |Gromacs| selection syntax. Rather than piping selections via stdin,
 selections are now made using the "-sel" option.
 
 This migration comes with about a 20% speedup in execution time.
