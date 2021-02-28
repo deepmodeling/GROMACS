@@ -320,12 +320,6 @@ gmx_nbnxn_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
 
     nb->atomIndicesSize       = 0;
     nb->atomIndicesSize_alloc = 0;
-    nb->ncxy_na               = 0;
-    nb->ncxy_na_alloc         = 0;
-    nb->ncxy_ind              = 0;
-    nb->ncxy_ind_alloc        = 0;
-    nb->ncell                 = 0;
-    nb->ncell_alloc           = 0;
 
     if (debug)
     {
@@ -428,15 +422,12 @@ void gpu_clear_outputs(gmx_nbnxn_cuda_t* nb, bool computeVirial)
     }
 }
 
-void gpu_init_sits_atomdata(gmx_nbnxn_cuda_t* nb, const nbnxn_atomdata_t* nbat)
+void gpu_init_sits_atomdata(gmx_sits_cuda_t* nb, const sits_atomdata_t* nbat)
 {
     cudaError_t    stat;
     int            nalloc, natoms;
     bool           realloced;
-    bool           bDoTime = nb->bDoTime;
-    cu_timers_t*   timers  = nb->timers;
     cu_atomdata_t* d_atdat = nb->atdat;
-    cudaStream_t   ls      = nb->stream[InteractionLocality::Local];
 
     natoms    = nbat->numAtoms();
     realloced = false;
