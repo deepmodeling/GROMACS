@@ -106,7 +106,7 @@ uint64_t DeviceEvent::getExecutionTime()
     return 0;
 }
 
-const DeviceEvent::NativeType& DeviceEvent::getNative() const
+const DeviceEvent::NativeType& DeviceEvent::event() const
 {
     return event_;
 }

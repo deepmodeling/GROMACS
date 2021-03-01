@@ -95,18 +95,18 @@ uint64_t DeviceEvent::getExecutionTime()
     return timeEndNanoseconds - timeStartNanoseconds;
 }
 
-const DeviceEvent::NativeType& DeviceEvent::getNative() const
+const DeviceEvent::NativeType& DeviceEvent::event() const
 {
-    GMX_ASSERT(isValid(), "Event must be valid in order to call .getNative()");
+    GMX_ASSERT(isValid(), "Event must be valid in order to call .event()");
     return event_.value();
 }
 
-void DeviceEvent::setNative(DeviceEvent::NativeType v)
+void DeviceEvent::setEvent(DeviceEvent::NativeType v)
 {
     event_ = v;
 }
 
-void DeviceEvent::resetNative()
+void DeviceEvent::resetEvent()
 {
     event_.reset();
 }

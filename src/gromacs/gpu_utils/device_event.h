@@ -152,12 +152,12 @@ public:
      *
      * Undefined behavior if the event is not valid.
      */
-    [[nodiscard]] const NativeType& getNative() const;
+    [[nodiscard]] const NativeType& event() const;
 #if GMX_GPU_OPENCL || GMX_GPU_SYCL || defined(DOXYGEN)
     //! Set the internal native object to \p v. Release previously stored object, if any.
-    void setNative(NativeType v);
+    void setEvent(NativeType v);
     //! Release the backend-specific native object, if any. Set \ref isValid to false.
-    void resetNative();
+    void resetEvent();
 #endif
 
 #if GMX_GPU_OPENCL || defined(DOXYGEN)
@@ -176,7 +176,7 @@ public:
      * A pointer returned must be used exactly once. This is not enforced programmatically.
      * Please, use this function carefully and preferably in a narrow scope.
      */
-    static cl_event* getNativePtrForApiCall(DeviceEvent* deviceEvent);
+    static cl_event* getEventPtrForApiCall(DeviceEvent* deviceEvent);
 #endif
 
 private:

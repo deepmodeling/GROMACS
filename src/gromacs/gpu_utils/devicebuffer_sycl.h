@@ -308,7 +308,7 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
     }
     if (timingEvent)
     {
-        timingEvent->setNative(ev);
+        timingEvent->setEvent(ev);
     }
 }
 
@@ -361,7 +361,7 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
     }
     if (timingEvent)
     {
-        timingEvent->setNative(ev);
+        timingEvent->setEvent(ev);
     }
 }
 

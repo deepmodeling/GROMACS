@@ -137,7 +137,7 @@ void copyToDeviceBuffer(DeviceBuffer<ValueType>* buffer,
     cl_int       clError;
     const size_t offset            = startingOffset * sizeof(ValueType);
     const size_t bytes             = numValues * sizeof(ValueType);
-    cl_event*    timingEventNative = DeviceEvent::getNativePtrForApiCall(timingEvent);
+    cl_event*    timingEventNative = DeviceEvent::getEventPtrForApiCall(timingEvent);
     switch (transferKind)
     {
         case GpuApiCallBehavior::Async:
@@ -201,7 +201,7 @@ void copyFromDeviceBuffer(ValueType*               hostBuffer,
     cl_int       clError;
     const size_t offset            = startingOffset * sizeof(ValueType);
     const size_t bytes             = numValues * sizeof(ValueType);
-    cl_event*    timingEventNative = DeviceEvent::getNativePtrForApiCall(timingEvent);
+    cl_event*    timingEventNative = DeviceEvent::getEventPtrForApiCall(timingEvent);
     switch (transferKind)
     {
         case GpuApiCallBehavior::Async:

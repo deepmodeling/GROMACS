@@ -151,7 +151,7 @@ void GpuParallel3dFft::perform3dFft(gmx_fft_direction dir, DeviceEvent* timingEv
     clfftPlanHandle plan;
     clfftDirection  direction;
     cl_mem *        inputGrids, *outputGrids;
-    cl_event*       timingEventNative = DeviceEvent::getNativePtrForApiCall(timingEvent);
+    cl_event*       timingEventNative = DeviceEvent::getEventPtrForApiCall(timingEvent);
 
     switch (dir)
     {

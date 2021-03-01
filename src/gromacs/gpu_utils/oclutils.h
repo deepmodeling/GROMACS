@@ -186,7 +186,7 @@ inline void launchGpuKernel(cl_kernel                 kernel,
     const size_t    waitListSize     = 0;
     const cl_event* waitList         = nullptr;
     size_t          globalWorkSize[3];
-    cl_event*       timingEventNative = DeviceEvent::getNativePtrForApiCall(timingEvent);
+    cl_event*       timingEventNative = DeviceEvent::getEventPtrForApiCall(timingEvent);
     for (int i = 0; i < workDimensions; i++)
     {
         globalWorkSize[i] = config.gridSize[i] * config.blockSize[i];

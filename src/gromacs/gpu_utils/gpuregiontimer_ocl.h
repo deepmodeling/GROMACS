@@ -109,7 +109,7 @@ public:
         {
             if (events_[i].isValid()) // This conditional is ugly, but is required to make some tests (e.g. empty domain) pass
             {
-                events_[i].resetNative();
+                events_[i].resetEvent();
             }
         }
         currentEvent_ = 0;
