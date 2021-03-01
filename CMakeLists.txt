@@ -388,27 +388,6 @@ test_big_endian(GMX_INTEGER_BIG_ENDIAN)
 
 gmx_set_boolean(GMX_USE_NICE "HAVE_UNISTD_H AND HAVE_NICE")
 
-########################################################################
-#Process GPU settings
-########################################################################
-if(GMX_GPU)
-
-    string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
-    if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
-        include(gmxManageCuda)
-    elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
-        message(STATUS "GPU support with OpenCL is deprecated. It is still fully supported (and " 
-            "recommended for AMD and Intel GPUs). It may be replaced by different approaches in "
-            "future releases of GROMACS.")
-        include(gmxManageOpenCL)
-    elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
-        include(gmxManageSYCL)
-    endif()
-    if(NOT GMX_OPENMP)
-        message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
-    endif()
-
-endif()
 
 ########################################################################
 #Process MPI settings
@@ -572,6 +551,28 @@ endif()
 include(gmxManageTNG)
 
 include(gmxManageLmfit)
+
+########################################################################
+#Process GPU settings
+########################################################################
+if(GMX_GPU)
+
+    string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
+    if(${_gmx_gpu_uppercase} STREQUAL "CUDA")
+        include(gmxManageCuda)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "OPENCL")
+        message(STATUS "GPU support with OpenCL is deprecated. It is still fully supported (and " 
+            "recommended for AMD and Intel GPUs). It may be replaced by different approaches in "
+            "future releases of GROMACS.")
+        include(gmxManageOpenCL)
+    elseif(${_gmx_gpu_uppercase} STREQUAL "SYCL")
+        include(gmxManageSYCL)
+    endif()
+    if(NOT GMX_OPENMP)
+        message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
+    endif()
+
+endif()
 
 if(CYGWIN)
     set(GMX_CYGWIN 1)

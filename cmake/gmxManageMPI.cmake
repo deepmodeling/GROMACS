@@ -90,7 +90,7 @@ if(GMX_MPI)
   if(MPI_FOUND)
 
     # Test if CUDA-aware MPI is supported
-    if(NOT GMX_CUDA_AWARE_MPI STREQUAL "OFF" AND GMX_GPU_CUDA)
+    if(NOT GMX_CUDA_AWARE_MPI STREQUAL "OFF")
       include(gmxTestCUDA_AWARE_MPI)
       gmx_test_cuda_aware_mpi(CUDA_AWARE_MPI_SUPPORTED)
       if(GMX_CUDA_AWARE_MPI STREQUAL "ON" AND CUDA_AWARE_MPI_SUPPORTED EQUAL 0)
