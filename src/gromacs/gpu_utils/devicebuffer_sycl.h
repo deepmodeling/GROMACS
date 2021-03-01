@@ -60,7 +60,6 @@
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-
 #ifndef DOXYGEN
 template<typename T>
 class DeviceBuffer<T>::ClSyclBufferWrapper : public cl::sycl::buffer<T, 1>

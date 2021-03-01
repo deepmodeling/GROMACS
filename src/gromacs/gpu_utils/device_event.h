@@ -58,7 +58,7 @@
 
 
 /*! \libinternal \brief
- * Class encapsulating backend-specific GPU Event objects for synchronization with consumption counter.
+ * Class encapsulating backend-specific GPU Event objects for synchronization.
  *
  * Please note, that different approaches to device handling in backends lead to the differences
  * in how this object behaves on different platforms.
@@ -75,8 +75,8 @@
  *
  * Due to the way CUDA works, we opt to create a few persistent DeviceEvents, rather than a new
  * event for each operation.
- * Thus, in CUDA the underlying \c cudaEvent_t object is reused when we want to enqueue a new marker.
- * In OpenCL and SYCL, the underlying object is replaced each time we want to update it.
+ * Thus, in CUDA the underlying \c cudaEvent_t object is reused when we want to enqueue a new
+ * marker. In OpenCL and SYCL, the underlying object is replaced each time we want to update it.
  */
 class DeviceEvent
 {

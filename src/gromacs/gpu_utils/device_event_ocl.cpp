@@ -73,7 +73,7 @@ bool DeviceEvent::isValid() const
 }
 
 template<typename T>
-static T getEventInfo_(cl_event event, cl_event_info param_name)
+static T getEventInfo(cl_event event, cl_event_info param_name)
 {
     T      result;
     cl_int clError = clGetEventInfo(event, param_name, sizeof(T), &result, nullptr);
@@ -85,7 +85,7 @@ static T getEventInfo_(cl_event event, cl_event_info param_name)
 }
 
 template<typename T>
-static T getEventProfilingInfo_(cl_event event, cl_profiling_info param_name)
+static T getEventProfilingInfo(cl_event event, cl_profiling_info param_name)
 {
     T      result;
     cl_int clError = clGetEventProfilingInfo(event, param_name, sizeof(T), &result, nullptr);
@@ -99,7 +99,7 @@ static T getEventProfilingInfo_(cl_event event, cl_profiling_info param_name)
 bool DeviceEvent::isReady() const
 {
     GMX_ASSERT(isValid(), "Event must be valid in order to call .isReady()");
-    auto result = getEventInfo_<cl_int>(event_, CL_EVENT_COMMAND_EXECUTION_STATUS);
+    auto result = getEventInfo<cl_int>(event_, CL_EVENT_COMMAND_EXECUTION_STATUS);
     return (result == CL_COMPLETE);
 }
 
@@ -129,8 +129,8 @@ bool DeviceEvent::timingSupported() const
 uint64_t DeviceEvent::getExecutionTime()
 {
     GMX_ASSERT(isValid(), "Event must be valid in order to call .getExecutionTime()");
-    auto timeStartNanoseconds = getEventProfilingInfo_<cl_ulong>(event_, CL_PROFILING_COMMAND_START);
-    auto timeEndNanoseconds   = getEventProfilingInfo_<cl_ulong>(event_, CL_PROFILING_COMMAND_END);
+    auto timeStartNanoseconds = getEventProfilingInfo<cl_ulong>(event_, CL_PROFILING_COMMAND_START);
+    auto timeEndNanoseconds   = getEventProfilingInfo<cl_ulong>(event_, CL_PROFILING_COMMAND_END);
     return timeEndNanoseconds - timeStartNanoseconds;
 }
 
