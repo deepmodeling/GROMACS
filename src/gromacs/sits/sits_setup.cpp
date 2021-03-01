@@ -92,7 +92,7 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
 
     auto pinPolicy = (useGpu ? gmx::PinningPolicy::PinnedIfSupported : gmx::PinningPolicy::CannotBePinned);
 
-    auto nbat = std::make_unique<nbnxn_atomdata_t>(pinPolicy);
+    auto sits_at = std::make_unique<sits_atomdata_t>(pinPolicy);
 
     int mimimumNumEnergyGroupNonbonded = ir->opts.ngener;
     if (ir->opts.ngener - ir->nwall == 1)
@@ -103,7 +103,7 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
          */
         mimimumNumEnergyGroupNonbonded = 1;
     }
-    nbnxn_atomdata_init(mdlog, nbat.get(), kernelSetup.kernelType, enbnxninitcombrule, fr->ntype,
+    sits_atomdata_init(mdlog, nbat.get(), kernelSetup.kernelType, enbnxninitcombrule, fr->ntype,
                         fr->nbfp, mimimumNumEnergyGroupNonbonded,
                         (useGpu || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
 
@@ -115,27 +115,20 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
         gpu_sits = gpu_init(deviceInfo, fr->ic, pairlistParams, nbat.get(), cr->nodeid, haveMultipleDomains);
     }
 
-    return std::make_unique<sits_t>(std::move(pairlistSets), std::move(pairSearch),
-                                                std::move(nbat), kernelSetup, gpu_nbv, wcycle);
+    return std::make_unique<sits_t>(std::move(nbat), kernelSetup, gpu_nbv, wcycle);
 }
 
 } // namespace Sits
 
-sits_t::sits_t(std::unique_ptr<PairlistSets>     pairlistSets,
-                                       std::unique_ptr<PairSearch>       pairSearch,
-                                       std::unique_ptr<nbnxn_atomdata_t> nbat_in,
-                                       const Nbnxm::KernelSetup&         kernelSetup,
-                                       gmx_nbnxn_gpu_t*                  gpu_nbv_ptr,
-                                       gmx_wallcycle*                    wcycle) :
-    pairlistSets_(std::move(pairlistSets)),
-    pairSearch_(std::move(pairSearch)),
-    nbat(std::move(nbat_in)),
+sits_t::sits_t(std::unique_ptr<sits_atomdata_t>  sits_at,
+                const Nbnxm::KernelSetup&         kernelSetup,
+                gmx_sits_gpu_t*                  gpu_sits_ptr,
+                gmx_wallcycle*                    wcycle) :
+    nbat(std::move(sits_at)),
     kernelSetup_(kernelSetup),
     wcycle_(wcycle),
-    gpu_nbv(gpu_nbv_ptr)
+    gpu_nbv(gpu_sits_ptr)
 {
-    GMX_RELEASE_ASSERT(pairlistSets_, "Need valid pairlistSets");
-    GMX_RELEASE_ASSERT(pairSearch_, "Need valid search object");
     GMX_RELEASE_ASSERT(nbat, "Need valid atomdata object");
 }
 

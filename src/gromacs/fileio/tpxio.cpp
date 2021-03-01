@@ -441,6 +441,24 @@ static void do_simtempvals(gmx::ISerializer* serializer, t_simtemp* simtemp, int
     }
 }
 
+static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int n_lambda, int file_version)
+{
+    if (file_version >= 79)
+    {
+        serializer->doInt(&simtemp->eSimTempScale);
+        serializer->doReal(&simtemp->simtemp_high);
+        serializer->doReal(&simtemp->simtemp_low);
+        if (n_lambda > 0)
+        {
+            if (serializer->reading())
+            {
+                snew(simtemp->temperatures, n_lambda);
+            }
+            serializer->doRealArray(simtemp->temperatures, n_lambda);
+        }
+    }
+}
+
 static void do_imd(gmx::ISerializer* serializer, t_IMD* imd)
 {
     serializer->doInt(&imd->nat);

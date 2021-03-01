@@ -422,21 +422,15 @@ void gpu_clear_outputs(gmx_nbnxn_cuda_t* nb, bool computeVirial)
     }
 }
 
-void gpu_init_sits_atomdata(gmx_sits_cuda_t* nb, const sits_atomdata_t* nbat)
+void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxm_atomdata_t* nbat)
 {
-    cudaError_t    stat;
-    int            nalloc, natoms;
-    bool           realloced;
-    cu_atomdata_t* d_atdat = nb->atdat;
+    cudaError_t      stat;
+    int              nalloc, natoms;
+    bool             realloced;
+    cu_sits_atdat_t* d_atdat = gpu_sits->sits_atdat;
 
     natoms    = nbat->numAtoms();
     realloced = false;
-
-    if (bDoTime)
-    {
-        /* time async copy */
-        timers->atdat.openTimingRegion(ls);
-    }
 
     if (nbat->params().nenergrp > 1)
     {
@@ -453,27 +447,17 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* nb, const sits_atomdata_t* nbat)
         /* free up first if the arrays have already been initialized */
         if (d_atdat->nalloc != -1)
         {
-            freeDeviceBuffer(&d_atdat->f);
-            freeDeviceBuffer(&d_atdat->xq);
-            freeDeviceBuffer(&d_atdat->atom_types);
-            freeDeviceBuffer(&d_atdat->lj_comb);
+            freeDeviceBuffer(&d_atdat->d_force_tot);
+            freeDeviceBuffer(&d_atdat->d_force_pw);
+            freeDeviceBuffer(&d_atdat->d_force_nbat_tot);
+            freeDeviceBuffer(&d_atdat->d_force_nbat_pw);
             freeDeviceBuffer(&d_atdat->energrp);
         }
 
-        stat = cudaMalloc((void**)&d_atdat->f, nalloc * sizeof(*d_atdat->f));
-        CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->f");
-        stat = cudaMalloc((void**)&d_atdat->xq, nalloc * sizeof(*d_atdat->xq));
-        CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->xq");
-        if (useLjCombRule(nb->nbparam))
-        {
-            stat = cudaMalloc((void**)&d_atdat->lj_comb, nalloc * sizeof(*d_atdat->lj_comb));
-            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->lj_comb");
-        }
-        else
-        {
-            stat = cudaMalloc((void**)&d_atdat->atom_types, nalloc * sizeof(*d_atdat->atom_types));
-            CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->atom_types");
-        }
+        stat = cudaMalloc((void**)&d_atdat->d_force_tot, nalloc * sizeof(*d_atdat->d_force_tot));
+        CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_tot");
+        stat = cudaMalloc((void**)&d_atdat->d_force_pw, nalloc * sizeof(*d_atdat->d_force_pw));
+        CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_pw");
         if (nbat->params().nenergrp > 1)
         {
             stat = cudaMalloc((void**)&d_atdat->energrp, nalloc * sizeof(*d_atdat->energrp));
@@ -485,7 +469,6 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* nb, const sits_atomdata_t* nbat)
     }
 
     d_atdat->natoms       = natoms;
-    d_atdat->natoms_local = nbat->natoms_local;
 
     /* need to clear GPU f output if realloc happened */
     if (realloced)
@@ -493,26 +476,10 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* nb, const sits_atomdata_t* nbat)
         nbnxn_cuda_clear_f(nb, nalloc);
     }
 
-    if (useLjCombRule(nb->nbparam))
-    {
-        cu_copy_H2D_async(d_atdat->lj_comb, nbat->params().lj_comb.data(),
-                          natoms * sizeof(*d_atdat->lj_comb), ls);
-    }
-    else
-    {
-        cu_copy_H2D_async(d_atdat->atom_types, nbat->params().type.data(),
-                          natoms * sizeof(*d_atdat->atom_types), ls);
-    }
-
     if (nbat->params().nenergrp > 1)
     {
         cu_copy_H2D_async(d_atdat->energrp, nbat->params().energrp_gpu.data(),
                           natoms * sizeof(*d_atdat->energrp), ls);
-    }
-
-    if (bDoTime)
-    {
-        timers->atdat.closeTimingRegion(ls);
     }
 }
 

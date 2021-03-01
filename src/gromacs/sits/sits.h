@@ -38,13 +38,12 @@ struct t_inputrec;
 
 enum SITS_CALC_MODE
 {
-    SIMPLE_SITS    = 0x00000001,
-    CLASSICAL_SITS = 0x00000002,
+    CLASSICAL_SITS; SIMPLE_SITS;
 };
 
 enum SITS_ENH_MODE
 {
-    PP_AND_PW; INTRA_MOL; INTER_MOL;
+    PP_AND_PW; INTRA_MOL; INTER_MOL; ALL;
 };
 
 struct sits_info
@@ -58,9 +57,7 @@ struct sits_t
 {
 public:
     //! Constructs an object from its components
-    sits_t(std::unique_ptr<PairlistSets>     pairlistSets,
-           std::unique_ptr<PairSearch>       pairSearch,
-           std::unique_ptr<nbnxn_atomdata_t> nbat,
+    sits_t(std::unique_ptr<nbnxn_atomdata_t> nbat,
            const Nbnxm::KernelSetup&         kernelSetup,
            cu_sits_atdat*                    gpu_sits,
            gmx_wallcycle*                    wcycle);
@@ -119,6 +116,7 @@ public:
         // \ref A selective integrated tempering method
         // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
 
+        gmx::HostVector<real> temp_k;
         gmx::HostVector<real> beta_k;
         gmx::HostVector<real> NkExpBetakU;
         gmx::HostVector<real> Nk;

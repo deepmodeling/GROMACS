@@ -1833,6 +1833,7 @@ void get_ir(const char*     mdparin,
     char        warn_buf[STRLEN];
     t_lambda*   fep    = ir->fepvals;
     t_expanded* expand = ir->expandedvals;
+    t_sits*     sits   = ir->sitsvals;
 
     const char* no_names[] = { "no", nullptr };
 

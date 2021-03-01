@@ -431,6 +431,26 @@ extern const char* esimtemp_names[esimtempNR + 1];
 //! Macro for correct tempering string
 #define ESIMTEMP(e) enum_name(e, esimtempNR, esimtemp_names)
 
+/*! \brief Selective integrated tempering type
+ *
+ * esitsNO, there are no sits calculations.
+ * esitsITS, all the system is tempered.
+ * esitsSITS, tempering region can be selected with energy group.
+ * esitsBIAS, sits is also applied to a bias potential.
+ */
+enum
+{
+    esitsPP_AND_PW,
+    esitsINTRA_MOL,
+    esitsINTER_MOL,
+    esitsALL,
+    esitsNR
+};
+//! String corresponding to FEP type.
+extern const char* esits_enh_names[esitsNR + 1];
+//! Macro corresponding to FEP string.
+#define ESITSENHTYPE(e) enum_name(e, esitsNR, esits_enh_names)
+
 /*! \brief Free energy perturbation type
  *
  * efepNO, there are no evaluations at other states.

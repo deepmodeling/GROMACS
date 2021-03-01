@@ -125,8 +125,6 @@ struct gmx_sits_cuda_t
 
     //! parameters required for the sits calc.
     cu_sits_param_t* sits_param;
-    //! pair-list data structures (local and non-local)
-    gmx::EnumerationArray<Nbnxm::InteractionLocality, cu_plist_t*> plist;
     //! staging area where fshift/energies get downloaded
     nb_staging_t nbst;
 };

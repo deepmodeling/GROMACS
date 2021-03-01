@@ -60,6 +60,37 @@ struct AwhParams;
 class KeyValueTreeObject;
 } // namespace gmx
 
+struct t_sits
+{
+    int sits_calc_mode;         //选择sits模式
+    int sits_enh_mode; //
+    int sits_enh_bias;     //
+    
+    int  nstsitsrecord;
+    int  nstsitsupdate;
+    //! The low temperature for simulated tempering
+    real sitstemp_low;
+    //! The high temperature for simulated tempering
+    real sitstemp_high;
+    //! The range of temperatures used for simulated tempering
+    real* temperatures;
+
+    int   constant_nk     = 0;   // sits是否迭代更新nk
+    int   k_numbers;             //划分多少个格子
+    float beta0;                 //本身温度对应的beta
+        //文件
+    FILE*  nk_traj_file;   //记录nk变化的文件
+    string nk_rest_file;   //记录最后一帧nk的文件
+    FILE*  norm_traj_file; //记录log_norm变化的文件
+    string norm_rest_file; //记录最后一帧log_norm的文件
+
+    //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
+    float fb_shift;
+    //也可以对进行修正，使加强计算能量时值为 energy_multiple * 原始能量 + energy_shift;
+    float energy_multiple;
+    float energy_shift;
+}
+
 struct t_grpopts
 {
     //! Number of T-Coupl groups
@@ -461,6 +492,10 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     int efep;
     //! Data for the FEP state
     t_lambda* fepvals;
+    //! Whether to do integrated tempering
+    gmx_bool bSITS;
+    //! Variables for integrated tempering
+    t_sits* sitsvals;
     //! Whether to do simulated tempering
     gmx_bool bSimTemp;
     //! Variables for simulated tempering
