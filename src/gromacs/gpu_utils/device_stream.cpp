@@ -64,4 +64,4 @@ void DeviceStream::synchronize() const {};
 
 void DeviceStream::markEvent(DeviceEvent& /*deviceEvent*/) const {}
 
-void DeviceStream::enqueueWaitForEvent(DeviceEvent& /*deviceEvent*/) const {}
+void DeviceStream::enqueueWaitForEvent(const DeviceEvent& /*deviceEvent*/) const {}
