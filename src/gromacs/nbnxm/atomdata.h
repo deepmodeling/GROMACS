@@ -65,7 +65,7 @@ struct NbnxmGpu;
 struct nbnxn_atomdata_t;
 struct nonbonded_verlet_t;
 
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 
 namespace Nbnxm
 {
@@ -367,12 +367,12 @@ void nbnxn_atomdata_copy_x_to_nbat_x(const Nbnxm::GridSet& gridSet,
  * \param[in]     d_x        Coordinates to be copied (in plain rvec format).
  * \param[in]     xReadyOnDevice   Event synchronizer indicating that the coordinates are ready in the device memory.
  */
-void nbnxn_atomdata_x_to_nbat_x_gpu(const Nbnxm::GridSet&   gridSet,
-                                    gmx::AtomLocality       locality,
-                                    bool                    fillLocal,
-                                    NbnxmGpu*               gpu_nbv,
-                                    DeviceBuffer<gmx::RVec> d_x,
-                                    GpuEventSynchronizer*   xReadyOnDevice);
+void nbnxn_atomdata_x_to_nbat_x_gpu(const Nbnxm::GridSet&    gridSet,
+                                    gmx::AtomLocality        locality,
+                                    bool                     fillLocal,
+                                    NbnxmGpu*                gpu_nbv,
+                                    DeviceBuffer<gmx::RVec>  d_x,
+                                    DeviceEventSynchronizer* xReadyOnDevice);
 
 /*! \brief Add the computed forces to \p f, an internal reduction might be performed as well
  *

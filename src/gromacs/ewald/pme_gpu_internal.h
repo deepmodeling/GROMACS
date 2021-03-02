@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team.
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -56,9 +57,8 @@
 class DeviceContext;
 struct DeviceInformation;
 class DeviceStream;
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 struct gmx_hw_info_t;
-struct gmx_gpu_opt_t;
 struct gmx_pme_t; // only used in pme_gpu_reinit
 struct gmx_wallcycle;
 class PmeAtomComm;
@@ -349,11 +349,11 @@ void pme_gpu_destroy_3dfft(const PmeGpu* pmeGpu);
  * \param[in]  spreadCharges          Should the charges/coefficients be spread on the grid.
  * \param[in]  lambda                 The lambda value of the current system state.
  */
-GPU_FUNC_QUALIFIER void pme_gpu_spread(const PmeGpu*         GPU_FUNC_ARGUMENT(pmeGpu),
-                                       GpuEventSynchronizer* GPU_FUNC_ARGUMENT(xReadyOnDevice),
-                                       float**               GPU_FUNC_ARGUMENT(h_grids),
-                                       bool                  GPU_FUNC_ARGUMENT(computeSplines),
-                                       bool                  GPU_FUNC_ARGUMENT(spreadCharges),
+GPU_FUNC_QUALIFIER void pme_gpu_spread(const PmeGpu*            GPU_FUNC_ARGUMENT(pmeGpu),
+                                       DeviceEventSynchronizer* GPU_FUNC_ARGUMENT(xReadyOnDevice),
+                                       float**                  GPU_FUNC_ARGUMENT(h_grids),
+                                       bool                     GPU_FUNC_ARGUMENT(computeSplines),
+                                       bool                     GPU_FUNC_ARGUMENT(spreadCharges),
                                        real GPU_FUNC_ARGUMENT(lambda)) GPU_FUNC_TERM;
 
 /*! \libinternal \brief
@@ -412,7 +412,7 @@ GPU_FUNC_QUALIFIER void* pme_gpu_get_kernelparam_forces(const PmeGpu* GPU_FUNC_A
  * \param[in] pmeGpu         The PME GPU structure.
  * \returns                  Pointer to sync object
  */
-GPU_FUNC_QUALIFIER GpuEventSynchronizer* pme_gpu_get_forces_ready_synchronizer(
+GPU_FUNC_QUALIFIER DeviceEventSynchronizer* pme_gpu_get_forces_ready_synchronizer(
         const PmeGpu* GPU_FUNC_ARGUMENT(pmeGpu)) GPU_FUNC_TERM_WITH_RETURN(nullptr);
 
 /*! \libinternal \brief

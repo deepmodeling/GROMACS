@@ -912,7 +912,7 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
                            bool                      setFillerCoords,
                            NbnxmGpu*                 nb,
                            DeviceBuffer<gmx::RVec>   d_x,
-                           GpuEventSynchronizer*     xReadyOnDevice,
+                           DeviceEventSynchronizer*  xReadyOnDevice,
                            const Nbnxm::AtomLocality locality,
                            int                       gridId,
                            int                       numColumnsMax)
@@ -936,7 +936,7 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
         GMX_ASSERT(d_x, "Need a valid device pointer");
 
         // ensure that coordinates are ready on the device before launching the kernel
-        GMX_ASSERT(xReadyOnDevice, "Need a valid GpuEventSynchronizer object");
+        GMX_ASSERT(xReadyOnDevice, "Need a valid DeviceEventSynchronizer object");
         xReadyOnDevice->enqueueWaitEvent(deviceStream);
 
         KernelLaunchConfig config;

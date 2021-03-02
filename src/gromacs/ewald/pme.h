@@ -71,10 +71,10 @@ struct gmx_wallcycle;
 struct NumPmeDomains;
 
 class DeviceContext;
+class DeviceEventSynchronizer;
 class DeviceStream;
 enum class GpuTaskCompletion;
 class PmeGpuProgram;
-class GpuEventSynchronizer;
 
 namespace gmx
 {
@@ -365,9 +365,9 @@ GPU_FUNC_QUALIFIER void pme_gpu_prepare_computation(gmx_pme_t*     GPU_FUNC_ARGU
  * \param[in] lambdaQ            The Coulomb lambda of the current state of the
  * system. Only used if FEP of Coulomb is active.
  */
-GPU_FUNC_QUALIFIER void pme_gpu_launch_spread(gmx_pme_t*            GPU_FUNC_ARGUMENT(pme),
-                                              GpuEventSynchronizer* GPU_FUNC_ARGUMENT(xReadyOnDevice),
-                                              gmx_wallcycle*        GPU_FUNC_ARGUMENT(wcycle),
+GPU_FUNC_QUALIFIER void pme_gpu_launch_spread(gmx_pme_t*               GPU_FUNC_ARGUMENT(pme),
+                                              DeviceEventSynchronizer* GPU_FUNC_ARGUMENT(xReadyOnDevice),
+                                              gmx_wallcycle*           GPU_FUNC_ARGUMENT(wcycle),
                                               real GPU_FUNC_ARGUMENT(lambdaQ)) GPU_FUNC_TERM;
 
 /*! \brief
@@ -474,7 +474,7 @@ GPU_FUNC_QUALIFIER void* pme_gpu_get_device_f(const gmx_pme_t* GPU_FUNC_ARGUMENT
  * \param[in] pme            The PME data structure.
  * \returns                  Pointer to sychronizer
  */
-GPU_FUNC_QUALIFIER GpuEventSynchronizer* pme_gpu_get_f_ready_synchronizer(const gmx_pme_t* GPU_FUNC_ARGUMENT(pme))
-        GPU_FUNC_TERM_WITH_RETURN(nullptr);
+GPU_FUNC_QUALIFIER DeviceEventSynchronizer* pme_gpu_get_f_ready_synchronizer(
+        const gmx_pme_t* GPU_FUNC_ARGUMENT(pme)) GPU_FUNC_TERM_WITH_RETURN(nullptr);
 
 #endif

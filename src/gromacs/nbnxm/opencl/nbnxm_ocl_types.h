@@ -47,8 +47,8 @@
 #define GMX_NBNXM_NBNXM_OPENCL_TYPES_H
 
 #include "gromacs/gpu_utils/devicebuffer.h"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/gpu_utils/gmxopencl.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer_ocl.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/gpu_utils/oclutils.h"
 #include "gromacs/mdtypes/interaction_const.h"
@@ -165,7 +165,7 @@ struct NbnxmGpu
     //! true if doing both local/non-local NB work on GPU
     bool bUseTwoStreams = false;
     //! true indicates that the nonlocal_done event was marked
-    bool bNonLocalStreamDoneMarked = false;
+    bool bNonLocalStreamDoneMarked = false; // TODO: Use nonlocal_done.isMarked()
 
     //! atom data
     NBAtomData* atdat = nullptr;
@@ -179,17 +179,21 @@ struct NbnxmGpu
     //! local and non-local GPU queues
     gmx::EnumerationArray<Nbnxm::InteractionLocality, const DeviceStream*> deviceStreams;
 
+    /* NOTE: Old GpuEventSynchronizer for OpenCL and SYCL was hardcoded to behave like it had
+     * consumptionLimit=1 and mustBeFullyConsumedOnReset=true (except this condition was
+     * not enforced on an actual ::reset, only on ::markEvent).
+     * There were no any limits for CUDA. */
     /*! \brief Events used for synchronization */
     /*! \{ */
     /*! \brief Event triggered when the non-local non-bonded
      * kernel is done (and the local transfer can proceed) */
-    GpuEventSynchronizer nonlocal_done;
+    DeviceEventSynchronizer nonlocal_done{ 1, true };
     /*! \brief Event triggered when the tasks issued in the local
      * stream that need to precede the non-local force or buffer
      * operation calculations are done (e.g. f buffer 0-ing, local
      * x/q H2D, buffer op initialization in local stream that is
      * required also by nonlocal stream ) */
-    GpuEventSynchronizer misc_ops_and_local_H2D_done;
+    DeviceEventSynchronizer misc_ops_and_local_H2D_done{ 1, true };
     /*! \} */
 
     //! True if there has been local/nonlocal GPU work, either bonded or nonbonded, scheduled

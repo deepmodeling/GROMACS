@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -298,18 +298,18 @@ void StatePropagatorDataGpu::Impl::copyCoordinatesToGpu(const gmx::ArrayRef<cons
 
     // markEvent is skipped in OpenCL as:
     //   - it's not needed, copy is done in the same stream as the only consumer task (PME)
-    //   - we don't consume the events in OpenCL which is not allowed by GpuEventSynchronizer (would leak memory).
+    //   - we don't consume the events in OpenCL which is not allowed by DeviceEventSynchronizer (would leak memory).
     // TODO: remove this by adding an event-mark free flavor of this function
     if (GMX_GPU_CUDA)
     {
-        xReadyOnDevice_[atomLocality].markEvent(*deviceStream);
+        xReadyOnDevice_[atomLocality].mark(*deviceStream);
     }
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
 }
 
-GpuEventSynchronizer*
+DeviceEventSynchronizer*
 StatePropagatorDataGpu::Impl::getCoordinatesReadyOnDeviceEvent(AtomLocality atomLocality,
                                                                const SimulationWorkload& simulationWork,
                                                                const StepWorkload&       stepWork)
@@ -340,11 +340,11 @@ void StatePropagatorDataGpu::Impl::waitCoordinatesCopiedToDevice(AtomLocality at
 {
     wallcycle_start(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
     GMX_ASSERT(atomLocality < AtomLocality::Count, "Wrong atom locality.");
-    xReadyOnDevice_[atomLocality].waitForEvent();
+    xReadyOnDevice_[atomLocality].wait();
     wallcycle_stop(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::Impl::xUpdatedOnDevice()
+DeviceEventSynchronizer* StatePropagatorDataGpu::Impl::xUpdatedOnDevice()
 {
     return &xUpdatedOnDevice_;
 }
@@ -361,7 +361,7 @@ void StatePropagatorDataGpu::Impl::copyCoordinatesFromGpu(gmx::ArrayRef<gmx::RVe
 
     copyFromDevice(h_x, d_x_, d_xSize_, atomLocality, *deviceStream);
     // Note: unlike copyCoordinatesToGpu this is not used in OpenCL, and the conditional is not needed.
-    xReadyOnHost_[atomLocality].markEvent(*deviceStream);
+    xReadyOnHost_[atomLocality].mark(*deviceStream);
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
@@ -370,7 +370,7 @@ void StatePropagatorDataGpu::Impl::copyCoordinatesFromGpu(gmx::ArrayRef<gmx::RVe
 void StatePropagatorDataGpu::Impl::waitCoordinatesReadyOnHost(AtomLocality atomLocality)
 {
     wallcycle_start(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
-    xReadyOnHost_[atomLocality].waitForEvent();
+    xReadyOnHost_[atomLocality].wait();
     wallcycle_stop(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
 }
 
@@ -392,13 +392,13 @@ void StatePropagatorDataGpu::Impl::copyVelocitiesToGpu(const gmx::ArrayRef<const
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
 
     copyToDevice(d_v_, h_v, d_vSize_, atomLocality, *deviceStream);
-    vReadyOnDevice_[atomLocality].markEvent(*deviceStream);
+    vReadyOnDevice_[atomLocality].mark(*deviceStream);
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::Impl::getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality)
+DeviceEventSynchronizer* StatePropagatorDataGpu::Impl::getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality)
 {
     return &vReadyOnDevice_[atomLocality];
 }
@@ -415,7 +415,7 @@ void StatePropagatorDataGpu::Impl::copyVelocitiesFromGpu(gmx::ArrayRef<gmx::RVec
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
 
     copyFromDevice(h_v, d_v_, d_vSize_, atomLocality, *deviceStream);
-    vReadyOnHost_[atomLocality].markEvent(*deviceStream);
+    vReadyOnHost_[atomLocality].mark(*deviceStream);
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
@@ -424,7 +424,7 @@ void StatePropagatorDataGpu::Impl::copyVelocitiesFromGpu(gmx::ArrayRef<gmx::RVec
 void StatePropagatorDataGpu::Impl::waitVelocitiesReadyOnHost(AtomLocality atomLocality)
 {
     wallcycle_start(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
-    vReadyOnHost_[atomLocality].waitForEvent();
+    vReadyOnHost_[atomLocality].wait();
     wallcycle_stop(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
 }
 
@@ -446,14 +446,14 @@ void StatePropagatorDataGpu::Impl::copyForcesToGpu(const gmx::ArrayRef<const gmx
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
 
     copyToDevice(d_f_, h_f, d_fSize_, atomLocality, *deviceStream);
-    fReadyOnDevice_[atomLocality].markEvent(*deviceStream);
+    fReadyOnDevice_[atomLocality].mark(*deviceStream);
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::Impl::getForcesReadyOnDeviceEvent(AtomLocality atomLocality,
-                                                                                bool useGpuFBufferOps)
+DeviceEventSynchronizer* StatePropagatorDataGpu::Impl::getForcesReadyOnDeviceEvent(AtomLocality atomLocality,
+                                                                                   bool useGpuFBufferOps)
 {
     if ((atomLocality == AtomLocality::Local || atomLocality == AtomLocality::NonLocal) && useGpuFBufferOps)
     {
@@ -465,7 +465,7 @@ GpuEventSynchronizer* StatePropagatorDataGpu::Impl::getForcesReadyOnDeviceEvent(
     }
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::Impl::fReducedOnDevice()
+DeviceEventSynchronizer* StatePropagatorDataGpu::Impl::fReducedOnDevice()
 {
     return &fReducedOnDevice_;
 }
@@ -481,7 +481,7 @@ void StatePropagatorDataGpu::Impl::copyForcesFromGpu(gmx::ArrayRef<gmx::RVec> h_
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
 
     copyFromDevice(h_f, d_f_, d_fSize_, atomLocality, *deviceStream);
-    fReadyOnHost_[atomLocality].markEvent(*deviceStream);
+    fReadyOnHost_[atomLocality].mark(*deviceStream);
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_STATE_PROPAGATOR_DATA);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
@@ -490,7 +490,7 @@ void StatePropagatorDataGpu::Impl::copyForcesFromGpu(gmx::ArrayRef<gmx::RVec> h_
 void StatePropagatorDataGpu::Impl::waitForcesReadyOnHost(AtomLocality atomLocality)
 {
     wallcycle_start(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
-    fReadyOnHost_[atomLocality].waitForEvent();
+    fReadyOnHost_[atomLocality].wait();
     wallcycle_stop(wcycle_, ewcWAIT_GPU_STATE_PROPAGATOR_DATA);
 }
 
@@ -556,7 +556,7 @@ void StatePropagatorDataGpu::copyCoordinatesToGpu(const gmx::ArrayRef<const gmx:
     return impl_->copyCoordinatesToGpu(h_x, atomLocality);
 }
 
-GpuEventSynchronizer*
+DeviceEventSynchronizer*
 StatePropagatorDataGpu::getCoordinatesReadyOnDeviceEvent(AtomLocality              atomLocality,
                                                          const SimulationWorkload& simulationWork,
                                                          const StepWorkload&       stepWork)
@@ -569,7 +569,7 @@ void StatePropagatorDataGpu::waitCoordinatesCopiedToDevice(AtomLocality atomLoca
     return impl_->waitCoordinatesCopiedToDevice(atomLocality);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::xUpdatedOnDevice()
+DeviceEventSynchronizer* StatePropagatorDataGpu::xUpdatedOnDevice()
 {
     return impl_->xUpdatedOnDevice();
 }
@@ -596,7 +596,7 @@ void StatePropagatorDataGpu::copyVelocitiesToGpu(const gmx::ArrayRef<const gmx::
     return impl_->copyVelocitiesToGpu(h_v, atomLocality);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality)
+DeviceEventSynchronizer* StatePropagatorDataGpu::getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality)
 {
     return impl_->getVelocitiesReadyOnDeviceEvent(atomLocality);
 }
@@ -622,13 +622,13 @@ void StatePropagatorDataGpu::copyForcesToGpu(const gmx::ArrayRef<const gmx::RVec
     return impl_->copyForcesToGpu(h_f, atomLocality);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::getForcesReadyOnDeviceEvent(AtomLocality atomLocality,
-                                                                          bool useGpuFBufferOps)
+DeviceEventSynchronizer* StatePropagatorDataGpu::getForcesReadyOnDeviceEvent(AtomLocality atomLocality,
+                                                                             bool useGpuFBufferOps)
 {
     return impl_->getForcesReadyOnDeviceEvent(atomLocality, useGpuFBufferOps);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::fReducedOnDevice()
+DeviceEventSynchronizer* StatePropagatorDataGpu::fReducedOnDevice()
 {
     return impl_->fReducedOnDevice();
 }

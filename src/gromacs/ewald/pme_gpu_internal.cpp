@@ -503,7 +503,7 @@ void pme_gpu_copy_output_spread_grid(const PmeGpu* pmeGpu, float* h_grid, const 
                          pmeGpu->archSpecific->pmeStream_,
                          pmeGpu->settings.transferKind,
                          nullptr);
-    pmeGpu->archSpecific->syncSpreadGridD2H.markEvent(pmeGpu->archSpecific->pmeStream_);
+    pmeGpu->archSpecific->syncSpreadGridD2H.mark(pmeGpu->archSpecific->pmeStream_);
 }
 
 void pme_gpu_copy_output_spread_atom_data(const PmeGpu* pmeGpu)
@@ -577,7 +577,7 @@ void pme_gpu_copy_input_gather_atom_data(const PmeGpu* pmeGpu)
 
 void pme_gpu_sync_spread_grid(const PmeGpu* pmeGpu)
 {
-    pmeGpu->archSpecific->syncSpreadGridD2H.waitForEvent();
+    pmeGpu->archSpecific->syncSpreadGridD2H.wait();
 }
 
 /*! \brief Internal GPU initialization for PME.
@@ -1244,12 +1244,12 @@ static auto selectSpreadKernelPtr(const PmeGpu*  pmeGpu,
     return kernelPtr;
 }
 
-void pme_gpu_spread(const PmeGpu*         pmeGpu,
-                    GpuEventSynchronizer* xReadyOnDevice,
-                    real**                h_grids,
-                    bool                  computeSplines,
-                    bool                  spreadCharges,
-                    const real            lambda)
+void pme_gpu_spread(const PmeGpu*            pmeGpu,
+                    DeviceEventSynchronizer* xReadyOnDevice,
+                    real**                   h_grids,
+                    bool                     computeSplines,
+                    bool                     spreadCharges,
+                    const real               lambda)
 {
     GMX_ASSERT(
             pmeGpu->common->ngrids == 1 || pmeGpu->common->ngrids == 2,
@@ -1294,7 +1294,7 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
 
     if (xReadyOnDevice)
     {
-        xReadyOnDevice->enqueueWaitEvent(pmeGpu->archSpecific->pmeStream_);
+        xReadyOnDevice->enqueueWait(pmeGpu->archSpecific->pmeStream_);
     }
 
     const int blockCount = pmeGpu->nAtomsAlloc / atomsPerBlock;
@@ -1699,7 +1699,7 @@ void pme_gpu_gather(PmeGpu* pmeGpu, real** h_grids, const float lambda)
 
     if (pmeGpu->settings.useGpuForceReduction)
     {
-        pmeGpu->archSpecific->pmeForcesReady.markEvent(pmeGpu->archSpecific->pmeStream_);
+        pmeGpu->archSpecific->pmeForcesReady.mark(pmeGpu->archSpecific->pmeStream_);
     }
     else
     {
@@ -1731,7 +1731,7 @@ void pme_gpu_set_kernelparam_coordinates(const PmeGpu* pmeGpu, DeviceBuffer<gmx:
     pmeGpu->kernelParams->atoms.d_coordinates = d_x;
 }
 
-GpuEventSynchronizer* pme_gpu_get_forces_ready_synchronizer(const PmeGpu* pmeGpu)
+DeviceEventSynchronizer* pme_gpu_get_forces_ready_synchronizer(const PmeGpu* pmeGpu)
 {
     if (pmeGpu && pmeGpu->kernelParams)
     {

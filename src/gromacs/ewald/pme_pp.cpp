@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -104,16 +104,16 @@ static void gmx_pme_send_coeffs_coords(t_forcerec*      fr,
                                        real gmx_unused* sigmaA,
                                        real gmx_unused* sigmaB,
                                        const matrix     box,
-                                       const rvec gmx_unused* x,
-                                       real                   lambda_q,
-                                       real                   lambda_lj,
-                                       int                    maxshift_x,
-                                       int                    maxshift_y,
-                                       int64_t                step,
-                                       bool                   useGpuPmePpComms,
-                                       bool                   reinitGpuPmePpComms,
-                                       bool                   sendCoordinatesFromGpu,
-                                       GpuEventSynchronizer*  coordinatesReadyOnDeviceEvent)
+                                       const rvec gmx_unused*   x,
+                                       real                     lambda_q,
+                                       real                     lambda_lj,
+                                       int                      maxshift_x,
+                                       int                      maxshift_y,
+                                       int64_t                  step,
+                                       bool                     useGpuPmePpComms,
+                                       bool                     reinitGpuPmePpComms,
+                                       bool                     sendCoordinatesFromGpu,
+                                       DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
     gmx_domdec_t*         dd;
     gmx_pme_comm_n_box_t* cnb;
@@ -351,19 +351,19 @@ void gmx_pme_send_parameters(const t_commrec*           cr,
                                nullptr);
 }
 
-void gmx_pme_send_coordinates(t_forcerec*           fr,
-                              const t_commrec*      cr,
-                              const matrix          box,
-                              const rvec*           x,
-                              real                  lambda_q,
-                              real                  lambda_lj,
-                              bool                  computeEnergyAndVirial,
-                              int64_t               step,
-                              bool                  useGpuPmePpComms,
-                              bool                  receiveCoordinateAddressFromPme,
-                              bool                  sendCoordinatesFromGpu,
-                              GpuEventSynchronizer* coordinatesReadyOnDeviceEvent,
-                              gmx_wallcycle*        wcycle)
+void gmx_pme_send_coordinates(t_forcerec*              fr,
+                              const t_commrec*         cr,
+                              const matrix             box,
+                              const rvec*              x,
+                              real                     lambda_q,
+                              real                     lambda_lj,
+                              bool                     computeEnergyAndVirial,
+                              int64_t                  step,
+                              bool                     useGpuPmePpComms,
+                              bool                     receiveCoordinateAddressFromPme,
+                              bool                     sendCoordinatesFromGpu,
+                              DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent,
+                              gmx_wallcycle*           wcycle)
 {
     wallcycle_start(wcycle, ewcPP_PMESENDX);
 

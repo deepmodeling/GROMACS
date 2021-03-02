@@ -106,7 +106,7 @@ __launch_bounds__(c_maxThreadsPerBlock) __global__
     }
 }
 
-void UpdateConstrainGpu::Impl::integrate(GpuEventSynchronizer*             fReadyOnDevice,
+void UpdateConstrainGpu::Impl::integrate(DeviceEventSynchronizer*          fReadyOnDevice,
                                          const real                        dt,
                                          const bool                        updateVelocities,
                                          const bool                        computeVirial,
@@ -213,13 +213,13 @@ void UpdateConstrainGpu::Impl::scaleVelocities(const matrix scalingMatrix)
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);
 }
 
-UpdateConstrainGpu::Impl::Impl(const t_inputrec&     ir,
-                               const gmx_mtop_t&     mtop,
-                               const int             numTempScaleValues,
-                               const DeviceContext&  deviceContext,
-                               const DeviceStream&   deviceStream,
-                               GpuEventSynchronizer* xUpdatedOnDevice,
-                               gmx_wallcycle*        wcycle) :
+UpdateConstrainGpu::Impl::Impl(const t_inputrec&        ir,
+                               const gmx_mtop_t&        mtop,
+                               const int                numTempScaleValues,
+                               const DeviceContext&     deviceContext,
+                               const DeviceStream&      deviceStream,
+                               DeviceEventSynchronizer* xUpdatedOnDevice,
+                               gmx_wallcycle*           wcycle) :
     deviceContext_(deviceContext),
     deviceStream_(deviceStream),
     coordinatesReady_(xUpdatedOnDevice),
@@ -283,25 +283,25 @@ void UpdateConstrainGpu::Impl::setPbc(const PbcType pbcType, const matrix box)
     setPbcAiuc(numPbcDimensions(pbcType), box, &pbcAiuc_);
 }
 
-GpuEventSynchronizer* UpdateConstrainGpu::Impl::getCoordinatesReadySync()
+DeviceEventSynchronizer* UpdateConstrainGpu::Impl::getCoordinatesReadySync()
 {
     return coordinatesReady_;
 }
 
-UpdateConstrainGpu::UpdateConstrainGpu(const t_inputrec&     ir,
-                                       const gmx_mtop_t&     mtop,
-                                       const int             numTempScaleValues,
-                                       const DeviceContext&  deviceContext,
-                                       const DeviceStream&   deviceStream,
-                                       GpuEventSynchronizer* xUpdatedOnDevice,
-                                       gmx_wallcycle*        wcycle) :
+UpdateConstrainGpu::UpdateConstrainGpu(const t_inputrec&        ir,
+                                       const gmx_mtop_t&        mtop,
+                                       const int                numTempScaleValues,
+                                       const DeviceContext&     deviceContext,
+                                       const DeviceStream&      deviceStream,
+                                       DeviceEventSynchronizer* xUpdatedOnDevice,
+                                       gmx_wallcycle*           wcycle) :
     impl_(new Impl(ir, mtop, numTempScaleValues, deviceContext, deviceStream, xUpdatedOnDevice, wcycle))
 {
 }
 
 UpdateConstrainGpu::~UpdateConstrainGpu() = default;
 
-void UpdateConstrainGpu::integrate(GpuEventSynchronizer*             fReadyOnDevice,
+void UpdateConstrainGpu::integrate(DeviceEventSynchronizer*          fReadyOnDevice,
                                    const real                        dt,
                                    const bool                        updateVelocities,
                                    const bool                        computeVirial,
@@ -348,7 +348,7 @@ void UpdateConstrainGpu::setPbc(const PbcType pbcType, const matrix box)
     impl_->setPbc(pbcType, box);
 }
 
-GpuEventSynchronizer* UpdateConstrainGpu::getCoordinatesReadySync()
+DeviceEventSynchronizer* UpdateConstrainGpu::getCoordinatesReadySync()
 {
     return impl_->getCoordinatesReadySync();
 }

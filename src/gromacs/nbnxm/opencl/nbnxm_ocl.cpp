@@ -503,7 +503,7 @@ void nbnxnInsertNonlocalGpuDependency(NbnxmGpu* nb, const InteractionLocality in
     {
         if (interactionLocality == InteractionLocality::Local)
         {
-            nb->misc_ops_and_local_H2D_done.markEvent(deviceStream);
+            nb->misc_ops_and_local_H2D_done.mark(deviceStream);
 
             /* Based on the v1.2 section 5.13 of the OpenCL spec, a flush is needed
              * in the local stream in order to be able to sync with the above event
@@ -515,7 +515,7 @@ void nbnxnInsertNonlocalGpuDependency(NbnxmGpu* nb, const InteractionLocality in
         }
         else
         {
-            nb->misc_ops_and_local_H2D_done.enqueueWaitEvent(deviceStream);
+            nb->misc_ops_and_local_H2D_done.enqueueWait(deviceStream);
         }
     }
 }
@@ -550,6 +550,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
         // The event is marked for Local interactions unconditionally,
         // so it has to be released here because of the early return
         // for NonLocal interactions.
+        nb->misc_ops_and_local_H2D_done.consume();
         nb->misc_ops_and_local_H2D_done.reset();
 
         return;
@@ -966,7 +967,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
        has been launched. */
     if (iloc == InteractionLocality::Local && nb->bNonLocalStreamDoneMarked)
     {
-        nb->nonlocal_done.enqueueWaitEvent(deviceStream);
+        nb->nonlocal_done.enqueueWait(deviceStream);
         nb->bNonLocalStreamDoneMarked = false;
     }
 
@@ -991,7 +992,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
        data back first. */
     if (iloc == InteractionLocality::NonLocal)
     {
-        nb->nonlocal_done.markEvent(deviceStream);
+        nb->nonlocal_done.mark(deviceStream);
         nb->bNonLocalStreamDoneMarked = true;
     }
 

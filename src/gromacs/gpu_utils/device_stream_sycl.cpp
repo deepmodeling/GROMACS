@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,7 +44,9 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/device_stream.h"
+#include "gromacs/gpu_utils/gmxsycl.h"
 
 DeviceStream::DeviceStream(const DeviceContext& deviceContext,
                            DeviceStreamPriority /* priority */,
@@ -95,4 +97,21 @@ void DeviceStream::synchronize() const
      * So, we can copy-construct a new queue and wait() on it.
      */
     cl::sycl::queue(stream_).wait_and_throw();
+}
+
+void DeviceStream::markEvent(DeviceEvent& deviceEvent) const
+{
+    // Relies on SYCL_INTEL_enqueue_barrier extension
+    // We want this method to be `const`, but stream::submit_barrier is not const.
+    cl::sycl::queue mutableNativeStream(stream_);
+    deviceEvent.setEvent(mutableNativeStream.submit_barrier());
+}
+
+void DeviceStream::enqueueWaitForEvent(const DeviceEvent& deviceEvent) const
+{
+    // Relies on SYCL_INTEL_enqueue_barrier extension
+    const std::vector<cl::sycl::event> waitlist{ deviceEvent.event() };
+    // We want this method to be `const`, but stream::submit_barrier is not const.
+    cl::sycl::queue mutableNativeStream(stream_);
+    mutableNativeStream.submit_barrier(waitlist);
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -94,7 +94,7 @@ public:
      *
      * \param [in] dependency   Dependency for this reduction
      */
-    void addDependency(GpuEventSynchronizer* const dependency);
+    void addDependency(DeviceEventSynchronizer* const dependency);
 
     /*! \brief Reinitialize the GPU force reduction
      *
@@ -105,12 +105,12 @@ public:
      * \param [in] accumulate       Whether reduction should be accumulated
      * \param [in] completionMarker Event to be marked when launch of reduction is complete
      */
-    void reinit(float3*               baseForcePtr,
-                const int             numAtoms,
-                ArrayRef<const int>   cell,
-                const int             atomStart,
-                const bool            accumulate,
-                GpuEventSynchronizer* completionMarker = nullptr);
+    void reinit(float3*                  baseForcePtr,
+                const int                numAtoms,
+                ArrayRef<const int>      cell,
+                const int                atomStart,
+                const bool               accumulate,
+                DeviceEventSynchronizer* completionMarker = nullptr);
 
     /*! \brief Execute the force reduction */
     void execute();
@@ -129,7 +129,7 @@ private:
     //! GPU context object
     const DeviceContext& deviceContext_;
     //! list of dependencies
-    gmx::FixedCapacityVector<GpuEventSynchronizer*, 3> dependencyList_;
+    gmx::FixedCapacityVector<DeviceEventSynchronizer*, 3> dependencyList_;
     //! stream to be used for this reduction
     const DeviceStream& deviceStream_;
     //! Nbnxm force to be added in this reduction
@@ -137,7 +137,7 @@ private:
     //! Rvec-format force to be added in this reduction
     DeviceBuffer<RVec> rvecForceToAdd_ = nullptr;
     //! event to be marked when redcution launch has been completed
-    GpuEventSynchronizer* completionMarker_ = nullptr;
+    DeviceEventSynchronizer* completionMarker_ = nullptr;
     //! The wallclock counter
     gmx_wallcycle* wcycle_ = nullptr;
 };

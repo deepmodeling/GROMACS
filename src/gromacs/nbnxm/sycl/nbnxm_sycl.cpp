@@ -59,11 +59,11 @@ void nbnxnInsertNonlocalGpuDependency(NbnxmGpu* nb, const InteractionLocality in
     {
         if (interactionLocality == InteractionLocality::Local)
         {
-            nb->misc_ops_and_local_H2D_done.markEvent(deviceStream);
+            nb->misc_ops_and_local_H2D_done.mark(deviceStream);
         }
         else
         {
-            nb->misc_ops_and_local_H2D_done.enqueueWaitEvent(deviceStream);
+            nb->misc_ops_and_local_H2D_done.enqueueWait(deviceStream);
         }
     }
 }
@@ -102,7 +102,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     // With DD the local D2H transfer can only start after the non-local kernel has finished.
     if (iloc == InteractionLocality::Local && nb->bNonLocalStreamDoneMarked)
     {
-        nb->nonlocal_done.waitForEvent();
+        nb->nonlocal_done.enqueueWait(deviceStream);
         nb->bNonLocalStreamDoneMarked = false;
     }
 
@@ -128,7 +128,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
        back first. */
     if (iloc == InteractionLocality::NonLocal)
     {
-        nb->nonlocal_done.markEvent(deviceStream);
+        nb->nonlocal_done.mark(deviceStream);
         nb->bNonLocalStreamDoneMarked = true;
     }
 
@@ -188,6 +188,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
         // The event is marked for Local interactions unconditionally,
         // so it has to be released here because of the early return
         // for NonLocal interactions.
+        nb->misc_ops_and_local_H2D_done.consume();
         nb->misc_ops_and_local_H2D_done.reset();
 
         return;

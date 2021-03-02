@@ -51,16 +51,14 @@
 #include <vector>
 
 #if GMX_GPU_CUDA
-#    include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #    include "gromacs/gpu_utils/gpuregiontimer.cuh"
 #elif GMX_GPU_OPENCL
-#    include "gromacs/gpu_utils/gpueventsynchronizer_ocl.h"
 #    include "gromacs/gpu_utils/gpuregiontimer_ocl.h"
 #elif GMX_GPU_SYCL
-#    include "gromacs/gpu_utils/gpueventsynchronizer_sycl.h"
 #    include "gromacs/gpu_utils/gpuregiontimer_sycl.h"
 #endif
 
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/timing/gpu_timing.h" // for gtPME_EVENT_COUNT
 
 #include "pme_gpu_3dfft.h"
@@ -101,9 +99,9 @@ struct PmeGpuSpecific
 
     /* Synchronization events */
     /*! \brief Triggered after the PME Force Calculations have been completed */
-    GpuEventSynchronizer pmeForcesReady;
+    DeviceEventSynchronizer pmeForcesReady;
     /*! \brief Triggered after the grid has been copied to the host (after the spreading stage). */
-    GpuEventSynchronizer syncSpreadGridD2H;
+    DeviceEventSynchronizer syncSpreadGridD2H;
 
     /* Settings which are set at the start of the run */
     /*! \brief A boolean which tells whether the complex and real grids for cu/clFFT are different or same. Currenty true. */

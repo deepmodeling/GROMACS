@@ -47,8 +47,8 @@
 #include "gromacs/utility/gmxmpi.h"
 
 class DeviceContext;
+class DeviceEventSynchronizer;
 class DeviceStream;
-class GpuEventSynchronizer;
 
 namespace gmx
 {
@@ -91,10 +91,10 @@ public:
      * \param[in] sendPmeCoordinatesFromGpu Whether send is from GPU, otherwise CPU
      * \param[in] coordinatesReadyOnDeviceEvent Event recorded when coordinates are available on device
      */
-    void sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
-                                        int                   sendSize,
-                                        bool                  sendPmeCoordinatesFromGpu,
-                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void sendCoordinatesToPmeCudaDirect(void*                    sendPtr,
+                                        int                      sendSize,
+                                        bool                     sendPmeCoordinatesFromGpu,
+                                        DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief
      * Return pointer to buffer used for staging PME force on GPU
@@ -104,7 +104,7 @@ public:
     /*! \brief
      * Return pointer to event recorded when forces are ready
      */
-    GpuEventSynchronizer* getForcesReadySynchronizer();
+    DeviceEventSynchronizer* getForcesReadySynchronizer();
 
 private:
     class Impl;

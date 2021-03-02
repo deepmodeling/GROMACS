@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,7 +48,7 @@
 #include "gromacs/ewald/pme_coordinate_receiver_gpu.h"
 #include "gromacs/utility/arrayref.h"
 
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 
 namespace gmx
 {
@@ -93,7 +93,7 @@ private:
     //! vector of MPI requests
     std::vector<MPI_Request> request_;
     //! vector of synchronization events to receive from PP tasks
-    std::vector<GpuEventSynchronizer*> ppSync_;
+    std::vector<DeviceEventSynchronizer*> ppSync_;
     //! counter of messages to receive
     int recvCount_ = 0;
 };

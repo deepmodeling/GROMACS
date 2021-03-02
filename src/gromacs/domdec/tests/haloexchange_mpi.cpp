@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -140,7 +140,7 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
 
     copyToDeviceBuffer(&d_x, h_x->data(), 0, numAtomsTotal, deviceStream, GpuApiCallBehavior::Sync, nullptr);
 
-    GpuEventSynchronizer coordinatesReadyOnDeviceEvent;
+    DeviceEventSynchronizer coordinatesReadyOnDeviceEvent;
     coordinatesReadyOnDeviceEvent.markEvent(deviceStream);
 
     std::array<std::vector<GpuHaloExchange>, DIM> gpuHaloExchange;
@@ -165,7 +165,7 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
         }
     }
 
-    GpuEventSynchronizer haloCompletedEvent;
+    DeviceEventSynchronizer haloCompletedEvent;
     haloCompletedEvent.markEvent(deviceStream);
     haloCompletedEvent.waitForEvent();
 

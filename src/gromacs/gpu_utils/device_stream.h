@@ -63,6 +63,7 @@
 
 struct DeviceInformation;
 class DeviceContext;
+class DeviceEvent;
 
 //! Enumeration describing the priority with which a stream operates.
 enum class DeviceStreamPriority : int
@@ -111,6 +112,10 @@ public:
 
     //! Synchronize the stream
     void synchronize() const;
+
+    void markEvent(DeviceEvent& deviceEvent) const;
+
+    void enqueueWaitForEvent(const DeviceEvent& deviceEvent) const;
 
 #if GMX_GPU_CUDA
 

@@ -254,7 +254,7 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid gmx_unused& grid,
                            bool gmx_unused setFillerCoords,
                            NbnxmGpu gmx_unused*    gpu_nbv,
                            DeviceBuffer<gmx::RVec> gmx_unused d_x,
-                           GpuEventSynchronizer gmx_unused* xReadyOnDevice,
+                           DeviceEventSynchronizer gmx_unused* xReadyOnDevice,
                            gmx::AtomLocality gmx_unused locality,
                            int gmx_unused gridId,
                            int gmx_unused numColumnsMax) CUDA_FUNC_TERM;

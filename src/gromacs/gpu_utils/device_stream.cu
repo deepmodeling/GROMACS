@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -100,4 +100,18 @@ void DeviceStream::synchronize() const
     cudaError_t stat = cudaStreamSynchronize(stream_);
     GMX_RELEASE_ASSERT(stat == cudaSuccess,
                        ("cudaStreamSynchronize failed. " + gmx::getDeviceErrorString(stat)).c_str());
+}
+
+void DeviceStream::markEvent(DeviceEvent& deviceEvent) const
+{
+    cudaError_t gmx_used_in_debug stat = cudaEventRecord(deviceEvent.event(), deviceStream.stream());
+    GMX_ASSERT(stat == cudaSuccess,
+               ("cudaEventRecord failed. " + gmx::getDeviceErrorString(stat)).c_str());
+}
+
+void DeviceStream::enqueueWaitForEvent(const DeviceEvent& deviceEvent) const
+{
+    cudaError_t gmx_used_in_debug stat = cudaStreamWaitEvent(stream_, deviceEvent.event(), 0);
+    GMX_ASSERT(stat == cudaSuccess,
+               ("cudaStreamWaitEvent failed. " + gmx::getDeviceErrorString(stat)).c_str());
 }

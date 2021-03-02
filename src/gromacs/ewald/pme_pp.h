@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -53,7 +53,7 @@ struct interaction_const_t;
 struct t_commrec;
 struct t_forcerec;
 
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 
 namespace gmx
 {
@@ -76,19 +76,19 @@ void gmx_pme_send_parameters(const t_commrec*           cr,
                              int                        maxshift_y);
 
 /*! \brief Send the coordinates to our PME-only node and request a PME calculation */
-void gmx_pme_send_coordinates(t_forcerec*           fr,
-                              const t_commrec*      cr,
-                              const matrix          box,
-                              const rvec*           x,
-                              real                  lambda_q,
-                              real                  lambda_lj,
-                              bool                  computeEnergyAndVirial,
-                              int64_t               step,
-                              bool                  useGpuPmePpComms,
-                              bool                  reinitGpuPmePpComms,
-                              bool                  sendCoordinatesFromGpu,
-                              GpuEventSynchronizer* coordinatesReadyOnDeviceEvent,
-                              gmx_wallcycle*        wcycle);
+void gmx_pme_send_coordinates(t_forcerec*              fr,
+                              const t_commrec*         cr,
+                              const matrix             box,
+                              const rvec*              x,
+                              real                     lambda_q,
+                              real                     lambda_lj,
+                              bool                     computeEnergyAndVirial,
+                              int64_t                  step,
+                              bool                     useGpuPmePpComms,
+                              bool                     reinitGpuPmePpComms,
+                              bool                     sendCoordinatesFromGpu,
+                              DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent,
+                              gmx_wallcycle*           wcycle);
 
 /*! \brief Tell our PME-only node to finish */
 void gmx_pme_send_finish(const t_commrec* cr);

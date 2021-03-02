@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -103,7 +103,7 @@ public:
      * \param [in] box  Coordinate box (from which shifts will be constructed)
      * \param [in] coordinatesReadyOnDeviceEvent event recorded when coordinates have been copied to device
      */
-    void communicateHaloCoordinates(const matrix box, GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void communicateHaloCoordinates(const matrix box, DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief  GPU halo exchange of force buffer
      * \param[in] accumulateForces  True if forces should accumulate, otherwise they are set
@@ -113,7 +113,7 @@ public:
     /*! \brief Get the event synchronizer for the forces ready on device.
      *  \returns  The event to synchronize the stream that consumes forces on device.
      */
-    GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
+    DeviceEventSynchronizer* getForcesReadyOnDeviceEvent();
 
 private:
     /*! \brief Data transfer wrapper for GPU halo exchange
@@ -121,9 +121,9 @@ private:
      * \param [in] haloQuantity  switch on whether X or F halo exchange is being performed
      * \param [in] coordinatesReadyOnDeviceEvent event recorded when coordinates have been copied to device
      */
-    void communicateHaloData(float3*               d_ptr,
-                             HaloQuantity          haloQuantity,
-                             GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void communicateHaloData(float3*                  d_ptr,
+                             HaloQuantity             haloQuantity,
+                             DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief Data transfer for GPU halo exchange using CUDA memcopies
      * \param [inout] sendPtr    address to send data from
@@ -185,7 +185,7 @@ private:
     //! force shift buffer on device
     float3* d_fShift_ = nullptr;
     //! Event triggered when halo transfer has been launched with direct CUD memory copy
-    GpuEventSynchronizer* haloDataTransferLaunched_ = nullptr;
+    DeviceEventSynchronizer* haloDataTransferLaunched_ = nullptr;
     //! MPI communicator used for simulation
     MPI_Comm mpi_comm_mysim_;
     //! GPU context object
@@ -199,7 +199,7 @@ private:
     //! full forces buffer in GPU memory
     float3* d_f_ = nullptr;
     //! An event recorded once the exchanged forces are ready on the GPU
-    GpuEventSynchronizer fReadyOnDevice_;
+    DeviceEventSynchronizer fReadyOnDevice_;
     //! The dimension index corresponding to this halo exchange instance
     int dimIndex_ = 0;
     //! The pulse corresponding to this halo exchange instance

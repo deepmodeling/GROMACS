@@ -3219,9 +3219,9 @@ void reinitGpuHaloExchange(const t_commrec&              cr,
     }
 }
 
-void communicateGpuHaloCoordinates(const t_commrec&      cr,
-                                   const matrix          box,
-                                   GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
+void communicateGpuHaloCoordinates(const t_commrec&         cr,
+                                   const matrix             box,
+                                   DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
     for (int d = 0; d < cr.dd->ndim; d++)
     {

@@ -61,7 +61,7 @@ UpdateConstrainGpu::UpdateConstrainGpu(const t_inputrec& /* ir   */,
                                        const int /* numTempScaleValues */,
                                        const DeviceContext& /* deviceContext */,
                                        const DeviceStream& /* deviceStream */,
-                                       GpuEventSynchronizer* /* xUpdatedOnDevice */,
+                                       DeviceEventSynchronizer* /* xUpdatedOnDevice */,
                                        gmx_wallcycle* /*wcycle*/) :
     impl_(nullptr)
 {
@@ -71,7 +71,7 @@ UpdateConstrainGpu::UpdateConstrainGpu(const t_inputrec& /* ir   */,
 
 UpdateConstrainGpu::~UpdateConstrainGpu() = default;
 
-void UpdateConstrainGpu::integrate(GpuEventSynchronizer* /* fReadyOnDevice */,
+void UpdateConstrainGpu::integrate(DeviceEventSynchronizer* /* fReadyOnDevice */,
                                    const real /* dt */,
                                    const bool /* updateVelocities */,
                                    const bool /* computeVirial */,
@@ -114,7 +114,7 @@ void UpdateConstrainGpu::setPbc(const PbcType /* pbcType */, const matrix /* box
                "A CPU stub for UpdateConstrain was called instead of the correct implementation.");
 }
 
-GpuEventSynchronizer* UpdateConstrainGpu::getCoordinatesReadySync()
+DeviceEventSynchronizer* UpdateConstrainGpu::getCoordinatesReadySync()
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for UpdateConstrain was called instead of the correct implementation.");

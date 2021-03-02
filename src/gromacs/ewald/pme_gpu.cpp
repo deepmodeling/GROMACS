@@ -189,10 +189,10 @@ void pme_gpu_prepare_computation(gmx_pme_t*               pme,
     }
 }
 
-void pme_gpu_launch_spread(gmx_pme_t*            pme,
-                           GpuEventSynchronizer* xReadyOnDevice,
-                           gmx_wallcycle*        wcycle,
-                           const real            lambdaQ)
+void pme_gpu_launch_spread(gmx_pme_t*               pme,
+                           DeviceEventSynchronizer* xReadyOnDevice,
+                           gmx_wallcycle*           wcycle,
+                           const real               lambdaQ)
 {
     GMX_ASSERT(pme_gpu_active(pme), "This should be a GPU run of PME but it is not enabled.");
     GMX_ASSERT(!GMX_GPU_CUDA || xReadyOnDevice || !pme->bPPnode,
@@ -345,7 +345,7 @@ bool pme_gpu_try_finish_task(gmx_pme_t*               pme,
     bool           needToSynchronize      = true;
     constexpr bool c_streamQuerySupported = GMX_GPU_CUDA;
 
-    // TODO: implement c_streamQuerySupported with an additional GpuEventSynchronizer per stream (#2521)
+    // TODO: implement c_streamQuerySupported with an additional DeviceEventSynchronizer per stream (#2521)
     if ((completionKind == GpuTaskCompletion::Check) && c_streamQuerySupported)
     {
         wallcycle_start_nocount(wcycle, ewcWAIT_GPU_PME_GATHER);
@@ -457,7 +457,7 @@ void pme_gpu_set_device_x(const gmx_pme_t* pme, DeviceBuffer<gmx::RVec> d_x)
     pme_gpu_set_kernelparam_coordinates(pme->gpu, d_x);
 }
 
-GpuEventSynchronizer* pme_gpu_get_f_ready_synchronizer(const gmx_pme_t* pme)
+DeviceEventSynchronizer* pme_gpu_get_f_ready_synchronizer(const gmx_pme_t* pme)
 {
     if (!pme || !pme_gpu_active(pme))
     {

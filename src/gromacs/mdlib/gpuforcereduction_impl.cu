@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -112,12 +112,12 @@ GpuForceReduction::Impl::Impl(const DeviceContext& deviceContext,
     deviceStream_(deviceStream),
     wcycle_(wcycle){};
 
-void GpuForceReduction::Impl::reinit(float3*               baseForcePtr,
-                                     const int             numAtoms,
-                                     ArrayRef<const int>   cell,
-                                     const int             atomStart,
-                                     const bool            accumulate,
-                                     GpuEventSynchronizer* completionMarker)
+void GpuForceReduction::Impl::reinit(float3*                  baseForcePtr,
+                                     const int                numAtoms,
+                                     ArrayRef<const int>      cell,
+                                     const int                atomStart,
+                                     const bool               accumulate,
+                                     DeviceEventSynchronizer* completionMarker)
 {
     GMX_ASSERT((baseForcePtr != nullptr), "Input base force for reduction has no data");
     baseForce_        = &(baseForcePtr[atomStart]);
@@ -154,7 +154,7 @@ void GpuForceReduction::Impl::registerRvecForce(DeviceBuffer<RVec> forcePtr)
     rvecForceToAdd_ = forcePtr;
 };
 
-void GpuForceReduction::Impl::addDependency(GpuEventSynchronizer* const dependency)
+void GpuForceReduction::Impl::addDependency(DeviceEventSynchronizer* const dependency)
 {
     dependencyList_.push_back(dependency);
 }
@@ -228,17 +228,17 @@ void GpuForceReduction::registerRvecForce(void* forcePtr)
     impl_->registerRvecForce(reinterpret_cast<DeviceBuffer<RVec>>(forcePtr));
 }
 
-void GpuForceReduction::addDependency(GpuEventSynchronizer* const dependency)
+void GpuForceReduction::addDependency(DeviceEventSynchronizer* const dependency)
 {
     impl_->addDependency(dependency);
 }
 
-void GpuForceReduction::reinit(DeviceBuffer<RVec>    baseForcePtr,
-                               const int             numAtoms,
-                               ArrayRef<const int>   cell,
-                               const int             atomStart,
-                               const bool            accumulate,
-                               GpuEventSynchronizer* completionMarker)
+void GpuForceReduction::reinit(DeviceBuffer<RVec>       baseForcePtr,
+                               const int                numAtoms,
+                               ArrayRef<const int>      cell,
+                               const int                atomStart,
+                               const bool               accumulate,
+                               DeviceEventSynchronizer* completionMarker)
 {
     impl_->reinit(asFloat3(baseForcePtr), numAtoms, cell, atomStart, accumulate, completionMarker);
 }

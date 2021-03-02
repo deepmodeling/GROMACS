@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -102,10 +102,10 @@ public:
      * \param[in] sendPmeCoordinatesFromGpu Whether send is from GPU, otherwise CPU
      * \param[in] coordinatesReadyOnDeviceEvent Event recorded when coordinates are available on device
      */
-    void sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
-                                        int                   sendSize,
-                                        bool                  sendPmeCoordinatesFromGpu,
-                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void sendCoordinatesToPmeCudaDirect(void*                    sendPtr,
+                                        int                      sendSize,
+                                        bool                     sendPmeCoordinatesFromGpu,
+                                        DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief
      * Return pointer to buffer used for staging PME force on GPU
@@ -115,7 +115,7 @@ public:
     /*! \brief
      * Return pointer to event recorded when forces are ready
      */
-    GpuEventSynchronizer* getForcesReadySynchronizer();
+    DeviceEventSynchronizer* getForcesReadySynchronizer();
 
 private:
     //! GPU context handle (not used in CUDA)
@@ -137,9 +137,9 @@ private:
     //! number of atoms allocated in recvbuf array
     int d_pmeForcesSizeAlloc_ = -1;
     //! Event recorded when PME forces are ready on PME task
-    GpuEventSynchronizer forcesReadySynchronizer_;
+    DeviceEventSynchronizer forcesReadySynchronizer_;
     //! Event recorded when coordinates have been transferred to PME task
-    GpuEventSynchronizer pmeCoordinatesSynchronizer_;
+    DeviceEventSynchronizer pmeCoordinatesSynchronizer_;
 };
 
 } // namespace gmx

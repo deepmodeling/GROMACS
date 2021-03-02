@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -95,8 +95,8 @@ void PmePpCommGpu::Impl::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSi
 #if GMX_MPI
     // Receive event from PME task and add to stream, to ensure pull of data doesn't
     // occur before PME force calc is completed
-    GpuEventSynchronizer* pmeSync;
-    MPI_Recv(&pmeSync, sizeof(GpuEventSynchronizer*), MPI_BYTE, pmeRank_, 0, comm_, MPI_STATUS_IGNORE);
+    DeviceEventSynchronizer* pmeSync;
+    MPI_Recv(&pmeSync, sizeof(DeviceEventSynchronizer*), MPI_BYTE, pmeRank_, 0, comm_, MPI_STATUS_IGNORE);
     pmeSync->enqueueWaitEvent(pmePpCommStream_);
 
     // Pull force data from remote GPU
@@ -131,7 +131,7 @@ void PmePpCommGpu::Impl::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSi
 void PmePpCommGpu::Impl::sendCoordinatesToPmeCudaDirect(void* sendPtr,
                                                         int   sendSize,
                                                         bool gmx_unused sendPmeCoordinatesFromGpu,
-                                                        GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
+                                                        DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
 #if GMX_MPI
     // ensure stream waits until coordinate data is available on device
@@ -146,8 +146,8 @@ void PmePpCommGpu::Impl::sendCoordinatesToPmeCudaDirect(void* sendPtr,
 
     // Record and send event to allow PME task to sync to above transfer before commencing force calculations
     pmeCoordinatesSynchronizer_.markEvent(pmePpCommStream_);
-    GpuEventSynchronizer* pmeSync = &pmeCoordinatesSynchronizer_;
-    MPI_Send(&pmeSync, sizeof(GpuEventSynchronizer*), MPI_BYTE, pmeRank_, 0, comm_);
+    DeviceEventSynchronizer* pmeSync = &pmeCoordinatesSynchronizer_;
+    MPI_Send(&pmeSync, sizeof(DeviceEventSynchronizer*), MPI_BYTE, pmeRank_, 0, comm_);
 #else
     GMX_UNUSED_VALUE(sendPtr);
     GMX_UNUSED_VALUE(sendSize);
@@ -160,7 +160,7 @@ void* PmePpCommGpu::Impl::getGpuForceStagingPtr()
     return static_cast<void*>(d_pmeForces_);
 }
 
-GpuEventSynchronizer* PmePpCommGpu::Impl::getForcesReadySynchronizer()
+DeviceEventSynchronizer* PmePpCommGpu::Impl::getForcesReadySynchronizer()
 {
     return &forcesReadySynchronizer_;
 }
@@ -185,10 +185,10 @@ void PmePpCommGpu::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSize, bo
     impl_->receiveForceFromPmeCudaDirect(recvPtr, recvSize, receivePmeForceToGpu);
 }
 
-void PmePpCommGpu::sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
-                                                  int                   sendSize,
-                                                  bool                  sendPmeCoordinatesFromGpu,
-                                                  GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
+void PmePpCommGpu::sendCoordinatesToPmeCudaDirect(void* sendPtr,
+                                                  int   sendSize,
+                                                  bool  sendPmeCoordinatesFromGpu,
+                                                  DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
     impl_->sendCoordinatesToPmeCudaDirect(
             sendPtr, sendSize, sendPmeCoordinatesFromGpu, coordinatesReadyOnDeviceEvent);
@@ -199,7 +199,7 @@ void* PmePpCommGpu::getGpuForceStagingPtr()
     return impl_->getGpuForceStagingPtr();
 }
 
-GpuEventSynchronizer* PmePpCommGpu::getForcesReadySynchronizer()
+DeviceEventSynchronizer* PmePpCommGpu::getForcesReadySynchronizer()
 {
     return impl_->getForcesReadySynchronizer();
 }

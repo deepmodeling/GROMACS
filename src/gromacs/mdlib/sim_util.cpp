@@ -722,12 +722,12 @@ static void computeSpecialForces(FILE*                          fplog,
  * \param[in]  lambdaQ              The Coulomb lambda of the current state.
  * \param[in]  wcycle               The wallcycle structure
  */
-static inline void launchPmeGpuSpread(gmx_pme_t*            pmedata,
-                                      const matrix          box,
-                                      const StepWorkload&   stepWork,
-                                      GpuEventSynchronizer* xReadyOnDevice,
-                                      const real            lambdaQ,
-                                      gmx_wallcycle_t       wcycle)
+static inline void launchPmeGpuSpread(gmx_pme_t*               pmedata,
+                                      const matrix             box,
+                                      const StepWorkload&      stepWork,
+                                      DeviceEventSynchronizer* xReadyOnDevice,
+                                      const real               lambdaQ,
+                                      gmx_wallcycle_t          wcycle)
 {
     pme_gpu_prepare_computation(pmedata, box, wcycle, stepWork);
     pme_gpu_launch_spread(pmedata, xReadyOnDevice, wcycle, lambdaQ);
@@ -1120,7 +1120,7 @@ static void setupGpuForceReductions(gmx::MdrunScheduleWorkload* runScheduleWork,
                                  fr->pmePpCommGpu->getGpuForceStagingPtr(); // buffer received from other GPU
         fr->gpuForceReduction[gmx::AtomLocality::Local]->registerRvecForce(forcePtr);
 
-        GpuEventSynchronizer* const pmeSynchronizer =
+        DeviceEventSynchronizer* const pmeSynchronizer =
                 (thisRankHasDuty(cr, DUTY_PME) ? pme_gpu_get_f_ready_synchronizer(fr->pmedata)
                                                : // PME force buffer on same GPU
                          fr->pmePpCommGpu->getForcesReadySynchronizer()); // buffer received from other GPU

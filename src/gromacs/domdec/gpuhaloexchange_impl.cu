@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -249,8 +249,8 @@ void GpuHaloExchange::Impl::reinitHalo(float3* d_coordinatesBuffer, float3* d_fo
     return;
 }
 
-void GpuHaloExchange::Impl::communicateHaloCoordinates(const matrix          box,
-                                                       GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
+void GpuHaloExchange::Impl::communicateHaloCoordinates(const matrix             box,
+                                                       DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
 
     wallcycle_start(wcycle_, ewcLAUNCH_GPU);
@@ -345,7 +345,7 @@ void GpuHaloExchange::Impl::communicateHaloForces(bool accumulateForces)
         // the previous H2D copy of CPU forces (if accumulateForces is true)
         // or the above clearing.
         // TODO remove this dependency on localStream - edmine Issue #3093
-        GpuEventSynchronizer eventLocal;
+        DeviceEventSynchronizer eventLocal;
         eventLocal.markEvent(localStream_);
         eventLocal.enqueueWaitEvent(nonLocalStream_);
     }
@@ -394,9 +394,9 @@ void GpuHaloExchange::Impl::communicateHaloForces(bool accumulateForces)
 }
 
 
-void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
-                                                HaloQuantity          haloQuantity,
-                                                GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
+void GpuHaloExchange::Impl::communicateHaloData(float3*                  d_ptr,
+                                                HaloQuantity             haloQuantity,
+                                                DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
 
     void* sendPtr;
@@ -417,14 +417,14 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*               d_ptr,
         // Wait for event from receiving task that remote coordinates are ready, and enqueue that event to stream used
         // for subsequent data push. This avoids a race condition with the remote data being written in the previous timestep.
         // Similarly send event to task that will push data to this task.
-        GpuEventSynchronizer* remoteCoordinatesReadyOnDeviceEvent;
+        DeviceEventSynchronizer* remoteCoordinatesReadyOnDeviceEvent;
         MPI_Sendrecv(&coordinatesReadyOnDeviceEvent,
-                     sizeof(GpuEventSynchronizer*),
+                     sizeof(DeviceEventSynchronizer*),
                      MPI_BYTE,
                      recvRank,
                      0,
                      &remoteCoordinatesReadyOnDeviceEvent,
-                     sizeof(GpuEventSynchronizer*),
+                     sizeof(DeviceEventSynchronizer*),
                      MPI_BYTE,
                      sendRank,
                      0,
@@ -479,17 +479,17 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
     // This rank records an event and sends it to the remote rank which has just been pushed data.
     // This rank recieves event from remote rank which has pushed data here, and enqueues that event
     // to its stream.
-    GpuEventSynchronizer* haloDataTransferRemote;
+    DeviceEventSynchronizer* haloDataTransferRemote;
 
     haloDataTransferLaunched_->markEvent(nonLocalStream_);
 
     MPI_Sendrecv(&haloDataTransferLaunched_,
-                 sizeof(GpuEventSynchronizer*),
+                 sizeof(DeviceEventSynchronizer*),
                  MPI_BYTE,
                  sendRank,
                  0,
                  &haloDataTransferRemote,
-                 sizeof(GpuEventSynchronizer*),
+                 sizeof(DeviceEventSynchronizer*),
                  MPI_BYTE,
                  recvRank,
                  0,
@@ -503,7 +503,7 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
 #endif
 }
 
-GpuEventSynchronizer* GpuHaloExchange::Impl::getForcesReadyOnDeviceEvent()
+DeviceEventSynchronizer* GpuHaloExchange::Impl::getForcesReadyOnDeviceEvent()
 {
     return &fReadyOnDevice_;
 }
@@ -523,7 +523,7 @@ GpuHaloExchange::Impl::Impl(gmx_domdec_t*        dd,
     sendRankF_(dd->neighbor[dimIndex][0]),
     recvRankF_(dd->neighbor[dimIndex][1]),
     usePBC_(dd->ci[dd->dim[dimIndex]] == 0),
-    haloDataTransferLaunched_(new GpuEventSynchronizer()),
+    haloDataTransferLaunched_(new DeviceEventSynchronizer()),
     mpi_comm_mysim_(mpi_comm_mysim),
     deviceContext_(deviceContext),
     localStream_(localStream),
@@ -582,8 +582,8 @@ void GpuHaloExchange::reinitHalo(DeviceBuffer<RVec> d_coordinatesBuffer, DeviceB
     impl_->reinitHalo(asFloat3(d_coordinatesBuffer), asFloat3(d_forcesBuffer));
 }
 
-void GpuHaloExchange::communicateHaloCoordinates(const matrix          box,
-                                                 GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
+void GpuHaloExchange::communicateHaloCoordinates(const matrix             box,
+                                                 DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
     impl_->communicateHaloCoordinates(box, coordinatesReadyOnDeviceEvent);
 }
@@ -593,7 +593,7 @@ void GpuHaloExchange::communicateHaloForces(bool accumulateForces)
     impl_->communicateHaloForces(accumulateForces);
 }
 
-GpuEventSynchronizer* GpuHaloExchange::getForcesReadyOnDeviceEvent()
+DeviceEventSynchronizer* GpuHaloExchange::getForcesReadyOnDeviceEvent()
 {
     return impl_->getForcesReadyOnDeviceEvent();
 }

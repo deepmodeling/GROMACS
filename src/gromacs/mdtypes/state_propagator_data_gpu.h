@@ -63,8 +63,8 @@
 #include "locality.h"
 
 class DeviceContext;
+class DeviceEventSynchronizer;
 class DeviceStream;
-class GpuEventSynchronizer;
 struct gmx_wallcycle;
 
 namespace gmx
@@ -190,9 +190,9 @@ public:
      *
      *  \returns  The event to synchronize the stream that consumes coordinates on device.
      */
-    GpuEventSynchronizer* getCoordinatesReadyOnDeviceEvent(AtomLocality              atomLocality,
-                                                           const SimulationWorkload& simulationWork,
-                                                           const StepWorkload&       stepWork);
+    DeviceEventSynchronizer* getCoordinatesReadyOnDeviceEvent(AtomLocality atomLocality,
+                                                              const SimulationWorkload& simulationWork,
+                                                              const StepWorkload&       stepWork);
 
     /*! \brief Blocking wait until coordinates are copied to the device.
      *
@@ -206,7 +206,7 @@ public:
      *
      *  \returns  The event to synchronize the stream coordinates wre updated on device.
      */
-    GpuEventSynchronizer* xUpdatedOnDevice();
+    DeviceEventSynchronizer* xUpdatedOnDevice();
 
     /*! \brief Copy positions from the GPU memory.
      *
@@ -241,7 +241,7 @@ public:
      *
      *  \returns  The event to synchronize the stream that consumes velocities on device.
      */
-    GpuEventSynchronizer* getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality);
+    DeviceEventSynchronizer* getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality);
 
     /*! \brief Copy velocities from the GPU memory.
      *
@@ -284,13 +284,13 @@ public:
      *
      *  \returns  The event to synchronize the stream that consumes forces on device.
      */
-    GpuEventSynchronizer* getForcesReadyOnDeviceEvent(AtomLocality atomLocality, bool useGpuFBufferOps);
+    DeviceEventSynchronizer* getForcesReadyOnDeviceEvent(AtomLocality atomLocality, bool useGpuFBufferOps);
 
     /*! \brief Getter for the event synchronizer for the forces are reduced on the GPU.
      *
      *  \returns  The event to mark when forces are reduced on the GPU.
      */
-    GpuEventSynchronizer* fReducedOnDevice();
+    DeviceEventSynchronizer* fReducedOnDevice();
 
     /*! \brief Copy forces from the GPU memory.
      *

@@ -85,7 +85,7 @@ struct gmx_wallcycle;
 enum class PbcType : int;
 class t_state;
 class DeviceContext;
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 
 namespace gmx
 {
@@ -343,9 +343,9 @@ void reinitGpuHaloExchange(const t_commrec&        cr,
  * \param [in] box                            Coordinate box (from which shifts will be constructed)
  * \param [in] coordinatesReadyOnDeviceEvent  event recorded when coordinates have been copied to device
  */
-void communicateGpuHaloCoordinates(const t_commrec&      cr,
-                                   const matrix          box,
-                                   GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+void communicateGpuHaloCoordinates(const t_commrec&         cr,
+                                   const matrix             box,
+                                   DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
 
 /*! \brief GPU halo exchange of force buffer.

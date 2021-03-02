@@ -46,7 +46,7 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/devicebuffer_sycl.h"
 #include "gromacs/gpu_utils/gmxsycl.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer_sycl.h"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/gpu_utils/gputraits.h"
 #include "gromacs/gpu_utils/syclutils.h"
 #include "gromacs/nbnxm/gpu_types_common.h"
@@ -55,7 +55,7 @@
 #include "gromacs/timing/gpu_timing.h"
 #include "gromacs/utility/enumerationhelpers.h"
 
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 
 /*! \internal
  * \brief Main data structure for SYCL nonbonded force calculations.
@@ -70,7 +70,7 @@ struct NbnxmGpu
     /*! \brief true if doing both local/non-local NB work on GPU */
     bool bUseTwoStreams = false;
     /*! \brief true indicates that the nonlocal_done event was marked */
-    bool bNonLocalStreamDoneMarked = false;
+    bool bNonLocalStreamDoneMarked = false; // TODO: Use nonlocal_done.isMarked()
     /*! \brief atom data */
     NBAtomData* atdat = nullptr;
 
@@ -96,15 +96,19 @@ struct NbnxmGpu
     //! true when we did rolling pruning (at the previous step)
     gmx::EnumerationArray<Nbnxm::InteractionLocality, bool> didRollingPrune = { { false } };
 
+    /* NOTE: Old GpuEventSynchronizer for OpenCL and SYCL was hardcoded to behave like it had
+     * consumptionLimit=1 and mustBeFullyConsumedOnReset=true (except this condition was
+     * not enforced on an actual ::reset, only on ::markEvent).
+     * There were no any limits for CUDA. */
     /*! \brief Event triggered when the non-local non-bonded
      * kernel is done (and the local transfer can proceed) */
-    GpuEventSynchronizer nonlocal_done;
+    DeviceEventSynchronizer nonlocal_done{ 1, true };
     /*! \brief Event triggered when the tasks issued in the local
      * stream that need to precede the non-local force or buffer
      * operation calculations are done (e.g. f buffer 0-ing, local
      * x/q H2D, buffer op initialization in local stream that is
      * required also by nonlocal stream ) */
-    GpuEventSynchronizer misc_ops_and_local_H2D_done;
+    DeviceEventSynchronizer misc_ops_and_local_H2D_done{ 1, true };
 
     /*! \brief True if there is work for the current domain in the
      * respective locality.
@@ -122,7 +126,7 @@ struct NbnxmGpu
      * \note That the synchronizer is managed outside of this module
      * in StatePropagatorDataGpu.
      */
-    GpuEventSynchronizer* localFReductionDone = nullptr;
+    DeviceEventSynchronizer* localFReductionDone = nullptr;
 };
 
 #endif /* NBNXM_SYCL_TYPES_H */

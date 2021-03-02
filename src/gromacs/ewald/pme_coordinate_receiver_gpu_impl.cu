@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -99,7 +99,7 @@ void PmeCoordinateReceiverGpu::Impl::launchReceiveCoordinatesFromPpCudaDirect(in
 
 #if GMX_MPI
     // Receive event from PP task
-    MPI_Irecv(&ppSync_[recvCount_], sizeof(GpuEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_, &request_[recvCount_]);
+    MPI_Irecv(&ppSync_[recvCount_], sizeof(DeviceEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_, &request_[recvCount_]);
     recvCount_++;
 #else
     GMX_UNUSED_VALUE(ppRank);

@@ -340,7 +340,7 @@ void pmePerformSplineAndSpread(gmx_pme_t* pme,
         {
             const real lambdaQ = 1.0;
             // no synchronization needed as x is transferred in the PME stream
-            GpuEventSynchronizer* xReadyOnDevice = nullptr;
+            DeviceEventSynchronizer* xReadyOnDevice = nullptr;
             pme_gpu_spread(pme->gpu, xReadyOnDevice, fftgrid, computeSplines, spreadCharges, lambdaQ);
         }
         break;

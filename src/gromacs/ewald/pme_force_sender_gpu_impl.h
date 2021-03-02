@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -80,7 +80,7 @@ private:
     //! CUDA stream for PME operations
     const DeviceStream& pmeStream_;
     //! Event triggered when to allow remote PP stream to syn with pme stream
-    GpuEventSynchronizer pmeSync_;
+    DeviceEventSynchronizer pmeSync_;
     //! communicator for simulation
     MPI_Comm comm_;
     //! list of PP ranks

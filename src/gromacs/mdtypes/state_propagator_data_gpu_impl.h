@@ -50,13 +50,7 @@
 #include <memory>
 
 #include "gromacs/gpu_utils/devicebuffer.h"
-#if GMX_GPU_CUDA
-#    include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
-#elif GMX_GPU_OPENCL
-#    include "gromacs/gpu_utils/gpueventsynchronizer_ocl.h"
-#elif GMX_GPU_SYCL
-#    include "gromacs/gpu_utils/gpueventsynchronizer_sycl.h"
-#endif
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
@@ -185,9 +179,9 @@ public:
      *
      *  \returns  The event to synchronize the stream that consumes coordinates on device.
      */
-    GpuEventSynchronizer* getCoordinatesReadyOnDeviceEvent(AtomLocality              atomLocality,
-                                                           const SimulationWorkload& simulationWork,
-                                                           const StepWorkload&       stepWork);
+    DeviceEventSynchronizer* getCoordinatesReadyOnDeviceEvent(AtomLocality atomLocality,
+                                                              const SimulationWorkload& simulationWork,
+                                                              const StepWorkload&       stepWork);
 
     /*! \brief Blocking wait until coordinates are copied to the device.
      *
@@ -201,7 +195,7 @@ public:
      *
      *  \returns  The event to synchronize the stream coordinates wre updated on device.
      */
-    GpuEventSynchronizer* xUpdatedOnDevice();
+    DeviceEventSynchronizer* xUpdatedOnDevice();
 
     /*! \brief Copy positions from the GPU memory.
      *
@@ -236,7 +230,7 @@ public:
      *
      *  \returns  The event to synchronize the stream that consumes velocities on device.
      */
-    GpuEventSynchronizer* getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality);
+    DeviceEventSynchronizer* getVelocitiesReadyOnDeviceEvent(AtomLocality atomLocality);
 
     /*! \brief Copy velocities from the GPU memory.
      *
@@ -279,13 +273,13 @@ public:
      *
      *  \returns  The event to synchronize the stream that consumes forces on device.
      */
-    GpuEventSynchronizer* getForcesReadyOnDeviceEvent(AtomLocality atomLocality, bool useGpuFBufferOps);
+    DeviceEventSynchronizer* getForcesReadyOnDeviceEvent(AtomLocality atomLocality, bool useGpuFBufferOps);
 
     /*! \brief Getter for the event synchronizer for the forces are reduced on the GPU.
      *
      *  \returns  The event to mark when forces are reduced on the GPU.
      */
-    GpuEventSynchronizer* fReducedOnDevice();
+    DeviceEventSynchronizer* fReducedOnDevice();
 
     /*! \brief Copy forces from the GPU memory.
      *
@@ -341,23 +335,23 @@ private:
      *
      * \todo Reconsider naming. It should be xCopiedToDevice or xH2DCopyComplete, etc.
      */
-    EnumerationArray<AtomLocality, GpuEventSynchronizer> xReadyOnDevice_;
+    EnumerationArray<AtomLocality, DeviceEventSynchronizer> xReadyOnDevice_;
     //! An event that the coordinates are ready after update-constraints execution
-    GpuEventSynchronizer xUpdatedOnDevice_;
+    DeviceEventSynchronizer xUpdatedOnDevice_;
     //! An array of events that indicate D2H copy of coordinates is complete (one event for each atom locality)
-    EnumerationArray<AtomLocality, GpuEventSynchronizer> xReadyOnHost_;
+    EnumerationArray<AtomLocality, DeviceEventSynchronizer> xReadyOnHost_;
 
     //! An array of events that indicate H2D copy of velocities is complete (one event for each atom locality)
-    EnumerationArray<AtomLocality, GpuEventSynchronizer> vReadyOnDevice_;
+    EnumerationArray<AtomLocality, DeviceEventSynchronizer> vReadyOnDevice_;
     //! An array of events that indicate D2H copy of velocities is complete (one event for each atom locality)
-    EnumerationArray<AtomLocality, GpuEventSynchronizer> vReadyOnHost_;
+    EnumerationArray<AtomLocality, DeviceEventSynchronizer> vReadyOnHost_;
 
     //! An array of events that indicate H2D copy of forces is complete (one event for each atom locality)
-    EnumerationArray<AtomLocality, GpuEventSynchronizer> fReadyOnDevice_;
+    EnumerationArray<AtomLocality, DeviceEventSynchronizer> fReadyOnDevice_;
     //! An event that the forces were reduced on the GPU
-    GpuEventSynchronizer fReducedOnDevice_;
+    DeviceEventSynchronizer fReducedOnDevice_;
     //! An array of events that indicate D2H copy of forces is complete (one event for each atom locality)
-    EnumerationArray<AtomLocality, GpuEventSynchronizer> fReadyOnHost_;
+    EnumerationArray<AtomLocality, DeviceEventSynchronizer> fReadyOnHost_;
 
     //! GPU context (for OpenCL builds)
     const DeviceContext& deviceContext_;

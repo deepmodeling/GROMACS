@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -70,7 +70,7 @@ void GpuForceReduction::reinit(DeviceBuffer<RVec> /*baseForcePtr*/,
                                ArrayRef<const int> /*cell*/,
                                const int /*atomStart*/,
                                const bool /*accumulate*/,
-                               GpuEventSynchronizer* /*completionMarker*/)
+                               DeviceEventSynchronizer* /*completionMarker*/)
 {
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }
@@ -88,7 +88,7 @@ void GpuForceReduction::registerRvecForce(void* /* forcePtr */)
 }
 
 // NOLINTNEXTLINE readability-convert-member-functions-to-static
-void GpuForceReduction::addDependency(GpuEventSynchronizer* const /* dependency */)
+void GpuForceReduction::addDependency(DeviceEventSynchronizer* const /* dependency */)
 {
     GMX_ASSERT(false, "A CPU stub has been called instead of the correct implementation.");
 }

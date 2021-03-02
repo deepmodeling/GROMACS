@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,6 +44,8 @@
 
 #include "device_stream.h"
 
+class DeviceEvent;
+
 DeviceStream::DeviceStream(const DeviceContext& /* deviceContext */,
                            DeviceStreamPriority /* priority */,
                            const bool /* useTiming */)
@@ -59,3 +61,7 @@ bool DeviceStream::isValid() const
 }
 
 void DeviceStream::synchronize() const {};
+
+void DeviceStream::markEvent(DeviceEvent& /*deviceEvent*/) const {}
+
+void DeviceStream::enqueueWaitForEvent(DeviceEvent& /*deviceEvent*/) const {}

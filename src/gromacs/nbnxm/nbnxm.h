@@ -140,7 +140,7 @@ struct t_nrnb;
 struct t_forcerec;
 struct t_inputrec;
 
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 
 namespace gmx
 {
@@ -337,10 +337,10 @@ public:
      * \param[in] d_x             GPU coordinates buffer in plain rvec format to be transformed.
      * \param[in] xReadyOnDevice  Event synchronizer indicating that the coordinates are ready in the device memory.
      */
-    void convertCoordinatesGpu(gmx::AtomLocality       locality,
-                               bool                    fillLocal,
-                               DeviceBuffer<gmx::RVec> d_x,
-                               GpuEventSynchronizer*   xReadyOnDevice);
+    void convertCoordinatesGpu(gmx::AtomLocality        locality,
+                               bool                     fillLocal,
+                               DeviceBuffer<gmx::RVec>  d_x,
+                               DeviceEventSynchronizer* xReadyOnDevice);
 
     //! Init for GPU version of setup coordinates in Nbnxm
     void atomdata_init_copy_x_to_nbat_x_gpu() const;

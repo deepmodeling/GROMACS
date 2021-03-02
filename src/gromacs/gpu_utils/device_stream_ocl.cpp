@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -43,6 +43,7 @@
 #include "gmxpre.h"
 
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
 #include "gromacs/hardware/device_information.h"
@@ -96,4 +97,24 @@ void DeviceStream::synchronize() const
     GMX_RELEASE_ASSERT(
             CL_SUCCESS == clError,
             gmx::formatString("Error caught during clFinish (OpenCL error ID %d).", clError).c_str());
+}
+
+void DeviceStream::markEvent(DeviceEvent& deviceEvent) const
+{
+    cl_event* event   = DeviceEvent::getEventPtrForApiCall(&deviceEvent);
+    cl_int    clError = clEnqueueMarkerWithWaitList(stream_, 0, nullptr, event);
+    GMX_RELEASE_ASSERT(
+            clError == CL_SUCCESS,
+            gmx::formatString(
+                    "Error caught during clEnqueueMarkerWithWaitList (OpenCL error ID %d).", clError)
+                    .c_str());
+}
+
+void DeviceStream::enqueueWaitForEvent(const DeviceEvent& deviceEvent) const
+{
+    cl_int clError = clEnqueueBarrierWithWaitList(stream_, 1, &deviceEvent.event(), nullptr);
+    GMX_ASSERT(clError == CL_SUCCESS,
+               gmx::formatString(
+                       "Error caught during clEnqueueBarrierWithWaitList (OpenCL error ID %d).", clError)
+                       .c_str());
 }

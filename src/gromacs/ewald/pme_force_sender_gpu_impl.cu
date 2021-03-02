@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -95,11 +95,11 @@ void PmeForceSenderGpu::Impl::sendFToPpCudaDirect(int ppRank)
 
     // Record and send event to ensure PME force calcs are completed before PP task pulls data
     pmeSync_.markEvent(pmeStream_);
-    GpuEventSynchronizer* pmeSyncPtr = &pmeSync_;
+    DeviceEventSynchronizer* pmeSyncPtr = &pmeSync_;
 #if GMX_MPI
     // TODO Using MPI_Isend would be more efficient, particularly when
     // sending to multiple PP ranks
-    MPI_Send(&pmeSyncPtr, sizeof(GpuEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_);
+    MPI_Send(&pmeSyncPtr, sizeof(DeviceEventSynchronizer*), MPI_BYTE, ppRank, 0, comm_);
 #else
     GMX_UNUSED_VALUE(pmeSyncPtr);
     GMX_UNUSED_VALUE(ppRank);

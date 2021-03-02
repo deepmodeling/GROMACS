@@ -158,10 +158,10 @@ void nonbonded_verlet_t::convertCoordinates(const gmx::AtomLocality        local
     wallcycle_stop(wcycle_, ewcNB_XF_BUF_OPS);
 }
 
-void nonbonded_verlet_t::convertCoordinatesGpu(const gmx::AtomLocality locality,
-                                               const bool              fillLocal,
-                                               DeviceBuffer<gmx::RVec> d_x,
-                                               GpuEventSynchronizer*   xReadyOnDevice)
+void nonbonded_verlet_t::convertCoordinatesGpu(const gmx::AtomLocality  locality,
+                                               const bool               fillLocal,
+                                               DeviceBuffer<gmx::RVec>  d_x,
+                                               DeviceEventSynchronizer* xReadyOnDevice)
 {
     wallcycle_start(wcycle_, ewcLAUNCH_GPU);
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_GPU_NB_X_BUF_OPS);

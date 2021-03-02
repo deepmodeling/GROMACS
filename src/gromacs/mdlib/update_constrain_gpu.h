@@ -53,7 +53,7 @@
 
 class DeviceContext;
 class DeviceStream;
-class GpuEventSynchronizer;
+class DeviceEventSynchronizer;
 struct gmx_mtop_t;
 enum class PbcType : int;
 class InteractionDefinitions;
@@ -87,13 +87,13 @@ public:
      *                                on the GPU.
      * \param[in] wcycle              The wallclock counter
      */
-    UpdateConstrainGpu(const t_inputrec&     ir,
-                       const gmx_mtop_t&     mtop,
-                       int                   numTempScaleValues,
-                       const DeviceContext&  deviceContext,
-                       const DeviceStream&   deviceStream,
-                       GpuEventSynchronizer* xUpdatedOnDevice,
-                       gmx_wallcycle*        wcycle);
+    UpdateConstrainGpu(const t_inputrec&        ir,
+                       const gmx_mtop_t&        mtop,
+                       int                      numTempScaleValues,
+                       const DeviceContext&     deviceContext,
+                       const DeviceStream&      deviceStream,
+                       DeviceEventSynchronizer* xUpdatedOnDevice,
+                       gmx_wallcycle*           wcycle);
 
     ~UpdateConstrainGpu();
 
@@ -114,7 +114,7 @@ public:
      * \param[in]  dtPressureCouple         Period between pressure coupling steps.
      * \param[in]  prVelocityScalingMatrix  Parrinello-Rahman velocity scaling matrix.
      */
-    void integrate(GpuEventSynchronizer*             fReadyOnDevice,
+    void integrate(DeviceEventSynchronizer*          fReadyOnDevice,
                    real                              dt,
                    bool                              updateVelocities,
                    bool                              computeVirial,
@@ -168,7 +168,7 @@ public:
 
     /*! \brief Return the synchronizer associated with the event indicated that the coordinates are ready on the device.
      */
-    GpuEventSynchronizer* getCoordinatesReadySync();
+    DeviceEventSynchronizer* getCoordinatesReadySync();
 
     /*! \brief
      * Returns whether the maximum number of coupled constraints is supported

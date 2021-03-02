@@ -51,9 +51,9 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/fixedcapacityvector.h"
 
-class GpuEventSynchronizer;
-class DeviceStream;
 class DeviceContext;
+class DeviceEventSynchronizer;
+class DeviceStream;
 
 namespace gmx
 {
@@ -98,7 +98,7 @@ public:
      *
      * \param [in] dependency   Dependency for this reduction
      */
-    void addDependency(GpuEventSynchronizer* dependency);
+    void addDependency(DeviceEventSynchronizer* dependency);
 
     /*! \brief Reinitialize the GPU force reduction
      *
@@ -109,12 +109,12 @@ public:
      * \param [in] accumulate       Whether reduction should be accumulated
      * \param [in] completionMarker Event to be marked when launch of reduction is complete
      */
-    void reinit(DeviceBuffer<RVec>    baseForcePtr,
-                int                   numAtoms,
-                ArrayRef<const int>   cell,
-                int                   atomStart,
-                bool                  accumulate,
-                GpuEventSynchronizer* completionMarker = nullptr);
+    void reinit(DeviceBuffer<RVec>       baseForcePtr,
+                int                      numAtoms,
+                ArrayRef<const int>      cell,
+                int                      atomStart,
+                bool                     accumulate,
+                DeviceEventSynchronizer* completionMarker = nullptr);
 
     /*! \brief Execute the force reduction */
     void execute();

@@ -110,13 +110,13 @@ struct NbnxmGpu
 
     /*! \brief Event triggered when the non-local non-bonded
      * kernel is done (and the local transfer can proceed) */
-    GpuEventSynchronizer nonlocal_done;
+    DeviceEventSynchronizer nonlocal_done;
     /*! \brief Event triggered when the tasks issued in the local
      * stream that need to precede the non-local force or buffer
      * operation calculations are done (e.g. f buffer 0-ing, local
      * x/q H2D, buffer op initialization in local stream that is
      * required also by nonlocal stream ) */
-    GpuEventSynchronizer misc_ops_and_local_H2D_done;
+    DeviceEventSynchronizer misc_ops_and_local_H2D_done;
 
     /*! \brief True if there is work for the current domain in the
      * respective locality.

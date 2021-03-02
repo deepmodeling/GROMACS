@@ -82,13 +82,13 @@ public:
      *                                update is done on the GPU.
      * \param[in] wcycle              The wallclock counter
      */
-    Impl(const t_inputrec&     ir,
-         const gmx_mtop_t&     mtop,
-         int                   numTempScaleValues,
-         const DeviceContext&  deviceContext,
-         const DeviceStream&   deviceStream,
-         GpuEventSynchronizer* xUpdatedOnDevice,
-         gmx_wallcycle*        wcycle);
+    Impl(const t_inputrec&        ir,
+         const gmx_mtop_t&        mtop,
+         int                      numTempScaleValues,
+         const DeviceContext&     deviceContext,
+         const DeviceStream&      deviceStream,
+         DeviceEventSynchronizer* xUpdatedOnDevice,
+         gmx_wallcycle*           wcycle);
 
     ~Impl();
 
@@ -114,7 +114,7 @@ public:
      * \param[in]  dtPressureCouple         Period between pressure coupling steps.
      * \param[in]  prVelocityScalingMatrix  Parrinello-Rahman velocity scaling matrix.
      */
-    void integrate(GpuEventSynchronizer*             fReadyOnDevice,
+    void integrate(DeviceEventSynchronizer*          fReadyOnDevice,
                    real                              dt,
                    bool                              updateVelocities,
                    bool                              computeVirial,
@@ -168,7 +168,7 @@ public:
 
     /*! \brief Return the synchronizer associated with the event indicated that the coordinates are ready on the device.
      */
-    GpuEventSynchronizer* getCoordinatesReadySync();
+    DeviceEventSynchronizer* getCoordinatesReadySync();
 
     /*! \brief
      * Returns whether the maximum number of coupled constraints is supported
@@ -222,7 +222,7 @@ private:
     std::unique_ptr<SettleGpu> settleGpu_;
 
     //! An pointer to the event to indicate when the update of coordinates is complete
-    GpuEventSynchronizer* coordinatesReady_;
+    DeviceEventSynchronizer* coordinatesReady_;
     //! The wallclock counter
     gmx_wallcycle* wcycle_ = nullptr;
 };

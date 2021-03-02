@@ -52,8 +52,8 @@
 struct gmx_domdec_t;
 struct gmx_wallcycle;
 class DeviceContext;
+class DeviceEventSynchronizer;
 class DeviceStream;
-class GpuEventSynchronizer;
 
 namespace gmx
 {
@@ -120,7 +120,7 @@ public:
      * \param [in] box  Coordinate box (from which shifts will be constructed)
      * \param [in] coordinatesReadyOnDeviceEvent event recorded when coordinates have been copied to device
      */
-    void communicateHaloCoordinates(const matrix box, GpuEventSynchronizer* coordinatesReadyOnDeviceEvent);
+    void communicateHaloCoordinates(const matrix box, DeviceEventSynchronizer* coordinatesReadyOnDeviceEvent);
 
     /*! \brief GPU halo exchange of force buffer.
      * \param[in] accumulateForces  True if forces should accumulate, otherwise they are set
@@ -130,7 +130,7 @@ public:
     /*! \brief Get the event synchronizer for the forces ready on device.
      *  \returns  The event to synchronize the stream that consumes forces on device.
      */
-    GpuEventSynchronizer* getForcesReadyOnDeviceEvent();
+    DeviceEventSynchronizer* getForcesReadyOnDeviceEvent();
 
 private:
     class Impl;
