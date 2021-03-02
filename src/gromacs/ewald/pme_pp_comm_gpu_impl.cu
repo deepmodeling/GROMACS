@@ -51,7 +51,7 @@
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/devicebuffer.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/utility/gmxmpi.h"
 
 namespace gmx
@@ -97,7 +97,7 @@ void PmePpCommGpu::Impl::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSi
     // occur before PME force calc is completed
     DeviceEventSynchronizer* pmeSync;
     MPI_Recv(&pmeSync, sizeof(DeviceEventSynchronizer*), MPI_BYTE, pmeRank_, 0, comm_, MPI_STATUS_IGNORE);
-    pmeSync->enqueueWaitEvent(pmePpCommStream_);
+    pmeSync->enqueueWait(pmePpCommStream_);
 
     // Pull force data from remote GPU
     void*       pmeForcePtr = receivePmeForceToGpu ? static_cast<void*>(d_pmeForces_) : recvPtr;
@@ -113,7 +113,7 @@ void PmePpCommGpu::Impl::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSi
         // Record event to be enqueued in the GPU local buffer operations, to
         // satisfy dependency on receiving the PME force data before
         // reducing it with the other force contributions.
-        forcesReadySynchronizer_.markEvent(pmePpCommStream_);
+        forcesReadySynchronizer_.mark(pmePpCommStream_);
     }
     else
     {
@@ -135,7 +135,7 @@ void PmePpCommGpu::Impl::sendCoordinatesToPmeCudaDirect(void* sendPtr,
 {
 #if GMX_MPI
     // ensure stream waits until coordinate data is available on device
-    coordinatesReadyOnDeviceEvent->enqueueWaitEvent(pmePpCommStream_);
+    coordinatesReadyOnDeviceEvent->enqueueWait(pmePpCommStream_);
 
     cudaError_t stat = cudaMemcpyAsync(remotePmeXBuffer_,
                                        sendPtr,
@@ -145,7 +145,7 @@ void PmePpCommGpu::Impl::sendCoordinatesToPmeCudaDirect(void* sendPtr,
     CU_RET_ERR(stat, "cudaMemcpyAsync on Send to PME CUDA direct data transfer failed");
 
     // Record and send event to allow PME task to sync to above transfer before commencing force calculations
-    pmeCoordinatesSynchronizer_.markEvent(pmePpCommStream_);
+    pmeCoordinatesSynchronizer_.mark(pmePpCommStream_);
     DeviceEventSynchronizer* pmeSync = &pmeCoordinatesSynchronizer_;
     MPI_Send(&pmeSync, sizeof(DeviceEventSynchronizer*), MPI_BYTE, pmeRank_, 0, comm_);
 #else

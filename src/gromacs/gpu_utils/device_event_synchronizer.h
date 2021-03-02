@@ -45,6 +45,7 @@
 #include <optional>
 
 #include "gromacs/gpu_utils/device_event.h"
+#include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"

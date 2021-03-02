@@ -125,7 +125,7 @@ void UpdateConstrainGpu::Impl::integrate(DeviceEventSynchronizer*          fRead
     clear_mat(virial);
 
     // Make sure that the forces are ready on device before proceeding with the update.
-    fReadyOnDevice->enqueueWaitEvent(deviceStream_);
+    fReadyOnDevice->enqueueWait(deviceStream_);
 
     // The integrate should save a copy of the current coordinates in d_xp_ and write updated
     // once into d_x_. The d_xp_ is only needed by constraints.
@@ -147,7 +147,7 @@ void UpdateConstrainGpu::Impl::integrate(DeviceEventSynchronizer*          fRead
         }
     }
 
-    coordinatesReady_->markEvent(deviceStream_);
+    coordinatesReady_->mark(deviceStream_);
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_GPU_UPDATE_CONSTRAIN);
     wallcycle_stop(wcycle_, ewcLAUNCH_GPU);

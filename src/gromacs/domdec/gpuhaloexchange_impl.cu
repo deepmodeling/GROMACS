@@ -58,7 +58,7 @@
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/devicebuffer.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
 #include "gromacs/math/vectypes.h"
@@ -257,7 +257,7 @@ void GpuHaloExchange::Impl::communicateHaloCoordinates(const matrix             
     if (pulse_ == 0)
     {
         // ensure stream waits until coordinate data is available on device
-        coordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
+        coordinatesReadyOnDeviceEvent->enqueueWait(nonLocalStream_);
     }
 
     wallcycle_sub_start(wcycle_, ewcsLAUNCH_GPU_MOVEX);
@@ -346,8 +346,8 @@ void GpuHaloExchange::Impl::communicateHaloForces(bool accumulateForces)
         // or the above clearing.
         // TODO remove this dependency on localStream - edmine Issue #3093
         DeviceEventSynchronizer eventLocal;
-        eventLocal.markEvent(localStream_);
-        eventLocal.enqueueWaitEvent(nonLocalStream_);
+        eventLocal.mark(localStream_);
+        eventLocal.enqueueWait(nonLocalStream_);
     }
 
     // Unpack halo buffer into force array
@@ -386,7 +386,7 @@ void GpuHaloExchange::Impl::communicateHaloForces(bool accumulateForces)
 
     if (pulse_ == 0)
     {
-        fReadyOnDevice_.markEvent(nonLocalStream_);
+        fReadyOnDevice_.mark(nonLocalStream_);
     }
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_GPU_MOVEF);
@@ -430,7 +430,7 @@ void GpuHaloExchange::Impl::communicateHaloData(float3*                  d_ptr,
                      0,
                      mpi_comm_mysim_,
                      MPI_STATUS_IGNORE);
-        remoteCoordinatesReadyOnDeviceEvent->enqueueWaitEvent(nonLocalStream_);
+        remoteCoordinatesReadyOnDeviceEvent->enqueueWait(nonLocalStream_);
 #else
         GMX_UNUSED_VALUE(coordinatesReadyOnDeviceEvent);
 #endif
@@ -481,7 +481,7 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
     // to its stream.
     DeviceEventSynchronizer* haloDataTransferRemote;
 
-    haloDataTransferLaunched_->markEvent(nonLocalStream_);
+    haloDataTransferLaunched_->mark(nonLocalStream_);
 
     MPI_Sendrecv(&haloDataTransferLaunched_,
                  sizeof(DeviceEventSynchronizer*),
@@ -496,7 +496,7 @@ void GpuHaloExchange::Impl::communicateHaloDataWithCudaDirect(void* sendPtr,
                  mpi_comm_mysim_,
                  MPI_STATUS_IGNORE);
 
-    haloDataTransferRemote->enqueueWaitEvent(nonLocalStream_);
+    haloDataTransferRemote->enqueueWait(nonLocalStream_);
 #else
     GMX_UNUSED_VALUE(sendRank);
     GMX_UNUSED_VALUE(recvRank);

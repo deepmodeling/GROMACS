@@ -48,7 +48,7 @@
 #include "config.h"
 
 #include "gromacs/gpu_utils/cudautils.cuh"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/utility/gmxmpi.h"
 
 namespace gmx
@@ -94,7 +94,7 @@ void PmeForceSenderGpu::Impl::sendFToPpCudaDirect(int ppRank)
     // Data will be pulled directly from PP task
 
     // Record and send event to ensure PME force calcs are completed before PP task pulls data
-    pmeSync_.markEvent(pmeStream_);
+    pmeSync_.mark(pmeStream_);
     DeviceEventSynchronizer* pmeSyncPtr = &pmeSync_;
 #if GMX_MPI
     // TODO Using MPI_Isend would be more efficient, particularly when

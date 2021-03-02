@@ -48,7 +48,7 @@
 
 #include "gmxpre.h"
 
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/mdlib/leapfrog_gpu.h"
 #include "gromacs/mdlib/lincs_gpu.cuh"
 #include "gromacs/mdlib/settle_gpu.cuh"

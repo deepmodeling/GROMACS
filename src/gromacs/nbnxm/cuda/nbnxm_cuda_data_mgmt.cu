@@ -52,9 +52,9 @@
 // TODO Remove this comment when the above order issue is resolved
 #include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/gpu_utils/pmalloc_cuda.h"
 #include "gromacs/hardware/device_information.h"
 #include "gromacs/hardware/device_management.h"
@@ -598,10 +598,9 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
         // buf ops kernel).  We therefore set a dependency to ensure
         // that the nonlocal stream waits on the local stream here.
         // This call records an event in the local stream:
-        gpu_nbv->misc_ops_and_local_H2D_done.markEvent(
-                *gpu_nbv->deviceStreams[Nbnxm::InteractionLocality::Local]);
+        gpu_nbv->misc_ops_and_local_H2D_done.mark(*gpu_nbv->deviceStreams[Nbnxm::InteractionLocality::Local]);
         // ...and this call instructs the nonlocal stream to wait on that event:
-        gpu_nbv->misc_ops_and_local_H2D_done.enqueueWaitEvent(
+        gpu_nbv->misc_ops_and_local_H2D_done.enqueueWait(
                 *gpu_nbv->deviceStreams[Nbnxm::InteractionLocality::NonLocal]);
     }
 

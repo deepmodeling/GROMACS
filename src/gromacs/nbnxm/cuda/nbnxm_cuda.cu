@@ -54,8 +54,8 @@
 
 #include "nbnxm_cuda.h"
 
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
 #include "gromacs/hardware/device_information.h"
@@ -438,11 +438,11 @@ void nbnxnInsertNonlocalGpuDependency(NbnxmGpu* nb, const InteractionLocality in
     {
         if (interactionLocality == InteractionLocality::Local)
         {
-            nb->misc_ops_and_local_H2D_done.markEvent(deviceStream);
+            nb->misc_ops_and_local_H2D_done.mark(deviceStream);
         }
         else
         {
-            nb->misc_ops_and_local_H2D_done.enqueueWaitEvent(deviceStream);
+            nb->misc_ops_and_local_H2D_done.enqueueWait(deviceStream);
         }
     }
 }
@@ -825,7 +825,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
        kernel has finished. */
     if (iloc == InteractionLocality::Local && nb->bNonLocalStreamDoneMarked)
     {
-        nb->nonlocal_done.enqueueWaitEvent(deviceStream);
+        nb->nonlocal_done.enqueueWait(deviceStream);
         nb->bNonLocalStreamDoneMarked = false;
     }
 
@@ -852,7 +852,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
        back first. */
     if (iloc == InteractionLocality::NonLocal)
     {
-        nb->nonlocal_done.markEvent(deviceStream);
+        nb->nonlocal_done.mark(deviceStream);
         nb->bNonLocalStreamDoneMarked = true;
     }
 
@@ -937,7 +937,7 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
 
         // ensure that coordinates are ready on the device before launching the kernel
         GMX_ASSERT(xReadyOnDevice, "Need a valid DeviceEventSynchronizer object");
-        xReadyOnDevice->enqueueWaitEvent(deviceStream);
+        xReadyOnDevice->enqueueWait(deviceStream);
 
         KernelLaunchConfig config;
         config.blockSize[0] = c_bufOpsThreadsPerBlock;

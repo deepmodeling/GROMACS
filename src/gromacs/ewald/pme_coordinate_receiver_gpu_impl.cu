@@ -49,7 +49,7 @@
 
 #include "gromacs/ewald/pme_force_sender_gpu.h"
 #include "gromacs/gpu_utils/cudautils.cuh"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/utility/gmxmpi.h"
 
 namespace gmx
@@ -116,7 +116,7 @@ void PmeCoordinateReceiverGpu::Impl::enqueueWaitReceiveCoordinatesFromPpCudaDire
 #endif
         for (int i = 0; i < recvCount_; i++)
         {
-            ppSync_[i]->enqueueWaitEvent(pmeStream_);
+            ppSync_[i]->enqueueWait(pmeStream_);
         }
         // reset receive counter
         recvCount_ = 0;

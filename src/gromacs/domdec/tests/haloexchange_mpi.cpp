@@ -63,7 +63,7 @@
 #if GMX_GPU_CUDA
 #    include "gromacs/gpu_utils/device_stream.h"
 #    include "gromacs/gpu_utils/devicebuffer.h"
-#    include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#    include "gromacs/gpu_utils/device_event_synchronizer.h"
 #endif
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/mdtypes/inputrec.h"
@@ -141,7 +141,7 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
     copyToDeviceBuffer(&d_x, h_x->data(), 0, numAtomsTotal, deviceStream, GpuApiCallBehavior::Sync, nullptr);
 
     DeviceEventSynchronizer coordinatesReadyOnDeviceEvent;
-    coordinatesReadyOnDeviceEvent.markEvent(deviceStream);
+    coordinatesReadyOnDeviceEvent.mark(deviceStream);
 
     std::array<std::vector<GpuHaloExchange>, DIM> gpuHaloExchange;
 
@@ -166,8 +166,8 @@ void gpuHalo(gmx_domdec_t* dd, matrix box, HostVector<RVec>* h_x, int numAtomsTo
     }
 
     DeviceEventSynchronizer haloCompletedEvent;
-    haloCompletedEvent.markEvent(deviceStream);
-    haloCompletedEvent.waitForEvent();
+    haloCompletedEvent.mark(deviceStream);
+    haloCompletedEvent.wait();
 
     // Copy results back to host
     copyFromDeviceBuffer(

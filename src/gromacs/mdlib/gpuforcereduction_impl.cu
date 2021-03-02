@@ -51,7 +51,7 @@
 #include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
-#include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
+#include "gromacs/gpu_utils/device_event_synchronizer.h"
 #include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
 #include "gromacs/utility/gmxassert.h"
@@ -174,7 +174,7 @@ void GpuForceReduction::Impl::execute()
     // Enqueue wait on all dependencies passed
     for (auto const synchronizer : dependencyList_)
     {
-        synchronizer->enqueueWaitEvent(deviceStream_);
+        synchronizer->enqueueWait(deviceStream_);
     }
 
     float3* d_nbnxmForce     = asFloat3(nbnxmForceToAdd_);
@@ -202,7 +202,7 @@ void GpuForceReduction::Impl::execute()
     // Mark that kernel has been launched
     if (completionMarker_ != nullptr)
     {
-        completionMarker_->markEvent(deviceStream_);
+        completionMarker_->mark(deviceStream_);
     }
 
     wallcycle_sub_stop(wcycle_, ewcsLAUNCH_GPU_NB_F_BUF_OPS);

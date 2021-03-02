@@ -45,6 +45,7 @@
 #include "device_stream.h"
 
 #include "gromacs/gpu_utils/cudautils.cuh"
+#include "gromacs/gpu_utils/device_event.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
@@ -104,7 +105,7 @@ void DeviceStream::synchronize() const
 
 void DeviceStream::markEvent(DeviceEvent& deviceEvent) const
 {
-    cudaError_t gmx_used_in_debug stat = cudaEventRecord(deviceEvent.event(), deviceStream.stream());
+    cudaError_t gmx_used_in_debug stat = cudaEventRecord(deviceEvent.event(), stream_);
     GMX_ASSERT(stat == cudaSuccess,
                ("cudaEventRecord failed. " + gmx::getDeviceErrorString(stat)).c_str());
 }
