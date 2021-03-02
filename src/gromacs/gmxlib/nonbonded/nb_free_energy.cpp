@@ -468,7 +468,43 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
         }
         IntType ii_s = gmx::load<IntType>(preloadIi);
 
-        for (int k = nj0; k < nj1; k += DataTypes::simdRealWidth)
+        std::vector<int> selectedJIndices(nj1 - nj0);
+        std::vector<int> selectedJIndicesPairIncluded(nj1 - nj0);
+        size_t           nSelectedJIndices = 0;
+
+        /* Before preloading data for SIMD select which atoms are relevant for
+         * computations. This avoids many zero calculations in each SIMD block. */
+        for (int k = nj0; k < nj1; k++)
+        {
+            const int  jnr          = jjnr[k];
+            const bool pairIncluded = (nlist->excl_fep.empty() || nlist->excl_fep[k]);
+            const int  j3           = 3 * jnr;
+            const real dX           = ix - x[j3];
+            const real dY           = iy - x[j3 + 1];
+            const real dZ           = iz - x[j3 + 2];
+            const real rSq          = dX * dX + dY * dY + dZ * dZ;
+            if (!pairIncluded)
+            {
+                selectedJIndices[nSelectedJIndices]             = jnr;
+                selectedJIndicesPairIncluded[nSelectedJIndices] = pairIncluded;
+                nSelectedJIndices++;
+                if (rSq > rlistSquared)
+                {
+                    numExcludedPairsBeyondRlist++;
+                }
+                continue;
+            }
+            if (rSq < rcutoff_max2)
+            {
+                selectedJIndices[nSelectedJIndices]             = jnr;
+                selectedJIndicesPairIncluded[nSelectedJIndices] = pairIncluded;
+                nSelectedJIndices++;
+            }
+        }
+        npair_within_cutoff +=
+                nSelectedJIndices; /* It is not necessary to actually count how many are within cutoff as long as it gets > 0 */
+
+        for (size_t k = 0; k < nSelectedJIndices; k += DataTypes::simdRealWidth)
         {
             int      tj[NSTATES];
             RealType r, rInv;
@@ -502,11 +538,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 #endif
             for (int s = 0; s < DataTypes::simdRealWidth; s++)
             {
-                if (k + s < nj1)
+                if (k + s < nSelectedJIndices)
                 {
                     /* Check if this pair on the exclusions list.*/
-                    preloadPairIncluded[s] = (nlist->excl_fep == nullptr || nlist->excl_fep[k + s]);
-                    const int jnr          = jjnr[k + s];
+                    preloadPairIncluded[s] = selectedJIndicesPairIncluded[k + s];
+                    const int jnr          = selectedJIndices[k + s];
                     const int j3           = 3 * jnr;
                     preloadJnr[s]          = jnr;
                     preloadDx[s]           = ix - x[j3];
@@ -576,10 +612,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                     for (int i = 0; i < NSTATES; i++)
                     {
-                        preloadQq[i][s]     = 0;
-                        preloadC6[i][s]     = 0;
-                        preloadC12[i][s]    = 0;
-                        preloadSigma6[i][s] = 0;
+                        preloadQq[i][s]          = 0;
+                        preloadC6[i][s]          = 0;
+                        preloadC12[i][s]         = 0;
+                        preloadSigma6[i][s]      = 0;
+                        preloadLjPmeC6Grid[i][s] = 0;
                     }
                 }
             }
@@ -594,19 +631,6 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
             BoolType withinCutoffMask = (rSq < rcutoff_max2);
 
-            if (!gmx::anyTrue(withinCutoffMask || bPairNotIncluded))
-            {
-                /* We save significant time by skipping all code below.
-                 * Note that with soft-core interactions, the actual cut-off
-                 * check might be different. But since the soft-core distance
-                 * is always larger than r, checking on r here is safe.
-                 * Exclusions outside the cutoff can not be skipped as
-                 * when using Ewald: the reciprocal-space
-                 * Ewald component still needs to be subtracted.
-                 */
-                continue;
-            }
-            npair_within_cutoff++; /* It is not necessary to actually count how many are within cutoff as long as it gets > 0 */
             const IntType  jnr_s    = gmx::load<IntType>(preloadJnr);
             const BoolType bIiEqJnr = gmx::cvtIB2B(ii_s == jnr_s);
 
@@ -998,7 +1022,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 #pragma omp critical
                 gmx::transposeScatterDecrU<3>(reinterpret_cast<real*>(f), preloadJnr, tX, tY, tZ);
             }
-        } // end for (int k = nj0; k < nj1; k += DataTypes::simdRealWidth)
+        } // end for (size_t k = 0; k < nSelectedJIndices; k += DataTypes::simdRealWidth)
 
         if (npair_within_cutoff > 0)
         {
