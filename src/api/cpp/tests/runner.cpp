@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018, by the GROMACS development team, led by
+ * Copyright (c) 2018,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -61,7 +61,7 @@ TEST_F(GmxApiTest, RunnerBasicMD)
     auto system = gmxapi::fromTprFile(runner_.tprFileName_);
 
     {
-        auto           context = std::make_shared<gmxapi::Context>();
+        auto           context = std::make_shared<gmxapi::Context>(gmxapi::createContext());
         gmxapi::MDArgs args    = makeMdArgs();
         // TODO the command line arguments should be set through the
         // usual command line options settings for the tests
@@ -82,7 +82,7 @@ TEST_F(GmxApiTest, RunnerBasicMD)
  */
 TEST_F(GmxApiTest, RunnerReinitialize)
 {
-    auto           context = std::make_shared<gmxapi::Context>();
+    auto           context = std::make_shared<gmxapi::Context>(gmxapi::createContext());
     gmxapi::MDArgs args    = makeMdArgs();
 
     makeTprFile(20);
@@ -95,7 +95,8 @@ TEST_F(GmxApiTest, RunnerReinitialize)
         // Try to simulate an interrupt signal to catch.
         gmx_set_stop_condition(gmx_stop_cond_next_ns);
 
-        session->run();
+        auto status = session->run();
+        EXPECT_FALSE(status.success());
 
         // If this assertion fails, it is not an error, but it indicates expected behavior has
         // changed and we need to consider the impact of whatever changes caused this.
@@ -119,7 +120,8 @@ TEST_F(GmxApiTest, RunnerReinitialize)
         // Launching a session should clear the stop condition.
         EXPECT_EQ(gmx_get_stop_condition(), gmx_stop_cond_none);
 
-        session->run();
+        auto status = session->run();
+        EXPECT_TRUE(status.success());
 
         // Stop condition should still be clear.
         EXPECT_EQ(gmx_get_stop_condition(), gmx_stop_cond_none);
@@ -140,7 +142,7 @@ TEST_F(GmxApiTest, RunnerContinuedMD)
     auto system = gmxapi::fromTprFile(runner_.tprFileName_);
 
     {
-        auto context = std::make_shared<gmxapi::Context>();
+        auto context = std::make_shared<gmxapi::Context>(gmxapi::createContext());
 
         {
             EXPECT_TRUE(context != nullptr);

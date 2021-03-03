@@ -254,6 +254,8 @@ CpuInfo::Vendor detectX86Vendor()
 
 /*! \brief Detect second AVX-512 FMA from the processor name
  *
+ * Should only be called for processors already determined to support AVX-512.
+ *
  *  \param [in] brand     x86 processor name
  *  \param [in] model     x86 model
  *  \return               True if second FMA present
@@ -273,10 +275,11 @@ bool detectProcCpuInfoSecondAvx512FMA(const std::string& brand, int model)
             {
                 return false;
             }
-            // detect Gold 5120 and below
+            // detect Gold 5xxx - can be corrected once Cooper Lake is added
             else if (brand.find("Gold") == 17 && brand.find('5') == 22)
             {
-                return (brand.find("22") == 24);
+                return (brand.find("53") == 22 || // detect Cooper Lake
+                        brand.find("22") == 24);  // detect 5[12]22
             }
         }
         return true;
@@ -437,10 +440,16 @@ void detectX86Features(std::string* brand, int* family, int* model, int* steppin
         setFeatureFromBit(features, CpuInfo::Feature::X86_Avx512BW, ebx, 30);
         setFeatureFromBit(features, CpuInfo::Feature::X86_Avx512VL, ebx, 31);
 
-        // There is no CPUID bit for this...
-        if (detectProcCpuInfoSecondAvx512FMA(*brand, *model))
+        executeX86CpuID(0x7, 0x1, &eax, &ebx, &ecx, &edx);
+        setFeatureFromBit(features, CpuInfo::Feature::X86_Avx512BF16, eax, 5);
+
+        if (features->count(CpuInfo::Feature::X86_Avx512F) != 0)
         {
-            features->insert(CpuInfo::Feature::X86_Avx512secondFMA);
+            // Only checking if the CPU supports AVX-512. There is no CPUID bit for this.
+            if (detectProcCpuInfoSecondAvx512FMA(*brand, *model))
+            {
+                features->insert(CpuInfo::Feature::X86_Avx512secondFMA);
+            }
         }
     }
 
@@ -539,7 +548,9 @@ void renumberIndex(std::vector<unsigned int>* v)
     for (std::size_t i = 0; i < uniqueSortedV.size(); i++)
     {
         unsigned int val = uniqueSortedV[i];
-        std::replace_if(v->begin(), v->end(), [val](unsigned int& c) -> bool { return c == val; },
+        std::replace_if(v->begin(),
+                        v->end(),
+                        [val](unsigned int& c) -> bool { return c == val; },
                         static_cast<unsigned int>(i));
     }
 }
@@ -938,6 +949,10 @@ void detectProcCpuInfoArm(const std::map<std::string, std::string>& cpuInfo,
                 features->insert(CpuInfo::Feature::Arm_NeonAsimd);
             }
         }
+        if (s.find("sve") != std::string::npos)
+        {
+            features->insert(CpuInfo::Feature::Arm_Sve);
+        }
     }
 }
 
@@ -1014,8 +1029,8 @@ CpuInfo CpuInfo::detect()
         {
             result.features_.insert(CpuInfo::Feature::X86_Hygon);
         }
-        detectX86Features(&result.brandString_, &result.family_, &result.model_, &result.stepping_,
-                          &result.features_);
+        detectX86Features(
+                &result.brandString_, &result.family_, &result.model_, &result.stepping_, &result.features_);
         result.logicalProcessors_ = detectX86LogicalProcessors();
     }
     else
@@ -1034,6 +1049,9 @@ CpuInfo CpuInfo::detect()
         result.features_.insert(Feature::Arm_Neon);      // ARMv8 always has Neon
         result.features_.insert(Feature::Arm_NeonAsimd); // ARMv8 always has Neon-asimd
 #endif
+#if defined __arch64__ && defined __ARM_FEATURE_SVE
+        result.features_.insert(Feature::Arm_Sve);
+#endif
 
 #if defined sun
         result.vendor_ = CpuInfo::Vendor::Oracle;
@@ -1041,8 +1059,12 @@ CpuInfo CpuInfo::detect()
 
         // On Linux we might be able to find information in /proc/cpuinfo. If vendor or brand
         // is set to a known value this routine will not overwrite it.
-        detectProcCpuInfo(&result.vendor_, &result.brandString_, &result.family_, &result.model_,
-                          &result.stepping_, &result.features_);
+        detectProcCpuInfo(&result.vendor_,
+                          &result.brandString_,
+                          &result.family_,
+                          &result.model_,
+                          &result.stepping_,
+                          &result.features_);
     }
 
     if (!result.logicalProcessors_.empty())
@@ -1101,6 +1123,7 @@ const std::string& CpuInfo::featureString(Feature f)
         { Feature::X86_Avx512CD, "avx512cd" },
         { Feature::X86_Avx512BW, "avx512bw" },
         { Feature::X86_Avx512VL, "avx512vl" },
+        { Feature::X86_Avx512BF16, "avx512bf16" },
         { Feature::X86_Avx512secondFMA, "avx512secondFMA" },
         { Feature::X86_Clfsh, "clfsh" },
         { Feature::X86_Cmov, "cmov" },
@@ -1138,6 +1161,7 @@ const std::string& CpuInfo::featureString(Feature f)
         { Feature::X86_Xop, "xop" },
         { Feature::Arm_Neon, "neon" },
         { Feature::Arm_NeonAsimd, "neon_asimd" },
+        { Feature::Arm_Sve, "sve" },
         { Feature::Ibm_Qpx, "qpx" },
         { Feature::Ibm_Vmx, "vmx" },
         { Feature::Ibm_Vsx, "vsx" },
@@ -1150,9 +1174,26 @@ const std::string& CpuInfo::featureString(Feature f)
 
 bool cpuIsX86Nehalem(const CpuInfo& cpuInfo)
 {
-    return (cpuInfo.vendor() == gmx::CpuInfo::Vendor::Intel && cpuInfo.family() == 6
+    return (cpuInfo.vendor() == CpuInfo::Vendor::Intel && cpuInfo.family() == 6
             && (cpuInfo.model() == 0x2E || cpuInfo.model() == 0x1A || cpuInfo.model() == 0x1E
                 || cpuInfo.model() == 0x2F || cpuInfo.model() == 0x2C || cpuInfo.model() == 0x25));
+}
+
+bool cpuIsAmdZen1(const CpuInfo& cpuInfo)
+{
+    /* Both Zen/Zen+/Zen2 have family==23
+     * Model numbers for Zen:
+     * 1)  Naples, Whitehaven, Summit Ridge, and Snowy Owl;
+     * 17) Raven Ridge.
+     * Model numbers for Zen+:
+     * 8)  Pinnacle Ridge;
+     * 24) Picasso.
+     * Hygon got license for Zen1, but not Zen2 (https://www.tomshardware.com/news/amd-zen-china-x86-ip-license,39573.html)
+     */
+    return (cpuInfo.vendor() == CpuInfo::Vendor::Amd && cpuInfo.family() == 23
+            && (cpuInfo.model() == 1 || cpuInfo.model() == 17 || cpuInfo.model() == 8
+                || cpuInfo.model() == 24))
+           || (cpuInfo.vendor() == CpuInfo::Vendor::Hygon);
 }
 
 } // namespace gmx

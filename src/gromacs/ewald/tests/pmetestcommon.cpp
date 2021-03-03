@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -59,8 +59,8 @@
 #include "gromacs/ewald/pme_solve.h"
 #include "gromacs/ewald/pme_spread.h"
 #include "gromacs/fft/parallel_3dfft.h"
-#include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_management.h"
 #include "gromacs/math/invertmatrix.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/pbcutil/pbc.h"
@@ -70,9 +70,10 @@
 #include "gromacs/utility/logger.h"
 #include "gromacs/utility/stringutil.h"
 
+#include "testutils/test_hardware_environment.h"
 #include "testutils/testasserts.h"
 
-#include "testhardwarecontexts.h"
+class DeviceContext;
 
 namespace gmx
 {
@@ -119,9 +120,21 @@ PmeSafePointer pmeInitWrapper(const t_inputrec*    inputRec,
     const auto     runMode       = (mode == CodePath::CPU) ? PmeRunMode::CPU : PmeRunMode::Mixed;
     t_commrec      dummyCommrec  = { 0 };
     NumPmeDomains  numPmeDomains = { 1, 1 };
-    gmx_pme_t* pmeDataRaw = gmx_pme_init(&dummyCommrec, numPmeDomains, inputRec, false, false, true,
-                                         ewaldCoeff_q, ewaldCoeff_lj, 1, runMode, nullptr,
-                                         deviceContext, deviceStream, pmeGpuProgram, dummyLogger);
+    gmx_pme_t*     pmeDataRaw    = gmx_pme_init(&dummyCommrec,
+                                         numPmeDomains,
+                                         inputRec,
+                                         false,
+                                         false,
+                                         true,
+                                         ewaldCoeff_q,
+                                         ewaldCoeff_lj,
+                                         1,
+                                         runMode,
+                                         nullptr,
+                                         deviceContext,
+                                         deviceStream,
+                                         pmeGpuProgram,
+                                         dummyLogger);
     PmeSafePointer pme(pmeDataRaw); // taking ownership
 
     // TODO get rid of this with proper matrix type
@@ -151,21 +164,6 @@ PmeSafePointer pmeInitWrapper(const t_inputrec*    inputRec,
     return pme;
 }
 
-//! Simple PME initialization based on input, no atom data
-PmeSafePointer pmeInitEmpty(const t_inputrec*    inputRec,
-                            const CodePath       mode,
-                            const DeviceContext* deviceContext,
-                            const DeviceStream*  deviceStream,
-                            const PmeGpuProgram* pmeGpuProgram,
-                            const Matrix3x3&     box,
-                            const real           ewaldCoeff_q,
-                            const real           ewaldCoeff_lj)
-{
-    return pmeInitWrapper(inputRec, mode, deviceContext, deviceStream, pmeGpuProgram, box,
-                          ewaldCoeff_q, ewaldCoeff_lj);
-    // hiding the fact that PME actually needs to know the number of atoms in advance
-}
-
 PmeSafePointer pmeInitEmpty(const t_inputrec* inputRec)
 {
     const Matrix3x3 defaultBox = { { 1.0F, 0.0F, 0.0F, 0.0F, 1.0F, 0.0F, 0.0F, 0.0F, 1.0F } };
@@ -180,8 +178,8 @@ std::unique_ptr<StatePropagatorDataGpu> makeStatePropagatorDataGpu(const gmx_pme
     // TODO: Pin the host buffer and use async memory copies
     // TODO: Special constructor for PME-only rank / PME-tests is used here. There should be a mechanism to
     //       restrict one from using other constructor here.
-    return std::make_unique<StatePropagatorDataGpu>(deviceStream, *deviceContext, GpuApiCallBehavior::Sync,
-                                                    pme_gpu_get_block_size(&pme), nullptr);
+    return std::make_unique<StatePropagatorDataGpu>(
+            deviceStream, *deviceContext, GpuApiCallBehavior::Sync, pme_gpu_get_block_size(&pme), nullptr);
 }
 
 //! PME initialization with atom data
@@ -241,8 +239,8 @@ static void pmeGetRealGridSizesInternal(const gmx_pme_t* pme,
     switch (mode)
     {
         case CodePath::CPU:
-            gmx_parallel_3dfft_real_limits(pme->pfft_setup[gridIndex], gridSize, gridOffsetUnused,
-                                           paddedGridSize);
+            gmx_parallel_3dfft_real_limits(
+                    pme->pfft_setup[gridIndex], gridSize, gridOffsetUnused, paddedGridSize);
             break;
 
         case CodePath::GPU:
@@ -267,8 +265,8 @@ static void pmeGetComplexGridSizesInternal(const gmx_pme_t* pme,
 {
     const size_t gridIndex = 0;
     IVec         gridOffsetUnused, complexOrderUnused;
-    gmx_parallel_3dfft_complex_limits(pme->pfft_setup[gridIndex], complexOrderUnused, gridSize,
-                                      gridOffsetUnused, paddedGridSize); // TODO: what about YZX ordering?
+    gmx_parallel_3dfft_complex_limits(
+            pme->pfft_setup[gridIndex], complexOrderUnused, gridSize, gridOffsetUnused, paddedGridSize); // TODO: what about YZX ordering?
 }
 
 //! Getting the PME grid memory buffer and its sizes - template definition
@@ -280,7 +278,7 @@ static void pmeGetGridAndSizesInternal(const gmx_pme_t* /*unused*/,
                                        IVec& /*unused*/)       //NOLINT(google-runtime-references)
 {
     GMX_THROW(InternalError("Deleted function call"));
-    // explicitly deleting general template does not compile in clang/icc, see https://llvm.org/bugs/show_bug.cgi?id=17537
+    // explicitly deleting general template does not compile in clang, see https://llvm.org/bugs/show_bug.cgi?id=17537
 }
 
 //! Getting the PME real grid memory buffer and its sizes
@@ -319,9 +317,14 @@ void pmePerformSplineAndSpread(gmx_pme_t* pme,
     switch (mode)
     {
         case CodePath::CPU:
-            spread_on_grid(pme, atc, &pme->pmegrid[gridIndex], computeSplines, spreadCharges,
+            spread_on_grid(pme,
+                           atc,
+                           &pme->pmegrid[gridIndex],
+                           computeSplines,
+                           spreadCharges,
                            fftgrid != nullptr ? fftgrid[gridIndex] : nullptr,
-                           computeSplinesForZeroCharges, gridIndex);
+                           computeSplinesForZeroCharges,
+                           gridIndex);
             if (spreadCharges && !pme->bUseThreads)
             {
                 wrap_periodic_pmegrid(pme, pmegrid);
@@ -395,8 +398,13 @@ void pmePerformSolve(const gmx_pme_t*  pme,
                     break;
 
                 case PmeSolveAlgorithm::LennardJones:
-                    solve_pme_lj_yzx(pme, &h_grid, useLorentzBerthelot, cellVolume,
-                                     computeEnergyAndVirial, pme->nthread, threadIndex);
+                    solve_pme_lj_yzx(pme,
+                                     &h_grid,
+                                     useLorentzBerthelot,
+                                     cellVolume,
+                                     computeEnergyAndVirial,
+                                     pme->nthread,
+                                     threadIndex);
                     break;
 
                 default: GMX_THROW(InternalError("Test not implemented for this mode"));
@@ -673,7 +681,8 @@ void pmeSetGridLineIndices(gmx_pme_t* pme, CodePath mode, const GridLineIndicesV
     switch (mode)
     {
         case CodePath::GPU:
-            memcpy(pme_gpu_staging(pme->gpu).h_gridlineIndices, gridLineIndices.data(),
+            memcpy(pme_gpu_staging(pme->gpu).h_gridlineIndices,
+                   gridLineIndices.data(),
                    atomCount * sizeof(gridLineIndices[0]));
             break;
 
@@ -719,8 +728,7 @@ static void pmeSetGridInternal(const gmx_pme_t*                        pme,
     {
         case CodePath::GPU: // intentional absence of break, the grid will be copied from the host buffer in testing mode
         case CodePath::CPU:
-            std::memset(grid, 0,
-                        paddedGridSize[XX] * paddedGridSize[YY] * paddedGridSize[ZZ] * sizeof(ValueType));
+            std::memset(grid, 0, paddedGridSize[XX] * paddedGridSize[YY] * paddedGridSize[ZZ] * sizeof(ValueType));
             for (const auto& gridValue : gridValues)
             {
                 for (int i = 0; i < DIM; i++)
@@ -887,6 +895,59 @@ PmeOutput pmeGetReciprocalEnergyAndVirial(const gmx_pme_t* pme, CodePath mode, P
         default: GMX_THROW(InternalError("Test not implemented for this mode"));
     }
     return output;
+}
+
+const char* codePathToString(CodePath codePath)
+{
+    switch (codePath)
+    {
+        case CodePath::CPU: return "CPU";
+        case CodePath::GPU: return "GPU";
+        default: GMX_THROW(NotImplementedError("This CodePath should support codePathToString"));
+    }
+}
+
+PmeTestHardwareContext::PmeTestHardwareContext() : codePath_(CodePath::CPU) {}
+
+PmeTestHardwareContext::PmeTestHardwareContext(TestDevice* testDevice) :
+    codePath_(CodePath::CPU),
+    testDevice_(testDevice)
+{
+    setActiveDevice(testDevice_->deviceInfo());
+    pmeGpuProgram_ = buildPmeGpuProgram(testDevice_->deviceContext());
+}
+
+//! Returns a human-readable context description line
+std::string PmeTestHardwareContext::description() const
+{
+    switch (codePath_)
+    {
+        case CodePath::CPU: return "CPU";
+        case CodePath::GPU: return "GPU (" + testDevice_->description() + ")";
+        default: return "Unknown code path.";
+    }
+}
+
+void PmeTestHardwareContext::activate() const
+{
+    if (codePath_ == CodePath::GPU)
+    {
+        setActiveDevice(testDevice_->deviceInfo());
+    }
+}
+
+std::vector<std::unique_ptr<PmeTestHardwareContext>> createPmeTestHardwareContextList()
+{
+    std::vector<std::unique_ptr<PmeTestHardwareContext>> pmeTestHardwareContextList;
+    // Add CPU
+    pmeTestHardwareContextList.emplace_back(std::make_unique<PmeTestHardwareContext>());
+    // Add GPU devices
+    const auto& testDeviceList = getTestHardwareEnvironment()->getTestDeviceList();
+    for (const auto& testDevice : testDeviceList)
+    {
+        pmeTestHardwareContextList.emplace_back(std::make_unique<PmeTestHardwareContext>(testDevice.get()));
+    }
+    return pmeTestHardwareContextList;
 }
 
 } // namespace test

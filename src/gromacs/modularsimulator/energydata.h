@@ -69,7 +69,7 @@ class MDAtoms;
 class ModularSimulatorAlgorithmBuilderHelper;
 class ParrinelloRahmanBarostat;
 class StatePropagatorData;
-class VRescaleThermostat;
+class VelocityScalingTemperatureCoupling;
 struct MdModulesNotifier;
 
 /*! \internal
@@ -107,7 +107,8 @@ public:
                const MdModulesNotifier&    mdModulesNotifier,
                bool                        isMasterRank,
                ObservablesHistory*         observablesHistory,
-               StartingBehavior            startingBehavior);
+               StartingBehavior            startingBehavior,
+               bool                        simulationsShareState);
 
     /*! \brief Final output
      *
@@ -180,13 +181,20 @@ public:
      */
     bool* needToSumEkinhOld();
 
-    /*! \brief set vrescale thermostat
+    /*! \brief Whether kinetic energy was read from checkpoint
      *
-     * This allows to set a pointer to the vrescale thermostat used to
-     * print the thermostat integral.
+     * This is needed by the compute globals element
+     * TODO: Remove this when moving global reduction to client system (#3421)
+     */
+    [[nodiscard]] bool hasReadEkinFromCheckpoint() const;
+
+    /*! \brief Set velocity scaling temperature coupling
+     *
+     * This allows to set a pointer to a velocity scaling temperature coupling
+     * element used to obtain contributions to the conserved energy.
      * TODO: This should be made obsolete my a more modular energy element
      */
-    void setVRescaleThermostat(const VRescaleThermostat* vRescaleThermostat);
+    void setVelocityScalingTemperatureCoupling(const VelocityScalingTemperatureCoupling* velocityScalingTemperatureCoupling);
 
     /*! \brief set Parrinello-Rahman barostat
      *
@@ -240,6 +248,8 @@ private:
     std::unique_ptr<Element> element_;
     //! The energy output object
     std::unique_ptr<EnergyOutput> energyOutput_;
+    //! Helper object to checkpoint kinetic energy data
+    ekinstate_t ekinstate_;
 
     //! Whether this is the master rank
     const bool isMasterRank_;
@@ -266,12 +276,11 @@ private:
 
     //! Whether ekinh_old needs to be summed up (set by compute globals)
     bool needToSumEkinhOld_;
+    //! Whether we have read ekin from checkpoint
+    bool hasReadEkinFromCheckpoint_;
 
     //! Describes how the simulation (re)starts
     const StartingBehavior startingBehavior_;
-
-    //! Legacy state object used to communicate with energy output
-    t_state dummyLegacyState_;
 
     /*
      * Pointers to Simulator data
@@ -282,7 +291,7 @@ private:
     //! Pointer to the free energy perturbation data
     FreeEnergyPerturbationData* freeEnergyPerturbationData_;
     //! Pointer to the vrescale thermostat
-    const VRescaleThermostat* vRescaleThermostat_;
+    const VelocityScalingTemperatureCoupling* velocityScalingTemperatureCoupling_;
     //! Pointer to the Parrinello-Rahman barostat
     const ParrinelloRahmanBarostat* parrinelloRahmanBarostat_;
     //! Contains user input mdp options.
@@ -307,6 +316,8 @@ private:
     const SimulationGroups* groups_;
     //! History of simulation observables.
     ObservablesHistory* observablesHistory_;
+    //! Whether simulations share the state
+    bool simulationsShareState_;
 };
 
 /*! \internal
@@ -355,6 +366,13 @@ public:
     //! No element teardown needed
     void elementTeardown() override {}
 
+    //! ICheckpointHelperClient write checkpoint implementation
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient read checkpoint implementation
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient key implementation
+    const std::string& clientID() override;
+
     /*! \brief Factory method implementation
      *
      * \param legacySimulatorData  Pointer allowing access to simulator level data
@@ -395,8 +413,12 @@ private:
     //! IEnergySignallerClient implementation
     std::optional<SignallerCallback> registerEnergyCallback(EnergySignallerEvent event) override;
 
-    //! ICheckpointHelperClient implementation
-    void writeCheckpoint(t_state* localState, t_state* globalState) override;
+
+    //! CheckpointHelper identifier
+    const std::string identifier_ = "EnergyElement";
+    //! Helper function to read from / write to CheckpointData
+    template<CheckpointDataOperation operation>
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 
     //! Whether this is the master rank
     const bool isMasterRank_;

@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -116,7 +116,7 @@ public:
         for (int i = 0; i < count; ++i)
         {
             rvec x;
-            real radius;
+            real radius = 0;
             generateRandomPosition(x, &radius);
             addSphere(x[XX], x[YY], x[ZZ], radius);
         }
@@ -147,8 +147,16 @@ public:
         gmx::SurfaceAreaCalculator calculator;
         calculator.setDotCount(ndots);
         calculator.setRadii(radius_);
-        calculator.calculate(as_rvec_array(x_.data()), bPBC ? &pbc : nullptr, index_.size(),
-                             index_.data(), flags, &area_, &volume_, &atomArea_, &dots_, &dotCount_);
+        calculator.calculate(as_rvec_array(x_.data()),
+                             bPBC ? &pbc : nullptr,
+                             index_.size(),
+                             index_.data(),
+                             flags,
+                             &area_,
+                             &volume_,
+                             &atomArea_,
+                             &dots_,
+                             &dotCount_);
     }
     real resultArea() const { return area_; }
     real resultVolume() const { return volume_; }

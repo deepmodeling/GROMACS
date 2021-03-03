@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2019,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -55,6 +55,7 @@
 #include <cmath>
 
 #include <limits>
+#include <memory>
 
 #include "gromacs/random/exponentialdistribution.h"
 #include "gromacs/random/uniformrealdistribution.h"
@@ -92,7 +93,7 @@ namespace gmx
 /*! \brief Gamma distribution
  *
  *  The C++ standard library does provide a gamma distribution, but when
- *  using libstdc++-4.4.7 with at least gcc-4.6 or icc-14.0 the headers
+ *  using libstdc++-4.4.7 with at least gcc-4.6 the headers
  *  produce errors. Even for newer compilers, libstdc++ and libc++ appear to
  *  use different algorithms to generate it, which means their values differ
  *  in contrast to the uniform and normal distributions where they are

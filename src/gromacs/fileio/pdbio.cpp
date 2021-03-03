@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -37,8 +37,9 @@
  */
 #include "gmxpre.h"
 
-#include "pdbio.h"
+#include "gromacs/fileio/pdbio.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
@@ -57,6 +58,7 @@
 #include "gromacs/topology/topology.h"
 #include "gromacs/utility/coolstuff.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"
 #include "gromacs/utility/smalloc.h"
@@ -74,44 +76,16 @@ typedef struct gmx_conect_t
     gmx_conection_t* conect;
 } gmx_conect_t;
 
-static const char* pdbtp[epdbNR] = { "ATOM  ", "HETATM", "ANISOU", "CRYST1", "COMPND", "MODEL",
-                                     "ENDMDL", "TER",    "HEADER", "TITLE",  "REMARK", "CONECT" };
+const char* enumValueToString(PdbRecordType enumValue)
+{
+    static constexpr gmx::EnumerationArray<PdbRecordType, const char*> pdbRecordTypeName = {
+        "ATOM  ", "HETATM", "ANISOU", "CRYST1", "COMPND", "MODEL",
+        "ENDMDL", "TER",    "HEADER", "TITLE",  "REMARK", "CONECT"
+    };
+    return pdbRecordTypeName[enumValue];
+}
 
 #define REMARK_SIM_BOX "REMARK    THIS IS A SIMULATION BOX"
-
-static void xlate_atomname_pdb2gmx(char* name)
-{
-    int  i, length;
-    char temp;
-
-    length = std::strlen(name);
-    if (length > 3 && std::isdigit(name[0]))
-    {
-        temp = name[0];
-        for (i = 1; i < length; i++)
-        {
-            name[i - 1] = name[i];
-        }
-        name[length - 1] = temp;
-    }
-}
-
-// Deliberately taking a copy of name to return it later
-static std::string xlate_atomname_gmx2pdb(std::string name)
-{
-    size_t length = name.size();
-    if (length > 3 && std::isdigit(name[length - 1]))
-    {
-        char temp = name[length - 1];
-        for (size_t i = length - 1; i > 0; --i)
-        {
-            name[i] = name[i - 1];
-        }
-        name[0] = temp;
-    }
-    return name;
-}
-
 
 void gmx_write_pdb_box(FILE* out, PbcType pbcType, const matrix box)
 {
@@ -154,14 +128,30 @@ void gmx_write_pdb_box(FILE* out, PbcType pbcType, const matrix box)
     fprintf(out, "REMARK    THIS IS A SIMULATION BOX\n");
     if (pbcType != PbcType::Screw)
     {
-        fprintf(out, "CRYST1%9.3f%9.3f%9.3f%7.2f%7.2f%7.2f %-11s%4d\n", 10 * norm(box[XX]),
-                10 * norm(box[YY]), 10 * norm(box[ZZ]), alpha, beta, gamma, "P 1", 1);
+        fprintf(out,
+                "CRYST1%9.3f%9.3f%9.3f%7.2f%7.2f%7.2f %-11s%4d\n",
+                10 * norm(box[XX]),
+                10 * norm(box[YY]),
+                10 * norm(box[ZZ]),
+                alpha,
+                beta,
+                gamma,
+                "P 1",
+                1);
     }
     else
     {
         /* Double the a-vector length and write the correct space group */
-        fprintf(out, "CRYST1%9.3f%9.3f%9.3f%7.2f%7.2f%7.2f %-11s%4d\n", 20 * norm(box[XX]),
-                10 * norm(box[YY]), 10 * norm(box[ZZ]), alpha, beta, gamma, "P 21 1 1", 1);
+        fprintf(out,
+                "CRYST1%9.3f%9.3f%9.3f%7.2f%7.2f%7.2f %-11s%4d\n",
+                20 * norm(box[XX]),
+                10 * norm(box[YY]),
+                10 * norm(box[ZZ]),
+                alpha,
+                beta,
+                gamma,
+                "P 21 1 1",
+                1);
     }
 }
 
@@ -253,20 +243,20 @@ static void read_cryst1(char* line, PbcType* pbcType, matrix box)
     }
 }
 
-static int gmx_fprintf_pqr_atomline(FILE*           fp,
-                                    enum PDB_record record,
-                                    int             atom_seq_number,
-                                    const char*     atom_name,
-                                    const char*     res_name,
-                                    char            chain_id,
-                                    int             res_seq_number,
-                                    real            x,
-                                    real            y,
-                                    real            z,
-                                    real            occupancy,
-                                    real            b_factor)
+static int gmx_fprintf_pqr_atomline(FILE*         fp,
+                                    PdbRecordType record,
+                                    int           atom_seq_number,
+                                    const char*   atom_name,
+                                    const char*   res_name,
+                                    char          chain_id,
+                                    int           res_seq_number,
+                                    real          x,
+                                    real          y,
+                                    real          z,
+                                    real          occupancy,
+                                    real          b_factor)
 {
-    GMX_RELEASE_ASSERT(record == epdbATOM || record == epdbHETATM,
+    GMX_RELEASE_ASSERT(record == PdbRecordType::Atom || record == PdbRecordType::Hetatm,
                        "Can only print PQR atom lines as ATOM or HETATM records");
 
     /* Check atom name */
@@ -279,9 +269,19 @@ static int gmx_fprintf_pqr_atomline(FILE*           fp,
     atom_seq_number = atom_seq_number % 100000;
     res_seq_number  = res_seq_number % 10000;
 
-    int n = fprintf(fp, "%-6s%5d %-4.4s%4.4s%c%4d %8.3f %8.3f %8.3f %6.2f %6.2f\n", pdbtp[record],
-                    atom_seq_number, atom_name, res_name, chain_id, res_seq_number, x, y, z,
-                    occupancy, b_factor);
+    int n = fprintf(fp,
+                    "%-6s%5d %-4.4s%4.4s%c%4d %8.3f %8.3f %8.3f %6.2f %6.2f\n",
+                    enumValueToString(record),
+                    atom_seq_number,
+                    atom_name,
+                    res_name,
+                    chain_id,
+                    res_seq_number,
+                    x,
+                    y,
+                    z,
+                    occupancy,
+                    b_factor);
 
     return n;
 }
@@ -299,11 +299,11 @@ void write_pdbfile_indexed(FILE*          out,
                            gmx_conect     conect,
                            bool           usePqrFormat)
 {
-    gmx_conect_t*   gc = static_cast<gmx_conect_t*>(conect);
-    enum PDB_record type;
-    char            altloc;
-    real            occup, bfac;
-    gmx_bool        bOccup;
+    gmx_conect_t* gc = static_cast<gmx_conect_t*>(conect);
+    PdbRecordType type;
+    char          altloc;
+    real          occup, bfac;
+    gmx_bool      bOccup;
 
 
     fprintf(out, "TITLE     %s\n", (title && title[0]) ? title : gmx::bromacs().c_str());
@@ -338,8 +338,6 @@ void write_pdbfile_indexed(FILE*          out,
         std::string resnm  = *atoms->resinfo[resind].name;
         std::string nm     = *atoms->atomname[i];
 
-        /* rename HG12 to 2HG1, etc. */
-        nm                  = xlate_atomname_gmx2pdb(nm);
         int           resnr = atoms->resinfo[resind].nr;
         unsigned char resic = atoms->resinfo[resind].ic;
         unsigned char ch;
@@ -369,7 +367,7 @@ void write_pdbfile_indexed(FILE*          out,
         {
             gmx_pdbinfo_init_default(&pdbinfo);
         }
-        type   = static_cast<enum PDB_record>(pdbinfo.type);
+        type   = pdbinfo.type;
         altloc = pdbinfo.altloc;
         if (!isalnum(altloc))
         {
@@ -379,22 +377,54 @@ void write_pdbfile_indexed(FILE*          out,
         bfac  = pdbinfo.bfac;
         if (!usePqrFormat)
         {
-            gmx_fprintf_pdb_atomline(out, type, i + 1, nm.c_str(), altloc, resnm.c_str(), ch, resnr,
-                                     resic, 10 * x[i][XX], 10 * x[i][YY], 10 * x[i][ZZ], occup,
-                                     bfac, atoms->atom[i].elem);
+            gmx_fprintf_pdb_atomline(out,
+                                     type,
+                                     i + 1,
+                                     nm.c_str(),
+                                     altloc,
+                                     resnm.c_str(),
+                                     ch,
+                                     resnr,
+                                     resic,
+                                     10 * x[i][XX],
+                                     10 * x[i][YY],
+                                     10 * x[i][ZZ],
+                                     occup,
+                                     bfac,
+                                     atoms->atom[i].elem);
 
             if (atoms->pdbinfo && atoms->pdbinfo[i].bAnisotropic)
             {
-                fprintf(out, "ANISOU%5d  %-4.4s%4.4s%c%4d%c %7d%7d%7d%7d%7d%7d\n", (i + 1) % 100000,
-                        nm.c_str(), resnm.c_str(), ch, resnr, (resic == '\0') ? ' ' : resic,
-                        atoms->pdbinfo[i].uij[0], atoms->pdbinfo[i].uij[1], atoms->pdbinfo[i].uij[2],
-                        atoms->pdbinfo[i].uij[3], atoms->pdbinfo[i].uij[4], atoms->pdbinfo[i].uij[5]);
+                fprintf(out,
+                        "ANISOU%5d  %-4.4s%4.4s%c%4d%c %7d%7d%7d%7d%7d%7d\n",
+                        (i + 1) % 100000,
+                        nm.c_str(),
+                        resnm.c_str(),
+                        ch,
+                        resnr,
+                        (resic == '\0') ? ' ' : resic,
+                        atoms->pdbinfo[i].uij[0],
+                        atoms->pdbinfo[i].uij[1],
+                        atoms->pdbinfo[i].uij[2],
+                        atoms->pdbinfo[i].uij[3],
+                        atoms->pdbinfo[i].uij[4],
+                        atoms->pdbinfo[i].uij[5]);
             }
         }
         else
         {
-            gmx_fprintf_pqr_atomline(out, type, i + 1, nm.c_str(), resnm.c_str(), ch, resnr,
-                                     10 * x[i][XX], 10 * x[i][YY], 10 * x[i][ZZ], occup, bfac);
+            gmx_fprintf_pqr_atomline(out,
+                                     type,
+                                     i + 1,
+                                     nm.c_str(),
+                                     resnm.c_str(),
+                                     ch,
+                                     resnr,
+                                     10 * x[i][XX],
+                                     10 * x[i][YY],
+                                     10 * x[i][ZZ],
+                                     occup,
+                                     bfac);
         }
     }
 
@@ -428,12 +458,12 @@ void write_pdbfile(FILE*          out,
     {
         index[i] = i;
     }
-    write_pdbfile_indexed(out, title, atoms, x, pbcType, box, chainid, model_nr, atoms->nr, index,
-                          conect, false);
+    write_pdbfile_indexed(
+            out, title, atoms, x, pbcType, box, chainid, model_nr, atoms->nr, index, conect, false);
     sfree(index);
 }
 
-static int line2type(const char* line)
+static PdbRecordType line2type(const char* line)
 {
     int  k;
     char type[8];
@@ -444,15 +474,12 @@ static int line2type(const char* line)
     }
     type[k] = '\0';
 
-    for (k = 0; (k < epdbNR); k++)
-    {
-        if (std::strncmp(type, pdbtp[k], strlen(pdbtp[k])) == 0)
-        {
-            break;
-        }
-    }
-
-    return k;
+    using PdbRecordArray = gmx::EnumerationArray<PdbRecordType, bool>;
+    auto entry           = std::find_if(
+            PdbRecordArray::keys().begin(), PdbRecordArray::keys().end(), [type](const auto& key) {
+                return std::strncmp(type, enumValueToString(key), strlen(enumValueToString(key))) == 0;
+            });
+    return (entry != PdbRecordArray::keys().end()) ? *entry : PdbRecordType::Count;
 }
 
 static void read_anisou(char line[], int natom, t_atoms* atoms)
@@ -494,9 +521,14 @@ static void read_anisou(char line[], int natom, t_atoms* atoms)
     }
     else
     {
-        if (sscanf(line + 29, "%d%d%d%d%d%d", &atoms->pdbinfo[i].uij[U11], &atoms->pdbinfo[i].uij[U22],
-                   &atoms->pdbinfo[i].uij[U33], &atoms->pdbinfo[i].uij[U12],
-                   &atoms->pdbinfo[i].uij[U13], &atoms->pdbinfo[i].uij[U23])
+        if (sscanf(line + 29,
+                   "%d%d%d%d%d%d",
+                   &atoms->pdbinfo[i].uij[U11],
+                   &atoms->pdbinfo[i].uij[U22],
+                   &atoms->pdbinfo[i].uij[U33],
+                   &atoms->pdbinfo[i].uij[U12],
+                   &atoms->pdbinfo[i].uij[U13],
+                   &atoms->pdbinfo[i].uij[U23])
             == 6)
         {
             atoms->pdbinfo[i].bAnisotropic = TRUE;
@@ -576,7 +608,7 @@ void get_pdb_atomnumber(const t_atoms* atoms, AtomProperties* aps)
 }
 
 static int
-read_atom(t_symtab* symtab, const char line[], int type, int natom, t_atoms* atoms, rvec x[], int chainnum, gmx_bool bChange)
+read_atom(t_symtab* symtab, const char line[], PdbRecordType type, int natom, t_atoms* atoms, rvec x[], int chainnum)
 {
     t_atom*       atomn;
     int           j, k;
@@ -695,10 +727,6 @@ read_atom(t_symtab* symtab, const char line[], int type, int natom, t_atoms* ato
         else
         {
             atomn->resind = atoms->atom[natom - 1].resind;
-        }
-        if (bChange)
-        {
-            xlate_atomname_pdb2gmx(anm);
         }
         atoms->atomname[natom] = put_symtab(symtab, anm);
         atomn->m               = 0.0;
@@ -833,14 +861,12 @@ int read_pdbfile(FILE*      in,
                  rvec       x[],
                  PbcType*   pbcType,
                  matrix     box,
-                 gmx_bool   bChange,
                  gmx_conect conect)
 {
     gmx_conect_t* gc = conect;
     gmx_bool      bCOMPND;
     gmx_bool      bConnWarn = FALSE;
     char          line[STRLEN + 1];
-    int           line_type;
     char *        c, *d;
     int           natom, chainnum;
     gmx_bool      bStop = FALSE;
@@ -867,26 +893,26 @@ int read_pdbfile(FILE*      in,
     chainnum = 0;
     while (!bStop && (fgets2(line, STRLEN, in) != nullptr))
     {
-        line_type = line2type(line);
+        PdbRecordType line_type = line2type(line);
 
         switch (line_type)
         {
-            case epdbATOM:
-            case epdbHETATM:
-                natom = read_atom(symtab, line, line_type, natom, atoms, x, chainnum, bChange);
+            case PdbRecordType::Atom:
+            case PdbRecordType::Hetatm:
+                natom = read_atom(symtab, line, line_type, natom, atoms, x, chainnum);
                 break;
 
-            case epdbANISOU:
+            case PdbRecordType::Anisou:
                 if (atoms->havePdbInfo)
                 {
                     read_anisou(line, natom, atoms);
                 }
                 break;
 
-            case epdbCRYST1: read_cryst1(line, pbcType, box); break;
+            case PdbRecordType::Cryst1: read_cryst1(line, pbcType, box); break;
 
-            case epdbTITLE:
-            case epdbHEADER:
+            case PdbRecordType::Title:
+            case PdbRecordType::Header:
                 if (std::strlen(line) > 6)
                 {
                     c = line + 6;
@@ -912,7 +938,7 @@ int read_pdbfile(FILE*      in,
                 }
                 break;
 
-            case epdbCOMPND:
+            case PdbRecordType::Compound:
                 if ((!std::strstr(line, ": ")) || (std::strstr(line + 6, "MOLECULE:")))
                 {
                     if (!(c = std::strstr(line + 6, "MOLECULE:")))
@@ -954,17 +980,17 @@ int read_pdbfile(FILE*      in,
                 }
                 break;
 
-            case epdbTER: chainnum++; break;
+            case PdbRecordType::Ter: chainnum++; break;
 
-            case epdbMODEL:
+            case PdbRecordType::Model:
                 if (model_nr)
                 {
                     sscanf(line, "%*s%d", model_nr);
                 }
                 break;
 
-            case epdbENDMDL: bStop = TRUE; break;
-            case epdbCONECT:
+            case PdbRecordType::EndModel: bStop = TRUE; break;
+            case PdbRecordType::Conect:
                 if (gc)
                 {
                     gmx_conect_addline(gc, line);
@@ -1005,7 +1031,7 @@ void gmx_pdb_read_conf(const char* infile, t_symtab* symtab, char** name, t_atom
 {
     FILE* in = gmx_fio_fopen(infile, "r");
     char  title[STRLEN];
-    read_pdbfile(in, title, nullptr, atoms, symtab, x, pbcType, box, TRUE, nullptr);
+    read_pdbfile(in, title, nullptr, atoms, symtab, x, pbcType, box, nullptr);
     if (name != nullptr)
     {
         *name = gmx_strdup(title);
@@ -1034,27 +1060,27 @@ gmx_conect gmx_conect_generate(const t_topology* top)
     return gc;
 }
 
-int gmx_fprintf_pdb_atomline(FILE*           fp,
-                             enum PDB_record record,
-                             int             atom_seq_number,
-                             const char*     atom_name,
-                             char            alternate_location,
-                             const char*     res_name,
-                             char            chain_id,
-                             int             res_seq_number,
-                             char            res_insertion_code,
-                             real            x,
-                             real            y,
-                             real            z,
-                             real            occupancy,
-                             real            b_factor,
-                             const char*     element)
+int gmx_fprintf_pdb_atomline(FILE*         fp,
+                             PdbRecordType record,
+                             int           atom_seq_number,
+                             const char*   atom_name,
+                             char          alternate_location,
+                             const char*   res_name,
+                             char          chain_id,
+                             int           res_seq_number,
+                             char          res_insertion_code,
+                             real          x,
+                             real          y,
+                             real          z,
+                             real          occupancy,
+                             real          b_factor,
+                             const char*   element)
 {
     char     tmp_atomname[6], tmp_resname[6];
     gmx_bool start_name_in_col13;
     int      n;
 
-    if (record != epdbATOM && record != epdbHETATM)
+    if (record != PdbRecordType::Atom && record != PdbRecordType::Hetatm)
     {
         gmx_fatal(FARGS, "Can only print PDB atom lines as ATOM or HETATM records");
     }
@@ -1097,9 +1123,21 @@ int gmx_fprintf_pdb_atomline(FILE*           fp,
     atom_seq_number = atom_seq_number % 100000;
     res_seq_number  = res_seq_number % 10000;
 
-    n = fprintf(fp, "%-6s%5d %-4.4s%c%4.4s%c%4d%c   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
-                pdbtp[record], atom_seq_number, tmp_atomname, alternate_location, tmp_resname,
-                chain_id, res_seq_number, res_insertion_code, x, y, z, occupancy, b_factor,
+    n = fprintf(fp,
+                "%-6s%5d %-4.4s%c%4.4s%c%4d%c   %8.3f%8.3f%8.3f%6.2f%6.2f          %2s\n",
+                enumValueToString(record),
+                atom_seq_number,
+                tmp_atomname,
+                alternate_location,
+                tmp_resname,
+                chain_id,
+                res_seq_number,
+                res_insertion_code,
+                x,
+                y,
+                z,
+                occupancy,
+                b_factor,
                 (element != nullptr) ? element : "");
 
     return n;

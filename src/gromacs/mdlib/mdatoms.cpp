@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -87,7 +87,6 @@ MDAtoms::~MDAtoms()
     sfree(mdatoms_->ptype);
     sfree(mdatoms_->cTC);
     sfree(mdatoms_->cENER);
-    sfree(mdatoms_->cACC);
     sfree(mdatoms_->cFREEZE);
     sfree(mdatoms_->cVCM);
     sfree(mdatoms_->cORF);
@@ -156,12 +155,12 @@ std::unique_ptr<MDAtoms> makeMDAtoms(FILE* fp, const gmx_mtop_t& mtop, const t_i
         totalMassA += nmol * atom->m;
         totalMassB += nmol * atom->mB;
 
-        if (atom->ptype == eptVSite)
+        if (atom->ptype == ParticleType::VSite)
         {
             md->haveVsites = TRUE;
         }
 
-        if (ir.efep != efepNO && PERTURBED(*atom))
+        if (ir.efep != FreeEnergyPerturbationType::No && PERTURBED(*atom))
         {
             md->nPerturbed++;
             if (atom->mB != atom->m)
@@ -182,10 +181,12 @@ std::unique_ptr<MDAtoms> makeMDAtoms(FILE* fp, const gmx_mtop_t& mtop, const t_i
     md->tmassA = totalMassA;
     md->tmassB = totalMassB;
 
-    if (ir.efep != efepNO && fp)
+    if (ir.efep != FreeEnergyPerturbationType::No && fp)
     {
-        fprintf(fp, "There are %d atoms and %d charges for free energy perturbation\n",
-                md->nPerturbed, md->nChargePerturbed);
+        fprintf(fp,
+                "There are %d atoms and %d charges for free energy perturbation\n",
+                md->nPerturbed,
+                md->nChargePerturbed);
     }
 
     md->havePartiallyFrozenAtoms = FALSE;
@@ -287,10 +288,6 @@ void atoms2md(const gmx_mtop_t*  mtop,
             /* We always copy cTC with domain decomposition */
         }
         srenew(md->cENER, md->nalloc);
-        if (opts->ngacc > 1)
-        {
-            srenew(md->cACC, md->nalloc);
-        }
         if (opts->nFreeze
             && (opts->ngfrz > 1 || opts->nFreeze[0][XX] || opts->nFreeze[0][YY] || opts->nFreeze[0][ZZ]))
         {
@@ -356,7 +353,7 @@ void atoms2md(const gmx_mtop_t*  mtop,
                 mA = 1.0;
                 mB = 1.0;
             }
-            else if (ir->eI == eiBD)
+            else if (ir->eI == IntegrationAlgorithm::BD)
             {
                 /* With BD the physical masses are irrelevant.
                  * To keep the code simple we use most of the normal MD code path
@@ -404,8 +401,7 @@ void atoms2md(const gmx_mtop_t*  mtop,
             else if (md->cFREEZE)
             {
                 g = md->cFREEZE[i];
-                GMX_ASSERT(opts->nFreeze != nullptr,
-                           "Must have freeze groups to initialize masses");
+                GMX_ASSERT(opts->nFreeze != nullptr, "Must have freeze groups to initialize masses");
                 if (opts->nFreeze[g][XX] && opts->nFreeze[g][YY] && opts->nFreeze[g][ZZ])
                 {
                     /* Set the mass of completely frozen particles to ALMOST_ZERO
@@ -441,7 +437,7 @@ void atoms2md(const gmx_mtop_t*  mtop,
             {
                 c6  = mtop->ffparams.iparams[atom.type * (mtop->ffparams.atnr + 1)].lj.c6;
                 c12 = mtop->ffparams.iparams[atom.type * (mtop->ffparams.atnr + 1)].lj.c12;
-                md->sqrt_c6A[i] = sqrt(c6);
+                md->sqrt_c6A[i] = std::sqrt(c6);
                 if (c6 == 0.0 || c12 == 0)
                 {
                     md->sigmaA[i] = 1.0;
@@ -461,7 +457,7 @@ void atoms2md(const gmx_mtop_t*  mtop,
                 {
                     c6  = mtop->ffparams.iparams[atom.typeB * (mtop->ffparams.atnr + 1)].lj.c6;
                     c12 = mtop->ffparams.iparams[atom.typeB * (mtop->ffparams.atnr + 1)].lj.c12;
-                    md->sqrt_c6B[i] = sqrt(c6);
+                    md->sqrt_c6B[i] = std::sqrt(c6);
                     if (c6 == 0.0 || c12 == 0)
                     {
                         md->sigmaB[i] = 1.0;
@@ -479,10 +475,6 @@ void atoms2md(const gmx_mtop_t*  mtop,
                 md->cTC[i] = groups.groupNumbers[SimulationAtomGroupType::TemperatureCoupling][ag];
             }
             md->cENER[i] = getGroupType(groups, SimulationAtomGroupType::EnergyOutput, ag);
-            if (md->cACC)
-            {
-                md->cACC[i] = groups.groupNumbers[SimulationAtomGroupType::Acceleration][ag];
-            }
             if (md->cVCM)
             {
                 md->cVCM[i] = groups.groupNumbers[SimulationAtomGroupType::MassCenterVelocityRemoval][ag];

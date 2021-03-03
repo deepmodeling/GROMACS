@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2014,2015,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2014,2015,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -38,21 +38,23 @@
 
 #include "config.h"
 
+#include "gromacs/utility/gmxassert.h"
+
 #include "baseversion_gen.h"
 
 const char* gmx_version()
 {
-    return _gmx_ver_string;
+    return gmx_ver_string;
 }
 
 const char* gmx_version_git_full_hash()
 {
-    return _gmx_full_git_hash;
+    return gmx_full_git_hash;
 }
 
 const char* gmx_version_git_central_base_hash()
 {
-    return _gmx_central_base_hash;
+    return gmx_central_base_hash;
 }
 
 const char* gmxDOI()
@@ -76,11 +78,30 @@ void gmx_is_double_precision() {}
 void gmx_is_single_precision() {}
 #endif
 
-/* Note that this array (and some which follow) must match the "GPU
- * support enumeration" in src/config.h.cmakein */
-static const char* const gpuImplementationStrings[] = { "disabled", "CUDA", "OpenCL" };
-
 const char* getGpuImplementationString()
 {
-    return gpuImplementationStrings[GMX_GPU];
+    if (GMX_GPU)
+    {
+        if (GMX_GPU_CUDA)
+        {
+            return "CUDA";
+        }
+        else if (GMX_GPU_OPENCL)
+        {
+            return "OpenCL";
+        }
+        else if (GMX_GPU_SYCL)
+        {
+            return "SYCL";
+        }
+        else
+        {
+            GMX_RELEASE_ASSERT(false, "Unknown GPU configuration");
+            return "impossible";
+        }
+    }
+    else
+    {
+        return "disabled";
+    }
 }

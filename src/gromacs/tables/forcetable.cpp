@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -335,8 +335,7 @@ real ewald_spline3_table_scale(const interaction_const_t& ic,
 {
     GMX_RELEASE_ASSERT(!generateCoulombTables || EEL_PME_EWALD(ic.eeltype),
                        "Can only use tables with Ewald");
-    GMX_RELEASE_ASSERT(!generateVdwTables || EVDW_PME(ic.vdwtype),
-                       "Can only use tables with Ewald");
+    GMX_RELEASE_ASSERT(!generateVdwTables || EVDW_PME(ic.vdwtype), "Can only use tables with Ewald");
 
     real sc = 0;
 
@@ -574,8 +573,12 @@ static void set_forces(FILE* fp, int angle, int nx, double h, double v[], double
 
     if (fp)
     {
-        fprintf(fp, "Generating forces for table %d, boundary conditions: V''' at %g, %s at %g\n",
-                table + 1, start * h, end == nx ? "V'''" : "V'=0", (end - 1) * h);
+        fprintf(fp,
+                "Generating forces for table %d, boundary conditions: V''' at %g, %s at %g\n",
+                table + 1,
+                start * h,
+                end == nx ? "V'''" : "V'=0",
+                (end - 1) * h);
     }
     spline_forces(end - start, h, v + start, TRUE, end == nx, f + start);
 }
@@ -594,8 +597,7 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
     int                                                            numColumns = xvgData.extent(0);
     if (numColumns != nny)
     {
-        gmx_fatal(FARGS, "Trying to read file %s, but nr columns = %d, should be %d", libfn.c_str(),
-                  numColumns, nny);
+        gmx_fatal(FARGS, "Trying to read file %s, but nr columns = %d, should be %d", libfn.c_str(), numColumns, nny);
     }
     int numRows = xvgData.extent(1);
 
@@ -604,8 +606,11 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
     {
         if (yy[0][0] != 0.0)
         {
-            gmx_fatal(FARGS, "The first distance in file %s is %f nm instead of %f nm",
-                      libfn.c_str(), yy[0][0], 0.0);
+            gmx_fatal(FARGS,
+                      "The first distance in file %s is %f nm instead of %f nm",
+                      libfn.c_str(),
+                      yy[0][0],
+                      0.0);
         }
     }
     else
@@ -621,8 +626,13 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
         end = 180.0;
         if (yy[0][0] != start || yy[0][numRows - 1] != end)
         {
-            gmx_fatal(FARGS, "The angles in file %s should go from %f to %f instead of %f to %f\n",
-                      libfn.c_str(), start, end, yy[0][0], yy[0][numRows - 1]);
+            gmx_fatal(FARGS,
+                      "The angles in file %s should go from %f to %f instead of %f to %f\n",
+                      libfn.c_str(),
+                      start,
+                      end,
+                      yy[0][0],
+                      yy[0][numRows - 1]);
         }
     }
 
@@ -653,7 +663,10 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
                 {
                     gmx_fatal(FARGS,
                               "In table file '%s' the x values are not equally spaced: %f %f %f",
-                              filename, yy[0][i - 2], yy[0][i - 1], yy[0][i]);
+                              filename,
+                              yy[0][i - 2],
+                              yy[0][i - 1],
+                              yy[0][i]);
                 }
             }
             if (yy[1 + k * 2][i] != 0)
@@ -666,8 +679,7 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
                 }
                 if (yy[1 + k * 2][i] > 0.01 * GMX_REAL_MAX || yy[1 + k * 2][i] < -0.01 * GMX_REAL_MAX)
                 {
-                    gmx_fatal(FARGS, "Out of range potential value %g in file '%s'",
-                              yy[1 + k * 2][i], filename);
+                    gmx_fatal(FARGS, "Out of range potential value %g in file '%s'", yy[1 + k * 2][i], filename);
                 }
             }
             if (yy[1 + k * 2 + 1][i] != 0)
@@ -680,16 +692,14 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
                 }
                 if (yy[1 + k * 2 + 1][i] > 0.01 * GMX_REAL_MAX || yy[1 + k * 2 + 1][i] < -0.01 * GMX_REAL_MAX)
                 {
-                    gmx_fatal(FARGS, "Out of range force value %g in file '%s'",
-                              yy[1 + k * 2 + 1][i], filename);
+                    gmx_fatal(FARGS, "Out of range force value %g in file '%s'", yy[1 + k * 2 + 1][i], filename);
                 }
             }
         }
 
         if (!bZeroV && bZeroF)
         {
-            set_forces(fp, angle, numRows, 1 / tabscale, yy[1 + k * 2].data(),
-                       yy[1 + k * 2 + 1].data(), k);
+            set_forces(fp, angle, numRows, 1 / tabscale, yy[1 + k * 2].data(), yy[1 + k * 2 + 1].data(), k);
         }
         else
         {
@@ -721,7 +731,10 @@ static void read_tables(FILE* fp, const char* filename, int ntab, int angle, t_t
                         "For the %d non-zero entries for table %d in %s the forces deviate on "
                         "average %" PRId64
                         "%% from minus the numerical derivative of the potential\n",
-                        ns, k, libfn.c_str(), gmx::roundToInt64(100 * ssd));
+                        ns,
+                        k,
+                        libfn.c_str(),
+                        gmx::roundToInt64(100 * ssd));
                 if (debug)
                 {
                     fprintf(debug, "%s", buf);
@@ -801,15 +814,18 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
     }
     else
     {
-        bPotentialSwitch = ((tp == etabLJ6Switch) || (tp == etabLJ12Switch) || (tp == etabCOULSwitch)
-                            || (tp == etabEwaldSwitch) || (tp == etabEwaldUserSwitch)
-                            || (tprops[tp].bCoulomb && (ic->coulomb_modifier == eintmodPOTSWITCH))
-                            || (!tprops[tp].bCoulomb && (ic->vdw_modifier == eintmodPOTSWITCH)));
-        bForceSwitch     = ((tp == etabLJ6Shift) || (tp == etabLJ12Shift) || (tp == etabShift)
-                        || (tprops[tp].bCoulomb && (ic->coulomb_modifier == eintmodFORCESWITCH))
-                        || (!tprops[tp].bCoulomb && (ic->vdw_modifier == eintmodFORCESWITCH)));
-        bPotentialShift  = ((tprops[tp].bCoulomb && (ic->coulomb_modifier == eintmodPOTSHIFT))
-                           || (!tprops[tp].bCoulomb && (ic->vdw_modifier == eintmodPOTSHIFT)));
+        bPotentialSwitch =
+                ((tp == etabLJ6Switch) || (tp == etabLJ12Switch) || (tp == etabCOULSwitch)
+                 || (tp == etabEwaldSwitch) || (tp == etabEwaldUserSwitch)
+                 || (tprops[tp].bCoulomb && (ic->coulomb_modifier == InteractionModifiers::PotSwitch))
+                 || (!tprops[tp].bCoulomb && (ic->vdw_modifier == InteractionModifiers::PotSwitch)));
+        bForceSwitch =
+                ((tp == etabLJ6Shift) || (tp == etabLJ12Shift) || (tp == etabShift)
+                 || (tprops[tp].bCoulomb && (ic->coulomb_modifier == InteractionModifiers::ForceSwitch))
+                 || (!tprops[tp].bCoulomb && (ic->vdw_modifier == InteractionModifiers::ForceSwitch)));
+        bPotentialShift =
+                ((tprops[tp].bCoulomb && (ic->coulomb_modifier == InteractionModifiers::PotShift))
+                 || (!tprops[tp].bCoulomb && (ic->vdw_modifier == InteractionModifiers::PotShift)));
     }
 
     reppow = ic->reppow;
@@ -910,7 +926,9 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
                 gmx_fatal(FARGS,
                           "Cannot apply new potential-shift modifier to interaction type '%s' yet. "
                           "(%s,%d)",
-                          tprops[tp].name, __FILE__, __LINE__);
+                          tprops[tp].name,
+                          __FILE__,
+                          __LINE__);
         }
     }
 
@@ -1027,8 +1045,8 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
                 break;
             case etabRF:
             case etabRF_ZERO:
-                Vtab = 1.0 / r + ic->k_rf * r2 - ic->c_rf;
-                Ftab = 1.0 / r2 - 2 * ic->k_rf * r;
+                Vtab = 1.0 / r + ic->reactionFieldCoefficient * r2 - ic->reactionFieldShift;
+                Ftab = 1.0 / r2 - 2 * ic->reactionFieldCoefficient * r;
                 if (tp == etabRF_ZERO && r >= rc)
                 {
                     Vtab = 0;
@@ -1116,21 +1134,23 @@ static void fill_table(t_tabledata* td, int tp, const interaction_const_t* ic, g
 
 static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool b14only)
 {
-    int eltype, vdwtype;
-
     /* Set the different table indices.
      * Coulomb first.
      */
 
+    CoulombInteractionType eltype;
+    VanDerWaalsType        vdwtype;
 
     if (b14only)
     {
         switch (ic->eeltype)
         {
-            case eelUSER:
-            case eelPMEUSER:
-            case eelPMEUSERSWITCH: eltype = eelUSER; break;
-            default: eltype = eelCUT;
+            case CoulombInteractionType::User:
+            case CoulombInteractionType::PmeUser:
+            case CoulombInteractionType::PmeUserSwitch:
+                eltype = CoulombInteractionType::User;
+                break;
+            default: eltype = CoulombInteractionType::Cut;
         }
     }
     else
@@ -1140,9 +1160,9 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
 
     switch (eltype)
     {
-        case eelCUT: tabsel[etiCOUL] = etabCOUL; break;
-        case eelPOISSON: tabsel[etiCOUL] = etabShift; break;
-        case eelSHIFT:
+        case CoulombInteractionType::Cut: tabsel[etiCOUL] = etabCOUL; break;
+        case CoulombInteractionType::Poisson: tabsel[etiCOUL] = etabShift; break;
+        case CoulombInteractionType::Shift:
             if (ic->rcoulomb > ic->rcoulomb_switch)
             {
                 tabsel[etiCOUL] = etabShift;
@@ -1152,17 +1172,17 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
                 tabsel[etiCOUL] = etabCOUL;
             }
             break;
-        case eelEWALD:
-        case eelPME:
-        case eelP3M_AD: tabsel[etiCOUL] = etabEwald; break;
-        case eelPMESWITCH: tabsel[etiCOUL] = etabEwaldSwitch; break;
-        case eelPMEUSER: tabsel[etiCOUL] = etabEwaldUser; break;
-        case eelPMEUSERSWITCH: tabsel[etiCOUL] = etabEwaldUserSwitch; break;
-        case eelRF:
-        case eelRF_ZERO: tabsel[etiCOUL] = etabRF_ZERO; break;
-        case eelSWITCH: tabsel[etiCOUL] = etabCOULSwitch; break;
-        case eelUSER: tabsel[etiCOUL] = etabUSER; break;
-        default: gmx_fatal(FARGS, "Invalid eeltype %d", eltype);
+        case CoulombInteractionType::Ewald:
+        case CoulombInteractionType::Pme:
+        case CoulombInteractionType::P3mAD: tabsel[etiCOUL] = etabEwald; break;
+        case CoulombInteractionType::PmeSwitch: tabsel[etiCOUL] = etabEwaldSwitch; break;
+        case CoulombInteractionType::PmeUser: tabsel[etiCOUL] = etabEwaldUser; break;
+        case CoulombInteractionType::PmeUserSwitch: tabsel[etiCOUL] = etabEwaldUserSwitch; break;
+        case CoulombInteractionType::RF:
+        case CoulombInteractionType::RFZero: tabsel[etiCOUL] = etabRF_ZERO; break;
+        case CoulombInteractionType::Switch: tabsel[etiCOUL] = etabCOULSwitch; break;
+        case CoulombInteractionType::User: tabsel[etiCOUL] = etabUSER; break;
+        default: gmx_fatal(FARGS, "Invalid eeltype %s", enumValueToString(eltype));
     }
 
     /* Van der Waals time */
@@ -1173,9 +1193,9 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
     }
     else
     {
-        if (b14only && ic->vdwtype != evdwUSER)
+        if (b14only && ic->vdwtype != VanDerWaalsType::User)
         {
-            vdwtype = evdwCUT;
+            vdwtype = VanDerWaalsType::Cut;
         }
         else
         {
@@ -1184,33 +1204,33 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
 
         switch (vdwtype)
         {
-            case evdwSWITCH:
+            case VanDerWaalsType::Switch:
                 tabsel[etiLJ6]  = etabLJ6Switch;
                 tabsel[etiLJ12] = etabLJ12Switch;
                 break;
-            case evdwSHIFT:
+            case VanDerWaalsType::Shift:
                 tabsel[etiLJ6]  = etabLJ6Shift;
                 tabsel[etiLJ12] = etabLJ12Shift;
                 break;
-            case evdwUSER:
+            case VanDerWaalsType::User:
                 tabsel[etiLJ6]  = etabUSER;
                 tabsel[etiLJ12] = etabUSER;
                 break;
-            case evdwCUT:
+            case VanDerWaalsType::Cut:
                 tabsel[etiLJ6]  = etabLJ6;
                 tabsel[etiLJ12] = etabLJ12;
                 break;
-            case evdwPME:
+            case VanDerWaalsType::Pme:
                 tabsel[etiLJ6]  = etabLJ6Ewald;
                 tabsel[etiLJ12] = etabLJ12;
                 break;
             default:
-                gmx_fatal(FARGS, "Invalid vdwtype %d in %s line %d", vdwtype, __FILE__, __LINE__);
+                gmx_fatal(FARGS, "Invalid vdwtype %s in %s line %d", enumValueToString(vdwtype), __FILE__, __LINE__);
         }
 
-        if (!b14only && ic->vdw_modifier != eintmodNONE)
+        if (!b14only && ic->vdw_modifier != InteractionModifiers::None)
         {
-            if (ic->vdw_modifier != eintmodPOTSHIFT && ic->vdwtype != evdwCUT)
+            if (ic->vdw_modifier != InteractionModifiers::PotShift && ic->vdwtype != VanDerWaalsType::Cut)
             {
                 gmx_incons(
                         "Potential modifiers other than potential-shift are only implemented for "
@@ -1220,20 +1240,20 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
             /* LJ-PME and other (shift-only) modifiers are handled by applying the modifiers
              * to the original interaction forms when we fill the table, so we only check cutoffs here.
              */
-            if (ic->vdwtype == evdwCUT)
+            if (ic->vdwtype == VanDerWaalsType::Cut)
             {
                 switch (ic->vdw_modifier)
                 {
-                    case eintmodNONE:
-                    case eintmodPOTSHIFT:
-                    case eintmodEXACTCUTOFF:
+                    case InteractionModifiers::None:
+                    case InteractionModifiers::PotShift:
+                    case InteractionModifiers::ExactCutoff:
                         /* No modification */
                         break;
-                    case eintmodPOTSWITCH:
+                    case InteractionModifiers::PotSwitch:
                         tabsel[etiLJ6]  = etabLJ6Switch;
                         tabsel[etiLJ12] = etabLJ12Switch;
                         break;
-                    case eintmodFORCESWITCH:
+                    case InteractionModifiers::ForceSwitch:
                         tabsel[etiLJ6]  = etabLJ6Shift;
                         tabsel[etiLJ12] = etabLJ12Shift;
                         break;
@@ -1244,15 +1264,16 @@ static void set_table_type(int tabsel[], const interaction_const_t* ic, gmx_bool
     }
 }
 
-t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* fn, real rtab, int flags)
+std::unique_ptr<t_forcetable>
+make_tables(FILE* fp, const interaction_const_t* ic, const char* fn, real rtab, int flags)
 {
     t_tabledata* td;
     gmx_bool     b14only, useUserTable;
     int          nx0, tabsel[etiNR];
     real         scalefactor;
 
-    t_forcetable* table = new t_forcetable(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP,
-                                           GMX_TABLE_FORMAT_CUBICSPLINE_YFGH);
+    auto table = std::make_unique<t_forcetable>(GMX_TABLE_INTERACTION_ELEC_VDWREP_VDWDISP,
+                                                GMX_TABLE_FORMAT_CUBICSPLINE_YFGH);
 
     b14only = ((flags & GMX_MAKETABLES_14ONLY) != 0);
 
@@ -1286,7 +1307,7 @@ t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* 
     }
     if (useUserTable)
     {
-        read_tables(out, fn, etiNR, 0, td);
+        read_tables(fp, fn, etiNR, 0, td);
         if (rtab == 0 || (flags & GMX_MAKETABLES_14ONLY))
         {
             table->n = td[0].nx;
@@ -1298,7 +1319,8 @@ t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* 
                 gmx_fatal(FARGS,
                           "Tables in file %s not long enough for cut-off:\n"
                           "\tshould be at least %f nm\n",
-                          fn, rtab);
+                          fn,
+                          rtab);
             }
             table->n = gmx::roundToInt(rtab * td[0].tabscale);
         }
@@ -1338,12 +1360,15 @@ t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* 
             init_table(table->n, nx0, scale, &(td[k]), !useUserTable);
 
             fill_table(&(td[k]), tabsel[k], ic, b14only);
-            if (out)
+            if (fp)
             {
-                fprintf(out,
+                fprintf(fp,
                         "Generated table with %d data points for %s%s.\n"
                         "Tabscale = %g points/nm\n",
-                        td[k].nx, b14only ? "1-4 " : "", tprops[tabsel[k]].name, td[k].tabscale);
+                        td[k].nx,
+                        b14only ? "1-4 " : "",
+                        tprops[tabsel[k]].name,
+                        td[k].tabscale);
             }
         }
 
@@ -1366,8 +1391,14 @@ t_forcetable* make_tables(FILE* out, const interaction_const_t* ic, const char* 
             scalefactor = 1.0;
         }
 
-        copy2table(table->n, k * table->formatsize, table->stride, td[k].x, td[k].v, td[k].f,
-                   scalefactor, table->data.data());
+        copy2table(table->n,
+                   k * table->formatsize,
+                   table->stride,
+                   td[k].x,
+                   td[k].v,
+                   td[k].f,
+                   scalefactor,
+                   table->data.data());
 
         done_tabledata(&(td[k]));
     }
@@ -1406,15 +1437,10 @@ bondedtable_t make_bonded_table(FILE* fplog, const char* fn, int angle)
 std::unique_ptr<t_forcetable>
 makeDispersionCorrectionTable(FILE* fp, const interaction_const_t* ic, real rtab, const char* tabfn)
 {
-    GMX_RELEASE_ASSERT(ic->vdwtype != evdwUSER || tabfn,
+    GMX_RELEASE_ASSERT(ic->vdwtype != VanDerWaalsType::User || tabfn,
                        "With VdW user tables we need a table file name");
 
-    if (tabfn == nullptr)
-    {
-        return std::unique_ptr<t_forcetable>(nullptr);
-    }
-
-    t_forcetable* fullTable = make_tables(fp, ic, tabfn, rtab, 0);
+    std::unique_ptr<t_forcetable> fullTable = make_tables(fp, ic, tabfn, rtab, 0);
     /* Copy the contents of the table to one that has just dispersion
      * and repulsion, to improve cache performance. We want the table
      * data to be aligned to 32-byte boundaries.
@@ -1438,7 +1464,6 @@ makeDispersionCorrectionTable(FILE* fp, const interaction_const_t* ic, real rtab
             dispersionCorrectionTable->data[8 * i + j] = fullTable->data[12 * i + 4 + j];
         }
     }
-    delete fullTable;
 
     return dispersionCorrectionTable;
 }
@@ -1454,3 +1479,5 @@ t_forcetable::t_forcetable(enum gmx_table_interaction interaction, enum gmx_tabl
     stride(0)
 {
 }
+
+t_forcetable::~t_forcetable() = default;

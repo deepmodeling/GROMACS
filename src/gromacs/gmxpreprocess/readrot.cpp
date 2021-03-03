@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -111,11 +111,11 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
                              "Rotation potential. Can be iso, iso-pf, pm, pm-pf, rm, rm-pf, rm2, "
                              "rm2-pf, flex, flex-t, flex2, flex2-t");
         sprintf(buf, "rot-type%d", g);
-        rotg->eType = get_eenum(inp, buf, erotg_names);
+        rotg->eType = getEnum<EnforcedRotationGroupType>(inp, buf, wi);
 
         printStringNoNewline(inp, "Use mass-weighting of the rotation group positions");
         sprintf(buf, "rot-massw%d", g);
-        rotg->bMassW = get_eenum(inp, buf, yesno_names);
+        rotg->bMassW = getEnum<Boolean>(inp, buf, wi) != Boolean::No;
 
         printStringNoNewline(inp, "Rotation vector, will get normalized");
         sprintf(buf, "rot-vec%d", g);
@@ -131,8 +131,14 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
             sprintf(warn_buf, "rot-vec%d = 0", g);
             warning_error(wi, warn_buf);
         }
-        fprintf(stderr, "%s Group %d (%s) normalized rot. vector: %f %f %f\n", RotStr, g,
-                erotg_names[rotg->eType], vec[0], vec[1], vec[2]);
+        fprintf(stderr,
+                "%s Group %d (%s) normalized rot. vector: %f %f %f\n",
+                RotStr,
+                g,
+                enumValueToString(rotg->eType),
+                vec[0],
+                vec[1],
+                vec[2]);
         for (m = 0; m < DIM; m++)
         {
             rotg->inputVec[m] = vec[m];
@@ -142,8 +148,10 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
         sprintf(buf, "rot-pivot%d", g);
         setStringEntry(inp, buf, s_vec, "0.0 0.0 0.0");
         clear_dvec(vec);
-        if ((rotg->eType == erotgISO) || (rotg->eType == erotgPM) || (rotg->eType == erotgRM)
-            || (rotg->eType == erotgRM2))
+        if ((rotg->eType == EnforcedRotationGroupType::Iso)
+            || (rotg->eType == EnforcedRotationGroupType::Pm)
+            || (rotg->eType == EnforcedRotationGroupType::Rm)
+            || (rotg->eType == EnforcedRotationGroupType::Rm2))
         {
             string2dvec(s_vec, vec);
         }
@@ -188,7 +196,9 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
                 inp, "Value of additive constant epsilon' (nm^2) for rm2* and flex2* potentials");
         sprintf(buf, "rot-eps%d", g);
         rotg->eps = get_ereal(inp, buf, 1e-4, wi);
-        if ((rotg->eps <= 0.0) && (rotg->eType == erotgRM2 || rotg->eType == erotgFLEX2))
+        if ((rotg->eps <= 0.0)
+            && (rotg->eType == EnforcedRotationGroupType::Rm2
+                || rotg->eType == EnforcedRotationGroupType::Flex2))
         {
             sprintf(warn_buf, "rot-eps%d <= 0", g);
             warning_error(wi, warn_buf);
@@ -198,20 +208,19 @@ extern std::vector<std::string> read_rotparams(std::vector<t_inpfile>* inp, t_ro
                 inp,
                 "Fitting method to determine angle of rotation group (rmsd, norm, or potential)");
         sprintf(buf, "rot-fit-method%d", g);
-        rotg->eFittype = get_eenum(inp, buf, erotg_fitnames);
+        rotg->eFittype = getEnum<RotationGroupFitting>(inp, buf, wi);
         printStringNoNewline(inp,
                              "For fit type 'potential', nr. of angles around the reference for "
                              "which the pot. is evaluated");
         sprintf(buf, "rot-potfit-nsteps%d", g);
         rotg->PotAngle_nstep = get_eint(inp, buf, 21, wi);
-        if ((rotg->eFittype == erotgFitPOT) && (rotg->PotAngle_nstep < 1))
+        if ((rotg->eFittype == RotationGroupFitting::Pot) && (rotg->PotAngle_nstep < 1))
         {
             sprintf(warn_buf, "rot-potfit-nsteps%d < 1", g);
             warning_error(wi, warn_buf);
         }
         printStringNoNewline(
-                inp,
-                "For fit type 'potential', distance in degrees between two consecutive angles");
+                inp, "For fit type 'potential', distance in degrees between two consecutive angles");
         sprintf(buf, "rot-potfit-step%d", g);
         rotg->PotAngle_step = get_ereal(inp, buf, 0.25, wi);
     }
@@ -274,7 +283,9 @@ extern void set_reference_positions(t_rot* rot, rvec* x, matrix box, const char*
             gmx_fatal(FARGS,
                       "%s The file containing the reference positions was not found.\n"
                       "Expected the file '%s' for group %d.\n",
-                      RotStr, reffile, g);
+                      RotStr,
+                      reffile,
+                      g);
         }
 
         if (gmx_fexist(reffile))
@@ -286,10 +297,12 @@ extern void set_reference_positions(t_rot* rot, rvec* x, matrix box, const char*
                 gmx_fatal(FARGS,
                           "Number of atoms in file %s (%d) does not match the number of atoms in "
                           "rotation group (%d)!\n",
-                          reffile, header.natoms, rotg->nat);
+                          reffile,
+                          header.natoms,
+                          rotg->nat);
             }
-            gmx_trr_read_single_frame(reffile, &header.step, &header.t, &header.lambda, f_box,
-                                      &header.natoms, rotg->x_ref, nullptr, nullptr);
+            gmx_trr_read_single_frame(
+                    reffile, &header.step, &header.t, &header.lambda, f_box, &header.natoms, rotg->x_ref, nullptr, nullptr);
 
             /* Check whether the box is unchanged and output a warning if not: */
             check_box_unchanged(f_box, box, reffile, wi);
@@ -325,8 +338,7 @@ extern void make_rotation_groups(t_rot*                           rot,
 
         if (rotg->nat > 0)
         {
-            fprintf(stderr, "Rotation group %d '%s' has %d atoms\n", g, rotateGroupNames[g].c_str(),
-                    rotg->nat);
+            fprintf(stderr, "Rotation group %d '%s' has %d atoms\n", g, rotateGroupNames[g].c_str(), rotg->nat);
             snew(rotg->ind, rotg->nat);
             for (i = 0; i < rotg->nat; i++)
             {

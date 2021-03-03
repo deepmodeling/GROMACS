@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2008, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -43,6 +43,7 @@
 #include "gromacs/math/vectypes.h"
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/topology/atoms.h"
+#include "gromacs/utility/enumerationhelpers.h"
 
 class DDBalanceRegionHandler;
 struct gmx_enerdata_t;
@@ -66,19 +67,29 @@ class ArrayRef;
 template<typename>
 class ArrayRefWithPadding;
 class Constraints;
+class ForceBuffersView;
 class ImdSession;
 class MdrunScheduleWorkload;
 class VirtualSitesHandler;
 } // namespace gmx
 
-/* Initialization function, also predicts the initial shell postions.
- * Returns a pointer to an initialized shellfc object.
+/*! \brief Initialization function, also predicts the initial shell positions.
+ *
+ * \param fplog Pointer to the log stream. Can be set to \c nullptr to disable verbose log.
+ * \param mtop Pointer to a global system topology object.
+ * \param nflexcon Number of flexible constraints.
+ * \param nstcalcenergy How often are energies calculated. Must be provided for sanity check.
+ * \param usingDomainDecomposition Whether domain decomposition is used. Must be provided for sanity check.
+ * \param usingPmeOnGpu Set to true if GPU will be used for PME calculations. Necessary for proper buffer initialization.
+ *
+ * \returns a pointer to an initialized \c shellfc object.
  */
 gmx_shellfc_t* init_shell_flexcon(FILE*             fplog,
                                   const gmx_mtop_t* mtop,
                                   int               nflexcon,
                                   int               nstcalcenergy,
-                                  bool              usingDomainDecomposition);
+                                  bool              usingDomainDecomposition,
+                                  bool              usingPmeOnGpu);
 
 /* Optimize shell positions */
 void relax_shell_flexcon(FILE*                               log,
@@ -100,8 +111,8 @@ void relax_shell_flexcon(FILE*                               log,
                          gmx::ArrayRefWithPadding<gmx::RVec> v,
                          const matrix                        box,
                          gmx::ArrayRef<real>                 lambda,
-                         history_t*                          hist,
-                         gmx::ArrayRefWithPadding<gmx::RVec> f,
+                         const history_t*                    hist,
+                         gmx::ForceBuffersView*              f,
                          tensor                              force_vir,
                          const t_mdatoms*                    md,
                          t_nrnb*                             nrnb,
@@ -125,6 +136,6 @@ void done_shellfc(FILE* fplog, gmx_shellfc_t* shellfc, int64_t numSteps);
  * \param[in]  mtop  Molecular topology.
  * \returns Array holding the number of particles of a type
  */
-std::array<int, eptNR> countPtypes(FILE* fplog, const gmx_mtop_t* mtop);
+gmx::EnumerationArray<ParticleType, int> countPtypes(FILE* fplog, const gmx_mtop_t* mtop);
 
 #endif

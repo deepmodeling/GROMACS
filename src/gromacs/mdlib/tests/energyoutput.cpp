@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -98,11 +98,11 @@ void fcloseWrapper(FILE* fp)
 struct EnergyOutputTestParameters
 {
     //! Thermostat (enum)
-    int temperatureCouplingScheme;
+    TemperatureCoupling temperatureCouplingScheme;
     //! Barostat (enum)
-    int pressureCouplingScheme;
+    PressureCoupling pressureCouplingScheme;
     //! Integrator
-    int integrator;
+    IntegrationAlgorithm integrator;
     //! Number of saved energy frames (to test averages output).
     int numFrames;
     //! If output should be initialized as a rerun.
@@ -116,17 +116,19 @@ struct EnergyOutputTestParameters
  * Only several combinations of the parameters are used. Using all possible combinations will
  * require ~10 MB of test data and ~2 sec to run the tests.
  */
-const EnergyOutputTestParameters parametersSets[] = { { etcNO, epcNO, eiMD, 1, false, false },
-                                                      { etcNO, epcNO, eiMD, 1, true, false },
-                                                      { etcNO, epcNO, eiMD, 1, false, true },
-                                                      { etcNO, epcNO, eiMD, 0, false, false },
-                                                      { etcNO, epcNO, eiMD, 10, false, false },
-                                                      { etcVRESCALE, epcNO, eiMD, 1, false, false },
-                                                      { etcNOSEHOOVER, epcNO, eiMD, 1, false, false },
-                                                      { etcNO, epcPARRINELLORAHMAN, eiMD, 1, false, false },
-                                                      { etcNO, epcMTTK, eiMD, 1, false, false },
-                                                      { etcNO, epcNO, eiVV, 1, false, false },
-                                                      { etcNO, epcMTTK, eiVV, 1, false, false } };
+const EnergyOutputTestParameters parametersSets[] = {
+    { TemperatureCoupling::No, PressureCoupling::No, IntegrationAlgorithm::MD, 1, false, false },
+    { TemperatureCoupling::No, PressureCoupling::No, IntegrationAlgorithm::MD, 1, true, false },
+    { TemperatureCoupling::No, PressureCoupling::No, IntegrationAlgorithm::MD, 1, false, true },
+    { TemperatureCoupling::No, PressureCoupling::No, IntegrationAlgorithm::MD, 0, false, false },
+    { TemperatureCoupling::No, PressureCoupling::No, IntegrationAlgorithm::MD, 10, false, false },
+    { TemperatureCoupling::VRescale, PressureCoupling::No, IntegrationAlgorithm::MD, 1, false, false },
+    { TemperatureCoupling::NoseHoover, PressureCoupling::No, IntegrationAlgorithm::MD, 1, false, false },
+    { TemperatureCoupling::No, PressureCoupling::ParrinelloRahman, IntegrationAlgorithm::MD, 1, false, false },
+    { TemperatureCoupling::No, PressureCoupling::Mttk, IntegrationAlgorithm::MD, 1, false, false },
+    { TemperatureCoupling::No, PressureCoupling::No, IntegrationAlgorithm::VV, 1, false, false },
+    { TemperatureCoupling::No, PressureCoupling::Mttk, IntegrationAlgorithm::VV, 1, false, false }
+};
 
 /*! \brief Test fixture to test energy output.
  *
@@ -203,24 +205,24 @@ public:
         // F_EQM
         inputrec_.bQMMM = true;
         // F_RF_EXCL will not be tested - group scheme is not supported any more
-        inputrec_.cutoff_scheme = ecutsVERLET;
+        inputrec_.cutoff_scheme = CutoffScheme::Verlet;
         // F_COUL_RECIP
-        inputrec_.coulombtype = eelPME;
+        inputrec_.coulombtype = CoulombInteractionType::Pme;
         // F_LJ_RECIP
-        inputrec_.vdwtype = evdwPME;
+        inputrec_.vdwtype = VanDerWaalsType::Pme;
 
         // F_DVDL_COUL, F_DVDL_VDW, F_DVDL_BONDED, F_DVDL_RESTRAINT, F_DKDL and F_DVDL
-        inputrec_.efep                                  = efepYES;
-        inputrec_.fepvals->separate_dvdl[efptCOUL]      = true;
-        inputrec_.fepvals->separate_dvdl[efptVDW]       = true;
-        inputrec_.fepvals->separate_dvdl[efptBONDED]    = true;
-        inputrec_.fepvals->separate_dvdl[efptRESTRAINT] = true;
-        inputrec_.fepvals->separate_dvdl[efptMASS]      = true;
-        inputrec_.fepvals->separate_dvdl[efptCOUL]      = true;
-        inputrec_.fepvals->separate_dvdl[efptFEP]       = true;
+        inputrec_.efep = FreeEnergyPerturbationType::Yes;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Coul]      = true;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Vdw]       = true;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Bonded]    = true;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Restraint] = true;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Mass]      = true;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Coul]      = true;
+        inputrec_.fepvals->separate_dvdl[FreeEnergyPerturbationCouplingType::Fep]       = true;
 
         // F_DISPCORR and F_PDISPCORR
-        inputrec_.eDispCorr = edispcEner;
+        inputrec_.eDispCorr = DispersionCorrectionType::Ener;
         inputrec_.bRot      = true;
 
         // F_ECONSERVED
@@ -229,13 +231,13 @@ public:
         inputrec_.ref_p[ZZ][YY] = 0.0;
 
         // Dipole (mu)
-        inputrec_.ewald_geometry = eewg3DC;
+        inputrec_.ewald_geometry = EwaldGeometry::ThreeDC;
 
         // GMX_CONSTRAINTVIR environment variable should also be
         // set to print constraints and force virials separately.
         gmxSetenv("GMX_CONSTRAINTVIR", "true", 1);
         // To print constrain RMSD, constraints algorithm should be set to LINCS.
-        inputrec_.eConstrAlg = econtLINCS;
+        inputrec_.eConstrAlg = ConstraintAlgorithm::Lincs;
 
         mtop_.bIntermolecularInteractions = false;
 
@@ -320,10 +322,6 @@ public:
         mtop_.groups.groups[SimulationAtomGroupType::TemperatureCoupling][1] = 1;
         mtop_.groups.groups[SimulationAtomGroupType::TemperatureCoupling][2] = 2;
 
-        mtop_.groups.groups[SimulationAtomGroupType::Acceleration].resize(2);
-        mtop_.groups.groups[SimulationAtomGroupType::Acceleration][0] = 0;
-        mtop_.groups.groups[SimulationAtomGroupType::Acceleration][1] = 2;
-
         // Nose-Hoover chains
         inputrec_.bPrintNHChains     = true;
         inputrec_.opts.nhchainlength = 2;
@@ -344,7 +342,6 @@ public:
 
         // Kinetic energy and related data
         ekindata_.tcstat.resize(mtop_.groups.groups[SimulationAtomGroupType::TemperatureCoupling].size());
-        ekindata_.grpstat.resize(mtop_.groups.groups[SimulationAtomGroupType::Acceleration].size());
 
         // This is needed so that the ebin space will be allocated
         inputrec_.cos_accel = 1.0;
@@ -358,9 +355,9 @@ public:
         inputrec_.opts.ngtc = 3;
         snew(inputrec_.opts.ref_t, inputrec_.opts.ngtc);
         snew(inputrec_.opts.annealing, inputrec_.opts.ngtc);
-        inputrec_.opts.annealing[0] = eannNO;
-        inputrec_.opts.annealing[1] = eannSINGLE;
-        inputrec_.opts.annealing[2] = eannPERIODIC;
+        inputrec_.opts.annealing[0] = SimulatedAnnealing::No;
+        inputrec_.opts.annealing[1] = SimulatedAnnealing::Single;
+        inputrec_.opts.annealing[2] = SimulatedAnnealing::Periodic;
 
         // This is to keep done_inputrec happy (otherwise sfree() segfaults)
         snew(inputrec_.opts.anneal_time, inputrec_.opts.ngtc);
@@ -374,8 +371,8 @@ public:
         // TODO EnergyOutput should not take Constraints object
         // TODO This object will always return zero as RMSD value.
         //      It is more relevant to have non-zero value for testing.
-        constraints_ = makeConstraints(mtop_, inputrec_, nullptr, false, nullptr, &cr_, nullptr,
-                                       nullptr, nullptr, false);
+        constraints_ = makeConstraints(
+                mtop_, inputrec_, nullptr, false, nullptr, &cr_, nullptr, nullptr, nullptr, false);
     }
 
     /*! \brief Helper function to generate synthetic data to output
@@ -435,12 +432,9 @@ public:
             tcstat.T      = (*testValue += 0.1);
             tcstat.lambda = (*testValue += 0.1);
         }
-        for (auto& grpstat : ekindata_.grpstat)
-        {
-            grpstat.u[XX] = (*testValue += 0.1);
-            grpstat.u[YY] = (*testValue += 0.1);
-            grpstat.u[ZZ] = (*testValue += 0.1);
-        }
+        // Removing constant acceleration removed a total increment of 0.6
+        // To avoid unnecessary changes in reference data, we keep the increment
+        (*testValue += 0.6);
 
         // This conditional is to check whether the ebin was allocated.
         // Otherwise it will print cosacc data into the first bin.
@@ -625,22 +619,47 @@ TEST_P(EnergyOutputTest, CheckOutput)
     }
 
     MdModulesNotifier             mdModulesNotifier;
-    std::unique_ptr<EnergyOutput> energyOutput = std::make_unique<EnergyOutput>(
-            energyFile_, &mtop_, &inputrec_, nullptr, nullptr, parameters.isRerun,
-            StartingBehavior::NewSimulation, mdModulesNotifier);
+    std::unique_ptr<EnergyOutput> energyOutput =
+            std::make_unique<EnergyOutput>(energyFile_,
+                                           mtop_,
+                                           inputrec_,
+                                           nullptr,
+                                           nullptr,
+                                           parameters.isRerun,
+                                           StartingBehavior::NewSimulation,
+                                           false,
+                                           mdModulesNotifier);
 
     // Add synthetic data for a single step
     double testValue = 10.0;
     for (int frame = 0; frame < parameters.numFrames; frame++)
     {
         setStepData(&testValue);
-        energyOutput->addDataAtEnergyStep(false, true, time_, tmass_, enerdata_.get(), &state_, nullptr,
-                                          nullptr, box_, constraintsVirial_, forceVirial_, totalVirial_,
-                                          pressure_, &ekindata_, muTotal_, constraints_.get());
+        energyOutput->addDataAtEnergyStep(false,
+                                          true,
+                                          time_,
+                                          tmass_,
+                                          enerdata_.get(),
+                                          nullptr,
+                                          nullptr,
+                                          box_,
+                                          PTCouplingArrays({ state_.boxv,
+                                                             state_.nosehoover_xi,
+                                                             state_.nosehoover_vxi,
+                                                             state_.nhpres_xi,
+                                                             state_.nhpres_vxi }),
+                                          state_.fep_state,
+                                          constraintsVirial_,
+                                          forceVirial_,
+                                          totalVirial_,
+                                          pressure_,
+                                          &ekindata_,
+                                          muTotal_,
+                                          constraints_.get());
 
         energyOutput->printAnnealingTemperatures(log_, &mtop_.groups, &inputrec_.opts);
-        energyOutput->printStepToEnergyFile(energyFile_, true, false, false, log_, 100 * frame,
-                                            time_, nullptr, nullptr);
+        energyOutput->printStepToEnergyFile(
+                energyFile_, true, false, false, log_, 100 * frame, time_, nullptr, nullptr);
         time_ += 1.0;
     }
 

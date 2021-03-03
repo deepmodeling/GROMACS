@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -527,9 +527,15 @@ void write_IMDgroup_to_file(bool              bIMD,
     if (bIMD)
     {
         IMDatoms = gmx_mtop_global_atoms(sys);
-        write_sto_conf_indexed(opt2fn("-imd", nfile, fnm), "IMDgroup", &IMDatoms,
-                               state->x.rvec_array(), state->v.rvec_array(), ir->pbcType,
-                               state->box, ir->imd->nat, ir->imd->ind);
+        write_sto_conf_indexed(opt2fn("-imd", nfile, fnm),
+                               "IMDgroup",
+                               &IMDatoms,
+                               state->x.rvec_array(),
+                               state->v.rvec_array(),
+                               ir->pbcType,
+                               state->box,
+                               ir->imd->nat,
+                               ir->imd->ind);
     }
 }
 
@@ -541,8 +547,8 @@ void ImdSession::dd_make_local_IMD_atoms(const gmx_domdec_t* dd)
         return;
     }
 
-    dd_make_local_group_indices(dd->ga2la, impl_->nat, impl_->ind, &impl_->nat_loc, &impl_->ind_loc,
-                                &impl_->nalloc_loc, impl_->xa_ind);
+    dd_make_local_group_indices(
+            dd->ga2la, impl_->nat, impl_->ind, &impl_->nat_loc, &impl_->ind_loc, &impl_->nalloc_loc, impl_->xa_ind);
 }
 
 
@@ -992,7 +998,8 @@ void ImdSession::Impl::readCommand()
             /* Catch all rule for the remaining IMD types which we don't expect */
             default:
                 GMX_LOG(mdlog.warning)
-                        .appendTextFormatted(" %s Received unexpected %s.", IMDstr,
+                        .appendTextFormatted(" %s Received unexpected %s.",
+                                             IMDstr,
                                              enum_name(static_cast<int>(itype), IMD_NR, eIMDType_names));
                 issueFatalError("Terminating connection");
                 break;
@@ -1013,7 +1020,8 @@ void ImdSession::Impl::openOutputFile(const char*                 fn,
                 "%s For a log of the IMD pull forces explicitly specify '-if' on the command "
                 "line.\n"
                 "%s (Not possible with energy minimization.)\n",
-                IMDstr, IMDstr);
+                IMDstr,
+                IMDstr);
         return;
     }
 
@@ -1032,8 +1040,7 @@ void ImdSession::Impl::openOutputFile(const char*                 fn,
                     "the atoms suffices.\n");
         }
 
-        xvgr_header(outf, "IMD Pull Forces", "Time (ps)",
-                    "# of Forces / Atom IDs / Forces (kJ/mol)", exvggtNONE, oenv);
+        xvgr_header(outf, "IMD Pull Forces", "Time (ps)", "# of Forces / Atom IDs / Forces (kJ/mol)", exvggtNONE, oenv);
 
         fprintf(outf, "# Can display and manipulate %d (of a total of %d) atoms via IMD.\n", nat, nat_total);
         fprintf(outf, "# column 1    : time (ps)\n");
@@ -1280,7 +1287,8 @@ static void imd_check_integrator_parallel(const t_inputrec* ir, const t_commrec*
 {
     if (PAR(cr))
     {
-        if (((ir->eI) == eiSteep) || ((ir->eI) == eiCG) || ((ir->eI) == eiLBFGS) || ((ir->eI) == eiNM))
+        if (((ir->eI) == IntegrationAlgorithm::Steep) || ((ir->eI) == IntegrationAlgorithm::CG)
+            || ((ir->eI) == IntegrationAlgorithm::LBFGS) || ((ir->eI) == IntegrationAlgorithm::NM))
         {
             gmx_fatal(FARGS,
                       "%s Energy minimization via steep, CG, lbfgs and nm in parallel is currently "
@@ -1336,7 +1344,8 @@ std::unique_ptr<ImdSession> makeImdSession(const t_inputrec*           ir,
                 .appendTextFormatted(
                         "%s Integrator '%s' is not supported for Interactive Molecular Dynamics, "
                         "running normally instead",
-                        IMDstr, ei_names[ir->eI]);
+                        IMDstr,
+                        enumValueToString(ir->eI));
         return session;
     }
     if (isMultiSim(ms))
@@ -1368,7 +1377,8 @@ std::unique_ptr<ImdSession> makeImdSession(const t_inputrec*           ir,
                     .appendTextFormatted(
                             "%s None of the -imd switches was used.\n"
                             "%s This run will not accept incoming IMD connections",
-                            IMDstr, IMDstr);
+                            IMDstr,
+                            IMDstr);
         }
     } /* end master only */
 
@@ -1557,8 +1567,8 @@ bool ImdSession::Impl::run(int64_t step, bool bNS, const matrix box, const rvec 
     {
         /* Transfer the IMD positions to the master node. Every node contributes
          * its local positions x and stores them in the assembled xa array. */
-        communicate_group_positions(cr, xa, xa_shifts, xa_eshifts, true, x, nat, nat_loc, ind_loc,
-                                    xa_ind, xa_old, box);
+        communicate_group_positions(
+                cr, xa, xa_shifts, xa_eshifts, true, x, nat, nat_loc, ind_loc, xa_ind, xa_old, box);
 
         /* If connected and master -> remove shifts */
         if ((imdstep && bConnected) && MASTER(cr))

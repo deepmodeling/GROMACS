@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -93,7 +93,7 @@ protected:
         {
             // Distance pulling in all 3 dimensions
             t_pull_coord params;
-            params.eGeom   = epullgDIST;
+            params.eGeom   = PullGroupGeometry::Distance;
             params.dim[XX] = 1;
             params.dim[YY] = 1;
             params.dim[ZZ] = 1;
@@ -105,41 +105,41 @@ protected:
             {
                 minBoxSize2 = std::min(minBoxSize2, norm2(box[d]));
             }
-            EXPECT_REAL_EQ_TOL(0.25 * minBoxSize2, max_pull_distance2(&pcrd, &pbc),
-                               defaultRealTolerance());
+            EXPECT_REAL_EQ_TOL(
+                    0.25 * minBoxSize2, max_pull_distance2(&pcrd, &pbc), defaultRealTolerance());
         }
 
         {
             // Distance pulling along Z
             t_pull_coord params;
-            params.eGeom   = epullgDIST;
+            params.eGeom   = PullGroupGeometry::Distance;
             params.dim[XX] = 0;
             params.dim[YY] = 0;
             params.dim[ZZ] = 1;
             pull_coord_work_t pcrd(params);
             clear_dvec(pcrd.spatialData.vec);
-            EXPECT_REAL_EQ_TOL(0.25 * boxSizeZSquared, max_pull_distance2(&pcrd, &pbc),
-                               defaultRealTolerance());
+            EXPECT_REAL_EQ_TOL(
+                    0.25 * boxSizeZSquared, max_pull_distance2(&pcrd, &pbc), defaultRealTolerance());
         }
 
         {
             // Directional pulling along Z
             t_pull_coord params;
-            params.eGeom   = epullgDIR;
+            params.eGeom   = PullGroupGeometry::Direction;
             params.dim[XX] = 1;
             params.dim[YY] = 1;
             params.dim[ZZ] = 1;
             pull_coord_work_t pcrd(params);
             clear_dvec(pcrd.spatialData.vec);
             pcrd.spatialData.vec[ZZ] = 1;
-            EXPECT_REAL_EQ_TOL(0.25 * boxSizeZSquared, max_pull_distance2(&pcrd, &pbc),
-                               defaultRealTolerance());
+            EXPECT_REAL_EQ_TOL(
+                    0.25 * boxSizeZSquared, max_pull_distance2(&pcrd, &pbc), defaultRealTolerance());
         }
 
         {
             // Directional pulling along X
             t_pull_coord params;
-            params.eGeom   = epullgDIR;
+            params.eGeom   = PullGroupGeometry::Direction;
             params.dim[XX] = 1;
             params.dim[YY] = 1;
             params.dim[ZZ] = 1;

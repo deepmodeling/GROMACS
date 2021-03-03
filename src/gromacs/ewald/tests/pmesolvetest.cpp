@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -50,10 +50,10 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "testutils/refdata.h"
+#include "testutils/test_hardware_environment.h"
 #include "testutils/testasserts.h"
 
 #include "pmetestcommon.h"
-#include "testhardwarecontexts.h"
 
 namespace gmx
 {
@@ -75,6 +75,9 @@ class PmeSolveTest : public ::testing::TestWithParam<SolveInputParameters>
 public:
     PmeSolveTest() = default;
 
+    //! Sets the programs once
+    static void SetUpTestCase() { s_pmeTestHardwareContexts = createPmeTestHardwareContextList(); }
+
     //! The test
     void runTest()
     {
@@ -95,29 +98,30 @@ public:
         inputRec.nky         = gridSize[YY];
         inputRec.nkz         = gridSize[ZZ];
         inputRec.pme_order   = 4;
-        inputRec.coulombtype = eelPME;
+        inputRec.coulombtype = CoulombInteractionType::Pme;
         inputRec.epsilon_r   = epsilon_r;
         switch (method)
         {
             case PmeSolveAlgorithm::Coulomb: break;
 
-            case PmeSolveAlgorithm::LennardJones: inputRec.vdwtype = evdwPME; break;
+            case PmeSolveAlgorithm::LennardJones: inputRec.vdwtype = VanDerWaalsType::Pme; break;
 
             default: GMX_THROW(InternalError("Unknown PME solver"));
         }
 
         TestReferenceData refData;
-        for (const auto& context : getPmeTestEnv()->getHardwareContexts())
+        for (const auto& pmeTestHardwareContext : s_pmeTestHardwareContexts)
         {
-            CodePath   codePath = context->codePath();
-            const bool supportedInput =
-                    pmeSupportsInputForMode(*getPmeTestEnv()->hwinfo(), &inputRec, codePath);
+            pmeTestHardwareContext->activate();
+            CodePath   codePath       = pmeTestHardwareContext->codePath();
+            const bool supportedInput = pmeSupportsInputForMode(
+                    *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
                 /* Testing the failure for the unsupported input */
-                EXPECT_THROW_GMX(pmeInitEmpty(&inputRec, codePath, nullptr, nullptr, nullptr, box,
-                                              ewaldCoeff_q, ewaldCoeff_lj),
-                                 NotImplementedError);
+                EXPECT_THROW_GMX(
+                        pmeInitWrapper(&inputRec, codePath, nullptr, nullptr, nullptr, box, ewaldCoeff_q, ewaldCoeff_lj),
+                        NotImplementedError);
                 continue;
             }
 
@@ -133,22 +137,31 @@ public:
                 {
                     /* Describing the test*/
                     SCOPED_TRACE(formatString(
-                            "Testing solving (%s, %s, %s energy/virial) with %s %sfor PME grid "
+                            "Testing solving (%s, %s, %s energy/virial) on %s for PME grid "
                             "size %d %d %d, Ewald coefficients %g %g",
                             (method == PmeSolveAlgorithm::LennardJones) ? "Lennard-Jones" : "Coulomb",
-                            gridOrdering.second.c_str(), computeEnergyAndVirial ? "with" : "without",
-                            codePathToString(codePath), context->description().c_str(),
-                            gridSize[XX], gridSize[YY], gridSize[ZZ], ewaldCoeff_q, ewaldCoeff_lj));
+                            gridOrdering.second.c_str(),
+                            computeEnergyAndVirial ? "with" : "without",
+                            pmeTestHardwareContext->description().c_str(),
+                            gridSize[XX],
+                            gridSize[YY],
+                            gridSize[ZZ],
+                            ewaldCoeff_q,
+                            ewaldCoeff_lj));
 
                     /* Running the test */
-                    PmeSafePointer pmeSafe = pmeInitEmpty(
-                            &inputRec, codePath, context->deviceContext(), context->deviceStream(),
-                            context->pmeGpuProgram(), box, ewaldCoeff_q, ewaldCoeff_lj);
+                    PmeSafePointer pmeSafe = pmeInitWrapper(&inputRec,
+                                                            codePath,
+                                                            pmeTestHardwareContext->deviceContext(),
+                                                            pmeTestHardwareContext->deviceStream(),
+                                                            pmeTestHardwareContext->pmeGpuProgram(),
+                                                            box,
+                                                            ewaldCoeff_q,
+                                                            ewaldCoeff_lj);
                     pmeSetComplexGrid(pmeSafe.get(), codePath, gridOrdering.first, nonZeroGridValues);
                     const real cellVolume = box[0] * box[4] * box[8];
                     // FIXME - this is box[XX][XX] * box[YY][YY] * box[ZZ][ZZ], should be stored in the PME structure
-                    pmePerformSolve(pmeSafe.get(), codePath, method, cellVolume, gridOrdering.first,
-                                    computeEnergyAndVirial);
+                    pmePerformSolve(pmeSafe.get(), codePath, method, cellVolume, gridOrdering.first, computeEnergyAndVirial);
                     pmeFinalizeTest(pmeSafe.get(), codePath);
 
                     /* Check the outputs */
@@ -176,7 +189,8 @@ public:
                     const uint64_t splineModuliDoublePrecisionUlps =
                             getSplineModuliDoublePrecisionUlps(inputRec.pme_order + 1);
                     auto gridTolerance = relativeToleranceAsPrecisionDependentUlp(
-                            gridValuesMagnitude, gridUlpToleranceFactor * c_splineModuliSinglePrecisionUlps,
+                            gridValuesMagnitude,
+                            gridUlpToleranceFactor * c_splineModuliSinglePrecisionUlps,
                             gridUlpToleranceFactor * splineModuliDoublePrecisionUlps);
                     gridValuesChecker.setDefaultTolerance(gridTolerance);
 
@@ -215,7 +229,8 @@ public:
                         // TODO This factor is arbitrary, do a proper error-propagation analysis
                         uint64_t energyUlpToleranceFactor = gridUlpToleranceFactor * 2;
                         auto     energyTolerance = relativeToleranceAsPrecisionDependentUlp(
-                                energyMagnitude, energyUlpToleranceFactor * c_splineModuliSinglePrecisionUlps,
+                                energyMagnitude,
+                                energyUlpToleranceFactor * c_splineModuliSinglePrecisionUlps,
                                 energyUlpToleranceFactor * splineModuliDoublePrecisionUlps);
                         TestReferenceChecker energyChecker(checker);
                         energyChecker.setDefaultTolerance(energyTolerance);
@@ -226,7 +241,8 @@ public:
                         // TODO This factor is arbitrary, do a proper error-propagation analysis
                         uint64_t virialUlpToleranceFactor = energyUlpToleranceFactor * 2;
                         auto     virialTolerance = relativeToleranceAsPrecisionDependentUlp(
-                                virialMagnitude, virialUlpToleranceFactor * c_splineModuliSinglePrecisionUlps,
+                                virialMagnitude,
+                                virialUlpToleranceFactor * c_splineModuliSinglePrecisionUlps,
                                 virialUlpToleranceFactor * splineModuliDoublePrecisionUlps);
                         TestReferenceChecker virialChecker(
                                 checker.checkCompound("Matrix", "Virial"));
@@ -244,7 +260,11 @@ public:
             }
         }
     }
+
+    static std::vector<std::unique_ptr<PmeTestHardwareContext>> s_pmeTestHardwareContexts;
 };
+
+std::vector<std::unique_ptr<PmeTestHardwareContext>> PmeSolveTest::s_pmeTestHardwareContexts;
 
 /*! \brief Test for PME solving */
 TEST_P(PmeSolveTest, ReproducesOutputs)

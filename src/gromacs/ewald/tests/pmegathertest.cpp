@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -50,10 +50,10 @@
 #include "gromacs/utility/stringutil.h"
 
 #include "testutils/refdata.h"
+#include "testutils/test_hardware_environment.h"
 #include "testutils/testasserts.h"
 
 #include "pmetestcommon.h"
-#include "testhardwarecontexts.h"
 
 namespace gmx
 {
@@ -226,7 +226,7 @@ private:
 
 public:
     PmeGatherTest() = default;
-    //! Sets the input atom data references once
+    //! Sets the input atom data references and programs once
     static void SetUpTestCase()
     {
         size_t start = 0;
@@ -254,7 +254,9 @@ public:
             }
             s_inputAtomDataSets_[atomCount] = atomData;
         }
+        s_pmeTestHardwareContexts = createPmeTestHardwareContextList();
     }
+
     //! The test
     void runTest()
     {
@@ -274,15 +276,16 @@ public:
         inputRec.nky         = gridSize[YY];
         inputRec.nkz         = gridSize[ZZ];
         inputRec.pme_order   = pmeOrder;
-        inputRec.coulombtype = eelPME;
+        inputRec.coulombtype = CoulombInteractionType::Pme;
         inputRec.epsilon_r   = 1.0;
 
         TestReferenceData refData;
-        for (const auto& context : getPmeTestEnv()->getHardwareContexts())
+        for (const auto& pmeTestHardwareContext : s_pmeTestHardwareContexts)
         {
-            CodePath   codePath = context->codePath();
-            const bool supportedInput =
-                    pmeSupportsInputForMode(*getPmeTestEnv()->hwinfo(), &inputRec, codePath);
+            pmeTestHardwareContext->activate();
+            CodePath   codePath       = pmeTestHardwareContext->codePath();
+            const bool supportedInput = pmeSupportsInputForMode(
+                    *getTestHardwareEnvironment()->hwinfo(), &inputRec, codePath);
             if (!supportedInput)
             {
                 /* Testing the failure for the unsupported input */
@@ -293,21 +296,32 @@ public:
 
             /* Describing the test uniquely */
             SCOPED_TRACE(
-                    formatString("Testing force gathering with %s %sfor PME grid size %d %d %d"
+                    formatString("Testing force gathering on %s for PME grid size %d %d %d"
                                  ", order %d, %zu atoms",
-                                 codePathToString(codePath), context->description().c_str(),
-                                 gridSize[XX], gridSize[YY], gridSize[ZZ], pmeOrder, atomCount));
+                                 pmeTestHardwareContext->description().c_str(),
+                                 gridSize[XX],
+                                 gridSize[YY],
+                                 gridSize[ZZ],
+                                 pmeOrder,
+                                 atomCount));
 
-            PmeSafePointer pmeSafe =
-                    pmeInitWrapper(&inputRec, codePath, context->deviceContext(),
-                                   context->deviceStream(), context->pmeGpuProgram(), box);
+            PmeSafePointer                          pmeSafe = pmeInitWrapper(&inputRec,
+                                                    codePath,
+                                                    pmeTestHardwareContext->deviceContext(),
+                                                    pmeTestHardwareContext->deviceStream(),
+                                                    pmeTestHardwareContext->pmeGpuProgram(),
+                                                    box);
             std::unique_ptr<StatePropagatorDataGpu> stateGpu =
                     (codePath == CodePath::GPU)
-                            ? makeStatePropagatorDataGpu(*pmeSafe.get(), context->deviceContext(),
-                                                         context->deviceStream())
+                            ? makeStatePropagatorDataGpu(*pmeSafe.get(),
+                                                         pmeTestHardwareContext->deviceContext(),
+                                                         pmeTestHardwareContext->deviceStream())
                             : nullptr;
 
-            pmeInitAtoms(pmeSafe.get(), stateGpu.get(), codePath, inputAtomData.coordinates,
+            pmeInitAtoms(pmeSafe.get(),
+                         stateGpu.get(),
+                         codePath,
+                         inputAtomData.coordinates,
                          inputAtomData.charges);
 
             /* Setting some more inputs */
@@ -315,10 +329,16 @@ public:
             pmeSetGridLineIndices(pmeSafe.get(), codePath, inputAtomData.gridLineIndices);
             for (int dimIndex = 0; dimIndex < DIM; dimIndex++)
             {
-                pmeSetSplineData(pmeSafe.get(), codePath, inputAtomSplineData.splineValues[dimIndex],
-                                 PmeSplineDataType::Values, dimIndex);
-                pmeSetSplineData(pmeSafe.get(), codePath, inputAtomSplineData.splineDerivatives[dimIndex],
-                                 PmeSplineDataType::Derivatives, dimIndex);
+                pmeSetSplineData(pmeSafe.get(),
+                                 codePath,
+                                 inputAtomSplineData.splineValues[dimIndex],
+                                 PmeSplineDataType::Values,
+                                 dimIndex);
+                pmeSetSplineData(pmeSafe.get(),
+                                 codePath,
+                                 inputAtomSplineData.splineDerivatives[dimIndex],
+                                 PmeSplineDataType::Derivatives,
+                                 dimIndex);
             }
 
             /* Explicitly copying the sample forces to be able to modify them */
@@ -337,7 +357,11 @@ public:
             forceChecker.checkSequence(forces.begin(), forces.end(), "Forces");
         }
     }
+
+    static std::vector<std::unique_ptr<PmeTestHardwareContext>> s_pmeTestHardwareContexts;
 };
+
+std::vector<std::unique_ptr<PmeTestHardwareContext>> PmeGatherTest::s_pmeTestHardwareContexts;
 
 // An instance of static atom data
 InputDataByAtomCount PmeGatherTest::s_inputAtomDataSets_;

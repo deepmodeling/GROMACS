@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2008, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -56,12 +56,13 @@
 #include "gromacs/mdtypes/nblist.h"
 #include "gromacs/tables/forcetable.h"
 #include "gromacs/topology/topology.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 
 void make_wall_tables(FILE*                   fplog,
-                      const t_inputrec*       ir,
+                      const t_inputrec&       ir,
                       const char*             tabfn,
                       const SimulationGroups* groups,
                       t_forcerec*             fr)
@@ -69,28 +70,30 @@ void make_wall_tables(FILE*                   fplog,
     int  negp_pp;
     char buf[STRLEN];
 
-    negp_pp                         = ir->opts.ngener - ir->nwall;
+    negp_pp                         = ir.opts.ngener - ir.nwall;
     gmx::ArrayRef<const int> nm_ind = groups->groups[SimulationAtomGroupType::EnergyOutput];
 
     if (fplog)
     {
-        fprintf(fplog, "Reading user tables for %d energy groups with %d walls\n", negp_pp, ir->nwall);
+        fprintf(fplog, "Reading user tables for %d energy groups with %d walls\n", negp_pp, ir.nwall);
     }
 
-    snew(fr->wall_tab, ir->nwall);
-    for (int w = 0; w < ir->nwall; w++)
+    fr->wall_tab.resize(ir.nwall);
+    for (int w = 0; w < ir.nwall; w++)
     {
-        snew(fr->wall_tab[w], negp_pp);
+        fr->wall_tab[w].resize(negp_pp);
         for (int egp = 0; egp < negp_pp; egp++)
         {
             /* If the energy group pair is excluded, we don't need a table */
-            if (!(fr->egp_flags[egp * ir->opts.ngener + negp_pp + w] & EGP_EXCL))
+            if (!(fr->egp_flags[egp * ir.opts.ngener + negp_pp + w] & EGP_EXCL))
             {
                 sprintf(buf, "%s", tabfn);
-                sprintf(buf + strlen(tabfn) - strlen(ftp2ext(efXVG)) - 1, "_%s_%s.%s",
-                        *groups->groupNames[nm_ind[egp]], *groups->groupNames[nm_ind[negp_pp + w]],
+                sprintf(buf + strlen(tabfn) - strlen(ftp2ext(efXVG)) - 1,
+                        "_%s_%s.%s",
+                        *groups->groupNames[nm_ind[egp]],
+                        *groups->groupNames[nm_ind[negp_pp + w]],
                         ftp2ext(efXVG));
-                fr->wall_tab[w][egp] = make_tables(fplog, fr->ic, buf, 0, GMX_MAKETABLES_FORCEUSER);
+                fr->wall_tab[w][egp] = make_tables(fplog, fr->ic.get(), buf, 0, GMX_MAKETABLES_FORCEUSER);
 
                 /* Since wall have no charge, we can compress the table */
                 for (int i = 0; i <= fr->wall_tab[w][egp]->n; i++)
@@ -106,12 +109,15 @@ void make_wall_tables(FILE*                   fplog,
     }
 }
 
-[[noreturn]] static void wall_error(int a, const rvec* x, real r)
+[[noreturn]] static void wall_error(int a, gmx::ArrayRef<const gmx::RVec> x, real r)
 {
     gmx_fatal(FARGS,
               "An atom is beyond the wall: coordinates %f %f %f, distance %f\n"
               "You might want to use the mdp option wall_r_linpot",
-              x[a][XX], x[a][YY], x[a][ZZ], r);
+              x[a][XX],
+              x[a][YY],
+              x[a][ZZ],
+              r);
 }
 
 static void tableForce(real r, const t_forcetable& tab, real Cd, real Cr, real* V, real* F)
@@ -158,15 +164,15 @@ static void tableForce(real r, const t_forcetable& tab, real Cd, real Cr, real* 
     }
 }
 
-real do_walls(const t_inputrec&     ir,
-              const t_forcerec&     fr,
-              const matrix          box,
-              const t_mdatoms&      md,
-              const rvec*           x,
-              gmx::ForceWithVirial* forceWithVirial,
-              real                  lambda,
-              real                  Vlj[],
-              t_nrnb*               nrnb)
+real do_walls(const t_inputrec&              ir,
+              const t_forcerec&              fr,
+              const matrix                   box,
+              const t_mdatoms&               md,
+              gmx::ArrayRef<const gmx::RVec> x,
+              gmx::ForceWithVirial*          forceWithVirial,
+              real                           lambda,
+              real                           Vlj[],
+              t_nrnb*                        nrnb)
 {
     constexpr real sixth   = 1.0 / 6.0;
     constexpr real twelfth = 1.0 / 12.0;
@@ -186,11 +192,11 @@ real do_walls(const t_inputrec&     ir,
         ntw[w] = 2 * ntype * ir.wall_atomtype[w];
         switch (ir.wall_type)
         {
-            case ewt93:
+            case WallType::NineThree:
                 fac_d[w] = ir.wall_density[w] * M_PI / 6;
                 fac_r[w] = ir.wall_density[w] * M_PI / 45;
                 break;
-            case ewt104:
+            case WallType::TenFour:
                 fac_d[w] = ir.wall_density[w] * M_PI / 2;
                 fac_r[w] = ir.wall_density[w] * M_PI / 5;
                 break;
@@ -266,11 +272,11 @@ real do_walls(const t_inputrec&     ir,
                     real r1, r2, r4, Vd, Vr;
                     switch (ir.wall_type)
                     {
-                        case ewtTABLE:
+                        case WallType::Table:
                             tableForce(r, *fr.wall_tab[w][gid[i]], Cd, Cr, &V, &F);
                             F *= lamfac;
                             break;
-                        case ewt93:
+                        case WallType::NineThree:
                             r1 = 1 / r;
                             r2 = r1 * r1;
                             r4 = r2 * r2;
@@ -279,7 +285,7 @@ real do_walls(const t_inputrec&     ir,
                             V  = Vr - Vd;
                             F  = lamfac * (9 * Vr - 3 * Vd) * r1;
                             break;
-                        case ewt104:
+                        case WallType::TenFour:
                             r1 = 1 / r;
                             r2 = r1 * r1;
                             r4 = r2 * r2;
@@ -288,7 +294,7 @@ real do_walls(const t_inputrec&     ir,
                             V  = Vr - Vd;
                             F  = lamfac * (10 * Vr - 4 * Vd) * r1;
                             break;
-                        case ewt126:
+                        case WallType::TwelveSix:
                             r1 = 1 / r;
                             r2 = r1 * r1;
                             r4 = r2 * r2;

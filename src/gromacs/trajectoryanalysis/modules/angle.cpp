@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2011-2018, The GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -64,6 +64,7 @@
 #include "gromacs/trajectory/trajectoryframe.h"
 #include "gromacs/trajectoryanalysis/analysissettings.h"
 #include "gromacs/utility/arrayref.h"
+#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
@@ -258,8 +259,9 @@ enum class Group2Type : int
     Count
 };
 //! String values corresponding to Group1Type.
-const EnumerationArray<Group1Type, const char*> c_group1TypeEnumNames = { { "angle", "dihedral",
-                                                                            "vector", "plane" } };
+const EnumerationArray<Group1Type, const char*> c_group1TypeEnumNames = {
+    { "angle", "dihedral", "vector", "plane" }
+};
 //! String values corresponding to Group2Type.
 const EnumerationArray<Group2Type, const char*> c_group2TypeEnumNames = {
     { "none", "vector", "plane", "t0", "z", "sphnorm" }
@@ -489,7 +491,8 @@ void Angle::initFromSelections(const SelectionList& sel1, const SelectionList& s
         {
             GMX_THROW(InconsistentInputError(formatString(
                     "Number of positions in selection %d in the first group not divisible by %d",
-                    static_cast<int>(g + 1), natoms1_)));
+                    static_cast<int>(g + 1),
+                    natoms1_)));
         }
         const int angleCount1 = posCount1 / natoms1_;
         int       angleCount  = angleCount1;
@@ -502,7 +505,8 @@ void Angle::initFromSelections(const SelectionList& sel1, const SelectionList& s
                 GMX_THROW(InconsistentInputError(
                         formatString("Number of positions in selection %d in the second group not "
                                      "divisible by %d",
-                                     static_cast<int>(g + 1), natoms2_)));
+                                     static_cast<int>(g + 1),
+                                     natoms2_)));
             }
             if (g2type_ == Group2Type::SphereNormal && posCount2 != 1)
             {
@@ -725,7 +729,7 @@ void Angle::analyzeFrame(int frnr, const t_trxframe& fr, t_pbc* pbc, TrajectoryA
             // read), but unsurprisingly the static analyzer chokes a bit on that.
             clear_rvecs(4, x);
 
-            real angle;
+            real angle = 0;
             // checkSelections() ensures that this reflects all the involved
             // positions.
             const bool bPresent = iter1.currentValuesSelected() && iter2.currentValuesSelected();

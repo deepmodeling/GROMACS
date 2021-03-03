@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "refdata.h"
+#include "testutils/refdata.h"
 
 #include <cctype>
 #include <cstdlib>
@@ -53,6 +53,7 @@
 
 #include <gtest/gtest.h>
 
+#include "gromacs/math/vectypes.h"
 #include "gromacs/options/basicoptions.h"
 #include "gromacs/options/ioptionscontainer.h"
 #include "gromacs/utility/any.h"
@@ -63,12 +64,13 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/stringutil.h"
 
-#include "testutils/refdata_checkers.h"
-#include "testutils/refdata_impl.h"
-#include "testutils/refdata_xml.h"
 #include "testutils/testasserts.h"
 #include "testutils/testexceptions.h"
 #include "testutils/testfilemanager.h"
+
+#include "refdata_checkers.h"
+#include "refdata_impl.h"
+#include "refdata_xml.h"
 
 namespace gmx
 {
@@ -702,9 +704,12 @@ TestReferenceChecker TestReferenceData::rootChecker()
         return TestReferenceChecker(new TestReferenceChecker::Impl(true));
     }
     impl_->compareRootEntry_->setChecked();
-    return TestReferenceChecker(new TestReferenceChecker::Impl(
-            "", impl_->compareRootEntry_.get(), impl_->outputRootEntry_.get(),
-            impl_->updateMismatchingEntries_, impl_->bSelfTestMode_, defaultRealTolerance()));
+    return TestReferenceChecker(new TestReferenceChecker::Impl("",
+                                                               impl_->compareRootEntry_.get(),
+                                                               impl_->outputRootEntry_.get(),
+                                                               impl_->updateMismatchingEntries_,
+                                                               impl_->bSelfTestMode_,
+                                                               defaultRealTolerance()));
 }
 
 
@@ -752,6 +757,14 @@ void TestReferenceChecker::checkUnusedEntries()
     {
         gmx::test::checkUnusedEntries(*impl_->compareRootEntry_, impl_->path_);
         // Mark them checked so that they are reported only once.
+        impl_->compareRootEntry_->setCheckedIncludingChildren();
+    }
+}
+
+void TestReferenceChecker::disableUnusedEntriesCheck()
+{
+    if (impl_->compareRootEntry_)
+    {
         impl_->compareRootEntry_->setCheckedIncludingChildren();
     }
 }
@@ -813,8 +826,11 @@ TestReferenceChecker TestReferenceChecker::checkCompound(const char* type, const
     {
         impl_->outputRootEntry_->addChild(entry->cloneToOutputEntry());
     }
-    return TestReferenceChecker(new Impl(fullId, entry, entry->correspondingOutputEntry(),
-                                         impl_->updateMismatchingEntries_, impl_->bSelfTestMode_,
+    return TestReferenceChecker(new Impl(fullId,
+                                         entry,
+                                         entry->correspondingOutputEntry(),
+                                         impl_->updateMismatchingEntries_,
+                                         impl_->bSelfTestMode_,
                                          impl_->defaultTolerance_));
 }
 
@@ -851,8 +867,8 @@ static void throwIfNonEmptyAndOnlyWhitespace(const std::string& s, const char* i
 
 void TestReferenceChecker::checkBoolean(bool value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cBooleanNodeName, id,
-                                    ExactStringChecker(value ? "true" : "false")));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cBooleanNodeName, id, ExactStringChecker(value ? "true" : "false")));
 }
 
 
@@ -878,38 +894,38 @@ void TestReferenceChecker::checkTextBlock(const std::string& value, const char* 
 
 void TestReferenceChecker::checkUChar(unsigned char value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cUCharNodeName, id,
-                                    ExactStringChecker(formatString("%d", value))));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cUCharNodeName, id, ExactStringChecker(formatString("%d", value))));
 }
 
 void TestReferenceChecker::checkInteger(int value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cIntegerNodeName, id,
-                                    ExactStringChecker(formatString("%d", value))));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cIntegerNodeName, id, ExactStringChecker(formatString("%d", value))));
 }
 
 void TestReferenceChecker::checkInt32(int32_t value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cInt32NodeName, id,
-                                    ExactStringChecker(formatString("%" PRId32, value))));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cInt32NodeName, id, ExactStringChecker(formatString("%" PRId32, value))));
 }
 
 void TestReferenceChecker::checkUInt32(uint32_t value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cUInt32NodeName, id,
-                                    ExactStringChecker(formatString("%" PRIu32, value))));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cUInt32NodeName, id, ExactStringChecker(formatString("%" PRIu32, value))));
 }
 
 void TestReferenceChecker::checkInt64(int64_t value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cInt64NodeName, id,
-                                    ExactStringChecker(formatString("%" PRId64, value))));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cInt64NodeName, id, ExactStringChecker(formatString("%" PRId64, value))));
 }
 
 void TestReferenceChecker::checkUInt64(uint64_t value, const char* id)
 {
-    EXPECT_PLAIN(impl_->processItem(Impl::cUInt64NodeName, id,
-                                    ExactStringChecker(formatString("%" PRIu64, value))));
+    EXPECT_PLAIN(impl_->processItem(
+            Impl::cUInt64NodeName, id, ExactStringChecker(formatString("%" PRIu64, value))));
 }
 
 void TestReferenceChecker::checkDouble(double value, const char* id)
@@ -945,7 +961,7 @@ void TestReferenceChecker::checkRealFromString(const std::string& value, const c
 }
 
 
-void TestReferenceChecker::checkVector(const int value[3], const char* id)
+void TestReferenceChecker::checkVector(const BasicVector<int>& value, const char* id)
 {
     TestReferenceChecker compound(checkCompound(Impl::cVectorType, id));
     compound.checkInteger(value[0], "X");
@@ -954,7 +970,7 @@ void TestReferenceChecker::checkVector(const int value[3], const char* id)
 }
 
 
-void TestReferenceChecker::checkVector(const float value[3], const char* id)
+void TestReferenceChecker::checkVector(const BasicVector<float>& value, const char* id)
 {
     TestReferenceChecker compound(checkCompound(Impl::cVectorType, id));
     compound.checkReal(value[0], "X");
@@ -963,12 +979,30 @@ void TestReferenceChecker::checkVector(const float value[3], const char* id)
 }
 
 
-void TestReferenceChecker::checkVector(const double value[3], const char* id)
+void TestReferenceChecker::checkVector(const BasicVector<double>& value, const char* id)
 {
     TestReferenceChecker compound(checkCompound(Impl::cVectorType, id));
     compound.checkReal(value[0], "X");
     compound.checkReal(value[1], "Y");
     compound.checkReal(value[2], "Z");
+}
+
+
+void TestReferenceChecker::checkVector(const int value[3], const char* id)
+{
+    checkVector(BasicVector<int>(value), id);
+}
+
+
+void TestReferenceChecker::checkVector(const float value[3], const char* id)
+{
+    checkVector(BasicVector<float>(value), id);
+}
+
+
+void TestReferenceChecker::checkVector(const double value[3], const char* id)
+{
+    checkVector(BasicVector<double>(value), id);
 }
 
 

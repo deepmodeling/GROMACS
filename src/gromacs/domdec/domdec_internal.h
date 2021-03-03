@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -473,9 +473,6 @@ struct DDSettings
     //! Flop counter (0=no,1=yes,2=with (eFlop-1)*5% noise
     int eFlop = 0;
 
-    //! Request 1D domain decomposition
-    bool request1D;
-
     //! Whether to order the DD dimensions from z to x
     bool useDDOrderZYX = false;
 
@@ -801,5 +798,19 @@ static constexpr double DD_CELL_MARGIN2 = 1.00005;
 static constexpr double DD_PRES_SCALE_MARGIN = 1.02;
 
 /*! \endcond */
+
+//! \internal \brief Reverse topology class
+struct gmx_reverse_top_t
+{
+    //! Constructor
+    gmx_reverse_top_t(const gmx_mtop_t& mtop, bool useFreeEnergy, const ReverseTopOptions& reverseTopOptions);
+    //! Destructor
+    ~gmx_reverse_top_t();
+
+    //! Private implementation definition
+    struct Impl;
+    //! Private implementation declaration
+    std::unique_ptr<Impl> impl_;
+};
 
 #endif

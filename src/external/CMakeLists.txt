@@ -52,17 +52,18 @@ if(BUILD_TESTING AND GMX_BUILD_UNITTESTS)
     endif()
 
     add_subdirectory(googletest EXCLUDE_FROM_ALL)
-    target_compile_definitions(gmock PRIVATE
-                               _GNU_SOURCE=1
-                               GTEST_CAN_STREAM_RESULTS=0)
-    if (WIN32)
-        target_compile_definitions(gmock PRIVATE _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
-        target_compile_definitions(gtest PRIVATE _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
-        target_compile_definitions(gtest_main PRIVATE _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
-    endif()
+    target_compile_definitions(gmock
+        PRIVATE
+            _GNU_SOURCE=1
+            GTEST_CAN_STREAM_RESULTS=0
+        PUBLIC
+            GTEST_LANG_CXX11
+            )
+    target_compile_definitions(gtest PUBLIC GTEST_LANG_CXX11)
     if (CYGWIN)
-        # Ensure GoogleTest can find POSIX things it needs
-        target_compile_definitions(gtest PRIVATE _POSIX_C_SOURCE=200809L)
+        # Ensure GoogleTest and things that use it can find
+        # POSIX things needed by GoogleTest
+        target_compile_definitions(gtest PUBLIC _POSIX_C_SOURCE=200809L)
     endif()
     gmx_target_warning_suppression(gmock -Wno-deprecated-copy HAVE_NO_DEPRECATED_COPY)
 

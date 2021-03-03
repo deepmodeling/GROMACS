@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2013,2014,2015,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -69,8 +69,10 @@ struct gmx_domdec_constraints_t;
 struct gmx_domdec_specat_comm_t;
 class gmx_ga2la_t;
 struct gmx_pme_comm_n_box_t;
-struct gmx_reverse_top_t;
 struct t_inputrec;
+struct gmx_reverse_top_t;
+struct gmx_mtop_t;
+struct ReverseTopOptions;
 
 namespace gmx
 {
@@ -116,13 +118,13 @@ struct gmx_domdec_zones_t
     /* The number of zones including the home zone */
     int n = 0;
     /* The shift of the zones with respect to the home zone */
-    ivec shift[DD_MAXZONE] = {};
+    std::array<ivec, DD_MAXZONE> shift;
     /* The charge group boundaries for the zones */
-    int cg_range[DD_MAXZONE + 1] = {};
+    std::array<int, DD_MAXZONE + 1> cg_range;
     /* The pair interaction zone and atom ranges per each i-zone */
     std::vector<DDPairInteractionRanges> iZones;
     /* Boundaries of the zones */
-    gmx_domdec_zone_size_t size[DD_MAXZONE];
+    std::array<gmx_domdec_zone_size_t, DD_MAXZONE> size;
     /* The cg density of the home zone */
     real dens_zone0 = 0;
 };
@@ -162,6 +164,7 @@ struct gmx_domdec_t
 { //NOLINT(clang-analyzer-optin.performance.Padding)
     //! Constructor, only partial for now
     gmx_domdec_t(const t_inputrec& ir);
+    ~gmx_domdec_t();
 
     /* The DD particle-particle nodes only */
     /* The communication setup within the communicator all
@@ -197,9 +200,9 @@ struct gmx_domdec_t
     std::unique_ptr<AtomDistribution> ma;
 
     /* Global atom number to interaction list */
-    gmx_reverse_top_t* reverse_top    = nullptr;
-    int                nbonded_global = 0;
-    int                nbonded_local  = 0;
+    std::unique_ptr<gmx_reverse_top_t> reverse_top;
+    int                                nbonded_global = 0;
+    int                                nbonded_local  = 0;
 
     /* Whether we have non-self exclusion */
     bool haveExclusions = false;
@@ -236,8 +239,8 @@ struct gmx_domdec_t
     /* gmx_pme_recv_f buffer */
     std::vector<gmx::RVec> pmeForceReceiveBuffer;
 
-    /* GPU halo exchange object */
-    std::vector<std::unique_ptr<gmx::GpuHaloExchange>> gpuHaloExchange;
+    /* GPU halo exchange objects: this structure supports a vector of pulses for each dimension */
+    std::vector<std::unique_ptr<gmx::GpuHaloExchange>> gpuHaloExchange[DIM];
 };
 
 //! Are we the master node for domain decomposition

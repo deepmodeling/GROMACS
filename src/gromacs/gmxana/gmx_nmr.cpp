@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -446,8 +446,8 @@ int gmx_nmr(int argc, char* argv[])
     int npargs;
 
     npargs = asize(pa);
-    if (!parse_common_args(&argc, argv, PCA_CAN_VIEW | PCA_CAN_BEGIN | PCA_CAN_END, NFILE, fnm,
-                           npargs, pa, asize(desc), desc, 0, nullptr, &oenv))
+    if (!parse_common_args(
+                &argc, argv, PCA_CAN_VIEW | PCA_CAN_BEGIN | PCA_CAN_END, NFILE, fnm, npargs, pa, asize(desc), desc, 0, nullptr, &oenv))
     {
         return 0;
     }
@@ -557,8 +557,8 @@ int gmx_nmr(int argc, char* argv[])
                 }
                 if (bORT)
                 {
-                    fort = xvgropen(opt2fn("-ort", NFILE, fnm), "Calculated orientations",
-                                    "Time (ps)", "", oenv);
+                    fort = xvgropen(
+                            opt2fn("-ort", NFILE, fnm), "Calculated orientations", "Time (ps)", "", oenv);
                     if (bOrinst && output_env_get_print_xvgr_codes(oenv))
                     {
                         fprintf(fort, "%s", orinst_sub);
@@ -567,8 +567,11 @@ int gmx_nmr(int argc, char* argv[])
                 }
                 if (bODT)
                 {
-                    fodt = xvgropen(opt2fn("-odt", NFILE, fnm), "Orientation restraint deviation",
-                                    "Time (ps)", "", oenv);
+                    fodt = xvgropen(opt2fn("-odt", NFILE, fnm),
+                                    "Orientation restraint deviation",
+                                    "Time (ps)",
+                                    "",
+                                    oenv);
                     if (bOrinst && output_env_get_print_xvgr_codes(oenv))
                     {
                         fprintf(fodt, "%s", orinst_sub);
@@ -615,7 +618,8 @@ int gmx_nmr(int argc, char* argv[])
         {
             topInfo.fillFromInputFile(ftp2fn(efTPR, NFILE, fnm));
             top = std::make_unique<gmx_localtop_t>(topInfo.mtop()->ffparams);
-            gmx_mtop_generate_local_top(*topInfo.mtop(), top.get(), ir->efep != efepNO);
+            gmx_mtop_generate_local_top(
+                    *topInfo.mtop(), top.get(), ir->efep != FreeEnergyPerturbationType::No);
         }
         nbounds = get_bounds(&bounds, &index, &pair, &npairs, top->idef);
         snew(violaver, npairs);
@@ -623,8 +627,8 @@ int gmx_nmr(int argc, char* argv[])
         xvgr_legend(out_disre, 2, drleg, oenv);
         if (bDRAll)
         {
-            fp_pairs = xvgropen(opt2fn("-pairs", NFILE, fnm), "Pair Distances", "Time (ps)",
-                                "Distance (nm)", oenv);
+            fp_pairs = xvgropen(
+                    opt2fn("-pairs", NFILE, fnm), "Pair Distances", "Time (ps)", "Distance (nm)", oenv);
             if (output_env_get_print_xvgr_codes(oenv))
             {
                 fprintf(fp_pairs, "@ subtitle \"averaged (tau=%g) and instantaneous\"\n", ir->dr_tau);
@@ -672,7 +676,8 @@ int gmx_nmr(int argc, char* argv[])
                     gmx_fatal(FARGS,
                               "Number of disre pairs in the energy file (%d) does not match the "
                               "number in the run input file (%d)\n",
-                              ndisre, ilist.size() / 3);
+                              ndisre,
+                              ilist.size() / 3);
                 }
                 snew(pairleg, ndisre);
                 int molb = 0;
@@ -683,7 +688,12 @@ int gmx_nmr(int argc, char* argv[])
                     k = fa[3 * i + 2];
                     mtopGetAtomAndResidueName(topInfo.mtop(), j, &molb, &anm_j, &resnr_j, &resnm_j, nullptr);
                     mtopGetAtomAndResidueName(topInfo.mtop(), k, &molb, &anm_k, &resnr_k, &resnm_k, nullptr);
-                    sprintf(pairleg[i], "%d %s %d %s (%d)", resnr_j, anm_j, resnr_k, anm_k,
+                    sprintf(pairleg[i],
+                            "%d %s %d %s (%d)",
+                            resnr_j,
+                            anm_j,
+                            resnr_k,
+                            anm_k,
                             ip[fa[3 * i]].disres.label);
                 }
                 set = select_it(ndisre, pairleg, &nset);
@@ -727,8 +737,8 @@ int gmx_nmr(int argc, char* argv[])
                         }
 
                         /* Subtract bounds from distances, to calculate violations */
-                        calc_violations(disre_rt, disre_rm3tav, nbounds, pair, bounds, violaver,
-                                        &sumt, &sumaver);
+                        calc_violations(
+                                disre_rt, disre_rm3tav, nbounds, pair, bounds, violaver, &sumt, &sumaver);
 
                         fprintf(out_disre, "  %8.4f  %8.4f\n", sumaver, sumt);
                         if (bDRAll)
@@ -764,7 +774,8 @@ int gmx_nmr(int argc, char* argv[])
                             gmx_fatal(FARGS,
                                       "Number of orientation restraints in energy file (%d) does "
                                       "not match with the topology (%d)",
-                                      blk->sub[0].nr, nor);
+                                      blk->sub[0].nr,
+                                      nor);
                         }
                         if (bORA || bODA)
                         {
@@ -814,7 +825,8 @@ int gmx_nmr(int argc, char* argv[])
                             gmx_fatal(FARGS,
                                       "Number of orientation experiments in energy file (%d) does "
                                       "not match with the topology (%d)",
-                                      blk->sub[0].nr / 12, nex);
+                                      blk->sub[0].nr / 12,
+                                      nex);
                         }
                         fprintf(foten, "  %10f", fr.t);
                         for (i = 0; i < nex; i++)
@@ -855,8 +867,8 @@ int gmx_nmr(int argc, char* argv[])
     }
     if (bORA)
     {
-        FILE* out = xvgropen(opt2fn("-ora", NFILE, fnm), "Average calculated orientations",
-                             "Restraint label", "", oenv);
+        FILE* out = xvgropen(
+                opt2fn("-ora", NFILE, fnm), "Average calculated orientations", "Restraint label", "", oenv);
         if (bOrinst && output_env_get_print_xvgr_codes(oenv))
         {
             fprintf(out, "%s", orinst_sub);
@@ -869,8 +881,8 @@ int gmx_nmr(int argc, char* argv[])
     }
     if (bODA)
     {
-        FILE* out = xvgropen(opt2fn("-oda", NFILE, fnm), "Average restraint deviation",
-                             "Restraint label", "", oenv);
+        FILE* out = xvgropen(
+                opt2fn("-oda", NFILE, fnm), "Average restraint deviation", "Restraint label", "", oenv);
         if (bOrinst && output_env_get_print_xvgr_codes(oenv))
         {
             fprintf(out, "%s", orinst_sub);
@@ -883,8 +895,11 @@ int gmx_nmr(int argc, char* argv[])
     }
     if (bODR)
     {
-        FILE* out = xvgropen(opt2fn("-odr", NFILE, fnm), "RMS orientation restraint deviations",
-                             "Restraint label", "", oenv);
+        FILE* out = xvgropen(opt2fn("-odr", NFILE, fnm),
+                             "RMS orientation restraint deviations",
+                             "Restraint label",
+                             "",
+                             oenv);
         if (bOrinst && output_env_get_print_xvgr_codes(oenv))
         {
             fprintf(out, "%s", orinst_sub);
@@ -908,8 +923,7 @@ int gmx_nmr(int argc, char* argv[])
 
     if (bDisRe)
     {
-        analyse_disre(opt2fn("-viol", NFILE, fnm), teller_disre, violaver, bounds, index, pair,
-                      nbounds, oenv);
+        analyse_disre(opt2fn("-viol", NFILE, fnm), teller_disre, violaver, bounds, index, pair, nbounds, oenv);
     }
     {
         const char* nxy = "-nxy";

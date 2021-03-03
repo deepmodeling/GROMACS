@@ -53,8 +53,8 @@
 
 #include "gromacs/gpu_utils/vectype_ops.clh"
 
-#include "pme_gpu_types.h"
 #include "pme_gpu_calculate_splines.clh"
+#include "pme_gpu_types.h"
 
 /*
  * This define affects the spline calculation behaviour in the kernel.
@@ -180,11 +180,10 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
         /* Indices interpolation */
         if (orderIndex == 0)
         {
-            int          tableIndex;
-            int          tInt;
-            float        n;
-            float        t;
-            const float3 x = vload3(atomIndexLocal, sm_coordinates);
+            int          tableIndex = 0;
+            float        n          = 0.0F;
+            float        t          = 0.0F;
+            const float3 x          = vload3(atomIndexLocal, sm_coordinates);
 
             /* Accessing fields in fshOffset/nXYZ/recipbox/... with dimIndex offset
              * puts them into local memory(!) instead of accessing the constant memory directly.
@@ -225,7 +224,7 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
 
             /* Fractional coordinates along box vectors, adding a positive shift to ensure t is positive for triclinic boxes */
             t                                 = (t + shift) * n;
-            tInt                              = (int)t;
+            const int tInt                    = (int)t;
             sm_fractCoords[sharedMemoryIndex] = t - (float)tInt;
             tableIndex += tInt;
             assert(tInt >= 0);
@@ -241,7 +240,6 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
         const int chargeCheck = pme_gpu_check_atom_charge(sm_coefficients[atomIndexLocal]);
         if (chargeCheck)
         {
-            float div;
             int o = orderIndex; // This is an index that is set once for PME_GPU_PARALLEL_SPLINE == 1
 
             const float dr = sm_fractCoords[sharedMemoryIndex];
@@ -255,7 +253,7 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
 #    pragma unroll order
             for (int k = 3; k < order; k++)
             {
-                div                     = 1.0F / ((float)k - 1.0F);
+                const float div         = 1.0F / ((float)k - 1.0F);
                 *SPLINE_DATA_PTR(k - 1) = div * dr * SPLINE_DATA(k - 2);
 #    pragma unroll
                 for (int l = 1; l < (k - 1); l++)
@@ -287,7 +285,7 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
                 gm_dtheta[thetaGlobalIndex] = dtheta;
             }
 
-            div                         = 1.0F / (order - 1.0F);
+            const float div             = 1.0F / (order - 1.0F);
             *SPLINE_DATA_PTR(order - 1) = div * dr * SPLINE_DATA(order - 2);
 #    pragma unroll
             for (int k = 1; k < (order - 1); k++)
@@ -454,9 +452,18 @@ __attribute__((reqd_work_group_size(order, order, atomsPerBlock))) __kernel void
         pme_gpu_stage_atom_data(sm_coordinates, gm_coordinates, DIM);
 
         barrier(CLK_LOCAL_MEM_FENCE);
-        calculate_splines(kernelParams, atomIndexOffset, sm_coordinates, sm_coefficients, sm_theta,
-                          sm_gridlineIndices, sm_fractCoords, gm_theta, gm_dtheta,
-                          gm_gridlineIndices, gm_fractShiftsTable, gm_gridlineIndicesTable);
+        calculate_splines(kernelParams,
+                          atomIndexOffset,
+                          sm_coordinates,
+                          sm_coefficients,
+                          sm_theta,
+                          sm_gridlineIndices,
+                          sm_fractCoords,
+                          gm_theta,
+                          gm_dtheta,
+                          gm_gridlineIndices,
+                          gm_fractShiftsTable,
+                          gm_gridlineIndicesTable);
 #if !defined(_AMD_SOURCE_) && !defined(_NVIDIA_SOURCE_)
         /* This is only here for execution of e.g. 32-sized warps on 16-wide hardware; this was
          * __syncwarp() in CUDA. #2519
@@ -473,8 +480,8 @@ __attribute__((reqd_work_group_size(order, order, atomsPerBlock))) __kernel void
         /* Spline data - only thetas (dthetas will only be needed in gather) */
         pme_gpu_stage_atom_data(sm_theta, gm_theta, DIM * order);
         /* Gridline indices - they're actually int and not float, but C99 is angry about overloads */
-        pme_gpu_stage_atom_data((__local float*)sm_gridlineIndices,
-                                (__global const float*)gm_gridlineIndices, DIM);
+        pme_gpu_stage_atom_data(
+                (__local float*)sm_gridlineIndices, (__global const float*)gm_gridlineIndices, DIM);
 
         barrier(CLK_LOCAL_MEM_FENCE);
     }

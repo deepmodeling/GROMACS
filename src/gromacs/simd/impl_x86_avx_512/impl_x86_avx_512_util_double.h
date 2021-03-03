@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014-2018, The GROMACS development team.
- * Copyright (c) 2019, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -60,7 +60,7 @@ namespace
 // shifting. Currently up to 8 is accelerated. Could be accelerated for any
 // number with a constexpr log2 function.
 template<int n>
-SimdDInt32 fastMultiply(SimdDInt32 x)
+static inline SimdDInt32 fastMultiply(SimdDInt32 x)
 {
     if (n == 2)
     {
@@ -84,6 +84,21 @@ template<int align>
 static inline void gmx_simdcall gatherLoadBySimdIntTranspose(const double*, SimdDInt32)
 {
     // Nothing to do. Termination of recursion.
+}
+
+/* This is an internal helper function used by decr3Hsimd(...).
+ */
+inline void gmx_simdcall decrHsimd(double* m, SimdDouble a)
+{
+    __m256d t;
+
+    assert(std::size_t(m) % 32 == 0);
+
+    a.simdInternal_ = _mm512_add_pd(a.simdInternal_,
+                                    _mm512_shuffle_f64x2(a.simdInternal_, a.simdInternal_, 0xEE));
+    t               = _mm256_load_pd(m);
+    t               = _mm256_sub_pd(t, _mm512_castpd512_pd256(a.simdInternal_));
+    _mm256_store_pd(m, t);
 }
 } // namespace
 
@@ -149,8 +164,9 @@ static inline void gmx_simdcall
     __m512d                                  t[4], t5, t6, t7, t8;
     alignas(GMX_SIMD_ALIGNMENT) std::int64_t o[8];
     // TODO: should use fastMultiply
-    _mm512_store_epi64(o, _mm512_cvtepi32_epi64(_mm256_mullo_epi32(
-                                  _mm256_load_si256((const __m256i*)(offset)), _mm256_set1_epi32(align))));
+    _mm512_store_epi64(o,
+                       _mm512_cvtepi32_epi64(_mm256_mullo_epi32(
+                               _mm256_load_si256((const __m256i*)(offset)), _mm256_set1_epi32(align))));
     t5   = _mm512_unpacklo_pd(v0.simdInternal_, v1.simdInternal_);
     t6   = _mm512_unpackhi_pd(v0.simdInternal_, v1.simdInternal_);
     t7   = _mm512_unpacklo_pd(v2.simdInternal_, _mm512_setzero_pd());
@@ -163,11 +179,13 @@ static inline void gmx_simdcall
     {
         for (int i = 0; i < 4; i++)
         {
-            _mm512_mask_storeu_pd(base + o[0 + i], avx512Int2Mask(7),
+            _mm512_mask_storeu_pd(base + o[0 + i],
+                                  avx512Int2Mask(7),
                                   _mm512_castpd256_pd512(_mm256_add_pd(_mm256_loadu_pd(base + o[0 + i]),
                                                                        _mm512_castpd512_pd256(t[i]))));
             _mm512_mask_storeu_pd(
-                    base + o[4 + i], avx512Int2Mask(7),
+                    base + o[4 + i],
+                    avx512Int2Mask(7),
                     _mm512_castpd256_pd512(_mm256_add_pd(_mm256_loadu_pd(base + o[4 + i]),
                                                          _mm512_extractf64x4_pd(t[i], 1))));
         }
@@ -178,20 +196,24 @@ static inline void gmx_simdcall
         {
             for (int i = 0; i < 4; i++)
             {
-                _mm256_store_pd(base + o[0 + i], _mm256_add_pd(_mm256_load_pd(base + o[0 + i]),
-                                                               _mm512_castpd512_pd256(t[i])));
-                _mm256_store_pd(base + o[4 + i], _mm256_add_pd(_mm256_load_pd(base + o[4 + i]),
-                                                               _mm512_extractf64x4_pd(t[i], 1)));
+                _mm256_store_pd(
+                        base + o[0 + i],
+                        _mm256_add_pd(_mm256_load_pd(base + o[0 + i]), _mm512_castpd512_pd256(t[i])));
+                _mm256_store_pd(base + o[4 + i],
+                                _mm256_add_pd(_mm256_load_pd(base + o[4 + i]),
+                                              _mm512_extractf64x4_pd(t[i], 1)));
             }
         }
         else
         {
             for (int i = 0; i < 4; i++)
             {
-                _mm256_storeu_pd(base + o[0 + i], _mm256_add_pd(_mm256_loadu_pd(base + o[0 + i]),
-                                                                _mm512_castpd512_pd256(t[i])));
-                _mm256_storeu_pd(base + o[4 + i], _mm256_add_pd(_mm256_loadu_pd(base + o[4 + i]),
-                                                                _mm512_extractf64x4_pd(t[i], 1)));
+                _mm256_storeu_pd(
+                        base + o[0 + i],
+                        _mm256_add_pd(_mm256_loadu_pd(base + o[0 + i]), _mm512_castpd512_pd256(t[i])));
+                _mm256_storeu_pd(base + o[4 + i],
+                                 _mm256_add_pd(_mm256_loadu_pd(base + o[4 + i]),
+                                               _mm512_extractf64x4_pd(t[i], 1)));
             }
         }
     }
@@ -204,8 +226,9 @@ static inline void gmx_simdcall
     __m512d                                  t[4], t5, t6, t7, t8;
     alignas(GMX_SIMD_ALIGNMENT) std::int64_t o[8];
     // TODO: should use fastMultiply
-    _mm512_store_epi64(o, _mm512_cvtepi32_epi64(_mm256_mullo_epi32(
-                                  _mm256_load_si256((const __m256i*)(offset)), _mm256_set1_epi32(align))));
+    _mm512_store_epi64(o,
+                       _mm512_cvtepi32_epi64(_mm256_mullo_epi32(
+                               _mm256_load_si256((const __m256i*)(offset)), _mm256_set1_epi32(align))));
     t5   = _mm512_unpacklo_pd(v0.simdInternal_, v1.simdInternal_);
     t6   = _mm512_unpackhi_pd(v0.simdInternal_, v1.simdInternal_);
     t7   = _mm512_unpacklo_pd(v2.simdInternal_, _mm512_setzero_pd());
@@ -218,11 +241,13 @@ static inline void gmx_simdcall
     {
         for (int i = 0; i < 4; i++)
         {
-            _mm512_mask_storeu_pd(base + o[0 + i], avx512Int2Mask(7),
+            _mm512_mask_storeu_pd(base + o[0 + i],
+                                  avx512Int2Mask(7),
                                   _mm512_castpd256_pd512(_mm256_sub_pd(_mm256_loadu_pd(base + o[0 + i]),
                                                                        _mm512_castpd512_pd256(t[i]))));
             _mm512_mask_storeu_pd(
-                    base + o[4 + i], avx512Int2Mask(7),
+                    base + o[4 + i],
+                    avx512Int2Mask(7),
                     _mm512_castpd256_pd512(_mm256_sub_pd(_mm256_loadu_pd(base + o[4 + i]),
                                                          _mm512_extractf64x4_pd(t[i], 1))));
         }
@@ -233,20 +258,24 @@ static inline void gmx_simdcall
         {
             for (int i = 0; i < 4; i++)
             {
-                _mm256_store_pd(base + o[0 + i], _mm256_sub_pd(_mm256_load_pd(base + o[0 + i]),
-                                                               _mm512_castpd512_pd256(t[i])));
-                _mm256_store_pd(base + o[4 + i], _mm256_sub_pd(_mm256_load_pd(base + o[4 + i]),
-                                                               _mm512_extractf64x4_pd(t[i], 1)));
+                _mm256_store_pd(
+                        base + o[0 + i],
+                        _mm256_sub_pd(_mm256_load_pd(base + o[0 + i]), _mm512_castpd512_pd256(t[i])));
+                _mm256_store_pd(base + o[4 + i],
+                                _mm256_sub_pd(_mm256_load_pd(base + o[4 + i]),
+                                              _mm512_extractf64x4_pd(t[i], 1)));
             }
         }
         else
         {
             for (int i = 0; i < 4; i++)
             {
-                _mm256_storeu_pd(base + o[0 + i], _mm256_sub_pd(_mm256_loadu_pd(base + o[0 + i]),
-                                                                _mm512_castpd512_pd256(t[i])));
-                _mm256_storeu_pd(base + o[4 + i], _mm256_sub_pd(_mm256_loadu_pd(base + o[4 + i]),
-                                                                _mm512_extractf64x4_pd(t[i], 1)));
+                _mm256_storeu_pd(
+                        base + o[0 + i],
+                        _mm256_sub_pd(_mm256_loadu_pd(base + o[0 + i]), _mm512_castpd512_pd256(t[i])));
+                _mm256_storeu_pd(base + o[4 + i],
+                                 _mm256_sub_pd(_mm256_loadu_pd(base + o[4 + i]),
+                                               _mm512_extractf64x4_pd(t[i], 1)));
             }
         }
     }
@@ -279,10 +308,10 @@ static inline double gmx_simdcall
 
     t0 = _mm512_add_pd(v0.simdInternal_, _mm512_permute_pd(v0.simdInternal_, 0x55));
     t2 = _mm512_add_pd(v2.simdInternal_, _mm512_permute_pd(v2.simdInternal_, 0x55));
-    t0 = _mm512_mask_add_pd(t0, avx512Int2Mask(0xAA), v1.simdInternal_,
-                            _mm512_permute_pd(v1.simdInternal_, 0x55));
-    t2 = _mm512_mask_add_pd(t2, avx512Int2Mask(0xAA), v3.simdInternal_,
-                            _mm512_permute_pd(v3.simdInternal_, 0x55));
+    t0 = _mm512_mask_add_pd(
+            t0, avx512Int2Mask(0xAA), v1.simdInternal_, _mm512_permute_pd(v1.simdInternal_, 0x55));
+    t2 = _mm512_mask_add_pd(
+            t2, avx512Int2Mask(0xAA), v3.simdInternal_, _mm512_permute_pd(v3.simdInternal_, 0x55));
     t0 = _mm512_add_pd(t0, _mm512_shuffle_f64x2(t0, t0, 0x4E));
     t0 = _mm512_mask_add_pd(t0, avx512Int2Mask(0xF0), t2, _mm512_shuffle_f64x2(t2, t2, 0x4E));
     t0 = _mm512_add_pd(t0, _mm512_shuffle_f64x2(t0, t0, 0xB1));
@@ -316,8 +345,8 @@ static inline SimdDouble gmx_simdcall loadDuplicateHsimd(const double* m)
 
 static inline SimdDouble gmx_simdcall loadU1DualHsimd(const double* m)
 {
-    return { _mm512_insertf64x4(_mm512_broadcastsd_pd(_mm_load_sd(m)),
-                                _mm256_broadcastsd_pd(_mm_load_sd(m + 1)), 1) };
+    return { _mm512_insertf64x4(
+            _mm512_broadcastsd_pd(_mm_load_sd(m)), _mm256_broadcastsd_pd(_mm_load_sd(m + 1)), 1) };
 }
 
 
@@ -348,19 +377,12 @@ static inline void gmx_simdcall incrDualHsimd(double* m0, double* m1, SimdDouble
     _mm256_store_pd(m1, x);
 }
 
-static inline void gmx_simdcall decrHsimd(double* m, SimdDouble a)
+static inline void gmx_simdcall decr3Hsimd(double* m, SimdDouble a0, SimdDouble a1, SimdDouble a2)
 {
-    __m256d t;
-
-    assert(std::size_t(m) % 32 == 0);
-
-    a.simdInternal_ = _mm512_add_pd(a.simdInternal_,
-                                    _mm512_shuffle_f64x2(a.simdInternal_, a.simdInternal_, 0xEE));
-    t               = _mm256_load_pd(m);
-    t               = _mm256_sub_pd(t, _mm512_castpd512_pd256(a.simdInternal_));
-    _mm256_store_pd(m, t);
+    decrHsimd(m, a0);
+    decrHsimd(m + GMX_SIMD_DOUBLE_WIDTH / 2, a1);
+    decrHsimd(m + GMX_SIMD_DOUBLE_WIDTH, a2);
 }
-
 
 template<int align>
 static inline void gmx_simdcall gatherLoadTransposeHsimd(const double*      base0,
@@ -402,8 +424,8 @@ static inline double gmx_simdcall reduceIncr4ReturnSumHsimd(double* m, SimdDoubl
     assert(std::size_t(m) % 32 == 0);
 
     t0 = _mm512_add_pd(v0.simdInternal_, _mm512_permutex_pd(v0.simdInternal_, 0x4E));
-    t0 = _mm512_mask_add_pd(t0, avx512Int2Mask(0xCC), v1.simdInternal_,
-                            _mm512_permutex_pd(v1.simdInternal_, 0x4E));
+    t0 = _mm512_mask_add_pd(
+            t0, avx512Int2Mask(0xCC), v1.simdInternal_, _mm512_permutex_pd(v1.simdInternal_, 0x4E));
     t0 = _mm512_add_pd(t0, _mm512_permutex_pd(t0, 0xB1));
     t0 = _mm512_mask_shuffle_f64x2(t0, avx512Int2Mask(0xAA), t0, t0, 0xEE);
 
@@ -420,8 +442,8 @@ static inline double gmx_simdcall reduceIncr4ReturnSumHsimd(double* m, SimdDoubl
 
 static inline SimdDouble gmx_simdcall loadU4NOffset(const double* m, int offset)
 {
-    return { _mm512_insertf64x4(_mm512_castpd256_pd512(_mm256_loadu_pd(m)),
-                                _mm256_loadu_pd(m + offset), 1) };
+    return { _mm512_insertf64x4(
+            _mm512_castpd256_pd512(_mm256_loadu_pd(m)), _mm256_loadu_pd(m + offset), 1) };
 }
 
 } // namespace gmx

@@ -45,7 +45,6 @@
 #include "gromacs/math/vectypes.h"
 #include "gromacs/restraint/restraintpotential.h"
 #include "gromacs/utility/arrayref.h"
-#include "gromacs/utility/classhelpers.h"
 
 namespace gmxapi
 {
@@ -123,7 +122,7 @@ TEST_F(GmxApiTest, ApiRunnerRestrainedMD)
     auto system = gmxapi::fromTprFile(runner_.tprFileName_);
 
     {
-        auto           context = std::make_shared<gmxapi::Context>();
+        auto           context = std::make_shared<gmxapi::Context>(gmxapi::createContext());
         gmxapi::MDArgs args    = makeMdArgs();
 
         context->setMDArgs(args);

@@ -250,10 +250,12 @@ std::vector<std::string> makeLegend(const AwhBiasParams* awhBiasParams,
                                     OutputFileType       outputFileType,
                                     size_t               numLegend)
 {
-    const std::array<std::string, maxAwhGraphs> legendBase = {
-        { "PMF", "Coord bias", "Coord distr", "Ref value distr", "Target ref value distr",
-          "Friction metric" }
-    };
+    const std::array<std::string, maxAwhGraphs> legendBase = { { "PMF",
+                                                                 "Coord bias",
+                                                                 "Coord distr",
+                                                                 "Ref value distr",
+                                                                 "Target ref value distr",
+                                                                 "Friction metric" } };
 
     std::vector<std::string> legend;
     /* Give legends to dimensions higher than the first */
@@ -340,12 +342,12 @@ void OutputFile::initializeAwhOutputFile(int                  subblockStart,
     int numLegend = numDim_ - 1 + numGraph_;
     legend_       = makeLegend(awhBiasParams, OutputFileType::Awh, numLegend);
     /* We could have both length and angle coordinates in a single bias */
-    xLabel_ = "(nm or deg)";
+    xLabel_ = "(nm, deg or lambda state)";
     yLabel_ = useKTForEnergy_ ? "(k\\sB\\NT)" : "(kJ/mol)";
     if (graphSelection == AwhGraphSelection::All)
     {
-        yLabel_ += gmx::formatString(", (nm\\S-%d\\N or rad\\S-%d\\N), (-)", awhBiasParams->ndim,
-                                     awhBiasParams->ndim);
+        yLabel_ += gmx::formatString(
+                ", (nm\\S-%d\\N or rad\\S-%d\\N), (-)", awhBiasParams->ndim, awhBiasParams->ndim);
     }
 }
 
@@ -377,14 +379,16 @@ void OutputFile::initializeFrictionOutputFile(int                  subBlockStart
     scaleFactor_.resize(numGraph_, useKTForEnergy_ ? 1 : kTValue);
     int numLegend = numDim_ - 1 + numGraph_;
     legend_       = makeLegend(awhBiasParams, OutputFileType::Friction, numLegend);
-    xLabel_       = "(nm or deg)";
+    xLabel_       = "(nm, deg or lambda state)";
     if (useKTForEnergy_)
     {
-        yLabel_ = "friction/k\\sB\\NT (nm\\S-2\\Nps or rad\\S-2\\Nps)";
+        yLabel_ = "friction/k\\sB\\NT (nm\\S-2\\Nps, rad\\S-2\\Nps or ps)";
     }
     else
     {
-        yLabel_ = "friction (kJ mol\\S-1\\Nnm\\S-2\\Nps or kJ mol\\S-1\\Nrad\\S-2\\Nps)";
+        yLabel_ =
+                "friction (kJ mol\\S-1\\Nnm\\S-2\\Nps, kJ mol\\S-1\\Nrad\\S-2\\Nps or kJ "
+                "mol\\S-1\\Nps)";
     }
 }
 
@@ -418,8 +422,8 @@ AwhReader::AwhReader(const AwhParams*  awhParams,
         std::unique_ptr<OutputFile> awhOutputFile(new OutputFile(
                 opt2fn("-o", numFileOptions, filenames), "AWH", awhParams->numBias, k));
 
-        awhOutputFile->initializeAwhOutputFile(subblockStart, numSubBlocks, awhBiasParams,
-                                               awhGraphSelection, energyUnit, kT);
+        awhOutputFile->initializeAwhOutputFile(
+                subblockStart, numSubBlocks, awhBiasParams, awhGraphSelection, energyUnit, kT);
 
         std::unique_ptr<OutputFile> frictionOutputFile;
         if (outputFriction)
@@ -427,12 +431,12 @@ AwhReader::AwhReader(const AwhParams*  awhParams,
             frictionOutputFile = std::make_unique<OutputFile>(
                     opt2fn("-fric", numFileOptions, filenames), "Friction tensor", awhParams->numBias, k);
 
-            frictionOutputFile->initializeFrictionOutputFile(subblockStart, numSubBlocks,
-                                                             awhBiasParams, energyUnit, kT);
+            frictionOutputFile->initializeFrictionOutputFile(
+                    subblockStart, numSubBlocks, awhBiasParams, energyUnit, kT);
         }
 
-        biasOutputSetups_.emplace_back(BiasOutputSetup(subblockStart, std::move(awhOutputFile),
-                                                       std::move(frictionOutputFile)));
+        biasOutputSetups_.emplace_back(BiasOutputSetup(
+                subblockStart, std::move(awhOutputFile), std::move(frictionOutputFile)));
 
         subblockStart += numSubBlocks;
     }
@@ -485,8 +489,10 @@ void AwhReader::processAwhFrame(const t_enxblock& block, double time, const gmx_
             FILE* fpAwh = awhOutputFile.openBiasOutputFile(time, oenv);
 
             /* Now do the actual printing. Metadata in first subblock is treated separately. */
-            fprintf(fpAwh, "# AWH metadata: target error = %.2f kT = %.2f kJ/mol\n",
-                    block.sub[subStart].fval[1], block.sub[subStart].fval[1] * kT_);
+            fprintf(fpAwh,
+                    "# AWH metadata: target error = %.2f kT = %.2f kJ/mol\n",
+                    block.sub[subStart].fval[1],
+                    block.sub[subStart].fval[1] * kT_);
 
             fprintf(fpAwh, "# AWH metadata: log sample weight = %4.2f\n", block.sub[subStart].fval[2]);
 
@@ -546,8 +552,18 @@ int gmx_awh(int argc, char* argv[])
                        { efXVG, "-o", "awh", ffWRITE },
                        { efXVG, "-fric", "friction", ffOPTWR } };
     const int nfile = asize(fnm);
-    if (!parse_common_args(&argc, argv, PCA_CAN_VIEW | PCA_CAN_BEGIN | PCA_CAN_END, nfile, fnm,
-                           asize(pa), pa, asize(desc), desc, 0, nullptr, &oenv))
+    if (!parse_common_args(&argc,
+                           argv,
+                           PCA_CAN_VIEW | PCA_CAN_BEGIN | PCA_CAN_END,
+                           nfile,
+                           fnm,
+                           asize(pa),
+                           pa,
+                           asize(desc),
+                           desc,
+                           0,
+                           nullptr,
+                           &oenv))
     {
         return 0;
     }
@@ -614,8 +630,8 @@ int gmx_awh(int argc, char* argv[])
                 AwhGraphSelection awhGraphSelection =
                         (moreGraphs ? AwhGraphSelection::All : AwhGraphSelection::Pmf);
                 EnergyUnit energyUnit = (kTUnit ? EnergyUnit::KT : EnergyUnit::KJPerMol);
-                awhReader = std::make_unique<AwhReader>(ir.awhParams, nfile, fnm, awhGraphSelection,
-                                                        energyUnit, BOLTZ * ir.opts.ref_t[0], block);
+                awhReader             = std::make_unique<AwhReader>(
+                        ir.awhParams, nfile, fnm, awhGraphSelection, energyUnit, BOLTZ * ir.opts.ref_t[0], block);
             }
 
             awhReader->processAwhFrame(*block, frame->t, oenv);

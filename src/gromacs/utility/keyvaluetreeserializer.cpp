@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -36,10 +36,11 @@
 
 #include "keyvaluetreeserializer.h"
 
+#include <mutex>
+
 #include "gromacs/utility/iserializer.h"
 #include "gromacs/utility/keyvaluetree.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
-#include "gromacs/utility/mutex.h"
 
 namespace gmx
 {
@@ -68,12 +69,12 @@ private:
         DeserializerFunction deserialize;
     };
 
-    static Mutex                                         s_initMutex;
+    static std::mutex                                    s_initMutex;
     static std::map<std::type_index, Serializer>         s_serializers;
     static std::map<unsigned char, DeserializerFunction> s_deserializers;
 };
 
-Mutex                                                          ValueSerializer::s_initMutex;
+std::mutex                                                     ValueSerializer::s_initMutex;
 std::map<std::type_index, ValueSerializer::Serializer>         ValueSerializer::s_serializers;
 std::map<unsigned char, ValueSerializer::DeserializerFunction> ValueSerializer::s_deserializers;
 
@@ -102,7 +103,7 @@ struct SerializationTraits<KeyValueTreeObject>
     }
     static void deserializeObject(KeyValueTreeObjectBuilder* builder, ISerializer* serializer)
     {
-        int         count;
+        int         count = 0;
         std::string key;
         serializer->doInt(&count);
         for (int i = 0; i < count; ++i)
@@ -128,7 +129,7 @@ struct SerializationTraits<KeyValueTreeArray>
     static void deserialize(KeyValueTreeValueBuilder* value, ISerializer* serializer)
     {
         KeyValueTreeArrayBuilder builder(value->createArray());
-        int                      count;
+        int                      count = 0;
         serializer->doInt(&count);
         for (int i = 0; i < count; ++i)
         {
@@ -158,7 +159,7 @@ struct SerializationTraits<bool>
     static void serialize(bool value, ISerializer* serializer) { serializer->doBool(&value); }
     static void deserialize(KeyValueTreeValueBuilder* builder, ISerializer* serializer)
     {
-        bool value;
+        bool value = false;
         serializer->doBool(&value);
         builder->setValue<bool>(value);
     }
@@ -170,7 +171,7 @@ struct SerializationTraits<int>
     static void serialize(int value, ISerializer* serializer) { serializer->doInt(&value); }
     static void deserialize(KeyValueTreeValueBuilder* builder, ISerializer* serializer)
     {
-        int value;
+        int value = 0;
         serializer->doInt(&value);
         builder->setValue<int>(value);
     }
@@ -182,7 +183,7 @@ struct SerializationTraits<int64_t>
     static void serialize(int64_t value, ISerializer* serializer) { serializer->doInt64(&value); }
     static void deserialize(KeyValueTreeValueBuilder* builder, ISerializer* serializer)
     {
-        int64_t value;
+        int64_t value = 0;
         serializer->doInt64(&value);
         builder->setValue<int64_t>(value);
     }
@@ -194,7 +195,7 @@ struct SerializationTraits<float>
     static void serialize(float value, ISerializer* serializer) { serializer->doFloat(&value); }
     static void deserialize(KeyValueTreeValueBuilder* builder, ISerializer* serializer)
     {
-        float value;
+        float value = 0;
         serializer->doFloat(&value);
         builder->setValue<float>(value);
     }
@@ -206,7 +207,7 @@ struct SerializationTraits<double>
     static void serialize(double value, ISerializer* serializer) { serializer->doDouble(&value); }
     static void deserialize(KeyValueTreeValueBuilder* builder, ISerializer* serializer)
     {
-        double value;
+        double value = 0;
         serializer->doDouble(&value);
         builder->setValue<double>(value);
     }
@@ -230,7 +231,7 @@ void serializeValueType(const KeyValueTreeValue& value, ISerializer* serializer)
 // static
 void ValueSerializer::initSerializers()
 {
-    lock_guard<Mutex> lock(s_initMutex);
+    std::lock_guard<std::mutex> lock(s_initMutex);
     if (!s_serializers.empty())
     {
         return;
@@ -262,7 +263,7 @@ void ValueSerializer::serialize(const KeyValueTreeValue& value, ISerializer* ser
 
 KeyValueTreeValue ValueSerializer::deserialize(ISerializer* serializer)
 {
-    unsigned char typeTag;
+    unsigned char typeTag = 0;
     serializer->doUChar(&typeTag);
     auto iter = s_deserializers.find(typeTag);
     GMX_RELEASE_ASSERT(iter != s_deserializers.end(), "Unknown type tag for deserializization");

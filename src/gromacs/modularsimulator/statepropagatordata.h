@@ -47,6 +47,9 @@
 #include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/paddedvector.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/mdtypes/checkpointdata.h"
+#include "gromacs/mdtypes/forcebuffers.h"
+#include "gromacs/utility/keyvaluetree.h"
 
 #include "modularsimulatorinterfaces.h"
 #include "topologyholder.h"
@@ -57,9 +60,11 @@ struct t_commrec;
 struct t_inputrec;
 class t_state;
 struct t_mdatoms;
+struct t_trxframe;
 
 namespace gmx
 {
+enum class CheckpointDataOperation;
 enum class ConstraintVariable;
 class EnergyData;
 class FreeEnergyPerturbationData;
@@ -121,9 +126,9 @@ public:
     //! Get read access to velocity vector
     ArrayRefWithPadding<const RVec> constVelocitiesView() const;
     //! Get write access to force vector
-    ArrayRefWithPadding<RVec> forcesView();
+    ForceBuffersView& forcesView();
     //! Get read access to force vector
-    ArrayRefWithPadding<const RVec> constForcesView() const;
+    const ForceBuffersView& constForcesView() const;
     //! Get pointer to box
     rvec* box();
     //! Get const pointer to box
@@ -144,6 +149,11 @@ public:
     //! Initial set up for the associated element
     void setup();
 
+    //! Read everything that can be stored in t_trxframe from a checkpoint file
+    static void readCheckpointToTrxFrame(t_trxframe* trxFrame, ReadCheckpointData readCheckpointData);
+    //! CheckpointHelper identifier
+    static const std::string& checkpointID();
+
     //! \cond
     // (doxygen doesn't like these)
     // Classes which need access to legacy state
@@ -151,6 +161,8 @@ public:
     //! \endcond
 
 private:
+    //! Default constructor - only used internally
+    StatePropagatorData() = default;
     //! The total number of atoms in the system
     int totalNumAtoms_;
     //! The local number of atoms
@@ -162,13 +174,26 @@ private:
     //! The velocity vector
     PaddedHostVector<RVec> v_;
     //! The force vector
-    PaddedHostVector<RVec> f_;
+    ForceBuffers f_;
     //! The box matrix
     matrix box_;
     //! The box matrix of the previous step
     matrix previousBox_;
-    //! The DD partitioning count for legacy t_state compatibility
+    //! The DD partitioning count
     int ddpCount_;
+    //! The DD partitioning count for index_gl
+    int ddpCountCgGl_;
+    //! The global cg number of the local cgs
+    std::vector<int> cgGl_;
+
+    //! The global position vector
+    PaddedHostVector<RVec> xGlobal_;
+    //! The global position vector of the previous step
+    PaddedHostVector<RVec> previousXGlobal_;
+    //! The global velocity vector
+    PaddedHostVector<RVec> vGlobal_;
+    //! The global force vector
+    PaddedHostVector<RVec> fGlobal_;
 
     //! The element
     std::unique_ptr<Element> element_;
@@ -178,6 +203,10 @@ private:
     //! OMP helper to move x_ to previousX_
     void copyPosition(int start, int end);
 
+    //! Helper function to read from / write to CheckpointData
+    template<CheckpointDataOperation operation>
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
+
     // Access to legacy state
     //! Get a deep copy of the current state in legacy format
     std::unique_ptr<t_state> localState();
@@ -186,7 +215,7 @@ private:
     //! Get a pointer to the global state
     t_state* globalState();
     //! Get a force pointer
-    PaddedHostVector<gmx::RVec>* forcePointer();
+    ForceBuffers* forcePointer();
 
     //! Whether we're doing VV and need to reset velocities after the first half step
     bool vvResetVelocities_;
@@ -279,6 +308,13 @@ public:
     //! Set free energy data
     void setFreeEnergyPerturbationData(FreeEnergyPerturbationData* freeEnergyPerturbationData);
 
+    //! ICheckpointHelperClient write checkpoint implementation
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient read checkpoint implementation
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient key implementation
+    const std::string& clientID() override;
+
     /*! \brief Factory method implementation
      *
      * \param legacySimulatorData  Pointer allowing access to simulator level data
@@ -323,9 +359,6 @@ private:
     //! ITrajectoryWriterClient implementation
     std::optional<ITrajectoryWriterCallback> registerTrajectoryWriterCallback(TrajectoryEvent event) override;
 
-    //! ICheckpointHelperClient implementation
-    void writeCheckpoint(t_state* localState, t_state* globalState) override;
-
     //! ILastStepSignallerClient implementation (used for final output only)
     std::optional<SignallerCallback> registerLastStepCallback() override;
 
@@ -340,6 +373,8 @@ private:
     void trajectoryWriterSetup(gmx_mdoutf gmx_unused* outf) override {}
     //! Trajectory writer teardown - write final coordinates
     void trajectoryWriterTeardown(gmx_mdoutf* outf) override;
+    //! A dummy CheckpointData - remove when we stop using the legacy trajectory writing function
+    WriteCheckpointDataHolder dummyCheckpointDataHolder_;
 
     //! Whether planned total number of steps was reached (used for final output only)
     bool isRegularSimulationEnd_;

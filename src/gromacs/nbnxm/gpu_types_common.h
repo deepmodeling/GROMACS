@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,9 +44,11 @@
 
 #include "config.h"
 
+#include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/locality.h"
 #include "gromacs/utility/enumerationhelpers.h"
 
+#include "nbnxm.h"
 #include "pairlist.h"
 
 #if GMX_GPU_OPENCL
@@ -57,16 +59,84 @@
 #    include "gromacs/gpu_utils/gpuregiontimer.cuh"
 #endif
 
+#if GMX_GPU_SYCL
+#    include "gromacs/gpu_utils/gpuregiontimer_sycl.h"
+#endif
+
+/*! \brief Macro definining default for the prune kernel's j4 processing concurrency.
+ *
+ *  The GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY macro allows compile-time override with the default value of 4.
+ */
+#ifndef GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY
+#    define GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY 4
+#endif
+//! Default for the prune kernel's j4 processing concurrency.
+static constexpr int c_pruneKernelJ4Concurrency = GMX_NBNXN_PRUNE_KERNEL_J4_CONCURRENCY;
+
+/*! \internal
+ * \brief Staging area for temporary data downloaded from the GPU.
+ *
+ * Since SYCL buffers already have host-side storage, this is a bit redundant.
+ * But it allows prefetching of the data from GPU, and brings GPU backends closer together.
+ */
+struct NBStagingData
+{
+    //! LJ energy
+    float* eLJ = nullptr;
+    //! electrostatic energy
+    float* eElec = nullptr;
+    //! shift forces
+    Float3* fShift = nullptr;
+};
+
+/** \internal
+ * \brief Nonbonded atom data - both inputs and outputs.
+ */
+struct NBAtomData
+{
+    //! number of atoms
+    int numAtoms;
+    //! number of local atoms
+    int numAtomsLocal;
+    //! allocation size for the atom data (xq, f)
+    int numAtomsAlloc;
+
+    //! atom coordinates + charges, size \ref numAtoms
+    DeviceBuffer<Float4> xq;
+    //! force output array, size \ref numAtoms
+    DeviceBuffer<Float3> f;
+
+    //! LJ energy output, size 1
+    DeviceBuffer<float> eLJ;
+    //! Electrostatics energy input, size 1
+    DeviceBuffer<float> eElec;
+
+    //! shift forces
+    DeviceBuffer<Float3> fShift;
+
+    //! number of atom types
+    int numTypes;
+    //! atom type indices, size \ref numAtoms
+    DeviceBuffer<int> atomTypes;
+    //! sqrt(c6),sqrt(c12) size \ref numAtoms
+    DeviceBuffer<Float2> ljComb;
+
+    //! shifts
+    DeviceBuffer<Float3> shiftVec;
+    //! true if the shift vector has been uploaded
+    bool shiftVecUploaded;
+};
+
 /** \internal
  * \brief Parameters required for the GPU nonbonded calculations.
  */
 struct NBParamGpu
 {
 
-    //! type of electrostatics, takes values from #eelType
-    int eeltype;
-    //! type of VdW impl., takes values from #evdwType
-    int vdwtype;
+    //! type of electrostatics
+    enum Nbnxm::ElecType elecType;
+    //! type of VdW impl.
+    enum Nbnxm::VdwType vdwType;
 
     //! charge multiplication factor
     float epsfac;
@@ -76,7 +146,7 @@ struct NBParamGpu
     float two_k_rf;
     //! Ewald/PME parameter
     float ewald_beta;
-    //! Ewald/PME correction term substracted from the direct-space potential
+    //! Ewald/PME correction term subtracted from the direct-space potential
     float sh_ewald;
     //! LJ-Ewald/PME correction term added to the correction potential
     float sh_lj_ewald;
@@ -135,7 +205,7 @@ using gmx::InteractionLocality;
  * The two-sized arrays hold the local and non-local values and should always
  * be indexed with eintLocal/eintNonlocal.
  */
-struct gpu_timers_t
+struct GpuTimers
 {
     /*! \internal
      * \brief Timers for local or non-local coordinate/force transfers
@@ -174,7 +244,7 @@ struct gpu_timers_t
     //! timers for coordinate/force transfers (every step)
     gmx::EnumerationArray<AtomLocality, XFTransfers> xf;
     //! timers for interaction related transfers
-    gmx::EnumerationArray<InteractionLocality, Nbnxm::gpu_timers_t::Interaction> interaction;
+    gmx::EnumerationArray<InteractionLocality, Nbnxm::GpuTimers::Interaction> interaction;
 };
 
 /*! \internal
@@ -211,11 +281,11 @@ struct gpu_plist
     int excl_nalloc;
 
     /* parameter+variables for normal and rolling pruning */
-    //! true after search, indictes that initial pruning with outer prunning is needed
+    //! true after search, indicates that initial pruning with outer pruning is needed
     bool haveFreshList;
-    //! the number of parts/steps over which one cyle of roling pruning takes places
+    //! the number of parts/steps over which one cycle of rolling pruning takes places
     int rollingPruningNumParts;
-    //! the next part to which the roling pruning needs to be applied
+    //! the next part to which the rolling pruning needs to be applied
     int rollingPruningPart;
 };
 

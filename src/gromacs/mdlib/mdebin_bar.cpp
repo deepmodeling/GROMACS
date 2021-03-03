@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -37,6 +37,7 @@
  */
 #include "gmxpre.h"
 
+#include "gromacs/utility/arrayref.h"
 #include "mdebin_bar.h"
 
 #include <cassert>
@@ -379,30 +380,30 @@ static void mde_delta_h_handle_block(t_mde_delta_h* dh, t_enxblock* blk)
 }
 
 /* initialize the collection*/
-void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
+void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec& inputrec)
 {
     int       i, j, n;
     double*   lambda_vec;
-    int       ndhmax = ir->nstenergy / ir->nstcalcenergy;
-    t_lambda* fep    = ir->fepvals;
+    int       ndhmax = inputrec.nstenergy / inputrec.nstcalcenergy;
+    t_lambda* fep    = inputrec.fepvals.get();
 
-    dhc->temperature    = ir->opts.ref_t[0]; /* only store system temperature */
+    dhc->temperature    = inputrec.opts.ref_t[0]; /* only store system temperature */
     dhc->start_time     = 0.;
-    dhc->delta_time     = ir->delta_t * ir->fepvals->nstdhdl;
+    dhc->delta_time     = inputrec.delta_t * inputrec.fepvals->nstdhdl;
     dhc->start_time_set = FALSE;
 
     /* this is the compatibility lambda value. If it is >=0, it is valid,
        and there is either an old-style lambda or a slow growth simulation. */
-    dhc->start_lambda = ir->fepvals->init_lambda;
+    dhc->start_lambda = inputrec.fepvals->init_lambda;
     /* for continuous change of lambda values */
-    dhc->delta_lambda = ir->fepvals->delta_lambda * ir->fepvals->nstdhdl;
+    dhc->delta_lambda = inputrec.fepvals->delta_lambda * inputrec.fepvals->nstdhdl;
 
     if (dhc->start_lambda < 0)
     {
         /* create the native lambda vectors */
         dhc->lambda_index = fep->init_fep_state;
         dhc->n_lambda_vec = 0;
-        for (i = 0; i < efptNR; i++)
+        for (auto i : keysOf(fep->separate_dvdl))
         {
             if (fep->separate_dvdl[i])
             {
@@ -412,11 +413,11 @@ void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
         snew(dhc->native_lambda_vec, dhc->n_lambda_vec);
         snew(dhc->native_lambda_components, dhc->n_lambda_vec);
         j = 0;
-        for (i = 0; i < efptNR; i++)
+        for (auto i : keysOf(fep->separate_dvdl))
         {
             if (fep->separate_dvdl[i])
             {
-                dhc->native_lambda_components[j] = i;
+                dhc->native_lambda_components[j] = static_cast<int>(i);
                 if (fep->init_fep_state >= 0 && fep->init_fep_state < fep->n_lambda)
                 {
                     dhc->native_lambda_vec[j] = fep->all_lambda[i][fep->init_fep_state];
@@ -460,11 +461,11 @@ void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
         /* first count the number of states */
 
         /* add the dhdl's */
-        if (fep->dhdl_derivatives == edhdlderivativesYES)
+        if (fep->dhdl_derivatives == DhDlDerivativeCalculation::Yes)
         {
-            for (i = 0; i < efptNR; i++)
+            for (auto i : keysOf(fep->separate_dvdl))
             {
-                if (ir->fepvals->separate_dvdl[i])
+                if (inputrec.fepvals->separate_dvdl[i])
                 {
                     dhc->ndh += 1;
                     dhc->ndhdl += 1;
@@ -472,25 +473,25 @@ void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
             }
         }
         /* add the lambdas */
-        dhc->nlambda = ir->fepvals->lambda_stop_n - ir->fepvals->lambda_start_n;
+        dhc->nlambda = inputrec.fepvals->lambda_stop_n - inputrec.fepvals->lambda_start_n;
         dhc->ndh += dhc->nlambda;
         /* another compatibility check */
         if (dhc->start_lambda < 0)
         {
             /* include one more for the specification of the state, by lambda or
                fep_state*/
-            if (ir->expandedvals->elmcmove > elmcmoveNO)
+            if (inputrec.expandedvals->elmcmove > LambdaMoveCalculation::No)
             {
                 dhc->ndh += 1;
                 bExpanded = TRUE;
             }
             /* whether to print energies */
-            if (ir->fepvals->edHdLPrintEnergy != edHdLPrintEnergyNO)
+            if (inputrec.fepvals->edHdLPrintEnergy != FreeEnergyPrintEnergy::No)
             {
                 dhc->ndh += 1;
                 bEnergy = TRUE;
             }
-            if (ir->epc > epcNO)
+            if (inputrec.epc > PressureCoupling::No)
             {
                 dhc->ndh += 1; /* include pressure-volume work */
                 bPV = TRUE;
@@ -506,29 +507,47 @@ void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
         if (bExpanded)
         {
             dhc->dh_expanded = dhc->dh + n;
-            mde_delta_h_init(dhc->dh + n, ir->fepvals->dh_hist_size, ir->fepvals->dh_hist_spacing,
-                             ndhmax, dhbtEXPANDED, 0, 0, nullptr);
+            mde_delta_h_init(dhc->dh + n,
+                             inputrec.fepvals->dh_hist_size,
+                             inputrec.fepvals->dh_hist_spacing,
+                             ndhmax,
+                             dhbtEXPANDED,
+                             0,
+                             0,
+                             nullptr);
             n++;
         }
         if (bEnergy)
         {
             dhc->dh_energy = dhc->dh + n;
-            mde_delta_h_init(dhc->dh + n, ir->fepvals->dh_hist_size, ir->fepvals->dh_hist_spacing,
-                             ndhmax, dhbtEN, 0, 0, nullptr);
+            mde_delta_h_init(dhc->dh + n,
+                             inputrec.fepvals->dh_hist_size,
+                             inputrec.fepvals->dh_hist_spacing,
+                             ndhmax,
+                             dhbtEN,
+                             0,
+                             0,
+                             nullptr);
             n++;
         }
         /* add the dhdl's */
         n_lambda_components = 0;
-        if (fep->dhdl_derivatives == edhdlderivativesYES)
+        if (fep->dhdl_derivatives == DhDlDerivativeCalculation::Yes)
         {
             dhc->dh_dhdl = dhc->dh + n;
-            for (i = 0; i < efptNR; i++)
+            for (auto i : keysOf(fep->separate_dvdl))
             {
-                if (ir->fepvals->separate_dvdl[i])
+                if (inputrec.fepvals->separate_dvdl[i])
                 {
                     /* we give it init_lambda for compatibility */
-                    mde_delta_h_init(dhc->dh + n, ir->fepvals->dh_hist_size, ir->fepvals->dh_hist_spacing,
-                                     ndhmax, dhbtDHDL, n_lambda_components, 1, &(fep->init_lambda));
+                    mde_delta_h_init(dhc->dh + n,
+                                     inputrec.fepvals->dh_hist_size,
+                                     inputrec.fepvals->dh_hist_spacing,
+                                     ndhmax,
+                                     dhbtDHDL,
+                                     n_lambda_components,
+                                     1,
+                                     &(fep->init_lambda));
                     n++;
                     n_lambda_components++;
                 }
@@ -536,9 +555,9 @@ void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
         }
         else
         {
-            for (i = 0; i < efptNR; i++)
+            for (auto i : keysOf(fep->separate_dvdl))
             {
-                if (ir->fepvals->separate_dvdl[i])
+                if (fep->separate_dvdl[i])
                 {
                     n_lambda_components++; /* count the components */
                 }
@@ -547,28 +566,40 @@ void mde_delta_h_coll_init(t_mde_delta_h_coll* dhc, const t_inputrec* ir)
         /* add the lambdas */
         dhc->dh_du = dhc->dh + n;
         snew(lambda_vec, n_lambda_components);
-        for (i = ir->fepvals->lambda_start_n; i < ir->fepvals->lambda_stop_n; i++)
+        for (i = inputrec.fepvals->lambda_start_n; i < inputrec.fepvals->lambda_stop_n; i++)
         {
             int k = 0;
 
-            for (j = 0; j < efptNR; j++)
+            for (auto j : keysOf(fep->separate_dvdl))
             {
-                if (ir->fepvals->separate_dvdl[j])
+                if (fep->separate_dvdl[j])
                 {
                     lambda_vec[k++] = fep->all_lambda[j][i];
                 }
             }
 
-            mde_delta_h_init(dhc->dh + n, ir->fepvals->dh_hist_size, ir->fepvals->dh_hist_spacing,
-                             ndhmax, dhbtDH, 0, n_lambda_components, lambda_vec);
+            mde_delta_h_init(dhc->dh + n,
+                             inputrec.fepvals->dh_hist_size,
+                             inputrec.fepvals->dh_hist_spacing,
+                             ndhmax,
+                             dhbtDH,
+                             0,
+                             n_lambda_components,
+                             lambda_vec);
             n++;
         }
         sfree(lambda_vec);
         if (bPV)
         {
             dhc->dh_pv = dhc->dh + n;
-            mde_delta_h_init(dhc->dh + n, ir->fepvals->dh_hist_size, ir->fepvals->dh_hist_spacing,
-                             ndhmax, dhbtPV, 0, 0, nullptr);
+            mde_delta_h_init(dhc->dh + n,
+                             inputrec.fepvals->dh_hist_size,
+                             inputrec.fepvals->dh_hist_spacing,
+                             ndhmax,
+                             dhbtPV,
+                             0,
+                             0,
+                             nullptr);
             n++;
         }
     }
@@ -593,13 +624,13 @@ void done_mde_delta_h_coll(t_mde_delta_h_coll* dhc)
 }
 
 /* add a bunch of samples - note fep_state is double to allow for better data storage */
-void mde_delta_h_coll_add_dh(t_mde_delta_h_coll* dhc,
-                             double              fep_state,
-                             double              energy,
-                             double              pV,
-                             double*             dhdl,
-                             double*             foreign_dU,
-                             double              time)
+void mde_delta_h_coll_add_dh(t_mde_delta_h_coll*   dhc,
+                             double                fep_state,
+                             double                energy,
+                             double                pV,
+                             gmx::ArrayRef<double> dhdl,
+                             double*               foreign_dU,
+                             double                time)
 {
     int i;
 
@@ -730,7 +761,7 @@ void mde_delta_h_coll_update_energyhistory(const t_mde_delta_h_coll* dhc, energy
     {
         std::vector<real>& dh = deltaH->dh[i];
         dh.resize(dhc->dh[i].ndh);
-        std::copy(dh.begin(), dh.end(), dhc->dh[i].dh);
+        std::copy(dhc->dh[i].dh, dhc->dh[i].dh + dhc->dh[i].ndh, dh.begin());
     }
     deltaH->start_time   = dhc->start_time;
     deltaH->start_lambda = dhc->start_lambda;

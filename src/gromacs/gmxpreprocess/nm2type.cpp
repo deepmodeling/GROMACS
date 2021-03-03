@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2008, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -151,8 +151,7 @@ void dump_nm2type(FILE* fp, int nnm, t_nm2type nm2t[])
     fprintf(fp, "; nm2type database\n");
     for (i = 0; (i < nnm); i++)
     {
-        fprintf(fp, "%-8s %-8s %8.4f %8.4f %-4d", nm2t[i].elem, nm2t[i].type, nm2t[i].q, nm2t[i].m,
-                nm2t[i].nbonds);
+        fprintf(fp, "%-8s %-8s %8.4f %8.4f %-4d", nm2t[i].elem, nm2t[i].type, nm2t[i].q, nm2t[i].m, nm2t[i].nbonds);
         for (j = 0; (j < nm2t[i].nbonds); j++)
         {
             fprintf(fp, " %-5s %6.4f", nm2t[i].bond[j], nm2t[i].blen[j]);
@@ -335,13 +334,18 @@ int nm2type(int                     nnm,
             double      mm   = nm2t[best].m;
             const char* type = nm2t[best].type;
 
-            int k;
-            if ((k = atype->atomTypeFromName(type)) == NOTSET)
+            auto atomType = atype->atomTypeFromName(type);
+            int  k;
+            if (!atomType.has_value())
             {
                 atoms->atom[i].qB = alpha;
                 atoms->atom[i].m = atoms->atom[i].mB = mm;
-                k = atype->addType(tab, atoms->atom[i], type, InteractionOfType({}, {}),
-                                   atoms->atom[i].type, atomnr);
+                k                                    = atype->addType(
+                        tab, atoms->atom[i], type, InteractionOfType({}, {}), atoms->atom[i].type, atomnr);
+            }
+            else
+            {
+                k = *atomType;
             }
             atoms->atom[i].type  = k;
             atoms->atom[i].typeB = k;
@@ -353,8 +357,11 @@ int nm2type(int                     nnm,
         }
         else
         {
-            fprintf(stderr, "Can not find forcefield for atom %s-%d with %d bonds\n",
-                    *atoms->atomname[i], i + 1, nb);
+            fprintf(stderr,
+                    "Can not find forcefield for atom %s-%d with %d bonds\n",
+                    *atoms->atomname[i],
+                    i + 1,
+                    nb);
         }
     }
     sfree(bbb);

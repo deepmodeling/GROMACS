@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -329,30 +329,30 @@ t_bb* mkbbind(const char* fn,
 #define NBB asize(bb_nm)
     t_bb* bb;
     char* grpname;
-    int   ai, i, i0, i1, j, k, rnr, gnx, r0, r1;
+    int   gnx, r0, r1;
 
     fprintf(stderr, "Please select a group containing the entire backbone\n");
     rd_index(fn, 1, &gnx, index, &grpname);
     *nall = gnx;
     fprintf(stderr, "Checking group %s\n", grpname);
     r0 = r1 = atom[(*index)[0]].resind;
-    for (i = 1; (i < gnx); i++)
+    for (int i = 1; (i < gnx); i++)
     {
         r0 = std::min(r0, atom[(*index)[i]].resind);
         r1 = std::max(r1, atom[(*index)[i]].resind);
     }
-    rnr = r1 - r0 + 1;
+    int rnr = r1 - r0 + 1;
     fprintf(stderr, "There are %d residues\n", rnr);
     snew(bb, rnr);
-    for (i = 0; (i < rnr); i++)
+    for (int i = 0; (i < rnr); i++)
     {
         bb[i].N = bb[i].H = bb[i].CA = bb[i].C = bb[i].O = -1;
         bb[i].resno                                      = res0 + i;
     }
 
-    for (i = j = 0; (i < gnx); i++)
+    for (int i = 0; (i < gnx); i++)
     {
-        ai = (*index)[i];
+        int ai = (*index)[i];
         // Create an index into the residue index for the topology.
         int resindex = atom[ai].resind;
         // Create an index into the residues present in the selected
@@ -367,7 +367,8 @@ t_bb* mkbbind(const char* fn,
                 bb[bbindex].H = ai;
             }
         }
-        for (k = 0; (k < NBB); k++)
+        int k = 0;
+        for (; (k < NBB); k++)
         {
             if (std::strcmp(bb_nm[k], *(atomname[ai])) == 0)
             {
@@ -389,7 +390,8 @@ t_bb* mkbbind(const char* fn,
         }
     }
 
-    for (i0 = 0; (i0 < rnr); i0++)
+    int i0 = 0;
+    for (; (i0 < rnr); i0++)
     {
         if ((bb[i0].N != -1) && (bb[i0].H != -1) && (bb[i0].CA != -1) && (bb[i0].C != -1)
             && (bb[i0].O != -1))
@@ -397,7 +399,8 @@ t_bb* mkbbind(const char* fn,
             break;
         }
     }
-    for (i1 = rnr - 1; (i1 >= 0); i1--)
+    int i1 = rnr - 1;
+    for (; (i1 >= 0); i1--)
     {
         if ((bb[i1].N != -1) && (bb[i1].H != -1) && (bb[i1].CA != -1) && (bb[i1].C != -1)
             && (bb[i1].O != -1))
@@ -414,25 +417,24 @@ t_bb* mkbbind(const char* fn,
         i1--;
     }
 
-    for (i = i0; (i < i1); i++)
+    for (int i = i0; (i < i1); i++)
     {
         bb[i].Cprev = bb[i - 1].C;
         bb[i].Nnext = bb[i + 1].N;
     }
     rnr = std::max(0, i1 - i0 + 1);
-    fprintf(stderr, "There are %d complete backbone residues (from %d to %d)\n", rnr, bb[i0].resno,
-            bb[i1].resno);
+    fprintf(stderr, "There are %d complete backbone residues (from %d to %d)\n", rnr, bb[i0].resno, bb[i1].resno);
     if (rnr == 0)
     {
         gmx_fatal(FARGS, "Zero complete backbone residues were found, cannot proceed");
     }
-    for (i = 0; (i < rnr); i++, i0++)
+    for (int i = 0; (i < rnr); i++, i0++)
     {
         bb[i] = bb[i0];
     }
 
     /* Set the labels */
-    for (i = 0; (i < rnr); i++)
+    for (int i = 0; (i < rnr); i++)
     {
         int resindex = atom[bb[i].CA].resind;
         sprintf(bb[i].label, "%s%d", *(resinfo[resindex].name), resinfo[resindex].nr);
@@ -496,11 +498,33 @@ void calc_hxprops(int nres, t_bb bb[], const rvec x[])
         }
 
         bb[i].phi = RAD2DEG
-                    * dih_angle(x[bb[i].Cprev], x[bb[i].N], x[bb[i].CA], x[bb[i].C], nullptr, r_ij,
-                                r_kj, r_kl, m, n, &t1, &t2, &t3);
+                    * dih_angle(x[bb[i].Cprev],
+                                x[bb[i].N],
+                                x[bb[i].CA],
+                                x[bb[i].C],
+                                nullptr,
+                                r_ij,
+                                r_kj,
+                                r_kl,
+                                m,
+                                n,
+                                &t1,
+                                &t2,
+                                &t3);
         bb[i].psi = RAD2DEG
-                    * dih_angle(x[bb[i].N], x[bb[i].CA], x[bb[i].C], x[bb[i].Nnext], nullptr, r_ij,
-                                r_kj, r_kl, m, n, &t1, &t2, &t3);
+                    * dih_angle(x[bb[i].N],
+                                x[bb[i].CA],
+                                x[bb[i].C],
+                                x[bb[i].Nnext],
+                                nullptr,
+                                r_ij,
+                                r_kj,
+                                r_kl,
+                                m,
+                                n,
+                                &t1,
+                                &t2,
+                                &t3);
         bb[i].pprms2 = gmx::square(bb[i].phi - PHI_AHX) + gmx::square(bb[i].psi - PSI_AHX);
 
         bb[i].jcaha += 1.4 * std::sin((bb[i].psi + 138.0) * DEG2RAD)
@@ -581,12 +605,33 @@ void pr_bb(FILE* fp, int nres, t_bb bb[])
     int i;
 
     fprintf(fp, "\n");
-    fprintf(fp, "%3s %3s %3s %3s %3s %7s %7s %7s %7s %7s %3s\n", "AA", "N", "Ca", "C", "O", "Phi",
-            "Psi", "D3", "D4", "D5", "Hx?");
+    fprintf(fp,
+            "%3s %3s %3s %3s %3s %7s %7s %7s %7s %7s %3s\n",
+            "AA",
+            "N",
+            "Ca",
+            "C",
+            "O",
+            "Phi",
+            "Psi",
+            "D3",
+            "D4",
+            "D5",
+            "Hx?");
     for (i = 0; (i < nres); i++)
     {
-        fprintf(fp, "%3d %3d %3d %3d %3d %7.2f %7.2f %7.3f %7.3f %7.3f %3s\n", bb[i].resno, bb[i].N,
-                bb[i].CA, bb[i].C, bb[i].O, bb[i].phi, bb[i].psi, bb[i].d3, bb[i].d4, bb[i].d5,
+        fprintf(fp,
+                "%3d %3d %3d %3d %3d %7.2f %7.2f %7.3f %7.3f %7.3f %3s\n",
+                bb[i].resno,
+                bb[i].N,
+                bb[i].CA,
+                bb[i].C,
+                bb[i].O,
+                bb[i].phi,
+                bb[i].psi,
+                bb[i].d3,
+                bb[i].d4,
+                bb[i].d5,
                 bb[i].bHelix ? "Yes" : "No");
     }
     fprintf(fp, "\n");

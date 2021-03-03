@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -58,6 +58,9 @@
 #include "gromacs/utility/compare.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/stringutil.h"
+
+#include "checkpointdata.h"
 
 /* The source code in this file should be thread-safe.
       Please keep it that way. */
@@ -68,7 +71,9 @@ history_t::history_t() :
     disre_rm3tav(nullptr),
     orire_initf(0),
     norire_Dtav(0),
-    orire_Dtav(nullptr){};
+    orire_Dtav(nullptr)
+{
+}
 
 ekinstate_t::ekinstate_t() :
     bUpToDate(FALSE),
@@ -82,7 +87,63 @@ ekinstate_t::ekinstate_t() :
     mvcos(0)
 {
     clear_mat(ekin_total);
+}
+
+namespace
+{
+/*!
+ * \brief Enum describing the contents ekinstate_t writes to modular checkpoint
+ *
+ * When changing the checkpoint content, add a new element just above Count, and adjust the
+ * checkpoint functionality.
+ */
+enum class CheckpointVersion
+{
+    Base, //!< First version of modular checkpointing
+    Count //!< Number of entries. Add new versions right above this!
 };
+constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count) - 1);
+} // namespace
+
+template<gmx::CheckpointDataOperation operation>
+void ekinstate_t::doCheckpoint(gmx::CheckpointData<operation> checkpointData)
+{
+    gmx::checkpointVersion(&checkpointData, "ekinstate_t version", c_currentVersion);
+
+    checkpointData.scalar("bUpToDate", &bUpToDate);
+    if (!bUpToDate)
+    {
+        return;
+    }
+    auto numOfTensors = ekin_n;
+    checkpointData.scalar("ekin_n", &numOfTensors);
+    if (operation == gmx::CheckpointDataOperation::Read)
+    {
+        // If this isn't matching, we haven't allocated the right amount of data
+        GMX_RELEASE_ASSERT(numOfTensors == ekin_n,
+                           "ekinstate_t checkpoint reading: Tensor size mismatch.");
+    }
+    for (int idx = 0; idx < numOfTensors; ++idx)
+    {
+        checkpointData.tensor(gmx::formatString("ekinh %d", idx), ekinh[idx]);
+        checkpointData.tensor(gmx::formatString("ekinf %d", idx), ekinf[idx]);
+        checkpointData.tensor(gmx::formatString("ekinh_old %d", idx), ekinh_old[idx]);
+    }
+    checkpointData.arrayRef("ekinscalef_nhc", gmx::makeCheckpointArrayRef<operation>(ekinscalef_nhc));
+    checkpointData.arrayRef("ekinscaleh_nhc", gmx::makeCheckpointArrayRef<operation>(ekinscaleh_nhc));
+    checkpointData.arrayRef("vscale_nhc", gmx::makeCheckpointArrayRef<operation>(vscale_nhc));
+    checkpointData.scalar("dekindl", &dekindl);
+    checkpointData.scalar("mvcos", &mvcos);
+
+    if (operation == gmx::CheckpointDataOperation::Read)
+    {
+        hasReadEkinState = true;
+    }
+}
+
+// Explicit template instantiation
+template void ekinstate_t::doCheckpoint(gmx::CheckpointData<gmx::CheckpointDataOperation::Read> checkpointData);
+template void ekinstate_t::doCheckpoint(gmx::CheckpointData<gmx::CheckpointDataOperation::Write> checkpointData);
 
 void init_gtc_state(t_state* state, int ngtc, int nnhpres, int nhchainlength)
 {
@@ -106,15 +167,15 @@ void state_change_natoms(t_state* state, int natoms)
 
     /* We need padding, since we might use SIMD access, but the
      * containers here all ensure that. */
-    if (state->flags & (1 << estX))
+    if (state->flags & enumValueToBitMask(StateEntry::X))
     {
         state->x.resizeWithPadding(natoms);
     }
-    if (state->flags & (1 << estV))
+    if (state->flags & enumValueToBitMask(StateEntry::V))
     {
         state->v.resizeWithPadding(natoms);
     }
-    if (state->flags & (1 << estCGP))
+    if (state->flags & enumValueToBitMask(StateEntry::Cgp))
     {
         state->cg_p.resizeWithPadding(natoms);
     }
@@ -145,17 +206,17 @@ void comp_state(const t_state* st1, const t_state* st2, gmx_bool bRMSD, real fto
     cmp_rvecs(stdout, "box_rel", DIM, st1->box_rel, st2->box_rel, FALSE, ftol, abstol);
     fprintf(stdout, "comparing boxv\n");
     cmp_rvecs(stdout, "boxv", DIM, st1->boxv, st2->boxv, FALSE, ftol, abstol);
-    if (st1->flags & (1 << estSVIR_PREV))
+    if (st1->flags & enumValueToBitMask(StateEntry::SVirPrev))
     {
         fprintf(stdout, "comparing shake vir_prev\n");
         cmp_rvecs(stdout, "svir_prev", DIM, st1->svir_prev, st2->svir_prev, FALSE, ftol, abstol);
     }
-    if (st1->flags & (1 << estFVIR_PREV))
+    if (st1->flags & enumValueToBitMask(StateEntry::FVirPrev))
     {
         fprintf(stdout, "comparing force vir_prev\n");
         cmp_rvecs(stdout, "fvir_prev", DIM, st1->fvir_prev, st2->fvir_prev, FALSE, ftol, abstol);
     }
-    if (st1->flags & (1 << estPRES_PREV))
+    if (st1->flags & enumValueToBitMask(StateEntry::PressurePrevious))
     {
         fprintf(stdout, "comparing prev_pres\n");
         cmp_rvecs(stdout, "pres_prev", DIM, st1->pres_prev, st2->pres_prev, FALSE, ftol, abstol);
@@ -169,8 +230,7 @@ void comp_state(const t_state* st1, const t_state* st2, gmx_bool bRMSD, real fto
             nc = i * st1->nhchainlength;
             for (j = 0; j < nc; j++)
             {
-                cmp_real(stdout, "nosehoover_xi", i, st1->nosehoover_xi[nc + j],
-                         st2->nosehoover_xi[nc + j], ftol, abstol);
+                cmp_real(stdout, "nosehoover_xi", i, st1->nosehoover_xi[nc + j], st2->nosehoover_xi[nc + j], ftol, abstol);
             }
         }
     }
@@ -182,8 +242,7 @@ void comp_state(const t_state* st1, const t_state* st2, gmx_bool bRMSD, real fto
             nc = i * st1->nhchainlength;
             for (j = 0; j < nc; j++)
             {
-                cmp_real(stdout, "nosehoover_xi", i, st1->nhpres_xi[nc + j], st2->nhpres_xi[nc + j],
-                         ftol, abstol);
+                cmp_real(stdout, "nosehoover_xi", i, st1->nhpres_xi[nc + j], st2->nhpres_xi[nc + j], ftol, abstol);
             }
         }
     }
@@ -191,17 +250,17 @@ void comp_state(const t_state* st1, const t_state* st2, gmx_bool bRMSD, real fto
     cmp_int(stdout, "natoms", -1, st1->natoms, st2->natoms);
     if (st1->natoms == st2->natoms)
     {
-        if ((st1->flags & (1 << estX)) && (st2->flags & (1 << estX)))
+        if ((st1->flags & enumValueToBitMask(StateEntry::X))
+            && (st2->flags & enumValueToBitMask(StateEntry::X)))
         {
             fprintf(stdout, "comparing x\n");
-            cmp_rvecs(stdout, "x", st1->natoms, st1->x.rvec_array(), st2->x.rvec_array(), bRMSD,
-                      ftol, abstol);
+            cmp_rvecs(stdout, "x", st1->natoms, st1->x.rvec_array(), st2->x.rvec_array(), bRMSD, ftol, abstol);
         }
-        if ((st1->flags & (1 << estV)) && (st2->flags & (1 << estV)))
+        if ((st1->flags & enumValueToBitMask(StateEntry::V))
+            && (st2->flags & enumValueToBitMask(StateEntry::V)))
         {
             fprintf(stdout, "comparing v\n");
-            cmp_rvecs(stdout, "v", st1->natoms, st1->v.rvec_array(), st2->v.rvec_array(), bRMSD,
-                      ftol, abstol);
+            cmp_rvecs(stdout, "v", st1->natoms, st1->v.rvec_array(), st2->v.rvec_array(), bRMSD, ftol, abstol);
         }
     }
 }
@@ -266,7 +325,7 @@ void set_box_rel(const t_inputrec* ir, t_state* state)
 
     if (inputrecPreserveShape(ir))
     {
-        const int ndim = ir->epct == epctSEMIISOTROPIC ? 2 : 3;
+        const int ndim = ir->epct == PressureCouplingType::SemiIsotropic ? 2 : 3;
         do_box_rel(ndim, ir->deform, state->box_rel, state->box, true);
     }
 }
@@ -275,28 +334,36 @@ void preserve_box_shape(const t_inputrec* ir, matrix box_rel, matrix box)
 {
     if (inputrecPreserveShape(ir))
     {
-        const int ndim = ir->epct == epctSEMIISOTROPIC ? 2 : 3;
+        const int ndim = ir->epct == PressureCouplingType::SemiIsotropic ? 2 : 3;
         do_box_rel(ndim, ir->deform, box_rel, box, false);
     }
 }
 
-void initialize_lambdas(FILE*               fplog,
-                        const t_inputrec&   ir,
-                        bool                isMaster,
-                        int*                fep_state,
-                        gmx::ArrayRef<real> lambda,
-                        double*             lam0)
+void printLambdaStateToLog(FILE* fplog, gmx::ArrayRef<const real> lambda, const bool isInitialOutput)
+{
+    if (fplog != nullptr)
+    {
+        fprintf(fplog, "%s vector of lambda components:[ ", isInitialOutput ? "Initial" : "Current");
+        for (const auto& l : lambda)
+        {
+            fprintf(fplog, "%10.4f ", l);
+        }
+        fprintf(fplog, "]\n%s", isInitialOutput ? "" : "\n");
+    }
+}
+
+void initialize_lambdas(FILE* fplog, const t_inputrec& ir, bool isMaster, int* fep_state, gmx::ArrayRef<real> lambda)
 {
     /* TODO: Clean up initialization of fep_state and lambda in
        t_state.  This function works, but could probably use a logic
        rewrite to keep all the different types of efep straight. */
 
-    if ((ir.efep == efepNO) && (!ir.bSimTemp))
+    if ((ir.efep == FreeEnergyPerturbationType::No) && (!ir.bSimTemp))
     {
         return;
     }
 
-    const t_lambda* fep = ir.fepvals;
+    const t_lambda* fep = ir.fepvals.get();
     if (isMaster)
     {
         *fep_state = fep->init_fep_state; /* this might overwrite the checkpoint
@@ -304,7 +371,7 @@ void initialize_lambdas(FILE*               fplog,
                                              to prevent this.*/
     }
 
-    for (int i = 0; i < efptNR; i++)
+    for (int i = 0; i < static_cast<int>(FreeEnergyPerturbationCouplingType::Count); i++)
     {
         double thisLambda;
         /* overwrite lambda state with init_lambda for now for backwards compatibility */
@@ -320,10 +387,6 @@ void initialize_lambdas(FILE*               fplog,
         {
             lambda[i] = thisLambda;
         }
-        if (lam0 != nullptr)
-        {
-            lam0[i] = thisLambda;
-        }
     }
     if (ir.bSimTemp)
     {
@@ -338,13 +401,6 @@ void initialize_lambdas(FILE*               fplog,
     }
 
     /* Send to the log the information on the current lambdas */
-    if (fplog != nullptr)
-    {
-        fprintf(fplog, "Initial vector of lambda components:[ ");
-        for (const auto& l : lambda)
-        {
-            fprintf(fplog, "%10.4f ", l);
-        }
-        fprintf(fplog, "]\n");
-    }
+    const bool isInitialOutput = true;
+    printLambdaStateToLog(fplog, lambda, isInitialOutput);
 }

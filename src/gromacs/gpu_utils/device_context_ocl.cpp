@@ -43,9 +43,8 @@
  */
 #include "gmxpre.h"
 
-#include "device_context_ocl.h"
-
-#include "gromacs/gpu_utils/gputraits.h"
+#include "gromacs/gpu_utils/device_context.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
@@ -85,7 +84,8 @@ DeviceContext::DeviceContext(const DeviceInformation& deviceInfo) : deviceInfo_(
     {
         GMX_THROW(gmx::InternalError(gmx::formatString(
                 "Failed to create OpenCL context on device %s (OpenCL error ID %d).",
-                deviceInfo.device_name, clError)));
+                deviceInfo.device_name,
+                clError)));
     }
 }
 

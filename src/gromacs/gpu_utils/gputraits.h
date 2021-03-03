@@ -55,15 +55,13 @@
 
 #    include "gromacs/gpu_utils/gputraits_ocl.h"
 
+#elif GMX_GPU_SYCL
+
+#    include "gromacs/gpu_utils/gputraits_sycl.h"
+
 #else
 
 using DeviceTexture = void*;
-
-//! \internal Stub for device information.
-struct DeviceInformation
-{
-    // No member needed
-};
 
 //! \brief Single GPU call timing event
 using CommandEvent = void*;

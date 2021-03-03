@@ -42,6 +42,7 @@
 #ifndef GMX_APPLIED_FORCES_DENSITYFITTINGPARAMETERS_H
 #define GMX_APPLIED_FORCES_DENSITYFITTINGPARAMETERS_H
 
+#include <string>
 #include <vector>
 
 #include "gromacs/math/densityfit.h"
@@ -81,6 +82,10 @@ struct DensityFittingParameters
     bool adaptiveForceScaling_ = false;
     //! The time constant for the adaptive force scaling in ps
     real adaptiveForceScalingTimeConstant_ = 4;
+    //! Translation of the structure, so that the coordinates that are fitted are x+translation
+    std::string translationString_ = "";
+    //! Linear transformation of the structure, so that the coordinates that are fitted are Matrix * x
+    std::string transformationMatrixString_ = "";
 };
 
 /*!\brief Check if two structs holding density fitting parameters are equal.

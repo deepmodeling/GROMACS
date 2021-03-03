@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -56,11 +56,14 @@
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/simd/simd.h"
 #include "gromacs/timing/wallcycle.h"
+#include "gromacs/utility/enumerationhelpers.h"
+#include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/real.h"
 
 #include "kernel_common.h"
 #include "nbnxm_gpu.h"
+#include "nbnxm_gpu_data_mgmt.h"
 #include "nbnxm_simd.h"
 #include "pairlistset.h"
 #include "pairlistsets.h"
@@ -133,6 +136,91 @@ static void reduceGroupEnergySimdBuffers(int numGroups, int numGroups_2log, nbnx
     }
 }
 
+static int getCoulombKernelType(const Nbnxm::KernelSetup& kernelSetup, const interaction_const_t& ic)
+{
+
+    if (EEL_RF(ic.eeltype) || ic.eeltype == CoulombInteractionType::Cut)
+    {
+        return coulktRF;
+    }
+    else
+    {
+        if (kernelSetup.ewaldExclusionType == Nbnxm::EwaldExclusionType::Table)
+        {
+            if (ic.rcoulomb == ic.rvdw)
+            {
+                return coulktTAB;
+            }
+            else
+            {
+                return coulktTAB_TWIN;
+            }
+        }
+        else
+        {
+            if (ic.rcoulomb == ic.rvdw)
+            {
+                return coulktEWALD;
+            }
+            else
+            {
+                return coulktEWALD_TWIN;
+            }
+        }
+    }
+}
+
+static int getVdwKernelType(const Nbnxm::KernelSetup&       kernelSetup,
+                            const nbnxn_atomdata_t::Params& nbatParams,
+                            const interaction_const_t&      ic)
+{
+    if (ic.vdwtype == VanDerWaalsType::Cut)
+    {
+        switch (ic.vdw_modifier)
+        {
+            case InteractionModifiers::None:
+            case InteractionModifiers::PotShift:
+                switch (nbatParams.ljCombinationRule)
+                {
+                    case LJCombinationRule::Geometric: return vdwktLJCUT_COMBGEOM;
+                    case LJCombinationRule::LorentzBerthelot: return vdwktLJCUT_COMBLB;
+                    case LJCombinationRule::None: return vdwktLJCUT_COMBNONE;
+                    default: gmx_incons("Unknown combination rule");
+                }
+            case InteractionModifiers::ForceSwitch: return vdwktLJFORCESWITCH;
+            case InteractionModifiers::PotSwitch: return vdwktLJPOTSWITCH;
+            default:
+                std::string errorMsg =
+                        gmx::formatString("Unsupported VdW interaction modifier %s (%d)",
+                                          enumValueToString(ic.vdw_modifier),
+                                          static_cast<int>(ic.vdw_modifier));
+                gmx_incons(errorMsg);
+        }
+    }
+    else if (ic.vdwtype == VanDerWaalsType::Pme)
+    {
+        if (ic.ljpme_comb_rule == LongRangeVdW::Geom)
+        {
+            return vdwktLJEWALDCOMBGEOM;
+        }
+        else
+        {
+            /* At setup we (should have) selected the C reference kernel */
+            GMX_RELEASE_ASSERT(kernelSetup.kernelType == Nbnxm::KernelType::Cpu4x4_PlainC,
+                               "Only the C reference nbnxn SIMD kernel supports LJ-PME with LB "
+                               "combination rules");
+            return vdwktLJEWALDCOMBLB;
+        }
+    }
+    else
+    {
+        std::string errorMsg = gmx::formatString("Unsupported VdW interaction type %s (%d)",
+                                                 enumValueToString(ic.vdwtype),
+                                                 static_cast<int>(ic.vdwtype));
+        gmx_incons(errorMsg);
+    }
+}
+
 /*! \brief Dispatches the non-bonded N versus M atom cluster CPU kernels.
  *
  * OpenMP parallelization is performed within this function.
@@ -162,78 +250,10 @@ static void nbnxn_kernel_cpu(const PairlistSet&         pairlistSet,
                              gmx_wallcycle*             wcycle)
 {
 
-    int coulkt;
-    if (EEL_RF(ic.eeltype) || ic.eeltype == eelCUT)
-    {
-        coulkt = coulktRF;
-    }
-    else
-    {
-        if (kernelSetup.ewaldExclusionType == Nbnxm::EwaldExclusionType::Table)
-        {
-            if (ic.rcoulomb == ic.rvdw)
-            {
-                coulkt = coulktTAB;
-            }
-            else
-            {
-                coulkt = coulktTAB_TWIN;
-            }
-        }
-        else
-        {
-            if (ic.rcoulomb == ic.rvdw)
-            {
-                coulkt = coulktEWALD;
-            }
-            else
-            {
-                coulkt = coulktEWALD_TWIN;
-            }
-        }
-    }
-
     const nbnxn_atomdata_t::Params& nbatParams = nbat->params();
 
-    int vdwkt = 0;
-    if (ic.vdwtype == evdwCUT)
-    {
-        switch (ic.vdw_modifier)
-        {
-            case eintmodNONE:
-            case eintmodPOTSHIFT:
-                switch (nbatParams.comb_rule)
-                {
-                    case ljcrGEOM: vdwkt = vdwktLJCUT_COMBGEOM; break;
-                    case ljcrLB: vdwkt = vdwktLJCUT_COMBLB; break;
-                    case ljcrNONE: vdwkt = vdwktLJCUT_COMBNONE; break;
-                    default: GMX_RELEASE_ASSERT(false, "Unknown combination rule");
-                }
-                break;
-            case eintmodFORCESWITCH: vdwkt = vdwktLJFORCESWITCH; break;
-            case eintmodPOTSWITCH: vdwkt = vdwktLJPOTSWITCH; break;
-            default: GMX_RELEASE_ASSERT(false, "Unsupported VdW interaction modifier");
-        }
-    }
-    else if (ic.vdwtype == evdwPME)
-    {
-        if (ic.ljpme_comb_rule == eljpmeGEOM)
-        {
-            vdwkt = vdwktLJEWALDCOMBGEOM;
-        }
-        else
-        {
-            vdwkt = vdwktLJEWALDCOMBLB;
-            /* At setup we (should have) selected the C reference kernel */
-            GMX_RELEASE_ASSERT(kernelSetup.kernelType == Nbnxm::KernelType::Cpu4x4_PlainC,
-                               "Only the C reference nbnxn SIMD kernel supports LJ-PME with LB "
-                               "combination rules");
-        }
-    }
-    else
-    {
-        GMX_RELEASE_ASSERT(false, "Unsupported VdW interaction type");
-    }
+    const int coulkt = getCoulombKernelType(kernelSetup, ic);
+    const int vdwkt  = getVdwKernelType(kernelSetup, nbatParams, ic);
 
     gmx::ArrayRef<const NbnxnPairlistCpu> pairlists = pairlistSet.cpuLists();
 
@@ -369,8 +389,8 @@ static void accountFlops(t_nrnb*                    nrnb,
 {
     const bool usingGpuKernels = nbv.useGpu();
 
-    int enr_nbnxn_kernel_ljc;
-    if (EEL_RF(ic.eeltype) || ic.eeltype == eelCUT)
+    int enr_nbnxn_kernel_ljc = eNRNB;
+    if (EEL_RF(ic.eeltype) || ic.eeltype == CoulombInteractionType::Cut)
     {
         enr_nbnxn_kernel_ljc = eNR_NBNXN_LJ_RF;
     }
@@ -396,22 +416,25 @@ static void accountFlops(t_nrnb*                    nrnb,
     /* The Coulomb-only kernels are offset -eNR_NBNXN_LJ_RF+eNR_NBNXN_RF */
     inc_nrnb(nrnb, enr_nbnxn_kernel_ljc - eNR_NBNXN_LJ_RF + eNR_NBNXN_RF, pairlistSet.natpair_q_);
 
-    if (ic.vdw_modifier == eintmodFORCESWITCH)
+    if (ic.vdw_modifier == InteractionModifiers::ForceSwitch)
     {
         /* We add up the switch cost separately */
-        inc_nrnb(nrnb, eNR_NBNXN_ADD_LJ_FSW + (stepWork.computeEnergy ? 1 : 0),
+        inc_nrnb(nrnb,
+                 eNR_NBNXN_ADD_LJ_FSW + (stepWork.computeEnergy ? 1 : 0),
                  pairlistSet.natpair_ljq_ + pairlistSet.natpair_lj_);
     }
-    if (ic.vdw_modifier == eintmodPOTSWITCH)
+    if (ic.vdw_modifier == InteractionModifiers::PotSwitch)
     {
         /* We add up the switch cost separately */
-        inc_nrnb(nrnb, eNR_NBNXN_ADD_LJ_PSW + (stepWork.computeEnergy ? 1 : 0),
+        inc_nrnb(nrnb,
+                 eNR_NBNXN_ADD_LJ_PSW + (stepWork.computeEnergy ? 1 : 0),
                  pairlistSet.natpair_ljq_ + pairlistSet.natpair_lj_);
     }
-    if (ic.vdwtype == evdwPME)
+    if (ic.vdwtype == VanDerWaalsType::Pme)
     {
         /* We add up the LJ Ewald cost separately */
-        inc_nrnb(nrnb, eNR_NBNXN_ADD_LJ_EWALD + (stepWork.computeEnergy ? 1 : 0),
+        inc_nrnb(nrnb,
+                 eNR_NBNXN_ADD_LJ_EWALD + (stepWork.computeEnergy ? 1 : 0),
                  pairlistSet.natpair_ljq_ + pairlistSet.natpair_lj_);
     }
 }
@@ -431,8 +454,14 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
         case Nbnxm::KernelType::Cpu4x4_PlainC:
         case Nbnxm::KernelType::Cpu4xN_Simd_4xN:
         case Nbnxm::KernelType::Cpu4xN_Simd_2xNN:
-            nbnxn_kernel_cpu(pairlistSet, kernelSetup(), nbat.get(), ic, fr.shift_vec, stepWork,
-                             clearF, enerd->grpp.ener[egCOULSR].data(),
+            nbnxn_kernel_cpu(pairlistSet,
+                             kernelSetup(),
+                             nbat.get(),
+                             ic,
+                             fr.shift_vec,
+                             stepWork,
+                             clearF,
+                             enerd->grpp.ener[egCOULSR].data(),
                              fr.bBHAM ? enerd->grpp.ener[egBHAMSR].data() : enerd->grpp.ener[egLJSR].data(),
                              wcycle_);
             break;
@@ -443,8 +472,15 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
 
         case Nbnxm::KernelType::Cpu8x8x8_PlainC:
             nbnxn_kernel_gpu_ref(
-                    pairlistSet.gpuList(), nbat.get(), &ic, fr.shift_vec, stepWork, clearF,
-                    nbat->out[0].f, nbat->out[0].fshift.data(), enerd->grpp.ener[egCOULSR].data(),
+                    pairlistSet.gpuList(),
+                    nbat.get(),
+                    &ic,
+                    fr.shift_vec,
+                    stepWork,
+                    clearF,
+                    nbat->out[0].f,
+                    nbat->out[0].fshift.data(),
+                    enerd->grpp.ener[egCOULSR].data(),
                     fr.bBHAM ? enerd->grpp.ener[egBHAMSR].data() : enerd->grpp.ener[egLJSR].data());
             break;
 
@@ -460,7 +496,7 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
                                                   gmx::ForceWithShiftForces* forceWithShiftForces,
                                                   const t_mdatoms&           mdatoms,
                                                   t_lambda*                  fepvals,
-                                                  gmx::ArrayRef<real const>  lambda,
+                                                  gmx::ArrayRef<const real>  lambda,
                                                   gmx_enerdata_t*            enerd,
                                                   const gmx::StepWorkload&   stepWork,
                                                   t_nrnb*                    nrnb)
@@ -490,11 +526,11 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
         donb_flags |= GMX_NONBONDED_DO_POTENTIAL;
     }
 
-    nb_kernel_data_t kernel_data;
-    real             dvdl_nb[efptNR] = { 0 };
-    kernel_data.flags                = donb_flags;
-    kernel_data.lambda               = lambda.data();
-    kernel_data.dvdl                 = dvdl_nb;
+    nb_kernel_data_t                                                kernel_data;
+    gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, real> dvdl_nb = { 0 };
+    kernel_data.flags                                                       = donb_flags;
+    kernel_data.lambda                                                      = lambda;
+    kernel_data.dvdl                                                        = dvdl_nb;
 
     kernel_data.energygrp_elec = enerd->grpp.ener[egCOULSR].data();
     kernel_data.energygrp_vdw  = enerd->grpp.ener[egLJSR].data();
@@ -508,21 +544,25 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
     {
         try
         {
-            gmx_nb_free_energy_kernel(nbl_fep[th].get(), x, forceWithShiftForces, fr, &mdatoms,
-                                      &kernel_data, nrnb);
+            gmx_nb_free_energy_kernel(
+                    nbl_fep[th].get(), x, forceWithShiftForces, fr, &mdatoms, &kernel_data, nrnb);
         }
         GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
     }
 
     if (fepvals->sc_alpha != 0)
     {
-        enerd->dvdl_nonlin[efptVDW] += dvdl_nb[efptVDW];
-        enerd->dvdl_nonlin[efptCOUL] += dvdl_nb[efptCOUL];
+        enerd->dvdl_nonlin[FreeEnergyPerturbationCouplingType::Vdw] +=
+                dvdl_nb[FreeEnergyPerturbationCouplingType::Vdw];
+        enerd->dvdl_nonlin[FreeEnergyPerturbationCouplingType::Coul] +=
+                dvdl_nb[FreeEnergyPerturbationCouplingType::Coul];
     }
     else
     {
-        enerd->dvdl_lin[efptVDW] += dvdl_nb[efptVDW];
-        enerd->dvdl_lin[efptCOUL] += dvdl_nb[efptCOUL];
+        enerd->dvdl_lin[FreeEnergyPerturbationCouplingType::Vdw] +=
+                dvdl_nb[FreeEnergyPerturbationCouplingType::Vdw];
+        enerd->dvdl_lin[FreeEnergyPerturbationCouplingType::Coul] +=
+                dvdl_nb[FreeEnergyPerturbationCouplingType::Coul];
     }
 
     /* If we do foreign lambda and we have soft-core interactions
@@ -530,7 +570,7 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
      */
     if (fepvals->n_lambda > 0 && stepWork.computeDhdl && fepvals->sc_alpha != 0)
     {
-        real lam_i[efptNR];
+        gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, real> lam_i;
         kernel_data.flags = (donb_flags & ~(GMX_NONBONDED_DO_FORCE | GMX_NONBONDED_DO_SHIFTFORCE))
                             | GMX_NONBONDED_DO_FOREIGNLAMBDA;
         kernel_data.lambda         = lam_i;
@@ -541,7 +581,7 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
         for (gmx::index i = 0; i < 1 + enerd->foreignLambdaTerms.numLambdas(); i++)
         {
             std::fill(std::begin(dvdl_nb), std::end(dvdl_nb), 0);
-            for (int j = 0; j < efptNR; j++)
+            for (int j = 0; j < static_cast<int>(FreeEnergyPerturbationCouplingType::Count); j++)
             {
                 lam_i[j] = (i == 0 ? lambda[j] : fepvals->all_lambda[j][i - 1]);
             }
@@ -551,15 +591,18 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
             {
                 try
                 {
-                    gmx_nb_free_energy_kernel(nbl_fep[th].get(), x, forceWithShiftForces, fr,
-                                              &mdatoms, &kernel_data, nrnb);
+                    gmx_nb_free_energy_kernel(
+                            nbl_fep[th].get(), x, forceWithShiftForces, fr, &mdatoms, &kernel_data, nrnb);
                 }
                 GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
             }
 
             sum_epot(enerd->foreign_grpp, enerd->foreign_term);
-            enerd->foreignLambdaTerms.accumulate(i, enerd->foreign_term[F_EPOT],
-                                                 dvdl_nb[efptVDW] + dvdl_nb[efptCOUL]);
+            enerd->foreignLambdaTerms.accumulate(
+                    i,
+                    enerd->foreign_term[F_EPOT],
+                    dvdl_nb[FreeEnergyPerturbationCouplingType::Vdw]
+                            + dvdl_nb[FreeEnergyPerturbationCouplingType::Coul]);
         }
     }
     wallcycle_sub_stop(wcycle_, ewcsNONBONDED_FEP);

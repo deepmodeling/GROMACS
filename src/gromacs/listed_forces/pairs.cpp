@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -87,15 +87,25 @@ static void warning_rlimit(const rvec* x, int ai, int aj, int* global_atom_index
             "IMPORTANT: This should not happen in a stable simulation, so there is\n"
             "probably something wrong with your system. Only change the table-extension\n"
             "distance in the mdp file if you are really sure that is the reason.\n",
-            glatnr(global_atom_index, ai), glatnr(global_atom_index, aj), r, rlimit);
+            glatnr(global_atom_index, ai),
+            glatnr(global_atom_index, aj),
+            r,
+            rlimit);
 
     if (debug)
     {
         fprintf(debug,
                 "%8f %8f %8f\n%8f %8f %8f\n1-4 (%d,%d) interaction not within cut-off! r=%g. "
                 "Ignored\n",
-                x[ai][XX], x[ai][YY], x[ai][ZZ], x[aj][XX], x[aj][YY], x[aj][ZZ],
-                glatnr(global_atom_index, ai), glatnr(global_atom_index, aj), r);
+                x[ai][XX],
+                x[ai][YY],
+                x[ai][ZZ],
+                x[aj][XX],
+                x[aj][YY],
+                x[aj][ZZ],
+                glatnr(global_atom_index, ai),
+                glatnr(global_atom_index, aj),
+                r);
     }
 }
 
@@ -321,8 +331,8 @@ static real free_energy_evaluate_single(real                                    
                     + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * fscal_vdw[i] * sigma_pow[i];
     }
 
-    dvdl[efptCOUL] += dvdl_coul;
-    dvdl[efptVDW] += dvdl_vdw;
+    dvdl[static_cast<int>(FreeEnergyPerturbationCouplingType::Coul)] += dvdl_coul;
+    dvdl[static_cast<int>(FreeEnergyPerturbationCouplingType::Vdw)] += dvdl_vdw;
 
     *velectot = velecsum;
     *vvdwtot  = vvdwsum;
@@ -379,13 +389,13 @@ static real do_pairs_general(int                 ftype,
             gmx_fatal(FARGS, "Unknown function type %d in do_nonbonded14", ftype);
     }
 
-    if (fr->efep != efepNO)
+    if (fr->efep != FreeEnergyPerturbationType::No)
     {
         /* Lambda factor for state A=1-lambda and B=lambda */
-        LFC[0] = 1.0 - lambda[efptCOUL];
-        LFV[0] = 1.0 - lambda[efptVDW];
-        LFC[1] = lambda[efptCOUL];
-        LFV[1] = lambda[efptVDW];
+        LFC[0] = 1.0 - lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Coul)];
+        LFV[0] = 1.0 - lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Vdw)];
+        LFC[1] = lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Coul)];
+        LFV[1] = lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Vdw)];
 
         /*derivative of the lambda factor for state A and B */
         DLF[0] = -1;
@@ -429,7 +439,7 @@ static real do_pairs_general(int                 ftype,
         switch (ftype)
         {
             case F_LJ14:
-                bFreeEnergy = (fr->efep != efepNO
+                bFreeEnergy = (fr->efep != FreeEnergyPerturbationType::No
                                && (((md->nPerturbed != 0) && (md->bPerturbed[ai] || md->bPerturbed[aj]))
                                    || iparams[itype].lj14.c6A != iparams[itype].lj14.c6B
                                    || iparams[itype].lj14.c12A != iparams[itype].lj14.c12B));
@@ -493,16 +503,40 @@ static real do_pairs_general(int                 ftype,
             c6B  = iparams[itype].lj14.c6B * 6.0;
             c12B = iparams[itype].lj14.c12B * 12.0;
 
-            fscal = free_energy_evaluate_single(
-                    r2, *fr->ic->softCoreParameters, fr->pairsTable->scale,
-                    fr->pairsTable->data.data(), fr->pairsTable->stride, qq, c6, c12, qqB, c6B, c12B,
-                    LFC, LFV, DLF, lfac_coul, lfac_vdw, dlfac_coul, dlfac_vdw, &velec, &vvdw, dvdl);
+            fscal = free_energy_evaluate_single(r2,
+                                                *fr->ic->softCoreParameters,
+                                                fr->pairsTable->scale,
+                                                fr->pairsTable->data.data(),
+                                                fr->pairsTable->stride,
+                                                qq,
+                                                c6,
+                                                c12,
+                                                qqB,
+                                                c6B,
+                                                c12B,
+                                                LFC,
+                                                LFV,
+                                                DLF,
+                                                lfac_coul,
+                                                lfac_vdw,
+                                                dlfac_coul,
+                                                dlfac_vdw,
+                                                &velec,
+                                                &vvdw,
+                                                dvdl);
         }
         else
         {
             /* Evaluate tabulated interaction without free energy */
-            fscal = evaluate_single(r2, fr->pairsTable->scale, fr->pairsTable->data.data(),
-                                    fr->pairsTable->stride, qq, c6, c12, &velec, &vvdw);
+            fscal = evaluate_single(r2,
+                                    fr->pairsTable->scale,
+                                    fr->pairsTable->data.data(),
+                                    fr->pairsTable->stride,
+                                    qq,
+                                    c6,
+                                    c12,
+                                    &velec,
+                                    &vvdw);
         }
 
         energygrp_elec[gid] += velec;
@@ -650,7 +684,7 @@ void do_pairs(int                      ftype,
               gmx_grppairener_t*       grppener,
               int*                     global_atom_index)
 {
-    if (ftype == F_LJ14 && fr->ic->vdwtype != evdwUSER && !EEL_USER(fr->ic->eeltype)
+    if (ftype == F_LJ14 && fr->ic->vdwtype != VanDerWaalsType::User && !EEL_USER(fr->ic->eeltype)
         && !havePerturbedInteractions && (!stepWork.computeVirial && !stepWork.computeEnergy))
     {
         /* We use a fast code-path for plain LJ 1-4 without FEP.
@@ -687,20 +721,18 @@ void do_pairs(int                      ftype,
                 pbc_nonnull = &pbc_no;
             }
 
-            do_pairs_simple<real, 1, const t_pbc*>(nbonds, iatoms, iparams, x, f, pbc_nonnull, md,
-                                                   fr->ic->epsfac * fr->fudgeQQ);
+            do_pairs_simple<real, 1, const t_pbc*>(
+                    nbonds, iatoms, iparams, x, f, pbc_nonnull, md, fr->ic->epsfac * fr->fudgeQQ);
         }
     }
     else if (stepWork.computeVirial)
     {
         do_pairs_general<BondedKernelFlavor::ForcesAndVirialAndEnergy>(
-                ftype, nbonds, iatoms, iparams, x, f, fshift, pbc, lambda, dvdl, md, fr, grppener,
-                global_atom_index);
+                ftype, nbonds, iatoms, iparams, x, f, fshift, pbc, lambda, dvdl, md, fr, grppener, global_atom_index);
     }
     else
     {
-        do_pairs_general<BondedKernelFlavor::ForcesAndEnergy>(ftype, nbonds, iatoms, iparams, x, f,
-                                                              fshift, pbc, lambda, dvdl, md, fr,
-                                                              grppener, global_atom_index);
+        do_pairs_general<BondedKernelFlavor::ForcesAndEnergy>(
+                ftype, nbonds, iatoms, iparams, x, f, fshift, pbc, lambda, dvdl, md, fr, grppener, global_atom_index);
     }
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -124,6 +124,10 @@ bool buildSupportsGpuBondeds(std::string* error)
     {
         errorReasons.emplace_back("not supported with OpenCL build of GROMACS");
     }
+    if (GMX_GPU_SYCL)
+    {
+        errorReasons.emplace_back("not supported with SYCL build of GROMACS");
+    }
     else if (!GMX_GPU)
     {
         errorReasons.emplace_back("not supported with CPU-only build of GROMACS");
@@ -148,6 +152,10 @@ bool inputSupportsGpuBondeds(const t_inputrec& ir, const gmx_mtop_t& mtop, std::
     if (EI_MIMIC(ir.eI))
     {
         errorReasons.emplace_back("MiMiC");
+    }
+    if (ir.useMts)
+    {
+        errorReasons.emplace_back("Cannot run with multiple time stepping");
     }
     if (ir.opts.ngener > 1)
     {

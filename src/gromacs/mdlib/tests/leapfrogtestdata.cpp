@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -123,7 +123,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
 
     if (numTCoupleGroups_ == 0)
     {
-        inputRecord_.etc = etcNO;
+        inputRecord_.etc = TemperatureCoupling::No;
         for (int i = 0; i < numAtoms_; i++)
         {
             mdAtoms_.cTC[i] = 0;
@@ -135,7 +135,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
     }
     else
     {
-        inputRecord_.etc = etcYES;
+        inputRecord_.etc = TemperatureCoupling::Yes;
         for (int i = 0; i < numAtoms_; i++)
         {
             mdAtoms_.cTC[i] = i % numTCoupleGroups_;
@@ -150,7 +150,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
         }
     }
 
-    inputRecord_.eI      = eiMD;
+    inputRecord_.eI      = IntegrationAlgorithm::MD;
     inputRecord_.delta_t = timestep_;
 
     state_.flags = 0;
@@ -167,7 +167,6 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
     state_.box[ZZ][YY] = 0.0;
     state_.box[ZZ][ZZ] = 10.0;
 
-    kineticEnergyData_.bNEMD            = false;
     kineticEnergyData_.cosacc.cos_accel = 0.0;
 
     kineticEnergyData_.nthreads = 1;
@@ -187,7 +186,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
 
     if (doPressureCouple_)
     {
-        inputRecord_.epc        = epcPARRINELLORAHMAN;
+        inputRecord_.epc        = PressureCoupling::ParrinelloRahman;
         inputRecord_.nstpcouple = nstpcouple;
         dtPressureCouple_       = inputRecord_.nstpcouple * inputRecord_.delta_t;
 
@@ -205,7 +204,7 @@ LeapFrogTestData::LeapFrogTestData(int        numAtoms,
     }
     else
     {
-        inputRecord_.epc               = epcNO;
+        inputRecord_.epc               = PressureCoupling::No;
         velocityScalingMatrix_[XX][XX] = 1.0;
         velocityScalingMatrix_[XX][YY] = 0.0;
         velocityScalingMatrix_[XX][ZZ] = 0.0;

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -68,21 +68,36 @@
 
 #include <stdio.h>
 
+#include <vector>
+
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/real.h"
 
 struct t_commrec;
 struct t_forcerec;
 struct t_inputrec;
+struct t_complex;
 
-/* Forward declaration of type for managing Ewald tables */
-struct gmx_ewald_tab_t;
+struct gmx_ewald_tab_t
+{
+    gmx_ewald_tab_t(const t_inputrec& ir, FILE* fp);
+
+    ~gmx_ewald_tab_t();
+
+    int nx;
+    int ny;
+    int nz;
+    int kmax;
+
+    std::vector<t_complex> tab_xy;
+    std::vector<t_complex> tab_qxyz;
+};
 
 /*! \brief Initialize the tables used in the Ewald long-ranged part */
-void init_ewald_tab(struct gmx_ewald_tab_t** et, const t_inputrec* ir, FILE* fp);
+void init_ewald_tab(struct gmx_ewald_tab_t** et, const t_inputrec& ir, FILE* fp);
 
 /*! \brief Do the long-ranged part of an Ewald calculation */
-real do_ewald(const t_inputrec* ir,
+real do_ewald(const t_inputrec& ir,
               const rvec        x[],
               rvec              f[],
               const real        chargeA[],

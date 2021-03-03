@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -102,7 +102,8 @@ TEST_P(NormalModesTest, WithinTolerances)
         fprintf(stdout,
                 "Test system '%s' cannot run with %d ranks.\n"
                 "The supported numbers are: %s\n",
-                simulationName.c_str(), numRanksAvailable,
+                simulationName.c_str(),
+                numRanksAvailable,
                 reportNumbersOfPpRanksSupported(simulationName).c_str());
         return;
     }
@@ -142,20 +143,24 @@ TEST_P(NormalModesTest, WithinTolerances)
     }
 }
 
-//! Containers of systems and integrators to test.
-//! \{
-std::vector<std::string> systemsToTest_g     = { "scaled-water", "villin", "spc-dimer", "one-tip5p",
-                                             "sw-dimer" };
-std::vector<std::string> integratorsToTest_g = { "nm" };
-
-//! \}
-
 // The time for OpenCL kernel compilation means these tests might time
 // out. If that proves to be a problem, these can be disabled for
 // OpenCL builds. However, once that compilation is cached for the
 // lifetime of the whole test binary process, these tests should run in
 // such configurations.
 #if GMX_DOUBLE
+
+//! Containers of systems and integrators to test.
+//! \{
+std::vector<std::string> systemsToTest_g     = { "scaled-water",
+                                             "villin",
+                                             "spc-dimer",
+                                             "one-tip5p",
+                                             "sw-dimer" };
+std::vector<std::string> integratorsToTest_g = { "nm" };
+
+//! \}
+
 INSTANTIATE_TEST_CASE_P(NormalModesWorks,
                         NormalModesTest,
                         ::testing::Combine(::testing::ValuesIn(systemsToTest_g),

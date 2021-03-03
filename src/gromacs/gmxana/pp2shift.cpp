@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2013,2014,2015,2018,2019,2020, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,6 +46,7 @@
 #include "gromacs/math/units.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/futil.h"
+#include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/pleasecite.h"
 #include "gromacs/utility/smalloc.h"
 
@@ -221,7 +222,12 @@ void do_pp2shifts(FILE* fp, int nf, int nlist, t_dlist dlist[], real** dih)
 
     fprintf(fp, "\n *** Chemical shifts from the chemical shift index ***\n");
     please_cite(fp, "Wishart98a");
-    fprintf(fp, "%12s  %10s  %10s  %10s  %10s\n", "Residue", "delta Ca", "delta Ha", "delta CO",
+    fprintf(fp,
+            "%12s  %10s  %10s  %10s  %10s\n",
+            "Residue",
+            "delta Ca",
+            "delta Ha",
+            "delta CO",
             "delta Cb");
     for (i = 0; (i < nlist); i++)
     {
@@ -240,8 +246,7 @@ void do_pp2shifts(FILE* fp, int nf, int nlist, t_dlist dlist[], real** dih)
                 co += interpolate(phi, psi, co_sd);
                 ha += interpolate(phi, psi, ha_sd);
             }
-            fprintf(fp, "%12s  %10g  %10g  %10g  %10g\n", dlist[i].name, ca / nf, ha / nf, co / nf,
-                    cb / nf);
+            fprintf(fp, "%12s  %10g  %10g  %10g  %10g\n", dlist[i].name, ca / nf, ha / nf, co / nf, cb / nf);
         }
     }
     fprintf(fp, "\n");

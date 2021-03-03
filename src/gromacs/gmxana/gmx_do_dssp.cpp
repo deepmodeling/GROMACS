@@ -90,8 +90,13 @@ static void printDsspResult(char* dssp, const DsspInputStrings& strings, const s
 #if HAVE_PIPES || GMX_NATIVE_WINDOWS
     sprintf(dssp, "%s -i %s %s", strings.dptr.c_str(), strings.pdbfile.c_str(), redirectionString.c_str());
 #else
-    sprintf(dssp, "%s -i %s -o %s > %s %s", strings.dptr.c_str(), strings.pdbfile.c_str(),
-            strings.tmpfile.c_str(), NULL_DEVICE, redirectionString.c_str());
+    sprintf(dssp,
+            "%s -i %s -o %s > %s %s",
+            strings.dptr.c_str(),
+            strings.pdbfile.c_str(),
+            strings.tmpfile.c_str(),
+            NULL_DEVICE,
+            redirectionString.c_str());
 #endif
 }
 
@@ -176,8 +181,7 @@ static int strip_dssp(FILE*                   tapeout,
     {
         if (nullptr != acc)
         {
-            fprintf(stderr, "%d residues were classified as hydrophobic and %d as hydrophilic.\n",
-                    naccb, naccf);
+            fprintf(stderr, "%d residues were classified as hydrophobic and %d as hydrophilic.\n", naccb, naccf);
         }
 
         mat->title     = "Secondary structure";
@@ -193,8 +197,7 @@ static int strip_dssp(FILE*                   tapeout,
         bFirst = false;
     }
     mat->axis_x.push_back(t);
-    mat->matrix.resize(mat->matrix.extent(0), nr);
-    mat->nx          = mat->matrix.extent(0);
+    mat->matrix.resize(++(mat->nx), nr);
     auto columnIndex = mat->nx - 1;
     for (int i = 0; i < nr; i++)
     {
@@ -246,7 +249,9 @@ static gmx_bool* bPhobics(t_atoms* atoms)
     if (i != j)
     {
         fprintf(stderr,
-                "Not all residues were recognized (%d from %d), the result may be inaccurate!\n", j, i);
+                "Not all residues were recognized (%d from %d), the result may be inaccurate!\n",
+                j,
+                i);
     }
 
     for (i = 0; (i < n_surf); i++)
@@ -260,17 +265,14 @@ static gmx_bool* bPhobics(t_atoms* atoms)
 
 static void check_oo(t_atoms* atoms)
 {
-    char* OOO;
+    char* OOO = gmx_strdup("O");
 
-    int i;
-
-    OOO = gmx_strdup("O");
-
-    for (i = 0; (i < atoms->nr); i++)
+    for (int i = 0; (i < atoms->nr); i++)
     {
         if ((std::strcmp(*(atoms->atomname[i]), "OXT") == 0)
             || (std::strcmp(*(atoms->atomname[i]), "O1") == 0)
-            || (std::strcmp(*(atoms->atomname[i]), "OC1") == 0))
+            || (std::strcmp(*(atoms->atomname[i]), "OC1") == 0)
+            || (std::strcmp(*(atoms->atomname[i]), "OT1") == 0))
         {
             *atoms->atomname[i] = OOO;
         }
@@ -303,8 +305,7 @@ static void norm_acc(t_atoms* atoms, int nres, const real av_area[], real norm_a
         }
         else
         {
-            fprintf(stderr, "Residue %s not found in surface database (%s)\n",
-                    *atoms->resinfo[i].name, surffn);
+            fprintf(stderr, "Residue %s not found in surface database (%s)\n", *atoms->resinfo[i].name, surffn);
         }
     }
 }
@@ -365,8 +366,22 @@ static void write_sas_mat(const char* fn, real** accr, int nframe, int nres, t_m
         }
         fp   = gmx_ffopen(fn, "w");
         nlev = static_cast<int>(hi - lo + 1);
-        write_xpm(fp, 0, "Solvent Accessible Surface", "Surface (A^2)", "Time", "Residue Index",
-                  nframe, nres, mat->axis_x.data(), mat->axis_y.data(), accr, lo, hi, rlo, rhi, &nlev);
+        write_xpm(fp,
+                  0,
+                  "Solvent Accessible Surface",
+                  "Surface (A^2)",
+                  "Time",
+                  "Residue Index",
+                  nframe,
+                  nres,
+                  mat->axis_x.data(),
+                  mat->axis_y.data(),
+                  accr,
+                  lo,
+                  hi,
+                  rlo,
+                  rhi,
+                  &nlev);
         gmx_ffclose(fp);
     }
 }
@@ -389,8 +404,8 @@ static void analyse_ss(const char* outfile, t_matrix* mat, const char* ss_string
         leg.emplace_back(m.desc);
     }
 
-    fp = xvgropen(outfile, "Secondary Structure", output_env_get_xvgr_tlabel(oenv),
-                  "Number of Residues", oenv);
+    fp = xvgropen(
+            outfile, "Secondary Structure", output_env_get_xvgr_tlabel(oenv), "Number of Residues", oenv);
     if (output_env_get_print_xvgr_codes(oenv))
     {
         fprintf(fp, "@ subtitle \"Structure = ");
@@ -468,7 +483,8 @@ int gmx_do_dssp(int argc, char* argv[])
         "calling the dssp program. If you do not have the dssp program,",
         "get it from http://swift.cmbi.ru.nl/gv/dssp. [THISMODULE] assumes ",
         "that the dssp executable is located in ",
-        "[TT]/usr/local/bin/dssp[tt]. If this is not the case, then you should",
+        // NOLINTNEXTLINE(bugprone-suspicious-missing-comma)
+        "[TT]" GMX_DSSP_PROGRAM_PATH "[tt]. If this is not the case, then you should",
         "set an environment variable [TT]DSSP[tt] pointing to the dssp",
         "executable, e.g.: [PAR]",
         "[TT]setenv DSSP /opt/dssp/bin/dssp[tt][PAR]",
@@ -545,8 +561,18 @@ int gmx_do_dssp(int argc, char* argv[])
     };
 #define NFILE asize(fnm)
 
-    if (!parse_common_args(&argc, argv, PCA_CAN_TIME | PCA_CAN_VIEW | PCA_TIME_UNIT, NFILE, fnm,
-                           asize(pa), pa, asize(desc), desc, 0, nullptr, &oenv))
+    if (!parse_common_args(&argc,
+                           argv,
+                           PCA_CAN_TIME | PCA_CAN_VIEW | PCA_TIME_UNIT,
+                           NFILE,
+                           fnm,
+                           asize(pa),
+                           pa,
+                           asize(desc),
+                           desc,
+                           0,
+                           nullptr,
+                           &oenv))
     {
         return 0;
     }
@@ -600,9 +626,10 @@ int gmx_do_dssp(int argc, char* argv[])
     }
     fclose(tmpf);
 
+    const std::string defpathenv = GMX_DSSP_PROGRAM_PATH;
     if ((dptr = getenv("DSSP")) == nullptr)
     {
-        dptr = "/usr/local/bin/dssp";
+        dptr = defpathenv.c_str();
     }
     if (!gmx_fexist(dptr))
     {
@@ -641,8 +668,11 @@ int gmx_do_dssp(int argc, char* argv[])
 
     if (fnTArea)
     {
-        fTArea = xvgropen(fnTArea, "Solvent Accessible Surface Area",
-                          output_env_get_xvgr_tlabel(oenv), "Area (nm\\S2\\N)", oenv);
+        fTArea = xvgropen(fnTArea,
+                          "Solvent Accessible Surface Area",
+                          output_env_get_xvgr_tlabel(oenv),
+                          "Area (nm\\S2\\N)",
+                          oenv);
         xvgr_legend(fTArea, 2, leg, oenv);
     }
     else

@@ -2,7 +2,8 @@
 # This file is part of the GROMACS molecular simulation package.
 #
 # Copyright (c) 2010,2011,2012,2013,2014 by the GROMACS development team.
-# Copyright (c) 2015,2016,2017,2018,2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2015,2016,2017,2018,2019 by the GROMACS development team.
+# Copyright (c) 2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -40,7 +41,7 @@ if (GMX_CLANG_CUDA)
 endif()
 
 set_property(GLOBAL PROPERTY GMX_LIBGROMACS_SOURCES)
-set_property(GLOBAL PROPERTY GMX_LIBGROMACS_GPU_IMPL_SOURCES)
+set_property(GLOBAL PROPERTY CUDA_SOURCES)
 set_property(GLOBAL PROPERTY GMX_INSTALLED_HEADERS)
 set_property(GLOBAL PROPERTY GMX_AVX_512_SOURCE)
 
@@ -103,23 +104,20 @@ add_subdirectory(trajectory)
 add_subdirectory(swap)
 add_subdirectory(essentialdynamics)
 add_subdirectory(pulling)
-add_subdirectory(awh)
 add_subdirectory(simd)
 add_subdirectory(imd)
 add_subdirectory(compat)
 add_subdirectory(mimic)
 add_subdirectory(modularsimulator)
-if (NOT GMX_BUILD_MDRUN_ONLY)
-    add_subdirectory(gmxana)
-    add_subdirectory(gmxpreprocess)
-    add_subdirectory(correlationfunctions)
-    add_subdirectory(statistics)
-    add_subdirectory(analysisdata)
-    add_subdirectory(coordinateio)
-    add_subdirectory(trajectoryanalysis)
-    add_subdirectory(energyanalysis)
-    add_subdirectory(tools)
-endif()
+add_subdirectory(gmxana)
+add_subdirectory(gmxpreprocess)
+add_subdirectory(correlationfunctions)
+add_subdirectory(statistics)
+add_subdirectory(analysisdata)
+add_subdirectory(coordinateio)
+add_subdirectory(trajectoryanalysis)
+add_subdirectory(energyanalysis)
+add_subdirectory(tools)
 
 get_property(PROPERTY_SOURCES GLOBAL PROPERTY GMX_LIBGROMACS_SOURCES)
 list(APPEND LIBGROMACS_SOURCES ${GMXLIB_SOURCES} ${MDLIB_SOURCES} ${PROPERTY_SOURCES})
@@ -143,10 +141,12 @@ if (WIN32)
 endif()
 list(APPEND libgromacs_object_library_dependencies thread_mpi)
 
-configure_file(version.h.cmakein version.h)
 if(GMX_INSTALL_LEGACY_API)
   install(FILES
-          ${CMAKE_CURRENT_BINARY_DIR}/version.h
+	  analysisdata.h
+	  options.h
+	  selection.h
+	  trajectoryanalysis.h
           DESTINATION include/gromacs)
 endif()
 
@@ -168,19 +168,8 @@ list(APPEND LIBGROMACS_SOURCES ${GENERATED_VERSION_FILE})
 
 # Mark some shared GPU implementation files to compile with CUDA if needed
 if (GMX_GPU_CUDA)
-    get_property(LIBGROMACS_GPU_IMPL_SOURCES GLOBAL PROPERTY GMX_LIBGROMACS_GPU_IMPL_SOURCES)
-    set_source_files_properties(${LIBGROMACS_GPU_IMPL_SOURCES} PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-endif()
-
-# set up CUDA compilation with clang
-if (GMX_CLANG_CUDA)
-    foreach (_file ${LIBGROMACS_SOURCES})
-        get_filename_component(_ext ${_file} EXT)
-        get_source_file_property(_cuda_source_format ${_file} CUDA_SOURCE_PROPERTY_FORMAT)
-        if ("${_ext}" STREQUAL ".cu" OR _cuda_source_format)
-            gmx_compile_cuda_file_with_clang(${_file})
-        endif()
-    endforeach()
+    get_property(CUDA_SOURCES GLOBAL PROPERTY CUDA_SOURCES)
+    set_source_files_properties(${CUDA_SOURCES} PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
 endif()
 
 if (GMX_GPU_CUDA)
@@ -196,6 +185,13 @@ if (GMX_GPU_CUDA)
 else()
     add_library(libgromacs ${LIBGROMACS_SOURCES})
 endif()
+target_link_libraries(libgromacs PRIVATE $<BUILD_INTERFACE:common>)
+# As long as the libgromacs target has source files that reference headers from
+# modules that don't provide CMake targets, libgromacs needs to use `src/`
+# amongst its include directories (to support `#include "gromacs/module/header.h"`).
+add_library(legacy_modules INTERFACE)
+target_include_directories(legacy_modules INTERFACE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>)
+target_link_libraries(libgromacs PRIVATE $<BUILD_INTERFACE:legacy_modules>)
 
 # Add these contents first because linking their tests can take a lot
 # of time, so we want lots of parallel work still available after
@@ -214,6 +210,7 @@ foreach(object_library ${libgromacs_object_library_dependencies})
         set_target_properties(${object_library} PROPERTIES POSITION_INDEPENDENT_CODE true)
     endif()
     target_include_directories(${object_library} SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
+    target_link_libraries(${object_library} PRIVATE common)
 
     # Add the sources from the object libraries to the main library.
     target_sources(libgromacs PRIVATE $<TARGET_OBJECTS:${object_library}>)
@@ -279,8 +276,43 @@ if(SIMD_AVX_512_CXX_SUPPORTED AND NOT ("${GMX_SIMD_ACTIVE}" STREQUAL "AVX_512_KN
     set_source_files_properties(hardware/identifyavx512fmaunits.cpp PROPERTIES COMPILE_FLAGS "${SIMD_AVX_512_CXX_FLAGS} ${CXX_NO_UNUSED_OPTION_WARNING_FLAGS}")
 endif()
 
+# Do any special handling needed for .cpp files that use
+# CUDA runtime headers
+if (GMX_GPU_CUDA AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # CUDA header cuda_runtime_api.h in at least CUDA 10.1 uses 0
+    # where nullptr would be preferable. GROMACS can't fix these, so
+    # must suppress them.
+    GMX_TEST_CXXFLAG(CXXFLAGS_NO_ZERO_AS_NULL_POINTER_CONSTANT "-Wno-zero-as-null-pointer-constant" NVCC_CLANG_SUPPRESSIONS_CXXFLAGS)
+
+    foreach(_compile_flag ${NVCC_CLANG_SUPPRESSIONS_CXXFLAGS})
+        set(GMX_CUDA_CLANG_FLAGS "${GMX_CUDA_CLANG_FLAGS} ${_compile_flag}")
+    endforeach()
+    if (GMX_CLANG_CUDA)
+        foreach (_file ${LIBGROMACS_SOURCES})
+            get_filename_component(_ext ${_file} EXT)
+            get_source_file_property(_cuda_source_format ${_file} CUDA_SOURCE_PROPERTY_FORMAT)
+            if ("${_ext}" STREQUAL ".cu" OR _cuda_source_format)
+                gmx_compile_cuda_file_with_clang(${_file})
+            endif()
+        endforeach()
+    else()
+        get_property(CUDA_SOURCES GLOBAL PROPERTY CUDA_SOURCES)
+        set_source_files_properties(${CUDA_SOURCES} PROPERTIES COMPILE_FLAGS ${GMX_CUDA_CLANG_FLAGS})
+    endif()
+endif()
+
+# Only add the -fsycl flag to sources that really need it
+if (GMX_GPU_SYCL)
+    get_property(SYCL_SOURCES GLOBAL PROPERTY SYCL_SOURCES)
+    add_sycl_to_target(TARGET libgromacs SOURCES ${SYCL_SOURCES})
+endif()
+
 gmx_setup_tng_for_libgromacs()
 
+# We apply the SYCL flag explicitly just for libgromacs, since bugs in the beta versions of
+# icpx/dpcpp leads to crashes if we try to link an library without any SYCL code with the
+# -fsycl flag enabled. Once that bug is fixed, we should change it to simply add
+# SYCL_CXX_FLAGS to GMX_SHARED_LINKER_FLAGS.
 target_link_libraries(libgromacs
                       PRIVATE
                       ${EXTRAE_LIBRARIES}
@@ -288,11 +320,66 @@ target_link_libraries(libgromacs
                       ${GMX_COMMON_LIBRARIES}
                       ${FFT_LIBRARIES} ${LINEAR_ALGEBRA_LIBRARIES}
                       ${THREAD_LIB} ${GMX_SHARED_LINKER_FLAGS}
+                      ${SYCL_CXX_FLAGS}
                       ${OpenCL_LIBRARIES}
                       $<$<PLATFORM_ID:SunOS>:socket>
                       PUBLIC
                       ${GMX_PUBLIC_LIBRARIES}
                       )
+target_link_libraries(libgromacs PUBLIC legacy_api)
+# Dependencies from libgromacs to the modules are set up here, but
+# once the add_subdirectory() commands are re-ordered then
+# responsibility for setting this up will move to the respective
+# modules.
+target_link_libraries(libgromacs PRIVATE
+                      $<BUILD_INTERFACE:analysisdata>
+                      $<BUILD_INTERFACE:applied_forces>
+                      $<BUILD_INTERFACE:commandline>
+                      $<BUILD_INTERFACE:compat>
+                      $<BUILD_INTERFACE:coordinateio>
+                      $<BUILD_INTERFACE:correlationfunctions>
+                      $<BUILD_INTERFACE:domdec>
+#                      $<BUILD_INTERFACE:energyanalysis>
+                      $<BUILD_INTERFACE:essentialdynamics>
+                      $<BUILD_INTERFACE:ewald>
+                      $<BUILD_INTERFACE:fft>
+                      $<BUILD_INTERFACE:fileio>
+                      $<BUILD_INTERFACE:gmxana>
+                      $<BUILD_INTERFACE:gmxlib>
+                      $<BUILD_INTERFACE:gmxpreprocess>
+                      $<BUILD_INTERFACE:gpu_utils>
+                      $<BUILD_INTERFACE:hardware>
+                      $<BUILD_INTERFACE:imd>
+                      $<BUILD_INTERFACE:linearalgebra>
+                      $<BUILD_INTERFACE:listed_forces>
+                      $<BUILD_INTERFACE:math>
+                      $<BUILD_INTERFACE:mdlib>
+                      $<BUILD_INTERFACE:mdrun>
+                      $<BUILD_INTERFACE:mdrunutility>
+                      $<BUILD_INTERFACE:mdspan>
+                      $<BUILD_INTERFACE:mdtypes>
+                      $<BUILD_INTERFACE:mimic>
+                      $<BUILD_INTERFACE:modularsimulator>
+                      $<BUILD_INTERFACE:nbnxm>
+                      $<BUILD_INTERFACE:onlinehelp>
+                      $<BUILD_INTERFACE:options>
+                      $<BUILD_INTERFACE:pbcutil>
+                      $<BUILD_INTERFACE:pulling>
+                      $<BUILD_INTERFACE:random>
+                      $<BUILD_INTERFACE:restraint>
+                      $<BUILD_INTERFACE:selection>
+                      $<BUILD_INTERFACE:simd>
+                      $<BUILD_INTERFACE:statistics>
+                      $<BUILD_INTERFACE:swap>
+                      $<BUILD_INTERFACE:tables>
+                      $<BUILD_INTERFACE:taskassignment>
+                      $<BUILD_INTERFACE:timing>
+                      $<BUILD_INTERFACE:tools>
+                      $<BUILD_INTERFACE:topology>
+                      $<BUILD_INTERFACE:trajectory>
+                      $<BUILD_INTERFACE:trajectoryanalysis>
+                      $<BUILD_INTERFACE:utility>
+    )
 if (GMX_OPENMP)
     target_link_libraries(libgromacs PUBLIC OpenMP::OpenMP_CXX)
 endif()
@@ -350,9 +437,8 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION MATCHES
     target_compile_options(libgromacs PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-w>)
 endif()
 
-# Only install the library in mdrun-only mode if it is actually necessary
-# for the binary
-if (NOT GMX_BUILD_MDRUN_ONLY OR BUILD_SHARED_LIBS)
+# TODO: Stop installing libgromacs. Possibly allow installation during deprecation period with GMX_INSTALL_LEGACY_API.
+if (BUILD_SHARED_LIBS)
     install(TARGETS libgromacs
             EXPORT libgromacs
             LIBRARY
@@ -370,12 +456,10 @@ if (NOT GMX_BUILD_MDRUN_ONLY OR BUILD_SHARED_LIBS)
     if(GMX_INSTALL_LEGACY_API)
         target_compile_features(libgromacs INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
     endif()
-    add_library(Gromacs::libgromacs ALIAS libgromacs)
 endif()
+add_library(Gromacs::libgromacs ALIAS libgromacs)
 
-if (NOT GMX_BUILD_MDRUN_ONLY)
-    include(InstallLibInfo.cmake)
-endif()
+include(InstallLibInfo.cmake)
 
 # Technically, the user could want to do this for an OpenCL build
 # using the CUDA runtime, but currently there's no reason to want to
@@ -438,7 +522,7 @@ if(GMX_GPU_OPENCL)
         ewald/pme_spread.clh
         ewald/pme_solve.clh
         ewald/pme_gather.clh
-        ewald/pme_gpu_utils.clh
+        ewald/pme_gpu_calculate_splines.clh
         ewald/pme_program.cl
         ewald/pme_gpu_types.h
         )

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,6 +48,7 @@
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/binaryinformation.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/keyvaluetreebuilder.h"
@@ -225,7 +226,8 @@ void write_inpfile(gmx::TextOutputStream*  stream,
             }
             else
             {
-                writer.writeLine(formatString("%-24s = %s", local.name_.c_str(),
+                writer.writeLine(formatString("%-24s = %s",
+                                              local.name_.c_str(),
                                               !local.value_.empty() ? local.value_.c_str() : ""));
             }
         }
@@ -263,7 +265,8 @@ void replace_inp_entry(gmx::ArrayRef<t_inpfile> inp, const char* old_entry, cons
                     gmx_fatal(FARGS,
                               "A parameter is present with both the old name '%s' and the new name "
                               "'%s'.",
-                              local.name_.c_str(), inp[foundIndex].name_.c_str());
+                              local.name_.c_str(),
+                              inp[foundIndex].name_.c_str());
                 }
 
                 local.name_.assign(new_entry);
@@ -306,7 +309,7 @@ void mark_einp_set(gmx::ArrayRef<t_inpfile> inp, const char* name)
     }
 }
 
-static int get_einp(std::vector<t_inpfile>* inp, const char* name)
+int get_einp(std::vector<t_inpfile>* inp, const char* name)
 {
     std::vector<t_inpfile>& inpRef   = *inp;
     bool                    notfound = false;
@@ -363,7 +366,8 @@ int get_eint(std::vector<t_inpfile>* inp, const char* name, int def, warninp_t w
             sprintf(warn_buf,
                     "Right hand side '%s' for parameter '%s' in parameter file is not an integer "
                     "value\n",
-                    inpRef[ii].value_.c_str(), inpRef[ii].name_.c_str());
+                    inpRef[ii].value_.c_str(),
+                    inpRef[ii].name_.c_str());
             warning_error(wi, warn_buf);
         }
 
@@ -399,7 +403,8 @@ int64_t get_eint64(std::vector<t_inpfile>* inp, const char* name, int64_t def, w
             sprintf(warn_buf,
                     "Right hand side '%s' for parameter '%s' in parameter file is not an integer "
                     "value\n",
-                    inpRef[ii].value_.c_str(), inpRef[ii].name_.c_str());
+                    inpRef[ii].value_.c_str(),
+                    inpRef[ii].name_.c_str());
             warning_error(wi, warn_buf);
         }
 
@@ -435,7 +440,8 @@ double get_ereal(std::vector<t_inpfile>* inp, const char* name, double def, warn
             sprintf(warn_buf,
                     "Right hand side '%s' for parameter '%s' in parameter file is not a real "
                     "value\n",
-                    inpRef[ii].value_.c_str(), inpRef[ii].name_.c_str());
+                    inpRef[ii].value_.c_str(),
+                    inpRef[ii].name_.c_str());
             warning_error(wi, warn_buf);
         }
 
@@ -452,7 +458,6 @@ double get_ereal(std::vector<t_inpfile>* inp, const std::string& name, double de
 const char* get_estr(std::vector<t_inpfile>* inp, const char* name, const char* def)
 {
     std::vector<t_inpfile>& inpRef = *inp;
-    char                    buf[32];
 
     int ii = get_einp(inp, name);
 
@@ -460,8 +465,7 @@ const char* get_estr(std::vector<t_inpfile>* inp, const char* name, const char* 
     {
         if (def)
         {
-            sprintf(buf, "%s", def);
-            inpRef.back().value_.assign(buf);
+            inpRef.back().value_.assign(def);
         }
         else
         {
@@ -507,8 +511,11 @@ int get_eeenum(std::vector<t_inpfile>* inp, const char* name, const char** defs,
 
     if (defs[i] == nullptr)
     {
-        n += sprintf(buf, "Invalid enum '%s' for variable %s, using '%s'\n",
-                     inpRef[ii].value_.c_str(), name, defs[0]);
+        n += sprintf(buf,
+                     "Invalid enum '%s' for variable %s, using '%s'\n",
+                     inpRef[ii].value_.c_str(),
+                     name,
+                     defs[0]);
         n += sprintf(buf + n, "Next time use one of:");
         int j = 0;
         while (defs[j])
@@ -556,12 +563,22 @@ void printStringNoNewline(std::vector<t_inpfile>* inp, const char* line)
     tmp.append(line);
     get_estr(inp, tmp.c_str(), nullptr);
 }
+
 void setStringEntry(std::vector<t_inpfile>* inp, const char* name, char* newName, const char* def)
 {
+    GMX_RELEASE_ASSERT(newName != nullptr, "Need a valid char buffer");
+
     const char* found = nullptr;
     found             = get_estr(inp, name, def);
     if (found != nullptr)
     {
         std::strcpy(newName, found);
     }
+}
+
+std::string setStringEntry(std::vector<t_inpfile>* inp, const std::string& name, const std::string& def)
+{
+    GMX_RELEASE_ASSERT(!name.empty(), "Need a valid string");
+
+    return get_estr(inp, name.c_str(), def.c_str());
 }

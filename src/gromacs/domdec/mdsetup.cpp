@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,6 +44,7 @@
 #include "gromacs/mdlib/mdatoms.h"
 #include "gromacs/mdlib/vsite.h"
 #include "gromacs/mdtypes/commrec.h"
+#include "gromacs/mdtypes/forcebuffers.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/interaction_const.h"
@@ -62,16 +63,16 @@ namespace gmx
  * The final solution should be an MD algorithm base class with methods
  * for initialization and atom-data setup.
  */
-void mdAlgorithmsSetupAtomData(const t_commrec*        cr,
-                               const t_inputrec*       ir,
-                               const gmx_mtop_t&       top_global,
-                               gmx_localtop_t*         top,
-                               t_forcerec*             fr,
-                               PaddedHostVector<RVec>* force,
-                               MDAtoms*                mdAtoms,
-                               Constraints*            constr,
-                               VirtualSitesHandler*    vsite,
-                               gmx_shellfc_t*          shellfc)
+void mdAlgorithmsSetupAtomData(const t_commrec*     cr,
+                               const t_inputrec&    inputrec,
+                               const gmx_mtop_t&    top_global,
+                               gmx_localtop_t*      top,
+                               t_forcerec*          fr,
+                               ForceBuffers*        force,
+                               MDAtoms*             mdAtoms,
+                               Constraints*         constr,
+                               VirtualSitesHandler* vsite,
+                               gmx_shellfc_t*       shellfc)
 {
     bool usingDomDec = DOMAINDECOMP(cr);
 
@@ -81,9 +82,9 @@ void mdAlgorithmsSetupAtomData(const t_commrec*        cr,
 
     if (usingDomDec)
     {
-        numAtomIndex  = dd_natoms_mdatoms(cr->dd);
+        numAtomIndex  = dd_natoms_mdatoms(*cr->dd);
         numHomeAtoms  = dd_numHomeAtoms(*cr->dd);
-        numTotalAtoms = dd_natoms_mdatoms(cr->dd);
+        numTotalAtoms = dd_natoms_mdatoms(*cr->dd);
     }
     else
     {
@@ -94,23 +95,24 @@ void mdAlgorithmsSetupAtomData(const t_commrec*        cr,
 
     if (force != nullptr)
     {
-        /* We need to allocate one element extra, since we might use
-         * (unaligned) 4-wide SIMD loads to access rvec entries.
-         */
-        force->resizeWithPadding(numTotalAtoms);
+        force->resize(numTotalAtoms);
     }
 
-    atoms2md(&top_global, ir, numAtomIndex,
-             usingDomDec ? cr->dd->globalAtomIndices : std::vector<int>(), numHomeAtoms, mdAtoms);
+    atoms2md(&top_global,
+             &inputrec,
+             numAtomIndex,
+             usingDomDec ? cr->dd->globalAtomIndices : std::vector<int>(),
+             numHomeAtoms,
+             mdAtoms);
 
     auto mdatoms = mdAtoms->mdatoms();
     if (usingDomDec)
     {
-        dd_sort_local_top(cr->dd, mdatoms, top);
+        dd_sort_local_top(*cr->dd, mdatoms, top);
     }
     else
     {
-        gmx_mtop_generate_local_top(top_global, top, ir->efep != efepNO);
+        gmx_mtop_generate_local_top(top_global, top, inputrec.efep != FreeEnergyPerturbationType::No);
     }
 
     if (vsite)
@@ -129,7 +131,10 @@ void mdAlgorithmsSetupAtomData(const t_commrec*        cr,
         make_local_shells(cr, mdatoms, shellfc);
     }
 
-    fr->listedForces->setup(top->idef, fr->natoms_force, fr->gpuBonded != nullptr);
+    for (auto& listedForces : fr->listedForces)
+    {
+        listedForces.setup(top->idef, fr->natoms_force, fr->gpuBonded != nullptr);
+    }
 
     if (EEL_PME(fr->ic->eeltype) && (cr->duty & DUTY_PME))
     {
@@ -142,8 +147,14 @@ void mdAlgorithmsSetupAtomData(const t_commrec*        cr,
 
     if (constr)
     {
-        constr->setConstraints(top, mdatoms->nr, mdatoms->homenr, mdatoms->massT, mdatoms->invmass,
-                               mdatoms->nMassPerturbed != 0, mdatoms->lambda, mdatoms->cFREEZE);
+        constr->setConstraints(top,
+                               mdatoms->nr,
+                               mdatoms->homenr,
+                               mdatoms->massT,
+                               mdatoms->invmass,
+                               mdatoms->nMassPerturbed != 0,
+                               mdatoms->lambda,
+                               mdatoms->cFREEZE);
     }
 }
 

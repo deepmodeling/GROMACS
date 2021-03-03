@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -90,7 +90,9 @@ void init_orires(FILE*                 fplog,
         gmx_fatal(FARGS,
                   "The system has %d orientation restraints, but at least %d are required, since "
                   "there are %d fitting parameters.",
-                  od->nr, numFitParams + 1, numFitParams);
+                  od->nr,
+                  numFitParams + 1,
+                  numFitParams);
     }
 
     if (ir->bPeriodicMols)
@@ -191,9 +193,9 @@ void init_orires(FILE*                 fplog,
         od->edt_1 = 1.0 - od->edt;
 
         /* Extend the state with the orires history */
-        globalState->flags |= (1 << estORIRE_INITF);
+        globalState->flags |= enumValueToBitMask(StateEntry::OrireInitF);
         globalState->hist.orire_initf = 1;
-        globalState->flags |= (1 << estORIRE_DTAV);
+        globalState->flags |= enumValueToBitMask(StateEntry::OrireDtav);
         globalState->hist.norire_Dtav = od->nr * 5;
         snew(globalState->hist.orire_Dtav, globalState->hist.norire_Dtav);
     }
@@ -282,8 +284,7 @@ void init_orires(FILE*                 fplog,
 
     if (ms)
     {
-        fprintf(fplog, "  the orientation restraints are ensemble averaged over %d systems\n",
-                ms->numSimulations_);
+        fprintf(fplog, "  the orientation restraints are ensemble averaged over %d systems\n", ms->numSimulations_);
 
         check_multi_int(fplog, ms, od->nr, "the number of orientation restraints", FALSE);
         check_multi_int(fplog, ms, od->nref, "the number of fit atoms for orientation restraining", FALSE);
@@ -374,8 +375,12 @@ void print_orires_log(FILE* log, t_oriresdata* od)
         fprintf(log, "    order parameter: %g\n", eig[0]);
         for (int i = 0; i < DIM; i++)
         {
-            fprintf(log, "    eig: %6.3f   %6.3f %6.3f %6.3f\n", (eig[0] != 0) ? eig[i] / eig[0] : eig[i],
-                    eig[DIM + i * DIM + XX], eig[DIM + i * DIM + YY], eig[DIM + i * DIM + ZZ]);
+            fprintf(log,
+                    "    eig: %6.3f   %6.3f %6.3f %6.3f\n",
+                    (eig[0] != 0) ? eig[i] / eig[0] : eig[i],
+                    eig[DIM + i * DIM + XX],
+                    eig[DIM + i * DIM + YY],
+                    eig[DIM + i * DIM + ZZ]);
         }
         fprintf(log, "\n");
     }
@@ -390,7 +395,7 @@ real calc_orires_dev(const gmx_multisim_t* ms,
                      const rvec            x[],
                      const t_pbc*          pbc,
                      t_oriresdata*         od,
-                     history_t*            hist)
+                     const history_t*      hist)
 {
     int          nref;
     real         edt, edt_1, invn, pfac, r2, invr, corrfac, wsv2, sw, dev;
@@ -653,28 +658,28 @@ real orires(int             nfa,
             real gmx_unused lambda,
             real gmx_unused* dvdlambda,
             const t_mdatoms gmx_unused* md,
-            t_fcdata*                   fcd,
+            t_fcdata gmx_unused* fcd,
+            t_disresdata gmx_unused* disresdata,
+            t_oriresdata*            oriresdata,
             int gmx_unused* global_atom_index)
 {
-    int                 ex, power, ki = CENTRAL;
-    real                r2, invr, invr2, fc, smooth_fc, dev, devins, pfac;
-    rvec                r, Sr, fij;
-    real                vtot;
-    const t_oriresdata* od;
-    gmx_bool            bTAV;
+    int      ex, power, ki = CENTRAL;
+    real     r2, invr, invr2, fc, smooth_fc, dev, devins, pfac;
+    rvec     r, Sr, fij;
+    real     vtot;
+    gmx_bool bTAV;
 
     vtot = 0;
-    od   = fcd->orires;
 
-    if (od->fc != 0)
+    if (oriresdata->fc != 0)
     {
-        bTAV = (od->edt != 0);
+        bTAV = (oriresdata->edt != 0);
 
-        smooth_fc = od->fc;
+        smooth_fc = oriresdata->fc;
         if (bTAV)
         {
             /* Smoothly switch on the restraining when time averaging is used */
-            smooth_fc *= (1.0 - od->exp_min_t_tau);
+            smooth_fc *= (1.0 - oriresdata->exp_min_t_tau);
         }
 
         for (int fa = 0; fa < nfa; fa += 3)
@@ -682,7 +687,7 @@ real orires(int             nfa,
             const int type           = forceatoms[fa];
             const int ai             = forceatoms[fa + 1];
             const int aj             = forceatoms[fa + 2];
-            const int restraintIndex = type - od->typeMin;
+            const int restraintIndex = type - oriresdata->typeMin;
             if (pbc)
             {
                 ki = pbc_dx_aiuc(pbc, x[ai], x[aj], r);
@@ -697,7 +702,7 @@ real orires(int             nfa,
             ex    = ip[type].orires.ex;
             power = ip[type].orires.power;
             fc    = smooth_fc * ip[type].orires.kfac;
-            dev   = od->otav[restraintIndex] - ip[type].orires.obs;
+            dev   = oriresdata->otav[restraintIndex] - ip[type].orires.obs;
 
             /* NOTE:
              * there is no real potential when time averaging is applied
@@ -707,7 +712,7 @@ real orires(int             nfa,
             if (bTAV)
             {
                 /* Calculate the force as the sqrt of tav times instantaneous */
-                devins = od->oins[restraintIndex] - ip[type].orires.obs;
+                devins = oriresdata->oins[restraintIndex] - ip[type].orires.obs;
                 if (dev * devins <= 0)
                 {
                     dev = 0;
@@ -727,7 +732,7 @@ real orires(int             nfa,
             {
                 pfac *= invr;
             }
-            mvmul(od->S[ex], r, Sr);
+            mvmul(oriresdata->S[ex], r, Sr);
             for (int i = 0; i < DIM; i++)
             {
                 fij[i] = -pfac * dev * (4 * Sr[i] - 2 * (2 + power) * invr2 * iprod(Sr, r) * r[i]);

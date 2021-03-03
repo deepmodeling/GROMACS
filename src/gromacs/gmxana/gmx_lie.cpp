@@ -71,7 +71,7 @@ static t_liedata* analyze_names(int nre, gmx_enxnm_t* names, const char* ligand)
     char       self[256];
 
     /* Skip until we come to pressure */
-    for (i = 0; (i < F_NRE); i++)
+    for (i = 0; (i < nre); i++)
     {
         if (std::strcmp(names[i].name, interaction_function[F_PRES].longname) == 0)
         {
@@ -184,8 +184,8 @@ int gmx_lie(int argc, char* argv[])
     t_filenm fnm[] = { { efEDR, "-f", "ener", ffREAD }, { efXVG, "-o", "lie", ffWRITE } };
 #define NFILE asize(fnm)
 
-    if (!parse_common_args(&argc, argv, PCA_CAN_VIEW | PCA_CAN_TIME, NFILE, fnm, NPA, pa,
-                           asize(desc), desc, 0, nullptr, &oenv))
+    if (!parse_common_args(
+                &argc, argv, PCA_CAN_VIEW | PCA_CAN_TIME, NFILE, fnm, NPA, pa, asize(desc), desc, 0, nullptr, &oenv))
     {
         return 0;
     }
@@ -196,8 +196,8 @@ int gmx_lie(int argc, char* argv[])
     ld = analyze_names(nre, enm, ligand);
     snew(fr, 1);
 
-    out = xvgropen(ftp2fn(efXVG, NFILE, fnm), "LIE free energy estimate", "Time (ps)",
-                   "DGbind (kJ/mol)", oenv);
+    out = xvgropen(
+            ftp2fn(efXVG, NFILE, fnm), "LIE free energy estimate", "Time (ps)", "DGbind (kJ/mol)", oenv);
     while (do_enx(fp, fr))
     {
         ct = check_times(fr->t);
@@ -216,7 +216,8 @@ int gmx_lie(int argc, char* argv[])
 
     if (nframes > 0)
     {
-        printf("DGbind = %.3f (%.3f)\n", lieaver / nframes,
+        printf("DGbind = %.3f (%.3f)\n",
+               lieaver / nframes,
                std::sqrt(lieav2 / nframes - gmx::square(lieaver / nframes)));
     }
 

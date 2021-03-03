@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,9 +46,8 @@
 #ifndef GMX_GPU_UTILS_GPUSTREAMMANAGER_H
 #define GMX_GPU_UTILS_GPUSTREAMMANAGER_H
 
+#include <memory>
 #include <string>
-
-#include "gromacs/utility/classhelpers.h"
 
 class DeviceContext;
 struct DeviceInformation;
@@ -56,6 +55,8 @@ class DeviceStream;
 
 namespace gmx
 {
+
+class SimulationWorkload;
 
 /*! \brief Class enum to describe the different logical streams used
  * for GPU work.
@@ -98,10 +99,8 @@ public:
      * \throws InternalError  If any of the required resources could not be initialized.
      */
     DeviceStreamManager(const DeviceInformation& deviceInfo,
-                        bool                     useGpuForPme,
                         bool                     havePpDomainDecomposition,
-                        bool                     doGpuPmePpTransfer,
-                        bool                     useGpuForUpdate,
+                        SimulationWorkload       simulationWork,
                         bool                     useTiming);
     ~DeviceStreamManager();
 
@@ -140,7 +139,7 @@ public:
 
 private:
     class Impl;
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace gmx

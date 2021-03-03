@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -51,6 +51,8 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
+#include "nbnxm.h"
+
 struct interaction_const_t;
 struct nbnxn_atomdata_t;
 struct gmx_wallcycle;
@@ -62,52 +64,6 @@ class GpuBonded;
 class StepWorkload;
 } // namespace gmx
 
-/*! \brief Nbnxm electrostatic GPU kernel flavors.
- *
- *  Types of electrostatics implementations available in the GPU non-bonded
- *  force kernels. These represent both the electrostatics types implemented
- *  by the kernels (cut-off, RF, and Ewald - a subset of what's defined in
- *  enums.h) as well as encode implementation details analytical/tabulated
- *  and single or twin cut-off (for Ewald kernels).
- *  Note that the cut-off and RF kernels have only analytical flavor and unlike
- *  in the CPU kernels, the tabulated kernels are ATM Ewald-only.
- *
- *  The row-order of pointers to different electrostatic kernels defined in
- *  nbnxn_cuda.cu by the nb_*_kfunc_ptr function pointer table
- *  should match the order of enumerated types below.
- */
-enum eelType
-{
-    eelTypeCUT,
-    eelTypeRF,
-    eelTypeEWALD_TAB,
-    eelTypeEWALD_TAB_TWIN,
-    eelTypeEWALD_ANA,
-    eelTypeEWALD_ANA_TWIN,
-    eelTypeNR
-};
-
-/*! \brief Nbnxm VdW GPU kernel flavors.
- *
- * The enumerates values correspond to the LJ implementations in the GPU non-bonded
- * kernels.
- *
- * The column-order of pointers to different electrostatic kernels defined in
- * nbnxn_cuda_ocl.cpp/.cu by the nb_*_kfunc_ptr function pointer table
- * should match the order of enumerated types below.
- */
-enum evdwType
-{
-    evdwTypeCUT,
-    evdwTypeCUTCOMBGEOM,
-    evdwTypeCUTCOMBLB,
-    evdwTypeFSWITCH,
-    evdwTypePSWITCH,
-    evdwTypeEWALDGEOM,
-    evdwTypeEWALDLB,
-    evdwTypeNR
-};
-
 namespace Nbnxm
 {
 
@@ -115,14 +71,14 @@ class Grid;
 
 /*! \brief Returns true if LJ combination rules are used in the non-bonded kernels.
  *
- *  \param[in] vdwType  The VdW interaction/implementation type as defined by evdwType
+ *  \param[in] vdwType  The VdW interaction/implementation type as defined by VdwType
  *                      enumeration.
  *
  * \returns Whether combination rules are used by the run.
  */
-static inline bool useLjCombRule(const int vdwType)
+static inline bool useLjCombRule(const enum VdwType vdwType)
 {
-    return (vdwType == evdwTypeCUTCOMBGEOM || vdwType == evdwTypeCUTCOMBLB);
+    return (vdwType == VdwType::CutCombGeom || vdwType == VdwType::CutCombLB);
 }
 
 /*! \brief
@@ -288,7 +244,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet gmx_unused& gridSet,
  * \param[in,out] gpu_nbv          The nonbonded data GPU structure.
  * \param[in]     d_x              Device-side coordinates in plain rvec format.
  * \param[in]     xReadyOnDevice   Event synchronizer indicating that the coordinates are ready in
- * the device memory. \param[in]     locality         Copy coordinates for local or non-local atoms.
+ * the device memory.
+ * \param[in]     locality         Copy coordinates for local or non-local atoms.
  * \param[in]     gridId           Index of the grid being converted.
  * \param[in]     numColumnsMax    Maximum number of columns in the grid.
  */
@@ -303,12 +260,18 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid gmx_unused& grid,
                            int gmx_unused numColumnsMax) CUDA_FUNC_TERM;
 
 /*! \brief Sync the nonlocal stream with dependent tasks in the local queue.
+ *
+ *  As the point where the local stream tasks can be considered complete happens
+ *  at the same call point where the nonlocal stream should be synced with the
+ *  the local, this function records the event if called with the local stream as
+ *  argument and inserts in the GPU stream a wait on the event on the nonlocal.
+ *
  * \param[in] nb                   The nonbonded data GPU structure
  * \param[in] interactionLocality  Local or NonLocal sync point
  */
-CUDA_FUNC_QUALIFIER
-void nbnxnInsertNonlocalGpuDependency(const NbnxmGpu gmx_unused* nb,
-                                      gmx::InteractionLocality gmx_unused interactionLocality) CUDA_FUNC_TERM;
+GPU_FUNC_QUALIFIER
+void nbnxnInsertNonlocalGpuDependency(NbnxmGpu gmx_unused* nb,
+                                      gmx::InteractionLocality gmx_unused interactionLocality) GPU_FUNC_TERM;
 
 /*! \brief Set up internal flags that indicate what type of short-range work there is.
  *
@@ -340,45 +303,19 @@ GPU_FUNC_QUALIFIER
 bool haveGpuShortRangeWork(const NbnxmGpu gmx_unused* nb, gmx::AtomLocality gmx_unused aLocality)
         GPU_FUNC_TERM_WITH_RETURN(false);
 
-/*! \brief Initialization for F buffer operations on GPU */
-CUDA_FUNC_QUALIFIER
-void nbnxn_gpu_init_add_nbat_f_to_f(const int gmx_unused* cell,
-                                    NbnxmGpu gmx_unused* gpu_nbv,
-                                    int gmx_unused       natoms_total,
-                                    GpuEventSynchronizer gmx_unused* localReductionDone) CUDA_FUNC_TERM;
-
-/*! \brief Force buffer operations on GPU.
- *
- * Transforms non-bonded forces into plain rvec format and add all the force components to the total
- * force buffer
- *
- * \param[in]   atomLocality         If the reduction should be performed on local or non-local atoms.
- * \param[in]   totalForcesDevice    Device buffer to accumulate resulting force.
- * \param[in]   gpu_nbv              The NBNXM GPU data structure.
- * \param[in]   pmeForcesDevice      Device buffer with PME forces.
- * \param[in]   dependencyList       List of synchronizers that represent the dependencies the reduction task needs to sync on.
- * \param[in]   atomStart            Index of the first atom to reduce forces for.
- * \param[in]   numAtoms             Number of atoms to reduce forces for.
- * \param[in]   useGpuFPmeReduction  Whether PME forces should be added.
- * \param[in]   accumulateForce      Whether there are usefull data already in the total force buffer.
- *
- */
-CUDA_FUNC_QUALIFIER
-void nbnxn_gpu_add_nbat_f_to_f(gmx::AtomLocality gmx_unused atomLocality,
-                               DeviceBuffer<gmx::RVec> gmx_unused totalForcesDevice,
-                               NbnxmGpu gmx_unused* gpu_nbv,
-                               void gmx_unused*                           pmeForcesDevice,
-                               gmx::ArrayRef<GpuEventSynchronizer* const> gmx_unused dependencyList,
-                               int gmx_unused atomStart,
-                               int gmx_unused numAtoms,
-                               bool gmx_unused useGpuFPmeReduction,
-                               bool gmx_unused accumulateForce) CUDA_FUNC_TERM;
-
 /*! \brief sync CPU thread on coordinate copy to device
  * \param[in] nb                   The nonbonded data GPU structure
  */
 CUDA_FUNC_QUALIFIER
 void nbnxn_wait_x_on_device(NbnxmGpu gmx_unused* nb) CUDA_FUNC_TERM;
+
+/*! \brief Get the pointer to the GPU nonbonded force buffer
+ *
+ * \param[in] nb  The nonbonded data GPU structure
+ * \returns       A pointer to the force buffer in GPU memory
+ */
+CUDA_FUNC_QUALIFIER
+void* getGpuForces(NbnxmGpu gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 } // namespace Nbnxm
 #endif

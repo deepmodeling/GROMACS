@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -61,6 +61,7 @@
 #include "gromacs/gpu_utils/devicebuffer.h"
 #include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
+#include "gromacs/math/functions.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/pbcutil/pbc_aiuc_cuda.cuh"
@@ -405,7 +406,7 @@ void SettleGpu::apply(const float3* d_x,
                       const PbcAiuc pbcAiuc)
 {
 
-    ensureNoPendingCudaError("In CUDA version SETTLE");
+    ensureNoPendingDeviceError("In CUDA version SETTLE");
 
     // Early exit if no settles
     if (numSettles_ == 0)
@@ -439,17 +440,20 @@ void SettleGpu::apply(const float3* d_x,
         config.sharedMemorySize = 0;
     }
 
-    const auto kernelArgs = prepareGpuKernelArguments(kernelPtr, config, &numSettles_, &d_atomIds_,
-                                                      &settleParameters_, &d_x, &d_xp, &invdt, &d_v,
-                                                      &d_virialScaled_, &pbcAiuc);
+    const auto kernelArgs = prepareGpuKernelArguments(
+            kernelPtr, config, &numSettles_, &d_atomIds_, &settleParameters_, &d_x, &d_xp, &invdt, &d_v, &d_virialScaled_, &pbcAiuc);
 
-    launchGpuKernel(kernelPtr, config, deviceStream_, nullptr,
-                    "settle_kernel<updateVelocities, computeVirial>", kernelArgs);
+    launchGpuKernel(kernelPtr,
+                    config,
+                    deviceStream_,
+                    nullptr,
+                    "settle_kernel<updateVelocities, computeVirial>",
+                    kernelArgs);
 
     if (computeVirial)
     {
-        copyFromDeviceBuffer(h_virialScaled_.data(), &d_virialScaled_, 0, 6, deviceStream_,
-                             GpuApiCallBehavior::Sync, nullptr);
+        copyFromDeviceBuffer(
+                h_virialScaled_.data(), &d_virialScaled_, 0, 6, deviceStream_, GpuApiCallBehavior::Sync, nullptr);
 
         // Mapping [XX, XY, XZ, YY, YZ, ZZ] internal format to a tensor object
         virialScaled[XX][XX] += h_virialScaled_[0];
@@ -475,7 +479,7 @@ SettleGpu::SettleGpu(const gmx_mtop_t& mtop, const DeviceContext& deviceContext,
     static_assert(sizeof(real) == sizeof(float),
                   "Real numbers should be in single precision in GPU code.");
     static_assert(
-            c_threadsPerBlock > 0 && ((c_threadsPerBlock & (c_threadsPerBlock - 1)) == 0),
+            gmx::isPowerOfTwo(c_threadsPerBlock),
             "Number of threads per block should be a power of two in order for reduction to work.");
 
     // This is to prevent the assertion failure for the systems without water
@@ -605,8 +609,8 @@ void SettleGpu::set(const InteractionDefinitions& idef)
         settler.z        = iatoms[i * nral1 + 3]; // Second hydrogen index
         h_atomIds_.at(i) = settler;
     }
-    copyToDeviceBuffer(&d_atomIds_, h_atomIds_.data(), 0, numSettles_, deviceStream_,
-                       GpuApiCallBehavior::Sync, nullptr);
+    copyToDeviceBuffer(
+            &d_atomIds_, h_atomIds_.data(), 0, numSettles_, deviceStream_, GpuApiCallBehavior::Sync, nullptr);
 }
 
 } // namespace gmx

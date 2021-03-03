@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -57,6 +57,7 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/simd/simd.h"
 #include "gromacs/utility/fatalerror.h"
+#include "gromacs/utility/arrayref.h"
 
 
 //! Scalar (non-SIMD) data types.
@@ -88,54 +89,54 @@ static inline void pthRoot(const RealType r, RealType* pthRoot, RealType* invPth
 }
 
 template<class RealType>
-static inline RealType calculateRinv6(const RealType rinvV)
+static inline RealType calculateRinv6(const RealType rInvV)
 {
-    RealType rinv6 = rinvV * rinvV;
-    return (rinv6 * rinv6 * rinv6);
+    RealType rInv6 = rInvV * rInvV;
+    return (rInv6 * rInv6 * rInv6);
 }
 
 template<class RealType>
-static inline RealType calculateVdw6(const RealType c6, const RealType rinv6)
+static inline RealType calculateVdw6(const RealType c6, const RealType rInv6)
 {
-    return (c6 * rinv6);
+    return (c6 * rInv6);
 }
 
 template<class RealType>
-static inline RealType calculateVdw12(const RealType c12, const RealType rinv6)
+static inline RealType calculateVdw12(const RealType c12, const RealType rInv6)
 {
-    return (c12 * rinv6 * rinv6);
+    return (c12 * rInv6 * rInv6);
 }
 
 /* reaction-field electrostatics */
 template<class RealType>
 static inline RealType reactionFieldScalarForce(const RealType qq,
-                                                const RealType rinv,
+                                                const RealType rInv,
                                                 const RealType r,
                                                 const real     krf,
                                                 const real     two)
 {
-    return (qq * (rinv - two * krf * r * r));
+    return (qq * (rInv - two * krf * r * r));
 }
 template<class RealType>
 static inline RealType reactionFieldPotential(const RealType qq,
-                                              const RealType rinv,
+                                              const RealType rInv,
                                               const RealType r,
                                               const real     krf,
                                               const real     potentialShift)
 {
-    return (qq * (rinv + krf * r * r - potentialShift));
+    return (qq * (rInv + krf * r * r - potentialShift));
 }
 
 /* Ewald electrostatics */
 template<class RealType>
-static inline RealType ewaldScalarForce(const RealType coulomb, const RealType rinv)
+static inline RealType ewaldScalarForce(const RealType coulomb, const RealType rInv)
 {
-    return (coulomb * rinv);
+    return (coulomb * rInv);
 }
 template<class RealType>
-static inline RealType ewaldPotential(const RealType coulomb, const RealType rinv, const real potentialShift)
+static inline RealType ewaldPotential(const RealType coulomb, const RealType rInv, const real potentialShift)
 {
-    return (coulomb * (rinv - potentialShift));
+    return (coulomb * (rInv - potentialShift));
 }
 
 /* cutoff LJ */
@@ -151,16 +152,16 @@ static inline RealType lennardJonesPotential(const RealType v6,
                                              const RealType c12,
                                              const real     repulsionShift,
                                              const real     dispersionShift,
-                                             const real     onesixth,
-                                             const real     onetwelfth)
+                                             const real     oneSixth,
+                                             const real     oneTwelfth)
 {
-    return ((v12 + c12 * repulsionShift) * onetwelfth - (v6 + c6 * dispersionShift) * onesixth);
+    return ((v12 + c12 * repulsionShift) * oneTwelfth - (v6 + c6 * dispersionShift) * oneSixth);
 }
 
 /* Ewald LJ */
-static inline real ewaldLennardJonesGridSubtract(const real c6grid, const real potentialShift, const real onesixth)
+static inline real ewaldLennardJonesGridSubtract(const real c6grid, const real potentialShift, const real oneSixth)
 {
-    return (c6grid * potentialShift * onesixth);
+    return (c6grid * potentialShift * oneSixth);
 }
 
 /* LJ Potential switch */
@@ -214,8 +215,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     using IntType  = typename DataTypes::IntType;
 
     /* FIXME: How should these be handled with SIMD? */
-    constexpr real onetwelfth = 1.0 / 12.0;
-    constexpr real onesixth   = 1.0 / 6.0;
+    constexpr real oneTwelfth = 1.0 / 12.0;
+    constexpr real oneSixth   = 1.0 / 6.0;
     constexpr real zero       = 0.0;
     constexpr real half       = 0.5;
     constexpr real one        = 1.0;
@@ -223,51 +224,54 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     constexpr real six        = 6.0;
 
     /* Extract pointer to non-bonded interaction constants */
-    const interaction_const_t* ic = fr->ic;
+    const interaction_const_t* ic = fr->ic.get();
 
     // Extract pair list data
-    const int  nri    = nlist->nri;
-    const int* iinr   = nlist->iinr;
-    const int* jindex = nlist->jindex;
-    const int* jjnr   = nlist->jjnr;
-    const int* shift  = nlist->shift;
-    const int* gid    = nlist->gid;
+    const int                nri    = nlist->nri;
+    gmx::ArrayRef<const int> iinr   = nlist->iinr;
+    gmx::ArrayRef<const int> jindex = nlist->jindex;
+    gmx::ArrayRef<const int> jjnr   = nlist->jjnr;
+    gmx::ArrayRef<const int> shift  = nlist->shift;
+    gmx::ArrayRef<const int> gid    = nlist->gid;
 
-    const real* shiftvec      = fr->shift_vec[0];
-    const real* chargeA       = mdatoms->chargeA;
-    const real* chargeB       = mdatoms->chargeB;
-    real*       Vc            = kernel_data->energygrp_elec;
-    const int*  typeA         = mdatoms->typeA;
-    const int*  typeB         = mdatoms->typeB;
-    const int   ntype         = fr->ntype;
-    const real* nbfp          = fr->nbfp.data();
-    const real* nbfp_grid     = fr->ljpme_c6grid;
-    real*       Vv            = kernel_data->energygrp_vdw;
-    const real  lambda_coul   = kernel_data->lambda[efptCOUL];
-    const real  lambda_vdw    = kernel_data->lambda[efptVDW];
-    real*       dvdl          = kernel_data->dvdl;
-    const auto& scParams      = *ic->softCoreParameters;
-    const real  alpha_coul    = scParams.alphaCoulomb;
-    const real  alpha_vdw     = scParams.alphaVdw;
-    const real  lam_power     = scParams.lambdaPower;
-    const real  sigma6_def    = scParams.sigma6WithInvalidSigma;
-    const real  sigma6_min    = scParams.sigma6Minimum;
-    const bool  doForces      = ((kernel_data->flags & GMX_NONBONDED_DO_FORCE) != 0);
-    const bool  doShiftForces = ((kernel_data->flags & GMX_NONBONDED_DO_SHIFTFORCE) != 0);
-    const bool  doPotential   = ((kernel_data->flags & GMX_NONBONDED_DO_POTENTIAL) != 0);
+    const real*               shiftvec  = fr->shift_vec[0];
+    const real*               chargeA   = mdatoms->chargeA;
+    const real*               chargeB   = mdatoms->chargeB;
+    real*                     Vc        = kernel_data->energygrp_elec;
+    const int*                typeA     = mdatoms->typeA;
+    const int*                typeB     = mdatoms->typeB;
+    const int                 ntype     = fr->ntype;
+    gmx::ArrayRef<const real> nbfp      = fr->nbfp;
+    gmx::ArrayRef<const real> nbfp_grid = fr->ljpme_c6grid;
+
+    real*      Vv = kernel_data->energygrp_vdw;
+    const real lambda_coul =
+            kernel_data->lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Coul)];
+    const real lambda_vdw =
+            kernel_data->lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Vdw)];
+    gmx::ArrayRef<real> dvdl          = kernel_data->dvdl;
+    const auto&         scParams      = *ic->softCoreParameters;
+    const real          alpha_coul    = scParams.alphaCoulomb;
+    const real          alpha_vdw     = scParams.alphaVdw;
+    const real          lam_power     = scParams.lambdaPower;
+    const real          sigma6_def    = scParams.sigma6WithInvalidSigma;
+    const real          sigma6_min    = scParams.sigma6Minimum;
+    const bool          doForces      = ((kernel_data->flags & GMX_NONBONDED_DO_FORCE) != 0);
+    const bool          doShiftForces = ((kernel_data->flags & GMX_NONBONDED_DO_SHIFTFORCE) != 0);
+    const bool          doPotential   = ((kernel_data->flags & GMX_NONBONDED_DO_POTENTIAL) != 0);
 
     // Extract data from interaction_const_t
     const real facel           = ic->epsfac;
-    const real rcoulomb        = ic->rcoulomb;
-    const real krf             = ic->k_rf;
-    const real crf             = ic->c_rf;
-    const real sh_lj_ewald     = ic->sh_lj_ewald;
-    const real rvdw            = ic->rvdw;
+    const real rCoulomb        = ic->rcoulomb;
+    const real krf             = ic->reactionFieldCoefficient;
+    const real crf             = ic->reactionFieldShift;
+    const real shLjEwald       = ic->sh_lj_ewald;
+    const real rVdw            = ic->rvdw;
     const real dispersionShift = ic->dispersion_shift.cpot;
     const real repulsionShift  = ic->repulsion_shift.cpot;
 
     // Note that the nbnxm kernels do not support Coulomb potential switching at all
-    GMX_ASSERT(ic->coulomb_modifier != eintmodPOTSWITCH,
+    GMX_ASSERT(ic->coulomb_modifier != InteractionModifiers::PotSwitch,
                "Potential switching is not supported for Coulomb with FEP");
 
     real vdw_swV3, vdw_swV4, vdw_swV5, vdw_swF2, vdw_swF3, vdw_swF4;
@@ -287,14 +291,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
         vdw_swV3 = vdw_swV4 = vdw_swV5 = vdw_swF2 = vdw_swF3 = vdw_swF4 = 0.0;
     }
 
-    int icoul;
-    if (ic->eeltype == eelCUT || EEL_RF(ic->eeltype))
+    NbkernelElecType icoul;
+    if (ic->eeltype == CoulombInteractionType::Cut || EEL_RF(ic->eeltype))
     {
-        icoul = GMX_NBKERNEL_ELEC_REACTIONFIELD;
+        icoul = NbkernelElecType::ReactionField;
     }
     else
     {
-        icoul = GMX_NBKERNEL_ELEC_NONE;
+        icoul = NbkernelElecType::None;
     }
 
     real rcutoff_max2 = std::max(ic->rcoulomb, ic->rvdw);
@@ -343,8 +347,8 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     GMX_RELEASE_ASSERT(!(vdwInteractionTypeIsEwald && vdwModifierIsPotSwitch),
                        "Can not apply soft-core to switched Ewald potentials");
 
-    real dvdl_coul = 0;
-    real dvdl_vdw  = 0;
+    real dvdlCoul = 0;
+    real dvdlVdw  = 0;
 
     /* Lambda factor for state A, 1-lambda*/
     real LFC[NSTATES], LFV[NSTATES];
@@ -360,20 +364,24 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     DLF[STATE_A] = -1;
     DLF[STATE_B] = 1;
 
-    real           lfac_coul[NSTATES], dlfac_coul[NSTATES], lfac_vdw[NSTATES], dlfac_vdw[NSTATES];
+    real           lFacCoul[NSTATES], dlFacCoul[NSTATES], lFacVdw[NSTATES], dlFacVdw[NSTATES];
     constexpr real sc_r_power = 6.0_real;
     for (int i = 0; i < NSTATES; i++)
     {
-        lfac_coul[i]  = (lam_power == 2 ? (1 - LFC[i]) * (1 - LFC[i]) : (1 - LFC[i]));
-        dlfac_coul[i] = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFC[i]) : 1);
-        lfac_vdw[i]   = (lam_power == 2 ? (1 - LFV[i]) * (1 - LFV[i]) : (1 - LFV[i]));
-        dlfac_vdw[i]  = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFV[i]) : 1);
+        lFacCoul[i]  = (lam_power == 2 ? (1 - LFC[i]) * (1 - LFC[i]) : (1 - LFC[i]));
+        dlFacCoul[i] = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFC[i]) : 1);
+        lFacVdw[i]   = (lam_power == 2 ? (1 - LFV[i]) * (1 - LFV[i]) : (1 - LFV[i]));
+        dlFacVdw[i]  = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFV[i]) : 1);
     }
 
     // TODO: We should get rid of using pointers to real
     const real* x             = xx[0];
     real* gmx_restrict f      = &(forceWithShiftForces->force()[0][0]);
     real* gmx_restrict fshift = &(forceWithShiftForces->shiftForces()[0][0]);
+
+    const real rlistSquared = gmx::square(fr->rlist);
+
+    int numExcludedPairsBeyondRlist = 0;
 
     for (int n = 0; n < nri; n++)
     {
@@ -394,29 +402,29 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
         const real iqB   = facel * chargeB[ii];
         const int  ntiA  = 2 * ntype * typeA[ii];
         const int  ntiB  = 2 * ntype * typeB[ii];
-        real       vctot = 0;
-        real       vvtot = 0;
-        real       fix   = 0;
-        real       fiy   = 0;
-        real       fiz   = 0;
+        real       vCTot = 0;
+        real       vVTot = 0;
+        real       fIX   = 0;
+        real       fIY   = 0;
+        real       fIZ   = 0;
 
         for (int k = nj0; k < nj1; k++)
         {
             int            tj[NSTATES];
             const int      jnr = jjnr[k];
             const int      j3  = 3 * jnr;
-            RealType       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
-            RealType       r, rinv, rp, rpm2;
-            RealType       alpha_vdw_eff, alpha_coul_eff, sigma6[NSTATES];
-            const RealType dx  = ix - x[j3];
-            const RealType dy  = iy - x[j3 + 1];
-            const RealType dz  = iz - x[j3 + 2];
-            const RealType rsq = dx * dx + dy * dy + dz * dz;
-            RealType       FscalC[NSTATES], FscalV[NSTATES];
+            RealType       c6[NSTATES], c12[NSTATES], qq[NSTATES], vCoul[NSTATES], vVdw[NSTATES];
+            RealType       r, rInv, rp, rpm2;
+            RealType       alphaVdwEff, alphaCoulEff, sigma6[NSTATES];
+            const RealType dX  = ix - x[j3];
+            const RealType dY  = iy - x[j3 + 1];
+            const RealType dZ  = iz - x[j3 + 2];
+            const RealType rSq = dX * dX + dY * dY + dZ * dZ;
+            RealType       fScalC[NSTATES], fScalV[NSTATES];
             /* Check if this pair on the exlusions list.*/
-            const bool bPairIncluded = nlist->excl_fep == nullptr || nlist->excl_fep[k];
+            const bool bPairIncluded = nlist->excl_fep.empty() || nlist->excl_fep[k];
 
-            if (rsq >= rcutoff_max2 && bPairIncluded)
+            if (rSq >= rcutoff_max2 && bPairIncluded)
             {
                 /* We save significant time by skipping all code below.
                  * Note that with soft-core interactions, the actual cut-off
@@ -431,16 +439,21 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             }
             npair_within_cutoff++;
 
-            if (rsq > 0)
+            if (rSq > rlistSquared)
+            {
+                numExcludedPairsBeyondRlist++;
+            }
+
+            if (rSq > 0)
             {
                 /* Note that unlike in the nbnxn kernels, we do not need
-                 * to clamp the value of rsq before taking the invsqrt
+                 * to clamp the value of rSq before taking the invsqrt
                  * to avoid NaN in the LJ calculation, since here we do
                  * not calculate LJ interactions when C6 and C12 are zero.
                  */
 
-                rinv = gmx::invsqrt(rsq);
-                r    = rsq * rinv;
+                rInv = gmx::invsqrt(rSq);
+                r    = rSq * rInv;
             }
             else
             {
@@ -448,14 +461,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * But note that the potential is in general non-zero,
                  * since the soft-cored r will be non-zero.
                  */
-                rinv = 0;
+                rInv = 0;
                 r    = 0;
             }
 
             if (useSoftCore)
             {
-                rpm2 = rsq * rsq;  /* r4 */
-                rp   = rpm2 * rsq; /* r6 */
+                rpm2 = rSq * rSq;  /* r4 */
+                rp   = rpm2 * rSq; /* r6 */
             }
             else
             {
@@ -463,11 +476,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * with not using soft-core, so we use power of 0 which gives
                  * the simplest math and cheapest code.
                  */
-                rpm2 = rinv * rinv;
+                rpm2 = rInv * rInv;
                 rp   = 1;
             }
 
-            RealType Fscal = 0;
+            RealType fScal = 0;
 
             qq[STATE_A] = iqA * chargeA[jnr];
             qq[STATE_B] = iqB * chargeB[jnr];
@@ -506,24 +519,24 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     /* only use softcore if one of the states has a zero endstate - softcore is for avoiding infinities!*/
                     if ((c12[STATE_A] > 0) && (c12[STATE_B] > 0))
                     {
-                        alpha_vdw_eff  = 0;
-                        alpha_coul_eff = 0;
+                        alphaVdwEff  = 0;
+                        alphaCoulEff = 0;
                     }
                     else
                     {
-                        alpha_vdw_eff  = alpha_vdw;
-                        alpha_coul_eff = alpha_coul;
+                        alphaVdwEff  = alpha_vdw;
+                        alphaCoulEff = alpha_coul;
                     }
                 }
 
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    FscalC[i] = 0;
-                    FscalV[i] = 0;
-                    Vcoul[i]  = 0;
-                    Vvdw[i]   = 0;
+                    fScalC[i] = 0;
+                    fScalV[i] = 0;
+                    vCoul[i]  = 0;
+                    vVdw[i]   = 0;
 
-                    RealType rinvC, rinvV, rC, rV, rpinvC, rpinvV;
+                    RealType rInvC, rInvV, rC, rV, rPInvC, rPInvV;
 
                     /* Only spend time on A or B state if it is non-zero */
                     if ((qq[i] != 0) || (c6[i] != 0) || (c12[i] != 0))
@@ -531,29 +544,29 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma6 */
                         if (useSoftCore)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma6[i] + rp);
-                            pthRoot(rpinvC, &rinvC, &rC);
+                            rPInvC = one / (alphaCoulEff * lFacCoul[i] * sigma6[i] + rp);
+                            pthRoot(rPInvC, &rInvC, &rC);
                             if (scLambdasOrAlphasDiffer)
                             {
-                                rpinvV = one / (alpha_vdw_eff * lfac_vdw[i] * sigma6[i] + rp);
-                                pthRoot(rpinvV, &rinvV, &rV);
+                                rPInvV = one / (alphaVdwEff * lFacVdw[i] * sigma6[i] + rp);
+                                pthRoot(rPInvV, &rInvV, &rV);
                             }
                             else
                             {
                                 /* We can avoid one expensive pow and one / operation */
-                                rpinvV = rpinvC;
-                                rinvV  = rinvC;
+                                rPInvV = rPInvC;
+                                rInvV  = rInvC;
                                 rV     = rC;
                             }
                         }
                         else
                         {
-                            rpinvC = 1;
-                            rinvC  = rinv;
+                            rPInvC = 1;
+                            rInvC  = rInv;
                             rC     = r;
 
-                            rpinvV = 1;
-                            rinvV  = rinv;
+                            rPInvV = 1;
+                            rInvV  = rInv;
                             rV     = r;
                         }
 
@@ -561,20 +574,20 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                          * and if we either include all entries in the list (no cutoff
                          * used in the kernel), or if we are within the cutoff.
                          */
-                        bool computeElecInteraction = (elecInteractionTypeIsEwald && r < rcoulomb)
-                                                      || (!elecInteractionTypeIsEwald && rC < rcoulomb);
+                        bool computeElecInteraction = (elecInteractionTypeIsEwald && r < rCoulomb)
+                                                      || (!elecInteractionTypeIsEwald && rC < rCoulomb);
 
                         if ((qq[i] != 0) && computeElecInteraction)
                         {
                             if (elecInteractionTypeIsEwald)
                             {
-                                Vcoul[i]  = ewaldPotential(qq[i], rinvC, sh_ewald);
-                                FscalC[i] = ewaldScalarForce(qq[i], rinvC);
+                                vCoul[i]  = ewaldPotential(qq[i], rInvC, sh_ewald);
+                                fScalC[i] = ewaldScalarForce(qq[i], rInvC);
                             }
                             else
                             {
-                                Vcoul[i]  = reactionFieldPotential(qq[i], rinvC, rC, krf, crf);
-                                FscalC[i] = reactionFieldScalarForce(qq[i], rinvC, rC, krf, two);
+                                vCoul[i]  = reactionFieldPotential(qq[i], rInvC, rC, krf, crf);
+                                fScalC[i] = reactionFieldScalarForce(qq[i], rInvC, rC, krf, two);
                             }
                         }
 
@@ -583,31 +596,31 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                          * include all entries in the list (no cutoff used
                          * in the kernel), or if we are within the cutoff.
                          */
-                        bool computeVdwInteraction = (vdwInteractionTypeIsEwald && r < rvdw)
-                                                     || (!vdwInteractionTypeIsEwald && rV < rvdw);
+                        bool computeVdwInteraction = (vdwInteractionTypeIsEwald && r < rVdw)
+                                                     || (!vdwInteractionTypeIsEwald && rV < rVdw);
                         if ((c6[i] != 0 || c12[i] != 0) && computeVdwInteraction)
                         {
-                            RealType rinv6;
+                            RealType rInv6;
                             if (useSoftCore)
                             {
-                                rinv6 = rpinvV;
+                                rInv6 = rPInvV;
                             }
                             else
                             {
-                                rinv6 = calculateRinv6(rinvV);
+                                rInv6 = calculateRinv6(rInvV);
                             }
-                            RealType Vvdw6  = calculateVdw6(c6[i], rinv6);
-                            RealType Vvdw12 = calculateVdw12(c12[i], rinv6);
+                            RealType vVdw6  = calculateVdw6(c6[i], rInv6);
+                            RealType vVdw12 = calculateVdw12(c12[i], rInv6);
 
-                            Vvdw[i] = lennardJonesPotential(Vvdw6, Vvdw12, c6[i], c12[i], repulsionShift,
-                                                            dispersionShift, onesixth, onetwelfth);
-                            FscalV[i] = lennardJonesScalarForce(Vvdw6, Vvdw12);
+                            vVdw[i] = lennardJonesPotential(
+                                    vVdw6, vVdw12, c6[i], c12[i], repulsionShift, dispersionShift, oneSixth, oneTwelfth);
+                            fScalV[i] = lennardJonesScalarForce(vVdw6, vVdw12);
 
                             if (vdwInteractionTypeIsEwald)
                             {
                                 /* Subtract the grid potential at the cut-off */
-                                Vvdw[i] += ewaldLennardJonesGridSubtract(nbfp_grid[tj[i]],
-                                                                         sh_lj_ewald, onesixth);
+                                vVdw[i] += ewaldLennardJonesGridSubtract(
+                                        nbfp_grid[tj[i]], shLjEwald, oneSixth);
                             }
 
                             if (vdwModifierIsPotSwitch)
@@ -619,53 +632,53 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                                         one + d2 * d * (vdw_swV3 + d * (vdw_swV4 + d * vdw_swV5));
                                 const RealType dsw = d2 * (vdw_swF2 + d * (vdw_swF3 + d * vdw_swF4));
 
-                                FscalV[i] = potSwitchScalarForceMod(FscalV[i], Vvdw[i], sw, rV,
-                                                                    rvdw, dsw, zero);
-                                Vvdw[i]   = potSwitchPotentialMod(Vvdw[i], sw, rV, rvdw, zero);
+                                fScalV[i] = potSwitchScalarForceMod(
+                                        fScalV[i], vVdw[i], sw, rV, rVdw, dsw, zero);
+                                vVdw[i] = potSwitchPotentialMod(vVdw[i], sw, rV, rVdw, zero);
                             }
                         }
 
-                        /* FscalC (and FscalV) now contain: dV/drC * rC
+                        /* fScalC (and fScalV) now contain: dV/drC * rC
                          * Now we multiply by rC^-p, so it will be: dV/drC * rC^1-p
                          * Further down we first multiply by r^p-2 and then by
                          * the vector r, which in total gives: dV/drC * (r/rC)^1-p
                          */
-                        FscalC[i] *= rpinvC;
-                        FscalV[i] *= rpinvV;
+                        fScalC[i] *= rPInvC;
+                        fScalV[i] *= rPInvV;
                     }
                 } // end for (int i = 0; i < NSTATES; i++)
 
                 /* Assemble A and B states */
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    vctot += LFC[i] * Vcoul[i];
-                    vvtot += LFV[i] * Vvdw[i];
+                    vCTot += LFC[i] * vCoul[i];
+                    vVTot += LFV[i] * vVdw[i];
 
-                    Fscal += LFC[i] * FscalC[i] * rpm2;
-                    Fscal += LFV[i] * FscalV[i] * rpm2;
+                    fScal += LFC[i] * fScalC[i] * rpm2;
+                    fScal += LFV[i] * fScalV[i] * rpm2;
 
                     if (useSoftCore)
                     {
-                        dvdl_coul += Vcoul[i] * DLF[i]
-                                     + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i] * sigma6[i];
-                        dvdl_vdw += Vvdw[i] * DLF[i]
-                                    + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * FscalV[i] * sigma6[i];
+                        dvdlCoul += vCoul[i] * DLF[i]
+                                    + LFC[i] * alphaCoulEff * dlFacCoul[i] * fScalC[i] * sigma6[i];
+                        dvdlVdw += vVdw[i] * DLF[i]
+                                   + LFV[i] * alphaVdwEff * dlFacVdw[i] * fScalV[i] * sigma6[i];
                     }
                     else
                     {
-                        dvdl_coul += Vcoul[i] * DLF[i];
-                        dvdl_vdw += Vvdw[i] * DLF[i];
+                        dvdlCoul += vCoul[i] * DLF[i];
+                        dvdlVdw += vVdw[i] * DLF[i];
                     }
                 }
             } // end if (bPairIncluded)
-            else if (icoul == GMX_NBKERNEL_ELEC_REACTIONFIELD)
+            else if (icoul == NbkernelElecType::ReactionField)
             {
                 /* For excluded pairs, which are only in this pair list when
                  * using the Verlet scheme, we don't use soft-core.
                  * As there is no singularity, there is no need for soft-core.
                  */
                 const real FF = -two * krf;
-                RealType   VV = krf * rsq - crf;
+                RealType   VV = krf * rSq - crf;
 
                 if (ii == jnr)
                 {
@@ -674,13 +687,13 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    vctot += LFC[i] * qq[i] * VV;
-                    Fscal += LFC[i] * qq[i] * FF;
-                    dvdl_coul += DLF[i] * qq[i] * VV;
+                    vCTot += LFC[i] * qq[i] * VV;
+                    fScal += LFC[i] * qq[i] * FF;
+                    dvdlCoul += DLF[i] * qq[i] * VV;
                 }
             }
 
-            if (elecInteractionTypeIsEwald && (r < rcoulomb || !bPairIncluded))
+            if (elecInteractionTypeIsEwald && (r < rCoulomb || !bPairIncluded))
             {
                 /* See comment in the preamble. When using Ewald interactions
                  * (unless we use a switch modifier) we subtract the reciprocal-space
@@ -698,7 +711,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 ewitab                = 4 * ewitab;
                 f_lr                  = ewtab[ewitab] + eweps * ewtab[ewitab + 1];
                 v_lr = (ewtab[ewitab + 2] - coulombTableScaleInvHalf * eweps * (ewtab[ewitab] + f_lr));
-                f_lr *= rinv;
+                f_lr *= rInv;
 
                 /* Note that any possible Ewald shift has already been applied in
                  * the normal interaction part above.
@@ -716,13 +729,13 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                 for (int i = 0; i < NSTATES; i++)
                 {
-                    vctot -= LFC[i] * qq[i] * v_lr;
-                    Fscal -= LFC[i] * qq[i] * f_lr;
-                    dvdl_coul -= (DLF[i] * qq[i]) * v_lr;
+                    vCTot -= LFC[i] * qq[i] * v_lr;
+                    fScal -= LFC[i] * qq[i] * f_lr;
+                    dvdlCoul -= (DLF[i] * qq[i]) * v_lr;
                 }
             }
 
-            if (vdwInteractionTypeIsEwald && r < rvdw)
+            if (vdwInteractionTypeIsEwald && (r < rVdw || !bPairIncluded))
             {
                 /* See comment in the preamble. When using LJ-Ewald interactions
                  * (unless we use a switch modifier) we subtract the reciprocal-space
@@ -737,14 +750,14 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * r close to 0 for non-interacting pairs.
                  */
 
-                const RealType rs   = rsq * rinv * vdwTableScale;
+                const RealType rs   = rSq * rInv * vdwTableScale;
                 const IntType  ri   = static_cast<IntType>(rs);
                 const RealType frac = rs - ri;
                 const RealType f_lr = (1 - frac) * tab_ewald_F_lj[ri] + frac * tab_ewald_F_lj[ri + 1];
                 /* TODO: Currently the Ewald LJ table does not contain
                  * the factor 1/6, we should add this.
                  */
-                const RealType FF = f_lr * rinv / six;
+                const RealType FF = f_lr * rInv / six;
                 RealType       VV =
                         (tab_ewald_V_lj[ri] - vdwTableScaleInvHalf * frac * (tab_ewald_F_lj[ri] + f_lr))
                         / six;
@@ -762,20 +775,20 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                 for (int i = 0; i < NSTATES; i++)
                 {
                     const real c6grid = nbfp_grid[tj[i]];
-                    vvtot += LFV[i] * c6grid * VV;
-                    Fscal += LFV[i] * c6grid * FF;
-                    dvdl_vdw += (DLF[i] * c6grid) * VV;
+                    vVTot += LFV[i] * c6grid * VV;
+                    fScal += LFV[i] * c6grid * FF;
+                    dvdlVdw += (DLF[i] * c6grid) * VV;
                 }
             }
 
             if (doForces)
             {
-                const real tx = Fscal * dx;
-                const real ty = Fscal * dy;
-                const real tz = Fscal * dz;
-                fix           = fix + tx;
-                fiy           = fiy + ty;
-                fiz           = fiz + tz;
+                const real tX = fScal * dX;
+                const real tY = fScal * dY;
+                const real tZ = fScal * dZ;
+                fIX           = fIX + tX;
+                fIY           = fIY + tY;
+                fIZ           = fIZ + tZ;
                 /* OpenMP atomics are expensive, but this kernels is also
                  * expensive, so we can take this hit, instead of using
                  * thread-local output buffers and extra reduction.
@@ -784,11 +797,11 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                  * not throw, so no need for try/catch.
                  */
 #pragma omp atomic
-                f[j3] -= tx;
+                f[j3] -= tX;
 #pragma omp atomic
-                f[j3 + 1] -= ty;
+                f[j3 + 1] -= tY;
 #pragma omp atomic
-                f[j3 + 2] -= tz;
+                f[j3 + 2] -= tZ;
             }
         } // end for (int k = nj0; k < nj1; k++)
 
@@ -802,36 +815,36 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
             if (doForces)
             {
 #pragma omp atomic
-                f[ii3] += fix;
+                f[ii3] += fIX;
 #pragma omp atomic
-                f[ii3 + 1] += fiy;
+                f[ii3 + 1] += fIY;
 #pragma omp atomic
-                f[ii3 + 2] += fiz;
+                f[ii3 + 2] += fIZ;
             }
             if (doShiftForces)
             {
 #pragma omp atomic
-                fshift[is3] += fix;
+                fshift[is3] += fIX;
 #pragma omp atomic
-                fshift[is3 + 1] += fiy;
+                fshift[is3 + 1] += fIY;
 #pragma omp atomic
-                fshift[is3 + 2] += fiz;
+                fshift[is3 + 2] += fIZ;
             }
             if (doPotential)
             {
                 int ggid = gid[n];
 #pragma omp atomic
-                Vc[ggid] += vctot;
+                Vc[ggid] += vCTot;
 #pragma omp atomic
-                Vv[ggid] += vvtot;
+                Vv[ggid] += vVTot;
             }
         }
     } // end for (int n = 0; n < nri; n++)
 
 #pragma omp atomic
-    dvdl[efptCOUL] += dvdl_coul;
+    dvdl[static_cast<int>(FreeEnergyPerturbationCouplingType::Coul)] += dvdlCoul;
 #pragma omp atomic
-    dvdl[efptVDW] += dvdl_vdw;
+    dvdl[static_cast<int>(FreeEnergyPerturbationCouplingType::Vdw)] += dvdlVdw;
 
     /* Estimate flops, average for free energy stuff:
      * 12  flops per outer iteration
@@ -839,6 +852,20 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
      */
 #pragma omp atomic
     inc_nrnb(nrnb, eNR_NBKERNEL_FREE_ENERGY, nlist->nri * 12 + nlist->jindex[nri] * 150);
+
+    if (numExcludedPairsBeyondRlist > 0)
+    {
+        gmx_fatal(FARGS,
+                  "There are %d perturbed non-bonded pair interactions beyond the pair-list cutoff "
+                  "of %g nm, which is not supported. This can happen because the system is "
+                  "unstable or because intra-molecular interactions at long distances are "
+                  "excluded. If the "
+                  "latter is the case, you can try to increase nstlist or rlist to avoid this."
+                  "The error is likely triggered by the use of couple-intramol=no "
+                  "and the maximal distance in the decoupled molecule exceeding rlist.",
+                  numExcludedPairsBeyondRlist,
+                  fr->rlist);
+    }
 }
 
 typedef void (*KernelFunction)(const t_nblist* gmx_restrict nlist,
@@ -856,17 +883,14 @@ static KernelFunction dispatchKernelOnUseSimd(const bool useSimd)
     {
 #if GMX_SIMD_HAVE_REAL && GMX_SIMD_HAVE_INT32_ARITHMETICS && GMX_USE_SIMD_KERNELS
         /* FIXME: Here SimdDataTypes should be used to enable SIMD. So far, the code in nb_free_energy_kernel is not adapted to SIMD */
-        return (nb_free_energy_kernel<ScalarDataTypes, useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                      elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
+        return (nb_free_energy_kernel<ScalarDataTypes, useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
 #else
-        return (nb_free_energy_kernel<ScalarDataTypes, useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                      elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
+        return (nb_free_energy_kernel<ScalarDataTypes, useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
 #endif
     }
     else
     {
-        return (nb_free_energy_kernel<ScalarDataTypes, useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                      elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
+        return (nb_free_energy_kernel<ScalarDataTypes, useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, vdwModifierIsPotSwitch>);
     }
 }
 
@@ -875,13 +899,13 @@ static KernelFunction dispatchKernelOnVdwModifier(const bool vdwModifierIsPotSwi
 {
     if (vdwModifierIsPotSwitch)
     {
-        return (dispatchKernelOnUseSimd<useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                        elecInteractionTypeIsEwald, true>(useSimd));
+        return (dispatchKernelOnUseSimd<useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, true>(
+                useSimd));
     }
     else
     {
-        return (dispatchKernelOnUseSimd<useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                        elecInteractionTypeIsEwald, false>(useSimd));
+        return (dispatchKernelOnUseSimd<useSoftCore, scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald, false>(
+                useSimd));
     }
 }
 
@@ -948,15 +972,19 @@ static KernelFunction dispatchKernel(const bool                 scLambdasOrAlpha
 {
     if (ic.softCoreParameters->alphaCoulomb == 0 && ic.softCoreParameters->alphaVdw == 0)
     {
-        return (dispatchKernelOnScLambdasOrAlphasDifference<false>(
-                scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                vdwModifierIsPotSwitch, useSimd));
+        return (dispatchKernelOnScLambdasOrAlphasDifference<false>(scLambdasOrAlphasDiffer,
+                                                                   vdwInteractionTypeIsEwald,
+                                                                   elecInteractionTypeIsEwald,
+                                                                   vdwModifierIsPotSwitch,
+                                                                   useSimd));
     }
     else
     {
-        return (dispatchKernelOnScLambdasOrAlphasDifference<true>(
-                scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald, elecInteractionTypeIsEwald,
-                vdwModifierIsPotSwitch, useSimd));
+        return (dispatchKernelOnScLambdasOrAlphasDifference<true>(scLambdasOrAlphasDiffer,
+                                                                  vdwInteractionTypeIsEwald,
+                                                                  elecInteractionTypeIsEwald,
+                                                                  vdwModifierIsPotSwitch,
+                                                                  useSimd));
     }
 }
 
@@ -970,14 +998,14 @@ void gmx_nb_free_energy_kernel(const t_nblist*            nlist,
                                t_nrnb*                    nrnb)
 {
     const interaction_const_t& ic = *fr->ic;
-    GMX_ASSERT(EEL_PME_EWALD(ic.eeltype) || ic.eeltype == eelCUT || EEL_RF(ic.eeltype),
+    GMX_ASSERT(EEL_PME_EWALD(ic.eeltype) || ic.eeltype == CoulombInteractionType::Cut || EEL_RF(ic.eeltype),
                "Unsupported eeltype with free energy");
     GMX_ASSERT(ic.softCoreParameters, "We need soft-core parameters");
 
     const auto& scParams                   = *ic.softCoreParameters;
     const bool  vdwInteractionTypeIsEwald  = (EVDW_PME(ic.vdwtype));
     const bool  elecInteractionTypeIsEwald = (EEL_PME_EWALD(ic.eeltype));
-    const bool  vdwModifierIsPotSwitch     = (ic.vdw_modifier == eintmodPOTSWITCH);
+    const bool  vdwModifierIsPotSwitch     = (ic.vdw_modifier == InteractionModifiers::PotSwitch);
     bool        scLambdasOrAlphasDiffer    = true;
     const bool  useSimd                    = fr->use_simd_kernels;
 
@@ -987,7 +1015,8 @@ void gmx_nb_free_energy_kernel(const t_nblist*            nlist,
     }
     else
     {
-        if (kernel_data->lambda[efptCOUL] == kernel_data->lambda[efptVDW]
+        if (kernel_data->lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Coul)]
+                    == kernel_data->lambda[static_cast<int>(FreeEnergyPerturbationCouplingType::Vdw)]
             && scParams.alphaCoulomb == scParams.alphaVdw)
         {
             scLambdasOrAlphasDiffer = false;
@@ -995,7 +1024,11 @@ void gmx_nb_free_energy_kernel(const t_nblist*            nlist,
     }
 
     KernelFunction kernelFunc;
-    kernelFunc = dispatchKernel(scLambdasOrAlphasDiffer, vdwInteractionTypeIsEwald,
-                                elecInteractionTypeIsEwald, vdwModifierIsPotSwitch, useSimd, ic);
+    kernelFunc = dispatchKernel(scLambdasOrAlphasDiffer,
+                                vdwInteractionTypeIsEwald,
+                                elecInteractionTypeIsEwald,
+                                vdwModifierIsPotSwitch,
+                                useSimd,
+                                ic);
     kernelFunc(nlist, xx, ff, fr, mdatoms, kernel_data, nrnb);
 }

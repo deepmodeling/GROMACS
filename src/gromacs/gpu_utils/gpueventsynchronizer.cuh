@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -41,9 +41,12 @@
 #ifndef GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_CUH
 #define GMX_GPU_UTILS_GPUEVENTSYNCHRONIZER_CUH
 
+#include "gromacs/gpu_utils/cudautils.cuh"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/utility/gmxassert.h"
+
+#ifndef DOXYGEN
 
 /*! \libinternal \brief
  * A class which allows for CPU thread to mark and wait for certain GPU stream execution point.
@@ -64,12 +67,14 @@ public:
     GpuEventSynchronizer()
     {
         cudaError_t gmx_used_in_debug stat = cudaEventCreateWithFlags(&event_, cudaEventDisableTiming);
-        GMX_RELEASE_ASSERT(stat == cudaSuccess, "cudaEventCreate failed");
+        GMX_RELEASE_ASSERT(stat == cudaSuccess,
+                           ("cudaEventCreate failed. " + gmx::getDeviceErrorString(stat)).c_str());
     }
     ~GpuEventSynchronizer()
     {
         cudaError_t gmx_used_in_debug stat = cudaEventDestroy(event_);
-        GMX_ASSERT(stat == cudaSuccess, "cudaEventDestroy failed");
+        GMX_RELEASE_ASSERT(stat == cudaSuccess,
+                           ("cudaEventDestroy failed. " + gmx::getDeviceErrorString(stat)).c_str());
     }
     //! No copying
     GpuEventSynchronizer(const GpuEventSynchronizer&) = delete;
@@ -84,23 +89,38 @@ public:
     inline void markEvent(const DeviceStream& deviceStream)
     {
         cudaError_t gmx_used_in_debug stat = cudaEventRecord(event_, deviceStream.stream());
-        GMX_ASSERT(stat == cudaSuccess, "cudaEventRecord failed");
+        GMX_ASSERT(stat == cudaSuccess,
+                   ("cudaEventRecord failed. " + gmx::getDeviceErrorString(stat)).c_str());
     }
     /*! \brief Synchronizes the host thread on the marked event. */
     inline void waitForEvent()
     {
         cudaError_t gmx_used_in_debug stat = cudaEventSynchronize(event_);
-        GMX_ASSERT(stat == cudaSuccess, "cudaEventSynchronize failed");
+        GMX_ASSERT(stat == cudaSuccess,
+                   ("cudaEventSynchronize failed. " + gmx::getDeviceErrorString(stat)).c_str());
+    }
+    /*! \brief Checks the completion of the underlying event and resets the object if it was. */
+    inline bool isReady()
+    {
+        cudaError_t gmx_used_in_debug stat = cudaEventQuery(event_);
+        GMX_ASSERT((stat == cudaSuccess) || (stat == cudaErrorNotReady),
+                   ("cudaEventQuery failed. " + gmx::getDeviceErrorString(stat)).c_str());
+        return (stat == cudaSuccess);
     }
     /*! \brief Enqueues a wait for the recorded event in stream \p stream */
     inline void enqueueWaitEvent(const DeviceStream& deviceStream)
     {
         cudaError_t gmx_used_in_debug stat = cudaStreamWaitEvent(deviceStream.stream(), event_, 0);
-        GMX_ASSERT(stat == cudaSuccess, "cudaStreamWaitEvent failed");
+        GMX_ASSERT(stat == cudaSuccess,
+                   ("cudaStreamWaitEvent failed. " + gmx::getDeviceErrorString(stat)).c_str());
     }
+    //! Reset the event (not needed in CUDA)
+    inline void reset() {}
 
 private:
     cudaEvent_t event_;
 };
+
+#endif
 
 #endif

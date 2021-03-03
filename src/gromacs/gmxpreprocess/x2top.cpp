@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2008, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -280,9 +280,9 @@ static void calc_angles_dihs(InteractionsOfType* ang, InteractionsOfType* dih, c
         int  aj = dihedral.aj();
         int  ak = dihedral.ak();
         int  al = dihedral.al();
-        real ph = RAD2DEG
-                  * dih_angle(x[ai], x[aj], x[ak], x[al], bPBC ? &pbc : nullptr, r_ij, r_kj, r_kl,
-                              m, n, &t1, &t2, &t3);
+        real ph =
+                RAD2DEG
+                * dih_angle(x[ai], x[aj], x[ak], x[al], bPBC ? &pbc : nullptr, r_ij, r_kj, r_kl, m, n, &t1, &t2, &t3);
         dihedral.setForceParameter(0, ph);
     }
 }
@@ -330,9 +330,8 @@ static void print_rtp(const char*                             filenm,
                       PreprocessingAtomTypes*                 atypes,
                       int                                     cgnr[])
 {
-    FILE*       fp;
-    int         i, tp;
-    const char* tpnm;
+    FILE* fp;
+    int   i, tp;
 
     fp = gmx_fio_fopen(filenm, "w");
     fprintf(fp, "; %s\n", title);
@@ -342,12 +341,13 @@ static void print_rtp(const char*                             filenm,
     fprintf(fp, "[ atoms ]\n");
     for (i = 0; (i < atoms->nr); i++)
     {
-        tp = atoms->atom[i].type;
-        if ((tpnm = atypes->atomNameFromAtomType(tp)) == nullptr)
+        tp        = atoms->atom[i].type;
+        auto tpnm = atypes->atomNameFromAtomType(tp);
+        if (!tpnm.has_value())
         {
             gmx_fatal(FARGS, "tp = %d, i = %d in print_rtp", tp, i);
         }
-        fprintf(fp, "%-8s  %12s  %8.4f  %5d\n", *atoms->atomname[i], tpnm, atoms->atom[i].q, cgnr[i]);
+        fprintf(fp, "%-8s  %12s  %8.4f  %5d\n", *atoms->atomname[i], *tpnm, atoms->atom[i].q, cgnr[i]);
     }
     print_pl(fp, plist, F_BONDS, "bonds", atoms->atomname);
     print_pl(fp, plist, F_ANGLES, "angles", atoms->atomname);
@@ -382,8 +382,9 @@ int gmx_x2top(int argc, char* argv[])
     };
     const char* bugs[] = {
         "The atom type selection is primitive. Virtually no chemical knowledge is used",
-        "Periodic boundary conditions screw up the bonding", "No improper dihedrals are generated",
-        "The atoms to atomtype translation table is incomplete ([TT]atomname2type.n2t[tt] file in "
+        "Periodic boundary conditions screw up the bonding",
+        "No improper dihedrals are generated",
+        "The atoms to atomtype translation table is incomplete ([TT]atomname2type.n2t[tt] file in",
         "the data directory). Please extend it and send the results back to the GROMACS crew."
     };
     FILE*                                 fp;
@@ -458,8 +459,8 @@ int gmx_x2top(int argc, char* argv[])
         { "-kp", FALSE, etREAL, { &kp }, "Dihedral angle force constant (kJ/mol/rad^2)" }
     };
 
-    if (!parse_common_args(&argc, argv, 0, NFILE, fnm, asize(pa), pa, asize(desc), desc,
-                           asize(bugs), bugs, &oenv))
+    if (!parse_common_args(
+                &argc, argv, 0, NFILE, fnm, asize(pa), pa, asize(desc), desc, asize(bugs), bugs, &oenv))
     {
         return 0;
     }
@@ -485,8 +486,7 @@ int gmx_x2top(int argc, char* argv[])
 
 
     /* Force field selection, interactive or direct */
-    choose_ff(strcmp(ff, "select") == 0 ? nullptr : ff, forcefield, sizeof(forcefield), ffdir,
-              sizeof(ffdir), logger);
+    choose_ff(strcmp(ff, "select") == 0 ? nullptr : ff, forcefield, sizeof(forcefield), ffdir, sizeof(ffdir), logger);
 
     bOPLS = (strcmp(forcefield, "oplsaa") == 0);
 
@@ -534,7 +534,7 @@ int gmx_x2top(int argc, char* argv[])
     GMX_LOG(logger.info)
             .asParagraph()
             .appendTextFormatted("Generating angles and dihedrals from bonds...");
-    gen_pad(atoms, gmx::arrayRefFromArray(&rtp_header_settings, 1), plist, excls, {}, TRUE);
+    gen_pad(atoms, gmx::arrayRefFromArray(&rtp_header_settings, 1), plist, excls, {}, TRUE, {});
 
     if (!bPairs)
     {
@@ -545,8 +545,13 @@ int gmx_x2top(int argc, char* argv[])
             .appendTextFormatted(
                     "There are %4zu %s dihedrals, %4zu impropers, %4zu angles\n"
                     "          %4zu pairs,     %4zu bonds and  %4d atoms\n",
-                    plist[F_PDIHS].size(), bOPLS ? "Ryckaert-Bellemans" : "proper", plist[F_IDIHS].size(),
-                    plist[F_ANGLES].size(), plist[F_LJ14].size(), plist[F_BONDS].size(), atoms->nr);
+                    plist[F_PDIHS].size(),
+                    bOPLS ? "Ryckaert-Bellemans" : "proper",
+                    plist[F_IDIHS].size(),
+                    plist[F_ANGLES].size(),
+                    plist[F_LJ14].size(),
+                    plist[F_BONDS].size(),
+                    atoms->nr);
 
     calc_angles_dihs(&plist[F_ANGLES], &plist[F_PDIHS], x, bPBC, box);
 
@@ -565,7 +570,16 @@ int gmx_x2top(int argc, char* argv[])
         fp = ftp2FILE(efTOP, NFILE, fnm, "w");
         print_top_header(fp, ftp2fn(efTOP, NFILE, fnm), TRUE, ffdir, 1.0);
 
-        write_top(fp, nullptr, mymol.name.c_str(), atoms, FALSE, bts, plist, excls, &atypes, cgnr,
+        write_top(fp,
+                  nullptr,
+                  mymol.name.c_str(),
+                  atoms,
+                  FALSE,
+                  bts,
+                  plist,
+                  excls,
+                  &atypes,
+                  cgnr,
                   rtp_header_settings.nrexcl);
         print_top_mols(fp, mymol.name.c_str(), ffdir, nullptr, {}, gmx::arrayRefFromArray(&mymol, 1));
 

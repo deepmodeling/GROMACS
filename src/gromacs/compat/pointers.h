@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -58,16 +58,8 @@ namespace compat
 
 //! Contract-assurance macros that work like a simple version of the GSL ones
 //! \{
-#if !defined(__INTEL_COMPILER) || !(__INTEL_COMPILER == 1800 && __INTEL_COMPILER_UPDATE == 0)
-#    define Expects(cond) GMX_ASSERT((cond), "Precondition violation")
-#    define Ensures(cond) GMX_ASSERT((cond), "Postcondition violation")
-#else
-// icc 18.0.0 in a RelWithAssert build has an ICE, even if we directly
-// embed the contents of GMX_ASSERT, so it seems the lambda in
-// GMX_ASSERT is too complex for it in this use case.
-#    define Expects(cond)
-#    define Ensures(cond)
-#endif
+#define Expects(cond) GMX_ASSERT((cond), "Precondition violation")
+#define Ensures(cond) GMX_ASSERT((cond), "Postcondition violation")
 //! \}
 
 /*! \libinternal
@@ -89,24 +81,24 @@ template<class T>
 class not_null
 {
 public:
-    static_assert(std::is_assignable_v<T&, std::nullptr_t>, "T cannot be assigned nullptr.");
+    static_assert(std::is_assignable<T&, std::nullptr_t>::value, "T cannot be assigned nullptr.");
 
     //! Move constructor. Asserts in debug mode if \c is nullptr.
-    template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    template<typename U, typename = std::enable_if_t<std::is_convertible<U, T>::value>>
     constexpr explicit not_null(U&& u) : ptr_(std::forward<U>(u))
     {
         Expects(ptr_ != nullptr);
     }
 
     //! Simple constructor. Asserts in debug mode if \c u is nullptr.
-    template<typename = std::enable_if_t<!std::is_same_v<std::nullptr_t, T>>>
+    template<typename = std::enable_if_t<!std::is_same<std::nullptr_t, T>::value>>
     constexpr explicit not_null(T u) : ptr_(u)
     {
         Expects(ptr_ != nullptr);
     }
 
     //! Copy constructor.
-    template<typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    template<typename U, typename = std::enable_if_t<std::is_convertible<U, T>::value>>
     constexpr not_null(const not_null<U>& other) : not_null(other.get())
     {
     }

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,14 +46,17 @@
 
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/utility/arrayref.h"
+#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/real.h"
 
 #include "modularsimulatorinterfaces.h"
 
 struct t_inputrec;
+struct t_trxframe;
 
 namespace gmx
 {
+enum class CheckpointDataOperation;
 class EnergyData;
 class GlobalCommunicationHelper;
 class LegacySimulatorData;
@@ -82,23 +85,34 @@ public:
     ArrayRef<const real> constLambdaView();
     //! Get the current FEP state
     int currentFEPState();
+    //! Update MDAtoms (public because it's called by DomDec - see #3700)
+    void updateMDAtoms();
 
     //! The element taking part in the simulator loop
     class Element;
     //! Get pointer to element (whose lifetime is managed by this)
     Element* element();
 
+    //! Read everything that can be stored in t_trxframe from a checkpoint file
+    static void readCheckpointToTrxFrame(t_trxframe*                       trxFrame,
+                                         std::optional<ReadCheckpointData> readCheckpointData);
+    //! CheckpointHelper identifier
+    static const std::string& checkpointID();
+
 private:
+    //! Default constructor - only used internally
+    FreeEnergyPerturbationData() = default;
     //! Update the lambda values
     void updateLambdas(Step step);
+    //! Helper function to read from / write to CheckpointData
+    template<CheckpointDataOperation operation>
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 
     //! The element
     std::unique_ptr<Element> element_;
 
     //! The lambda vector
-    std::array<real, efptNR> lambda_;
-    //! The starting lambda vector
-    std::array<double, efptNR> lambda0_;
+    gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, real> lambda_;
     //! The current free energy state
     int currentFEPState_;
 
@@ -129,11 +143,18 @@ public:
     //! Update lambda and mdatoms
     void scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction) override;
 
-    //! No setup needed
-    void elementSetup() override{};
+    //! Update the MdAtoms object
+    void elementSetup() override;
 
     //! No teardown needed
     void elementTeardown() override{};
+
+    //! ICheckpointHelperClient write checkpoint implementation
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient read checkpoint implementation
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient key implementation
+    const std::string& clientID() override;
 
     /*! \brief Factory method implementation
      *
@@ -158,9 +179,6 @@ private:
     FreeEnergyPerturbationData* freeEnergyPerturbationData_;
     //! Whether lambda values are non-static
     const bool lambdasChange_;
-
-    //! ICheckpointHelperClient implementation
-    void writeCheckpoint(t_state* localState, t_state* globalState) override;
 };
 
 } // namespace gmx

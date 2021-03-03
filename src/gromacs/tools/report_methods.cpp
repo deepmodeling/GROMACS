@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -79,14 +79,15 @@ void writeSystemInformation(TextWriter* writer, const gmx_mtop_t& top, bool writ
     aloop = gmx_mtop_atomloop_block_init(&top);
     while (gmx_mtop_atomloop_block_next(aloop, &atom, &nmol))
     {
-        if (atom->ptype == eptVSite)
+        if (atom->ptype == ParticleType::VSite)
         {
             nvsite += nmol;
         }
     }
     {
         writer->writeLine(formatString("A system of %d molecules (%d atoms) was simulated.",
-                                       gmx_mtop_num_molecules(top), top.natoms - nvsite));
+                                       gmx_mtop_num_molecules(top),
+                                       top.natoms - nvsite));
     }
     if (nvsite)
     {
@@ -99,29 +100,33 @@ void writeParameterInformation(TextWriter* writer, const t_inputrec& ir, bool wr
 {
     writeHeader(writer, "Simulation settings", "subsection", writeFormattedText);
     writer->writeLine(formatString("A total of %g ns were simulated with a time step of %g fs.",
-                                   ir.nsteps * ir.delta_t * 0.001, 1000 * ir.delta_t));
+                                   ir.nsteps * ir.delta_t * 0.001,
+                                   1000 * ir.delta_t));
     writer->writeLine(formatString("Neighbor searching was performed every %d steps.", ir.nstlist));
     writer->writeLine(formatString("The %s algorithm was used for electrostatic interactions.",
-                                   EELTYPE(ir.coulombtype)));
+                                   enumValueToString(ir.coulombtype)));
     writer->writeLine(formatString("with a cut-off of %g nm.", ir.rcoulomb));
-    if (ir.coulombtype == eelPME)
+    if (ir.coulombtype == CoulombInteractionType::Pme)
     {
         writer->writeLine(
                 formatString("A reciprocal grid of %d x %d x %d cells was used with %dth order "
                              "B-spline interpolation.",
-                             ir.nkx, ir.nky, ir.nkz, ir.pme_order));
+                             ir.nkx,
+                             ir.nky,
+                             ir.nkz,
+                             ir.pme_order));
     }
     writer->writeLine(formatString(
             "A single cut-off of %g nm was used for Van der Waals interactions.", ir.rlist));
-    if (ir.etc != 0)
+    if (ir.etc != TemperatureCoupling::No)
     {
         writer->writeLine(formatString("Temperature coupling was done with the %s algorithm.",
-                                       etcoupl_names[ir.etc]));
+                                       enumValueToString(ir.etc)));
     }
-    if (ir.epc != 0)
+    if (ir.epc != PressureCoupling::No)
     {
         writer->writeLine(formatString("Pressure coupling was done with the %s algorithm.",
-                                       epcoupl_names[ir.epc]));
+                                       enumValueToString(ir.epc)));
     }
     writer->ensureEmptyLine();
 }

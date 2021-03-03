@@ -6,7 +6,7 @@
     - .gromacs:base:configure
     - .before_script:default
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm-master
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
   stage: configure-build
   cache: {}
   variables:
@@ -42,6 +42,11 @@
       mkdir $BUILD_DIR ;
       fi
     - cd $BUILD_DIR
+    # Running CMake with the venv activated should not be strictly necessary,
+    # but helps to find and cache self-consistent Python and Sphinx details
+    # without additional hinting. Once CMakeCache.txt exists, the later stages
+    # should work fine without reactivating the venv.
+    - source /root/venv/py3.7/bin/activate
     - cmake ..
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       $CMAKE_COMPILER_SCRIPT
@@ -72,7 +77,7 @@
     - .before_script:default
     - .rules:nightly-only-for-release
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm-master
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
   stage: release-configure
   cache: {}
   variables:
@@ -145,6 +150,7 @@
       mkdir $RELEASE_BUILD_DIR ;
       fi
     - cd $RELEASE_BUILD_DIR
+    - source /root/venv/py3.7/bin/activate
     - cmake ../$RELEASE_SOURCE/
       -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       $CMAKE_COMPILER_SCRIPT
@@ -182,7 +188,7 @@ docs:configure:
 
 .docs:build:
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm-master
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
   script:
     - cd $BUILD_DIR
     - cmake --build . --target gmx -- -j8
@@ -222,7 +228,7 @@ docs:build:
     - .gromacs:base:build
     - .before_script:default
   # TODO (#3480) this should be organized more like the current documentation.py script
-  image: gromacs/ci-docs-llvm-master
+  image: ${CI_REGISTRY}/gromacs/gromacs/ci-ubuntu-18.04-llvm-7-docs
   cache: {}
   variables:
     KUBERNETES_CPU_LIMIT: 4

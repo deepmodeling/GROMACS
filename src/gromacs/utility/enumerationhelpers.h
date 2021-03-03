@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -190,18 +190,23 @@ public:
  *
  * See file documentation for usage example.
  *
+ * Note that if clang-tidy gives strange errors referring to the line
+ * number of the struct declaration, these likely refer to the
+ * compiler-generated constructors. Simplification of the calling code
+ * might eliminate that call and thus the clang-tidy error.
+ *
  * \tparam  EnumType   The enum (class) type.
  * \tparam  DataType   Type of the data stored in the array.
  * \tparam  ArraySize  Size in entries of the array.
  */
-template<typename EnumType,                   // The enum (class) type.
-         typename DataType,                   // Type of the data stored in the array.
-         EnumType ArraySize = EnumType::Count // Size in entries of the array.
-         >
+template<typename EnumType, typename DataType, EnumType ArraySize = EnumType::Count>
 struct EnumerationArray final
 {
     //! Convenience alias
     using EnumerationWrapperType = EnumerationWrapper<EnumType, ArraySize>;
+
+    //! Convenience alias
+    using value_type = DataType;
 
     /*! \brief Data for names.
      *

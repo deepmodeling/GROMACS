@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -47,11 +47,11 @@ struct t_commrec;
 struct t_forcerec;
 struct t_filenm;
 struct t_inputrec;
-struct gmx_gpu_info_t;
 struct gmx_localtop_t;
 struct gmx_mtop_t;
 struct gmx_wallcycle;
 struct interaction_const_t;
+struct gmx_ffparams_t;
 
 namespace gmx
 {
@@ -59,12 +59,21 @@ class MDLogger;
 class PhysicalNodeCommunicator;
 } // namespace gmx
 
-/*! \brief Print the contents of the forcerec to a file
+/*! \brief Create nonbonded parameter lists
  *
- * \param[in] fplog The log file to print to
- * \param[in] fr    The forcerec structure
+ * \param[in] forceFieldParams       The forcefield parameters
+ * \param[in] useBuckinghamPotential Use Buckingham potential
  */
-void pr_forcerec(FILE* fplog, t_forcerec* fr);
+std::vector<real> makeNonBondedParameterLists(const gmx_ffparams_t& forceFieldParams,
+                                              bool                  useBuckinghamPotential);
+
+/*! \brief Calculate c6 parameters for grid correction
+ *
+ * \param[in] forceFieldParams The forcefield parameters
+ * \param[in] forceRec         The forcerec
+ */
+std::vector<real> makeLJPmeC6GridCorrectionParameters(const gmx_ffparams_t& forceFieldParams,
+                                                      const t_forcerec&     forceRec);
 
 /*! \brief Set the number of charge groups and atoms.
  *
@@ -83,18 +92,19 @@ void forcerec_set_ranges(t_forcerec* fr, int natoms_force, int natoms_force_cons
  * Initializes the tables in the interaction constant data structure.
  * \param[in] fp                     File for debugging output
  * \param[in] ic                     Structure holding the table constant
+ * \param[in] rlist                  Length of the neighbour list
  * \param[in] tableExtensionLength   Length by which to extend the tables. Taken from the input record.
  */
-void init_interaction_const_tables(FILE* fp, interaction_const_t* ic, real tableExtensionLength);
+void init_interaction_const_tables(FILE* fp, interaction_const_t* ic, real rlist, real tableExtensionLength);
 
 /*! \brief Initialize forcerec structure.
  *
  * \param[in]  fplog              File for printing
  * \param[in]  mdlog              File for printing
- * \param[out] fr                 The forcerec
- * \param[in]  ir                 Inputrec structure
+ * \param[out] forcerec                 The forcerec
+ * \param[in]  inputrec                 Inputrec structure
  * \param[in]  mtop               Molecular topology
- * \param[in]  cr                 Communication structures
+ * \param[in]  commrec                 Communication structures
  * \param[in]  box                Simulation box
  * \param[in]  tabfn              Table potential file for non-bonded interactions
  * \param[in]  tabpfn             Table potential file for pair interactions
@@ -103,33 +113,14 @@ void init_interaction_const_tables(FILE* fp, interaction_const_t* ic, real table
  */
 void init_forcerec(FILE*                            fplog,
                    const gmx::MDLogger&             mdlog,
-                   t_forcerec*                      fr,
-                   const t_inputrec*                ir,
-                   const gmx_mtop_t*                mtop,
-                   const t_commrec*                 cr,
+                   t_forcerec*                      forcerec,
+                   const t_inputrec&                inputrec,
+                   const gmx_mtop_t&                mtop,
+                   const t_commrec*                 commrec,
                    matrix                           box,
                    const char*                      tabfn,
                    const char*                      tabpfn,
                    gmx::ArrayRef<const std::string> tabbfnm,
                    real                             print_force);
-
-/*! \brief Check whether molecules are ever distributed over PBC boundaries
- *
- * Note: This covers only the non-DD case. For DD runs, domdec.h offers an
- *       equivalent dd_bonded_molpbc(...) function.
- *
- * \param[in]  ir                 Inputrec structure
- * \param[in]  mtop               Molecular topology
- * \param[in]  mdlog              File for printing
- */
-bool areMoleculesDistributedOverPbc(const t_inputrec& ir, const gmx_mtop_t& mtop, const gmx::MDLogger& mdlog);
-
-/*! \brief Divide exclusions over threads
- *
- * Set the exclusion load for the local exclusions and possibly threads
- * \param[out] fr  The force record
- * \param[in]  top The topology
- */
-void forcerec_set_excl_load(t_forcerec* fr, const gmx_localtop_t* top);
 
 #endif
