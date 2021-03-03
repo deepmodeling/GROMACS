@@ -3,8 +3,8 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2013,2014,2015,2016,2017, The GROMACS development team.
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -47,12 +47,12 @@
 #include <cstring>
 
 #include <exception>
+#include <mutex>
 
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/baseversion.h"
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/futil.h"
-#include "gromacs/utility/mutex.h"
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/stringutil.h"
 
@@ -71,9 +71,9 @@ FILE*    debug        = nullptr;
 gmx_bool gmx_debug_at = FALSE;
 
 static FILE*      log_file = nullptr;
-static gmx::Mutex error_mutex;
+static std::mutex error_mutex;
 
-using Lock = gmx::lock_guard<gmx::Mutex>;
+using Lock = std::lock_guard<std::mutex>;
 
 void gmx_init_debug(const int dbglevel, const char* dbgfile)
 {
@@ -192,13 +192,16 @@ void gmx_exit_on_fatal_error(ExitType exitType, int returnValue)
     }
 #endif
 
-    if (exitType == ExitType_CleanExit)
+    if (!GMX_FAHCORE)
     {
-        std::exit(returnValue);
+        if (exitType == ExitType_CleanExit)
+        {
+            std::exit(returnValue);
+        }
+        // We cannot use std::exit() if other threads may still be executing, since that would cause
+        // destructors to be called for global objects that may still be in use elsewhere.
+        std::_Exit(returnValue);
     }
-    // We cannot use std::exit() if other threads may still be executing, since that would cause
-    // destructors to be called for global objects that may still be in use elsewhere.
-    std::_Exit(returnValue);
 }
 
 void gmx_fatal_mpi_va(int /*f_errno*/,
@@ -231,13 +234,13 @@ void gmx_fatal(int f_errno, const char* file, int line, gmx_fmtstr const char* f
     va_end(ap);
 }
 
-void _gmx_error(const char* key, const std::string& msg, const char* file, int line)
+void gmx_error_function(const char* key, const std::string& msg, const char* file, int line)
 {
     call_error_handler(key, file, line, msg);
     gmx_exit_on_fatal_error(ExitType_Abort, 1);
 }
 
-void _range_check(int n, int n_min, int n_max, const char* warn_str, const char* var, const char* file, int line)
+void range_check_function(int n, int n_min, int n_max, const char* warn_str, const char* var, const char* file, int line)
 {
     if ((n < n_min) || (n >= n_max))
     {
@@ -251,9 +254,12 @@ void _range_check(int n, int n_min, int n_max, const char* warn_str, const char*
         buf += gmx::formatString(
                 "Variable %s has value %d. It should have been "
                 "within [ %d .. %d ]\n",
-                var, n, n_min, n_max);
+                var,
+                n,
+                n_min,
+                n_max);
 
-        _gmx_error("range", buf, file, line);
+        gmx_error_function("range", buf, file, line);
     }
 }
 

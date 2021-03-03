@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -54,6 +54,7 @@
 #include "gromacs/analysisdata/dataframe.h"
 #include "gromacs/analysisdata/datamodulemanager.h"
 #include "gromacs/analysisdata/paralleloptions.h"
+#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 
@@ -674,8 +675,7 @@ void AnalysisDataStorageFrame::selectDataSet(int index)
 {
     GMX_RELEASE_ASSERT(data_ != nullptr, "Invalid frame accessed");
     const AbstractAnalysisData& baseData = data_->baseData();
-    GMX_RELEASE_ASSERT(index >= 0 && index < baseData.dataSetCount(),
-                       "Out of range data set index");
+    GMX_RELEASE_ASSERT(index >= 0 && index < baseData.dataSetCount(), "Out of range data set index");
     GMX_RELEASE_ASSERT(!baseData.isMultipoint() || !bPointSetInProgress_,
                        "Point sets in multipoint data cannot span data sets");
     currentDataSet_ = index;
@@ -712,8 +712,8 @@ void AnalysisDataStorageFrame::finishPointSet()
         {
             firstColumn = 0;
         }
-        data_->addPointSet(currentDataSet_, firstColumn,
-                           makeConstArrayRef(values_).subArray(begin, end - begin));
+        data_->addPointSet(
+                currentDataSet_, firstColumn, makeConstArrayRef(values_).subArray(begin, end - begin));
     }
     clearValues();
 }

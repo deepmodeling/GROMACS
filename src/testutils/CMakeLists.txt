@@ -2,7 +2,8 @@
 # This file is part of the GROMACS molecular simulation package.
 #
 # Copyright (c) 2011,2012,2013,2014,2015 by the GROMACS development team.
-# Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2016,2017,2018,2019,2020 by the GROMACS development team.
+# Copyright (c) 2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -38,46 +39,85 @@ if (NOT GMX_BUILD_UNITTESTS)
     return()
 endif()
 
-set(TESTUTILS_SOURCES
-    cmdlinetest.cpp
-    conftest.cpp
-    filematchers.cpp
-    interactivetest.cpp
-    loggertest.cpp
-    mpi_printer.cpp
-    mpitest.cpp
-    refdata.cpp
-    refdata_xml.cpp
-    simulationdatabase.cpp
-    stdiohelper.cpp
-    stringtest.cpp
-    testasserts.cpp
-    testfilemanager.cpp
-    testfileredirector.cpp
-    testinit.cpp
-    testmatchers.cpp
-    testoptions.cpp
-    textblockmatchers.cpp
-    tprfilegenerator.cpp
-    xvgtest.cpp
-    )
-
-if(NOT HAVE_TINYXML2)
-    list(APPEND TESTUTILS_SOURCES ../external/tinyxml2/tinyxml2.cpp)
+if (GMX_GPU_CUDA)
+    # Work around FindCUDA that prevents using target_link_libraries()
+    # with keywords otherwise...
+    set(CUDA_LIBRARIES PRIVATE ${CUDA_LIBRARIES})
+    if (NOT GMX_CLANG_CUDA)
+        gmx_cuda_add_library(testutils)
+    else()
+        set_source_files_properties(test_device.cpp PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
+        gmx_compile_cuda_file_with_clang(test_device.cpp)
+        add_library(testutils STATIC ${TESTUTILS_SOURCES})
+        target_link_libraries(testutils PRIVATE ${GMX_CUDA_CLANG_LINK_LIBS})
+    endif()
+    target_link_libraries(testutils PRIVATE ${CUDA_CUFFT_LIBRARIES})
+else()
+    add_library(testutils STATIC ${UNITTEST_TARGET_OPTIONS})
 endif()
 
-add_library(testutils STATIC ${UNITTEST_TARGET_OPTIONS} ${TESTUTILS_SOURCES})
+# Module interface / provided facilities
+target_include_directories(testutils PUBLIC include)
+
+# Executable targets for tests based on `testutils` acquire the source for
+# their entry point from unittest_main.cpp when linking to the `testutils` target.
+target_sources(testutils INTERFACE unittest_main.cpp)
+
+
+target_sources(testutils PRIVATE
+               cmdlinetest.cpp
+               conftest.cpp
+               filematchers.cpp
+               interactivetest.cpp
+               loggertest.cpp
+               mpi_printer.cpp
+               mpitest.cpp
+               refdata.cpp
+               refdata_xml.cpp
+               simulationdatabase.cpp
+               stdiohelper.cpp
+               stringtest.cpp
+               testasserts.cpp
+               testfilemanager.cpp
+               testfileredirector.cpp
+               test_device.cpp
+               test_hardware_environment.cpp
+               testinit.cpp
+               testmatchers.cpp
+               testoptions.cpp
+               textblockmatchers.cpp
+               tprfilegenerator.cpp
+               xvgtest.cpp
+               )
+
+
+if(HAVE_TINYXML2)
+    target_include_directories(testutils SYSTEM PRIVATE ${TinyXML2_INCLUDE_DIR})
+    target_link_libraries(testutils PRIVATE ${TinyXML2_LIBRARIES})
+else()
+    target_include_directories(testutils SYSTEM BEFORE PRIVATE ${CMAKE_SOURCE_DIR}/src/external/tinyxml2)
+    target_sources(testutils PRIVATE ${CMAKE_SOURCE_DIR}/src/external/tinyxml2/tinyxml2.cpp)
+endif()
+
+target_include_directories(testutils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if (GMX_GPU_SYCL)
+    add_sycl_to_target(
+        TARGET testutils
+        SOURCES test_device.cpp
+        )
+endif()
+
 gmx_target_compile_options(testutils)
 target_compile_definitions(testutils PRIVATE HAVE_CONFIG_H)
 target_include_directories(testutils SYSTEM BEFORE PRIVATE ${PROJECT_SOURCE_DIR}/src/external/thread_mpi/include)
 target_link_libraries(testutils PRIVATE libgromacs ${GMX_COMMON_LIBRARIES} gmock)
+target_link_libraries(testutils PUBLIC common)
 
-if(HAVE_TINYXML2)
-    include_directories(SYSTEM ${TinyXML2_INCLUDE_DIR})
-    target_link_libraries(testutils PRIVATE ${TinyXML2_LIBRARIES})
-else()
-    include_directories(BEFORE SYSTEM "../external/tinyxml2")
-endif()
+# GROMACS module dependencies.
+# Note that testutils conveys transitive dependencies on some modules.
+# TODO: Explicitly link specific modules with minimal exposure.
+target_link_libraries(testutils PUBLIC legacy_modules)
 
 # TODO Use gmx_add_missing_tests_notice() instead of the messages below.
 set(GMX_CAN_RUN_MPI_TESTS 1)
@@ -105,8 +145,6 @@ elseif (NOT GMX_THREAD_MPI)
     set(GMX_CAN_RUN_MPI_TESTS 0)
 endif()
 
-set(TESTUTILS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(TESTUTILS_DIR ${TESTUTILS_DIR} PARENT_SCOPE)
 set(GMX_CAN_RUN_MPI_TESTS ${GMX_CAN_RUN_MPI_TESTS} PARENT_SCOPE)
 
 add_subdirectory(tests)

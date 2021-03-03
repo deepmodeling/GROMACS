@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -41,6 +41,7 @@
 
 #include "gmxpre.h"
 
+#include "gromacs/utility/enumerationhelpers.h"
 #include "statepropagatordata.h"
 
 #include "gromacs/commandline/filenm.h"
@@ -53,16 +54,18 @@
 #include "gromacs/mdlib/mdoutf.h"
 #include "gromacs/mdlib/stat.h"
 #include "gromacs/mdlib/update.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 #include "gromacs/mdtypes/commrec.h"
+#include "gromacs/mdtypes/forcebuffers.h"
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/mdtypes/mdrunoptions.h"
 #include "gromacs/mdtypes/state.h"
-#include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/topology/atoms.h"
 #include "gromacs/topology/topology.h"
+#include "gromacs/trajectory/trajectoryframe.h"
 
 #include "freeenergyperturbationdata.h"
 #include "modularsimulator.h"
@@ -108,19 +111,19 @@ StatePropagatorData::StatePropagatorData(int                numAtoms,
     if (DOMAINDECOMP(cr))
     {
         auto localState = std::make_unique<t_state>();
-        dd_init_local_state(cr->dd, globalState, localState.get());
-        stateHasVelocities = ((static_cast<unsigned int>(localState->flags) & (1U << estV)) != 0U);
+        dd_init_local_state(*cr->dd, globalState, localState.get());
+        stateHasVelocities = ((localState->flags & enumValueToBitMask(StateEntry::V)) != 0);
         setLocalState(std::move(localState));
     }
     else
     {
         state_change_natoms(globalState, globalState->natoms);
-        f_.resizeWithPadding(globalState->natoms);
+        f_.resize(globalState->natoms);
         localNAtoms_ = globalState->natoms;
         x_           = globalState->x;
         v_           = globalState->v;
         copy_mat(globalState->box, box_);
-        stateHasVelocities = ((static_cast<unsigned int>(globalState->flags) & (1U << estV)) != 0U);
+        stateHasVelocities = ((globalState->flags & enumValueToBitMask(StateEntry::V)) != 0);
         previousX_.resizeWithPadding(localNAtoms_);
         ddpCount_ = globalState->ddp_count;
         copyPosition();
@@ -128,6 +131,14 @@ StatePropagatorData::StatePropagatorData(int                numAtoms,
     if (useGPU)
     {
         changePinningPolicy(&x_, gmx::PinningPolicy::PinnedIfSupported);
+    }
+
+    if (DOMAINDECOMP(cr) && MASTER(cr))
+    {
+        xGlobal_.resizeWithPadding(totalNumAtoms_);
+        previousXGlobal_.resizeWithPadding(totalNumAtoms_);
+        vGlobal_.resizeWithPadding(totalNumAtoms_);
+        fGlobal_.resizeWithPadding(totalNumAtoms_);
     }
 
     if (!inputrec->bContinuation)
@@ -138,7 +149,7 @@ StatePropagatorData::StatePropagatorData(int                numAtoms,
             // Set the velocities of vsites, shells and frozen atoms to zero
             for (int i = 0; i < mdatoms->homenr; i++)
             {
-                if (mdatoms->ptype[i] == eptVSite || mdatoms->ptype[i] == eptShell)
+                if (mdatoms->ptype[i] == ParticleType::Shell)
                 {
                     clear_rvec(v[i]);
                 }
@@ -154,7 +165,7 @@ StatePropagatorData::StatePropagatorData(int                numAtoms,
                 }
             }
         }
-        if (inputrec->eI == eiVV)
+        if (inputrec->eI == IntegrationAlgorithm::VV)
         {
             vvResetVelocities_ = true;
         }
@@ -204,14 +215,14 @@ ArrayRefWithPadding<const RVec> StatePropagatorData::constVelocitiesView() const
     return v_.constArrayRefWithPadding();
 }
 
-ArrayRefWithPadding<RVec> StatePropagatorData::forcesView()
+ForceBuffersView& StatePropagatorData::forcesView()
 {
-    return f_.arrayRefWithPadding();
+    return f_.view();
 }
 
-ArrayRefWithPadding<const RVec> StatePropagatorData::constForcesView() const
+const ForceBuffersView& StatePropagatorData::constForcesView() const
 {
-    return f_.constArrayRefWithPadding();
+    return f_.view();
 }
 
 rvec* StatePropagatorData::box()
@@ -247,12 +258,15 @@ int StatePropagatorData::totalNumAtoms() const
 std::unique_ptr<t_state> StatePropagatorData::localState()
 {
     auto state   = std::make_unique<t_state>();
-    state->flags = (1U << estX) | (1U << estV) | (1U << estBOX);
+    state->flags = enumValueToBitMask(StateEntry::X) | enumValueToBitMask(StateEntry::V)
+                   | enumValueToBitMask(StateEntry::Box);
     state_change_natoms(state.get(), localNAtoms_);
     state->x = x_;
     state->v = v_;
     copy_mat(box_, state->box);
-    state->ddp_count = ddpCount_;
+    state->ddp_count       = ddpCount_;
+    state->ddp_count_cg_gl = ddpCountCgGl_;
+    state->cg_gl           = cgGl_;
     return state;
 }
 
@@ -266,7 +280,9 @@ void StatePropagatorData::setLocalState(std::unique_ptr<t_state> state)
     v_ = state->v;
     copy_mat(state->box, box_);
     copyPosition();
-    ddpCount_ = state->ddp_count;
+    ddpCount_     = state->ddp_count;
+    ddpCountCgGl_ = state->ddp_count_cg_gl;
+    cgGl_         = state->cg_gl;
 
     if (vvResetVelocities_)
     {
@@ -286,7 +302,7 @@ t_state* StatePropagatorData::globalState()
     return globalState_;
 }
 
-PaddedHostVector<RVec>* StatePropagatorData::forcePointer()
+ForceBuffers* StatePropagatorData::forcePointer()
 {
     return &f_;
 }
@@ -344,11 +360,14 @@ void StatePropagatorData::Element::saveState()
     if (freeEnergyPerturbationData_)
     {
         localStateBackup_->fep_state = freeEnergyPerturbationData_->currentFEPState();
-        for (unsigned long i = 0; i < localStateBackup_->lambda.size(); ++i)
+        for (unsigned long i = 0;
+             i < gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, double>::size();
+             ++i)
         {
             localStateBackup_->lambda[i] = freeEnergyPerturbationData_->constLambdaView()[i];
         }
-        localStateBackup_->flags |= (1U << estLAMBDA) | (1U << estFEPSTATE);
+        localStateBackup_->flags |=
+                enumValueToBitMask(StateEntry::Lambda) | enumValueToBitMask(StateEntry::FepState);
     }
 }
 
@@ -423,10 +442,18 @@ void StatePropagatorData::Element::write(gmx_mdoutf_t outf, Step currentStep, Ti
     // TODO: This is only used for CPT - needs to be filled when we turn CPT back on
     ObservablesHistory* observablesHistory = nullptr;
 
-    mdoutf_write_to_trajectory_files(fplog_, cr_, outf, static_cast<int>(mdof_flags),
-                                     statePropagatorData_->totalNumAtoms_, currentStep, currentTime,
-                                     localStateBackup_.get(), statePropagatorData_->globalState_,
-                                     observablesHistory, statePropagatorData_->f_);
+    mdoutf_write_to_trajectory_files(fplog_,
+                                     cr_,
+                                     outf,
+                                     static_cast<int>(mdof_flags),
+                                     statePropagatorData_->totalNumAtoms_,
+                                     currentStep,
+                                     currentTime,
+                                     localStateBackup_.get(),
+                                     statePropagatorData_->globalState_,
+                                     observablesHistory,
+                                     statePropagatorData_->f_.view().force(),
+                                     &dummyCheckpointDataHolder_);
 
     if (currentStep != lastStep_ || !isRegularSimulationEnd_)
     {
@@ -451,14 +478,137 @@ void StatePropagatorData::resetVelocities()
     v_ = velocityBackup_;
 }
 
-void StatePropagatorData::Element::writeCheckpoint(t_state* localState, t_state gmx_unused* globalState)
+namespace
 {
-    state_change_natoms(localState, statePropagatorData_->localNAtoms_);
-    localState->x = statePropagatorData_->x_;
-    localState->v = statePropagatorData_->v_;
-    copy_mat(statePropagatorData_->box_, localState->box);
-    localState->ddp_count = statePropagatorData_->ddpCount_;
-    localState->flags |= (1U << estX) | (1U << estV) | (1U << estBOX);
+/*!
+ * \brief Enum describing the contents StatePropagatorData::Element writes to modular checkpoint
+ *
+ * When changing the checkpoint content, add a new element just above Count, and adjust the
+ * checkpoint functionality.
+ */
+enum class CheckpointVersion
+{
+    Base, //!< First version of modular checkpointing
+    Count //!< Number of entries. Add new versions right above this!
+};
+constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count) - 1);
+} // namespace
+
+template<CheckpointDataOperation operation>
+void StatePropagatorData::doCheckpointData(CheckpointData<operation>* checkpointData)
+{
+    checkpointVersion(checkpointData, "StatePropagatorData version", c_currentVersion);
+    checkpointData->scalar("numAtoms", &totalNumAtoms_);
+
+    if (operation == CheckpointDataOperation::Read)
+    {
+        xGlobal_.resizeWithPadding(totalNumAtoms_);
+        vGlobal_.resizeWithPadding(totalNumAtoms_);
+    }
+
+    checkpointData->arrayRef("positions", makeCheckpointArrayRef<operation>(xGlobal_));
+    checkpointData->arrayRef("velocities", makeCheckpointArrayRef<operation>(vGlobal_));
+    checkpointData->tensor("box", box_);
+    checkpointData->scalar("ddpCount", &ddpCount_);
+    checkpointData->scalar("ddpCountCgGl", &ddpCountCgGl_);
+    checkpointData->arrayRef("cgGl", makeCheckpointArrayRef<operation>(cgGl_));
+}
+
+void StatePropagatorData::Element::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                                       const t_commrec*                   cr)
+{
+    if (DOMAINDECOMP(cr))
+    {
+        // Collect state from all ranks into global vectors
+        dd_collect_vec(cr->dd,
+                       statePropagatorData_->ddpCount_,
+                       statePropagatorData_->ddpCountCgGl_,
+                       statePropagatorData_->cgGl_,
+                       statePropagatorData_->x_,
+                       statePropagatorData_->xGlobal_);
+        dd_collect_vec(cr->dd,
+                       statePropagatorData_->ddpCount_,
+                       statePropagatorData_->ddpCountCgGl_,
+                       statePropagatorData_->cgGl_,
+                       statePropagatorData_->v_,
+                       statePropagatorData_->vGlobal_);
+    }
+    else
+    {
+        // Everything is local - copy local vectors into global ones
+        statePropagatorData_->xGlobal_.resizeWithPadding(statePropagatorData_->totalNumAtoms());
+        statePropagatorData_->vGlobal_.resizeWithPadding(statePropagatorData_->totalNumAtoms());
+        std::copy(statePropagatorData_->x_.begin(),
+                  statePropagatorData_->x_.end(),
+                  statePropagatorData_->xGlobal_.begin());
+        std::copy(statePropagatorData_->v_.begin(),
+                  statePropagatorData_->v_.end(),
+                  statePropagatorData_->vGlobal_.begin());
+    }
+    if (MASTER(cr))
+    {
+        statePropagatorData_->doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
+    }
+}
+
+/*!
+ * \brief Update the legacy global state
+ *
+ * When restoring from checkpoint, data will be distributed during domain decomposition at setup stage.
+ * Domain decomposition still uses the legacy global t_state object so make sure it's up-to-date.
+ */
+static void updateGlobalState(t_state*                      globalState,
+                              const PaddedHostVector<RVec>& x,
+                              const PaddedHostVector<RVec>& v,
+                              const tensor                  box,
+                              int                           ddpCount,
+                              int                           ddpCountCgGl,
+                              const std::vector<int>&       cgGl)
+{
+    globalState->x = x;
+    globalState->v = v;
+    copy_mat(box, globalState->box);
+    globalState->ddp_count       = ddpCount;
+    globalState->ddp_count_cg_gl = ddpCountCgGl;
+    globalState->cg_gl           = cgGl;
+}
+
+void StatePropagatorData::Element::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                          const t_commrec*                  cr)
+{
+    if (MASTER(cr))
+    {
+        statePropagatorData_->doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
+
+    // Copy data to global state to be distributed by DD at setup stage
+    if (DOMAINDECOMP(cr) && MASTER(cr))
+    {
+        updateGlobalState(statePropagatorData_->globalState_,
+                          statePropagatorData_->xGlobal_,
+                          statePropagatorData_->vGlobal_,
+                          statePropagatorData_->box_,
+                          statePropagatorData_->ddpCount_,
+                          statePropagatorData_->ddpCountCgGl_,
+                          statePropagatorData_->cgGl_);
+    }
+    // Everything is local - copy global vectors to local ones
+    if (!DOMAINDECOMP(cr))
+    {
+        statePropagatorData_->x_.resizeWithPadding(statePropagatorData_->totalNumAtoms_);
+        statePropagatorData_->v_.resizeWithPadding(statePropagatorData_->totalNumAtoms_);
+        std::copy(statePropagatorData_->xGlobal_.begin(),
+                  statePropagatorData_->xGlobal_.end(),
+                  statePropagatorData_->x_.begin());
+        std::copy(statePropagatorData_->vGlobal_.begin(),
+                  statePropagatorData_->vGlobal_.end(),
+                  statePropagatorData_->v_.begin());
+    }
+}
+
+const std::string& StatePropagatorData::Element::clientID()
+{
+    return StatePropagatorData::checkpointID();
 }
 
 void StatePropagatorData::Element::trajectoryWriterTeardown(gmx_mdoutf* gmx_unused outf)
@@ -478,10 +628,20 @@ void StatePropagatorData::Element::trajectoryWriterTeardown(gmx_mdoutf* gmx_unus
     {
         auto globalXRef =
                 MASTER(cr_) ? statePropagatorData_->globalState_->x : gmx::ArrayRef<gmx::RVec>();
-        dd_collect_vec(cr_->dd, localStateBackup_.get(), localStateBackup_->x, globalXRef);
+        dd_collect_vec(cr_->dd,
+                       localStateBackup_->ddp_count,
+                       localStateBackup_->ddp_count_cg_gl,
+                       localStateBackup_->cg_gl,
+                       localStateBackup_->x,
+                       globalXRef);
         auto globalVRef =
                 MASTER(cr_) ? statePropagatorData_->globalState_->v : gmx::ArrayRef<gmx::RVec>();
-        dd_collect_vec(cr_->dd, localStateBackup_.get(), localStateBackup_->v, globalVRef);
+        dd_collect_vec(cr_->dd,
+                       localStateBackup_->ddp_count,
+                       localStateBackup_->ddp_count_cg_gl,
+                       localStateBackup_->cg_gl,
+                       localStateBackup_->v,
+                       globalVRef);
     }
     else
     {
@@ -495,12 +655,17 @@ void StatePropagatorData::Element::trajectoryWriterTeardown(gmx_mdoutf* gmx_unus
         if (canMoleculesBeDistributedOverPBC_ && !systemHasPeriodicMolecules_)
         {
             // Make molecules whole only for confout writing
-            do_pbc_mtop(pbcType_, localStateBackup_->box, top_global_,
+            do_pbc_mtop(pbcType_,
+                        localStateBackup_->box,
+                        top_global_,
                         statePropagatorData_->globalState_->x.rvec_array());
         }
-        write_sto_conf_mtop(finalConfigurationFilename_.c_str(), *top_global_->name, top_global_,
+        write_sto_conf_mtop(finalConfigurationFilename_.c_str(),
+                            *top_global_->name,
+                            top_global_,
                             statePropagatorData_->globalState_->x.rvec_array(),
-                            statePropagatorData_->globalState_->v.rvec_array(), pbcType_,
+                            statePropagatorData_->globalState_->v.rvec_array(),
+                            pbcType_,
                             localStateBackup_->box);
     }
     wallcycle_stop(mdoutf_get_wcycle(outf), ewcTRAJ);
@@ -561,6 +726,27 @@ ISimulatorElement* StatePropagatorData::Element::getElementPointerImpl(
 {
     statePropagatorData->element()->setFreeEnergyPerturbationData(freeEnergyPerturbationData);
     return statePropagatorData->element();
+}
+
+void StatePropagatorData::readCheckpointToTrxFrame(t_trxframe* trxFrame, ReadCheckpointData readCheckpointData)
+{
+    StatePropagatorData statePropagatorData;
+    statePropagatorData.doCheckpointData(&readCheckpointData);
+
+    trxFrame->natoms = statePropagatorData.totalNumAtoms_;
+    trxFrame->bX     = true;
+    trxFrame->x  = makeRvecArray(statePropagatorData.xGlobal_, statePropagatorData.totalNumAtoms_);
+    trxFrame->bV = true;
+    trxFrame->v  = makeRvecArray(statePropagatorData.vGlobal_, statePropagatorData.totalNumAtoms_);
+    trxFrame->bF = false;
+    trxFrame->bBox = true;
+    copy_mat(statePropagatorData.box_, trxFrame->box);
+}
+
+const std::string& StatePropagatorData::checkpointID()
+{
+    static const std::string identifier = "StatePropagatorData";
+    return identifier;
 }
 
 } // namespace gmx

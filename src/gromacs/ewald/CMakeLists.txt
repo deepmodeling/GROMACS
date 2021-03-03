@@ -2,7 +2,7 @@
 # This file is part of the GROMACS molecular simulation package.
 #
 # Copyright (c) 2014,2015,2016,2017,2018 by the GROMACS development team.
-# Copyright (c) 2019,2020, by the GROMACS development team, led by
+# Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -33,6 +33,8 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
+# Set up the module library
+add_library(ewald INTERFACE)
 gmx_add_libgromacs_sources(
     calculate_spline_moduli.cpp
     ewald.cpp
@@ -70,6 +72,11 @@ if (GMX_GPU_CUDA)
         pme_gpu_internal.cpp
         pme_gpu_timings.cpp
         )
+    _gmx_add_files_to_property(CUDA_SOURCES
+        # Must add these files so they can include device_information.h
+        pme_gpu_internal.cpp
+        pme_gpu_timings.cpp
+        )
 elseif (GMX_GPU_OPENCL)
     gmx_add_libgromacs_sources(
         # OpenCL-specific sources
@@ -80,6 +87,22 @@ elseif (GMX_GPU_OPENCL)
         pme_gpu_internal.cpp
         pme_gpu_timings.cpp
         )
+elseif (GMX_GPU_SYCL)
+    # SYCL-TODO: proper implementation
+    gmx_add_libgromacs_sources(
+        # Files that implement stubs
+        pme_gpu_sycl_stubs.cpp
+        # GPU-specific sources
+        pme_gpu.cpp
+        pme_gpu_internal.cpp
+        pme_gpu_timings.cpp
+        )
+    _gmx_add_files_to_property(SYCL_SOURCES
+        pme_gpu_internal.cpp
+        pme_gpu_program.cpp
+        pme_gpu_sycl_stubs.cpp
+        pme_gpu_timings.cpp
+        )
 else()
     gmx_add_libgromacs_sources(
         # Files that implement stubs
@@ -87,13 +110,45 @@ else()
         )
 endif()
 
+# Source files have the following private module dependencies.
+target_link_libraries(ewald PRIVATE
+                      #                      gmxlib
+                      #                      math
+                      #                      mdtypes
+                      #                      tng_io
+                      )
+
+# Public interface for modules, including dependencies and interfaces
+#target_include_directories(ewald PUBLIC
+target_include_directories(ewald INTERFACE
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+#target_link_libraries(ewald PUBLIC
+target_link_libraries(ewald INTERFACE
+                      legacy_api
+                      )
+
+# TODO: when fileio is an OBJECT target
+#target_link_libraries(ewald PUBLIC legacy_api)
+#target_link_libraries(ewald PRIVATE common)
+
+# Module dependencies
+# This module convey transitive dependence on these modules.
+#target_link_libraries(ewald PUBLIC
+target_link_libraries(ewald INTERFACE
+                      #                      utility
+                      )
+# Source files have the following private module dependencies.
+#target_link_libraries(ewald PRIVATE tng_io)
+# TODO: Explicitly link specific modules.
+#target_link_libraries(ewald PRIVATE legacy_modules)
+
 if (BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
 
 set(PME_OCL_KERNEL_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/pme_gpu_utils.clh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/pme_gpu_calculate_splines.clh"
     "${CMAKE_CURRENT_SOURCE_DIR}/pme_solve.clh"
     "${CMAKE_CURRENT_SOURCE_DIR}/pme_gather.clh"
     "${CMAKE_CURRENT_SOURCE_DIR}/pme_spread.clh")

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -55,6 +55,10 @@
 #    include "opencl/nbnxm_ocl_types.h"
 #endif
 
+#if GMX_GPU_SYCL
+#    include "sycl/nbnxm_sycl_types.h"
+#endif
+
 #include "gromacs/gpu_utils/gpu_utils.h"
 #include "gromacs/listed_forces/gpubonded.h"
 #include "gromacs/math/vec.h"
@@ -64,6 +68,7 @@
 #include "gromacs/timing/gpu_timing.h"
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/fatalerror.h"
+#include "gromacs/utility/range.h"
 #include "gromacs/utility/stringutil.h"
 
 #include "gpu_common_utils.h"
@@ -89,7 +94,8 @@ static inline void validateGpuAtomLocality(const AtomLocality atomLocality)
     std::string str = gmx::formatString(
             "Invalid atom locality passed (%d); valid here is only "
             "local (%d) or nonlocal (%d)",
-            static_cast<int>(atomLocality), static_cast<int>(AtomLocality::Local),
+            static_cast<int>(atomLocality),
+            static_cast<int>(AtomLocality::Local),
             static_cast<int>(AtomLocality::NonLocal));
 
     GMX_ASSERT(atomLocality == AtomLocality::Local || atomLocality == AtomLocality::NonLocal, str.c_str());
@@ -162,14 +168,9 @@ bool haveGpuShortRangeWork(const NbnxmGpu* nb, const gmx::AtomLocality aLocality
  *
  * \param[in] atomData Atom descriptor data structure
  * \param[in] atomLocality Atom locality specifier
- * \param[out] atomRangeBegin Starting index of the atom range in the atom data array.
- * \param[out] atomRangeLen Atom range length in the atom data array.
+ * \returns Range of indexes for selected locality.
  */
-template<typename AtomDataT>
-static inline void getGpuAtomRange(const AtomDataT*   atomData,
-                                   const AtomLocality atomLocality,
-                                   int*               atomRangeBegin,
-                                   int*               atomRangeLen)
+static inline gmx::Range<int> getGpuAtomRange(const NBAtomData* atomData, const AtomLocality atomLocality)
 {
     assert(atomData);
     validateGpuAtomLocality(atomLocality);
@@ -177,13 +178,11 @@ static inline void getGpuAtomRange(const AtomDataT*   atomData,
     /* calculate the atom data index range based on locality */
     if (atomLocality == AtomLocality::Local)
     {
-        *atomRangeBegin = 0;
-        *atomRangeLen   = atomData->natoms_local;
+        return gmx::Range<int>(0, atomData->numAtomsLocal);
     }
     else
     {
-        *atomRangeBegin = atomData->natoms_local;
-        *atomRangeLen   = atomData->natoms - atomData->natoms_local;
+        return gmx::Range<int>(atomData->numAtomsLocal, atomData->numAtoms);
     }
 }
 
@@ -194,19 +193,18 @@ static inline void getGpuAtomRange(const AtomDataT*   atomData,
  *   - 1st pass prune: ran during the current step (prior to the force kernel);
  *   - rolling prune:  ran at the end of the previous step (prior to the current step H2D xq);
  *
- * Note that the resetting of cu_timers_t::didPrune and cu_timers_t::didRollingPrune should happen
- * after calling this function.
+ * Note that the resetting of Nbnxm::GpuTimers::didPrune and Nbnxm::GpuTimers::didRollingPrune
+ * should happen after calling this function.
  *
  * \param[in] timers   structs with GPU timer objects
  * \param[inout] timings  GPU task timing data
  * \param[in] iloc        interaction locality
  */
-template<typename GpuTimers>
-static void countPruneKernelTime(GpuTimers*                 timers,
+static void countPruneKernelTime(Nbnxm::GpuTimers*          timers,
                                  gmx_wallclock_gpu_nbnxn_t* timings,
                                  const InteractionLocality  iloc)
 {
-    gpu_timers_t::Interaction& iTimers = timers->interaction[iloc];
+    GpuTimers::Interaction& iTimers = timers->interaction[iloc];
 
     // We might have not done any pruning (e.g. if we skipped with empty domains).
     if (!iTimers.didPrune && !iTimers.didRollingPrune)
@@ -236,7 +234,6 @@ static void countPruneKernelTime(GpuTimers*                 timers,
  * Note that this function should always be called after the transfers into the
  * staging buffers has completed.
  *
- * \tparam     StagingData    Type of staging data
  * \param[in]  nbst           Nonbonded staging data
  * \param[in]  iLocality      Interaction locality specifier
  * \param[in]  reduceEnergies True if energy reduction should be done
@@ -245,8 +242,7 @@ static void countPruneKernelTime(GpuTimers*                 timers,
  * \param[out] e_el           Variable to accumulate electrostatic energy into
  * \param[out] fshift         Pointer to the array of shift forces to accumulate into
  */
-template<typename StagingData>
-static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
+static inline void gpu_reduce_staged_outputs(const NBStagingData&      nbst,
                                              const InteractionLocality iLocality,
                                              const bool                reduceEnergies,
                                              const bool                reduceFshift,
@@ -259,15 +255,15 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
     {
         if (reduceEnergies)
         {
-            *e_lj += *nbst.e_lj;
-            *e_el += *nbst.e_el;
+            *e_lj += *nbst.eLJ;
+            *e_el += *nbst.eElec;
         }
 
         if (reduceFshift)
         {
             for (int i = 0; i < SHIFTS; i++)
             {
-                rvec_inc(fshift[i], nbst.fshift[i]);
+                rvec_inc(fshift[i], nbst.fShift[i]);
             }
         }
     }
@@ -284,7 +280,6 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
  *      counters could end up being inconsistent due to not being incremented
  *      on some of the node when this is skipped on empty local domains!
  *
- * \tparam     GpuTimers         GPU timers type
  * \tparam     GpuPairlist       Pair list type
  * \param[out] timings           Pointer to the NB GPU timings data
  * \param[in]  timers            Pointer to GPU timers data
@@ -294,9 +289,9 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
  * \param[in]  doTiming          True if timing is enabled.
  *
  */
-template<typename GpuTimers, typename GpuPairlist>
+template<typename GpuPairlist>
 static inline void gpu_accumulate_timings(gmx_wallclock_gpu_nbnxn_t* timings,
-                                          GpuTimers*                 timers,
+                                          Nbnxm::GpuTimers*          timers,
                                           const GpuPairlist*         plist,
                                           AtomLocality               atomLocality,
                                           const gmx::StepWorkload&   stepWork,
@@ -424,14 +419,22 @@ bool gpu_try_finish_task(NbnxmGpu*                nb,
 
         if (stepWork.computeEnergy || stepWork.computeVirial)
         {
-            gpu_reduce_staged_outputs(nb->nbst, iLocality, stepWork.computeEnergy, stepWork.computeVirial,
-                                      e_lj, e_el, as_rvec_array(shiftForces.data()));
+            gpu_reduce_staged_outputs(nb->nbst,
+                                      iLocality,
+                                      stepWork.computeEnergy,
+                                      stepWork.computeVirial,
+                                      e_lj,
+                                      e_el,
+                                      as_rvec_array(shiftForces.data()));
         }
     }
 
-    /* Always reset both pruning flags (doesn't hurt doing it even when timing is off). */
-    nb->timers->interaction[iLocality].didPrune =
-            nb->timers->interaction[iLocality].didRollingPrune = false;
+    /* Reset both pruning flags. */
+    if (nb->bDoTime)
+    {
+        nb->timers->interaction[iLocality].didPrune =
+                nb->timers->interaction[iLocality].didRollingPrune = false;
+    }
 
     /* Turn off initial list pruning (doesn't hurt if this is not pair-search step). */
     nb->plist[iLocality]->haveFreshList = false;

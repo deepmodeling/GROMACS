@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2012,2014,2015,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -37,6 +37,7 @@
  */
 #include "gmxpre.h"
 
+#include "gromacs/utility/strconvert.h"
 #include "toputil.h"
 
 #include <climits>
@@ -55,6 +56,7 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/smalloc.h"
+#include "gromacs/utility/stringutil.h"
 
 /* UTILITIES */
 
@@ -162,14 +164,14 @@ static void print_bt(FILE*                                   out,
         {
             for (int j = 0; (j < nral); j++)
             {
-                fprintf(out, "%5s ", at->atomNameFromAtomType(atoms[j]));
+                fprintf(out, "%5s ", *at->atomNameFromAtomType(atoms[j]));
             }
         }
         else
         {
             for (int j = 0; (j < 2); j++)
             {
-                fprintf(out, "%5s ", at->atomNameFromAtomType(atoms[dihp[f][j]]));
+                fprintf(out, "%5s ", *at->atomNameFromAtomType(atoms[dihp[f][j]]));
             }
         }
         fprintf(out, "%5d ", bSwapParity ? -f - 1 : f + 1);
@@ -247,13 +249,23 @@ void print_atoms(FILE* out, PreprocessingAtomTypes* atype, t_atoms* at, int* cgn
     int         i, ri;
     int         tpA, tpB;
     const char* as;
-    const char *tpnmA, *tpnmB;
     double      qres, qtot;
 
     as = dir2str(Directive::d_atoms);
     fprintf(out, "[ %s ]\n", as);
-    fprintf(out, "; %4s %10s %6s %7s%6s %6s %10s %10s %6s %10s %10s\n", "nr", "type", "resnr",
-            "residue", "atom", "cgnr", "charge", "mass", "typeB", "chargeB", "massB");
+    fprintf(out,
+            "; %4s %10s %6s %7s%6s %6s %10s %10s %6s %10s %10s\n",
+            "nr",
+            "type",
+            "resnr",
+            "residue",
+            "atom",
+            "cgnr",
+            "charge",
+            "mass",
+            "typeB",
+            "chargeB",
+            "massB");
 
     qtot = 0;
 
@@ -266,8 +278,11 @@ void print_atoms(FILE* out, PreprocessingAtomTypes* atype, t_atoms* at, int* cgn
             if ((i == 0 || ri != at->atom[i - 1].resind) && at->resinfo[ri].rtp != nullptr)
             {
                 qres = get_residue_charge(at, i);
-                fprintf(out, "; residue %3d %-3s rtp %-4s q ", at->resinfo[ri].nr,
-                        *at->resinfo[ri].name, *at->resinfo[ri].rtp);
+                fprintf(out,
+                        "; residue %3d %-3s rtp %-4s q ",
+                        at->resinfo[ri].nr,
+                        *at->resinfo[ri].name,
+                        *at->resinfo[ri].rtp);
                 if (fabs(qres) < 0.001)
                 {
                     fprintf(out, " %s", "0.0");
@@ -278,8 +293,9 @@ void print_atoms(FILE* out, PreprocessingAtomTypes* atype, t_atoms* at, int* cgn
                 }
                 fprintf(out, "\n");
             }
-            tpA = at->atom[i].type;
-            if ((tpnmA = atype->atomNameFromAtomType(tpA)) == nullptr)
+            tpA        = at->atom[i].type;
+            auto tpnmA = atype->atomNameFromAtomType(tpA);
+            if (!tpnmA.has_value())
             {
                 gmx_fatal(FARGS, "tpA = %d, i= %d in print_atoms", tpA, i);
             }
@@ -287,19 +303,27 @@ void print_atoms(FILE* out, PreprocessingAtomTypes* atype, t_atoms* at, int* cgn
             /* This is true by construction, but static analysers don't know */
             GMX_ASSERT(!bRTPresname || at->resinfo[at->atom[i].resind].rtp,
                        "-rtpres did not have residue name available");
-            fprintf(out, "%6d %10s %6d%c %5s %6s %6d %10g %10g", i + 1, tpnmA, at->resinfo[ri].nr,
+            fprintf(out,
+                    "%6d %10s %6d%c %5s %6s %6d %10g %10g",
+                    i + 1,
+                    *tpnmA,
+                    at->resinfo[ri].nr,
                     at->resinfo[ri].ic,
                     bRTPresname ? *(at->resinfo[at->atom[i].resind].rtp)
                                 : *(at->resinfo[at->atom[i].resind].name),
-                    *(at->atomname[i]), cgnr[i], at->atom[i].q, at->atom[i].m);
+                    *(at->atomname[i]),
+                    cgnr[i],
+                    at->atom[i].q,
+                    at->atom[i].m);
             if (PERTURBED(at->atom[i]))
             {
-                tpB = at->atom[i].typeB;
-                if ((tpnmB = atype->atomNameFromAtomType(tpB)) == nullptr)
+                tpB        = at->atom[i].typeB;
+                auto tpnmB = atype->atomNameFromAtomType(tpB);
+                if (!tpnmB.has_value())
                 {
                     gmx_fatal(FARGS, "tpB = %d, i= %d in print_atoms", tpB, i);
                 }
-                fprintf(out, " %6s %10g %10g", tpnmB, at->atom[i].qB, at->atom[i].mB);
+                fprintf(out, " %6s %10g %10g", *tpnmB, at->atom[i].qB, at->atom[i].mB);
             }
             // Accumulate the total charge to help troubleshoot issues.
             qtot += static_cast<double>(at->atom[i].q);
@@ -336,9 +360,8 @@ void print_bondeds(FILE* out, int natoms, Directive d, int ftype, int fsubtype, 
     open_symtab(&stab);
     for (int i = 0; (i < natoms); i++)
     {
-        char buf[12];
-        sprintf(buf, "%4d", (i + 1));
-        atype.addType(&stab, *a, buf, InteractionOfType({}, {}), 0, 0);
+        std::string name = gmx::toString(i + 1);
+        atype.addType(&stab, *a, name, InteractionOfType({}, {}), 0, 0);
     }
     print_bt(out, d, &atype, ftype, fsubtype, plist, TRUE);
 

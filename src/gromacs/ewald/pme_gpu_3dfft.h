@@ -1,7 +1,8 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team.
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -56,6 +57,8 @@
 
 #    include "gromacs/gpu_utils/gmxopencl.h"
 #    include "gromacs/gpu_utils/gputraits_ocl.h"
+#elif GMX_GPU_SYCL
+#    include "gromacs/gpu_utils/gputraits_sycl.h"
 #endif
 
 #include "gromacs/fft/fft.h" // for the enum gmx_fft_direction
@@ -75,7 +78,7 @@ public:
      * \param[in] pmeGpu                  The PME GPU structure.
      * \param[in] gridIndex               The index of the grid on which to perform the calculations.
      */
-    GpuParallel3dFft(const PmeGpu* pmeGpu, const int gridIndex);
+    GpuParallel3dFft(const PmeGpu* pmeGpu, int gridIndex);
     /*! \brief Destroys the FFT plans. */
     ~GpuParallel3dFft();
     /*! \brief Performs the FFT transform in given direction

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -41,10 +41,12 @@
 #include <cstdio>
 
 #include <memory>
+#include <vector>
 
 #include "gromacs/math/vectypes.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/real.h"
 
 #define EGP_EXCL (1 << 0)
@@ -59,6 +61,7 @@ namespace gmx
 class Awh;
 struct AwhParams;
 class KeyValueTreeObject;
+struct MtsLevel;
 } // namespace gmx
 
 enum class PbcType;
@@ -69,8 +72,6 @@ struct t_grpopts
     int ngtc;
     //! Number of of Nose-Hoover chains per group
     int nhchainlength;
-    //! Number of Accelerate groups
-    int ngacc;
     //! Number of Freeze groups
     int ngfrz;
     //! Number of Energy groups
@@ -80,7 +81,7 @@ struct t_grpopts
     //! Coupling temperature	per group
     real* ref_t;
     //! No/simple/periodic simulated annealing for each group
-    int* annealing;
+    SimulatedAnnealing* annealing;
     //! Number of annealing time points per group
     int* anneal_npoints;
     //! For each group: Time points
@@ -89,8 +90,6 @@ struct t_grpopts
     real** anneal_temp;
     //! Tau coupling time
     real* tau_t;
-    //! Acceleration per group
-    rvec* acc;
     //! Whether the group will be frozen in each direction
     ivec* nFreeze;
     //! Exclusions/tables of energy group pairs
@@ -104,7 +103,7 @@ struct t_grpopts
 struct t_simtemp
 {
     //! Simulated temperature scaling; linear or exponential
-    int eSimTempScale;
+    SimulatedTempering eSimTempScale;
     //! The low temperature for simulated tempering
     real simtemp_low;
     //! The high temperature for simulated tempering
@@ -124,11 +123,11 @@ struct t_lambda
     //! Change of lambda per time step (fraction of (0.1)
     double delta_lambda;
     //! Print no, total or potential energies in dhdl
-    int edHdLPrintEnergy;
+    FreeEnergyPrintEnergy edHdLPrintEnergy;
     //! The number of foreign lambda points
     int n_lambda;
     //! The array of all lambda values
-    double** all_lambda;
+    gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, std::vector<double>> all_lambda;
     //! The number of neighboring lambda states to calculate the energy for in up and down directions (-1 for all)
     int lambda_neighbors;
     //! The first lambda to calculate energies for
@@ -148,11 +147,11 @@ struct t_lambda
     //! Use softcore for the coulomb portion as well (default FALSE)
     gmx_bool bScCoul;
     //! Whether to print the dvdl term associated with this term; if it is not specified as separate, it is lumped with the FEP term
-    gmx_bool separate_dvdl[efptNR];
+    gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, bool> separate_dvdl;
     //! Whether to write a separate dhdl.xvg file note: NOT a gmx_bool, but an enum
-    int separate_dhdl_file;
+    SeparateDhdlFile separate_dhdl_file;
     //! Whether to calculate+write dhdl derivatives note: NOT a gmx_bool, but an enum
-    int dhdl_derivatives;
+    DhDlDerivativeCalculation dhdl_derivatives;
     //! The maximum table size for the dH histogram
     int dh_hist_size;
     //! The spacing for the dH histogram
@@ -164,11 +163,11 @@ struct t_expanded
     //! The frequency of expanded ensemble state changes
     int nstexpanded;
     //! Which type of move updating do we use for lambda monte carlo (or no for none)
-    int elamstats;
+    LambdaWeightCalculation elamstats;
     //! What move set will be we using for state space moves
-    int elmcmove;
+    LambdaMoveCalculation elmcmove;
     //! The method we use to decide of we have equilibrated the weights
-    int elmceq;
+    LambdaWeightWillReachEquilibrium elmceq;
     //! The minumum number of samples at each lambda for deciding whether we have reached a minimum
     int equil_n_at_lam;
     //! Wang-Landau delta at which we stop equilibrating weights
@@ -212,15 +211,15 @@ struct t_expanded
     //! To override the main temperature, or define it if it's not defined
     real mc_temp;
     //! User-specified initial weights to start with
-    real* init_lambda_weights;
+    std::vector<real> init_lambda_weights;
 };
 
 struct t_rotgrp
 {
     //! Rotation type for this group
-    int eType;
+    EnforcedRotationGroupType eType;
     //! Use mass-weighed positions?
-    int bMassW;
+    bool bMassW;
     //! Number of atoms in the group
     int nat;
     //! The global atoms numbers
@@ -236,7 +235,7 @@ struct t_rotgrp
     //! Pivot point of rotation axis (nm)
     rvec pivot;
     //! Type of fit to determine actual group angle
-    int eFittype;
+    RotationGroupFitting eFittype;
     //! Number of angles around the reference angle for which the rotation potential is also evaluated (for fit type 'potential' only)
     int PotAngle_nstep;
     //! Distance between two angles in degrees (for fit type 'potential' only)
@@ -315,7 +314,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     ~t_inputrec();
 
     //! Integration method
-    int eI;
+    IntegrationAlgorithm eI;
     //! Number of steps to be taken
     int64_t nsteps;
     //! Used in checkpointing to separate chunks
@@ -325,13 +324,13 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Frequency of energy calc. and T/P coupl. upd.
     int nstcalcenergy;
     //! Group or verlet cutoffs
-    int cutoff_scheme;
+    CutoffScheme cutoff_scheme;
     //! Number of steps before pairlist is generated
     int nstlist;
     //! Number of steps after which center of mass motion is removed
     int nstcomm;
     //! Center of mass motion removal algorithm
-    int comm_mode;
+    ComRemovalAlgorithm comm_mode;
     //! Number of steps after which print to logfile
     int nstlog;
     //! Number of steps after which X is output
@@ -348,6 +347,10 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     double init_t;
     //! Time step (ps)
     double delta_t;
+    //! Whether we use multiple time stepping
+    bool useMts;
+    //! The multiple time stepping levels
+    std::vector<gmx::MtsLevel> mtsLevels;
     //! Precision of x in compressed trajectory file
     real x_compression_precision;
     //! Requested fourier_spacing, when nk? not set
@@ -365,11 +368,11 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Real space tolerance for LJ-Ewald
     real ewald_rtol_lj;
     //! Normal/3D ewald, or pseudo-2D LR corrections
-    int ewald_geometry;
+    EwaldGeometry ewald_geometry;
     //! Epsilon for PME dipole correction
     real epsilon_surface;
     //! Type of combination rule in LJ-PME
-    int ljpme_combination_rule;
+    LongRangeVdW ljpme_combination_rule;
     //! Type of periodic boundary conditions
     PbcType pbcType;
     //! Periodic molecules
@@ -377,15 +380,15 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Continuation run: starting state is correct (ie. constrained)
     gmx_bool bContinuation;
     //! Temperature coupling
-    int etc;
+    TemperatureCoupling etc;
     //! Interval in steps for temperature coupling
     int nsttcouple;
     //! Whether to print nose-hoover chains
     gmx_bool bPrintNHChains;
     //! Pressure coupling
-    int epc;
+    PressureCoupling epc;
     //! Pressure coupling type
-    int epct;
+    PressureCouplingType epct;
     //! Interval in steps for pressure coupling
     int nstpcouple;
     //! Pressure coupling time (ps)
@@ -395,7 +398,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Compressibility ((mol nm^3)/kJ)
     tensor compress;
     //! How to scale absolute reference coordinates
-    int refcoord_scaling;
+    RefCoordScaling refcoord_scaling;
     //! The COM of the posres atoms
     rvec posres_com;
     //! The B-state COM of the posres atoms
@@ -409,9 +412,9 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Radius for test particle insertion
     real rtpi;
     //! Type of electrostatics treatment
-    int coulombtype;
+    CoulombInteractionType coulombtype;
     //! Modify the Coulomb interaction
-    int coulomb_modifier;
+    InteractionModifiers coulomb_modifier;
     //! Coulomb switch range start (nm)
     real rcoulomb_switch;
     //! Coulomb cutoff (nm)
@@ -423,37 +426,37 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Always false (no longer supported)
     bool implicit_solvent;
     //! Type of Van der Waals treatment
-    int vdwtype;
+    VanDerWaalsType vdwtype;
     //! Modify the Van der Waals interaction
-    int vdw_modifier;
+    InteractionModifiers vdw_modifier;
     //! Van der Waals switch range start (nm)
     real rvdw_switch;
     //! Van der Waals cutoff (nm)
     real rvdw;
     //! Perform Long range dispersion corrections
-    int eDispCorr;
+    DispersionCorrectionType eDispCorr;
     //! Extension of the table beyond the cut-off, as well as the table length for 1-4 interac.
     real tabext;
     //! Tolerance for shake
     real shake_tol;
     //! Free energy calculations
-    int efep;
+    FreeEnergyPerturbationType efep;
     //! Data for the FEP state
-    t_lambda* fepvals;
+    std::unique_ptr<t_lambda> fepvals;
     //! Whether to do simulated tempering
     gmx_bool bSimTemp;
     //! Variables for simulated tempering
-    t_simtemp* simtempvals;
+    std::unique_ptr<t_simtemp> simtempvals;
     //! Whether expanded ensembles are used
     gmx_bool bExpanded;
     //! Expanded ensemble parameters
-    t_expanded* expandedvals;
+    std::unique_ptr<t_expanded> expandedvals;
     //! Type of distance restraining
-    int eDisre;
+    DistanceRestraintRefinement eDisre;
     //! Force constant for time averaged distance restraints
     real dr_fc;
     //! Type of weighting of pairs in one restraints
-    int eDisreWeighting;
+    DistanceRestraintWeighting eDisreWeighting;
     //! Use combination of time averaged and instantaneous violations
     gmx_bool bDisreMixed;
     //! Frequency of writing pair distances to enx
@@ -479,7 +482,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Number of corrections to the Hessian to keep
     int nbfgscorr;
     //! Type of constraint algorithm
-    int eConstrAlg;
+    ConstraintAlgorithm eConstrAlg;
     //! Order of the LINCS Projection Algorithm
     int nProjOrder;
     //! Warn if any bond rotates more than this many degrees
@@ -495,7 +498,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! The number of walls
     int nwall;
     //! The type of walls
-    int wall_type;
+    WallType wall_type;
     //! The potentail is linear for r<=wall_r_linpot
     real wall_r_linpot;
     //! The atom type for walls
@@ -509,7 +512,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     //! Do we do COM pulling?
     gmx_bool bPull;
     //! The data for center of mass pulling
-    pull_params_t* pull;
+    std::unique_ptr<pull_params_t> pull;
 
     /* AWH bias data */
     //! Whether to use AWH biasing for PMF calculations
@@ -524,7 +527,7 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     t_rot* rot;
 
     //! Whether to do ion/water position exchanges (CompEL)
-    int eSwapCoords;
+    SwapType eSwapCoords;
     //! Swap data structure.
     t_swapcoords* swap;
 
@@ -558,6 +561,8 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
     gmx_bool bAdress;
     //! Whether twin-range scheme is active - always false if a valid .tpr was read
     gmx_bool useTwinRange;
+    //! Whether we have constant acceleration - removed in GROMACS 2022
+    bool useConstantAcceleration;
 
     //! KVT object that contains input parameters converted to the new style.
     gmx::KeyValueTreeObject* params;
@@ -568,11 +573,11 @@ struct t_inputrec // NOLINT (clang-analyzer-optin.performance.Padding)
 
 int ir_optimal_nstcalcenergy(const t_inputrec* ir);
 
-int tcouple_min_integration_steps(int etc);
+int tcouple_min_integration_steps(TemperatureCoupling etc);
 
 int ir_optimal_nsttcouple(const t_inputrec* ir);
 
-int pcouple_min_integration_steps(int epc);
+int pcouple_min_integration_steps(PressureCoupling epc);
 
 int ir_optimal_nstpcouple(const t_inputrec* ir);
 
@@ -614,7 +619,7 @@ void pr_inputrec(FILE* fp, int indent, const char* title, const t_inputrec* ir, 
 
 void cmp_inputrec(FILE* fp, const t_inputrec* ir1, const t_inputrec* ir2, real ftol, real abstol);
 
-void comp_pull_AB(FILE* fp, pull_params_t* pull, real ftol, real abstol);
+void comp_pull_AB(FILE* fp, const pull_params_t& pull, real ftol, real abstol);
 
 
 gmx_bool inputrecDeform(const t_inputrec* ir);

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2016,2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -55,7 +55,6 @@
 #include "testutils/testasserts.h"
 
 #include "pmetestcommon.h"
-#include "testhardwarecontexts.h"
 
 namespace gmx
 {
@@ -91,16 +90,20 @@ public:
         /* Describing the test in case it fails */
         SCOPED_TRACE(formatString(
                 "Testing B-spline moduli creation (%s) for PME order %d, grid size %d %d %d",
-                (moduliType == ModuliType::P3M) ? "P3M" : "plain", pmeOrder, gridSize[XX],
-                gridSize[YY], gridSize[ZZ]));
+                (moduliType == ModuliType::P3M) ? "P3M" : "plain",
+                pmeOrder,
+                gridSize[XX],
+                gridSize[YY],
+                gridSize[ZZ]));
 
         /* Storing the input where it's needed */
         t_inputrec inputRec;
         inputRec.nkx         = gridSize[XX];
         inputRec.nky         = gridSize[YY];
         inputRec.nkz         = gridSize[ZZ];
-        inputRec.coulombtype = (moduliType == ModuliType::P3M) ? eelP3M_AD : eelPME;
-        inputRec.pme_order   = pmeOrder;
+        inputRec.coulombtype = (moduliType == ModuliType::P3M) ? CoulombInteractionType::P3mAD
+                                                               : CoulombInteractionType::Pme;
+        inputRec.pme_order = pmeOrder;
 
         /* PME initialization call which checks the inputs and computes the B-spline moduli according to the grid sizes. */
         PmeSafePointer pme = pmeInitEmpty(&inputRec);
@@ -148,7 +151,9 @@ std::vector<BSplineModuliInputParameters> const invalidInputs{
     BSplineModuliInputParameters{ IVec{ 64, 2, 64 }, sanePmeOrder, ModuliType::PME },
     /* Invalid interpolation orders */
     BSplineModuliInputParameters{
-            saneGridSize, 8 + 1, ModuliType::P3M // P3M only supports orders up to 8
+            saneGridSize,
+            8 + 1,
+            ModuliType::P3M // P3M only supports orders up to 8
     },
     BSplineModuliInputParameters{ saneGridSize, PME_ORDER_MAX + 1, ModuliType::PME },
 };

@@ -7,6 +7,12 @@ Miscellaneous
    Also, please use the syntax :issue:`number` to reference issues on GitLab, without the
    a space between the colon and number!
 
+Default values for temperature and pressure coupling intervals are now 10
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+With the default mdp input value of -1 for nsttcouple and nstpcouple, grompp would
+set these values to nstlist. Now these are set to 10 and thus independent of nstlist
+(note that grompp may choose smaller values when needed for accurate integration).
+
 Uniform and manual CMake GPU-support configuration
 """"""""""""""""""""""""""""""""""""""""""""""""""
 The GPU accelerations setup has been changed to be uniform for CUDA and OpenCL. Either
@@ -25,6 +31,15 @@ change outside of the users direct control we have removed the support for
 automatically setting booleans. GMX_BUILD_HELP and GMX_HWLOC are now
 disabled by default, while GMX_LOAD_PLUGINS is enabled by default.
 
+gmxapi C++ interface
+""""""""""""""""""""
+
+``gmxapi::Context`` is now created with ``gmxapi::createContext()``, which allows
+the client to provide an MPI communicator for the library to use instead of its default
+(e.g MPI_COMM_WORLD). MPI-enabled clients may use the :file:`gmxapi/mpi/gmxapi_mpi.h`
+template header and the ``assignResource()`` helper to generate the argument to
+``createContext``.
+
 Unification of several CUDA and OpenCL environment variables
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -33,3 +48,11 @@ The environment variables that had exactly the same meaning in OpenCL and CUDA w
 * GMX_CUDA_NB_ANA_EWALD and GMX_OCL_NB_ANA_EWALD into GMX_GPU_NB_ANA_EWALD
 * GMX_CUDA_NB_TAB_EWALD and GMX_OCL_NB_TAB_EWALD into GMX_GPU_NB_TAB_EWALD
 * GMX_CUDA_NB_EWALD_TWINCUT and GMX_OCL_NB_EWALD_TWINCUT into GMX_GPU_NB_EWALD_TWINCUT
+
+Dysfunctional parts of the QMMM interface has been removed
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Currently, GROMACS supports QM/MM officially only via MiMiC; a new CP2K QM/MM interface is being
+developed within BioExcel. All other QM/MM
+support has been untested and likely dysfunctional for years and has now been removed from .mdp
+input and output, resulting in smaller .mdp output files from grompp.

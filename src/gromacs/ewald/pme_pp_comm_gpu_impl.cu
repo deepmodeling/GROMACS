@@ -101,8 +101,11 @@ void PmePpCommGpu::Impl::receiveForceFromPmeCudaDirect(void* recvPtr, int recvSi
 
     // Pull force data from remote GPU
     void*       pmeForcePtr = receivePmeForceToGpu ? static_cast<void*>(d_pmeForces_) : recvPtr;
-    cudaError_t stat = cudaMemcpyAsync(pmeForcePtr, remotePmeFBuffer_, recvSize * DIM * sizeof(float),
-                                       cudaMemcpyDefault, pmePpCommStream_.stream());
+    cudaError_t stat        = cudaMemcpyAsync(pmeForcePtr,
+                                       remotePmeFBuffer_,
+                                       recvSize * DIM * sizeof(float),
+                                       cudaMemcpyDefault,
+                                       pmePpCommStream_.stream());
     CU_RET_ERR(stat, "cudaMemcpyAsync on Recv from PME CUDA direct data transfer failed");
 
     if (receivePmeForceToGpu)
@@ -134,8 +137,11 @@ void PmePpCommGpu::Impl::sendCoordinatesToPmeCudaDirect(void* sendPtr,
     // ensure stream waits until coordinate data is available on device
     coordinatesReadyOnDeviceEvent->enqueueWaitEvent(pmePpCommStream_);
 
-    cudaError_t stat = cudaMemcpyAsync(remotePmeXBuffer_, sendPtr, sendSize * DIM * sizeof(float),
-                                       cudaMemcpyDefault, pmePpCommStream_.stream());
+    cudaError_t stat = cudaMemcpyAsync(remotePmeXBuffer_,
+                                       sendPtr,
+                                       sendSize * DIM * sizeof(float),
+                                       cudaMemcpyDefault,
+                                       pmePpCommStream_.stream());
     CU_RET_ERR(stat, "cudaMemcpyAsync on Send to PME CUDA direct data transfer failed");
 
     // Record and send event to allow PME task to sync to above transfer before commencing force calculations
@@ -154,9 +160,9 @@ void* PmePpCommGpu::Impl::getGpuForceStagingPtr()
     return static_cast<void*>(d_pmeForces_);
 }
 
-void* PmePpCommGpu::Impl::getForcesReadySynchronizer()
+GpuEventSynchronizer* PmePpCommGpu::Impl::getForcesReadySynchronizer()
 {
-    return static_cast<void*>(&forcesReadySynchronizer_);
+    return &forcesReadySynchronizer_;
 }
 
 PmePpCommGpu::PmePpCommGpu(MPI_Comm             comm,
@@ -184,8 +190,8 @@ void PmePpCommGpu::sendCoordinatesToPmeCudaDirect(void*                 sendPtr,
                                                   bool                  sendPmeCoordinatesFromGpu,
                                                   GpuEventSynchronizer* coordinatesReadyOnDeviceEvent)
 {
-    impl_->sendCoordinatesToPmeCudaDirect(sendPtr, sendSize, sendPmeCoordinatesFromGpu,
-                                          coordinatesReadyOnDeviceEvent);
+    impl_->sendCoordinatesToPmeCudaDirect(
+            sendPtr, sendSize, sendPmeCoordinatesFromGpu, coordinatesReadyOnDeviceEvent);
 }
 
 void* PmePpCommGpu::getGpuForceStagingPtr()
@@ -193,7 +199,7 @@ void* PmePpCommGpu::getGpuForceStagingPtr()
     return impl_->getGpuForceStagingPtr();
 }
 
-void* PmePpCommGpu::getForcesReadySynchronizer()
+GpuEventSynchronizer* PmePpCommGpu::getForcesReadySynchronizer()
 {
     return impl_->getForcesReadySynchronizer();
 }

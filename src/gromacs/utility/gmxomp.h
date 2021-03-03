@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -49,18 +49,6 @@
  */
 #ifndef GMX_UTILITY_OMP_H
 #define GMX_UTILITY_OMP_H
-
-#include "config.h"
-
-#include <stdio.h>
-
-#if GMX_NATIVE_WINDOWS
-#    include <windows.h>
-#elif HAVE_XMMINTRIN_H
-#    include <xmmintrin.h>
-#endif
-
-#include "gromacs/utility/basedefinitions.h"
 
 /*! \addtogroup module_utility
  * \{
@@ -113,23 +101,7 @@ void gmx_omp_set_num_threads(int num_threads);
  * allocated for \p *message.
  * If the return value is `true`, \p *message is NULL.
  */
-gmx_bool gmx_omp_check_thread_affinity(char** message);
-
-/*! \brief
- * Pause for use in a spin-wait loop.
- */
-static inline void gmx_pause()
-{
-#if GMX_NATIVE_WINDOWS
-    YieldProcessor();
-#elif HAVE_XMMINTRIN_H
-    _mm_pause();
-#elif defined __MIC__
-    _mm_delay_32(32);
-#else
-    // No wait for unknown architecture
-#endif
-}
+bool gmx_omp_check_thread_affinity(char** message);
 
 /*! \} */
 

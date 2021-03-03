@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -39,6 +39,7 @@
 #define GMX_MDLIB_MD_SUPPORT_H
 
 #include "gromacs/mdlib/vcm.h"
+#include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/timing/wallcycle.h"
 
 struct gmx_ekindata_t;
@@ -49,7 +50,6 @@ struct t_extmass;
 struct t_forcerec;
 struct t_grpopts;
 struct t_inputrec;
-struct t_lambda;
 struct t_nrnb;
 class t_state;
 struct t_trxframe;
@@ -90,31 +90,21 @@ class SimulationSignaller;
  * will be computed, to check none are missing. */
 #define CGLO_CHECK_NUMBER_OF_BONDED_INTERACTIONS (1u << 12u)
 
-
 /*! \brief Return the number of steps that will take place between
  * intra-simulation communications, given the constraints of the
  * inputrec. */
-int computeGlobalCommunicationPeriod(const gmx::MDLogger& mdlog, t_inputrec* ir, const t_commrec* cr);
+int computeGlobalCommunicationPeriod(const t_inputrec* ir);
+
+/*! \brief Return the number of steps that will take place between
+ * intra-simulation communications, given the constraints of the
+ * inputrec, and write information to log.
+ * Calls computeGlobalCommunicationPeriod(ir) internally. */
+int computeGlobalCommunicationPeriod(const gmx::MDLogger& mdlog, const t_inputrec* ir, const t_commrec* cr);
 
 void rerun_parallel_comm(t_commrec* cr, t_trxframe* fr, gmx_bool* bLastStep);
 
 //! \brief Allocate and initialize node-local state entries
 void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimulator);
-
-/* Set the lambda values in the global state from a frame read with rerun */
-void setCurrentLambdasRerun(int64_t           step,
-                            const t_lambda*   fepvals,
-                            const t_trxframe* rerun_fr,
-                            const double*     lam0,
-                            t_state*          globalState);
-
-/* Set the lambda values at each step of mdrun when they change */
-void setCurrentLambdasLocal(int64_t             step,
-                            const t_lambda*     fepvals,
-                            const double*       lam0,
-                            gmx::ArrayRef<real> lambda,
-                            int                 currentFEPState);
-
 
 /* Compute global variables during integration
  *
@@ -139,7 +129,7 @@ void compute_globals(gmx_global_stat*               gstat,
                      tensor                         shake_vir,
                      tensor                         total_vir,
                      tensor                         pres,
-                     gmx::Constraints*              constr,
+                     gmx::ArrayRef<real>            constraintsRmsdData,
                      gmx::SimulationSignaller*      signalCoordinator,
                      const matrix                   lastbox,
                      int*                           totalNumberOfBondedInteractions,

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -71,29 +71,22 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 
-struct gmx_ewald_tab_t
-{
-    int        nx, ny, nz, kmax;
-    cvec**     eir;
-    t_complex *tab_xy, *tab_qxyz;
-};
+using cvec = std::array<t_complex, DIM>;
 
-void init_ewald_tab(struct gmx_ewald_tab_t** et, const t_inputrec* ir, FILE* fp)
+gmx_ewald_tab_t::gmx_ewald_tab_t(const t_inputrec& ir, FILE* fp)
 {
-    snew(*et, 1);
     if (fp)
     {
         fprintf(fp, "Will do ordinary reciprocal space Ewald sum.\n");
     }
 
-    (*et)->nx       = ir->nkx + 1;
-    (*et)->ny       = ir->nky + 1;
-    (*et)->nz       = ir->nkz + 1;
-    (*et)->kmax     = std::max((*et)->nx, std::max((*et)->ny, (*et)->nz));
-    (*et)->eir      = nullptr;
-    (*et)->tab_xy   = nullptr;
-    (*et)->tab_qxyz = nullptr;
+    nx   = ir.nkx + 1;
+    ny   = ir.nky + 1;
+    nz   = ir.nkz + 1;
+    kmax = std::max(nx, std::max(ny, nz));
 }
+
+gmx_ewald_tab_t::~gmx_ewald_tab_t() = default;
 
 //! Calculates wave vectors.
 static void calc_lll(const rvec box, rvec lll)
@@ -137,7 +130,7 @@ static void tabulateStructureFactors(int natom, const rvec x[], int kmax, cvec**
     }
 }
 
-real do_ewald(const t_inputrec* ir,
+real do_ewald(const t_inputrec& ir,
               const rvec        x[],
               rvec              f[],
               const real        chargeA[],
@@ -158,6 +151,7 @@ real do_ewald(const t_inputrec* ir,
     int         lowiy, lowiz, ix, iy, iz, n, q;
     real        tmp, cs, ss, ak, akv, mx, my, mz, m2, scale;
     gmx_bool    bFreeEnergy;
+    cvec**      eir;
 
     if (cr != nullptr)
     {
@@ -169,7 +163,7 @@ real do_ewald(const t_inputrec* ir,
 
     /* Scale box with Ewald wall factor */
     matrix          scaledBox;
-    EwaldBoxZScaler boxScaler(*ir);
+    EwaldBoxZScaler boxScaler(ir);
     boxScaler.scaleBox(box, scaledBox);
 
     rvec boxDiag;
@@ -179,25 +173,22 @@ real do_ewald(const t_inputrec* ir,
     }
 
     /* 1/(Vol*e0) */
-    real scaleRecip = 4.0 * M_PI / (boxDiag[XX] * boxDiag[YY] * boxDiag[ZZ]) * ONE_4PI_EPS0 / ir->epsilon_r;
+    real scaleRecip = 4.0 * M_PI / (boxDiag[XX] * boxDiag[YY] * boxDiag[ZZ]) * ONE_4PI_EPS0 / ir.epsilon_r;
 
-    if (!et->eir) /* allocate if we need to */
+    snew(eir, et->kmax);
+    for (n = 0; n < et->kmax; n++)
     {
-        snew(et->eir, et->kmax);
-        for (n = 0; n < et->kmax; n++)
-        {
-            snew(et->eir[n], natoms);
-        }
-        snew(et->tab_xy, natoms);
-        snew(et->tab_qxyz, natoms);
+        snew(eir[n], natoms);
     }
+    et->tab_xy.resize(natoms);
+    et->tab_qxyz.resize(natoms);
 
-    bFreeEnergy = (ir->efep != efepNO);
+    bFreeEnergy = (ir.efep != FreeEnergyPerturbationType::No);
 
     clear_mat(lrvir);
 
     calc_lll(boxDiag, lll);
-    tabulateStructureFactors(natoms, x, et->kmax, et->eir, lll);
+    tabulateStructureFactors(natoms, x, et->kmax, eir, lll);
 
     for (q = 0; q < (bFreeEnergy ? 2 : 1); q++)
     {
@@ -229,14 +220,14 @@ real do_ewald(const t_inputrec* ir,
                 {
                     for (n = 0; n < natoms; n++)
                     {
-                        et->tab_xy[n] = cmul(et->eir[ix][n][XX], et->eir[iy][n][YY]);
+                        et->tab_xy[n] = cmul(eir[ix][n][XX], eir[iy][n][YY]);
                     }
                 }
                 else
                 {
                     for (n = 0; n < natoms; n++)
                     {
-                        et->tab_xy[n] = cmul(et->eir[ix][n][XX], conjugate(et->eir[-iy][n][YY]));
+                        et->tab_xy[n] = cmul(eir[ix][n][XX], conjugate(eir[-iy][n][YY]));
                     }
                 }
                 for (iz = lowiz; iz < et->nz; iz++)
@@ -249,15 +240,15 @@ real do_ewald(const t_inputrec* ir,
                     {
                         for (n = 0; n < natoms; n++)
                         {
-                            et->tab_qxyz[n] = rcmul(charge[n], cmul(et->tab_xy[n], et->eir[iz][n][ZZ]));
+                            et->tab_qxyz[n] = rcmul(charge[n], cmul(et->tab_xy[n], eir[iz][n][ZZ]));
                         }
                     }
                     else
                     {
                         for (n = 0; n < natoms; n++)
                         {
-                            et->tab_qxyz[n] = rcmul(
-                                    charge[n], cmul(et->tab_xy[n], conjugate(et->eir[-iz][n][ZZ])));
+                            et->tab_qxyz[n] =
+                                    rcmul(charge[n], cmul(et->tab_xy[n], conjugate(eir[-iz][n][ZZ])));
                         }
                     }
 

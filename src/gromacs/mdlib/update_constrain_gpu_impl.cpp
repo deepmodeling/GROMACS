@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -45,6 +45,7 @@
 #include "config.h"
 
 #include "gromacs/mdlib/update_constrain_gpu.h"
+#include "gromacs/utility/gmxassert.h"
 
 #if !GMX_GPU_CUDA
 
@@ -57,9 +58,11 @@ class UpdateConstrainGpu::Impl
 
 UpdateConstrainGpu::UpdateConstrainGpu(const t_inputrec& /* ir   */,
                                        const gmx_mtop_t& /* mtop */,
+                                       const int /* numTempScaleValues */,
                                        const DeviceContext& /* deviceContext */,
                                        const DeviceStream& /* deviceStream */,
-                                       GpuEventSynchronizer* /* xUpdatedOnDevice */) :
+                                       GpuEventSynchronizer* /* xUpdatedOnDevice */,
+                                       gmx_wallcycle* /*wcycle*/) :
     impl_(nullptr)
 {
     GMX_ASSERT(!impl_,
@@ -89,12 +92,17 @@ void UpdateConstrainGpu::scaleCoordinates(const matrix /* scalingMatrix */)
                "A CPU stub for UpdateConstrain was called instead of the correct implementation.");
 }
 
+void UpdateConstrainGpu::scaleVelocities(const matrix /* scalingMatrix */)
+{
+    GMX_ASSERT(!impl_,
+               "A CPU stub for UpdateConstrain was called instead of the correct implementation.");
+}
+
 void UpdateConstrainGpu::set(DeviceBuffer<RVec> /* d_x */,
                              DeviceBuffer<RVec> /* d_v */,
                              const DeviceBuffer<RVec> /* d_f */,
                              const InteractionDefinitions& /* idef */,
-                             const t_mdatoms& /* md */,
-                             const int /* numTempScaleValues */)
+                             const t_mdatoms& /* md */)
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for UpdateConstrain was called instead of the correct implementation.");

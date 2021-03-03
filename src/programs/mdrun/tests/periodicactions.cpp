@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -106,7 +106,8 @@ public:
     //! Names for the output files from the reference mdrun call
     ReferenceFileNames referenceFileNames_ = { fileManager_.getTemporaryFilePath("reference.edr") };
     //! Functor for energy comparison
-    EnergyComparison energyComparison_{ EnergyComparison::defaultEnergyTermsToCompare() };
+    EnergyComparison energyComparison_{ EnergyComparison::defaultEnergyTermsToCompare(),
+                                        MaxNumFrames::compareAllFrames() };
     //! Names of energies compared by energyComparison_
     std::vector<std::string> namesOfEnergiesToMatch_ = energyComparison_.getEnergyNames();
 };
@@ -116,12 +117,31 @@ void PeriodicActionsTest::doMdrun(const PeriodicOutputParameters& output)
     auto propagation = std::get<0>(GetParam());
     SCOPED_TRACE(
             formatString("Doing %s simulation with %s integrator, %s tcoupling and %s pcoupling\n",
-                         propagation["simulationName"].c_str(), propagation["integrator"].c_str(),
-                         propagation["tcoupl"].c_str(), propagation["pcoupl"].c_str()));
-    auto mdpFieldValues = prepareMdpFieldValues(propagation["simulationName"], propagation["integrator"],
-                                                propagation["tcoupl"], propagation["pcoupl"]);
-    mdpFieldValues.insert(propagation.begin(), propagation.end());
-    mdpFieldValues.insert(output.begin(), output.end());
+                         propagation["simulationName"].c_str(),
+                         propagation["integrator"].c_str(),
+                         propagation["tcoupl"].c_str(),
+                         propagation["pcoupl"].c_str()));
+    auto mdpFieldValues = prepareMdpFieldValues(propagation["simulationName"],
+                                                propagation["integrator"],
+                                                propagation["tcoupl"],
+                                                propagation["pcoupl"]);
+
+    // This lambda writes all mdp options in `source` into `target`, overwriting options already
+    // present in `target`. It also filters out non-mdp option entries in the source maps
+    auto overWriteMdpMapValues = [](const MdpFieldValues& source, MdpFieldValues& target) {
+        for (auto const& [key, value] : source)
+        {
+            if (key == "simulationName" || key == "maxGromppWarningsTolerated" || key == "description")
+            {
+                // Remove non-mdp entries used in propagation and output
+                continue;
+            }
+            target[key] = value;
+        }
+    };
+    // Add options in propagation and output to the mdp options
+    overWriteMdpMapValues(propagation, mdpFieldValues);
+    overWriteMdpMapValues(output, mdpFieldValues);
 
     // prepare the tpr file
     {
@@ -204,7 +224,8 @@ TEST_P(PeriodicActionsTest, PeriodicActionsAgreeWithReference)
 {
     auto propagation = std::get<0>(GetParam());
     SCOPED_TRACE(formatString("Comparing two simulations of '%s' with integrator '%s'",
-                              propagation["simulationName"].c_str(), propagation["integrator"].c_str()));
+                              propagation["simulationName"].c_str(),
+                              propagation["integrator"].c_str()));
 
     prepareReferenceData();
 
@@ -232,7 +253,8 @@ TEST_P(PeriodicActionsTest, PeriodicActionsAgreeWithReference)
                              + "' and test '" + runner_.edrFileName_ + "'");
                 shouldContinueComparing = shouldContinueComparing
                                           && compareFrames(referenceEnergyFrameReader.get(),
-                                                           testEnergyFrameReader.get(), energyComparison_);
+                                                           testEnergyFrameReader.get(),
+                                                           energyComparison_);
             }
         }
     }
@@ -325,7 +347,7 @@ std::vector<PropagationParameters> propagationParametersWithCoupling()
                 {
                     continue;
                 }
-                for (std::string pcoupl : { "no", "Berendsen", "Parrinello-Rahman" })
+                for (std::string pcoupl : { "no", "Berendsen", "Parrinello-Rahman", "C-rescale" })
                 {
                     // VV supports few algorithm combinations
                     if (integrator == "md-vv")
@@ -392,7 +414,7 @@ std::vector<PropagationParameters> propagationParametersWithConstraints()
                 {
                     continue;
                 }
-                for (std::string pcoupl : { "no", "Parrinello-Rahman" })
+                for (std::string pcoupl : { "no", "Parrinello-Rahman", "C-rescale" })
                 {
                     // VV supports few algorithm combinations
                     if (integrator == "md-vv")

@@ -119,8 +119,7 @@ public:
                           gmx_wallcycle*              wcycle,
                           t_forcerec*                 fr,
                           const gmx_mtop_t*           global_top,
-                          Constraints*                constr,
-                          bool                        hasReadEkinState);
+                          Constraints*                constr);
 
     //! Destructor
     ~ComputeGlobalsElement() override;
@@ -154,6 +153,9 @@ public:
      * \param energyData  Pointer to the \c EnergyData object
      * \param freeEnergyPerturbationData  Pointer to the \c FreeEnergyPerturbationData object
      * \param globalCommunicationHelper  Pointer to the \c GlobalCommunicationHelper object
+     *
+     * \throws std::bad_any_cast  on internal error in VelocityVerlet algorithm builder.
+     * \throws std::bad_alloc  when out of memory.
      *
      * \return  Pointer to the element to be added. Element needs to have been stored using \c storeElement
      */
@@ -194,8 +196,6 @@ private:
     const Step initStep_;
     //! A dummy signaller (used for setup and VV)
     std::unique_ptr<SimulationSignaller> nullSignaller_;
-    //! Whether we read kinetic energy from checkpoint
-    const bool hasReadEkinState_;
 
     /*! \brief Check that DD doesn't miss bonded interactions
      *

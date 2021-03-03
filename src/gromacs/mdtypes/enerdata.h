@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -42,6 +42,7 @@
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/topology/idef.h"
 #include "gromacs/utility/arrayref.h"
+#include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/real.h"
 
@@ -140,7 +141,7 @@ public:
                                         gmx::ArrayRef<const real>   lambda,
                                         const t_lambda&             fepvals);
 
-    /* !\brief Accumulates the kinetic and constraint free-energy contributions
+    /*! \brief Accumulates the kinetic and constraint free-energy contributions
      *
      * \param[in] energyTerms  List of energy terms, pass \p term in \p gmx_enerdata_t
      * \param[in] dhdlMass     The mass dependent contribution to dH/dlambda
@@ -161,7 +162,7 @@ public:
      *
      * \param[in] cr  Communication record, used to reduce the terms when !=nullptr
      */
-    std::pair<std::vector<double>, std::vector<double>> getTerms(t_commrec* cr) const;
+    std::pair<std::vector<double>, std::vector<double>> getTerms(const t_commrec* cr) const;
 
     //! Sets all terms to 0
     void zeroAllTerms();
@@ -186,6 +187,12 @@ private:
 //! Struct for accumulating all potential energy terms and some kinetic energy terms
 struct gmx_enerdata_t
 {
+    /*! \brief
+     * Constructor with specific number of energy groups and lambdas.
+     *
+     * \param[in] numEnergyGroups Number of energy groups used.
+     * \param[in] numFepLambdas   Number of free energy lambdas, zero if none.
+     */
     gmx_enerdata_t(int numEnergyGroups, int numFepLambdas);
 
     //! The energies for all different interaction types
@@ -193,9 +200,9 @@ struct gmx_enerdata_t
     //! Energy group pair non-bonded energies
     struct gmx_grppairener_t grpp;
     //! Contributions to dV/dlambda with linear dependence on lambda
-    double dvdl_lin[efptNR] = { 0 };
+    gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, double> dvdl_lin = { 0 };
     //! Contributions to dV/dlambda with non-linear dependence on lambda
-    double dvdl_nonlin[efptNR] = { 0 };
+    gmx::EnumerationArray<FreeEnergyPerturbationCouplingType, double> dvdl_nonlin = { 0 };
     /* The idea is that dvdl terms with linear lambda dependence will be added
      * automatically to enerpart_lambda. Terms with non-linear lambda dependence
      * should explicitly determine the energies at foreign lambda points

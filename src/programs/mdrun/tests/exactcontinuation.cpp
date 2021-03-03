@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -224,7 +224,8 @@ void runTest(TestFileManager*            fileManager,
         fprintf(stdout,
                 "Test system '%s' cannot run with %d ranks.\n"
                 "The supported numbers are: %s\n",
-                simulationName.c_str(), numRanksAvailable,
+                simulationName.c_str(),
+                numRanksAvailable,
                 reportNumbersOfPpRanksSupported(simulationName).c_str());
         return;
     }
@@ -303,7 +304,7 @@ void runTest(TestFileManager*            fileManager,
 
     // Build the functor that will compare energy frames on the chosen
     // energy terms.
-    EnergyComparison energyComparison(energyTermsToCompare);
+    EnergyComparison energyComparison(energyTermsToCompare, MaxNumFrames::compareAllFrames());
 
     // Build the manager that will present matching pairs of frames to compare.
     //
@@ -359,9 +360,13 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     // TODO: Update this as modular simulator gains functionality
     const bool isModularSimulatorExplicitlyDisabled = (getenv("GMX_DISABLE_MODULAR_SIMULATOR") != nullptr);
     const bool isTCouplingCompatibleWithModularSimulator =
-            (temperatureCoupling == "no" || temperatureCoupling == "v-rescale");
+            (temperatureCoupling == "no" || temperatureCoupling == "v-rescale"
+             || temperatureCoupling == "berendsen");
+    // GPU update is not compatible with modular simulator
+    const bool isGpuUpdateRequested = (getenv("GMX_FORCE_UPDATE_DEFAULT_GPU") != nullptr);
     if (integrator == "md-vv" && pressureCoupling == "parrinello-rahman"
-        && (isModularSimulatorExplicitlyDisabled || !isTCouplingCompatibleWithModularSimulator))
+        && (isModularSimulatorExplicitlyDisabled || !isTCouplingCompatibleWithModularSimulator
+            || isGpuUpdateRequested))
     {
         // Under md-vv, Parrinello-Rahman is only implemented for the modular simulator
         return;
@@ -376,14 +381,17 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
     SCOPED_TRACE(
             formatString("Comparing normal and two-part run of simulation '%s' "
                          "with integrator '%s'",
-                         simulationName.c_str(), integrator.c_str()));
+                         simulationName.c_str(),
+                         integrator.c_str()));
 
-    auto mdpFieldValues = prepareMdpFieldValues(simulationName.c_str(), integrator.c_str(),
-                                                temperatureCoupling.c_str(), pressureCoupling.c_str());
+    auto mdpFieldValues = prepareMdpFieldValues(simulationName.c_str(),
+                                                integrator.c_str(),
+                                                temperatureCoupling.c_str(),
+                                                pressureCoupling.c_str());
     // The exact lambda state choice is unimportant, so long as there
     // is one when using an FEP input.
-    mdpFieldValues["other"] += formatString("\ninit-lambda-state = %d", 3);
-    mdpFieldValues["nsteps"] = "16";
+    mdpFieldValues["init-lambda-state"] = "3";
+    mdpFieldValues["nsteps"]            = "16";
 
     // Forces on GPUs are generally not reproducible enough for a tight
     // tolerance. Similarly, the propagation of sd and bd are not as
@@ -416,20 +424,19 @@ TEST_P(MdrunNoAppendContinuationIsExact, WithinTolerances)
 
     if (pressureCoupling == "parrinello-rahman")
     {
-        energyTermsToCompare.insert(
-                { "Box-Vel-XX", relativeToleranceAsPrecisionDependentUlp(1e-12, ulpToleranceInMixed,
-                                                                         ulpToleranceInDouble) });
-        energyTermsToCompare.insert(
-                { "Box-Vel-YY", relativeToleranceAsPrecisionDependentUlp(1e-12, ulpToleranceInMixed,
-                                                                         ulpToleranceInDouble) });
-        energyTermsToCompare.insert(
-                { "Box-Vel-ZZ", relativeToleranceAsPrecisionDependentUlp(1e-12, ulpToleranceInMixed,
-                                                                         ulpToleranceInDouble) });
+        energyTermsToCompare.insert({ "Box-Vel-XX",
+                                      relativeToleranceAsPrecisionDependentUlp(
+                                              1e-12, ulpToleranceInMixed, ulpToleranceInDouble) });
+        energyTermsToCompare.insert({ "Box-Vel-YY",
+                                      relativeToleranceAsPrecisionDependentUlp(
+                                              1e-12, ulpToleranceInMixed, ulpToleranceInDouble) });
+        energyTermsToCompare.insert({ "Box-Vel-ZZ",
+                                      relativeToleranceAsPrecisionDependentUlp(
+                                              1e-12, ulpToleranceInMixed, ulpToleranceInDouble) });
     }
 
     int numWarningsToTolerate = 1;
-    runTest(&fileManager_, &runner_, simulationName, numWarningsToTolerate, mdpFieldValues,
-            energyTermsToCompare);
+    runTest(&fileManager_, &runner_, simulationName, numWarningsToTolerate, mdpFieldValues, energyTermsToCompare);
 }
 
 // TODO The time for OpenCL kernel compilation means these tests time
@@ -460,12 +467,13 @@ INSTANTIATE_TEST_CASE_P(
                            ::testing::Values("berendsen", "v-rescale", "nose-hoover"),
                            ::testing::Values("no")));
 
-INSTANTIATE_TEST_CASE_P(NPH,
-                        MdrunNoAppendContinuationIsExact,
-                        ::testing::Combine(::testing::Values("argon12"),
-                                           ::testing::Values("md", "md-vv"),
-                                           ::testing::Values("no"),
-                                           ::testing::Values("berendsen", "parrinello-rahman")));
+INSTANTIATE_TEST_CASE_P(
+        NPH,
+        MdrunNoAppendContinuationIsExact,
+        ::testing::Combine(::testing::Values("argon12"),
+                           ::testing::Values("md", "md-vv"),
+                           ::testing::Values("no"),
+                           ::testing::Values("berendsen", "parrinello-rahman", "C-rescale")));
 
 INSTANTIATE_TEST_CASE_P(
         NPT,
@@ -473,7 +481,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Combine(::testing::Values("argon12"),
                            ::testing::Values("md", "md-vv"),
                            ::testing::Values("berendsen", "v-rescale", "nose-hoover"),
-                           ::testing::Values("berendsen", "parrinello-rahman")));
+                           ::testing::Values("berendsen", "parrinello-rahman", "C-rescale")));
 
 INSTANTIATE_TEST_CASE_P(MTTK,
                         MdrunNoAppendContinuationIsExact,

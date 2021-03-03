@@ -46,6 +46,10 @@
 
 #include "config.h"
 
+#include <memory>
+
+#include "gromacs/math/vectypes.h"
+
 #if GMX_GPU_CUDA
 
 //! \brief A device-side buffer of ValueTypes
@@ -85,6 +89,40 @@ public:
 template<typename ValueType>
 using DeviceBuffer = TypedClMemory<ValueType>;
 
+#elif GMX_GPU_SYCL
+
+/*! \libinternal \brief
+ * A minimal wrapper around \c cl::sycl::buffer to hide it away and simplify compilation.
+ */
+template<typename ValueType>
+struct DeviceBuffer
+{
+    class ClSyclBufferWrapper;
+    std::unique_ptr<ClSyclBufferWrapper> buffer_;
+
+    DeviceBuffer();
+    ~DeviceBuffer();
+    DeviceBuffer(DeviceBuffer<ValueType> const& src);
+    DeviceBuffer(DeviceBuffer<ValueType>&& src) noexcept;
+    DeviceBuffer& operator=(DeviceBuffer<ValueType> const& src);
+    DeviceBuffer& operator=(DeviceBuffer<ValueType>&& src) noexcept;
+
+    //! Helper function to get the size in bytes of a single element
+    static constexpr size_t elementSize() { return sizeof(ValueType); }
+
+    // Both explicit and implicit casts to void* are used in MPI+CUDA code, this stub is necessary for compilation.
+    operator void*() const { throw; }
+
+    //! Allow implicit conversion to bool to check buffer status for compatibility with other implementations.
+    operator bool() const { return buffer_.get() != nullptr; }
+
+    //! An assignment operator to allow resetting buffer by assigning nullptr to it. Necessary for compilation.
+    DeviceBuffer& operator=(std::nullptr_t nullPtr);
+};
+
+// Must explicitly instantiate for some types.
+extern template struct DeviceBuffer<gmx::RVec>;
+
 #else
 
 //! \brief A device-side buffer of ValueTypes
@@ -92,6 +130,5 @@ template<typename ValueType>
 using DeviceBuffer = void*;
 
 #endif
-
 
 #endif // GMX_GPU_UTILS_DEVICEBUFFER_DATATYPE_H

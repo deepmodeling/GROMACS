@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -94,8 +94,7 @@ constexpr int c_simdWidth = 4;
 template<unsigned int factor>
 static size_t roundUpToMultipleOfFactor(size_t number)
 {
-    static_assert(factor > 0 && (factor & (factor - 1)) == 0,
-                  "factor should be >0 and a power of 2");
+    static_assert(gmx::isPowerOfTwo(factor));
 
     /* We need to add a most factor-1 and because factor is a power of 2,
      * we get the result by masking out the bits corresponding to factor-1.
@@ -110,7 +109,8 @@ static size_t roundUpToMultipleOfFactor(size_t number)
 static void reallocSimdAlignedAndPadded(real** ptr, int unpaddedNumElements)
 {
     sfree_aligned(*ptr);
-    snew_aligned(*ptr, roundUpToMultipleOfFactor<c_simdWidth>(unpaddedNumElements),
+    snew_aligned(*ptr,
+                 roundUpToMultipleOfFactor<c_simdWidth>(unpaddedNumElements),
                  c_simdWidth * sizeof(real));
 }
 
@@ -359,8 +359,8 @@ int solve_pme_yzx(const gmx_pme_t* pme, t_complex* grid, real vol, bool computeE
     nz = pme->nkz;
 
     /* Dimensions should be identical for A/B grid, so we just use A here */
-    gmx_parallel_3dfft_complex_limits(pme->pfft_setup[PME_GRID_QA], complex_order, local_ndata,
-                                      local_offset, local_size);
+    gmx_parallel_3dfft_complex_limits(
+            pme->pfft_setup[PME_GRID_QA], complex_order, local_ndata, local_offset, local_size);
 
     rxx = pme->recipbox[XX][XX];
     ryx = pme->recipbox[YY][XX];
@@ -480,7 +480,9 @@ int solve_pme_yzx(const gmx_pme_t* pme, t_complex* grid, real vol, bool computeE
             }
 
             calc_exponentials_q(
-                    kxstart, kxend, elfac,
+                    kxstart,
+                    kxend,
+                    elfac,
                     ArrayRef<PME_T>(denom, denom + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(tmp1, tmp1 + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(eterm, eterm + roundUpToMultipleOfFactor<c_simdWidth>(kxend)));
@@ -546,7 +548,9 @@ int solve_pme_yzx(const gmx_pme_t* pme, t_complex* grid, real vol, bool computeE
             }
 
             calc_exponentials_q(
-                    kxstart, kxend, elfac,
+                    kxstart,
+                    kxend,
+                    elfac,
                     ArrayRef<PME_T>(denom, denom + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(tmp1, tmp1 + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(eterm, eterm + roundUpToMultipleOfFactor<c_simdWidth>(kxend)));
@@ -618,8 +622,8 @@ int solve_pme_lj_yzx(const gmx_pme_t* pme,
     nz = pme->nkz;
 
     /* Dimensions should be identical for A/B grid, so we just use A here */
-    gmx_parallel_3dfft_complex_limits(pme->pfft_setup[PME_GRID_C6A], complex_order, local_ndata,
-                                      local_offset, local_size);
+    gmx_parallel_3dfft_complex_limits(
+            pme->pfft_setup[PME_GRID_C6A], complex_order, local_ndata, local_offset, local_size);
     rxx = pme->recipbox[XX][XX];
     ryx = pme->recipbox[YY][XX];
     ryy = pme->recipbox[YY][YY];
@@ -726,7 +730,8 @@ int solve_pme_lj_yzx(const gmx_pme_t* pme,
             }
 
             calc_exponentials_lj(
-                    kxstart, kxend,
+                    kxstart,
+                    kxend,
                     ArrayRef<PME_T>(tmp1, tmp1 + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(tmp2, tmp2 + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(denom, denom + roundUpToMultipleOfFactor<c_simdWidth>(kxend)));
@@ -868,7 +873,8 @@ int solve_pme_lj_yzx(const gmx_pme_t* pme,
             }
 
             calc_exponentials_lj(
-                    kxstart, kxend,
+                    kxstart,
+                    kxend,
                     ArrayRef<PME_T>(tmp1, tmp1 + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(tmp2, tmp2 + roundUpToMultipleOfFactor<c_simdWidth>(kxend)),
                     ArrayRef<PME_T>(denom, denom + roundUpToMultipleOfFactor<c_simdWidth>(kxend)));

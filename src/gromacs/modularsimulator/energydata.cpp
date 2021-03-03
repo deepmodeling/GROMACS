@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -43,6 +43,7 @@
 
 #include "energydata.h"
 
+#include "gromacs/gmxlib/network.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdlib/compute_io.h"
 #include "gromacs/mdlib/coupling.h"
@@ -53,6 +54,7 @@
 #include "gromacs/mdlib/stat.h"
 #include "gromacs/mdlib/update.h"
 #include "gromacs/mdrunutility/handlerestart.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/enerdata.h"
 #include "gromacs/mdtypes/energyhistory.h"
@@ -60,7 +62,6 @@
 #include "gromacs/mdtypes/mdatom.h"
 #include "gromacs/mdtypes/observableshistory.h"
 #include "gromacs/mdtypes/pullhistory.h"
-#include "gromacs/mdtypes/state.h"
 #include "gromacs/topology/topology.h"
 
 #include "freeenergyperturbationdata.h"
@@ -68,7 +69,7 @@
 #include "parrinellorahmanbarostat.h"
 #include "simulatoralgorithm.h"
 #include "statepropagatordata.h"
-#include "vrescalethermostat.h"
+#include "velocityscalingtemperaturecoupling.h"
 
 struct pull_t;
 class t_state;
@@ -90,7 +91,8 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
                        const MdModulesNotifier&    mdModulesNotifier,
                        bool                        isMasterRank,
                        ObservablesHistory*         observablesHistory,
-                       StartingBehavior            startingBehavior) :
+                       StartingBehavior            startingBehavior,
+                       bool                        simulationsShareState) :
     element_(std::make_unique<Element>(this, isMasterRank)),
     isMasterRank_(isMasterRank),
     forceVirialStep_(-1),
@@ -98,10 +100,11 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
     totalVirialStep_(-1),
     pressureStep_(-1),
     needToSumEkinhOld_(false),
+    hasReadEkinFromCheckpoint_(false),
     startingBehavior_(startingBehavior),
     statePropagatorData_(statePropagatorData),
     freeEnergyPerturbationData_(freeEnergyPerturbationData),
-    vRescaleThermostat_(nullptr),
+    velocityScalingTemperatureCoupling_(nullptr),
     parrinelloRahmanBarostat_(nullptr),
     inputrec_(inputrec),
     top_global_(globalTopology),
@@ -113,7 +116,8 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
     fcd_(fcd),
     mdModulesNotifier_(mdModulesNotifier),
     groups_(&globalTopology->groups),
-    observablesHistory_(observablesHistory)
+    observablesHistory_(observablesHistory),
+    simulationsShareState_(simulationsShareState)
 {
     clear_mat(forceVirial_);
     clear_mat(shakeVirial_);
@@ -121,10 +125,8 @@ EnergyData::EnergyData(StatePropagatorData*        statePropagatorData,
     clear_mat(pressure_);
     clear_rvec(muTot_);
 
-    if (freeEnergyPerturbationData_)
-    {
-        dummyLegacyState_.flags = (1U << estFEPSTATE);
-    }
+    init_ekinstate(&ekinstate_, inputrec_);
+    observablesHistory_->energyHistory = std::make_unique<energyhistory_t>();
 }
 
 void EnergyData::Element::scheduleTask(Step step, Time time, const RegisterRunFunction& registerRunFunction)
@@ -152,6 +154,7 @@ void EnergyData::teardown()
 {
     if (inputrec_->nstcalcenergy > 0 && isMasterRank_)
     {
+        energyOutput_->printEnergyConservation(fplog_, inputrec_->simulation_part, EI_MD(inputrec_->eI));
         energyOutput_->printAverages(fplog_, groups_);
     }
 }
@@ -164,9 +167,15 @@ void EnergyData::Element::trajectoryWriterSetup(gmx_mdoutf* outf)
 void EnergyData::setup(gmx_mdoutf* outf)
 {
     pull_t* pull_work = nullptr;
-    energyOutput_ = std::make_unique<EnergyOutput>(mdoutf_get_fp_ene(outf), top_global_, inputrec_,
-                                                   pull_work, mdoutf_get_fp_dhdl(outf), false,
-                                                   startingBehavior_, mdModulesNotifier_);
+    energyOutput_     = std::make_unique<EnergyOutput>(mdoutf_get_fp_ene(outf),
+                                                   *top_global_,
+                                                   *inputrec_,
+                                                   pull_work,
+                                                   mdoutf_get_fp_dhdl(outf),
+                                                   false,
+                                                   startingBehavior_,
+                                                   simulationsShareState_,
+                                                   mdModulesNotifier_);
 
     if (!isMasterRank_)
     {
@@ -186,7 +195,7 @@ void EnergyData::setup(gmx_mdoutf* outf)
     if (!inputrec_->bContinuation)
     {
         real temp = enerd_->term[F_TEMP];
-        if (inputrec_->eI != eiVV)
+        if (inputrec_->eI != IntegrationAlgorithm::VV)
         {
             /* Result of Ekin averaged over velocities of -half
              * and +half step, while we only have -half step here.
@@ -233,31 +242,43 @@ std::optional<SignallerCallback> EnergyData::Element::registerEnergyCallback(Ene
 void EnergyData::doStep(Time time, bool isEnergyCalculationStep, bool isFreeEnergyCalculationStep)
 {
     enerd_->term[F_ETOT] = enerd_->term[F_EPOT] + enerd_->term[F_EKIN];
-    if (vRescaleThermostat_)
-    {
-        dummyLegacyState_.therm_integral = vRescaleThermostat_->thermostatIntegral();
-    }
     if (freeEnergyPerturbationData_)
     {
-        accumulateKineticLambdaComponents(enerd_, freeEnergyPerturbationData_->constLambdaView(),
-                                          *inputrec_->fepvals);
-        dummyLegacyState_.fep_state = freeEnergyPerturbationData_->currentFEPState();
-    }
-    if (parrinelloRahmanBarostat_)
-    {
-        copy_mat(parrinelloRahmanBarostat_->boxVelocities(), dummyLegacyState_.boxv);
-        copy_mat(statePropagatorData_->constBox(), dummyLegacyState_.box);
+        accumulateKineticLambdaComponents(
+                enerd_, freeEnergyPerturbationData_->constLambdaView(), *inputrec_->fepvals);
     }
     if (integratorHasConservedEnergyQuantity(inputrec_))
     {
         enerd_->term[F_ECONSERVED] =
-                enerd_->term[F_ETOT] + NPT_energy(inputrec_, &dummyLegacyState_, nullptr);
+                enerd_->term[F_ETOT]
+                + (velocityScalingTemperatureCoupling_
+                           ? velocityScalingTemperatureCoupling_->conservedEnergyContribution()
+                           : 0)
+                + (parrinelloRahmanBarostat_ ? parrinelloRahmanBarostat_->conservedEnergyContribution() : 0);
     }
-    energyOutput_->addDataAtEnergyStep(isFreeEnergyCalculationStep, isEnergyCalculationStep, time,
-                                       mdAtoms_->mdatoms()->tmass, enerd_, &dummyLegacyState_,
-                                       inputrec_->fepvals, inputrec_->expandedvals,
-                                       statePropagatorData_->constPreviousBox(), shakeVirial_,
-                                       forceVirial_, totalVirial_, pressure_, ekind_, muTot_, constr_);
+    matrix nullMatrix = {};
+    energyOutput_->addDataAtEnergyStep(
+            isFreeEnergyCalculationStep,
+            isEnergyCalculationStep,
+            time,
+            mdAtoms_->mdatoms()->tmass,
+            enerd_,
+            inputrec_->fepvals.get(),
+            inputrec_->expandedvals.get(),
+            statePropagatorData_->constPreviousBox(),
+            PTCouplingArrays({ parrinelloRahmanBarostat_ ? parrinelloRahmanBarostat_->boxVelocities() : nullMatrix,
+                               {},
+                               {},
+                               {},
+                               {} }),
+            freeEnergyPerturbationData_ ? freeEnergyPerturbationData_->currentFEPState() : 0,
+            shakeVirial_,
+            forceVirial_,
+            totalVirial_,
+            pressure_,
+            ekind_,
+            muTot_,
+            constr_);
 }
 
 void EnergyData::write(gmx_mdoutf* outf, Step step, Time time, bool writeTrajectory, bool writeLog)
@@ -272,8 +293,8 @@ void EnergyData::write(gmx_mdoutf* outf, Step step, Time time, bool writeTraject
 
     // energyOutput_->printAnnealingTemperatures(writeLog ? fplog_ : nullptr, groups_, &(inputrec_->opts));
     Awh* awh = nullptr;
-    energyOutput_->printStepToEnergyFile(mdoutf_get_fp_ene(outf), writeTrajectory, do_dr, do_or,
-                                         writeLog ? fplog_ : nullptr, step, time, fcd_, awh);
+    energyOutput_->printStepToEnergyFile(
+            mdoutf_get_fp_ene(outf), writeTrajectory, do_dr, do_or, writeLog ? fplog_ : nullptr, step, time, fcd_, awh);
 }
 
 void EnergyData::addToForceVirial(const tensor virial, Step step)
@@ -339,8 +360,7 @@ rvec* EnergyData::pressure(Step gmx_unused step)
         pressureStep_ = step;
         clear_mat(pressure_);
     }
-    GMX_ASSERT(step >= pressureStep_ || pressureStep_ == -1,
-               "Asked for pressure of previous step.");
+    GMX_ASSERT(step >= pressureStep_ || pressureStep_ == -1, "Asked for pressure of previous step.");
     return pressure_;
 }
 
@@ -364,22 +384,81 @@ bool* EnergyData::needToSumEkinhOld()
     return &needToSumEkinhOld_;
 }
 
-void EnergyData::Element::writeCheckpoint(t_state gmx_unused* localState, t_state* globalState)
+bool EnergyData::hasReadEkinFromCheckpoint() const
 {
-    if (isMasterRank_)
+    return hasReadEkinFromCheckpoint_;
+}
+
+namespace
+{
+/*!
+ * \brief Enum describing the contents EnergyData::Element writes to modular checkpoint
+ *
+ * When changing the checkpoint content, add a new element just above Count, and adjust the
+ * checkpoint functionality.
+ */
+enum class CheckpointVersion
+{
+    Base, //!< First version of modular checkpointing
+    Count //!< Number of entries. Add new versions right above this!
+};
+constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count) - 1);
+} // namespace
+
+template<CheckpointDataOperation operation>
+void EnergyData::Element::doCheckpointData(CheckpointData<operation>* checkpointData)
+{
+    checkpointVersion(checkpointData, "EnergyData version", c_currentVersion);
+
+    energyData_->observablesHistory_->energyHistory->doCheckpoint<operation>(
+            checkpointData->subCheckpointData("energy history"));
+    energyData_->ekinstate_.doCheckpoint<operation>(checkpointData->subCheckpointData("ekinstate"));
+}
+
+void EnergyData::Element::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                              const t_commrec*                   cr)
+{
+    if (MASTER(cr))
     {
         if (energyData_->needToSumEkinhOld_)
         {
-            globalState->ekinstate.bUpToDate = false;
+            energyData_->ekinstate_.bUpToDate = false;
         }
         else
         {
-            update_ekinstate(&globalState->ekinstate, energyData_->ekind_);
-            globalState->ekinstate.bUpToDate = true;
+            update_ekinstate(&energyData_->ekinstate_, energyData_->ekind_);
+            energyData_->ekinstate_.bUpToDate = true;
         }
         energyData_->energyOutput_->fillEnergyHistory(
                 energyData_->observablesHistory_->energyHistory.get());
+        doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
     }
+}
+
+void EnergyData::Element::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                 const t_commrec*                  cr)
+{
+    if (MASTER(cr))
+    {
+        doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
+    energyData_->hasReadEkinFromCheckpoint_ = MASTER(cr) ? energyData_->ekinstate_.bUpToDate : false;
+    if (PAR(cr))
+    {
+        gmx_bcast(sizeof(hasReadEkinFromCheckpoint_),
+                  &energyData_->hasReadEkinFromCheckpoint_,
+                  cr->mpi_comm_mygroup);
+    }
+    if (energyData_->hasReadEkinFromCheckpoint_)
+    {
+        // this takes care of broadcasting from master to agents
+        restore_ekinstate_from_state(cr, energyData_->ekind_, &energyData_->ekinstate_);
+    }
+}
+
+const std::string& EnergyData::Element::clientID()
+{
+    return identifier_;
 }
 
 void EnergyData::initializeEnergyHistory(StartingBehavior    startingBehavior,
@@ -426,22 +505,14 @@ void EnergyData::initializeEnergyHistory(StartingBehavior    startingBehavior,
     energyOutput->fillEnergyHistory(observablesHistory->energyHistory.get());
 }
 
-void EnergyData::setVRescaleThermostat(const gmx::VRescaleThermostat* vRescaleThermostat)
+void EnergyData::setVelocityScalingTemperatureCoupling(const VelocityScalingTemperatureCoupling* velocityScalingTemperatureCoupling)
 {
-    vRescaleThermostat_ = vRescaleThermostat;
-    if (vRescaleThermostat_)
-    {
-        dummyLegacyState_.flags |= (1U << estTHERM_INT);
-    }
+    velocityScalingTemperatureCoupling_ = velocityScalingTemperatureCoupling;
 }
 
 void EnergyData::setParrinelloRahamnBarostat(const gmx::ParrinelloRahmanBarostat* parrinelloRahmanBarostat)
 {
     parrinelloRahmanBarostat_ = parrinelloRahmanBarostat;
-    if (parrinelloRahmanBarostat_)
-    {
-        dummyLegacyState_.flags |= (1U << estBOX) | (1U << estBOXV);
-    }
 }
 
 EnergyData::Element* EnergyData::element()

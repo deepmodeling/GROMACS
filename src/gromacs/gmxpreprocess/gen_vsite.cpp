@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -45,6 +45,7 @@
 #include <cstring>
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -365,21 +366,23 @@ static void read_vsite_database(const char*                            ddbname,
                         else if (numberOfSites == 4)
                         {
                             /* angle */
-                            vsitetoplist->back().angle.emplace_back(s1String, s2String, s3String,
-                                                                    strtod(s4, nullptr));
+                            vsitetoplist->back().angle.emplace_back(
+                                    s1String, s2String, s3String, strtod(s4, nullptr));
                             /* angle */
                         }
                         else
                         {
                             gmx_fatal(FARGS,
                                       "Need 3 or 4 values to specify bond/angle values in %s: %s\n",
-                                      ddbname, pline);
+                                      ddbname,
+                                      pline);
                         }
                     }
                     break;
                     default:
                         gmx_fatal(FARGS,
-                                  "Didnt find a case for directive %s in read_vsite_database\n", dirstr);
+                                  "Didnt find a case for directive %s in read_vsite_database\n",
+                                  dirstr);
                 }
             }
         }
@@ -450,8 +453,11 @@ static real get_ddb_bond(gmx::ArrayRef<const VirtualSiteTopology> vsitetop,
             });
     if (foundBond == found->bond.end())
     {
-        gmx_fatal(FARGS, "Couldnt find bond %s-%s for residue %s in vsite database.\n",
-                  atom1.c_str(), atom2.c_str(), res.c_str());
+        gmx_fatal(FARGS,
+                  "Couldnt find bond %s-%s for residue %s in vsite database.\n",
+                  atom1.c_str(),
+                  atom2.c_str(),
+                  res.c_str());
     }
 
     return foundBond->value;
@@ -482,8 +488,12 @@ static real get_ddb_angle(gmx::ArrayRef<const VirtualSiteTopology> vsitetop,
 
     if (foundAngle == found->angle.end())
     {
-        gmx_fatal(FARGS, "Couldnt find angle %s-%s-%s for residue %s in vsite database.\n",
-                  atom1.c_str(), atom2.c_str(), atom3.c_str(), res.c_str());
+        gmx_fatal(FARGS,
+                  "Couldnt find angle %s-%s-%s for residue %s in vsite database.\n",
+                  atom1.c_str(),
+                  atom2.c_str(),
+                  atom3.c_str(),
+                  res.c_str());
     }
 
     return foundAngle->value;
@@ -505,7 +515,8 @@ static void count_bonds(int                 atom,
     /* find heavy atom bound to this hydrogen */
     heavy = NOTSET;
     for (auto parm = psb->interactionTypes.begin();
-         (parm != psb->interactionTypes.end()) && (heavy == NOTSET); parm++)
+         (parm != psb->interactionTypes.end()) && (heavy == NOTSET);
+         parm++)
     {
         if (parm->ai() == atom)
         {
@@ -598,15 +609,13 @@ static int get_atype(int atom, t_atoms* at, gmx::ArrayRef<const PreprocessResidu
 
 static int vsite_nm2type(const char* name, PreprocessingAtomTypes* atype)
 {
-    int tp;
-
-    tp = atype->atomTypeFromName(name);
-    if (tp == NOTSET)
+    auto tp = atype->atomTypeFromName(name);
+    if (!tp.has_value())
     {
         gmx_fatal(FARGS, "Dummy mass type (%s) not found in atom type database", name);
     }
 
-    return tp;
+    return *tp;
 }
 
 static real get_amass(int atom, t_atoms* at, gmx::ArrayRef<const PreprocessResidue> rtpFFDB, ResidueType* rt)
@@ -668,7 +677,8 @@ static void add_vsites(gmx::ArrayRef<InteractionsOfType> plist,
                 gmx_fatal(FARGS,
                           "cannot make constraint in add_vsites for %d heavy "
                           "atoms and %d hydrogen atoms",
-                          nrheavies, nrHatoms);
+                          nrheavies,
+                          nrHatoms);
             }
             my_add_param(&(plist[F_CONSTRNC]), Hatoms[i], heavies[0], NOTSET);
         }
@@ -681,8 +691,10 @@ static void add_vsites(gmx::ArrayRef<InteractionsOfType> plist,
                 case F_VSITE3OUT:
                     if (nrheavies < 2)
                     {
-                        gmx_fatal(FARGS, "Not enough heavy atoms (%d) for %s (min 3)",
-                                  nrheavies + 1, interaction_function[vsite_type[Hatoms[i]]].name);
+                        gmx_fatal(FARGS,
+                                  "Not enough heavy atoms (%d) for %s (min 3)",
+                                  nrheavies + 1,
+                                  interaction_function[vsite_type[Hatoms[i]]].name);
                     }
                     add_vsite3_atoms(&plist[ftype], Hatoms[i], Heavy, heavies[0], heavies[1], bSwapParity);
                     break;
@@ -725,14 +737,17 @@ static void add_vsites(gmx::ArrayRef<InteractionsOfType> plist,
                 case F_VSITE4FDN:
                     if (nrheavies < 3)
                     {
-                        gmx_fatal(FARGS, "Not enough heavy atoms (%d) for %s (min 4)",
-                                  nrheavies + 1, interaction_function[vsite_type[Hatoms[i]]].name);
+                        gmx_fatal(FARGS,
+                                  "Not enough heavy atoms (%d) for %s (min 4)",
+                                  nrheavies + 1,
+                                  interaction_function[vsite_type[Hatoms[i]]].name);
                     }
                     add_vsite4_atoms(&plist[ftype], Hatoms[0], Heavy, heavies[0], heavies[1], heavies[2]);
                     break;
 
                 default:
-                    gmx_fatal(FARGS, "can't use add_vsites for interaction function %s",
+                    gmx_fatal(FARGS,
+                              "can't use add_vsites for interaction function %s",
                               interaction_function[vsite_type[Hatoms[i]]].name);
             } /* switch ftype */
         }     /* else */
@@ -1143,15 +1158,15 @@ static int gen_vsites_trp(PreprocessingAtomTypes*                  atype,
      */
     rvec_sub(x[ats[atCB]], x[ats[atCG]], r_ij);
     rvec_sub(x[ats[atCD2]], x[ats[atCG]], r_ik);
-    calc_vsite3_param(xcom[0], ycom[0], xi[atCG], yi[atCG], xi[atCB], yi[atCB], xi[atCD2],
-                      yi[atCD2], &a, &b);
+    calc_vsite3_param(
+            xcom[0], ycom[0], xi[atCG], yi[atCG], xi[atCB], yi[atCB], xi[atCD2], yi[atCD2], &a, &b);
     svmul(a, r_ij, t1);
     svmul(b, r_ik, t2);
     rvec_add(t1, t2, t1);
     rvec_add(t1, x[ats[atCG]], (*newx)[atM[0]]);
 
-    calc_vsite3_param(xcom[1], ycom[1], xi[atCG], yi[atCG], xi[atCB], yi[atCB], xi[atCD2],
-                      yi[atCD2], &a, &b);
+    calc_vsite3_param(
+            xcom[1], ycom[1], xi[atCG], yi[atCG], xi[atCB], yi[atCB], xi[atCD2], yi[atCD2], &a, &b);
     svmul(a, r_ij, t1);
     svmul(b, r_ik, t2);
     rvec_add(t1, t2, t1);
@@ -1165,7 +1180,7 @@ static int gen_vsites_trp(PreprocessingAtomTypes*                  atype,
         (*newatom)[atM[j]].m = (*newatom)[atM[j]].mB = mM[j];
         (*newatom)[atM[j]].q = (*newatom)[atM[j]].qB = 0.0;
         (*newatom)[atM[j]].type = (*newatom)[atM[j]].typeB = tpM;
-        (*newatom)[atM[j]].ptype                           = eptAtom;
+        (*newatom)[atM[j]].ptype                           = ParticleType::Atom;
         (*newatom)[atM[j]].resind                          = at->atom[i0].resind;
         (*newatom)[atM[j]].elem[0]                         = 'M';
         (*newatom)[atM[j]].elem[1]                         = '\0';
@@ -1205,10 +1220,10 @@ static int gen_vsites_trp(PreprocessingAtomTypes*                  atype,
     {
         if ((*vsite_type)[ats[i]] == F_VSITE3)
         {
-            calc_vsite3_param(xi[i], yi[i], xcom[0], ycom[0], xcom[1], ycom[1], xi[atCB], yi[atCB],
-                              &a, &b);
-            add_vsite3_param(&plist[F_VSITE3], ats[i], add_shift + atM[0], add_shift + atM[1],
-                             ats[atCB], a, b);
+            calc_vsite3_param(
+                    xi[i], yi[i], xcom[0], ycom[0], xcom[1], ycom[1], xi[atCB], yi[atCB], &a, &b);
+            add_vsite3_param(
+                    &plist[F_VSITE3], ats[i], add_shift + atM[0], add_shift + atM[1], ats[atCB], a, b);
         }
     }
     return nvsite;
@@ -1361,7 +1376,7 @@ static int gen_vsites_tyr(PreprocessingAtomTypes*                  atype,
     (*newatom)[atM].m = (*newatom)[atM].mB = mM;
     (*newatom)[atM].q = (*newatom)[atM].qB = 0.0;
     (*newatom)[atM].type = (*newatom)[atM].typeB = tpM;
-    (*newatom)[atM].ptype                        = eptAtom;
+    (*newatom)[atM].ptype                        = ParticleType::Atom;
     (*newatom)[atM].resind                       = at->atom[i0].resind;
     (*newatom)[atM].elem[0]                      = 'M';
     (*newatom)[atM].elem[1]                      = '\0';
@@ -1584,40 +1599,40 @@ static int gen_vsites_his(t_atoms*                                 at,
     /* HE1 */
     if (ats[atHE1] != NOTSET)
     {
-        calc_vsite3_param(x[atHE1], y[atHE1], x[atCE1], y[atCE1], x[atNE2], y[atNE2], x[atCG],
-                          y[atCG], &a, &b);
+        calc_vsite3_param(
+                x[atHE1], y[atHE1], x[atCE1], y[atCE1], x[atNE2], y[atNE2], x[atCG], y[atCG], &a, &b);
         add_vsite3_param(&plist[F_VSITE3], ats[atHE1], ats[atCE1], ats[atNE2], ats[atCG], a, b);
     }
     /* HE2 */
     if (ats[atHE2] != NOTSET)
     {
-        calc_vsite3_param(x[atHE2], y[atHE2], x[atNE2], y[atNE2], x[atCE1], y[atCE1], x[atCG],
-                          y[atCG], &a, &b);
+        calc_vsite3_param(
+                x[atHE2], y[atHE2], x[atNE2], y[atNE2], x[atCE1], y[atCE1], x[atCG], y[atCG], &a, &b);
         add_vsite3_param(&plist[F_VSITE3], ats[atHE2], ats[atNE2], ats[atCE1], ats[atCG], a, b);
     }
 
     /* ND1 */
-    calc_vsite3_param(x[atND1], y[atND1], x[atNE2], y[atNE2], x[atCE1], y[atCE1], x[atCG], y[atCG],
-                      &a, &b);
+    calc_vsite3_param(
+            x[atND1], y[atND1], x[atNE2], y[atNE2], x[atCE1], y[atCE1], x[atCG], y[atCG], &a, &b);
     add_vsite3_param(&plist[F_VSITE3], ats[atND1], ats[atNE2], ats[atCE1], ats[atCG], a, b);
 
     /* CD2 */
-    calc_vsite3_param(x[atCD2], y[atCD2], x[atCE1], y[atCE1], x[atNE2], y[atNE2], x[atCG], y[atCG],
-                      &a, &b);
+    calc_vsite3_param(
+            x[atCD2], y[atCD2], x[atCE1], y[atCE1], x[atNE2], y[atNE2], x[atCG], y[atCG], &a, &b);
     add_vsite3_param(&plist[F_VSITE3], ats[atCD2], ats[atCE1], ats[atNE2], ats[atCG], a, b);
 
     /* HD1 */
     if (ats[atHD1] != NOTSET)
     {
-        calc_vsite3_param(x[atHD1], y[atHD1], x[atNE2], y[atNE2], x[atCE1], y[atCE1], x[atCG],
-                          y[atCG], &a, &b);
+        calc_vsite3_param(
+                x[atHD1], y[atHD1], x[atNE2], y[atNE2], x[atCE1], y[atCE1], x[atCG], y[atCG], &a, &b);
         add_vsite3_param(&plist[F_VSITE3], ats[atHD1], ats[atNE2], ats[atCE1], ats[atCG], a, b);
     }
     /* HD2 */
     if (ats[atHD2] != NOTSET)
     {
-        calc_vsite3_param(x[atHD2], y[atHD2], x[atCE1], y[atCE1], x[atNE2], y[atNE2], x[atCG],
-                          y[atCG], &a, &b);
+        calc_vsite3_param(
+                x[atHD2], y[atHD2], x[atCE1], y[atCE1], x[atNE2], y[atNE2], x[atCG], y[atCG], &a, &b);
         add_vsite3_param(&plist[F_VSITE3], ats[atHD2], ats[atCE1], ats[atNE2], ats[atCG], a, b);
     }
     return nvsite;
@@ -1690,17 +1705,58 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
     /* the atnms for every residue MUST correspond to the enums in the
        gen_vsites_* (one for each residue) routines! */
     /* also the atom names in atnms MUST be in the same order as in the .rtp! */
-    const char* atnms[resNR][MAXATOMSPERRESIDUE + 1] = {
-        { "CG", /* PHE */
-          "CD1", "HD1", "CD2", "HD2", "CE1", "HE1", "CE2", "HE2", "CZ", "HZ", nullptr },
-        { "CB", /* TRP */
-          "CG", "CD1", "HD1", "CD2", "NE1", "HE1", "CE2", "CE3", "HE3", "CZ2", "HZ2", "CZ3", "HZ3",
-          "CH2", "HH2", nullptr },
-        { "CG", /* TYR */
-          "CD1", "HD1", "CD2", "HD2", "CE1", "HE1", "CE2", "HE2", "CZ", "OH", "HH", nullptr },
-        { "CG", /* HIS */
-          "ND1", "HD1", "CD2", "HD2", "CE1", "HE1", "NE2", "HE2", nullptr }
-    };
+    const char* atnms[resNR][MAXATOMSPERRESIDUE + 1] = { { "CG", /* PHE */
+                                                           "CD1",
+                                                           "HD1",
+                                                           "CD2",
+                                                           "HD2",
+                                                           "CE1",
+                                                           "HE1",
+                                                           "CE2",
+                                                           "HE2",
+                                                           "CZ",
+                                                           "HZ",
+                                                           nullptr },
+                                                         { "CB", /* TRP */
+                                                           "CG",
+                                                           "CD1",
+                                                           "HD1",
+                                                           "CD2",
+                                                           "NE1",
+                                                           "HE1",
+                                                           "CE2",
+                                                           "CE3",
+                                                           "HE3",
+                                                           "CZ2",
+                                                           "HZ2",
+                                                           "CZ3",
+                                                           "HZ3",
+                                                           "CH2",
+                                                           "HH2",
+                                                           nullptr },
+                                                         { "CG", /* TYR */
+                                                           "CD1",
+                                                           "HD1",
+                                                           "CD2",
+                                                           "HD2",
+                                                           "CE1",
+                                                           "HE1",
+                                                           "CE2",
+                                                           "HE2",
+                                                           "CZ",
+                                                           "OH",
+                                                           "HH",
+                                                           nullptr },
+                                                         { "CG", /* HIS */
+                                                           "ND1",
+                                                           "HD1",
+                                                           "CD2",
+                                                           "HD2",
+                                                           "CE1",
+                                                           "HE1",
+                                                           "NE2",
+                                                           "HE2",
+                                                           nullptr } };
 
     if (debug)
     {
@@ -1818,7 +1874,10 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
                                   "not enough atoms found (%d, need %d) in "
                                   "residue %s %d while\n             "
                                   "generating aromatics virtual site construction",
-                                  nrfound, needed, resnm, at->resinfo[resind].nr);
+                                  nrfound,
+                                  needed,
+                                  resnm,
+                                  at->resinfo[resind].nr);
                     }
                     /* Advance overall atom counter */
                     i++;
@@ -1839,18 +1898,48 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
                     {
                         fprintf(stderr, "TRP at %d\n", o2n[ats[0]] + 1);
                     }
-                    nvsite += gen_vsites_trp(atype, &newx, &newatom, &newatomname, &o2n,
-                                             &newvsite_type, &newcgnr, symtab, &nadd, *x, cgnr, at,
-                                             vsite_type, plist, nrfound, ats, add_shift, vsitetop);
+                    nvsite += gen_vsites_trp(atype,
+                                             &newx,
+                                             &newatom,
+                                             &newatomname,
+                                             &o2n,
+                                             &newvsite_type,
+                                             &newcgnr,
+                                             symtab,
+                                             &nadd,
+                                             *x,
+                                             cgnr,
+                                             at,
+                                             vsite_type,
+                                             plist,
+                                             nrfound,
+                                             ats,
+                                             add_shift,
+                                             vsitetop);
                     break;
                 case resTYR:
                     if (debug)
                     {
                         fprintf(stderr, "TYR at %d\n", o2n[ats[0]] + 1);
                     }
-                    nvsite += gen_vsites_tyr(atype, &newx, &newatom, &newatomname, &o2n,
-                                             &newvsite_type, &newcgnr, symtab, &nadd, *x, cgnr, at,
-                                             vsite_type, plist, nrfound, ats, add_shift, vsitetop);
+                    nvsite += gen_vsites_tyr(atype,
+                                             &newx,
+                                             &newatom,
+                                             &newatomname,
+                                             &o2n,
+                                             &newvsite_type,
+                                             &newcgnr,
+                                             symtab,
+                                             &nadd,
+                                             *x,
+                                             cgnr,
+                                             at,
+                                             vsite_type,
+                                             plist,
+                                             nrfound,
+                                             ats,
+                                             add_shift,
+                                             vsitetop);
                     break;
                 case resHIS:
                     if (debug)
@@ -1877,11 +1966,10 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
         {
             /* find heavy atom, count #bonds from it and #H atoms bound to it
                and return H atom numbers (Hatoms) and heavy atom numbers (heavies) */
-            count_bonds(i, &plist[F_BONDS], at->atomname, &nrbonds, &nrHatoms, Hatoms, &Heavy,
-                        &nrheavies, heavies);
+            count_bonds(i, &plist[F_BONDS], at->atomname, &nrbonds, &nrHatoms, Hatoms, &Heavy, &nrheavies, heavies);
             /* get Heavy atom type */
             tpHeavy = get_atype(Heavy, at, rtpFFDB, &rt);
-            strcpy(tpname, atype->atomNameFromAtomType(tpHeavy));
+            strcpy(tpname, *atype->atomNameFromAtomType(tpHeavy));
 
             bWARNING       = FALSE;
             bAddVsiteParam = TRUE;
@@ -1979,7 +2067,7 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
                     /* get dummy mass type from first char of heavy atom type (N or C) */
 
                     strcpy(nexttpname,
-                           atype->atomNameFromAtomType(get_atype(heavies[0], at, rtpFFDB, &rt)));
+                           *atype->atomNameFromAtomType(get_atype(heavies[0], at, rtpFFDB, &rt)));
                     std::string ch = get_dummymass_name(vsiteconflist, tpname, nexttpname);
                     std::string name;
                     if (ch.empty())
@@ -1990,14 +2078,16 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
                                     FARGS,
                                     "Can't find dummy mass for type %s bonded to type %s in the "
                                     "virtual site database (.vsd files). Add it to the database!\n",
-                                    tpname, nexttpname);
+                                    tpname,
+                                    nexttpname);
                         }
                         else
                         {
                             gmx_fatal(FARGS,
                                       "A dummy mass for type %s bonded to type %s is required, but "
                                       "no virtual site database (.vsd) files where found.\n",
-                                      tpname, nexttpname);
+                                      tpname,
+                                      nexttpname);
                         }
                     }
                     else
@@ -2084,7 +2174,7 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
                         newatom[ni0 + j].m = newatom[ni0 + j].mB = mtot / NMASS;
                         newatom[ni0 + j].q = newatom[ni0 + j].qB = 0.0;
                         newatom[ni0 + j].type = newatom[ni0 + j].typeB = tpM;
-                        newatom[ni0 + j].ptype                         = eptAtom;
+                        newatom[ni0 + j].ptype                         = ParticleType::Atom;
                         newatom[ni0 + j].resind                        = at->atom[i0].resind;
                         newatom[ni0 + j].elem[0]                       = 'M';
                         newatom[ni0 + j].elem[1]                       = '\0';
@@ -2099,12 +2189,20 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
 
                     /* generate Heavy, H1, H2 and H3 from M1, M2 and heavies[0] */
                     /* note that vsite_type cannot be NOTSET, because we just set it */
-                    add_vsite3_atoms(&plist[(*vsite_type)[Heavy]], Heavy, heavies[0],
-                                     add_shift + ni0, add_shift + ni0 + 1, FALSE);
+                    add_vsite3_atoms(&plist[(*vsite_type)[Heavy]],
+                                     Heavy,
+                                     heavies[0],
+                                     add_shift + ni0,
+                                     add_shift + ni0 + 1,
+                                     FALSE);
                     for (int j = 0; j < nrHatoms; j++)
                     {
-                        add_vsite3_atoms(&plist[(*vsite_type)[Hatoms[j]]], Hatoms[j], heavies[0],
-                                         add_shift + ni0, add_shift + ni0 + 1, Hat_SwapParity[j]);
+                        add_vsite3_atoms(&plist[(*vsite_type)[Hatoms[j]]],
+                                         Hatoms[j],
+                                         heavies[0],
+                                         add_shift + ni0,
+                                         add_shift + ni0 + 1,
+                                         Hat_SwapParity[j]);
                     }
 #undef NMASS
                 }
@@ -2119,7 +2217,11 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
                           "Cannot convert atom %d %s (bound to a heavy atom "
                           "%s with \n"
                           "         %d bonds and %d bound hydrogens atoms) to virtual site\n",
-                          i + 1, *(at->atomname[i]), tpname, nrbonds, nrHatoms);
+                          i + 1,
+                          *(at->atomname[i]),
+                          tpname,
+                          nrbonds,
+                          nrHatoms);
             }
             if (bAddVsiteParam)
             {
@@ -2152,8 +2254,12 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
         fprintf(debug, "Before inserting new atoms:\n");
         for (int i = 0; i < at->nr; i++)
         {
-            fprintf(debug, "%4d %4d %4s %4d %4s %6d %-10s\n", i + 1, o2n[i] + 1,
-                    at->atomname[i] ? *(at->atomname[i]) : "(NULL)", at->resinfo[at->atom[i].resind].nr,
+            fprintf(debug,
+                    "%4d %4d %4s %4d %4s %6d %-10s\n",
+                    i + 1,
+                    o2n[i] + 1,
+                    at->atomname[i] ? *(at->atomname[i]) : "(NULL)",
+                    at->resinfo[at->atom[i].resind].nr,
                     at->resinfo[at->atom[i].resind].name ? *(at->resinfo[at->atom[i].resind].name) : "(NULL)",
                     (*cgnr)[i],
                     ((*vsite_type)[i] == NOTSET) ? "NOTSET" : interaction_function[(*vsite_type)[i]].name);
@@ -2163,8 +2269,12 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
         {
             if (newatomname[i])
             {
-                fprintf(debug, "%4d %4s %4d %6d %-10s\n", i + 1,
-                        newatomname[i] ? *(newatomname[i]) : "(NULL)", newatom[i].resind, newcgnr[i],
+                fprintf(debug,
+                        "%4d %4s %4d %6d %-10s\n",
+                        i + 1,
+                        newatomname[i] ? *(newatomname[i]) : "(NULL)",
+                        newatom[i].resind,
+                        newcgnr[i],
                         (newvsite_type[i] == NOTSET) ? "NOTSET"
                                                      : interaction_function[newvsite_type[i]].name);
             }
@@ -2197,7 +2307,8 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
         gmx_fatal(FARGS,
                   "Added impossible amount of dummy masses "
                   "(%d on a total of %d atoms)\n",
-                  nadd, at->nr - nadd);
+                  nadd,
+                  at->nr - nadd);
     }
 
     if (debug)
@@ -2205,8 +2316,11 @@ void do_vsites(gmx::ArrayRef<const PreprocessResidue> rtpFFDB,
         fprintf(debug, "After inserting new atoms:\n");
         for (int i = 0; i < at->nr; i++)
         {
-            fprintf(debug, "%4d %4s %4d %4s %6d %-10s\n", i + 1,
-                    at->atomname[i] ? *(at->atomname[i]) : "(NULL)", at->resinfo[at->atom[i].resind].nr,
+            fprintf(debug,
+                    "%4d %4s %4d %4s %6d %-10s\n",
+                    i + 1,
+                    at->atomname[i] ? *(at->atomname[i]) : "(NULL)",
+                    at->resinfo[at->atom[i].resind].nr,
                     at->resinfo[at->atom[i].resind].name ? *(at->resinfo[at->atom[i].resind].name) : "(NULL)",
                     (*cgnr)[i],
                     ((*vsite_type)[i] == NOTSET) ? "NOTSET" : interaction_function[(*vsite_type)[i]].name);
@@ -2279,7 +2393,8 @@ void do_h_mass(InteractionsOfType* psb, int vsite_type[], t_atoms* at, real mHmu
             /* find bonded heavy atom */
             int a = NOTSET;
             for (auto parm = psb->interactionTypes.begin();
-                 (parm != psb->interactionTypes.end()) && (a == NOTSET); parm++)
+                 (parm != psb->interactionTypes.end()) && (a == NOTSET);
+                 parm++)
             {
                 /* if other atom is not a virtual site, it is the one we want */
                 if ((parm->ai() == i) && !is_vsite(vsite_type[parm->aj()]))

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2005 - 2014, The GROMACS development team.
  * Copyright (c) 2015,2016,2017,2018,2019 by the GROMACS development team.
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -111,7 +111,7 @@ gmx::ArrayRef<const gmx::RangePartitioning> getUpdateGroupingPerMoleculetype(con
  *
  * This means it can be reset, even after a new DD partitioning.
  */
-void dd_store_state(struct gmx_domdec_t* dd, t_state* state);
+void dd_store_state(const gmx_domdec_t& dd, t_state* state);
 
 /*! \brief Returns a pointer to the gmx_domdec_zones_t struct */
 struct gmx_domdec_zones_t* domdec_zones(struct gmx_domdec_t* dd);
@@ -123,13 +123,13 @@ int dd_numAtomsZones(const gmx_domdec_t& dd);
 int dd_numHomeAtoms(const gmx_domdec_t& dd);
 
 /*! \brief Returns the atom range in the local state for atoms that need to be present in mdatoms */
-int dd_natoms_mdatoms(const gmx_domdec_t* dd);
+int dd_natoms_mdatoms(const gmx_domdec_t& dd);
 
 /*! \brief Returns the atom range in the local state for atoms involved in virtual sites */
-int dd_natoms_vsite(const gmx_domdec_t* dd);
+int dd_natoms_vsite(const gmx_domdec_t& dd);
 
 /*! \brief Sets the atom range for atom in the local state for atoms received in constraints communication */
-void dd_get_constraint_range(const gmx_domdec_t* dd, int* at_start, int* at_end);
+void dd_get_constraint_range(const gmx_domdec_t& dd, int* at_start, int* at_end);
 
 /*! \libinternal \brief Struct for passing around the number of PME domains */
 struct NumPmeDomains
@@ -145,10 +145,10 @@ NumPmeDomains getNumPmeDomains(const gmx_domdec_t* dd);
 std::vector<int> get_pme_ddranks(const t_commrec* cr, int pmenodeid);
 
 /*! \brief Returns the maximum shift for coordinate communication in PME, dim x */
-int dd_pme_maxshift_x(const gmx_domdec_t* dd);
+int dd_pme_maxshift_x(const gmx_domdec_t& dd);
 
 /*! \brief Returns the maximum shift for coordinate communication in PME, dim y */
-int dd_pme_maxshift_y(const gmx_domdec_t* dd);
+int dd_pme_maxshift_y(const gmx_domdec_t& dd);
 
 /*! \brief Return whether constraints, not including settles, cross domain boundaries */
 bool ddHaveSplitConstraints(const gmx_domdec_t& dd);
@@ -156,27 +156,27 @@ bool ddHaveSplitConstraints(const gmx_domdec_t& dd);
 /*! \brief Return whether update groups are used */
 bool ddUsesUpdateGroups(const gmx_domdec_t& dd);
 
-/*! \brief Return whether the DD has a single dimension
- *
- * The GPU halo exchange code requires a 1D DD, and its setup code can
- * use the returned value to understand what it should do.
- */
-bool is1D(const gmx_domdec_t& dd);
+/*! \brief Options for checking bonded interactions */
+enum class DDBondedChecking
+{
+    All,             //!< Check all bonded interactions
+    ExcludeZeroLimit //!< Do not check bonded interactions that go to 0 for large distances
+};
 
 /*! \brief Initialize data structures for bonded interactions */
 void dd_init_bondeds(FILE*                           fplog,
                      gmx_domdec_t*                   dd,
                      const gmx_mtop_t&               mtop,
                      const gmx::VirtualSitesHandler* vsite,
-                     const t_inputrec*               ir,
-                     gmx_bool                        bBCheck,
+                     const t_inputrec&               inputrec,
+                     DDBondedChecking                ddBondedChecking,
                      gmx::ArrayRef<cginfo_mb_t>      cginfo_mb);
 
 /*! \brief Returns whether molecules are always whole, i.e. not broken by PBC */
 bool dd_moleculesAreAlwaysWhole(const gmx_domdec_t& dd);
 
 /*! \brief Returns if we need to do pbc for calculating bonded interactions */
-gmx_bool dd_bonded_molpbc(const gmx_domdec_t* dd, PbcType pbcType);
+bool dd_bonded_molpbc(const gmx_domdec_t& dd, PbcType pbcType);
 
 /*! \brief Change the DD non-bonded communication cut-off.
  *
@@ -188,7 +188,7 @@ gmx_bool dd_bonded_molpbc(const gmx_domdec_t* dd, PbcType pbcType);
  * \param[in] x                Position vector, used for computing the dimensions of the system
  * \param[in] cutoffRequested  The requested atom to atom cut-off distance, usually the pair-list cutoff distance
  */
-gmx_bool change_dd_cutoff(t_commrec* cr, const matrix box, gmx::ArrayRef<const gmx::RVec> x, real cutoffRequested);
+bool change_dd_cutoff(t_commrec* cr, const matrix box, gmx::ArrayRef<const gmx::RVec> x, real cutoffRequested);
 
 /*! \brief Set up communication for averaging GPU wait times over domains
  *
@@ -245,10 +245,12 @@ void dd_move_x_constraints(struct gmx_domdec_t*     dd,
                            const matrix             box,
                            gmx::ArrayRef<gmx::RVec> x0,
                            gmx::ArrayRef<gmx::RVec> x1,
-                           gmx_bool                 bX1IsCoord);
+                           bool                     bX1IsCoord);
 
 /*! \brief Communicates the coordinates involved in virtual sites */
 void dd_move_x_vsites(const gmx_domdec_t& dd, const matrix box, rvec* x);
+/*! \brief Communicates the positions and velocities involved in virtual sites */
+void dd_move_x_and_v_vsites(const gmx_domdec_t& dd, const matrix box, rvec* x, rvec* v);
 
 /*! \brief Returns the local atom count array for all constraints
  *
@@ -266,7 +268,7 @@ gmx::ArrayRef<const int> dd_constraints_nlocalatoms(const gmx_domdec_t* dd);
 [[noreturn]] void dd_print_missing_interactions(const gmx::MDLogger&           mdlog,
                                                 t_commrec*                     cr,
                                                 int                            local_count,
-                                                const gmx_mtop_t*              top_global,
+                                                const gmx_mtop_t&              top_global,
                                                 const gmx_localtop_t*          top_local,
                                                 gmx::ArrayRef<const gmx::RVec> x,
                                                 const matrix                   box);
@@ -274,10 +276,10 @@ gmx::ArrayRef<const int> dd_constraints_nlocalatoms(const gmx_domdec_t* dd);
 /*! \brief Generate and store the reverse topology */
 void dd_make_reverse_top(FILE*                           fplog,
                          gmx_domdec_t*                   dd,
-                         const gmx_mtop_t*               mtop,
+                         const gmx_mtop_t&               mtop,
                          const gmx::VirtualSitesHandler* vsite,
-                         const t_inputrec*               ir,
-                         gmx_bool                        bBCheck);
+                         const t_inputrec&               inputrec,
+                         DDBondedChecking                ddBondedChecking);
 
 /*! \brief Generate the local topology and virtual site data */
 void dd_make_local_top(struct gmx_domdec_t*       dd,
@@ -292,10 +294,10 @@ void dd_make_local_top(struct gmx_domdec_t*       dd,
                        gmx_localtop_t*            ltop);
 
 /*! \brief Sort ltop->ilist when we are doing free energy. */
-void dd_sort_local_top(gmx_domdec_t* dd, const t_mdatoms* mdatoms, gmx_localtop_t* ltop);
+void dd_sort_local_top(const gmx_domdec_t& dd, const t_mdatoms* mdatoms, gmx_localtop_t* ltop);
 
 /*! \brief Construct local state */
-void dd_init_local_state(struct gmx_domdec_t* dd, const t_state* state_global, t_state* local_state);
+void dd_init_local_state(const gmx_domdec_t& dd, const t_state* state_global, t_state* local_state);
 
 /*! \brief Generate a list of links between atoms that are linked by bonded interactions
  *
@@ -305,11 +307,11 @@ t_blocka* makeBondedLinks(const gmx_mtop_t& mtop, gmx::ArrayRef<cginfo_mb_t> cgi
 
 /*! \brief Calculate the maximum distance involved in 2-body and multi-body bonded interactions */
 void dd_bonded_cg_distance(const gmx::MDLogger&           mdlog,
-                           const gmx_mtop_t*              mtop,
-                           const t_inputrec*              ir,
+                           const gmx_mtop_t&              mtop,
+                           const t_inputrec&              ir,
                            gmx::ArrayRef<const gmx::RVec> x,
                            const matrix                   box,
-                           gmx_bool                       bBCheck,
+                           DDBondedChecking               ddBondedChecking,
                            real*                          r_2b,
                            real*                          r_mb);
 

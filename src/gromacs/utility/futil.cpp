@@ -3,8 +3,8 @@
  *
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
- * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2013,2014,2015,2016,2017, The GROMACS development team.
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,6 +46,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <mutex>
 #include <tuple>
 
 #include <fcntl.h>
@@ -66,7 +67,6 @@
 #include "gromacs/utility/dir_separator.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/fatalerror.h"
-#include "gromacs/utility/mutex.h"
 #include "gromacs/utility/path.h"
 #include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/smalloc.h"
@@ -88,9 +88,9 @@ static int       s_maxBackupCount = 0;
 
 /* this linked list is an intrinsically globally shared object, so we have
    to protect it with mutexes */
-static gmx::Mutex pstack_mutex;
+static std::mutex pstack_mutex;
 
-using Lock = gmx::lock_guard<gmx::Mutex>;
+using Lock = std::lock_guard<std::mutex>;
 
 namespace gmx
 {
@@ -150,7 +150,7 @@ void gmx_set_max_backup_count(int count)
 
 static void push_ps(FILE* fp)
 {
-    t_pstack* ps;
+    t_pstack* ps = nullptr;
 
     Lock pstackLock(pstack_mutex);
 
@@ -161,15 +161,11 @@ static void push_ps(FILE* fp)
 }
 
 #if GMX_FAHCORE
-/* don't use pipes!*/
-#    define popen fah_fopen
-#    define pclose fah_fclose
-#    define SKIP_FFOPS 1
-#else
 #    ifdef gmx_ffclose
 #        undef gmx_ffclose
 #    endif
-#    if (!HAVE_PIPES && !defined(__native_client__))
+#endif
+#if (!HAVE_PIPES && !defined(__native_client__))
 static FILE* popen(const char* /* nm */, const char* /* mode */)
 {
     gmx_impl("Sorry no pipes...");
@@ -183,20 +179,15 @@ static int pclose(FILE* /* fp */)
 
     return 0;
 }
-#    endif /* !HAVE_PIPES && !defined(__native_client__) */
-#endif     /* GMX_FAHCORE */
+#endif /* !HAVE_PIPES && !defined(__native_client__) */
 
 int gmx_ffclose(FILE* fp)
 {
-#ifdef SKIP_FFOPS
-    return fclose(fp);
-#else
-    t_pstack *ps, *tmp;
-    int       ret = 0;
+    int ret = 0;
 
     Lock pstackLock(pstack_mutex);
 
-    ps = pstack;
+    t_pstack* ps = pstack;
     if (ps == nullptr)
     {
         if (fp != nullptr)
@@ -225,8 +216,8 @@ int gmx_ffclose(FILE* fp)
             {
                 ret = pclose(ps->prev->fp);
             }
-            tmp      = ps->prev;
-            ps->prev = ps->prev->prev;
+            t_pstack* tmp = ps->prev;
+            ps->prev      = ps->prev->prev;
             sfree(tmp);
         }
         else
@@ -239,7 +230,6 @@ int gmx_ffclose(FILE* fp)
     }
 
     return ret;
-#endif
 }
 
 
@@ -292,7 +282,7 @@ gmx_off_t gmx_ftell(FILE* stream)
 
 int gmx_truncate(const std::string& filename, gmx_off_t length)
 {
-#if GMX_NATIVE_WINDOWS
+#if GMX_NATIVE_WINDOWS && !GMX_FAHCORE
     FILE* fp = fopen(filename.c_str(), "rb+");
     if (fp == NULL)
     {
@@ -312,7 +302,7 @@ int gmx_truncate(const std::string& filename, gmx_off_t length)
 
 static FILE* uncompress(const std::string& fn, const char* mode)
 {
-    FILE*       fp;
+    FILE*       fp  = nullptr;
     std::string buf = "uncompress -c < " + fn;
     fprintf(stderr, "Going to execute '%s'\n", buf.c_str());
     if ((fp = popen(buf.c_str(), mode)) == nullptr)
@@ -326,7 +316,7 @@ static FILE* uncompress(const std::string& fn, const char* mode)
 
 static FILE* gunzip(const std::string& fn, const char* mode)
 {
-    FILE*       fp;
+    FILE*       fp  = nullptr;
     std::string buf = "gunzip -c < ";
     buf += fn;
     fprintf(stderr, "Going to execute '%s'\n", buf.c_str());
@@ -341,13 +331,11 @@ static FILE* gunzip(const std::string& fn, const char* mode)
 
 gmx_bool gmx_fexist(const std::string& fname)
 {
-    FILE* test;
-
     if (fname.empty())
     {
         return FALSE;
     }
-    test = fopen(fname.c_str(), "r");
+    FILE* test = fopen(fname.c_str(), "r");
     if (test == nullptr)
     {
 /*Windows doesn't allow fopen of directory - so we need to check this seperately */
@@ -390,7 +378,8 @@ static std::string backup_fn(const std::string& file)
         gmx_fatal(FARGS,
                   "Won't make more than %d backups of %s for you.\n"
                   "The env.var. GMX_MAXBACKUP controls this maximum, -1 disables backups.",
-                  s_maxBackupCount, fn.c_str());
+                  s_maxBackupCount,
+                  fn.c_str());
     }
 
     return buf;
@@ -418,12 +407,7 @@ void make_backup(const std::string& name)
 
 FILE* gmx_ffopen(const std::string& file, const char* mode)
 {
-#ifdef SKIP_FFOPS
-    return fopen(file, mode);
-#else
-    FILE*    ff = nullptr;
-    gmx_bool bRead;
-    int      bs;
+    FILE* ff = nullptr;
 
     if (file.empty())
     {
@@ -435,7 +419,7 @@ FILE* gmx_ffopen(const std::string& file, const char* mode)
         make_backup(file);
     }
 
-    bRead = (mode[0] == 'r' && mode[1] != '+');
+    bool bRead = (mode[0] == 'r' && mode[1] != '+');
     if (!bRead || gmx_fexist(file))
     {
         if ((ff = fopen(file.c_str(), mode)) == nullptr)
@@ -449,21 +433,14 @@ FILE* gmx_ffopen(const std::string& file, const char* mode)
         if (bUnbuffered || ((bufsize = getenv("GMX_LOG_BUFFER")) != nullptr))
         {
             /* Check whether to use completely unbuffered */
-            if (bUnbuffered)
-            {
-                bs = 0;
-            }
-            else
-            {
-                bs = strtol(bufsize, nullptr, 10);
-            }
+            const int bs = bUnbuffered ? 0 : strtol(bufsize, nullptr, 10);
             if (bs <= 0)
             {
                 setbuf(ff, nullptr);
             }
             else
             {
-                char* ptr;
+                char* ptr = nullptr;
                 snew(ptr, bs + 8);
                 if (setvbuf(ff, ptr, _IOFBF, bs) != 0)
                 {
@@ -495,7 +472,6 @@ FILE* gmx_ffopen(const std::string& file, const char* mode)
         }
     }
     return ff;
-#endif
 }
 
 namespace gmx
@@ -544,7 +520,7 @@ FilePtr openLibraryFile(const char* filename, bool bAddCWD, bool bFatal)
  * \todo Use std::string and std::vector<char>. */
 static int makeTemporaryFilename(char* buf)
 {
-    int len;
+    int len = 0;
 
     if ((len = strlen(buf)) < 7)
     {
@@ -558,16 +534,15 @@ static int makeTemporaryFilename(char* buf)
      * since windows doesnt support it we have to separate the cases.
      * 20090307: mktemp deprecated, use iso c++ _mktemp instead.
      */
-    int fd;
 #if GMX_NATIVE_WINDOWS
     _mktemp(buf);
     if (buf == NULL)
     {
         gmx_fatal(FARGS, "Error creating temporary file %s: %s", buf, strerror(errno));
     }
-    fd = 0;
+    int fd = 0;
 #else
-    fd = mkstemp(buf);
+    int fd = mkstemp(buf);
 
     if (fd < 0)
     {
@@ -614,6 +589,10 @@ int gmx_file_rename(const char* oldname, const char* newname)
 #else
     if (MoveFileEx(oldname, newname, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
     {
+#    if GMX_FAHCORE
+        /* This just lets the F@H checksumming system know about the rename */
+        fcRename(oldname, newname);
+#    endif
         return 0;
     }
     else
@@ -649,12 +628,10 @@ int gmx_file_copy(const char* oldname, const char* newname, gmx_bool copy_if_emp
 
     while (!feof(in.get()))
     {
-        size_t nread;
-
-        nread = fread(buf.data(), sizeof(char), FILECOPY_BUFSIZE, in.get());
+        size_t nread = fread(buf.data(), sizeof(char), FILECOPY_BUFSIZE, in.get());
         if (nread > 0)
         {
-            size_t ret;
+            size_t ret = 0;
             if (!out)
             {
                 /* so this is where we open when copy_if_empty is false:
@@ -684,34 +661,27 @@ int gmx_fsync(FILE* fp)
 {
     int rc = 0;
 
-#if GMX_FAHCORE
-    /* the fahcore defines its own os-independent fsync */
-    rc = fah_fsync(fp);
-#else /* GMX_FAHCORE */
     {
-        int fn;
-
         /* get the file number */
-#    if HAVE_FILENO
-        fn = fileno(fp);
-#    elif HAVE__FILENO
-        fn = _fileno(fp);
-#    else
+#if HAVE_FILENO
+        int fn = fileno(fp);
+#elif HAVE__FILENO
+        int fn = _fileno(fp);
+#else
         GMX_UNUSED_VALUE(fp);
-        fn = -1;
-#    endif
+        int fn = -1;
+#endif
 
         /* do the actual fsync */
         if (fn >= 0)
         {
-#    if HAVE_FSYNC
+#if HAVE_FSYNC
             rc = fsync(fn);
-#    elif HAVE__COMMIT
+#elif HAVE__COMMIT
             rc = _commit(fn);
-#    endif
+#endif
         }
     }
-#endif /* GMX_FAHCORE */
 
     /* We check for these error codes this way because POSIX requires them
        to be defined, and using anything other than macros is unlikely: */
@@ -743,8 +713,8 @@ void gmx_chdir(const char* directory)
 #endif
     if (rc != 0)
     {
-        auto message = gmx::formatString("Cannot change directory to '%s'. Reason: %s", directory,
-                                         strerror(errno));
+        auto message = gmx::formatString(
+                "Cannot change directory to '%s'. Reason: %s", directory, strerror(errno));
         GMX_THROW(gmx::FileIOError(message));
     }
 }

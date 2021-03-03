@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,9 +48,15 @@
 #ifndef GROMACS_MODULARSIMULATOR_SIMULATORALGORITHM_H
 #define GROMACS_MODULARSIMULATOR_SIMULATORALGORITHM_H
 
+#include <any>
+#include <map>
+#include <optional>
 #include <string>
+#include <typeinfo>
 
 #include "gromacs/mdrun/isimulator.h"
+#include "gromacs/mdtypes/state.h"
+#include "gromacs/utility/exceptions.h"
 
 #include "checkpointhelper.h"
 #include "domdechelper.h"
@@ -80,6 +86,11 @@ class TopologyHolder;
  * runs the simulation by, in turn, building a task list from the elements
  * for a predefined number of steps, then running the task list, and repeating
  * until the stop criterion is fulfilled.
+ *
+ * The simulator algorithm is owning all elements involved in the simulation
+ * and is hence controlling their lifetime. This ensures that pointers and
+ * callbacks exchanged between elements remain valid throughout the duration
+ * of the simulation run.
  */
 class ModularSimulatorAlgorithm final
 {
@@ -97,7 +108,7 @@ private:
                               t_commrec*               cr,
                               const MDLogger&          mdlog,
                               const MdrunOptions&      mdrunOptions,
-                              t_inputrec*              inputrec,
+                              const t_inputrec*        inputrec,
                               t_nrnb*                  nrnb,
                               gmx_wallcycle*           wcycle,
                               t_forcerec*              fr,
@@ -252,7 +263,7 @@ private:
     //! Contains command-line options to mdrun.
     const MdrunOptions& mdrunOptions;
     //! Contains user input mdp options.
-    t_inputrec* inputrec;
+    const t_inputrec* inputrec;
     //! Manages flop accounting.
     t_nrnb* nrnb;
     //! Manages wall cycle accounting.
@@ -315,6 +326,11 @@ public:
     ISimulatorElement* storeElement(std::unique_ptr<ISimulatorElement> element);
     //! Check if an element is stored in the ModularSimulatorAlgorithmBuilder
     bool elementIsStored(const ISimulatorElement* element) const;
+    //! Set arbitrary data in the ModularSimulatorAlgorithmBuilder. Helpful for stateful elements.
+    template<typename ValueType>
+    void storeValue(const std::string& key, const ValueType& value);
+    //! Get previously stored data. Returns std::nullopt if key is not found.
+    std::optional<std::any> getStoredValue(const std::string& key) const;
     //! Register a thermostat that accepts propagator registrations
     void registerThermostat(std::function<void(const PropagatorThermostatConnection&)> registrationFunction);
     //! Register a barostat that accepts propagator registrations
@@ -327,6 +343,7 @@ public:
 private:
     //! Pointer to the associated ModularSimulatorAlgorithmBuilder
     ModularSimulatorAlgorithmBuilder* builder_;
+    std::map<std::string, std::any>   values_;
 };
 
 /*!\internal
@@ -350,7 +367,8 @@ class ModularSimulatorAlgorithmBuilder final
 {
 public:
     //! Constructor
-    explicit ModularSimulatorAlgorithmBuilder(compat::not_null<LegacySimulatorData*> legacySimulatorData);
+    ModularSimulatorAlgorithmBuilder(compat::not_null<LegacySimulatorData*>    legacySimulatorData,
+                                     std::unique_ptr<ReadCheckpointDataHolder> checkpointDataHolder);
     //! Build algorithm
     ModularSimulatorAlgorithm build();
 
@@ -454,6 +472,8 @@ private:
     TrajectoryElementBuilder trajectoryElementBuilder_;
     //! Builder for the TopologyHolder
     TopologyHolder::Builder topologyHolderBuilder_;
+    //! Builder for the CheckpointHelper
+    CheckpointHelperBuilder checkpointHelperBuilder_;
 
     /*! \brief List of clients for the CheckpointHelper
      *
@@ -529,9 +549,13 @@ ISimulatorElement* getElementPointer(LegacySimulatorData*                    leg
                                      GlobalCommunicationHelper*  globalCommunicationHelper,
                                      Args&&... args)
 {
-    return Element::getElementPointerImpl(legacySimulatorData, builderHelper, statePropagatorData,
-                                          energyData, freeEnergyPerturbationData,
-                                          globalCommunicationHelper, std::forward<Args>(args)...);
+    return Element::getElementPointerImpl(legacySimulatorData,
+                                          builderHelper,
+                                          statePropagatorData,
+                                          energyData,
+                                          freeEnergyPerturbationData,
+                                          globalCommunicationHelper,
+                                          std::forward<Args>(args)...);
 }
 
 template<typename Element, typename... Args>
@@ -544,10 +568,13 @@ void ModularSimulatorAlgorithmBuilder::add(Args&&... args)
     }
 
     // Get element from factory method
-    auto* element = static_cast<Element*>(getElementPointer<Element>(
-            legacySimulatorData_, &elementAdditionHelper_, statePropagatorData_.get(),
-            energyData_.get(), freeEnergyPerturbationData_.get(), &globalCommunicationHelper_,
-            std::forward<Args>(args)...));
+    auto* element = static_cast<Element*>(getElementPointer<Element>(legacySimulatorData_,
+                                                                     &elementAdditionHelper_,
+                                                                     statePropagatorData_.get(),
+                                                                     energyData_.get(),
+                                                                     freeEnergyPerturbationData_.get(),
+                                                                     &globalCommunicationHelper_,
+                                                                     std::forward<Args>(args)...));
 
     // Make sure returned element pointer is owned by *this
     // Ensuring this makes sure we can control the life time
@@ -593,11 +620,16 @@ void ModularSimulatorAlgorithmBuilder::registerWithInfrastructureAndSignallers(E
     // Register element to topology holder (if applicable)
     topologyHolderBuilder_.registerClient(castOrNull<ITopologyHolderClient, Element>(element));
     // Register element to checkpoint client (if applicable)
-    if (auto castedElement = castOrNull<ICheckpointHelperClient, Element>(element))
-    {
-        checkpointClients_.emplace_back(castedElement);
-    }
+    checkpointHelperBuilder_.registerClient(castOrNull<ICheckpointHelperClient, Element>(element));
 }
+
+
+template<typename ValueType>
+void ModularSimulatorAlgorithmBuilderHelper::storeValue(const std::string& key, const ValueType& value)
+{
+    values_[key] = std::any(value);
+}
+
 
 } // namespace gmx
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020, by the GROMACS development team, led by
+ * Copyright (c) 2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -50,10 +50,18 @@
 
 #include "config.h"
 
+#include <memory>
+
 #if GMX_GPU_OPENCL
-#    include "gromacs/gpu_utils/device_context_ocl.h"
-#else
-#    include "gromacs/utility/classhelpers.h"
+#    include "gromacs/gpu_utils/gmxopencl.h"
+#endif
+#if GMX_GPU_SYCL
+#    include "gromacs/gpu_utils/gmxsycl.h"
+#endif
+
+#include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/hardware/device_management.h"
+#include "gromacs/utility/classhelpers.h"
 
 struct DeviceInformation;
 
@@ -62,19 +70,42 @@ class DeviceContext
 {
 public:
     //! Constructor.
-    DeviceContext(const DeviceInformation& deviceInfo) : deviceInfo_(deviceInfo) {}
+    DeviceContext(const DeviceInformation& deviceInfo);
     //! Destructor
-    ~DeviceContext() = default;
+    ~DeviceContext();
 
     //! Get the associated device information
     const DeviceInformation& deviceInfo() const { return deviceInfo_; }
+
+    void activate() { setActiveDevice(deviceInfo_); }
 
 private:
     //! A reference to the device information used upon context creation
     const DeviceInformation& deviceInfo_;
 
+#if GMX_GPU_OPENCL
+public:
+    //! Getter
+    cl_context context() const;
+
+private:
+    //! OpenCL context object
+    cl_context context_ = nullptr;
+#endif
+
+#if GMX_GPU_SYCL
+public:
+    //! Const getter
+    const cl::sycl::context& context() const { return context_; }
+    //! Getter
+    cl::sycl::context& context() { return context_; }
+
+private:
+    //! SYCL context object
+    cl::sycl::context context_;
+#endif
+
     GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceContext);
 };
-#endif // !GMX_GPU_OPENCL
 
 #endif // GMX_GPU_UTILS_DEVICE_CONTEXT_H

@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2010,2011,2012,2013,2014 by the GROMACS development team.
- * Copyright (c) 2015,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2015,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,12 +44,12 @@
 #ifndef GMX_ANALYSISDATA_MODULES_AVERAGE_H
 #define GMX_ANALYSISDATA_MODULES_AVERAGE_H
 
+#include <memory>
 #include <vector>
 
 #include "gromacs/analysisdata/abstractdata.h"
 #include "gromacs/analysisdata/arraydata.h"
 #include "gromacs/analysisdata/datamodule.h"
-#include "gromacs/utility/classhelpers.h"
 
 namespace gmx
 {
@@ -65,7 +65,7 @@ namespace gmx
  *
  * Output data contains a column for each data set in the input data, and a
  * frame for each column in the input data.  If different data sets have
- * different number of columns, the frame count accomodates the largest data
+ * different number of columns, the frame count accommodates the largest data
  * set.  Other columns are padded with zero values that are additionally marked
  * as missing.
  * Each value in the output data is the average of the corresponding
@@ -138,7 +138,7 @@ public:
 private:
     class Impl;
 
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 //! Smart pointer to manage an AnalysisDataAverageModule object.
@@ -182,7 +182,7 @@ private:
 
     class Impl;
 
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 //! Smart pointer to manage an AnalysisDataFrameAverageModule object.

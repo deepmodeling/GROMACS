@@ -42,19 +42,17 @@
  */
 #include "gmxpre.h"
 
-#include "gromacs/gpu_utils/device_context_ocl.h"
+#include "gromacs/gpu_utils/device_context.h"
 #include "gromacs/gpu_utils/device_stream.h"
 #include "gromacs/gpu_utils/gputraits_ocl.h"
+#include "gromacs/hardware/device_information.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/stringutil.h"
 
-DeviceStream::DeviceStream()
-{
-    stream_ = nullptr;
-}
-
-void DeviceStream::init(const DeviceContext& deviceContext, DeviceStreamPriority /* priority */, const bool useTiming)
+DeviceStream::DeviceStream(const DeviceContext& deviceContext,
+                           DeviceStreamPriority /* priority */,
+                           const bool useTiming)
 {
     const DeviceInformation&    deviceInfo      = deviceContext.deviceInfo();
     cl_command_queue_properties queueProperties = useTiming ? CL_QUEUE_PROFILING_ENABLE : 0;
@@ -65,7 +63,8 @@ void DeviceStream::init(const DeviceContext& deviceContext, DeviceStreamPriority
     {
         GMX_THROW(gmx::InternalError(gmx::formatString(
                 "Failed to create OpenCL command queue on GPU %s (OpenCL error ID %d).",
-                deviceInfo.device_name, clError)));
+                deviceInfo.device_name,
+                clError)));
     }
 }
 

@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 The GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -52,7 +52,6 @@
 #include "gromacs/topology/idef.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/real.h"
 
 struct gmx_domdec_t;
@@ -81,6 +80,15 @@ static constexpr int c_ftypeVsiteEnd = F_VSITEN + 1;
 //! Type for storing PBC atom information for all vsite types in the system
 typedef std::array<std::vector<int>, c_ftypeVsiteEnd - c_ftypeVsiteStart> VsitePbc;
 
+//! Whether we calculate vsite positions, velocities, or both
+enum class VSiteOperation
+{
+    Positions,              //!< Calculate only positions
+    Velocities,             //!< Calculate only velocities
+    PositionsAndVelocities, //!< Calculate both positions and velocities
+    Count                   //!< The number of entries
+};
+
 /*! \libinternal
  * \brief Class that handles construction of vsites and spreading of vsite forces
  */
@@ -100,12 +108,12 @@ public:
 
     /*! \brief Create positions of vsite atoms based for the local system
      *
-     * \param[in,out] x        The coordinates
-     * \param[in]     dt       The time step
-     * \param[in,out] v        When not empty, velocities for vsites are set as displacement/dt
-     * \param[in]     box      The box
+     * \param[in,out] x          The coordinates
+     * \param[in,out] v          The velocities, needed if operation requires it
+     * \param[in]     box        The box
+     * \param[in]     operation  Whether we calculate positions, velocities, or both
      */
-    void construct(ArrayRef<RVec> x, real dt, ArrayRef<RVec> v, const matrix box) const;
+    void construct(ArrayRef<RVec> x, ArrayRef<RVec> v, const matrix box, VSiteOperation operation) const;
 
     //! Tells how to handle virial contributions due to virtual sites
     enum class VirialHandling : int
@@ -138,7 +146,7 @@ private:
     //! Implementation type.
     class Impl;
     //! Implementation object.
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 /*! \brief Create positions of vsite atoms based for the local system

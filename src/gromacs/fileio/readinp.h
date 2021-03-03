@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,10 +44,11 @@
 #include <utility>
 #include <vector>
 
+#include "gromacs/fileio/warninp.h"
 #include "gromacs/utility/basedefinitions.h"
-
-struct warninp;
-typedef warninp* warninp_t;
+#include "gromacs/utility/cstringutil.h"
+#include "gromacs/utility/enumerationhelpers.h"
+#include "gromacs/utility/stringutil.h"
 
 namespace gmx
 {
@@ -160,11 +161,82 @@ int get_eeenum(std::vector<t_inpfile>* inp, const std::string& name, const char*
 int get_eenum(std::vector<t_inpfile>* inp, const char* name, const char** defs);
 /* defs must be NULL terminated */
 
+//! Get index of option `name`. Exposed here so that `getEnum` can access it.
+int get_einp(std::vector<t_inpfile>* inp, const char* name);
+
+/*! \brief Read option from input and return corresponding enum value
+ *
+ * If the option is not set, return the first value of the enum as default.
+ * Defined here so we don't need to instantiate the templates in the source file.
+ *
+ * \tparam EnumType  The type of enum to be returned
+ * \param[in]  inp   The input file vector
+ * \param[in]  name  The name of the option to be read
+ * \param[out] wi    Handler for context-sensitive warnings.
+ * \return  Enum value corresponding to read input
+ */
+template<typename EnumType>
+EnumType getEnum(std::vector<t_inpfile>* inp, const char* name, warninp* wi)
+{
+    // If there's no valid option, we'll use the EnumType::Default.
+    // Note, this assumes the enum is zero based, which is also assumed by
+    // EnumerationWrapper and EnumerationArray.
+    const auto  defaultEnumValue = EnumType::Default;
+    const auto& defaultName      = enumValueToString(defaultEnumValue);
+    // Get index of option in input
+    const auto ii = get_einp(inp, name);
+    if (ii == -1)
+    {
+        // If the option wasn't set, we return EnumType::Default
+        inp->back().value_.assign(defaultName);
+        return defaultEnumValue;
+    }
+
+    // Check if option string can be mapped to a valid enum value
+    const auto* optionString = (*inp)[ii].value_.c_str();
+    for (auto enumValue : gmx::EnumerationWrapper<EnumType>{})
+    {
+        if (gmx_strcasecmp_min(enumValueToString(enumValue), optionString) == 0)
+        {
+            return enumValue;
+        }
+    }
+
+    // If we get here, the option set is invalid. Print error.
+    std::string errorMessage = gmx::formatString(
+            "Invalid enum '%s' for variable %s, using '%s'\n", optionString, name, defaultName);
+    errorMessage += gmx::formatString("Next time, use one of:");
+    for (auto enumValue : gmx::EnumerationWrapper<EnumType>{})
+    {
+        errorMessage += gmx::formatString(" '%s'", enumValueToString(enumValue));
+    }
+    if (wi != nullptr)
+    {
+        warning_error(wi, errorMessage);
+    }
+    else
+    {
+        fprintf(stderr, "%s\n", errorMessage.c_str());
+    }
+    (*inp)[ii].value_.assign(defaultName);
+    return defaultEnumValue;
+}
+
+
 //! Replace for macro CCTYPE, prints comment string after newline
 void printStringNewline(std::vector<t_inpfile>* inp, const char* line);
 //! Replace for macro CTYPE, prints comment string
 void printStringNoNewline(std::vector<t_inpfile>* inp, const char* line);
 //! Replace for macro STYPE, checks for existing string entry and if possible replaces it
 void setStringEntry(std::vector<t_inpfile>* inp, const char* name, char* newName, const char* def);
+
+/*! \brief
+ * Returns a string value and sets the value in \p inp
+ *
+ * The value is either from \p inp when \p name is found or \p def otherwise.
+ *
+ * \note this is a wrapper function for g_estr()
+ */
+std::string setStringEntry(std::vector<t_inpfile>* inp, const std::string& name, const std::string& def);
 
 #endif

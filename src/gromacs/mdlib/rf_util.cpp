@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -69,7 +69,12 @@ void calc_rffac(FILE* fplog, real eps_r, real eps_rf, real Rc, real* krf, real* 
         fprintf(fplog,
                 "%s:\n"
                 "epsRF = %g, rc = %g, krf = %g, crf = %g, epsfac = %g\n",
-                eel_names[eelRF], eps_rf, Rc, *krf, *crf, ONE_4PI_EPS0 / eps_r);
+                enumValueToString(CoulombInteractionType::RF),
+                eps_rf,
+                Rc,
+                *krf,
+                *crf,
+                ONE_4PI_EPS0 / eps_r);
         // Make sure we don't lose resolution in pow() by casting real arg to double
         real rmin = gmx::invcbrt(static_cast<double>(*krf * 2.0));
         fprintf(fplog, "The electrostatics potential has its minimum at r = %g\n", rmin);

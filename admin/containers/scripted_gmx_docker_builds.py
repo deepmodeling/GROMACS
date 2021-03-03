@@ -2,7 +2,7 @@
 #
 # This file is part of the GROMACS molecular simulation package.
 #
-# Copyright (c) 2020, by the GROMACS development team, led by
+# Copyright (c) 2020,2021, by the GROMACS development team, led by
 # Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
 # and including many others, as listed in the AUTHORS file in the
 # top-level source directory and at http://www.gromacs.org.
@@ -33,7 +33,8 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-"""
+"""Building block based Dockerfile generation for CI testing images.
+
 Generates a set of docker images used for running GROMACS CI on Gitlab.
 The images are prepared according to a selection of build configuration targets
 that hope to cover a broad enough scope of different possible systems,
@@ -43,6 +44,9 @@ described as an entry in the build_configs dictionary, with the script
 analysing the logic and adding build stages as needed.
 
 Based on the example script provided by the NVidia HPCCM repository.
+
+Reference:
+    `NVidia HPC Container Maker <https://github.com/NVIDIA/hpc-container-maker>`__
 
 Authors:
     * Paul Bauer <paul.bauer.q@gmail.com>
@@ -55,6 +59,9 @@ Usage::
     $ python3 scripted_gmx_docker_builds.py --help
     $ python3 scripted_gmx_docker_builds.py --format docker > Dockerfile && docker build .
     $ python3 scripted_gmx_docker_builds.py | docker build -
+
+See Also:
+    :file:`buildall.sh`
 
 """
 
@@ -80,6 +87,7 @@ _common_packages = ['build-essential',
                     'ccache',
                     'git',
                     'gnupg',
+                    'gpg-agent',
                     'libfftw3-dev',
                     'libhwloc-dev',
                     'liblapack-dev',
@@ -91,6 +99,22 @@ _common_packages = ['build-essential',
                     'vim',
                     'wget',
                     'xsltproc']
+
+_opencl_extra_packages = [
+    'nvidia-opencl-dev',
+    # The following require apt_ppas=['ppa:intel-opencl/intel-opencl']
+    'intel-opencl-icd',
+    'ocl-icd-libopencl1',
+    'ocl-icd-opencl-dev',
+    'opencl-headers',
+    # The following require
+    #             apt_keys=['http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key'],
+    #             apt_repositories=['deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main']
+    'libelf1',
+    'rocm-opencl',
+    'rocm-dev',
+    'clinfo'
+]
 
 # Extra packages needed to build Python installations from source.
 _python_extra_packages = ['build-essential',
@@ -127,24 +151,20 @@ _docs_extra_packages = ['autoconf',
                         'linkchecker',
                         'mscgen',
                         'm4',
+                        'openssh-client',
                         'texinfo',
                         'texlive-latex-base',
                         'texlive-latex-extra',
                         'texlive-fonts-recommended',
                         'texlive-fonts-extra']
 
-# Supported Python versions for maintained branches.
-_python_versions = ['3.6.10', '3.7.7', '3.8.2']
-
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='GROMACS CI image creation script', parents=[utility.parser])
+parser = argparse.ArgumentParser(description='GROMACS CI image creation script',
+                                 parents=[utility.parser])
 
 parser.add_argument('--format', type=str, default='docker',
                     choices=['docker', 'singularity'],
                     help='Container specification format (default: docker)')
-parser.add_argument('--venvs', nargs='*', type=str, default=_python_versions,
-                    help='List of Python versions ("major.minor.patch") for which to install venvs. '
-                         'Default: {}'.format(' '.join(_python_versions)))
 
 
 def base_image_tag(args) -> str:
@@ -172,18 +192,26 @@ def base_image_tag(args) -> str:
 def get_llvm_packages(args) -> typing.Iterable[str]:
     # If we use the package version of LLVM, we need to install extra packages for it.
     if (args.llvm is not None) and (args.tsan is None):
-        return ['libomp-dev',
-                'clang-format-' + str(args.llvm),
-                'clang-tidy-' + str(args.llvm)]
+        packages = [f'libomp-{args.llvm}-dev',
+                    f'libomp5-{args.llvm}',
+                    'clang-format-' + str(args.llvm),
+                    'clang-tidy-' + str(args.llvm)]
+        if args.hipsycl is not None:
+            packages += [f'llvm-{args.llvm}-dev',
+                         f'libclang-{args.llvm}-dev',
+                         f'lld-{args.llvm}']
+        return packages
     else:
         return []
 
+def get_opencl_packages(args) -> typing.Iterable[str]:
+    if (args.doxygen is None) and (args.oneapi is None):
+        return _opencl_extra_packages
+    else:
+        return []
 
 def get_compiler(args, compiler_build_stage: hpccm.Stage = None) -> bb_base:
     # Compiler
-    if args.icc is not None:
-        raise RuntimeError('Intel compiler toolchain recipe not implemented yet')
-
     if args.llvm is not None:
         # Build our own version instead to get TSAN + OMP
         if args.tsan is not None:
@@ -200,8 +228,8 @@ def get_compiler(args, compiler_build_stage: hpccm.Stage = None) -> bb_base:
             compiler = compiler_build_stage.runtime(_from='oneapi')
             # Prepare the toolchain (needed only for builds done within the Dockerfile, e.g.
             # OpenMPI builds, which don't currently work for other reasons)
-            oneapi_toolchain = hpccm.toolchain(CC='/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc',
-                                               CXX='/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icpc')
+            oneapi_toolchain = hpccm.toolchain(CC=f'/opt/intel/oneapi/compiler/{args.oneapi}/linux/bin/intel64/icx',
+                                               CXX=f'/opt/intel/oneapi/compiler/{args.oneapi}/linux/bin/intel64/icpx')
             setattr(compiler, 'toolchain', oneapi_toolchain)
 
         else:
@@ -245,34 +273,6 @@ def get_mpi(args, compiler):
         return None
 
 
-def get_opencl(args):
-    # Add OpenCL environment if needed
-    if (args.opencl is not None):
-        if args.opencl == 'nvidia':
-            if (args.cuda is None):
-                raise RuntimeError('Need Nvidia environment for Nvidia OpenCL image')
-
-            return hpccm.building_blocks.packages(ospackages=['nvidia-opencl-dev'])
-
-        elif args.opencl == 'intel':
-            # Note, when using oneapi, there is bundled OpenCL support, so this
-            # installation is not needed.
-            return hpccm.building_blocks.packages(
-                    apt_ppas=['ppa:intel-opencl/intel-opencl'],
-                    ospackages=['opencl-headers', 'ocl-icd-libopencl1',
-                                'ocl-icd-opencl-dev', 'intel-opencl-icd'])
-
-        elif args.opencl == 'amd':
-            # libelf1 is a necessary dependency for something in the ROCm stack,
-            # which they should set up, but seem to have omitted.
-            return hpccm.building_blocks.packages(
-                    apt_keys=['http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key'],
-                    apt_repositories=['deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main'],
-                    ospackages=['ocl-icd-libopencl1', 'ocl-icd-opencl-dev', 'opencl-headers', 'libelf1', 'rocm-opencl'])
-    else:
-        return None
-
-
 def get_clfft(args):
     if (args.clfft is not None):
         return hpccm.building_blocks.generic_cmake(
@@ -281,6 +281,38 @@ def get_clfft(args):
     else:
         return None
 
+def get_hipsycl(args):
+    if args.hipsycl is None:
+        return None
+    if args.llvm is None:
+        raise RuntimeError('Can not build hipSYCL without llvm')
+
+    cmake_opts = [f'-DLLVM_DIR=/usr/lib/llvm-{args.llvm}/cmake',
+                  f'-DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-{args.llvm}',
+                  '-DCMAKE_PREFIX_PATH=/opt/rocm/lib/cmake',
+                  '-DWITH_ROCM_BACKEND=ON']
+    if args.cuda is not None:
+        cmake_opts += [f'-DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda',
+                       '-DWITH_CUDA_BACKEND=ON']
+
+    postinstall = [
+            # https://github.com/illuhad/hipSYCL/issues/361#issuecomment-718943645
+            'for f in /opt/rocm/amdgcn/bitcode/*.bc; do ln -s "$f" "/opt/rocm/lib/$(basename $f .bc).amdgcn.bc"; done'
+            ]
+    if args.cuda is not None:
+        postinstall += [
+            # https://github.com/illuhad/hipSYCL/issues/410#issuecomment-743301929
+            f'sed s/_OPENMP/__OPENMP_NVPTX__/ -i /usr/lib/llvm-{args.llvm}/lib/clang/*/include/__clang_cuda_complex_builtins.h',
+            # Not needed unless we're building with CUDA 11.x, but no harm in doing always
+            f'ln -s /usr/local/cuda/compat/* /usr/local/cuda/lib64/'
+            ]
+
+    return hpccm.building_blocks.generic_cmake(
+        repository='https://github.com/illuhad/hipSYCL.git',
+        directory='/var/tmp/hipSYCL',
+        prefix='/usr/local', recursive=True, commit=args.hipsycl,
+        cmake_opts=['-DCMAKE_BUILD_TYPE=Release', *cmake_opts],
+        postinstall=postinstall)
 
 def add_tsan_compiler_build_stage(input_args, output_stages: typing.Mapping[str, hpccm.Stage]):
     """Isolate the expensive TSAN preparation stage.
@@ -300,22 +332,18 @@ def add_tsan_compiler_build_stage(input_args, output_stages: typing.Mapping[str,
     # out that duplication...
     tsan_stage += hpccm.building_blocks.python(python3=True, python2=False, devel=False)
 
-    compiler_branch = 'release_' + str(input_args.llvm) + '0'
+    compiler_branch = 'release/' + str(input_args.llvm) + '.x'
     tsan_stage += hpccm.building_blocks.generic_cmake(
-        repository='https://git.llvm.org/git/llvm.git',
+        repository='https://github.com/llvm/llvm-project.git',
+        directory='/var/tmp/llvm-project/llvm/',
         prefix='/usr/local', recursive=True, branch=compiler_branch,
-        cmake_opts=['-D CMAKE_BUILD_TYPE=Release', '-D LLVM_ENABLE_PROJECTS="clang;openmp;clang-tools-extra"',
+        cmake_opts=['-D CMAKE_BUILD_TYPE=Release', '-D LLVM_ENABLE_PROJECTS="clang;openmp;clang-tools-extra;compiler-rt;lld"',
                     '-D LIBOMP_TSAN_SUPPORT=on'],
-        preconfigure=['export branch=' + compiler_branch,
-                      '(cd projects; git clone --depth=1 --branch $branch https://git.llvm.org/git/libcxx.git)',
-                      '(cd projects; git clone --depth=1 --branch $branch https://git.llvm.org/git/libcxxabi.git)',
-                      '(cd projects; git clone --depth=1 --branch $branch https://git.llvm.org/git/compiler-rt.git)',
-                      '(cd ..; git clone --depth=1 --branch $branch https://git.llvm.org/git/openmp.git)',
-                      '(cd ..; git clone --depth=1 --branch $branch https://git.llvm.org/git/clang.git)',
-                      '(cd ..; git clone --depth=1 --branch $branch https://git.llvm.org/git/clang-tools-extra.git)'],
         postinstall=['ln -s /usr/local/bin/clang++ /usr/local/bin/clang++-' + str(input_args.llvm),
                      'ln -s /usr/local/bin/clang-format /usr/local/bin/clang-format-' + str(input_args.llvm),
                      'ln -s /usr/local/bin/clang-tidy /usr/local/bin/clang-tidy-' + str(input_args.llvm),
+                     'ln -s /usr/local/share/clang/run-clang-tidy.py /usr/local/bin/run-clang-tidy-' + str(input_args.llvm) + '.py',
+                     'ln -s /usr/local/bin/run-clang-tidy-' + str(input_args.llvm) + '.py /usr/local/bin/run-clang-tidy-' + str(input_args.llvm),
                      'ln -s /usr/local/libexec/c++-analyzer /usr/local/bin/c++-analyzer-' + str(input_args.llvm)])
     output_stages['compiler_build'] = tsan_stage
 
@@ -332,14 +360,13 @@ def add_oneapi_compiler_build_stage(input_args, output_stages: typing.Mapping[st
     This stage is isolated so that its installed components are minimized in the
     final image (chiefly /opt/intel) and its environment setup script can be
     sourced. This also helps with rebuild time and final image size.
-
-    Note that the ICC compiler inside oneAPI on linux also needs
-    gcc to build other components and provide libstdc++.
     """
     if not isinstance(output_stages, collections.abc.MutableMapping):
         raise RuntimeError('Need output_stages container.')
     oneapi_stage = hpccm.Stage()
     oneapi_stage += hpccm.primitives.baseimage(image=base_image_tag(input_args), _as='oneapi-build')
+
+    version = str(input_args.oneapi)
 
     # Add required components for the next stage (both for hpccm and Intel's setvars.sh script)
     oneapi_stage += hpccm.building_blocks.packages(ospackages=['wget', 'gnupg2', 'ca-certificates', 'lsb-release'])
@@ -347,11 +374,16 @@ def add_oneapi_compiler_build_stage(input_args, output_stages: typing.Mapping[st
         apt_keys=['https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'],
         apt_repositories=['deb https://apt.repos.intel.com/oneapi all main'],
         # Add minimal packages (not the whole HPC toolkit!)
-        ospackages=['intel-oneapi-dpcpp-compiler', 'intel-oneapi-icc', 'intel-oneapi-mkl', 'intel-oneapi-mkl-devel']
+        ospackages=[f'intel-oneapi-dpcpp-cpp-{version}',
+            f'intel-oneapi-openmp-{version}',
+            f'intel-oneapi-mkl-{version}',
+            f'intel-oneapi-mkl-devel-{version}']
     )
     # Ensure that all bash shells on the final container will have access to oneAPI
     oneapi_stage += hpccm.primitives.shell(
-            commands=['echo "source /opt/intel/oneapi/setvars.sh" >> /etc/bash.bashrc']
+            commands=['echo "source /opt/intel/oneapi/setvars.sh" >> /etc/bash.bashrc',
+                      'unlink /opt/intel/oneapi/compiler/latest',
+                     f'ln -sf /opt/intel/oneapi/compiler/{version} /opt/intel/oneapi/compiler/latest']
             )
     setattr(oneapi_stage, 'runtime', oneapi_runtime)
 
@@ -364,35 +396,33 @@ def prepare_venv(version: StrictVersion) -> typing.Sequence[str]:
 
     pyenv = '$HOME/.pyenv/bin/pyenv'
 
-    py_ver = '{}.{}'.format(major, minor)
-    venv_path = '$HOME/venv/py{}'.format(py_ver)
-    commands = ['$({pyenv} prefix `{pyenv} whence python{py_ver}`)/bin/python -m venv {path}'.format(
-        pyenv=pyenv,
-        py_ver=py_ver,
-        path=venv_path
-    )]
+    py_ver = f'{major}.{minor}'
+    venv_path = f'$HOME/venv/py{py_ver}'
+    commands = [f'$({pyenv} prefix `{pyenv} whence python{py_ver}`)/bin/python -m venv {venv_path}']
 
-    commands.append('{path}/bin/python -m pip install --upgrade pip setuptools'.format(
-        path=venv_path
-    ))
+    commands.append(f'{venv_path}/bin/python -m pip install --upgrade pip setuptools')
     # Install dependencies for building and testing gmxapi Python package.
     # WARNING: Please keep this list synchronized with python_packaging/requirements-test.txt
     # TODO: Get requirements.txt from an input argument.
-    commands.append("""{path}/bin/python -m pip install --upgrade \
-            'cmake>=3.13' \
+    commands.append(f"""{venv_path}/bin/python -m pip install --upgrade \
+            'cmake>=3.16.3' \
             'flake8>=3.7.7' \
+            'gcovr>=4.2' \
             'mpi4py>=3.0.3' \
             'networkx>=2.0' \
             'numpy>=1' \
             'pip>=10.1' \
+            'Pygments>=2.2.0' \
             'pytest>=3.9' \
             'setuptools>=42' \
-            'scikit-build>=0.10'""".format(path=venv_path))
+            'scikit-build>=0.10' \
+            'Sphinx>=1.6.3' \
+            'sphinxcontrib-plantuml>=0.14'""")
 
     # TODO: Remove 'importlib_resources' dependency when Python >=3.7 is required.
     if minor == 6:
-        commands.append("""{path}/bin/python -m pip install --upgrade \
-                'importlib_resources'""".format(path=venv_path))
+        commands.append(f"""{venv_path}/bin/python -m pip install --upgrade \
+                'importlib_resources'""")
 
     return commands
 
@@ -439,9 +469,7 @@ def add_python_stages(building_blocks: typing.Mapping[str, bb_base],
             """echo 'eval "$(pyenv init -)"' >> $HOME/.bashrc""",
             """echo 'eval "$(pyenv virtualenv-init -)"' >> $HOME/.bashrc"""])
         pyenv = '$HOME/.pyenv/bin/pyenv'
-        commands = ['PYTHON_CONFIGURE_OPTS="--enable-shared" {pyenv} install -s {version}'.format(
-            pyenv=pyenv,
-            version=str(version))]
+        commands = [f'PYTHON_CONFIGURE_OPTS="--enable-shared" {pyenv} install -s {version}']
         stage += hpccm.primitives.shell(commands=commands)
 
         commands = prepare_venv(version)
@@ -474,7 +502,6 @@ def add_documentation_dependencies(input_args,
         return
     output_stages['main'] += hpccm.primitives.shell(
         commands=['sed -i \'/\"XPS\"/d;/\"PDF\"/d;/\"PS\"/d;/\"EPS\"/d;/disable ghostscript format types/d\' /etc/ImageMagick-6/policy.xml'])
-    output_stages['main'] += hpccm.building_blocks.pip(pip='pip3', packages=['sphinx==1.6.1'])
     if input_args.doxygen == '1.8.5':
         doxygen_commit = 'ed4ed873ab0e7f15116e2052119a6729d4589f7a'
         output_stages['main'] += hpccm.building_blocks.generic_autotools(
@@ -492,17 +519,14 @@ def add_documentation_dependencies(input_args,
                 '--static'])
     else:
         version = input_args.doxygen
-        archive_name = 'doxygen-{}.linux.bin.tar.gz'.format(version)
-        archive_url = 'https://sourceforge.net/projects/doxygen/files/rel-{}/{}'.format(
-            version,
-            archive_name
-        )
-        binary_path = 'doxygen-{}/bin/doxygen'.format(version)
+        archive_name = f'doxygen-{version}.linux.bin.tar.gz'
+        archive_url = f'https://sourceforge.net/projects/doxygen/files/rel-{version}/{archive_name}'
+        binary_path = f'doxygen-{version}/bin/doxygen'
         commands = [
             'mkdir doxygen && cd doxygen',
-            'wget {}'.format(archive_url),
-            'tar xf {} {}'.format(archive_name, binary_path),
-            'cp {} /usr/local/bin/'.format(binary_path),
+            f'wget {archive_url}',
+            f'tar xf {archive_name} {binary_path}',
+            f'cp {binary_path} /usr/local/bin/',
             'cd .. && rm -rf doxygen'
         ]
         output_stages['main'] += hpccm.primitives.shell(commands=commands)
@@ -531,22 +555,50 @@ def build_stages(args) -> typing.Iterable[hpccm.Stage]:
     # Building blocks are chunks of container-builder instructions that can be
     # copied to any build stage with the addition operator.
     building_blocks = collections.OrderedDict()
+    building_blocks['base_packages'] = hpccm.building_blocks.packages(
+        ospackages=_common_packages)
 
     # These are the most expensive and most reusable layers, so we put them first.
     building_blocks['compiler'] = get_compiler(args, compiler_build_stage=stages.get('compiler_build'))
     building_blocks['mpi'] = get_mpi(args, building_blocks['compiler'])
+    for i, cmake in enumerate(args.cmake):
+        building_blocks['cmake' + str(i)] = hpccm.building_blocks.cmake(
+            eula=True,
+            prefix=f'/usr/local/cmake-{cmake}',
+            version=cmake)
 
     # Install additional packages early in the build to optimize Docker build layer cache.
-    os_packages = _common_packages + get_llvm_packages(args)
+    os_packages = list(get_llvm_packages(args)) + get_opencl_packages(args)
     if args.doxygen is not None:
         os_packages += _docs_extra_packages
     if args.oneapi is not None:
         os_packages += ['lsb-release']
-    building_blocks['ospackages'] = hpccm.building_blocks.packages(ospackages=os_packages)
+    if args.hipsycl is not None:
+        os_packages += ['libboost-fiber-dev']
+    building_blocks['extra_packages'] = hpccm.building_blocks.packages(
+        ospackages=os_packages,
+        apt_ppas=['ppa:intel-opencl/intel-opencl'],
+        apt_keys=['http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key'],
+        apt_repositories=['deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main']
+    )
 
-    building_blocks['cmake'] = hpccm.building_blocks.cmake(eula=True, version=args.cmake)
-    building_blocks['opencl'] = get_opencl(args)
+    if args.cuda is not None and args.llvm is not None:
+        # Hack to tell clang what version of CUDA we're using
+        # based on https://github.com/llvm/llvm-project/blob/1fdec59bffc11ae37eb51a1b9869f0696bfd5312/clang/lib/Driver/ToolChains/Cuda.cpp#L43
+        cuda_version_split = args.cuda.split('.')
+        # LLVM requires having the version in x.y.z format, while args.cuda be be either x.y or x.y.z
+        cuda_version_str = '{}.{}.{}'.format(
+            cuda_version_split[0],
+            cuda_version_split[1],
+            cuda_version_split[2] if len(cuda_version_split) > 2 else 0
+        )
+        building_blocks['cuda-clang-workaround'] = hpccm.primitives.shell(commands=[
+            f'echo "CUDA Version {cuda_version_str}" > /usr/local/cuda/version.txt'
+            ])
+
     building_blocks['clfft'] = get_clfft(args)
+
+    building_blocks['hipSYCL'] = get_hipsycl(args)
 
     # Add Python environments to MPI images, only, so we don't have to worry
     # about whether to install mpi4py.
@@ -562,9 +614,7 @@ def build_stages(args) -> typing.Iterable[hpccm.Stage]:
             stages['main'] += bb
 
     # We always add Python3 and Pip
-    stages['main'] += hpccm.building_blocks.python(python3=True, python2=False, devel=True)
-    stages['main'] += hpccm.building_blocks.pip(upgrade=True, pip='pip3',
-                                                packages=['pytest', 'networkx', 'numpy'])
+    stages['main'] += hpccm.building_blocks.python(python3=True, python2=False)
 
     # Add documentation requirements (doxygen and sphinx + misc).
     if args.doxygen is not None:

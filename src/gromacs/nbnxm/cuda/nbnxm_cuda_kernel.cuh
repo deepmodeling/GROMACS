@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2016 by the GROMACS development team.
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,6 +48,7 @@
 
 #include "gromacs/gpu_utils/cuda_arch_utils.cuh"
 #include "gromacs/gpu_utils/cuda_kernel_utils.cuh"
+#include "gromacs/gpu_utils/typecasts.cuh"
 #include "gromacs/math/utilities.h"
 #include "gromacs/pbcutil/ishift.h"
 /* Note that floating-point constants in CUDA code should be suffixed
@@ -60,6 +61,11 @@
 #    define EL_EWALD_ANY
 #endif
 
+#if defined LJ_EWALD_COMB_GEOM || defined LJ_EWALD_COMB_LB
+/* Note: convenience macro, needs to be undef-ed at the end of the file. */
+#    define LJ_EWALD
+#endif
+
 #if defined EL_EWALD_ANY || defined EL_RF || defined LJ_EWALD \
         || (defined EL_CUTOFF && defined CALC_ENERGIES)
 /* Macro to control the calculation of exclusion forces in the kernel
@@ -69,11 +75,6 @@
  * Note: convenience macro, needs to be undef-ed at the end of the file.
  */
 #    define EXCLUSION_FORCES
-#endif
-
-#if defined LJ_EWALD_COMB_GEOM || defined LJ_EWALD_COMB_LB
-/* Note: convenience macro, needs to be undef-ed at the end of the file. */
-#    define LJ_EWALD
 #endif
 
 #if defined LJ_COMB_GEOM || defined LJ_COMB_LB
@@ -158,7 +159,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 #endif     /* PRUNE_NBL */
-                (const cu_atomdata_t atdat, const NBParamGpu nbparam, const Nbnxm::gpu_plist plist, bool bCalcFshift)
+                (const NBAtomData atdat, const NBParamGpu nbparam, const Nbnxm::gpu_plist plist, bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY
                         ; /* Only do function declaration, omit the function body. */
 #else
@@ -171,15 +172,15 @@ __launch_bounds__(THREADS_PER_BLOCK)
             nbnxn_cj4_t* pl_cj4      = plist.cj4;
     const nbnxn_excl_t*  excl        = plist.excl;
 #    ifndef LJ_COMB
-    const int*           atom_types  = atdat.atom_types;
-    int                  ntypes      = atdat.ntypes;
+    const int*           atom_types  = atdat.atomTypes;
+    int                  ntypes      = atdat.numTypes;
 #    else
-    const float2* lj_comb = atdat.lj_comb;
+    const float2* lj_comb = atdat.ljComb;
     float2        ljcp_i, ljcp_j;
 #    endif
     const float4*        xq          = atdat.xq;
-    float3*              f           = atdat.f;
-    const float3*        shift_vec   = atdat.shift_vec;
+    float3*              f           = asFloat3(atdat.f);
+    const float3*        shift_vec   = asFloat3(atdat.shiftVec);
     float                rcoulomb_sq = nbparam.rcoulomb_sq;
 #    ifdef VDW_CUTOFF_CHECK
     float                rvdw_sq     = nbparam.rvdw_sq;
@@ -204,10 +205,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float                beta        = nbparam.ewald_beta;
     float                ewald_shift = nbparam.sh_ewald;
 #        else
-    float c_rf = nbparam.c_rf;
+    float reactionFieldShift = nbparam.c_rf;
 #        endif /* EL_EWALD_ANY */
-    float*               e_lj        = atdat.e_lj;
-    float*               e_el        = atdat.e_el;
+    float*               e_lj        = atdat.eLJ;
+    float*               e_el        = atdat.eElec;
 #    endif     /* CALC_ENERGIES */
 
     /* thread/block/warp id-s */
@@ -357,7 +358,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         /* Correct for epsfac^2 due to adding qi^2 */
         E_el /= nbparam.epsfac * c_clSize * NTHREAD_Z;
 #                if defined EL_RF || defined EL_CUTOFF
-        E_el *= -0.5f * c_rf;
+        E_el *= -0.5f * reactionFieldShift;
 #                else
         E_el *= -beta * M_FLOAT_1_SQRTPI; /* last factor 1/sqrt(pi) */
 #                endif
@@ -517,20 +518,28 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef LJ_EWALD
 #        ifdef LJ_EWALD_COMB_GEOM
 #            ifdef CALC_ENERGIES
-                                calculate_lj_ewald_comb_geom_F_E(nbparam, typei, typej, r2, inv_r2,
-                                                                 lje_coeff2, lje_coeff6_6, int_bit,
-                                                                 &F_invr, &E_lj_p);
+                                calculate_lj_ewald_comb_geom_F_E(
+                                        nbparam, typei, typej, r2, inv_r2, lje_coeff2, lje_coeff6_6, int_bit, &F_invr, &E_lj_p);
 #            else
-                                calculate_lj_ewald_comb_geom_F(nbparam, typei, typej, r2, inv_r2,
-                                                               lje_coeff2, lje_coeff6_6, &F_invr);
+                                calculate_lj_ewald_comb_geom_F(
+                                        nbparam, typei, typej, r2, inv_r2, lje_coeff2, lje_coeff6_6, &F_invr);
 #            endif /* CALC_ENERGIES */
 #        elif defined LJ_EWALD_COMB_LB
-                                calculate_lj_ewald_comb_LB_F_E(nbparam, typei, typej, r2, inv_r2,
-                                                               lje_coeff2, lje_coeff6_6,
+                                calculate_lj_ewald_comb_LB_F_E(nbparam,
+                                                               typei,
+                                                               typej,
+                                                               r2,
+                                                               inv_r2,
+                                                               lje_coeff2,
+                                                               lje_coeff6_6,
 #            ifdef CALC_ENERGIES
-                                                               int_bit, &F_invr, &E_lj_p
+                                                               int_bit,
+                                                               &F_invr,
+                                                               &E_lj_p
 #            else
-                                                               0, &F_invr, nullptr
+                                                               0,
+                                                               &F_invr,
+                                                               nullptr
 #            endif /* CALC_ENERGIES */
                                 );
 #        endif     /* LJ_EWALD_COMB_GEOM */
@@ -582,10 +591,11 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #    ifdef CALC_ENERGIES
 #        ifdef EL_CUTOFF
-                                E_el += qi * qj_f * (int_bit * inv_r - c_rf);
+                                E_el += qi * qj_f * (int_bit * inv_r - reactionFieldShift);
 #        endif
 #        ifdef EL_RF
-                                E_el += qi * qj_f * (int_bit * inv_r + 0.5f * two_k_rf * r2 - c_rf);
+                                E_el += qi * qj_f
+                                        * (int_bit * inv_r + 0.5f * two_k_rf * r2 - reactionFieldShift);
 #        endif
 #        ifdef EL_EWALD_ANY
                                 /* 1.0f - erff is faster than erfcf */
@@ -639,7 +649,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     /* add up local shift forces into global mem, tidxj indexes x,y,z */
     if (bCalcFshift && (tidxj & 3) < 3)
     {
-        atomicAdd(&(atdat.fshift[nb_sci.shift].x) + (tidxj & 3), fshift_buf);
+        float3* fShift = asFloat3(atdat.fShift);
+        atomicAdd(&(fShift[nb_sci.shift].x) + (tidxj & 3), fshift_buf);
     }
 
 #    ifdef CALC_ENERGIES

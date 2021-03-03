@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -49,7 +49,6 @@
 #include "gromacs/gmxlib/network.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"
-#include "gromacs/mdlib/constr.h"
 #include "gromacs/mdlib/md_support.h"
 #include "gromacs/mdlib/rbin.h"
 #include "gromacs/mdlib/tgroup.h"
@@ -136,20 +135,20 @@ static int filter_enerdterm(const real* afrom, gmx_bool bToBuffer, real* ato, gm
     return to;
 }
 
-void global_stat(const gmx_global_stat*  gs,
-                 const t_commrec*        cr,
-                 gmx_enerdata_t*         enerd,
-                 tensor                  fvir,
-                 tensor                  svir,
-                 const t_inputrec*       inputrec,
-                 gmx_ekindata_t*         ekind,
-                 const gmx::Constraints* constr,
-                 t_vcm*                  vcm,
-                 int                     nsig,
-                 real*                   sig,
-                 int*                    totalNumberOfBondedInteractions,
-                 gmx_bool                bSumEkinhOld,
-                 int                     flags)
+void global_stat(const gmx_global_stat* gs,
+                 const t_commrec*       cr,
+                 gmx_enerdata_t*        enerd,
+                 tensor                 fvir,
+                 tensor                 svir,
+                 const t_inputrec*      inputrec,
+                 gmx_ekindata_t*        ekind,
+                 gmx::ArrayRef<real>    constraintsRmsdData,
+                 t_vcm*                 vcm,
+                 int                    nsig,
+                 real*                  sig,
+                 int*                   totalNumberOfBondedInteractions,
+                 bool                   bSumEkinhOld,
+                 int                    flags)
 /* instead of current system, gmx_booleans for summing virial, kinetic energy, and other terms */
 {
     t_bin* rb;
@@ -170,7 +169,8 @@ void global_stat(const gmx_global_stat*  gs,
     bEner       = ((flags & CGLO_ENERGY) != 0);
     bPres       = ((flags & CGLO_PRESSURE) != 0);
     bConstrVir  = ((flags & CGLO_CONSTRAINT) != 0);
-    bEkinAveVel = (inputrec->eI == eiVV || (inputrec->eI == eiVVAK && bPres));
+    bEkinAveVel = (inputrec->eI == IntegrationAlgorithm::VV
+                   || (inputrec->eI == IntegrationAlgorithm::VVAK && bPres));
     bReadEkin   = ((flags & CGLO_READEKIN) != 0);
 
     rb   = gs->rb;
@@ -235,30 +235,26 @@ void global_stat(const gmx_global_stat*  gs,
         ifv = add_binr(rb, DIM * DIM, fvir[0]);
     }
 
-    gmx::ArrayRef<real> rmsdData;
     if (bEner)
     {
         ie = add_binr(rb, nener, copyenerd);
-        if (constr)
+        if (!constraintsRmsdData.empty())
         {
-            rmsdData = constr->rmsdData();
-            if (!rmsdData.empty())
-            {
-                irmsd = add_binr(rb, 2, rmsdData.data());
-            }
+            irmsd = add_binr(rb, 2, constraintsRmsdData.data());
         }
 
         for (j = 0; (j < egNR); j++)
         {
             inn[j] = add_binr(rb, enerd->grpp.nener, enerd->grpp.ener[j].data());
         }
-        if (inputrec->efep != efepNO)
+        if (inputrec->efep != FreeEnergyPerturbationType::No)
         {
-            idvdll  = add_bind(rb, efptNR, enerd->dvdl_lin);
-            idvdlnl = add_bind(rb, efptNR, enerd->dvdl_nonlin);
+            idvdll  = add_bind(rb, enerd->dvdl_lin);
+            idvdlnl = add_bind(rb, enerd->dvdl_nonlin);
             if (enerd->foreignLambdaTerms.numLambdas() > 0)
             {
-                iepl = add_bind(rb, enerd->foreignLambdaTerms.energies().size(),
+                iepl = add_bind(rb,
+                                enerd->foreignLambdaTerms.energies().size(),
                                 enerd->foreignLambdaTerms.energies().data());
             }
         }
@@ -268,7 +264,7 @@ void global_stat(const gmx_global_stat*  gs,
     {
         icm   = add_binr(rb, DIM * vcm->nr, vcm->group_p[0]);
         imass = add_binr(rb, vcm->nr, vcm->group_mass.data());
-        if (vcm->mode == ecmANGULAR)
+        if (vcm->mode == ComRemovalAlgorithm::Angular)
         {
             icj = add_binr(rb, DIM * vcm->nr, vcm->group_j[0]);
             icx = add_binr(rb, DIM * vcm->nr, vcm->group_x[0]);
@@ -339,22 +335,24 @@ void global_stat(const gmx_global_stat*  gs,
     if (bEner)
     {
         extract_binr(rb, ie, nener, copyenerd);
-        if (!rmsdData.empty())
+        if (!constraintsRmsdData.empty())
         {
-            extract_binr(rb, irmsd, rmsdData);
+            extract_binr(rb, irmsd, constraintsRmsdData);
         }
 
         for (j = 0; (j < egNR); j++)
         {
             extract_binr(rb, inn[j], enerd->grpp.nener, enerd->grpp.ener[j].data());
         }
-        if (inputrec->efep != efepNO)
+        if (inputrec->efep != FreeEnergyPerturbationType::No)
         {
-            extract_bind(rb, idvdll, efptNR, enerd->dvdl_lin);
-            extract_bind(rb, idvdlnl, efptNR, enerd->dvdl_nonlin);
+            extract_bind(rb, idvdll, enerd->dvdl_lin);
+            extract_bind(rb, idvdlnl, enerd->dvdl_nonlin);
             if (enerd->foreignLambdaTerms.numLambdas() > 0)
             {
-                extract_bind(rb, iepl, enerd->foreignLambdaTerms.energies().size(),
+                extract_bind(rb,
+                             iepl,
+                             enerd->foreignLambdaTerms.energies().size(),
                              enerd->foreignLambdaTerms.energies().data());
             }
         }
@@ -366,7 +364,7 @@ void global_stat(const gmx_global_stat*  gs,
     {
         extract_binr(rb, icm, DIM * vcm->nr, vcm->group_p[0]);
         extract_binr(rb, imass, vcm->nr, vcm->group_mass.data());
-        if (vcm->mode == ecmANGULAR)
+        if (vcm->mode == ComRemovalAlgorithm::Angular)
         {
             extract_binr(rb, icj, DIM * vcm->nr, vcm->group_j[0]);
             extract_binr(rb, icx, DIM * vcm->nr, vcm->group_x[0]);

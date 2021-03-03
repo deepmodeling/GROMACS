@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -46,6 +46,7 @@
 #include "config.h"
 
 #include "gromacs/topology/ifunc.h"
+#include "gromacs/utility/strconvert.h"
 #include "gromacs/utility/stringutil.h"
 
 #include "testutils/mpitest.h"
@@ -105,7 +106,8 @@ const TrajectoryFrameMatchSettings MdrunRerunTest::trajectoryMatchSettings = {
     true,
     ComparisonConditions::MustCompare,
     ComparisonConditions::NoComparison,
-    ComparisonConditions::MustCompare
+    ComparisonConditions::MustCompare,
+    MaxNumFrames::compareAllFrames()
 };
 
 void executeRerunTest(TestFileManager*            fileManager,
@@ -123,7 +125,8 @@ void executeRerunTest(TestFileManager*            fileManager,
         fprintf(stdout,
                 "Test system '%s' cannot run with %d ranks.\n"
                 "The supported numbers are: %s\n",
-                simulationName.c_str(), numRanksAvailable,
+                simulationName.c_str(),
+                numRanksAvailable,
                 reportNumbersOfPpRanksSupported(simulationName).c_str());
         return;
     }
@@ -168,7 +171,8 @@ TEST_P(MdrunRerunTest, WithinTolerances)
     SCOPED_TRACE(
             formatString("Comparing normal and rerun of simulation '%s' "
                          "with integrator '%s'",
-                         simulationName.c_str(), integrator.c_str()));
+                         simulationName.c_str(),
+                         integrator.c_str()));
 
     auto mdpFieldValues =
             prepareMdpFieldValues(simulationName.c_str(), integrator.c_str(), "no", "no");
@@ -177,8 +181,8 @@ TEST_P(MdrunRerunTest, WithinTolerances)
     const int            toleranceScaleFactor = (integrator == "bd") ? 2 : 1;
     EnergyTermsToCompare energyTermsToCompare{ {
             { interaction_function[F_EPOT].longname,
-              relativeToleranceAsPrecisionDependentUlp(10.0, 24 * toleranceScaleFactor,
-                                                       40 * toleranceScaleFactor) },
+              relativeToleranceAsPrecisionDependentUlp(
+                      10.0, 24 * toleranceScaleFactor, 40 * toleranceScaleFactor) },
     } };
 
     // Specify how trajectory frame matching must work
@@ -186,8 +190,13 @@ TEST_P(MdrunRerunTest, WithinTolerances)
                                                TrajectoryComparison::s_defaultTrajectoryTolerances };
 
     int numWarningsToTolerate = 0;
-    executeRerunTest(&fileManager_, &runner_, simulationName, numWarningsToTolerate, mdpFieldValues,
-                     energyTermsToCompare, trajectoryComparison);
+    executeRerunTest(&fileManager_,
+                     &runner_,
+                     simulationName,
+                     numWarningsToTolerate,
+                     mdpFieldValues,
+                     energyTermsToCompare,
+                     trajectoryComparison);
 }
 
 // TODO The time for OpenCL kernel compilation means these tests time
@@ -222,11 +231,13 @@ TEST_P(MdrunRerunFreeEnergyTest, WithinTolerances)
     SCOPED_TRACE(
             formatString("Comparing normal and rerun of simulation '%s' "
                          "with integrator '%s' for initial lambda state %d",
-                         simulationName.c_str(), integrator.c_str(), initLambdaState));
+                         simulationName.c_str(),
+                         integrator.c_str(),
+                         initLambdaState));
 
     auto mdpFieldValues =
             prepareMdpFieldValues(simulationName.c_str(), integrator.c_str(), "no", "no");
-    mdpFieldValues["other"] += formatString("\ninit-lambda-state = %d", initLambdaState);
+    mdpFieldValues["init-lambda-state"] = toString(initLambdaState);
 
     EnergyTermsToCompare energyTermsToCompare{
         { { interaction_function[F_EPOT].longname, relativeToleranceAsPrecisionDependentUlp(10.0, 24, 32) },
@@ -245,8 +256,13 @@ TEST_P(MdrunRerunFreeEnergyTest, WithinTolerances)
     // The md integrator triggers a warning for nearly decoupled
     // states, which we need to suppress. TODO sometimes?
     int numWarningsToTolerate = (integrator == "md") ? 1 : 0;
-    executeRerunTest(&fileManager_, &runner_, simulationName, numWarningsToTolerate, mdpFieldValues,
-                     energyTermsToCompare, trajectoryComparison);
+    executeRerunTest(&fileManager_,
+                     &runner_,
+                     simulationName,
+                     numWarningsToTolerate,
+                     mdpFieldValues,
+                     energyTermsToCompare,
+                     trajectoryComparison);
 }
 
 // TODO The time for OpenCL kernel compilation means these tests time

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2015,2016,2017,2018,2019, by the GROMACS development team, led by
+ * Copyright (c) 2015,2016,2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -48,6 +48,10 @@
 
 #include "config.h"
 
+#if GMX_SIMD_ARM_SVE
+#    include <arm_sve.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 
@@ -56,6 +60,7 @@
 
 #include "gromacs/hardware/cpuinfo.h"
 #include "gromacs/hardware/identifyavx512fmaunits.h"
+#include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/stringutil.h"
 
 namespace gmx
@@ -65,50 +70,24 @@ namespace gmx
 
 const std::string& simdString(SimdType s)
 {
-    static const std::map<SimdType, std::string> name = {
-        { SimdType::None, "None" },
-        { SimdType::Reference, "Reference" },
-        { SimdType::Generic, "Generic" },
-        { SimdType::X86_Sse2, "SSE2" },
-        { SimdType::X86_Sse4_1, "SSE4.1" },
-        { SimdType::X86_Avx128Fma, "AVX_128_FMA" },
-        { SimdType::X86_Avx, "AVX_256" },
-        { SimdType::X86_Avx2, "AVX2_256" },
-        { SimdType::X86_Avx2_128, "AVX2_128" },
-        { SimdType::X86_Avx512, "AVX_512" },
-        { SimdType::X86_Avx512Knl, "AVX_512_KNL" },
-        { SimdType::X86_Mic, "X86_MIC" },
-        { SimdType::Arm_Neon, "ARM_NEON" },
-        { SimdType::Arm_NeonAsimd, "ARM_NEON_ASIMD" },
-        { SimdType::Ibm_Vmx, "IBM_VMX" },
-        { SimdType::Ibm_Vsx, "IBM_VSX" },
-        { SimdType::Fujitsu_HpcAce, "Fujitsu HPC-ACE" }
-    };
+    static const std::map<SimdType, std::string> name = { { SimdType::None, "None" },
+                                                          { SimdType::Reference, "Reference" },
+                                                          { SimdType::Generic, "Generic" },
+                                                          { SimdType::X86_Sse2, "SSE2" },
+                                                          { SimdType::X86_Sse4_1, "SSE4.1" },
+                                                          { SimdType::X86_Avx128Fma, "AVX_128_FMA" },
+                                                          { SimdType::X86_Avx, "AVX_256" },
+                                                          { SimdType::X86_Avx2, "AVX2_256" },
+                                                          { SimdType::X86_Avx2_128, "AVX2_128" },
+                                                          { SimdType::X86_Avx512, "AVX_512" },
+                                                          { SimdType::X86_Avx512Knl, "AVX_512_KNL" },
+                                                          { SimdType::Arm_NeonAsimd,
+                                                            "ARM_NEON_ASIMD" },
+                                                          { SimdType::Arm_Sve, "ARM_SVE" },
+                                                          { SimdType::Ibm_Vsx, "IBM_VSX" } };
 
     return name.at(s);
 }
-
-namespace
-{
-
-
-//! Helper to detect correct AMD Zen architecture.
-bool cpuIsAmdZen1(const CpuInfo& cpuInfo)
-{
-    // Both Zen/Zen+/Zen2 have family==23
-    // Model numbers for Zen:
-    // 1)  Naples, Whitehaven, Summit ridge, and Snowy Owl
-    // 17) Raven ridge
-    // Model numbers for Zen+:
-    // 8)  Pinnacle Ridge
-    // 24) Picasso
-    return (cpuInfo.vendor() == gmx::CpuInfo::Vendor::Amd && cpuInfo.family() == 23
-            && (cpuInfo.model() == 1 || cpuInfo.model() == 17 || cpuInfo.model() == 8
-                || cpuInfo.model() == 24));
-}
-
-} // namespace
-
 
 SimdType simdSuggested(const CpuInfo& c)
 {
@@ -179,13 +158,17 @@ SimdType simdSuggested(const CpuInfo& c)
 
                 break;
             case CpuInfo::Vendor::Arm:
-                if (c.feature(CpuInfo::Feature::Arm_NeonAsimd))
+                if (c.feature(CpuInfo::Feature::Arm_Sve))
+                {
+                    suggested = SimdType::Arm_Sve;
+                }
+                else if (c.feature(CpuInfo::Feature::Arm_NeonAsimd))
                 {
                     suggested = SimdType::Arm_NeonAsimd;
                 }
                 else if (c.feature(CpuInfo::Feature::Arm_Neon))
                 {
-                    suggested = SimdType::Arm_Neon;
+                    suggested = SimdType::None;
                 }
                 break;
             case CpuInfo::Vendor::Ibm:
@@ -195,13 +178,13 @@ SimdType simdSuggested(const CpuInfo& c)
                 }
                 else if (c.feature(CpuInfo::Feature::Ibm_Vmx))
                 {
-                    suggested = SimdType::Ibm_Vmx;
+                    suggested = SimdType::None;
                 }
                 break;
             case CpuInfo::Vendor::Fujitsu:
                 if (c.feature(CpuInfo::Feature::Fujitsu_HpcAce))
                 {
-                    suggested = SimdType::Fujitsu_HpcAce;
+                    suggested = SimdType::None;
                 }
                 break;
             default: break;
@@ -216,8 +199,6 @@ SimdType simdCompiled()
     return SimdType::X86_Avx512Knl;
 #elif GMX_SIMD_X86_AVX_512
     return SimdType::X86_Avx512;
-#elif GMX_SIMD_X86_MIC
-    return SimdType::X86_Mic;
 #elif GMX_SIMD_X86_AVX2_256
     return SimdType::X86_Avx2;
 #elif GMX_SIMD_X86_AVX2_128
@@ -230,16 +211,12 @@ SimdType simdCompiled()
     return SimdType::X86_Sse4_1;
 #elif GMX_SIMD_X86_SSE2
     return SimdType::X86_Sse2;
-#elif GMX_SIMD_ARM_NEON
-    return SimdType::Arm_Neon;
 #elif GMX_SIMD_ARM_NEON_ASIMD
     return SimdType::Arm_NeonAsimd;
-#elif GMX_SIMD_IBM_VMX
-    return SimdType::Ibm_Vmx;
+#elif GMX_SIMD_ARM_SVE
+    return SimdType::Arm_Sve;
 #elif GMX_SIMD_IBM_VSX
     return SimdType::Ibm_Vsx;
-#elif GMX_SIMD_SPARC64_HPC_ACE
-    return SimdType::Fujitsu_HpcAce;
 #elif GMX_SIMD_REFERENCE
     return SimdType::Reference;
 #else
@@ -266,10 +243,12 @@ bool simdCheck(gmx::SimdType wanted, FILE* log, bool warnToStdErr)
                 "which could influence performance. This build might have been configured on "
                 "a login node with only a single AVX-512 FMA unit (in which case AVX2 is faster), "
                 "while the node you are running on has dual AVX-512 FMA units.",
-                simdString(wanted).c_str(), simdString(compiled).c_str()));
+                simdString(wanted).c_str(),
+                simdString(compiled).c_str()));
         warnMsg = wrapper.wrapToString(formatString(
                 "Compiled SIMD: %s, but for this host/run %s might be better (see log).",
-                simdString(compiled).c_str(), simdString(wanted).c_str()));
+                simdString(compiled).c_str(),
+                simdString(wanted).c_str()));
     }
     else if (compiled == SimdType::X86_Avx512 && wanted == SimdType::X86_Avx2
              && identifyAvx512FmaUnits() == 1)
@@ -283,10 +262,12 @@ bool simdCheck(gmx::SimdType wanted, FILE* log, bool warnToStdErr)
                 "which could influence performance."
                 "This host supports AVX-512, but since it only has 1 AVX-512"
                 "FMA unit, it would be faster to use AVX2 instead.",
-                simdString(wanted).c_str(), simdString(compiled).c_str()));
+                simdString(wanted).c_str(),
+                simdString(compiled).c_str()));
         warnMsg = wrapper.wrapToString(formatString(
                 "Compiled SIMD: %s, but for this host/run %s might be better (see log).",
-                simdString(compiled).c_str(), simdString(wanted).c_str()));
+                simdString(compiled).c_str(),
+                simdString(wanted).c_str()));
     }
     else if (compiled == SimdType::X86_Avx2 && wanted == SimdType::X86_Avx2_128)
     {
@@ -304,7 +285,8 @@ bool simdCheck(gmx::SimdType wanted, FILE* log, bool warnToStdErr)
                 formatString("Highest SIMD level requested by all nodes in run: %s\n"
                              "SIMD instructions selected at compile time:       %s\n"
                              "Compiled SIMD newer than requested; program might crash.",
-                             simdString(wanted).c_str(), simdString(compiled).c_str()));
+                             simdString(wanted).c_str(),
+                             simdString(compiled).c_str()));
         warnMsg = logMsg;
     }
     else if (wanted != compiled)
@@ -315,10 +297,29 @@ bool simdCheck(gmx::SimdType wanted, FILE* log, bool warnToStdErr)
                 "SIMD instructions selected at compile time:       %s\n"
                 "This program was compiled for different hardware than you are running on, "
                 "which could influence performance.",
-                simdString(wanted).c_str(), simdString(compiled).c_str()));
+                simdString(wanted).c_str(),
+                simdString(compiled).c_str()));
         warnMsg = wrapper.wrapToString(formatString(
                 "Compiled SIMD: %s, but for this host/run %s might be better (see log).",
-                simdString(compiled).c_str(), simdString(wanted).c_str()));
+                simdString(compiled).c_str(),
+                simdString(wanted).c_str()));
+#if GMX_SIMD_ARM_SVE
+    }
+    else if ((compiled == SimdType::Arm_Sve) && (svcntb() != GMX_SIMD_ARM_SVE_LENGTH_VALUE / 8))
+    {
+        logMsg  = wrapper.wrapToString(formatString(
+                "Longest SVE length requested by all nodes in run: %d\n"
+                "SVE length selected at compile time:               %ld\n"
+                "This program was compiled for different hardware than you are running on, "
+                "which will lead to incorrect behavior.\n"
+                "Aborting",
+                GMX_SIMD_ARM_SVE_LENGTH_VALUE,
+                svcntb() * 8));
+        warnMsg = wrapper.wrapToString(formatString(
+                "Compiled SVE Length: %d, but for this process requires %ld (see log).",
+                GMX_SIMD_ARM_SVE_LENGTH_VALUE,
+                svcntb() * 8));
+#endif
     }
 
     if (!logMsg.empty() && log != nullptr)
@@ -329,6 +330,12 @@ bool simdCheck(gmx::SimdType wanted, FILE* log, bool warnToStdErr)
     {
         fprintf(stderr, "%s\n", warnMsg.c_str());
     }
+#if GMX_SIMD_ARM_SVE
+    if ((compiled == SimdType::Arm_Sve) && (svcntb() != GMX_SIMD_ARM_SVE_LENGTH_VALUE / 8))
+    {
+        gmx_exit_on_fatal_error(ExitType_Abort, 1);
+    }
+#endif
 
     return (wanted == compiled);
 }

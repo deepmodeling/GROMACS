@@ -42,7 +42,7 @@
  */
 #include "gmxpre.h"
 
-#include "cmdlinetest.h"
+#include "testutils/cmdlinetest.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -114,8 +114,8 @@ namespace
 std::vector<const char*> convertFromStringArrayRef(const ArrayRef<const std::string>& cmdline)
 {
     std::vector<const char*> v(cmdline.size());
-    std::transform(cmdline.begin(), cmdline.end(), v.begin(),
-                   [](const std::string& s) { return s.c_str(); });
+    std::transform(
+            cmdline.begin(), cmdline.end(), v.begin(), [](const std::string& s) { return s.c_str(); });
     return v;
 }
 

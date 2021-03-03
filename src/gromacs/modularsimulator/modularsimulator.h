@@ -52,11 +52,14 @@
 
 #include "gromacs/mdrun/isimulator.h"
 
+struct CheckpointHeaderContents;
 struct t_fcdata;
+struct t_trxframe;
 
 namespace gmx
 {
 class ModularSimulatorAlgorithmBuilder;
+class ReadCheckpointDataHolder;
 
 /*! \libinternal
  * \ingroup module_modularsimulator
@@ -85,15 +88,18 @@ public:
                                   bool                             doEssentialDynamics,
                                   bool                             doMembed);
 
+    //! Read everything that can be stored in t_trxframe from a checkpoint file
+    static void readCheckpointToTrxFrame(t_trxframe*                     fr,
+                                         ReadCheckpointDataHolder*       readCheckpointDataHolder,
+                                         const CheckpointHeaderContents& checkpointHeaderContents);
+
     // Only builder can construct
     friend class SimulatorBuilder;
 
-    // Allow algorithm builder to access ISimulator data
-    friend class ModularSimulatorAlgorithmBuilder;
-
 private:
     //! Constructor
-    explicit ModularSimulator(std::unique_ptr<LegacySimulatorData> legacySimulatorData);
+    ModularSimulator(std::unique_ptr<LegacySimulatorData>      legacySimulatorData,
+                     std::unique_ptr<ReadCheckpointDataHolder> checkpointDataHolder);
 
     //! Populate algorithm builder with elements
     void addIntegrationElements(ModularSimulatorAlgorithmBuilder* builder);
@@ -101,8 +107,10 @@ private:
     //! Check for disabled functionality (during construction time)
     void checkInputForDisabledFunctionality();
 
-    //! Pointer to legacy simulator data
+    //! Pointer to legacy simulator data (TODO: Can we avoid using unique_ptr? #3628)
     std::unique_ptr<LegacySimulatorData> legacySimulatorData_;
+    //! Input checkpoint data
+    std::unique_ptr<ReadCheckpointDataHolder> checkpointDataHolder_;
 };
 
 /*!

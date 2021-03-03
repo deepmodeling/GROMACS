@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2013, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -168,6 +168,10 @@ void list_tpr(const char* fn,
         {
             for (auto group : keysOf(gcount))
             {
+                if (group == SimulationAtomGroupType::AccelerationUnused)
+                {
+                    continue;
+                }
                 gcount[group][getGroupType(groups, group, i)]++;
             }
         }
@@ -242,16 +246,23 @@ void list_trr(const char* fn)
         snew(x, trrheader.natoms);
         snew(v, trrheader.natoms);
         snew(f, trrheader.natoms);
-        if (gmx_trr_read_frame_data(fpread, &trrheader, trrheader.box_size ? box : nullptr,
-                                    trrheader.x_size ? x : nullptr, trrheader.v_size ? v : nullptr,
+        if (gmx_trr_read_frame_data(fpread,
+                                    &trrheader,
+                                    trrheader.box_size ? box : nullptr,
+                                    trrheader.x_size ? x : nullptr,
+                                    trrheader.v_size ? v : nullptr,
                                     trrheader.f_size ? f : nullptr))
         {
             sprintf(buf, "%s frame %d", fn, nframe);
             indent = 0;
             indent = pr_title(stdout, indent, buf);
             pr_indent(stdout, indent);
-            fprintf(stdout, "natoms=%10d  step=%10" PRId64 "  time=%12.7e  lambda=%10g\n",
-                    trrheader.natoms, trrheader.step, trrheader.t, trrheader.lambda);
+            fprintf(stdout,
+                    "natoms=%10d  step=%10" PRId64 "  time=%12.7e  lambda=%10g\n",
+                    trrheader.natoms,
+                    trrheader.step,
+                    trrheader.t,
+                    trrheader.lambda);
             if (trrheader.box_size)
             {
                 pr_rvecs(stdout, indent, "box", box, DIM);
@@ -309,8 +320,7 @@ void list_xtc(const char* fn)
         indent = 0;
         indent = pr_title(stdout, indent, buf);
         pr_indent(stdout, indent);
-        fprintf(stdout, "natoms=%10d  step=%10" PRId64 "  time=%12.7e  prec=%10g\n", natoms, step,
-                time, prec);
+        fprintf(stdout, "natoms=%10d  step=%10" PRId64 "  time=%12.7e  prec=%10g\n", natoms, step, time, prec);
         pr_rvecs(stdout, indent, "box", box, DIM);
         pr_rvecs(stdout, indent, "x", x, natoms);
         nframe++;
@@ -381,25 +391,32 @@ void list_tng(const char* fn)
             int64_t n_values_per_frame, n_atoms;
             char    block_name[STRLEN];
 
-            gmx_get_tng_data_next_frame_of_block_type(tng, block_ids[i], &values, &step,
-                                                      &frame_time, &n_values_per_frame, &n_atoms,
-                                                      &prec, block_name, STRLEN, &bOK);
+            gmx_get_tng_data_next_frame_of_block_type(tng,
+                                                      block_ids[i],
+                                                      &values,
+                                                      &step,
+                                                      &frame_time,
+                                                      &n_values_per_frame,
+                                                      &n_atoms,
+                                                      &prec,
+                                                      block_name,
+                                                      STRLEN,
+                                                      &bOK);
             if (!bOK)
             {
                 /* Can't write any output because we don't know what
                    arrays are valid. */
-                fprintf(stderr, "\nWARNING: Incomplete frame at time %g, will not write output\n",
-                        frame_time);
+                fprintf(stderr, "\nWARNING: Incomplete frame at time %g, will not write output\n", frame_time);
             }
             else
             {
-                list_tng_inner(fn, (0 == i), values, step, frame_time, n_values_per_frame, n_atoms,
-                               prec, nframe, block_name);
+                list_tng_inner(
+                        fn, (0 == i), values, step, frame_time, n_values_per_frame, n_atoms, prec, nframe, block_name);
             }
         }
         nframe++;
-    } while (gmx_get_tng_data_block_types_of_next_frame(tng, step, 0, nullptr, &step, &ndatablocks,
-                                                        &block_ids));
+    } while (gmx_get_tng_data_block_types_of_next_frame(
+            tng, step, 0, nullptr, &step, &ndatablocks, &block_ids));
 
     if (block_ids)
     {
@@ -421,8 +438,7 @@ void list_trx(const char* fn)
         case efTRR: list_trr(fn); break;
         case efTNG: list_tng(fn); break;
         default:
-            fprintf(stderr, "File %s is of an unsupported type. Try using the command\n 'less %s'\n",
-                    fn, fn);
+            fprintf(stderr, "File %s is of an unsupported type. Try using the command\n 'less %s'\n", fn, fn);
     }
 }
 
@@ -456,18 +472,23 @@ void list_ene(const char* fn)
         {
             printf("\n%24s  %12.5e  %12s  %12s\n", "time:", fr->t, "step:", gmx_step_str(fr->step, buf));
             printf("%24s  %12s  %12s  %12s\n", "", "", "nsteps:", gmx_step_str(fr->nsteps, buf));
-            printf("%24s  %12.5e  %12s  %12s\n", "delta_t:", fr->dt,
-                   "sum steps:", gmx_step_str(fr->nsum, buf));
+            printf("%24s  %12.5e  %12s  %12s\n", "delta_t:", fr->dt, "sum steps:", gmx_step_str(fr->nsum, buf));
             if (fr->nre == nre)
             {
-                printf("%24s  %12s  %12s  %12s\n", "Component", "Energy", "Av. Energy",
+                printf("%24s  %12s  %12s  %12s\n",
+                       "Component",
+                       "Energy",
+                       "Av. Energy",
                        "Sum Energy");
                 if (fr->nsum > 0)
                 {
                     for (i = 0; (i < nre); i++)
                     {
-                        printf("%24s  %12.5e  %12.5e  %12.5e\n", enm[i].name, fr->ener[i].e,
-                               fr->ener[i].eav, fr->ener[i].esum);
+                        printf("%24s  %12.5e  %12.5e  %12.5e\n",
+                               enm[i].name,
+                               fr->ener[i].e,
+                               fr->ener[i].eav,
+                               fr->ener[i].esum);
                     }
                 }
                 else
@@ -493,7 +514,9 @@ void list_ene(const char* fn)
                 for (i = 0; i < eb->nsub; i++)
                 {
                     t_enxsubblock* sb = &(eb->sub[i]);
-                    printf("  Sub block %3d (%5d elems, type=%s) values:\n", i, sb->nr,
+                    printf("  Sub block %3d (%5d elems, type=%s) values:\n",
+                           i,
+                           sb->nr,
                            xdr_datatype_names[sb->type]);
 
                     switch (sb->type)
@@ -686,8 +709,11 @@ int Dump::run()
 {
     if (!inputTprFilename_.empty())
     {
-        list_tpr(inputTprFilename_.c_str(), bShowNumbers_, bShowParams_,
-                 outputMdpFilename_.empty() ? nullptr : outputMdpFilename_.c_str(), bSysTop_,
+        list_tpr(inputTprFilename_.c_str(),
+                 bShowNumbers_,
+                 bShowParams_,
+                 outputMdpFilename_.empty() ? nullptr : outputMdpFilename_.c_str(),
+                 bSysTop_,
                  bOriginalInputrec_);
     }
     else if (!inputTrajectoryFilename_.empty())

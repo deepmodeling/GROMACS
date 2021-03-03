@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2012,2013,2014,2015,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -53,7 +53,6 @@
 #include <string>
 #include <vector>
 
-#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/programcontext.h"
 
 namespace gmx
@@ -188,7 +187,6 @@ public:
      * Returns the full path of the running binary.
      *
      * \throws std::bad_alloc if out of memory.
-     * \throws tMPI::system_error on thread synchronization errors.
      *
      * Returns argv[0] if there was an error in finding the absolute path.
      */
@@ -197,7 +195,6 @@ public:
      * Returns the installation prefix (for finding \Gromacs data files).
      *
      * \throws std::bad_alloc if out of memory.
-     * \throws tMPI::system_error on thread synchronization errors.
      *
      * Returns a hardcoded path set during configuration time if there is
      * an error in finding the library data files.
@@ -213,7 +210,7 @@ public:
 private:
     class Impl;
 
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace gmx

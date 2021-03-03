@@ -29,7 +29,7 @@ Several tools have their own individual pages and are listed below.
 Change management
 -----------------
 
-|Gromacs| change management is supported by the following tools.
+|Gromacs| change management uses git and `GitLab`_ for code uploading and testing as well as issues tracking.
 (For change submission guidelines, refer to :doc:`contribute`.)
 
 git
@@ -76,6 +76,20 @@ clang static analyzer
 coverage
 
 regression tests
+
+floating-point exceptions
+  In debug builds, floating-point exceptions (FPEs) are generated whenever one of the
+  following operations is encountered: division by zero, floating-point overflow,
+  invalid operation (e.g., taking sqrt of a negative number).
+  Such checks are *not* performed in the following configurations:
+
+  - release build,
+  - any build by GCC 7.x or Clang with optimizations,
+  - build with SYCL support.
+
+  In these configurations, FPEs can be enabled by adding ``-fpexcept`` flag to ``gmx``
+  invocation. However, FPEs are not supported on Windows and non-x86 Apple hardware.
+  See ``api/legacy/include/gromacs/math/utilities.h`` for more details.
 
 .. _dev-formatting-tools:
 

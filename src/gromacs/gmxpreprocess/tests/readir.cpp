@@ -71,8 +71,7 @@ namespace test
 class GetIrTest : public ::testing::Test
 {
 public:
-    GetIrTest() : opts_(), wi_(init_warning(FALSE, 0)), wiGuard_(wi_)
-
+    GetIrTest() : wi_(init_warning(FALSE, 0)), wiGuard_(wi_)
     {
         snew(opts_.include, STRLEN);
         snew(opts_.define, STRLEN);
@@ -95,8 +94,7 @@ public:
 
         TextWriter::writeFileFromString(inputMdpFilename, inputMdpFileContents);
 
-        get_ir(inputMdpFilename.c_str(), outputMdpFilename.c_str(), &mdModules_, &ir_, &opts_,
-               WriteMdpHeader::no, wi_);
+        get_ir(inputMdpFilename.c_str(), outputMdpFilename.c_str(), &mdModules_, &ir_, &opts_, WriteMdpHeader::no, wi_);
 
         check_ir(inputMdpFilename.c_str(), mdModules_.notifier(), &ir_, &opts_, wi_);
         // Now check

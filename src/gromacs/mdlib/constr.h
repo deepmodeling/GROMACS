@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -49,11 +49,12 @@
 
 #include <cstdio>
 
+#include <memory>
+
 #include "gromacs/math/vectypes.h"
 #include "gromacs/topology/idef.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/gmxassert.h"
 #include "gromacs/utility/real.h"
 
@@ -70,7 +71,7 @@ struct t_inputrec;
 struct t_nrnb;
 struct t_pbc;
 class t_state;
-
+enum class ConstraintAlgorithm : int;
 namespace gmx
 {
 template<typename T>
@@ -214,11 +215,11 @@ private:
     //! Implementation type.
     class Impl;
     //! Implementation object.
-    PrivateImplPointer<Impl> impl_;
+    std::unique_ptr<Impl> impl_;
 };
 
 /*! \brief Generate a fatal error because of too many LINCS/SETTLE warnings. */
-[[noreturn]] void too_many_constraint_warnings(int eConstrAlg, int warncount);
+[[noreturn]] void too_many_constraint_warnings(ConstraintAlgorithm eConstrAlg, int warncount);
 
 /*! \brief Returns whether constraint with parameter \p iparamsIndex is a flexible constraint */
 static inline bool isConstraintFlexible(ArrayRef<const t_iparams> iparams, int iparamsIndex)
@@ -317,7 +318,10 @@ void do_constrain_first(FILE*                     log,
                         const matrix              box,
                         real                      lambda);
 
-/* the dvdlambda contribution to be added to the bonded interactions */
+/*! \brief Constrain velocities only.
+ *
+ * The dvdlambda contribution has to be added to the bonded interactions
+ */
 void constrain_velocities(gmx::Constraints* constr,
                           bool              do_log,
                           bool              do_ene,
@@ -327,7 +331,10 @@ void constrain_velocities(gmx::Constraints* constr,
                           gmx_bool          computeVirial,
                           tensor            constraintsVirial);
 
-/* the dvdlambda contribution to be added to the bonded interactions */
+/*! \brief Constraint coordinates.
+ *
+ * The dvdlambda contribution has to be added to the bonded interactions
+ */
 void constrain_coordinates(gmx::Constraints*         constr,
                            bool                      do_log,
                            bool                      do_ene,

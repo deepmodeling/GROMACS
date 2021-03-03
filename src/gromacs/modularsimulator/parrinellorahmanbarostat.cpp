@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -44,14 +44,15 @@
 #include "parrinellorahmanbarostat.h"
 
 #include "gromacs/domdec/domdec_network.h"
+#include "gromacs/math/units.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/mdlib/coupling.h"
 #include "gromacs/mdlib/mdatoms.h"
 #include "gromacs/mdlib/stat.h"
+#include "gromacs/mdtypes/checkpointdata.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/mdatom.h"
-#include "gromacs/mdtypes/state.h"
 #include "gromacs/pbcutil/boxutilities.h"
 
 #include "energydata.h"
@@ -70,10 +71,7 @@ ParrinelloRahmanBarostat::ParrinelloRahmanBarostat(int                  nstpcoup
                                                    EnergyData*          energyData,
                                                    FILE*                fplog,
                                                    const t_inputrec*    inputrec,
-                                                   const MDAtoms*       mdAtoms,
-                                                   const t_state*       globalState,
-                                                   t_commrec*           cr,
-                                                   bool                 isRestart) :
+                                                   const MDAtoms*       mdAtoms) :
     nstpcouple_(nstpcouple),
     offset_(offset),
     couplingTimeStep_(couplingTimeStep),
@@ -88,21 +86,6 @@ ParrinelloRahmanBarostat::ParrinelloRahmanBarostat(int                  nstpcoup
     mdAtoms_(mdAtoms)
 {
     energyData->setParrinelloRahamnBarostat(this);
-    // TODO: This is only needed to restore the thermostatIntegral_ from cpt. Remove this when
-    //       switching to purely client-based checkpointing.
-    if (isRestart)
-    {
-        if (MASTER(cr))
-        {
-            copy_mat(globalState->boxv, boxVelocity_);
-            copy_mat(globalState->box_rel, boxRel_);
-        }
-        if (DOMAINDECOMP(cr))
-        {
-            dd_bcast(cr->dd, sizeof(boxVelocity_), boxVelocity_);
-            dd_bcast(cr->dd, sizeof(boxRel_), boxRel_);
-        }
-    }
 }
 
 void ParrinelloRahmanBarostat::connectWithPropagator(const PropagatorBarostatConnection& connectionData)
@@ -133,8 +116,17 @@ void ParrinelloRahmanBarostat::scheduleTask(Step step,
 void ParrinelloRahmanBarostat::integrateBoxVelocityEquations(Step step)
 {
     auto box = statePropagatorData_->constBox();
-    parrinellorahman_pcoupl(fplog_, step, inputrec_, couplingTimeStep_, energyData_->pressure(step),
-                            box, boxRel_, boxVelocity_, scalingTensor_.data(), mu_, false);
+    parrinellorahman_pcoupl(fplog_,
+                            step,
+                            inputrec_,
+                            couplingTimeStep_,
+                            energyData_->pressure(step),
+                            box,
+                            boxRel_,
+                            boxVelocity_,
+                            scalingTensor_.data(),
+                            mu_,
+                            false);
     // multiply matrix by the coupling time step to avoid having the propagator needing to know about that
     msmul(scalingTensor_.data(), couplingTimeStep_, scalingTensor_.data());
 }
@@ -176,7 +168,7 @@ void ParrinelloRahmanBarostat::elementSetup()
     if (inputrecPreserveShape(inputrec_))
     {
         auto      box  = statePropagatorData_->box();
-        const int ndim = inputrec_->epct == epctSEMIISOTROPIC ? 2 : 3;
+        const int ndim = inputrec_->epct == PressureCouplingType::SemiIsotropic ? 2 : 3;
         do_box_rel(ndim, inputrec_->deform, boxRel_, box, true);
     }
 
@@ -192,8 +184,17 @@ void ParrinelloRahmanBarostat::elementSetup()
         // The call to parrinellorahman_pcoupl is using nullptr for fplog (since we don't expect any
         // output here) and for the pressure (since it might not be calculated yet, and we don't need it).
         auto box = statePropagatorData_->constBox();
-        parrinellorahman_pcoupl(nullptr, initStep_, inputrec_, couplingTimeStep_, nullptr, box,
-                                boxRel_, boxVelocity_, scalingTensor_.data(), mu_, true);
+        parrinellorahman_pcoupl(nullptr,
+                                initStep_,
+                                inputrec_,
+                                couplingTimeStep_,
+                                nullptr,
+                                box,
+                                boxRel_,
+                                boxVelocity_,
+                                scalingTensor_.data(),
+                                mu_,
+                                true);
         // multiply matrix by the coupling time step to avoid having the propagator needing to know about that
         msmul(scalingTensor_.data(), couplingTimeStep_, scalingTensor_.data());
 
@@ -206,11 +207,90 @@ const rvec* ParrinelloRahmanBarostat::boxVelocities() const
     return boxVelocity_;
 }
 
-void ParrinelloRahmanBarostat::writeCheckpoint(t_state* localState, t_state gmx_unused* globalState)
+real ParrinelloRahmanBarostat::conservedEnergyContribution() const
 {
-    copy_mat(boxVelocity_, localState->boxv);
-    copy_mat(boxRel_, localState->box_rel);
-    localState->flags |= (1U << estBOXV) | (1U << estBOX_REL);
+    real        energy       = 0;
+    const auto* box          = statePropagatorData_->constBox();
+    real        maxBoxLength = std::max({ box[XX][XX], box[YY][YY], box[ZZ][ZZ] });
+    real        volume       = det(box);
+
+    // contribution from the pressure momenta
+    for (int i = 0; i < DIM; i++)
+    {
+        for (int j = 0; j <= i; j++)
+        {
+            real invMass = PRESFAC * (4 * M_PI * M_PI * inputrec_->compress[i][j])
+                           / (3 * inputrec_->tau_p * inputrec_->tau_p * maxBoxLength);
+            if (invMass > 0)
+            {
+                energy += 0.5 * boxVelocity_[i][j] * boxVelocity_[i][j] / invMass;
+            }
+        }
+    }
+
+    /* Contribution from the PV term.
+     * Note that with non-zero off-diagonal reference pressures,
+     * i.e. applied shear stresses, there are additional terms.
+     * We don't support this here, since that requires keeping
+     * track of unwrapped box diagonal elements. This case is
+     * excluded in integratorHasConservedEnergyQuantity().
+     */
+    energy += volume * trace(inputrec_->ref_p) / (DIM * PRESFAC);
+
+    return energy;
+}
+
+namespace
+{
+/*!
+ * \brief Enum describing the contents ParrinelloRahmanBarostat writes to modular checkpoint
+ *
+ * When changing the checkpoint content, add a new element just above Count, and adjust the
+ * checkpoint functionality.
+ */
+enum class CheckpointVersion
+{
+    Base, //!< First version of modular checkpointing
+    Count //!< Number of entries. Add new versions right above this!
+};
+constexpr auto c_currentVersion = CheckpointVersion(int(CheckpointVersion::Count) - 1);
+} // namespace
+
+template<CheckpointDataOperation operation>
+void ParrinelloRahmanBarostat::doCheckpointData(CheckpointData<operation>* checkpointData)
+{
+    checkpointVersion(checkpointData, "ParrinelloRahmanBarostat version", c_currentVersion);
+
+    checkpointData->tensor("box velocity", boxVelocity_);
+    checkpointData->tensor("relative box vector", boxRel_);
+}
+
+void ParrinelloRahmanBarostat::saveCheckpointState(std::optional<WriteCheckpointData> checkpointData,
+                                                   const t_commrec*                   cr)
+{
+    if (MASTER(cr))
+    {
+        doCheckpointData<CheckpointDataOperation::Write>(&checkpointData.value());
+    }
+}
+
+void ParrinelloRahmanBarostat::restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData,
+                                                      const t_commrec*                  cr)
+{
+    if (MASTER(cr))
+    {
+        doCheckpointData<CheckpointDataOperation::Read>(&checkpointData.value());
+    }
+    if (DOMAINDECOMP(cr))
+    {
+        dd_bcast(cr->dd, sizeof(boxVelocity_), boxVelocity_);
+        dd_bcast(cr->dd, sizeof(boxRel_), boxRel_);
+    }
+}
+
+const std::string& ParrinelloRahmanBarostat::clientID()
+{
+    return identifier_;
 }
 
 ISimulatorElement* ParrinelloRahmanBarostat::getElementPointerImpl(
@@ -223,12 +303,15 @@ ISimulatorElement* ParrinelloRahmanBarostat::getElementPointerImpl(
         int                                   offset)
 {
     auto* element  = builderHelper->storeElement(std::make_unique<ParrinelloRahmanBarostat>(
-            legacySimulatorData->inputrec->nstpcouple, offset,
+            legacySimulatorData->inputrec->nstpcouple,
+            offset,
             legacySimulatorData->inputrec->delta_t * legacySimulatorData->inputrec->nstpcouple,
-            legacySimulatorData->inputrec->init_step, statePropagatorData, energyData,
-            legacySimulatorData->fplog, legacySimulatorData->inputrec, legacySimulatorData->mdAtoms,
-            legacySimulatorData->state_global, legacySimulatorData->cr,
-            legacySimulatorData->inputrec->bContinuation));
+            legacySimulatorData->inputrec->init_step,
+            statePropagatorData,
+            energyData,
+            legacySimulatorData->fplog,
+            legacySimulatorData->inputrec,
+            legacySimulatorData->mdAtoms));
     auto* barostat = static_cast<ParrinelloRahmanBarostat*>(element);
     builderHelper->registerBarostat([barostat](const PropagatorBarostatConnection& connection) {
         barostat->connectWithPropagator(connection);

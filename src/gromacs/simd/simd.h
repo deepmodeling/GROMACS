@@ -2,7 +2,7 @@
  * This file is part of the GROMACS molecular simulation package.
  *
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -77,10 +77,10 @@
 #include <cstdint>
 
 #include <array>
+#include <memory>
 #include <type_traits>
 
 #include "gromacs/utility/basedefinitions.h"
-#include "gromacs/utility/classhelpers.h"
 #include "gromacs/utility/real.h"
 
 //! \cond libapi
@@ -142,18 +142,14 @@ struct SimdDInt32Tag
 #    include "impl_x86_avx2_256/impl_x86_avx2_256.h"
 #elif GMX_SIMD_X86_AVX2_128
 #    include "impl_x86_avx2_128/impl_x86_avx2_128.h"
-#elif GMX_SIMD_X86_MIC
-#    include "impl_x86_mic/impl_x86_mic.h"
 #elif GMX_SIMD_X86_AVX_512
 #    include "impl_x86_avx_512/impl_x86_avx_512.h"
 #elif GMX_SIMD_X86_AVX_512_KNL
 #    include "impl_x86_avx_512_knl/impl_x86_avx_512_knl.h"
-#elif GMX_SIMD_ARM_NEON
-#    include "impl_arm_neon/impl_arm_neon.h"
 #elif GMX_SIMD_ARM_NEON_ASIMD
 #    include "impl_arm_neon_asimd/impl_arm_neon_asimd.h"
-#elif GMX_SIMD_IBM_VMX
-#    include "impl_ibm_vmx/impl_ibm_vmx.h"
+#elif GMX_SIMD_ARM_SVE
+#    include "impl_arm_sve/impl_arm_sve.h"
 #elif GMX_SIMD_IBM_VSX
 #    include "impl_ibm_vsx/impl_ibm_vsx.h"
 #elif (GMX_SIMD_REFERENCE || defined DOXYGEN)
@@ -600,7 +596,7 @@ static inline SimdSetZeroProxy gmx_simdcall setZero()
 
 namespace internal
 {
-// TODO: Don't foward function but properly rename them and use proper traits
+// TODO: Don't forward function but properly rename them and use proper traits
 template<typename T>
 struct Simd4Traits
 {
@@ -754,7 +750,7 @@ using Simd4NReal = Simd4NFloat;
 
 } // namespace gmx
 
-// \}          end of module_simd
+//! \}          end of module_simd
 
 //! \endcond   end of condition libapi
 

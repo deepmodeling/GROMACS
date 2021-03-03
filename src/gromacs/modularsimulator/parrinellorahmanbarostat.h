@@ -54,6 +54,7 @@ struct t_commrec;
 
 namespace gmx
 {
+enum class CheckpointDataOperation;
 class EnergyData;
 class LegacySimulatorData;
 class MDAtoms;
@@ -81,10 +82,7 @@ public:
                              EnergyData*          energyData,
                              FILE*                fplog,
                              const t_inputrec*    inputrec,
-                             const MDAtoms*       mdAtoms,
-                             const t_state*       globalState,
-                             t_commrec*           cr,
-                             bool                 isRestart);
+                             const MDAtoms*       mdAtoms);
 
     /*! \brief Register run function for step / time
      *
@@ -100,10 +98,19 @@ public:
     void elementTeardown() override {}
 
     //! Getter for the box velocities
-    const rvec* boxVelocities() const;
+    [[nodiscard]] const rvec* boxVelocities() const;
+    //! Contribution to the conserved energy (called by energy data)
+    [[nodiscard]] real conservedEnergyContribution() const;
 
     //! Connect this to propagator
     void connectWithPropagator(const PropagatorBarostatConnection& connectionData);
+
+    //! ICheckpointHelperClient write checkpoint implementation
+    void saveCheckpointState(std::optional<WriteCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient read checkpoint implementation
+    void restoreCheckpointState(std::optional<ReadCheckpointData> checkpointData, const t_commrec* cr) override;
+    //! ICheckpointHelperClient key implementation
+    const std::string& clientID() override;
 
     /*! \brief Factory method implementation
      *
@@ -158,8 +165,11 @@ private:
     //! Scale box and positions
     void scaleBoxAndPositions();
 
-    //! ICheckpointHelperClient implementation
-    void writeCheckpoint(t_state* localState, t_state* globalState) override;
+    //! CheckpointHelper identifier
+    const std::string identifier_ = "ParrinelloRahmanBarostat";
+    //! Helper function to read from / write to CheckpointData
+    template<CheckpointDataOperation operation>
+    void doCheckpointData(CheckpointData<operation>* checkpointData);
 
     // Access to ISimulator data
     //! Handles logging.

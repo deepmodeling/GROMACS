@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2017,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -211,7 +211,9 @@ static int findPropertyIndex(AtomProperty*      ap,
         }
         else
         {
-            fprintf(debug, " match: %4s %4s\n", ap->entry[j].residueName.c_str(),
+            fprintf(debug,
+                    " match: %4s %4s\n",
+                    ap->entry[j].residueName.c_str(),
                     ap->entry[j].atomName.c_str());
         }
     }
@@ -235,8 +237,8 @@ static void addProperty(AtomProperty*      ap,
                         real               propValue,
                         int                line)
 {
-    bool bExact;
-    int  j = findPropertyIndex(ap, restype, residueName, atomName, &bExact);
+    bool bExact = false;
+    int  j      = findPropertyIndex(ap, restype, residueName, atomName, &bExact);
 
     if (!bExact)
     {
@@ -248,16 +250,26 @@ static void addProperty(AtomProperty*      ap,
     {
         if (ap->entry[j].value == propValue)
         {
-            fprintf(stderr, "Warning double identical entries for %s %s %g on line %d in file %s\n",
-                    residueName.c_str(), atomName.c_str(), propValue, line, ap->db.c_str());
+            fprintf(stderr,
+                    "Warning double identical entries for %s %s %g on line %d in file %s\n",
+                    residueName.c_str(),
+                    atomName.c_str(),
+                    propValue,
+                    line,
+                    ap->db.c_str());
         }
         else
         {
             fprintf(stderr,
                     "Warning double different entries %s %s %g and %g on line %d in file %s\n"
                     "Using last entry (%g)\n",
-                    residueName.c_str(), atomName.c_str(), propValue, ap->entry[j].value, line,
-                    ap->db.c_str(), propValue);
+                    residueName.c_str(),
+                    atomName.c_str(),
+                    propValue,
+                    ap->entry[j].value,
+                    line,
+                    ap->db.c_str(),
+                    propValue);
             ap->entry[j].value = propValue;
         }
     }
@@ -284,7 +296,7 @@ static void readProperty(AtomProperty* ap, ResidueType* restype, double factor)
     while (get_a_line(fp.get(), line, STRLEN))
     {
         line_no++;
-        double pp;
+        double pp = 0.0;
         if (sscanf(line, "%31s %31s %20lf", resnm, atomnm, &pp) == 3)
         {
             pp *= factor;
@@ -309,10 +321,11 @@ static void readProperty(AtomProperty* ap, ResidueType* restype, double factor)
  */
 static bool setProperties(AtomProperty* ap, ResidueType* restype, int eprop, bool haveBeenWarned)
 {
-    const char* fns[epropNR] = { "atommass.dat", "vdwradii.dat", "dgsolv.dat", "electroneg.dat",
-                                 "elements.dat" };
-    double      fac[epropNR] = { 1.0, 1.0, 418.4, 1.0, 1.0 };
-    double      def[epropNR] = { 12.011, 0.14, 0.0, 2.2, -1 };
+    const char* fns[epropNR] = {
+        "atommass.dat", "vdwradii.dat", "dgsolv.dat", "electroneg.dat", "elements.dat"
+    };
+    double fac[epropNR] = { 1.0, 1.0, 418.4, 1.0, 1.0 };
+    double def[epropNR] = { 12.011, 0.14, 0.0, 2.2, -1 };
 
     bool printWarning = false;
     if (!ap->isSet)
@@ -364,7 +377,8 @@ static void printvdwWarning(FILE* fp)
 {
     if (nullptr != fp)
     {
-        fprintf(fp, "NOTE: From version 5.0 %s uses the Van der Waals radii\n",
+        fprintf(fp,
+                "NOTE: From version 5.0 %s uses the Van der Waals radii\n",
                 gmx::getProgramContext().displayName());
         fprintf(fp, "from the source below. This means the results may be different\n");
         fprintf(fp, "compared to previous GROMACS versions.\n");
@@ -377,9 +391,8 @@ bool AtomProperties::setAtomProperty(int                eprop,
                                      const std::string& atomName,
                                      real*              value)
 {
-    int         j;
     std::string tmpAtomName, tmpResidueName;
-    gmx_bool    bExact;
+    bool        bExact = false;
 
     if (setProperties(prop(eprop), restype(), eprop, impl_->bWarned))
     {
@@ -396,7 +409,8 @@ bool AtomProperties::setAtomProperty(int                eprop,
     {
         tmpAtomName = atomName;
     }
-    j = findPropertyIndex(&(impl_->prop[eprop]), &impl_->restype, residueName, tmpAtomName, &bExact);
+    const int j = findPropertyIndex(
+            &(impl_->prop[eprop]), &impl_->restype, residueName, tmpAtomName, &bExact);
 
     if (eprop == epropVDW && !impl_->bWarnVDW)
     {
