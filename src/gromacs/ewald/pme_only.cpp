@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2017 by the GROMACS development team.
- * Copyright (c) 2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -103,10 +103,6 @@
 #include "pme_gpu_internal.h"
 #include "pme_output.h"
 #include "pme_pp_communication.h"
-
-/*! \brief environment variable to enable GPU P2P communication */
-static const bool c_enableGpuPmePpComms =
-        GMX_GPU_CUDA && GMX_THREAD_MPI && (getenv("GMX_GPU_PME_PP_COMMS") != nullptr);
 
 /*! \brief Master PP-PME communication data structure */
 struct gmx_pme_pp
@@ -446,7 +442,7 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                     pme_pp->pmeCoordinateReceiverGpu->sendCoordinateBufferAddressToPpRanks(
                             stateGpu->getCoordinates());
                     pme_pp->pmeForceSenderGpu->sendForceBufferAddressToPpRanks(
-                            reinterpret_cast<rvec*>(pme_gpu_get_device_f(pme)));
+                            reinterpret_cast<gmx::RVec*>(pme_gpu_get_device_f(pme)));
                 }
             }
 
@@ -467,8 +463,8 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
                 {
                     if (pme_pp->useGpuDirectComm)
                     {
-                        pme_pp->pmeCoordinateReceiverGpu->launchReceiveCoordinatesFromPpCudaDirect(
-                                sender.rankId);
+                        pme_pp->pmeCoordinateReceiverGpu->launchReceiveCoordinatesFromPp(
+                                stateGpu->getCoordinates(), nat, sender.numAtoms * sizeof(rvec), sender.rankId);
                     }
                     else
                     {
@@ -494,7 +490,7 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
 
             if (pme_pp->useGpuDirectComm)
             {
-                pme_pp->pmeCoordinateReceiverGpu->enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+                pme_pp->pmeCoordinateReceiverGpu->waitOrEnqueueWaitReceiveCoordinatesFromPp();
             }
 
             status = pmerecvqxX;
@@ -542,7 +538,15 @@ static void sendFToPP(void* sendbuf, PpRanks receiver, gmx_pme_pp* pme_pp, int* 
                    "The use of GPU direct communication for PME-PP is enabled, "
                    "but the PME GPU force reciever object does not exist");
 
-        pme_pp->pmeForceSenderGpu->sendFToPpCudaDirect(receiver.rankId);
+        pme_pp->pmeForceSenderGpu->sendFToPp(static_cast<gmx::RVec*>(sendbuf),
+                                             receiver.numAtoms * sizeof(rvec),
+                                             receiver.rankId,
+                                             &pme_pp->req[*messages]);
+
+        if (GMX_LIB_MPI)
+        {
+            *messages = *messages + 1;
+        }
     }
     else
     {
@@ -627,6 +631,7 @@ int gmx_pmeonly(struct gmx_pme_t*               pme,
                 gmx_walltime_accounting_t       walltime_accounting,
                 t_inputrec*                     ir,
                 PmeRunMode                      runMode,
+                bool                            useGpuPmePpCommunication,
                 const gmx::DeviceStreamManager* deviceStreamManager)
 {
     int     ret;
@@ -659,7 +664,7 @@ int gmx_pmeonly(struct gmx_pme_t*               pme,
                            "Device stream can not be nullptr when using GPU in PME-only rank");
         changePinningPolicy(&pme_pp->chargeA, pme_get_pinning_policy());
         changePinningPolicy(&pme_pp->x, pme_get_pinning_policy());
-        if (c_enableGpuPmePpComms)
+        if (useGpuPmePpCommunication)
         {
             pme_pp->pmeCoordinateReceiverGpu = std::make_unique<gmx::PmeCoordinateReceiverGpu>(
                     deviceStreamManager->stream(gmx::DeviceStreamType::Pme),

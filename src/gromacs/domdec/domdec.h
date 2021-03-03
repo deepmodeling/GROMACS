@@ -351,7 +351,10 @@ void communicateGpuHaloCoordinates(const t_commrec&      cr,
 /*! \brief GPU halo exchange of force buffer.
  * \param [in] cr                The commrec object
  * \param [in] accumulateForces  True if forces should accumulate, otherwise they are set
+ * \param [in] forcesReadyOnDeviceEvent  event recorded when forces are ready on device
  */
-void communicateGpuHaloForces(const t_commrec& cr, bool accumulateForces);
+void communicateGpuHaloForces(const t_commrec&      cr,
+                              bool                  accumulateForces,
+                              GpuEventSynchronizer* forcesReadyOnDeviceEvent);
 
 #endif

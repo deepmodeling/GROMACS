@@ -3196,7 +3196,7 @@ void constructGpuHaloExchange(const gmx::MDLogger&            mdlog,
             cr.dd->gpuHaloExchange[d].push_back(std::make_unique<gmx::GpuHaloExchange>(
                     cr.dd,
                     d,
-                    cr.mpi_comm_mysim,
+                    cr.mpi_comm_mygroup,
                     deviceStreamManager.context(),
                     deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedLocal),
                     deviceStreamManager.stream(gmx::DeviceStreamType::NonBondedNonLocal),
@@ -3232,13 +3232,14 @@ void communicateGpuHaloCoordinates(const t_commrec&      cr,
     }
 }
 
-void communicateGpuHaloForces(const t_commrec& cr, bool accumulateForces)
+void communicateGpuHaloForces(const t_commrec& cr, bool accumulateForces, GpuEventSynchronizer* forcesReadyOnDeviceEvent)
 {
     for (int d = cr.dd->ndim - 1; d >= 0; d--)
     {
         for (int pulse = cr.dd->comm->cd[d].numPulses() - 1; pulse >= 0; pulse--)
         {
-            cr.dd->gpuHaloExchange[d][pulse]->communicateHaloForces(accumulateForces);
+            cr.dd->gpuHaloExchange[d][pulse]->communicateHaloForces(accumulateForces,
+                                                                    forcesReadyOnDeviceEvent);
         }
     }
 }

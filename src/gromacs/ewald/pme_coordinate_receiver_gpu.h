@@ -77,15 +77,20 @@ public:
 
 
     /*! \brief
-     * launch receive of coordinate data from PP rank
-     * \param[in] ppRank  PP rank to send data
+     * For lib MPI, receive co-ordinate from PP ranks
+     * For thread MPI, receive co-orinate transfer events from PP ranks
+     * \param[in] recvbuf   coordinates buffer in GPU memory
+     * \param[in] nat       starting element in buffer
+     * \param[in] numBytes  number of bytes to transfer
+     * \param[in] ppRank    PP rank to send data
      */
-    void launchReceiveCoordinatesFromPpCudaDirect(int ppRank);
+    void launchReceiveCoordinatesFromPp(DeviceBuffer<RVec> recvbuf, int nat, int numBytes, int ppRank);
 
     /*! \brief
-     * enqueue wait for coordinate data from PP ranks
+     * For lib MPI, wait for coordinates from PP ranks
+     * For thread MPI, enqueue PP co-ordinate transfer event into PME stream
      */
-    void enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+    void waitOrEnqueueWaitReceiveCoordinatesFromPp();
 
 private:
     class Impl;

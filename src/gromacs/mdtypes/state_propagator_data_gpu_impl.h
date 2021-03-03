@@ -283,9 +283,11 @@ public:
 
     /*! \brief Getter for the event synchronizer for the forces are reduced on the GPU.
      *
+     *  \param[in] atomLocality      Locality of the particles to wait for.
+     *
      *  \returns  The event to mark when forces are reduced on the GPU.
      */
-    GpuEventSynchronizer* fReducedOnDevice();
+    GpuEventSynchronizer* fReducedOnDevice(AtomLocality atomLocality);
 
     /*! \brief Copy forces from the GPU memory.
      *
@@ -354,8 +356,8 @@ private:
 
     //! An array of events that indicate H2D copy of forces is complete (one event for each atom locality)
     EnumerationArray<AtomLocality, GpuEventSynchronizer> fReadyOnDevice_;
-    //! An event that the forces were reduced on the GPU
-    GpuEventSynchronizer fReducedOnDevice_;
+    //! An array of events that indicate the forces were reduced on the GPU
+    EnumerationArray<AtomLocality, GpuEventSynchronizer> fReducedOnDevice_;
     //! An array of events that indicate D2H copy of forces is complete (one event for each atom locality)
     EnumerationArray<AtomLocality, GpuEventSynchronizer> fReadyOnHost_;
 

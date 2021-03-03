@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -73,29 +73,37 @@ public:
     void sendCoordinateBufferAddressToPpRanks(DeviceBuffer<RVec> d_x);
 
     /*! \brief
-     * launch receive of coordinate data from PP rank
-     * \param[in] ppRank  PP rank to send data
+     * For lib MPI, receive co-ordinates from PP ranks
+     * For thread MPI, receive co-orinate transfer events from PP ranks
+     * \param[in] recvbuf   coordinates buffer in GPU memory
+     * \param[in] nat       starting element in buffer
+     * \param[in] numBytes  number of bytes to transfer
+     * \param[in] ppRank    PP rank to send data
      */
-    void launchReceiveCoordinatesFromPpCudaDirect(int ppRank);
+    void launchReceiveCoordinatesFromPp(DeviceBuffer<RVec> recvbuf, int nat, int numBytes, int ppRank);
 
     /*! \brief
-     * enqueue wait for coordinate data from PP ranks
+     * For lib MPI, wait for coordinates from PP ranks
+     * For thread MPI, enqueue PP co-ordinate transfer event into PME stream
      */
-    void enqueueWaitReceiveCoordinatesFromPpCudaDirect();
+    void waitOrEnqueueWaitReceiveCoordinatesFromPp();
 
 private:
-    //! CUDA stream for PME operations
-    const DeviceStream& pmeStream_;
     //! communicator for simulation
     MPI_Comm comm_;
     //! list of PP ranks
     gmx::ArrayRef<PpRanks> ppRanks_;
     //! vector of MPI requests
     std::vector<MPI_Request> request_;
-    //! vector of synchronization events to receive from PP tasks
-    std::vector<GpuEventSynchronizer*> ppSync_;
+
     //! counter of messages to receive
     int recvCount_ = 0;
+
+    //! CUDA stream for PME operations
+    const DeviceStream& pmeStream_;
+
+    //! vector of synchronization events to receive from PP tasks
+    std::vector<GpuEventSynchronizer*> ppSync_;
 };
 
 } // namespace gmx

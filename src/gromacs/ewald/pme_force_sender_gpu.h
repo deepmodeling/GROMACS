@@ -44,6 +44,7 @@
 
 #include <memory>
 
+#include "gromacs/gpu_utils/devicebuffer_datatype.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/utility/gmxmpi.h"
 
@@ -83,13 +84,16 @@ public:
      * Initialization of GPU PME Force sender
      * \param[in] d_f   force buffer in GPU memory
      */
-    void sendForceBufferAddressToPpRanks(rvec* d_f);
+    void sendForceBufferAddressToPpRanks(RVec* d_f);
 
     /*! \brief
      * Send PP data to PP rank
-     * \param[in] ppRank           PP rank to receive data
+     * \param[in] sendbuf  force buffer in GPU memory
+     * \param[in] numBytes number of bytes to transfer
+     * \param[in] ppRank   PP rank to receive data
+     * \param[in] request  MPI request to track asynchronous MPI call status
      */
-    void sendFToPpCudaDirect(int ppRank);
+    void sendFToPp(RVec* sendbuf, int numBytes, int ppRank, MPI_Request* request);
 
 private:
     class Impl;

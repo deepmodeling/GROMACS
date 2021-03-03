@@ -124,8 +124,9 @@ public:
 
     /*! \brief GPU halo exchange of force buffer.
      * \param[in] accumulateForces  True if forces should accumulate, otherwise they are set
+     * \param [in] forcesReadyOnDeviceEvent event recorded when forces are ready on device
      */
-    void communicateHaloForces(bool accumulateForces);
+    void communicateHaloForces(bool accumulateForces, GpuEventSynchronizer* forcesReadyOnDeviceEvent);
 
     /*! \brief Get the event synchronizer for the forces ready on device.
      *  \returns  The event to synchronize the stream that consumes forces on device.

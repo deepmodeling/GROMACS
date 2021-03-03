@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -105,7 +105,8 @@ void GpuHaloExchange::communicateHaloCoordinates(const matrix /* box */,
 }
 
 /*!\brief apply F halo exchange stub. */
-void GpuHaloExchange::communicateHaloForces(bool gmx_unused accumulateForces)
+void GpuHaloExchange::communicateHaloForces(bool gmx_unused accumulateForces,
+                                            GpuEventSynchronizer* /*forcesReadyOnDeviceEvent*/)
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for GPU Halo Exchange was called insted of the correct implementation.");

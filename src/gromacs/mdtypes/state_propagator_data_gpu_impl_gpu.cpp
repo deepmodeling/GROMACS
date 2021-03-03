@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -457,7 +457,7 @@ GpuEventSynchronizer* StatePropagatorDataGpu::Impl::getForcesReadyOnDeviceEvent(
 {
     if ((atomLocality == AtomLocality::Local || atomLocality == AtomLocality::NonLocal) && useGpuFBufferOps)
     {
-        return &fReducedOnDevice_;
+        return &fReducedOnDevice_[atomLocality];
     }
     else
     {
@@ -465,9 +465,9 @@ GpuEventSynchronizer* StatePropagatorDataGpu::Impl::getForcesReadyOnDeviceEvent(
     }
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::Impl::fReducedOnDevice()
+GpuEventSynchronizer* StatePropagatorDataGpu::Impl::fReducedOnDevice(AtomLocality atomLocality)
 {
-    return &fReducedOnDevice_;
+    return &fReducedOnDevice_[atomLocality];
 }
 
 void StatePropagatorDataGpu::Impl::copyForcesFromGpu(gmx::ArrayRef<gmx::RVec> h_f, AtomLocality atomLocality)
@@ -628,9 +628,9 @@ GpuEventSynchronizer* StatePropagatorDataGpu::getForcesReadyOnDeviceEvent(AtomLo
     return impl_->getForcesReadyOnDeviceEvent(atomLocality, useGpuFBufferOps);
 }
 
-GpuEventSynchronizer* StatePropagatorDataGpu::fReducedOnDevice()
+GpuEventSynchronizer* StatePropagatorDataGpu::fReducedOnDevice(AtomLocality atomLocality)
 {
-    return impl_->fReducedOnDevice();
+    return impl_->fReducedOnDevice(atomLocality);
 }
 
 void StatePropagatorDataGpu::copyForcesFromGpu(gmx::ArrayRef<RVec> h_f, AtomLocality atomLocality)

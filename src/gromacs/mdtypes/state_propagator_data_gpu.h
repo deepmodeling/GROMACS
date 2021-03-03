@@ -288,9 +288,10 @@ public:
 
     /*! \brief Getter for the event synchronizer for the forces are reduced on the GPU.
      *
+     *  \param[in] atomLocality      Locality of the particles to wait for.
      *  \returns  The event to mark when forces are reduced on the GPU.
      */
-    GpuEventSynchronizer* fReducedOnDevice();
+    GpuEventSynchronizer* fReducedOnDevice(AtomLocality atomLocality);
 
     /*! \brief Copy forces from the GPU memory.
      *

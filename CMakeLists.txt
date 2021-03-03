@@ -529,6 +529,9 @@ include(gmxManageTNG)
 
 include(gmxManageLmfit)
 
+########################################################################
+#Process GPU settings
+########################################################################
 if(GMX_GPU)
 
     string(TOUPPER "${GMX_GPU}" _gmx_gpu_uppercase)
@@ -546,6 +549,15 @@ if(GMX_GPU)
         message(WARNING "To use GPU acceleration efficiently, mdrun requires OpenMP multi-threading, which is currently not enabled.")
     endif()
 
+endif()
+
+# For build with CUDA and Lib-MPI, check if underlying MPI implementation is CUDA-aware
+# CUDA-aware MPI allows direct GPU communication without staging data through host
+if(GMX_GPU_CUDA AND GMX_LIB_MPI)
+    include(gmxManageCudaAwareMPI)
+else()
+    set(HAVE_CUDA_AWARE_MPI 0)
+    set(HAVE_MPIEXT_HEADER 0)
 endif()
 
 if(CYGWIN)
