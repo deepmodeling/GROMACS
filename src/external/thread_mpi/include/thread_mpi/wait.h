@@ -41,72 +41,68 @@
 
 #if TMPI_WAIT_FOR_NO_ONE
 
-#    ifdef HAVE_CONFIG_H
-#        include "config.h"
-#    endif
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-#    if GMX_FAHCORE
+#if GMX_FAHCORE
 // This lets F@H throttle CPU usage
-#        define TMPI_YIELD_WAIT_DATA
-#        define TMPI_YIELD_WAIT_DATA_INIT(data)
-#        define TMPI_YIELD_WAIT(data) fcYieldWait()
+#define TMPI_YIELD_WAIT_DATA
+#define TMPI_YIELD_WAIT_DATA_INIT(data)
+#define TMPI_YIELD_WAIT(data) fcYieldWait()
 
-#    elif !(defined(_WIN32) || defined(_WIN64))
-#        ifdef HAVE_UNISTD_H
-#            include <unistd.h>
-#        endif
-#        ifdef HAVE_SCHED_H
-#            include <sched.h>
-#        endif
+#elif !(defined( _WIN32 ) || defined( _WIN64 ) )
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_SCHED_H
+#include <sched.h>
+#endif
 
 /* for now we just do sched_yield(). It's in POSIX. */
 /* the data associated with waiting. */
-#        define TMPI_YIELD_WAIT_DATA
+#define TMPI_YIELD_WAIT_DATA
 /* the initialization  associated with waiting. */
-#        define TMPI_YIELD_WAIT_DATA_INIT(data)
+#define TMPI_YIELD_WAIT_DATA_INIT(data)
 
 /* the waiting macro */
-#        define TMPI_YIELD_WAIT(data) sched_yield()
+#define TMPI_YIELD_WAIT(data)  sched_yield()
 
-#    else
+#else
 /* and in Windows, we do SwitchToThread() alternated with Sleep(0). This
    is apparently recommende practice (SwitchToThread() alone just gives
    up the slice for threads on the current core, and Sleep(0) alone could
    lead to starvation. This mixed approach actually gives better real-world
    performance in the test program.*/
 /* the data associated with waiting. */
-#        define TMPI_YIELD_WAIT_DATA int yield_wait_counter;
+#define TMPI_YIELD_WAIT_DATA  int yield_wait_counter;
 /* the initialization  associated with waiting. */
-#        define TMPI_YIELD_WAIT_DATA_INIT(data) \
-            {                                   \
-                (data)->yield_wait_counter = 0; \
-            }
+#define TMPI_YIELD_WAIT_DATA_INIT(data) { (data)->yield_wait_counter = 0; }
 
 /* the waiting macro is so complicated because using SwitchToThread only schedules */
-#        define TMPI_YIELD_WAIT(data)                          \
-            {                                                  \
-                if (((data)->yield_wait_counter++) % 100 == 0) \
-                {                                              \
-                    SwitchToThread();                          \
-                }                                              \
-                else                                           \
-                {                                              \
-                    Sleep(0);                                  \
-                }                                              \
-            }
+#define TMPI_YIELD_WAIT(data)  { \
+        if ( ((data)->yield_wait_counter++)%100 == 0) \
+        { \
+            SwitchToThread(); \
+        } \
+        else \
+        { \
+            Sleep(0); \
+        } \
+}
 
-#    endif
+#endif
 
 
 #else /* !TMPI_WAIT_FOR_NO_ONE */
 
 /* the data associated with waiting. */
-#    define TMPI_YIELD_WAIT_DATA
+#define TMPI_YIELD_WAIT_DATA
 /* the initialization  associated with waiting. */
-#    define TMPI_YIELD_WAIT_DATA_INIT(data)
+#define TMPI_YIELD_WAIT_DATA_INIT(data)
 
 /* the waiting macro */
-#    define TMPI_YIELD_WAIT(data) tMPI_Atomic_memory_barrier()
+#define TMPI_YIELD_WAIT(data)  tMPI_Atomic_memory_barrier()
 
 
 #endif /* !TMPI_WAIT_FOR_NO_ONE */
