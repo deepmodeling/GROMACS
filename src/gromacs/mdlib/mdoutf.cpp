@@ -468,13 +468,20 @@ static void write_checkpoint(const char*                     fn,
     sfree(fntemp);
 
 #if GMX_FAHCORE
-    /*code for alternate checkpointing scheme.  moved from top of loop over
-       steps */
-    fcRequestCheckPoint();
-    if (fcCheckPointParallel(cr->nodeid, NULL, 0) == 0)
-    {
-        gmx_fatal(3, __FILE__, __LINE__, "Checkpoint error on step %d\n", step);
-    }
+    /* Always FAH checkpoint immediately after a Gromacs checkpoint.
+     *
+     * Note that it is critical that we save a FAH checkpoint directly
+     * after writing a Gromacs checkpoint.  If the program dies, either
+     * by the machine powering off suddenly or the process being,
+     * killed, FAH can recover files that have only appended data by
+     * truncating them to the last recorded length.  The Gromacs
+     * checkpoint does not just append data, it is fully rewritten each
+     * time so a crash between moving the new Gromacs checkpoint file in
+     * to place and writing a FAH checkpoint is not recoverable.  Thus
+     * the time between these operations must be kept as short a
+     * possible.
+     */
+    fcCheckpoint();
 #endif /* end GMX_FAHCORE block */
 }
 
