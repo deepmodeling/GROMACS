@@ -83,6 +83,9 @@
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/nbnxm/nbnxm_geometry.h"
+
+#include "gromacs/sits/sits.h"
+
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/tables/forcetable.h"
@@ -1470,6 +1473,8 @@ void init_forcerec(FILE*                            fp,
             // t_forcerec lacks a constructor.
             fr->gpuBonded = new gmx::GpuBonded(mtop->ffparams, stream, wcycle);
         }
+
+        fr->sits = Sits::init_sits(mdlog, ir, fr, cr, hardwareInfo, deviceInfo, mtop, box, wcycle);
     }
 
     if (ir->eDispCorr != edispcNO)

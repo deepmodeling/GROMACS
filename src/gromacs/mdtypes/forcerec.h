@@ -51,6 +51,7 @@
 struct gmx_ns_t;
 struct gmx_pme_t;
 struct nonbonded_verlet_t;
+struct sits_t;
 struct bonded_threading_t;
 class DispersionCorrection;
 struct t_forcetable;
@@ -205,6 +206,9 @@ struct t_forcerec
 
     /* The Nbnxm Verlet non-bonded machinery */
     std::unique_ptr<nonbonded_verlet_t> nbv;
+
+    /* The SITS machinery */
+    std::unique_ptr<sits_t> sits;
 
     /* The wall tables (if used) */
     int             nwall    = 0;

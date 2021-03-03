@@ -46,13 +46,6 @@ enum SITS_ENH_MODE
     PP_AND_PW; INTRA_MOL; INTER_MOL; ALL;
 };
 
-struct sits_info
-{
-    int sits_calc_mode = 0;         //选择sits模式
-    int sits_enh_mode  = PP_AND_PW; //
-    int sits_enh_bias  = false;     //
-}
-
 struct sits_t
 {
 public:
@@ -116,7 +109,6 @@ public:
         // \ref A selective integrated tempering method
         // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
 
-        gmx::HostVector<real> temp_k;
         gmx::HostVector<real> beta_k;
         gmx::HostVector<real> NkExpBetakU;
         gmx::HostVector<real> Nk;
@@ -154,7 +146,9 @@ public:
     } sits_at;
 
 public:
-    sits_info info;
+    int sits_calc_mode = 0;         //选择sits模式
+    int sits_enh_mode  = PP_AND_PW; //
+    int sits_enh_bias  = false;     //
 
     gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
     gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力

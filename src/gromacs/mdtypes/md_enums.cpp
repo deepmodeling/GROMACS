@@ -115,7 +115,7 @@ const char* ecomb_names[eCOMB_NR + 1] = { "", "Geometric", "Arithmetic", "GeomSi
 
 const char* esimtemp_names[esimtempNR + 1] = { "geometric", "exponential", "linear", nullptr };
 
-// const char* esits_names[esitsNR + 1] = { "classical", "simple", "bias", nullptr };
+const char* esits_enh_names[esitsNR + 1] = { "pp_and_pw", "intra_mol", "inter_mol", "all", nullptr };
 
 const char* efep_names[efepNR + 1] = { "no", "yes", "static", "slow-growth", "expanded", nullptr };
 

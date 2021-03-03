@@ -441,21 +441,46 @@ static void do_simtempvals(gmx::ISerializer* serializer, t_simtemp* simtemp, int
     }
 }
 
-static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int n_lambda, int file_version)
+static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_version)
 {
     if (file_version >= 79)
     {
-        serializer->doInt(&simtemp->eSimTempScale);
-        serializer->doReal(&simtemp->simtemp_high);
-        serializer->doReal(&simtemp->simtemp_low);
-        if (n_lambda > 0)
+        serializer->doInt(&sits->sits_calc_mode);
+        serializer->doInt(&sits->sits_enh_mode);
+        serializer->doBool(&sits->sits_enh_bias);
+        serializer->doReal(&sits->pw_enhance_factor);
+
+        serializer->doInt(&sits->k_numbers);
+        serializer->doReal(&sits->beta0);
+
+        if (sits->sits_calc_mode == 0 && sits->k_numbers > 0)
         {
             if (serializer->reading())
             {
-                snew(simtemp->temperatures, n_lambda);
+                snew(sits->beta_k, sits->k_numbers);
+                snew(sits->log_nk, sits->k_numbers);
+                snew(sits->Nk, sits->k_numbers);
+                snew(sits->log_norm, sits->k_numbers);
+                snew(sits->log_norm_old, sits->k_numbers);
             }
-            serializer->doRealArray(simtemp->temperatures, n_lambda);
+            serializer->doDoubleArray(sits->beta_k, sits->k_numbers);
+            serializer->doDoubleArray(sits->log_nk, sits->k_numbers);
+            serializer->doDoubleArray(sits->Nk, sits->k_numbers);
+            serializer->doDoubleArray(sits->log_norm, sits->k_numbers);
+            serializer->doDoubleArray(sits->log_norm_old, sits->k_numbers);
         }
+
+        serializer->doReal(&sits->energy_multiple);
+        serializer->doReal(&sits->energy_shift);
+        serializer->doReal(&sits->fb_shift);
+        serializer->doBool(&sits->constant_nk);
+        serializer->doInt(&sits->nstsitsrecord);
+        serializer->doInt(&sits->nstsitsupdate);
+        serializer->doString(&sits->nk_traj_file);
+        serializer->doString(&sits->norm_traj_file);
+        serializer->doString(&sits->nk_rest_file);
+        serializer->doString(&sits->norm_rest_file);
+        serializer->doString(&sits->energy_record_out);
     }
 }
 
@@ -1347,6 +1372,23 @@ static void do_inputrec(gmx::ISerializer* serializer, t_inputrec* ir, int file_v
 
     serializer->doInt(&ir->efep);
     do_fepvals(serializer, ir->fepvals, file_version);
+
+    if (file_version >= 79)
+    {
+        serializer->doBool(&ir->bSITS);
+        if (ir->bSITS)
+        {
+            ir->bSITS = TRUE;
+        }
+    }
+    else
+    {
+        ir->bSITS = FALSE;
+    }
+    if (ir->bSITS)
+    {
+        do_sitsvals(serializer, ir->sitsvals, file_version);
+    }
 
     if (file_version >= 79)
     {

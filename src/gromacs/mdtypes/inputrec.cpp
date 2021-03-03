@@ -61,6 +61,8 @@
 #include "gromacs/utility/textwriter.h"
 #include "gromacs/utility/txtdump.h"
 
+#define CONSTANT_kB 0.00198716
+
 //! Macro to select a bool name
 #define EBOOL(e) gmx::boolToString(e)
 
@@ -558,297 +560,138 @@ static void pr_expandedvals(FILE* fp, int indent, const t_expanded* expand, int 
 
 static void pr_sitsvals(FILE* fp, int indent, const t_sits* sits, int n_lambda)
 {
-    PS("sits_enhance_mode", esits_enh_names[sits->sits_enh_mode]);
-    PI("sits_calc_mode", sits->sits_calc_mode);
-    PI("sits_enh_bias", sits->sits_enh_bias);
+    PS("sits-enhance-mode", esits_enh_names[sits->sits_enh_mode]);
+    PI("sits-calc-mode", sits->sits_calc_mode);
+    PI("sits-enh-bias", sits->sits_enh_bias);
 
-    PS("simulated-tempering-scaling", ESIMTEMP(simtemp->eSimTempScale));
-    PR("sits-temp-low", sits->sitstemp_low);
-    PR("sits-temp-high", sits->sitstemp_high);
-    pr_rvec(fp, indent, "sits-temperatures", sits->temp_k, n_lambda, TRUE);
+    PR("pw-enhance-factor", sits->pw_enhance_factor);
+
+    // PR("sits-temp-low", sits->sitstemp_low);
+    // PR("sits-temp-high", sits->sitstemp_high);
+    // pr_rvec(fp, indent, "sits-temperatures", sits->temp_k, n_lambda, TRUE);
 
     if (sits->sits_calc_mode == 0)
     {
-        PI("nstsitsrecord", sits->nstsitsrecord);
-        PI("nstsitsupdate", sits->nstsitsupdate);
+        PI("sits-t-numbers", sits->k_numbers);
+        PR("sits-t-ref", 1.0f / CONSTANT_kB / sits->beta0);
+        PR("sits_t_high", 1.0f / CONSTANT_kB / sits->beta_k[sits->k_numbers -1]);
+        PR("sits_t_low", 1.0f / CONSTANT_kB / sits->beta_k[0]);
 
-        sits->k_numbers = 40;
-        if (controller[0].Command_Exist("sits_temperature_numbers"))
-        {
-            sits->k_numbers = atoi(controller[0].Command("sits_temperature_numbers"));
-        }
-        printf("	SITS Temperature Numbers is %d\n", sits->k_numbers);
+    //     float* tempf;
+    //     // float* tempf = malloc(sizeof(float)*sits->k_numbers);
+    //     Malloc_Safely((void**)&tempf, sizeof(float)*sits->k_numbers);
 
-        float temp0 = 300.0f;
-        if (controller[0].Command_Exist("target_temperature"))
-        {
-            temp0 = atof(controller[0].Command("target_temperature"));
-        }
-        sits->beta0 = 1.0f / CONSTANT_kB / temp0;
+    //     if (sits->beta_k != NULL) free(sits->beta_k);
+    //     // sits->beta_k = malloc(sizeof(float)*sits->k_numbers);
+    //     Malloc_Safely((void**)&(sits->beta_k), sizeof(float)*sits->k_numbers);
+    //     //温度相关信息
+    //     float temp_slope = (temph - templ) / (sits->k_numbers - 1);
+    //     for (int i = 0; i < sits->k_numbers; i = i + 1)
+    //     {
+    //         sits->beta_k[i] = templ + temp_slope * i;
+    //         sits->beta_k[i] = 1. / (CONSTANT_kB * sits->beta_k[i]);
+    //     }
 
-        float temph = 2.0f * temp0;
-        if (controller[0].Command_Exist("sits_temperature_high"))
-        {
-            temph = atof(controller[0].Command("sits_temperature_high"));
-        }
-        printf("	SITS Temperature High Border is %.2f\n", temph);
+    //     sits->energy_multiple = 1.0f;
+    //     PR("sits_energy_multiple", sits->energy_multiple);
+    //     PR("sits_energy_shift", sits->energy_shift);
+    //     PR("sits_fb_shift", sits->fb_shift);
 
-        float templ = temp0 / 1.2f;
-        if (controller[0].Command_Exist("sits_temperature_low"))
-        {
-            templ = atof(controller[0].Command("sits_temperature_low"));
-        }
-        printf("	SITS Temperature Low Border is %.2f\n", templ);
+    //     PS("sits_constant_nk", EBOOL(sits->constant_nk));
+    //     if (!sits->constant_nk)
+    //     {
+    //         PI("nstsitsrecord", sits->nstsitsrecord);
+    //         PI("nstsitsupdate", sits->nstsitsupdate);
+    //     }
 
-        sits->energy_multiple = 1.0f;
-        PR("sits_energy_multiple", sits->energy_multiple);
-        PR("sits_energy_shift", sits->energy_shift);
-        PR("sits_fb_shift", sits->fb_shift);
+    //     if (!sits->constant_nk)
+    //     {
+    //         // nk的轨迹文件
+    //         PS("sits_nk_traj_file", sits->nk_traj_file);
+    //         // norm的轨迹文件
+    //         PS("sits_norm_traj_file", sits->norm_traj_file);
+    //     }
 
-        sits->constant_nk = 0;
-        if (controller[0].Command_Exist("sits_constant_nk"))
-        {
-            sits->constant_nk = atoi(controller[0].Command("sits_constant_nk"));
-        }
+    //     char* temps;
 
-        if (!sits->constant_nk)
-        {
-            sits->record_interval = 1;
-            if (controller[0].Command_Exist("sits_record_interval"))
-            {
-                sits->record_interval =
-                        atoi(controller[0].Command("sits_record_interval"));
-            }
-            sits->update_interval = 100;
-            if (controller[0].Command_Exist("sits_update_interval"))
-            {
-                sits->update_interval =
-                        atoi(controller[0].Command("sits_update_interval"));
-            }
-        }
+    //     // nk的重开文件
+    //     PS("sits_nk_rest_file", sits->nk_rest_file);
+    //     // norm的重开文件
+    //     PS("sits_norm_rest_file", sits->norm_rest_file);
 
-        float* tempf;
-        Malloc_Safely((void**)&tempf, sizeof(float) * sits->k_numbers);
+    //     // nk的初始化文件及其初始化
+    //     PS("sits_nk_init_file", temps);
+    //     if (temps != "none")
+    //     {
+    //         FILE* nk_init_file;
+    //         Open_File_Safely(&nk_init_file, temps, "wb");
+    //         for (int i = 0; i < sits->k_numbers; i++)
+    //         {
+    //             fscanf(nk_init_file, "%f", &tempf[i]);
+    //         }
+    //         fclose(nk_init_file);
+    //     }
+    //     else
+    //     {
+    //         printf("	SITS Log Nk Initial To Default Value 0.0\n");
+    //         for (int i = 0; i < sits->k_numbers; i++)
+    //         {
+    //             tempf[i] = 0.0;
+    //         }
+    //     }
+    //     Malloc_Safely((void**)&(sits->log_nk), sizeof(float)*sits->k_numbers);
+    //     Malloc_Safely((void**)&(sits->Nk), sizeof(float)*sits->k_numbers);
+    //     for (int i = 0; i < sits->k_numbers; i++){
+    //         sits->log_nk[i] = tempf[i];
+    //         sits->Nk[i] = expf(tempf[i]);
+    //     }
 
-        Cuda_Malloc_Safely((void**)&sits->beta_k, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->NkExpBetakU, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->Nk, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->sum_a, sizeof(float));
-        Cuda_Malloc_Safely((void**)&sits->sum_b, sizeof(float));
-        Cuda_Malloc_Safely((void**)&sits->d_fc_ball,
-                           sizeof(float) * 2); //这里分配两个，一个存上一次的一个，免得变化太大体系炸了
-        Reset_List<<<1, 2>>>(2, sits->d_fc_ball, 1.0);
-        Cuda_Malloc_Safely((void**)&sits->ene_recorded, sizeof(float));
-        Cuda_Malloc_Safely((void**)&sits->gf, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->gfsum, sizeof(float));
-        Cuda_Malloc_Safely((void**)&sits->log_weight, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->log_mk_inv, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->log_norm_old, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->log_norm, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->log_pk, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->log_nk_inv, sizeof(float) * sits->k_numbers);
-        Cuda_Malloc_Safely((void**)&sits->log_nk, sizeof(float) * sits->k_numbers);
-        Malloc_Safely((void**)&sits->log_nk_recorded_cpu, sizeof(float) * sits->k_numbers);
-        Malloc_Safely((void**)&sits->log_norm_recorded_cpu,
-                      sizeof(float) * sits->k_numbers);
-        if (!sits->constant_nk)
-        {
-            // nk的轨迹文件
-            if (controller[0].Command_Exist("sits_nk_traj_file"))
-            {
-                printf("	SITS Log Nk Trajectory File: %s\n",
-                       controller[0].Command("sits_nk_traj_file"));
-                Open_File_Safely(&sits->nk_traj_file,
-                                 controller[0].Command("sits_nk_traj_file"), "wb");
-            }
-            else
-            {
-                printf("	SITS Log Nk Trajectory File: sits_nk_traj_file.dat\n");
-                Open_File_Safely(&sits->nk_traj_file, "sits_nk_traj_file.dat", "wb");
-            }
-            // norm的轨迹文件
-            if (controller[0].Command_Exist("sits_norm_traj_file"))
-            {
-                printf("	SITS Log Normalization Trajectory File: %s\n",
-                       controller[0].Command("sits_norm_traj_file"));
-                Open_File_Safely(&sits->norm_traj_file,
-                                 controller[0].Command("sits_norm_traj_file"), "wb");
-            }
-            else
-            {
-                printf("	SITS Log Normalization Trajectory File: sits_norm_traj_file.dat\n");
-                Open_File_Safely(&sits->norm_traj_file, "sits_norm_traj_file.dat", "wb");
-            }
-        }
-        // nk的重开文件
-        if (controller[0].Command_Exist("sits_nk_rest_file"))
-        {
-            printf("	SITS Log Nk Restart File: %s\n",
-                   controller[0].Command("sits_nk_rest_file"));
-            strcpy(sits->nk_rest_file, controller[0].Command("sits_nk_rest_file"));
-        }
-        else
-        {
-            printf("	SITS Log Nk Restart File: sits_nk_rest_file.dat\n");
-            strcpy(sits->nk_rest_file, "sits_nk_rest_file.dat");
-        }
-        // norm的重开文件
-        if (controller[0].Command_Exist("sits_norm_rest_file"))
-        {
-            printf("	SITS Log Normalization Restart File: %s\n",
-                   controller[0].Command("sits_norm_rest_file"));
-            strcpy(sits->nk_rest_file, controller[0].Command("sits_norm_rest_file"));
-        }
-        else
-        {
-            printf("	SITS Log Normalization Restart File: sits_norm_rest_file.dat\n");
-            strcpy(sits->norm_rest_file, "sits_norm_rest_file.dat");
-        }
-        // nk的初始化文件及其初始化
-        if (controller[0].Command_Exist("sits_nk_init_file"))
-        {
-            FILE* nk_init_file;
-            printf("	SITS Log Nk Initial File: %s\n",
-                   controller[0].Command("sits_nk_init_file"));
-            Open_File_Safely(&nk_init_file, controller[0].Command("sits_nk_init_file"), "wb");
-            for (int i = 0; i < sits->k_numbers; i++)
-            {
-                fscanf(nk_init_file, "%f", &tempf[i]);
-            }
-            fclose(nk_init_file);
-        }
-        else
-        {
-            printf("	SITS Log Nk Initial To Default Value 0.0\n");
-            for (int i = 0; i < sits->k_numbers; i++)
-            {
-                tempf[i] = 0.0;
-            }
-        }
-        cudaMemcpy(sits->log_nk, tempf, sizeof(float) * sits->k_numbers,
-                   cudaMemcpyHostToDevice);
+    //     // norm的初始化文件及其初始化
+    //     PS("sits_norm_init_file", temps);
+    //     if (temps != "none")
+    //     {
+    //         FILE* norm_init_file;
+    //         printf("	SITS Log Normalization Initial File: %s\n", temps);
+    //         Open_File_Safely(&norm_init_file, temps, "wb");
+    //         for (int i = 0; i < sits->k_numbers; i++)
+    //         {
+    //             fscanf(norm_init_file, "%f", &tempf[i]);
+    //         }
+    //         fclose(norm_init_file);
+    //     }
+    //     else
+    //     {
+    //         printf("	SITS Log Normalization Initial To Default Value %.0e\n", -FLT_MAX);
+    //         for (int i = 0; i < sits->k_numbers; i++)
+    //         {
+    //             tempf[i] = -FLT_MAX;
+    //         }
+    //     }
+    //     Malloc_Safely((void**)&(sits->log_norm), sizeof(float)*sits->k_numbers);
+    //     Malloc_Safely((void**)&(sits->log_norm_old), sizeof(float)*sits->k_numbers);
+    //     for (int i = 0; i < sits->k_numbers; i++){
+    //         sits->log_norm[i] = tempf[i];
+    //         sits->log_norm_old[i] = tempf[i];
+    //     }
 
-        for (int i = 0; i < sits->k_numbers; i++)
-        {
-            tempf[i] = expf(tempf[i]);
-        }
-        cudaMemcpy(sits->Nk, tempf, sizeof(float) * sits->k_numbers,
-                   cudaMemcpyHostToDevice);
-
-        // norm的初始化文件及其初始化
-        if (controller[0].Command_Exist("sits_norm_init_file"))
-        {
-            FILE* norm_init_file;
-            printf("	SITS Log Normalization Initial File: %s\n",
-                   controller[0].Command("sits_norm_init_file"));
-            Open_File_Safely(&norm_init_file, controller[0].Command("sits_norm_init_file"), "wb");
-            for (int i = 0; i < sits->k_numbers; i++)
-            {
-                fscanf(norm_init_file, "%f", &tempf[i]);
-            }
-            fclose(norm_init_file);
-        }
-        else
-        {
-            printf("	SITS Log Normalization Initial To Default Value %.0e\n", -FLT_MAX);
-            for (int i = 0; i < sits->k_numbers; i++)
-            {
-                tempf[i] = -FLT_MAX;
-            }
-        }
-        cudaMemcpy(sits->log_norm, tempf, sizeof(float) * sits->k_numbers,
-                   cudaMemcpyHostToDevice);
-        cudaMemcpy(sits->log_norm_old, tempf, sizeof(float) * sits->k_numbers,
-                   cudaMemcpyHostToDevice);
-
-        //温度相关信息
-        float temp_slope = (temph - templ) / (sits->k_numbers - 1);
-        for (int i = 0; i < sits->k_numbers; i = i + 1)
-        {
-            tempf[i] = templ + temp_slope * i;
-            tempf[i] = 1. / (CONSTANT_kB * tempf[i]);
-        }
-        cudaMemcpy(sits->beta_k, tempf, sizeof(float) * sits->k_numbers,
-                   cudaMemcpyHostToDevice);
-
-
-        free(tempf);
-    }
-    else
-    {
-        //初始化随机种子，用于fc随机运动
-        srand(simple_info.random_seed);
-        //初始化fc_pdf
-        if (controller[0].Command_Exist("sits_fcball_pdf_grid_numbers"))
-        {
-            simple_info.grid_numbers = atoi(controller[0].Command("sits_fcball_pdf_grid_numbers"));
-        }
-        Malloc_Safely((void**)&simple_info.fc_pdf, sizeof(float) * simple_info.grid_numbers);
-        for (int i = 0; i < simple_info.grid_numbers; i = i + 1)
-        {
-            simple_info.fc_pdf[i] = 0.01; //默认概率都为相同的非0值
-        }
-        if (controller[0].Command_Exist("sits_fcball_pdf"))
-        {
-            FILE* flin = NULL; //打开读入的临时文件指针
-            Open_File_Safely(&flin, controller[0].Command("sits_fcball_pdf"), "r");
-            for (int i = 0; i < simple_info.grid_numbers; i = i + 1)
-            {
-                fscanf(flin, "%f\n", &simple_info.fc_pdf[i]);
-            }
-            fclose(flin);
-        }
-
-        //如果采用固定的fc_ball
-        if (controller[0].Command_Exist("sits_constant_fcball"))
-        {
-            simple_info.is_constant_fc_ball = 1;
-            sscanf(controller[0].Command("sits_constant_fcball"), "%f", &simple_info.constant_fc_ball);
-        }
-
-        //随机游走的fc上下限和步长
-        if (controller[0].Command_Exist("sits_fcball_max"))
-        {
-            sscanf(controller[0].Command("sits_fcball_max"), "%f", &simple_info.fc_max);
-        }
-        if (controller[0].Command_Exist("sits_fcball_min"))
-        {
-            sscanf(controller[0].Command("sits_fcball_min"), "%f", &simple_info.fc_min);
-        }
-        if (controller[0].Command_Exist("sits_fcball_move_length"))
-        {
-            sscanf(controller[0].Command("sits_fcball_move_length"), "%f", &simple_info.move_length);
-        }
-
-        //随机种子
-        if (controller[0].Command_Exist("sits_fcball_random_seed"))
-        {
-            sscanf(controller[0].Command("sits_fcball_random_seed"), "%d", &simple_info.random_seed);
-        }
+    //     free(tempf);
+    //     free(temps);
     }
     
     //记录分能量的文件
-    if (controller[0].Command_Exist("sits_energy_record"))
-    {
-        printf("	SITS Energy Record File: %s\n",
-               controller[0].Command("sits_energy_record"));
-        Open_File_Safely(&sits_ene_record_out, controller[0].Command("sits_energy_record"), "w");
-    }
-    else
-    {
-        printf("	SITS Energy Record File: SITS_Energy_Record.txt\n");
-        Open_File_Safely(&sits_ene_record_out, "SITS_Energy_Record.txt", "w");
-    }
-    fprintf(sits_ene_record_out, "SITS: ______AA______ ______BB______ ______AB______ fc_ball\n");
-    if (info.sits_mode % 2 == 1)
-    {
-        info.pwwp_enhance_factor = 0.5;
-        if (controller[0].Command_Exist("pwwp_enhance_factor"))
-        {
-            info.pwwp_enhance_factor = atof(controller[0].Command("pwwp_enhance_factor"));
-        }
-        printf("	SITS Interaction Enhancing Factor: %.2f\n", info.pwwp_enhance_factor);
-    }
+    // PS("sits_energy_record", sits->energy_record_out);
+    // if (controller[0].Command_Exist("sits_energy_record"))
+    // {
+    //     printf("	SITS Energy Record File: %s\n",
+    //            controller[0].Command("sits_energy_record"));
+    //     Open_File_Safely(&sits_ene_record_out, controller[0].Command("sits_energy_record"), "w");
+    // }
+    // else
+    // {
+    //     printf("	SITS Energy Record File: SITS_Energy_Record.txt\n");
+    //     Open_File_Safely(&sits_ene_record_out, "SITS_Energy_Record.txt", "w");
+    // }
+    // fprintf(sits_ene_record_out, "SITS: ______AA______ ______BB______ ______AB______ fc_ball\n");
 
     printf("End (Selective Integrated Tempering Sampling)\n\n");
 }
@@ -1481,6 +1324,9 @@ static void cmp_awhParams(FILE* fp, const gmx::AwhParams* awh1, const gmx::AwhPa
         }
     }
 }
+
+// TODO: finish cmp_sitsvals
+static void cmp_sitscals();
 
 static void cmp_simtempvals(FILE*            fp,
                             const t_simtemp* simtemp1,
