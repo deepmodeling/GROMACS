@@ -189,10 +189,11 @@ void pme_gpu_prepare_computation(gmx_pme_t*               pme,
     }
 }
 
-void pme_gpu_launch_spread(gmx_pme_t*            pme,
-                           GpuEventSynchronizer* xReadyOnDevice,
-                           gmx_wallcycle*        wcycle,
-                           const real            lambdaQ)
+void pme_gpu_launch_spread(gmx_pme_t*               pme,
+                           GpuEventSynchronizer*    xReadyOnDevice,
+                           gmx_wallcycle*           wcycle,
+                           const gmx::StepWorkload& stepWork,
+                           const real               lambdaQ)
 {
     GMX_ASSERT(pme_gpu_active(pme), "This should be a GPU run of PME but it is not enabled.");
     GMX_ASSERT(!GMX_GPU_CUDA || xReadyOnDevice || !pme->bPPnode,
@@ -205,9 +206,12 @@ void pme_gpu_launch_spread(gmx_pme_t*            pme,
                "If not decoupling Coulomb interactions there should only be one FEP grid. If "
                "decoupling Coulomb interactions there should be two grids.");
 
+    /* If computing energy and virial and running Coulomb FEP two grids will be used. Otherwise one grid is enough. */
+    const bool computeEnergyAndVirial = stepWork.computeEnergy || stepWork.computeVirial;
+
     /* PME on GPU can currently manage two grids:
-     * grid_index=0: Coulomb PME with charges in the normal state or from FEP state A.
-     * grid_index=1: Coulomb PME with charges from FEP state B.
+     * grid_index=0: Coulomb PME with charges in the normal state or from FEP state A or interpolated coefficients from state A and B.
+     * grid_index=1: Coulomb PME with charges from FEP state B (when calculating energy and virial).
      */
     real** fftgrids = pme->fftgrid;
     /* Spread the coefficients on a grid */
@@ -215,7 +219,7 @@ void pme_gpu_launch_spread(gmx_pme_t*            pme,
     const bool spreadCharges  = true;
     wallcycle_start_nocount(wcycle, ewcLAUNCH_GPU);
     wallcycle_sub_start_nocount(wcycle, ewcsLAUNCH_GPU_PME);
-    pme_gpu_spread(pmeGpu, xReadyOnDevice, fftgrids, computeSplines, spreadCharges, lambdaQ);
+    pme_gpu_spread(pmeGpu, xReadyOnDevice, fftgrids, computeSplines, spreadCharges, lambdaQ, computeEnergyAndVirial);
     wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_PME);
     wallcycle_stop(wcycle, ewcLAUNCH_GPU);
 }
@@ -233,11 +237,14 @@ void pme_gpu_launch_complex_transforms(gmx_pme_t* pme, gmx_wallcycle* wcycle, co
         wallcycle_stop(wcycle, ewcWAIT_GPU_PME_SPREAD);
     }
 
+    /* One grid is enough if not computing the energy and virial (the coefficients will be interpolated on the one grid if using FEP). */
+    const int numGridsToUse = computeEnergyAndVirial ? pmeGpu->common->ngrids : 1;
+
     try
     {
         /* The 3dffts and the solve are done in a loop to simplify things, even if this means that
          * there will be two kernel launches for solve. */
-        for (int gridIndex = 0; gridIndex < pmeGpu->common->ngrids; gridIndex++)
+        for (int gridIndex = 0; gridIndex < numGridsToUse; gridIndex++)
         {
             /* do R2C 3D-FFT */
             t_complex* cfftgrid = pme->cfftgrid[gridIndex];
@@ -271,7 +278,10 @@ void pme_gpu_launch_complex_transforms(gmx_pme_t* pme, gmx_wallcycle* wcycle, co
     GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR;
 }
 
-void pme_gpu_launch_gather(const gmx_pme_t* pme, gmx_wallcycle gmx_unused* wcycle, const real lambdaQ)
+void pme_gpu_launch_gather(const gmx_pme_t* pme,
+                           gmx_wallcycle gmx_unused* wcycle,
+                           const gmx::StepWorkload&  stepWork,
+                           const real                lambdaQ)
 {
     GMX_ASSERT(pme_gpu_active(pme), "This should be a GPU run of PME but it is not enabled.");
 
@@ -280,11 +290,13 @@ void pme_gpu_launch_gather(const gmx_pme_t* pme, gmx_wallcycle gmx_unused* wcycl
         return;
     }
 
+    const bool computedEnergyAndVirial = stepWork.computeEnergy || stepWork.computeVirial;
+
     wallcycle_start_nocount(wcycle, ewcLAUNCH_GPU);
     wallcycle_sub_start_nocount(wcycle, ewcsLAUNCH_GPU_PME);
 
     float** fftgrids = pme->fftgrid;
-    pme_gpu_gather(pme->gpu, fftgrids, lambdaQ);
+    pme_gpu_gather(pme->gpu, fftgrids, lambdaQ, computedEnergyAndVirial);
     wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_PME);
     wallcycle_stop(wcycle, ewcLAUNCH_GPU);
 }

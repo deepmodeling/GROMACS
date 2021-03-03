@@ -1248,7 +1248,8 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
                     real**                h_grids,
                     bool                  computeSplines,
                     bool                  spreadCharges,
-                    const real            lambda)
+                    const real            lambda,
+                    const bool            computeEnergyAndVirial)
 {
     GMX_ASSERT(
             pmeGpu->common->ngrids == 1 || pmeGpu->common->ngrids == 2,
@@ -1258,6 +1259,8 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
                "PME spline/spread kernel has invalid input (nothing to do)");
     auto* kernelParamsPtr = pmeGpu->kernelParams.get();
     GMX_ASSERT(kernelParamsPtr->atoms.nAtoms > 0, "No atom data in PME GPU spread");
+
+    const int numGridsToUse = computeEnergyAndVirial ? pmeGpu->common->ngrids : 1;
 
     const size_t blockSize = pmeGpu->programHandle_->impl_->spreadWorkGroupSize;
 
@@ -1322,27 +1325,21 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
         if (spreadCharges)
         {
             timingId  = gtPME_SPLINEANDSPREAD;
-            kernelPtr = selectSplineAndSpreadKernelPtr(pmeGpu,
-                                                       pmeGpu->settings.threadsPerAtom,
-                                                       writeGlobal || (!recalculateSplines),
-                                                       pmeGpu->common->ngrids);
+            kernelPtr = selectSplineAndSpreadKernelPtr(
+                    pmeGpu, pmeGpu->settings.threadsPerAtom, writeGlobal || (!recalculateSplines), numGridsToUse);
         }
         else
         {
             timingId  = gtPME_SPLINE;
-            kernelPtr = selectSplineKernelPtr(pmeGpu,
-                                              pmeGpu->settings.threadsPerAtom,
-                                              writeGlobal || (!recalculateSplines),
-                                              pmeGpu->common->ngrids);
+            kernelPtr = selectSplineKernelPtr(
+                    pmeGpu, pmeGpu->settings.threadsPerAtom, writeGlobal || (!recalculateSplines), numGridsToUse);
         }
     }
     else
     {
         timingId  = gtPME_SPREAD;
-        kernelPtr = selectSpreadKernelPtr(pmeGpu,
-                                          pmeGpu->settings.threadsPerAtom,
-                                          writeGlobal || (!recalculateSplines),
-                                          pmeGpu->common->ngrids);
+        kernelPtr = selectSpreadKernelPtr(
+                pmeGpu, pmeGpu->settings.threadsPerAtom, writeGlobal || (!recalculateSplines), numGridsToUse);
     }
 
 
@@ -1375,7 +1372,7 @@ void pme_gpu_spread(const PmeGpu*         pmeGpu,
     const bool copyBackGrid = spreadCharges && (!settings.performGPUFFT || settings.copyAllOutputs);
     if (copyBackGrid)
     {
-        for (int gridIndex = 0; gridIndex < pmeGpu->common->ngrids; gridIndex++)
+        for (int gridIndex = 0; gridIndex < numGridsToUse; gridIndex++)
         {
             float* h_grid = h_grids[gridIndex];
             pme_gpu_copy_output_spread_grid(pmeGpu, h_grid, gridIndex);
@@ -1604,7 +1601,7 @@ inline auto selectGatherKernelPtr(const PmeGpu*  pmeGpu,
     return kernelPtr;
 }
 
-void pme_gpu_gather(PmeGpu* pmeGpu, real** h_grids, const float lambda)
+void pme_gpu_gather(PmeGpu* pmeGpu, real** h_grids, const float lambda, const bool computedEnergyAndVirial)
 {
     GMX_ASSERT(
             pmeGpu->common->ngrids == 1 || pmeGpu->common->ngrids == 2,
@@ -1612,9 +1609,11 @@ void pme_gpu_gather(PmeGpu* pmeGpu, real** h_grids, const float lambda)
 
     const auto& settings = pmeGpu->settings;
 
+    /* One grid is enough if not computing the energy and virial (the coefficients will be interpolated on the one grid if using FEP). */
+    const int numGridsToUse = computedEnergyAndVirial ? pmeGpu->common->ngrids : 1;
     if (!settings.performGPUFFT || settings.copyAllOutputs)
     {
-        for (int gridIndex = 0; gridIndex < pmeGpu->common->ngrids; gridIndex++)
+        for (int gridIndex = 0; gridIndex < numGridsToUse; gridIndex++)
         {
             float* h_grid = const_cast<float*>(h_grids[gridIndex]);
             pme_gpu_copy_input_gather_grid(pmeGpu, h_grid, gridIndex);
@@ -1657,12 +1656,9 @@ void pme_gpu_gather(PmeGpu* pmeGpu, real** h_grids, const float lambda)
 
     // TODO test different cache configs
 
-    int                                timingId = gtPME_GATHER;
-    PmeGpuProgramImpl::PmeKernelHandle kernelPtr =
-            selectGatherKernelPtr(pmeGpu,
-                                  pmeGpu->settings.threadsPerAtom,
-                                  readGlobal || (!recalculateSplines),
-                                  pmeGpu->common->ngrids);
+    int                                timingId  = gtPME_GATHER;
+    PmeGpuProgramImpl::PmeKernelHandle kernelPtr = selectGatherKernelPtr(
+            pmeGpu, pmeGpu->settings.threadsPerAtom, readGlobal || (!recalculateSplines), numGridsToUse);
     // TODO design kernel selection getters and make PmeGpu a friend of PmeGpuProgramImpl
 
     pme_gpu_start_timing(pmeGpu, timingId);

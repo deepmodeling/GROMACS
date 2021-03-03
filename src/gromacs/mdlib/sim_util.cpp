@@ -730,7 +730,7 @@ static inline void launchPmeGpuSpread(gmx_pme_t*            pmedata,
                                       gmx_wallcycle_t       wcycle)
 {
     pme_gpu_prepare_computation(pmedata, box, wcycle, stepWork);
-    pme_gpu_launch_spread(pmedata, xReadyOnDevice, wcycle, lambdaQ);
+    pme_gpu_launch_spread(pmedata, xReadyOnDevice, wcycle, stepWork, lambdaQ);
 }
 
 /*! \brief Launch the FFT and gather stages of PME GPU
@@ -748,7 +748,7 @@ static void launchPmeGpuFftAndGather(gmx_pme_t*               pmedata,
                                      const gmx::StepWorkload& stepWork)
 {
     pme_gpu_launch_complex_transforms(pmedata, wcycle, stepWork);
-    pme_gpu_launch_gather(pmedata, wcycle, lambdaQ);
+    pme_gpu_launch_gather(pmedata, wcycle, stepWork, lambdaQ);
 }
 
 /*! \brief

@@ -297,6 +297,7 @@ __device__ __forceinline__ void sumForceComponents(float* __restrict__ fx,
 
 /*! \brief Calculate the grid forces and store them in shared memory.
  *
+ * \tparam[in] multiCoefficientsSingleGrid Whether to combine coefficients A and B weighted by scale or not.
  * \param[in,out] sm_forces       Shared memory array with the output forces.
  * \param[in] forceIndexLocal     The local (per thread) index in the sm_forces array.
  * \param[in] forceIndexGlobal    The index of the thread in the gm_coefficients array.
@@ -309,16 +310,22 @@ __device__ __forceinline__ void sumForceComponents(float* __restrict__ fx,
  * \param[in] gm_coefficientsB    Global memory array of the coefficients to use for FEP in state B.
  * Should be nullptr if two separate grids are used.
  */
+template<bool multiCoefficientsSingleGrid>
 __device__ __forceinline__ void calculateAndStoreGridForces(float3* __restrict__ sm_forces,
                                                             const int   forceIndexLocal,
                                                             const int   forceIndexGlobal,
                                                             const float recipBox[DIM][DIM],
                                                             const float scale,
-                                                            const float* __restrict__ gm_coefficients)
+                                                            const float* __restrict__ gm_coefficients,
+                                                            const float* __restrict__ gm_coefficientsB)
 {
     const float3 atomForces     = sm_forces[forceIndexLocal];
     float        negCoefficient = -scale * gm_coefficients[forceIndexGlobal];
-    float3       result;
+    if (multiCoefficientsSingleGrid)
+    {
+        negCoefficient -= (1.0 - scale) * gm_coefficientsB[forceIndexGlobal];
+    }
+    float3 result;
     result.x = negCoefficient * recipBox[XX][XX] * atomForces.x;
     result.y = negCoefficient * (recipBox[XX][YY] * atomForces.x + recipBox[YY][YY] * atomForces.y);
     result.z = negCoefficient
@@ -447,10 +454,20 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
             // Coordinates
             __shared__ float3 sm_coordinates[atomsPerBlock];
             /* Staging coefficients/charges */
-            pme_gpu_stage_atom_data<float, atomsPerBlock, 1>(sm_coefficients, gm_coefficientsA);
+            if (numGrids == 1)
+            {
+                pme_gpu_stage_atom_data<float, atomsPerBlock, 1, true>(
+                        kernelParams, sm_coefficients, gm_coefficientsA, gm_coefficientsB);
+            }
+            else
+            {
+                pme_gpu_stage_atom_data<float, atomsPerBlock, 1, false>(
+                        kernelParams, sm_coefficients, gm_coefficientsA, nullptr);
+            }
 
             /* Staging coordinates */
-            pme_gpu_stage_atom_data<float3, atomsPerBlock, 1>(sm_coordinates, gm_coordinates);
+            pme_gpu_stage_atom_data<float3, atomsPerBlock, 1, false>(
+                    kernelParams, sm_coordinates, gm_coordinates, nullptr);
             __syncthreads();
             atomX      = sm_coordinates[atomIndexLocal];
             atomCharge = sm_coefficients[atomIndexLocal];
@@ -526,8 +543,26 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
     const float scale            = kernelParams.current.scale;
     if (forceIndexLocal < atomsPerBlock)
     {
-        calculateAndStoreGridForces(
-                sm_forces, forceIndexLocal, forceIndexGlobal, kernelParams.current.recipBox, scale, gm_coefficientsA);
+        if (numGrids == 1)
+        {
+            calculateAndStoreGridForces<true>(sm_forces,
+                                              forceIndexLocal,
+                                              forceIndexGlobal,
+                                              kernelParams.current.recipBox,
+                                              scale,
+                                              gm_coefficientsA,
+                                              gm_coefficientsB);
+        }
+        else
+        {
+            calculateAndStoreGridForces<false>(sm_forces,
+                                               forceIndexLocal,
+                                               forceIndexGlobal,
+                                               kernelParams.current.recipBox,
+                                               scale,
+                                               gm_coefficientsA,
+                                               nullptr);
+        }
     }
 
     __syncwarp();
@@ -586,12 +621,13 @@ __launch_bounds__(c_gatherMaxThreadsPerBlock, c_gatherMinBlocksPerMP) __global__
         /* Calculating the final forces with no component branching, atomsPerBlock threads */
         if (forceIndexLocal < atomsPerBlock)
         {
-            calculateAndStoreGridForces(sm_forces,
-                                        forceIndexLocal,
-                                        forceIndexGlobal,
-                                        kernelParams.current.recipBox,
-                                        1.0F - scale,
-                                        gm_coefficientsB);
+            calculateAndStoreGridForces<false>(sm_forces,
+                                               forceIndexLocal,
+                                               forceIndexGlobal,
+                                               kernelParams.current.recipBox,
+                                               1.0F - scale,
+                                               gm_coefficientsB,
+                                               nullptr);
         }
 
         __syncwarp();

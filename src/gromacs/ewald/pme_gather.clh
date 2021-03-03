@@ -244,18 +244,27 @@ inline void sumForceComponents(float*        fx,
  * \param[in] recipBox            The reciprocal box.
  * \param[in] scale               The scale to use when calculating the forces (only relevant when
  * using two grids).
- * \param[in] gm_coefficients     Global memory array of the coefficients to use.
+ * \param[in] gm_coefficients     Global memory array of the coefficients to use for an unperturbed
+ * or FEP in state A if a single grid is used (\p multiCoefficientsSingleGrid == true).If two
+ * separate grids are used this should be the coefficients of the grid in question.
+ * \param[in] gm_coefficientsB    Global memory array of the coefficients to use for FEP in state B.
+ * Should be nullptr if two separate grids are used.
  */
 inline void calculateAndStoreGridForces(__local float* __restrict__ sm_forces,
                                         const int   forceIndexLocal,
                                         const int   forceIndexGlobal,
                                         const float recipBox[DIM][DIM],
                                         const float scale,
-                                        __global const float* __restrict__ gm_coefficients)
+                                        __global const float* __restrict__ gm_coefficients,
+                                        __global const float* __restrict__ gm_coefficientsB)
 {
     const float3 atomForces     = vload3(forceIndexLocal, sm_forces);
     float        negCoefficient = -scale * gm_coefficients[forceIndexGlobal];
-    float3       result;
+    if (gm_coefficientsB != nullptr)
+    {
+        negCoefficient -= (1.0 - scale) * gm_coefficientsB[forceIndexGlobal];
+    }
+    float3 result;
     result.x = negCoefficient * recipBox[XX][XX] * atomForces.x;
     result.y = negCoefficient * (recipBox[XX][YY] * atomForces.x + recipBox[YY][YY] * atomForces.y);
     result.z = negCoefficient
@@ -418,8 +427,26 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
     const float scale            = kernelParams.current.scale;
     if (forceIndexLocal < atomsPerBlock)
     {
-        calculateAndStoreGridForces(
-                sm_forces, forceIndexLocal, forceIndexGlobal, kernelParams.current.recipBox, scale, gm_coefficientsA);
+        if (nGrids == 1)
+        {
+            calculateAndStoreGridForces(sm_forces,
+                                        forceIndexLocal,
+                                        forceIndexGlobal,
+                                        kernelParams.current.recipBox,
+                                        scale,
+                                        gm_coefficientsA,
+                                        gm_coefficientsB);
+        }
+        else
+        {
+            calculateAndStoreGridForces(sm_forces,
+                                        forceIndexLocal,
+                                        forceIndexGlobal,
+                                        kernelParams.current.recipBox,
+                                        scale,
+                                        gm_coefficientsA,
+                                        nullptr);
+        }
     }
 
 #if !defined(_AMD_SOURCE_) && !defined(_NVIDIA_SOURCE_)
@@ -477,7 +504,8 @@ __kernel void CUSTOMIZED_KERNEL_NAME(pme_gather_kernel)(const struct PmeOpenCLKe
                                         forceIndexGlobal,
                                         kernelParams.current.recipBox,
                                         1.0F - scale,
-                                        gm_coefficientsB);
+                                        gm_coefficientsB,
+                                        nullptr);
         }
 
 #if !defined(_AMD_SOURCE_) && !defined(_NVIDIA_SOURCE_)

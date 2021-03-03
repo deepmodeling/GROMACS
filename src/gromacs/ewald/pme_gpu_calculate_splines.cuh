@@ -145,12 +145,21 @@ __device__ inline void assertIsFinite(T gmx_unused arg)
  * the size of the shared memory array.
  * \tparam[in] dataCountPerAtom   Number of data elements per single atom (e.g. DIM for an rvec
  * coordinates array).
- * \param[out] sm_destination     Shared memory array for output.
- * \param[in]  gm_source          Global memory array for input.
+ * \tparam[in] multiCoefficientsSingleGrid  Whether to spread coefficients A and B onto one single
+ * grid or not.
+ * \param[in]  kernelParams                 Input PME CUDA data in constant memory.
+ * \param[out] sm_destination               Shared memory array for output.
+ * \param[in]  gm_source                    Global memory array for input for an unperturbed
+ * system or FEP in state A if a single grid is used. If two separate grids are used (and this
+ * function called once for each) this should be the input for the grid in question.
+ * \param[in]  gm_sourceB                   Global memory array for input for FEP in state B.
+ * Should be nullptr if the input is not interpolated and spread on a single grid.
  */
-template<typename T, int atomsPerBlock, int dataCountPerAtom>
-__device__ __forceinline__ void pme_gpu_stage_atom_data(T* __restrict__ sm_destination,
-                                                        const T* __restrict__ gm_source)
+template<typename T, int atomsPerBlock, int dataCountPerAtom, bool multiCoefficientsSingleGrid>
+__device__ __forceinline__ void pme_gpu_stage_atom_data(const PmeGpuCudaKernelParams kernelParams,
+                                                        T* __restrict__ sm_destination,
+                                                        const T* __restrict__ gm_source,
+                                                        const T* __restrict__ gm_sourceB)
 {
     const int blockIndex       = blockIdx.y * gridDim.x + blockIdx.x;
     const int threadLocalIndex = ((threadIdx.z * blockDim.y + threadIdx.y) * blockDim.x) + threadIdx.x;
@@ -160,7 +169,17 @@ __device__ __forceinline__ void pme_gpu_stage_atom_data(T* __restrict__ sm_desti
     if (localIndex < atomsPerBlock * dataCountPerAtom)
     {
         assertIsFinite(gm_source[globalIndex]);
-        sm_destination[localIndex] = gm_source[globalIndex];
+        if (multiCoefficientsSingleGrid)
+        {
+            const float scale = kernelParams.current.scale;
+            assertIsFinite(gm_sourceB[globalIndex]);
+            sm_destination[localIndex] =
+                    gm_source[globalIndex] * scale + gm_sourceB[globalIndex] * (1.0F - scale);
+        }
+        else
+        {
+            sm_destination[localIndex] = gm_source[globalIndex];
+        }
     }
 }
 

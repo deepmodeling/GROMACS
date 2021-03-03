@@ -225,14 +225,34 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
     /* Charges, required for both spline and spread */
     if (c_useAtomDataPrefetch)
     {
-        pme_gpu_stage_atom_data<float, atomsPerBlock, 1>(sm_coefficients,
-                                                         kernelParams.atoms.d_coefficients[0]);
+        if (numGrids == 1)
+        {
+            pme_gpu_stage_atom_data<float, atomsPerBlock, 1, true>(kernelParams,
+                                                                   sm_coefficients,
+                                                                   kernelParams.atoms.d_coefficients[0],
+                                                                   kernelParams.atoms.d_coefficients[1]);
+        }
+        else
+        {
+            pme_gpu_stage_atom_data<float, atomsPerBlock, 1, false>(
+                    kernelParams, sm_coefficients, kernelParams.atoms.d_coefficients[0], nullptr);
+        }
         __syncthreads();
         atomCharge = sm_coefficients[atomIndexLocal];
     }
     else
     {
-        atomCharge = kernelParams.atoms.d_coefficients[0][atomIndexGlobal];
+        if (numGrids == 1)
+        {
+            const float scale = kernelParams.current.scale;
+            assert(isfinite(float(kernelParams.atoms.d_coefficients[1][atomIndexGlobal])));
+            atomCharge = kernelParams.atoms.d_coefficients[0][atomIndexGlobal] * scale
+                         + kernelParams.atoms.d_coefficients[1][atomIndexGlobal] * (1.0 - scale);
+        }
+        else
+        {
+            atomCharge = kernelParams.atoms.d_coefficients[0][atomIndexGlobal];
+        }
     }
 
     if (computeSplines)
@@ -244,7 +264,8 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
             __shared__ float3 sm_coordinates[atomsPerBlock];
 
             /* Staging coordinates */
-            pme_gpu_stage_atom_data<float3, atomsPerBlock, 1>(sm_coordinates, gm_coordinates);
+            pme_gpu_stage_atom_data<float3, atomsPerBlock, 1, false>(
+                    kernelParams, sm_coordinates, gm_coordinates, nullptr);
             __syncthreads();
             atomX = sm_coordinates[atomIndexLocal];
         }
@@ -263,10 +284,11 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
          * as in after running the spline kernel)
          */
         /* Spline data - only thetas (dthetas will only be needed in gather) */
-        pme_gpu_stage_atom_data<float, atomsPerBlock, DIM * order>(sm_theta, kernelParams.atoms.d_theta);
+        pme_gpu_stage_atom_data<float, atomsPerBlock, DIM * order, false>(
+                kernelParams, sm_theta, kernelParams.atoms.d_theta, nullptr);
         /* Gridline indices */
-        pme_gpu_stage_atom_data<int, atomsPerBlock, DIM>(sm_gridlineIndices,
-                                                         kernelParams.atoms.d_gridlineIndices);
+        pme_gpu_stage_atom_data<int, atomsPerBlock, DIM, false>(
+                kernelParams, sm_gridlineIndices, kernelParams.atoms.d_gridlineIndices, nullptr);
 
         __syncthreads();
     }
@@ -282,8 +304,8 @@ __launch_bounds__(c_spreadMaxThreadsPerBlock) CLANG_DISABLE_OPTIMIZATION_ATTRIBU
         __syncthreads();
         if (c_useAtomDataPrefetch)
         {
-            pme_gpu_stage_atom_data<float, atomsPerBlock, 1>(sm_coefficients,
-                                                             kernelParams.atoms.d_coefficients[1]);
+            pme_gpu_stage_atom_data<float, atomsPerBlock, 1, false>(
+                    kernelParams, sm_coefficients, kernelParams.atoms.d_coefficients[1], nullptr);
             __syncthreads();
             atomCharge = sm_coefficients[atomIndexLocal];
         }

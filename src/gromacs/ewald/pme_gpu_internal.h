@@ -348,21 +348,24 @@ void pme_gpu_destroy_3dfft(const PmeGpu* pmeGpu);
  * \param[in]  computeSplines         Should the computation of spline parameters and gridline indices be performed.
  * \param[in]  spreadCharges          Should the charges/coefficients be spread on the grid.
  * \param[in]  lambda                 The lambda value of the current system state.
+ * \param[in]  computeEnergyAndVirial Whether to compute the energy and virial. If not computing the energy and virial multiple
+ *                                    coefficients (from different lambda states) are interpolated to a single grid.
  */
 GPU_FUNC_QUALIFIER void pme_gpu_spread(const PmeGpu*         GPU_FUNC_ARGUMENT(pmeGpu),
                                        GpuEventSynchronizer* GPU_FUNC_ARGUMENT(xReadyOnDevice),
                                        float**               GPU_FUNC_ARGUMENT(h_grids),
                                        bool                  GPU_FUNC_ARGUMENT(computeSplines),
                                        bool                  GPU_FUNC_ARGUMENT(spreadCharges),
-                                       real GPU_FUNC_ARGUMENT(lambda)) GPU_FUNC_TERM;
+                                       real                  GPU_FUNC_ARGUMENT(lambda),
+                                       const bool GPU_FUNC_ARGUMENT(computeEnergyAndVirial)) GPU_FUNC_TERM;
 
 /*! \libinternal \brief
  * 3D FFT R2C/C2R routine.
  *
  * \param[in]  pmeGpu          The PME GPU structure.
  * \param[in]  direction       Transform direction (real-to-complex or complex-to-real)
- * \param[in]  gridIndex       The index of the grid to use. 0 is Coulomb in the normal
- *                             state or FEP state A and 1 is Coulomb in FEP state B.
+ * \param[in]  gridIndex       The index of the grid to use. 0 is normal Coulomb or in FEP state A
+ * (or interpolated from state A and B) and 1 is Coulomb in state B.
  */
 void pme_gpu_3dfft(const PmeGpu* pmeGpu, enum gmx_fft_direction direction, int gridIndex = 0);
 
@@ -388,10 +391,12 @@ GPU_FUNC_QUALIFIER void pme_gpu_solve(const PmeGpu* GPU_FUNC_ARGUMENT(pmeGpu),
  * \param[in]     pmeGpu                   The PME GPU structure.
  * \param[in]     h_grids                  The host-side grid buffer (used only in testing mode).
  * \param[in]     lambda                   The lambda value to use.
+ * \param[in]     computedEnergyAndVirial  Tells if the energy and virial computation was performed this step.
  */
 GPU_FUNC_QUALIFIER void pme_gpu_gather(PmeGpu* GPU_FUNC_ARGUMENT(pmeGpu),
                                        float** GPU_FUNC_ARGUMENT(h_grids),
-                                       float   GPU_FUNC_ARGUMENT(lambda)) GPU_FUNC_TERM;
+                                       float   GPU_FUNC_ARGUMENT(lambda),
+                                       const bool GPU_FUNC_ARGUMENT(computedEnergyAndVirial)) GPU_FUNC_TERM;
 
 
 /*! \brief Sets the device pointer to coordinate data

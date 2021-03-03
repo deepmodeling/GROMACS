@@ -362,12 +362,14 @@ GPU_FUNC_QUALIFIER void pme_gpu_prepare_computation(gmx_pme_t*     GPU_FUNC_ARGU
  * \param[in] xReadyOnDevice     Event synchronizer indicating that the coordinates
  * are ready in the device memory; nullptr allowed only on separate PME ranks.
  * \param[in] wcycle             The wallclock counter.
+ * \param[in] stepWork           The required work for this simulation step.
  * \param[in] lambdaQ            The Coulomb lambda of the current state of the
  * system. Only used if FEP of Coulomb is active.
  */
 GPU_FUNC_QUALIFIER void pme_gpu_launch_spread(gmx_pme_t*            GPU_FUNC_ARGUMENT(pme),
                                               GpuEventSynchronizer* GPU_FUNC_ARGUMENT(xReadyOnDevice),
                                               gmx_wallcycle*        GPU_FUNC_ARGUMENT(wcycle),
+                                              const gmx::StepWorkload& GPU_FUNC_ARGUMENT(stepWork),
                                               real GPU_FUNC_ARGUMENT(lambdaQ)) GPU_FUNC_TERM;
 
 /*! \brief
@@ -387,10 +389,12 @@ pme_gpu_launch_complex_transforms(gmx_pme_t*               GPU_FUNC_ARGUMENT(pme
  *
  * \param[in] pme               The PME data structure.
  * \param[in] wcycle            The wallclock counter.
+ * \param[in] stepWork          The required work for this simulation step.
  * \param[in] lambdaQ           The Coulomb lambda to use when calculating the results.
  */
-GPU_FUNC_QUALIFIER void pme_gpu_launch_gather(const gmx_pme_t* GPU_FUNC_ARGUMENT(pme),
-                                              gmx_wallcycle*   GPU_FUNC_ARGUMENT(wcycle),
+GPU_FUNC_QUALIFIER void pme_gpu_launch_gather(const gmx_pme_t*         GPU_FUNC_ARGUMENT(pme),
+                                              gmx_wallcycle*           GPU_FUNC_ARGUMENT(wcycle),
+                                              const gmx::StepWorkload& GPU_FUNC_ARGUMENT(stepWork),
                                               real GPU_FUNC_ARGUMENT(lambdaQ)) GPU_FUNC_TERM;
 
 /*! \brief

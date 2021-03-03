@@ -70,18 +70,29 @@
 #ifndef COMPILE_SPREAD_HELPERS_ONCE
 #    define COMPILE_SPREAD_HELPERS_ONCE
 
+#    ifndef nullptr
+#        define nullptr 0
+#    endif
+
 /*! \brief
  * General purpose function for loading atom-related data from global to shared memory.
  *
+ * \param[in]  kernelParams      Input PME GPU data in constant memory.
  * \param[out] sm_destination    Local memory array for output.
- * \param[in]  gm_source         Global memory array for input.
+ * \param[in]  gm_sourceA        Global memory array for input.
+ * \param[in]  gm_sourceB        Global memory array for input for FEP
+ * in state B. Should be nullptr if the input is not interpolated and
+ * spread on a single grid.
  * \param[in]  dataCountPerAtom  Number of data elements per single
  * atom (e.g. DIM for an rvec coordinates array).
  *
  */
-inline void pme_gpu_stage_atom_data(__local float* __restrict__ sm_destination,
-                                    __global const float* __restrict__ gm_source,
+inline void pme_gpu_stage_atom_data(const struct PmeOpenCLKernelParams kernelParams,
+                                    __local float* __restrict__ sm_destination,
+                                    __global const float* __restrict__ gm_sourceA,
+                                    __global const float* __restrict__ gm_sourceB,
                                     const int dataCountPerAtom)
+
 {
     assert((get_local_id(2) * get_local_size(1) + get_local_id(1)) * get_local_size(0) + get_local_id(0)
            < MAX_INT);
@@ -93,8 +104,18 @@ inline void pme_gpu_stage_atom_data(__local float* __restrict__ sm_destination,
     const int globalIndex     = globalIndexBase + localIndex;
     if (localIndex < atomsPerBlock * dataCountPerAtom)
     {
-        assert(isfinite(float(gm_source[globalIndex])));
-        sm_destination[localIndex] = gm_source[globalIndex];
+        assert(isfinite(float(gm_sourceA[globalIndex])));
+        if (gm_sourceB != nullptr)
+        {
+            const float scale = kernelParams.current.scale;
+            assert(isfinite(float(gm_sourceB[globalIndex])));
+            sm_destination[localIndex] =
+                    gm_sourceA[globalIndex] * scale + gm_sourceB[globalIndex] * (1.0F - scale);
+        }
+        else
+        {
+            sm_destination[localIndex] = gm_sourceA[globalIndex];
+        }
     }
 }
 
@@ -320,12 +341,14 @@ gmx_opencl_inline void calculate_splines(const struct PmeOpenCLKernelParams kern
  * Second stage of the whole kernel.
  *
  * \param[in]  kernelParams         Input PME GPU data in constant memory.
+ * \param[in]  gridIndex            The index of the grid on which to spread the charges.
  * \param[in]  sm_coefficients      Atom coefficents/charges in the shared memory.
  * \param[in]  sm_gridlineIndices   Atom gridline indices in the shared memory.
  * \param[in]  sm_theta             Atom spline values in the shared memory.
  * \param[out] gm_grid              Global 3D grid for spreading.
  */
 gmx_opencl_inline void spread_charges(const struct PmeOpenCLKernelParams kernelParams,
+                                      const int                          gridIndex,
                                       __local const float* __restrict__ sm_coefficients,
                                       __local const int* __restrict__ sm_gridlineIndices,
                                       __local const float* __restrict__ sm_theta,
@@ -444,12 +467,19 @@ __attribute__((reqd_work_group_size(order, order, atomsPerBlock))) __kernel void
     int       gridIndex       = 0;
 
     /* Staging coefficients/charges for both spline and spread */
-    pme_gpu_stage_atom_data(sm_coefficients, gm_coefficientsA, 1);
+    if (mode == SINGLE_GRID)
+    {
+        pme_gpu_stage_atom_data(kernelParams, sm_coefficients, gm_coefficientsA, gm_coefficientsB, 1);
+    }
+    else
+    {
+        pme_gpu_stage_atom_data(kernelParams, sm_coefficients, gm_coefficientsA, nullptr, 1);
+    }
 
     if (computeSplines)
     {
         /* Staging coordinates */
-        pme_gpu_stage_atom_data(sm_coordinates, gm_coordinates, DIM);
+        pme_gpu_stage_atom_data(kernelParams, sm_coordinates, gm_coordinates, nullptr, DIM);
 
         barrier(CLK_LOCAL_MEM_FENCE);
         calculate_splines(kernelParams,
@@ -478,27 +508,30 @@ __attribute__((reqd_work_group_size(order, order, atomsPerBlock))) __kernel void
          * as in after running the spline kernel)
          */
         /* Spline data - only thetas (dthetas will only be needed in gather) */
-        pme_gpu_stage_atom_data(sm_theta, gm_theta, DIM * order);
+        pme_gpu_stage_atom_data(kernelParams, sm_theta, gm_theta, nullptr, DIM * order);
         /* Gridline indices - they're actually int and not float, but C99 is angry about overloads */
-        pme_gpu_stage_atom_data(
-                (__local float*)sm_gridlineIndices, (__global const float*)gm_gridlineIndices, DIM);
+        pme_gpu_stage_atom_data(kernelParams,
+                                (__local float*)sm_gridlineIndices,
+                                (__global const float*)gm_gridlineIndices,
+                                nullptr,
+                                DIM);
 
         barrier(CLK_LOCAL_MEM_FENCE);
     }
     /* Spreading */
     if (spreadCharges)
     {
-        spread_charges(kernelParams, sm_coefficients, sm_gridlineIndices, sm_theta, gm_gridA);
+        spread_charges(kernelParams, gridIndex, sm_coefficients, sm_gridlineIndices, sm_theta, gm_gridA);
     }
     if (numGrids == 2)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
         gridIndex = 1;
-        pme_gpu_stage_atom_data(sm_coefficients, gm_coefficientsB, 1);
+        pme_gpu_stage_atom_data(kernelParams, sm_coefficients, gm_coefficientsB, nullptr, 1);
         barrier(CLK_LOCAL_MEM_FENCE);
         if (spreadCharges)
         {
-            spread_charges(kernelParams, sm_coefficients, sm_gridlineIndices, sm_theta, gm_gridB);
+            spread_charges(kernelParams, gridIndex, sm_coefficients, sm_gridlineIndices, sm_theta, gm_gridB);
         }
     }
 }

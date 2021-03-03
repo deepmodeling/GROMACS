@@ -762,9 +762,9 @@ int gmx_pmeonly(struct gmx_pme_t*               pme,
             // TODO: with pme on GPU the receive should make a list of synchronizers and pass it here #3157
             auto xReadyOnDevice = nullptr;
 
-            pme_gpu_launch_spread(pme, xReadyOnDevice, wcycle, lambda_q);
+            pme_gpu_launch_spread(pme, xReadyOnDevice, wcycle, stepWork, lambda_q);
             pme_gpu_launch_complex_transforms(pme, wcycle, stepWork);
-            pme_gpu_launch_gather(pme, wcycle, lambda_q);
+            pme_gpu_launch_gather(pme, wcycle, stepWork, lambda_q);
             output = pme_gpu_wait_finish_task(pme, computeEnergyAndVirial, lambda_q, wcycle);
             pme_gpu_reinit_computation(pme, wcycle);
         }

@@ -338,10 +338,11 @@ void pmePerformSplineAndSpread(gmx_pme_t* pme,
 #if !GMX_DOUBLE
         case CodePath::GPU:
         {
-            const real lambdaQ = 1.0;
+            const real lambdaQ                = 1.0;
+            const bool computeEnergyAndVirial = true;
             // no synchronization needed as x is transferred in the PME stream
             GpuEventSynchronizer* xReadyOnDevice = nullptr;
-            pme_gpu_spread(pme->gpu, xReadyOnDevice, fftgrid, computeSplines, spreadCharges, lambdaQ);
+            pme_gpu_spread(pme->gpu, xReadyOnDevice, fftgrid, computeSplines, spreadCharges, lambdaQ, computeEnergyAndVirial);
         }
         break;
 #endif
@@ -463,7 +464,7 @@ void pmePerformGather(gmx_pme_t* pme, CodePath mode, ForcesVector& forces)
             PmeOutput  output = pme_gpu_getOutput(*pme, computeEnergyAndVirial, lambdaQ);
             GMX_ASSERT(forces.size() == output.forces_.size(),
                        "Size of force buffers did not match");
-            pme_gpu_gather(pme->gpu, fftgrid, lambdaQ);
+            pme_gpu_gather(pme->gpu, fftgrid, lambdaQ, computeEnergyAndVirial);
             std::copy(std::begin(output.forces_), std::end(output.forces_), std::begin(forces));
         }
         break;
