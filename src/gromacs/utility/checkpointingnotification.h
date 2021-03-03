@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -59,9 +59,9 @@ struct MdModulesWriteCheckpointData;
  * Use members of this struct to sign up for checkpointing callbacks.
  *
  * This struct allows to subscribe to a function trigger with a signature
- * (void)(Parameter) by using 
+ * (void)(Parameter) by using
  * checkpointingNotifications_->subscribe((void)(Parameter)).
- * 
+ *
  * The available function signatures are registered via registerMdModuleNotification.
  *
  * The object holding the CheckpointingNotification triggers the function call by
