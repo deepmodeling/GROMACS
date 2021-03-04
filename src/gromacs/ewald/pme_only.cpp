@@ -531,34 +531,6 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
     return status;
 }
 
-#if GMX_MPI
-/*! \brief Send force data to PP ranks */
-static void sendFToPP(void* sendbuf, PpRanks receiver, gmx_pme_pp* pme_pp, int* messages)
-{
-
-    if (pme_pp->useGpuDirectComm)
-    {
-        GMX_ASSERT((pme_pp->pmeForceSenderGpu != nullptr),
-                   "The use of GPU direct communication for PME-PP is enabled, "
-                   "but the PME GPU force reciever object does not exist");
-
-        pme_pp->pmeForceSenderGpu->sendFToPpCudaDirect(receiver.rankId);
-    }
-    else
-    {
-        // Send using MPI
-        MPI_Isend(sendbuf,
-                  receiver.numAtoms * sizeof(rvec),
-                  MPI_BYTE,
-                  receiver.rankId,
-                  0,
-                  pme_pp->mpi_comm_mysim,
-                  &pme_pp->req[*messages]);
-        *messages = *messages + 1;
-    }
-}
-#endif
-
 /*! \brief Send the PME mesh force, virial and energy to the PP-only ranks. */
 static void gmx_pme_send_force_vir_ener(const gmx_pme_t& pme,
                                         gmx_pme_pp*      pme_pp,
@@ -582,11 +554,23 @@ static void gmx_pme_send_force_vir_ener(const gmx_pme_t& pme,
         void* sendbuf = const_cast<void*>(static_cast<const void*>(output.forces_[ind_start]));
         if (pme_pp->useGpuDirectComm)
         {
-            // Data will be transferred directly from GPU.
-            rvec* d_f = reinterpret_cast<rvec*>(pme_gpu_get_device_f(&pme));
-            sendbuf   = reinterpret_cast<void*>(&d_f[ind_start]);
+            GMX_ASSERT((pme_pp->pmeForceSenderGpu != nullptr),
+                   "The use of GPU direct communication for PME-PP is enabled, "
+                   "but the PME GPU force reciever object does not exist");
+            pme_pp->pmeForceSenderGpu->sendFToPpCudaDirect(receiver.rankId);
         }
-        sendFToPP(sendbuf, receiver, pme_pp, &messages);
+        else
+        {
+            // Send using MPI
+            MPI_Isend(sendbuf,
+                      receiver.numAtoms * sizeof(rvec),
+                      MPI_BYTE,
+                      receiver.rankId,
+                      0,
+                      pme_pp->mpi_comm_mysim,
+                      &pme_pp->req[messages]);
+            messages++;
+        }
     }
 
     /* send virial and energy to our last PP node */
