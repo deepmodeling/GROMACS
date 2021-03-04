@@ -121,7 +121,7 @@ public:
      */
     [[nodiscard]] bool isReady() const;
 
-    /*! Wait (block the current thread) until the even is ready.
+    /*! Wait (block the current host thread) until the even is ready.
      *
      * Undefined behavior if the event is not valid.
      */
