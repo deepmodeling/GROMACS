@@ -52,6 +52,8 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/logger.h"
 
+struct t_sits;
+
 namespace Sits
 {
 
@@ -62,6 +64,21 @@ enum class SitsResource : int
     Gpu
 };
 
+/* Initializes an sits_atomdata_t data structure */
+void sits_atomdata_init(const gmx::MDLogger&    mdlog,
+                        sits_atomdata_t*        sits_at,
+                        int                     n_energygroups,
+                        t_sits*                 sitsvals)
+{
+    nbnxn_atomdata_params_init(mdlog, &nbat->paramsDeprecated(), kernelType, enbnxninitcombrule,
+                               ntype, nbfp, n_energygroups);
+
+    sits_at->k_
+
+    nbat->shift_vec.resize(SHIFTS);
+
+}
+
 std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
                                   gmx_bool                 bFEP_SITS,
                                   const t_inputrec*        ir,
@@ -70,7 +87,6 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
                                   const gmx_hw_info_t&     hardwareInfo,
                                   const gmx_device_info_t* deviceInfo,
                                   const gmx_mtop_t*        mtop,
-                                  matrix                   box,
                                   gmx_wallcycle*           wcycle)
 {
     const bool useGpu     = deviceInfo != nullptr;
@@ -103,9 +119,7 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
          */
         mimimumNumEnergyGroupNonbonded = 1;
     }
-    sits_atomdata_init(mdlog, nbat.get(), kernelSetup.kernelType, enbnxninitcombrule, fr->ntype,
-                        fr->nbfp, mimimumNumEnergyGroupNonbonded,
-                        (useGpu || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
+    sits_atomdata_init(mdlog, sits_at.get(), mimimumNumEnergyGroupNonbonded, ir->sitsvals);
 
     gmx_sits_cuda_t* gpu_sits = nullptr;
     if (useGpu)

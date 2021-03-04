@@ -1474,7 +1474,10 @@ void init_forcerec(FILE*                            fp,
             fr->gpuBonded = new gmx::GpuBonded(mtop->ffparams, stream, wcycle);
         }
 
-        fr->sits = Sits::init_sits(mdlog, ir, fr, cr, hardwareInfo, deviceInfo, mtop, box, wcycle);
+        if (ir->bSITS)
+        {
+            fr->sits = Sits::init_sits(mdlog, ir, fr, cr, hardwareInfo, deviceInfo, mtop, box, wcycle);
+        }
     }
 
     if (ir->eDispCorr != edispcNO)

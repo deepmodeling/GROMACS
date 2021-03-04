@@ -105,6 +105,9 @@ public:
         float energy_multiple;
         float energy_shift;
 
+        int natoms;
+        gmx::HostVector<int> energrp;
+
         // Derivations and physical quantities see:
         // \ref A selective integrated tempering method
         // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
@@ -155,7 +158,7 @@ public:
 
     cu_sits_t* gpu_sits;
 
-    int init_sits(int na);
+    void sits_atomdata_set_energygroups(std::vector<int> cginfo);
 
     void gpu_init_sits();
 
