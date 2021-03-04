@@ -78,14 +78,18 @@
 class DeviceEventSynchronizer
 {
 public:
-    /*! Default consumption limit.
+    //! Magic value indicating that there is no consumption limit enforced.
+    static constexpr int sc_noConsumptionLimit = -1;
+    /*! Hack to enable waiting on unmarked event in CUDA. Will be removed.
      *
-     * Empirically chosen to be high enough to allow legitimate event reuse, but low enough
-     * to prevent outright suspicious cases when a single event is waited upon dozens of times.
+     * Currently, CUDA build, when running with `GMX_FORCE_UPDATE_DEFAULT_GPU=1`, tries to
+     * wait on event before marking it. That is allowed in CUDA, but not a behavior we want to
+     * have. As a temporary solution, this variable disables checking that the event is marked
+     * before trying to consume it.
      */
-    static constexpr int sc_defaultConsumptionLimit = 10;
+    static constexpr bool sc_allowConsumingUnmarked = static_cast<bool>(GMX_GPU_CUDA);
 
-    DeviceEventSynchronizer(int  consumptionLimit           = sc_defaultConsumptionLimit,
+    DeviceEventSynchronizer(int  consumptionLimit           = sc_noConsumptionLimit,
                             bool mustBeFullyConsumedOnReset = false) :
         deviceEvent_(),
         consumptionLimit_(consumptionLimit),
@@ -93,10 +97,13 @@ public:
         mustBeFullyConsumedOnReset_(mustBeFullyConsumedOnReset),
         isMarked_(false)
     {
+        GMX_ASSERT(
+                !(consumptionLimit == sc_noConsumptionLimit && mustBeFullyConsumedOnReset_),
+                "Meaningless to enforce full consumption when there is no consumption limit set");
     }
     ~DeviceEventSynchronizer()
     {
-        if (mustBeFullyConsumedOnReset_ && !isFullyConsumed())
+        if (mustBeFullyConsumedOnReset_ && !isFullyConsumed_())
         {
             std::cerr << "Destroying an event that should have been fully consumed but has "
                       << consumptionLeft_ << " / " << consumptionLimit_ << " tokens left." << std::endl;
@@ -107,10 +114,6 @@ public:
     [[nodiscard]] bool isMarked() const { return isMarked_; }
     //! Check whether the event is ready.
     [[nodiscard]] bool isReady() const { return deviceEvent_.isReady(); }
-    //! Check whether the event is marked and there are consumption tokens left.
-    [[nodiscard]] bool canBeConsumed() const { return isMarked_ && consumptionLeft_ > 0; }
-    //! Check if there are no consumption tokens left.
-    [[nodiscard]] bool isFullyConsumed() const { return consumptionLeft_ == 0; }
 
     // SYCL-TODO (#3895): make it possible to no-op ::mark, ::wait, and ::enqueueWait
 
@@ -119,6 +122,16 @@ public:
     {
         checkBeforeResetting_();
         deviceStream.markEvent(deviceEvent_);
+        consumptionLeft_ = consumptionLimit_;
+        isMarked_        = true;
+    }
+
+    //! Ingest the \p deviceEvent and use it from now on, taking ownership of it. Replenish consumption tokens.
+    void takeEvent(DeviceEvent&& deviceEvent)
+    {
+        GMX_RELEASE_ASSERT(deviceEvent.isValid(), "Trying to take an invalid event");
+        checkBeforeResetting_();
+        deviceEvent_     = std::move(deviceEvent);
         consumptionLeft_ = consumptionLimit_;
         isMarked_        = true;
     }
@@ -155,15 +168,34 @@ private:
     bool        mustBeFullyConsumedOnReset_;
     bool        isMarked_;
 
+    //! Check whether the event has no consumption limit.
+    [[nodiscard]] bool hasNoConsumptionLimit_() const
+    {
+        return consumptionLimit_ == sc_noConsumptionLimit;
+    }
+    //! Check whether the event is marked and there are consumption tokens left.
+    [[nodiscard]] bool canBeConsumed_() const
+    {
+        return hasNoConsumptionLimit_() || consumptionLeft_ > 0;
+    }
+    //! Check if there are no consumption tokens left.
+    [[nodiscard]] bool isFullyConsumed_() const
+    {
+        return hasNoConsumptionLimit_() || consumptionLeft_ == 0;
+    }
+
     void checkAndConsume_()
     {
-        GMX_RELEASE_ASSERT(canBeConsumed(), "Trying to consume event that is already consumed");
+        GMX_RELEASE_ASSERT(sc_allowConsumingUnmarked || isMarked(),
+                           "Trying to consume event before marking it");
+        GMX_RELEASE_ASSERT(canBeConsumed_(),
+                           "Trying to consume event that is already fully consumed");
         consumptionLeft_--;
     }
     void checkBeforeResetting_() const
     {
-        GMX_RELEASE_ASSERT(!mustBeFullyConsumedOnReset_ || isFullyConsumed(),
-                           "Trying to reset an event before it was fully consuming");
+        GMX_RELEASE_ASSERT(!mustBeFullyConsumedOnReset_ || isFullyConsumed_(),
+                           "Trying to reset an event before it was fully consumed");
     }
 
     GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceEventSynchronizer);
