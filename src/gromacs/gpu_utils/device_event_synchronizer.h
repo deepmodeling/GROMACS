@@ -74,6 +74,10 @@
  * a fatal error is emitted. If \c mustBeFullyConsumedOnReset was set to \c false, nothing is done.
  * - Consumption condition checks if there's at least one consumption token left. Fatal error
  * if there is none.
+ *
+ * Note: \c mustBeFullyConsumedOnReset = false is a temporary workaround for compatibility
+ * with the existing synchronization logic. We expect to change the default to \c true or remove
+ * this setting altogether, always requiring full consumption.
  */
 class DeviceEventSynchronizer
 {
@@ -120,17 +124,30 @@ public:
     //! Mark the event in \p deviceStream. Replenish consumption tokens.
     void mark(const DeviceStream& deviceStream)
     {
-        checkBeforeResetting_();
+        checkAndReset_();
         deviceStream.markEvent(deviceEvent_);
         consumptionLeft_ = consumptionLimit_;
         isMarked_        = true;
     }
 
-    //! Ingest the \p deviceEvent and use it from now on, taking ownership of it. Replenish consumption tokens.
-    void takeEvent(DeviceEvent&& deviceEvent)
+    /*! Ingest the \p deviceEvent and use it from now on, taking ownership of it. Replenish consumption tokens.
+     *
+     * Note: This function assumes that the event has already been marked (enqueued). This is
+     * guaranteed in OpenCL and SYCL, but can be violated in CUDA!
+     *
+     * This function is primarily intended to be used with OpenCL and SYCL.
+     *
+     * In CUDA, the events are long-lived entities not directly associated with any action, so
+     * it is recommended to use the internal event, recording it with \ref mark function, instead
+     * of creating external events and using them via this function.
+     *
+     * In OpenCL and SYCL, this function allows taking an event returned by any API call and
+     * using it for synchronization later.
+     */
+    void resetToEvent(DeviceEvent&& deviceEvent)
     {
         GMX_RELEASE_ASSERT(deviceEvent.isValid(), "Trying to take an invalid event");
-        checkBeforeResetting_();
+        checkAndReset_();
         deviceEvent_     = std::move(deviceEvent);
         consumptionLeft_ = consumptionLimit_;
         isMarked_        = true;
@@ -151,14 +168,12 @@ public:
     }
 
     //! Reset the \ref DeviceEventSynchronizer state with check of full consumption if enabled.
-    void reset()
-    {
-        checkBeforeResetting_();
-        isMarked_        = false;
-        consumptionLeft_ = 0;
-    }
+    void reset() { checkAndReset_(); }
 
-    //! Consume one token and do nothing.
+    /*! Consume one token and do nothing.
+     *
+     * Note: This is a temporary workaround and is expected to be removed one day.
+     */
     void consume() { checkAndConsume_(); }
 
 private:
@@ -192,10 +207,12 @@ private:
                            "Trying to consume event that is already fully consumed");
         consumptionLeft_--;
     }
-    void checkBeforeResetting_() const
+    void checkAndReset_()
     {
         GMX_RELEASE_ASSERT(!mustBeFullyConsumedOnReset_ || isFullyConsumed_(),
                            "Trying to reset an event before it was fully consumed");
+        isMarked_        = false;
+        consumptionLeft_ = 0;
     }
 
     GMX_DISALLOW_COPY_MOVE_AND_ASSIGN(DeviceEventSynchronizer);
