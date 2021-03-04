@@ -249,7 +249,7 @@ static std::optional<cl::sycl::backend>
 chooseBestBackend(const std::vector<std::unique_ptr<DeviceInformation>>& deviceInfos)
 {
     // Count the number of compatible devices per backend
-    std::map<cl::sycl::backend, int> countDevicesByBackend;
+    std::map<cl::sycl::backend, int> countDevicesByBackend; // Default initialized with zeros
     for (const auto& deviceInfo : deviceInfos)
     {
         if (deviceInfo->status == DeviceStatus::Compatible)
@@ -266,7 +266,9 @@ chooseBestBackend(const std::vector<std::unique_ptr<DeviceInformation>>& deviceI
                 countDevicesByBackend.cbegin(),
                 countDevicesByBackend.cend(),
                 [](const auto& kv1, const auto& kv2) { return kv1.second < kv2.second; });
-        if (countDevicesByBackend[cl::sycl::backend::opencl] == backendWithMostDevices->second)
+        // Count devices provided by OpenCL. Will be zero if no OpenCL devices found.
+        const int devicesInOpenCL = countDevicesByBackend[cl::sycl::backend::opencl];
+        if (devicesInOpenCL == backendWithMostDevices->second)
         {
             // Prefer OpenCL backend as more stable, if it has as many devices as others
             return cl::sycl::backend::opencl;
