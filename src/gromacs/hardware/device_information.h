@@ -116,7 +116,7 @@ static const gmx::EnumerationArray<DeviceStatus, const char*> c_deviceStateStrin
     "incompatible (please use CUDA build for NVIDIA Volta GPUs or newer)",
     "unavailable"
     "not recommended (please use SYCL_DEVICE_FILTER to limit visibility to a single backend)",
-    "non-functional", 
+    "non-functional",
     "unavailable"
 };
 
