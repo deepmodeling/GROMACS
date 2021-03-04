@@ -60,8 +60,10 @@
 namespace gmx
 {
 
-struct AwhBiasParams;
-struct AwhParams;
+template<typename>
+class ArrayRef;
+class AwhBiasParams;
+class AwhParams;
 struct DimParams;
 class GridAxis;
 enum class AwhTargetType : int;
@@ -189,15 +191,15 @@ public:
      * \param[in] disableUpdateSkips     If to disable update skips, useful for testing.
      * \param[in] biasIndex              Index of the bias.
      */
-    BiasParams(const AwhParams&              awhParams,
-               const AwhBiasParams&          awhBiasParams,
-               const std::vector<DimParams>& dimParams,
-               double                        beta,
-               double                        mdTimeStep,
-               DisableUpdateSkips            disableUpdateSkips,
-               int                           numSharingSimulations,
-               const std::vector<GridAxis>&  gridAxis,
-               int                           biasIndex);
+    BiasParams(const AwhParams&          awhParams,
+               const AwhBiasParams&      awhBiasParams,
+               ArrayRef<const DimParams> dimParams,
+               double                    beta,
+               double                    mdTimeStep,
+               DisableUpdateSkips        disableUpdateSkips,
+               int                       numSharingSimulations,
+               ArrayRef<const GridAxis>  gridAxis,
+               int                       biasIndex);
 
     /* Data members */
     const double invBeta; /**< 1/beta = kT in kJ/mol */

@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2017,2018,2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2017,2018,2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -51,6 +51,7 @@
 #include "gromacs/mdrunutility/multisim.h"
 #include "gromacs/mdtypes/awh_params.h"
 #include "gromacs/mdtypes/commrec.h"
+#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/exceptions.h"
 #include "gromacs/utility/stringutil.h"
 
@@ -61,14 +62,16 @@ bool haveBiasSharingWithinSimulation(const AwhParams& awhParams)
 {
     bool haveSharing = false;
 
-    for (int k = 0; k < awhParams.numBias; k++)
+    const auto awhBiasParams = awhParams.awhBiasParams();
+    for (auto awhBiasParamIt = awhBiasParams.begin(); awhBiasParamIt != awhBiasParams.end(); ++awhBiasParamIt)
     {
-        int shareGroup = awhParams.awhBiasParams[k].shareGroup;
+        int shareGroup = awhBiasParamIt->shareGroup();
         if (shareGroup > 0)
         {
-            for (int i = k + 1; i < awhParams.numBias; i++)
+            for (auto awhBiasParamIt2 = awhBiasParamIt + 1; awhBiasParamIt2 != awhBiasParams.end();
+                 ++awhBiasParamIt2)
             {
-                if (awhParams.awhBiasParams[i].shareGroup == shareGroup)
+                if (awhBiasParamIt2->shareGroup() == shareGroup)
                 {
                     haveSharing = true;
                 }
@@ -79,9 +82,9 @@ bool haveBiasSharingWithinSimulation(const AwhParams& awhParams)
     return haveSharing;
 }
 
-void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           awhParams,
-                                                     const std::vector<size_t>& pointSize,
-                                                     const gmx_multisim_t*      multiSimComm)
+void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&       awhParams,
+                                                     ArrayRef<const size_t> pointSize,
+                                                     const gmx_multisim_t*  multiSimComm)
 {
     const int numSim = multiSimComm->numSimulations_;
 
@@ -90,9 +93,9 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
      * biases in order over the ranks and it does not restrict possibilities.
      */
     int numShare = 0;
-    for (int b = 0; b < awhParams.numBias; b++)
+    for (const auto& awhBiasParam : awhParams.awhBiasParams())
     {
-        int group = awhParams.awhBiasParams[b].shareGroup;
+        int group = awhBiasParam.shareGroup();
         if (group > 0)
         {
             numShare++;
@@ -117,8 +120,8 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
     }
 
     std::vector<int> intervals(numSim * 2);
-    intervals[numSim * 0 + multiSimComm->simulationIndex_] = awhParams.nstSampleCoord;
-    intervals[numSim * 1 + multiSimComm->simulationIndex_] = awhParams.numSamplesUpdateFreeEnergy;
+    intervals[numSim * 0 + multiSimComm->simulationIndex_] = awhParams.nstSampleCoord();
+    intervals[numSim * 1 + multiSimComm->simulationIndex_] = awhParams.numSamplesUpdateFreeEnergy();
     gmx_sumi_sim(intervals.size(), intervals.data(), multiSimComm);
     for (int sim = 1; sim < numSim; sim++)
     {
@@ -137,9 +140,10 @@ void biasesAreCompatibleForSharingBetweenSimulations(const AwhParams&           
     /* Check the point sizes. This is a sufficient condition for running
      * as shared multi-sim run. No physics checks are performed here.
      */
-    for (int b = 0; b < awhParams.numBias; b++)
+    const auto& awhBiasParams = awhParams.awhBiasParams();
+    for (int b = 0; b < gmx::ssize(awhBiasParams); b++)
     {
-        if (awhParams.awhBiasParams[b].shareGroup > 0)
+        if (awhBiasParams[b].shareGroup() > 0)
         {
             std::vector<int64_t> pointSizes(numSim);
             pointSizes[multiSimComm->simulationIndex_] = pointSize[b];

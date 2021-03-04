@@ -69,29 +69,33 @@ namespace
 {
 
 /*! \brief
- * Modify x so that it is periodic in [-period/2, +period/2).
+ * Return x so that it is periodic in [-period/2, +period/2).
  *
  * x is modified by shifting its value by a +/- a period if
  * needed. Thus, it is assumed that x is at most one period
  * away from this interval. For period = 0, x is not modified.
  *
- * \param[in,out] x       Pointer to the value to modify.
- * \param[in]     period  The period, or 0 if not periodic.
+ * \param[in] x       Pointer to the value to modify.
+ * \param[in] period  The period, or 0 if not periodic.
+ * \returns   Value that is within the period.
  */
-void centerPeriodicValueAroundZero(double* x, double period)
+double centerPeriodicValueAroundZero(const double x, double period)
 {
     GMX_ASSERT(period >= 0, "Periodic should not be negative");
 
     const double halfPeriod = period * 0.5;
 
-    if (*x >= halfPeriod)
+    double valueInPeriod = x;
+
+    if (valueInPeriod >= halfPeriod)
     {
-        *x -= period;
+        valueInPeriod -= period;
     }
-    else if (*x < -halfPeriod)
+    else if (valueInPeriod < -halfPeriod)
     {
-        *x += period;
+        valueInPeriod += period;
     }
+    return valueInPeriod;
 }
 
 /*! \brief
@@ -180,7 +184,7 @@ double getDeviationPeriodic(double x, double x0, double period)
 
     if (period > 0)
     {
-        centerPeriodicValueAroundZero(&dev, period);
+        dev = centerPeriodicValueAroundZero(dev, period);
     }
 
     return dev;
@@ -309,7 +313,7 @@ namespace
  * \param[in] indexMulti Multidimensional grid point index to convert to a linear one.
  * \returns the linear index.
  */
-int multiDimGridIndexToLinear(const std::vector<GridAxis>& axis, const awh_ivec indexMulti)
+int multiDimGridIndexToLinear(ArrayRef<const GridAxis> axis, const awh_ivec indexMulti)
 {
     awh_ivec numPointsDim = { 0 };
 
@@ -557,7 +561,7 @@ static int pointDistanceAlongAxis(const GridAxis& axis, double x, double x0)
  * \param[in] axis    The grid axes.
  * \returns true if the value is in the grid.
  */
-static bool valueIsInGrid(const awh_dvec value, const std::vector<GridAxis>& axis)
+static bool valueIsInGrid(const awh_dvec value, ArrayRef<const GridAxis> axis)
 {
     /* For each dimension get the one-dimensional index and check if it is in range. */
     for (size_t d = 0; d < axis.size(); d++)
@@ -634,7 +638,7 @@ int GridAxis::nearestIndex(double value) const
  * \param[in] axis   The grid axes.
  * \returns the point index nearest to the value.
  */
-static int getNearestIndexInGrid(const awh_dvec value, const std::vector<GridAxis>& axis)
+static int getNearestIndexInGrid(const awh_dvec value, ArrayRef<const GridAxis> axis)
 {
     awh_ivec indexMulti;
 
@@ -737,7 +741,8 @@ void BiasGrid::initPoints()
             if (axis_[d].period() > 0)
             {
                 /* Do we always want the values to be centered around 0 ? */
-                centerPeriodicValueAroundZero(&point.coordValue[d], axis_[d].period());
+                point.coordValue[d] =
+                        centerPeriodicValueAroundZero(point.coordValue[d], axis_[d].period());
             }
 
             point.index[d] = indexWork[d];
@@ -811,18 +816,19 @@ GridAxis::GridAxis(double origin, double end, double period, int numPoints, bool
     }
 }
 
-BiasGrid::BiasGrid(const std::vector<DimParams>& dimParams, const AwhDimParams* awhDimParams)
+BiasGrid::BiasGrid(ArrayRef<const DimParams> dimParams, ArrayRef<const AwhDimParams> awhDimParams)
 {
+    GMX_RELEASE_ASSERT(dimParams.size() == awhDimParams.size(), "Dimensions needs to be equal");
     /* Define the discretization along each dimension */
     awh_dvec period;
     int      numPoints = 1;
-    for (size_t d = 0; d < dimParams.size(); d++)
+    for (int d = 0; d < gmx::ssize(awhDimParams); d++)
     {
-        double origin = dimParams[d].scaleUserInputToInternal(awhDimParams[d].origin);
-        double end    = dimParams[d].scaleUserInputToInternal(awhDimParams[d].end);
-        if (awhDimParams[d].eCoordProvider == AwhCoordinateProviderType::Pull)
+        double origin = dimParams[d].scaleUserInputToInternal(awhDimParams[d].origin());
+        double end    = dimParams[d].scaleUserInputToInternal(awhDimParams[d].end());
+        if (awhDimParams[d].coordinateProvider() == AwhCoordinateProviderType::Pull)
         {
-            period[d] = dimParams[d].scaleUserInputToInternal(awhDimParams[d].period);
+            period[d] = dimParams[d].scaleUserInputToInternal(awhDimParams[d].period());
             static_assert(
                     c_numPointsPerSigma >= 1.0,
                     "The number of points per sigma should be at least 1.0 to get a uniformly "
