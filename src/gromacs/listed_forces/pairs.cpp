@@ -195,7 +195,7 @@ static real free_energy_evaluate_single(real        r2,
     const real two         = 2.0;
     const real six         = 6.0;
     const real fourtyeight = 48.0;
-    const bool useScBetaNO = (alpha_coul == 0.0);
+    const bool useScBetaNO = (alpha_coul == 0.0) && (sigma6_min != 0.0);
 
     qq[0]  = qqA;
     qq[1]  = qqB;
