@@ -62,7 +62,7 @@ class PmeForceSenderGpu::Impl
 };
 
 /*!\brief Constructor stub. */
-PmeForceSenderGpu::PmeForceSenderGpu(const DeviceStream& /*pmeStream */,
+PmeForceSenderGpu::PmeForceSenderGpu(GpuEventSynchronizer* /*pmeForcesReady */,
                                      MPI_Comm /* comm     */,
                                      gmx::ArrayRef<PpRanks> /* ppRanks */) :
     impl_(nullptr)
@@ -82,7 +82,7 @@ void PmeForceSenderGpu::sendForceBufferAddressToPpRanks(rvec* /* d_f */)
                "correct implementation.");
 }
 
-void PmeForceSenderGpu::sendFToPpCudaDirect(int /* ppRank */)
+void PmeForceSenderGpu::sendFSynchronizerToPpCudaDirect(int /* ppRank */)
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for PME-PP GPU communication was called instead of the correct "

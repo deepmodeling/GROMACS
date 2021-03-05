@@ -532,8 +532,7 @@ static int gmx_pme_recv_coeffs_coords(struct gmx_pme_t*            pme,
 }
 
 /*! \brief Send the PME mesh force, virial and energy to the PP-only ranks. */
-static void gmx_pme_send_force_vir_ener(const gmx_pme_t& pme,
-                                        gmx_pme_pp*      pme_pp,
+static void gmx_pme_send_force_vir_ener(gmx_pme_pp*      pme_pp,
                                         const PmeOutput& output,
                                         real             dvdlambda_q,
                                         real             dvdlambda_lj,
@@ -555,9 +554,9 @@ static void gmx_pme_send_force_vir_ener(const gmx_pme_t& pme,
         if (pme_pp->useGpuDirectComm)
         {
             GMX_ASSERT((pme_pp->pmeForceSenderGpu != nullptr),
-                   "The use of GPU direct communication for PME-PP is enabled, "
-                   "but the PME GPU force reciever object does not exist");
-            pme_pp->pmeForceSenderGpu->sendFToPpCudaDirect(receiver.rankId);
+                       "The use of GPU direct communication for PME-PP is enabled, "
+                       "but the PME GPU force reciever object does not exist");
+            pme_pp->pmeForceSenderGpu->sendFSynchronizerToPpCudaDirect(receiver.rankId);
         }
         else
         {
@@ -595,7 +594,6 @@ static void gmx_pme_send_force_vir_ener(const gmx_pme_t& pme,
     MPI_Waitall(messages, pme_pp->req.data(), pme_pp->stat.data());
 #else
     GMX_RELEASE_ASSERT(false, "Invalid call to gmx_pme_send_force_vir_ener");
-    GMX_UNUSED_VALUE(pme);
     GMX_UNUSED_VALUE(pme_pp);
     GMX_UNUSED_VALUE(output);
     GMX_UNUSED_VALUE(dvdlambda_q);
@@ -650,9 +648,7 @@ int gmx_pmeonly(struct gmx_pme_t*               pme,
                     pme_pp->mpi_comm_mysim,
                     pme_pp->ppRanks);
             pme_pp->pmeForceSenderGpu = std::make_unique<gmx::PmeForceSenderGpu>(
-                    deviceStreamManager->stream(gmx::DeviceStreamType::Pme),
-                    pme_pp->mpi_comm_mysim,
-                    pme_pp->ppRanks);
+                    pme_gpu_get_f_ready_synchronizer(pme), pme_pp->mpi_comm_mysim, pme_pp->ppRanks);
         }
         // TODO: Special PME-only constructor is used here. There is no mechanism to prevent from using the other constructor here.
         //       This should be made safer.
@@ -785,7 +781,7 @@ int gmx_pmeonly(struct gmx_pme_t*               pme,
         }
 
         cycles = wallcycle_stop(wcycle, ewcPMEMESH);
-        gmx_pme_send_force_vir_ener(*pme, pme_pp.get(), output, dvdlambda_q, dvdlambda_lj, cycles);
+        gmx_pme_send_force_vir_ener(pme_pp.get(), output, dvdlambda_q, dvdlambda_lj, cycles);
 
         count++;
     } /***** end of quasi-loop, we stop with the break above */
