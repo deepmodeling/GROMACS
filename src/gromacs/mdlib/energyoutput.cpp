@@ -917,7 +917,7 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
         {
             /* This is pV (in kJ/mol).  The pressure is the reference pressure,
                not the instantaneous pressure */
-            pv = vol * ref_p_ / PRESFAC;
+            pv = vol * ref_p_ / gmx::PRESFAC;
 
             add_ebin(ebin_, ipv_, 1, &pv, bSum);
             enthalpy = pv + enerd->term[F_ETOT];
@@ -957,7 +957,7 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
         add_ebin(ebin_, ivcos_, 1, &(ekind->cosacc.vcos), bSum);
         /* 1/viscosity, unit 1/(kg m^-1 s^-1) */
         tmp = 1
-              / (ekind->cosacc.cos_accel / (ekind->cosacc.vcos * PICO) * dens
+              / (ekind->cosacc.cos_accel / (ekind->cosacc.vcos * gmx::PICO) * dens
                  * gmx::square(box[ZZ][ZZ] * gmx::NANO / (2 * M_PI)));
         add_ebin(ebin_, ivisc_, 1, &tmp, bSum);
     }

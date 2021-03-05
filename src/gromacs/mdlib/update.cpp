@@ -891,7 +891,7 @@ gmx_stochd_t::gmx_stochd_t(const t_inputrec& inputRecord)
                 && (reft > 0)) /* tau_t or ref_t = 0 means that no randomization is done */
             {
                 randomize_group[gt] = true;
-                boltzfac[gt]        = BOLTZ * opts->ref_t[gt];
+                boltzfac[gt]        = gmx::BOLTZ * opts->ref_t[gt];
             }
             else
             {

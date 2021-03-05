@@ -240,7 +240,7 @@ Awh::Awh(FILE*                 fplog,
                     GMX_THROW(InvalidInputError(
                             "Pull geometry 'direction-periodic' is not supported by AWH"));
                 }
-                double conversionFactor = pull_coordinate_is_angletype(&pullCoord) ? DEG2RAD : 1;
+                double conversionFactor = pull_coordinate_is_angletype(&pullCoord) ? gmx::DEG2RAD : 1;
                 pullCoordIndex.push_back(awhDimParams.coordIndex);
                 dimParams.push_back(DimParams::pullDimParams(
                         conversionFactor, awhDimParams.forceConstant, beta));
