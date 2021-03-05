@@ -422,11 +422,11 @@ void setupGpuShortRangeWork(NbnxmGpu* nb, const gmx::GpuBonded* gpuBonded, const
                                || (gpuBonded != nullptr && gpuBonded->haveInteractions()));
 }
 
-bool haveGpuShortRangeWork(const NbnxmGpu* nb, const gmx::AtomLocality aLocality)
+bool haveGpuShortRangeWork(const NbnxmGpu* nb, const gmx::InteractionLocality interactionLocality)
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
-    return haveGpuShortRangeWork(*nb, gpuAtomToInteractionLocality(aLocality));
+    return nb->haveWork[interactionLocality];
 }
 
 /*! \brief Launch asynchronously the xq buffer host to device copy. */
@@ -434,7 +434,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
-    const InteractionLocality iloc = gpuAtomToInteractionLocality(atomLocality);
+    const InteractionLocality iloc = atomToInteractionLocality(atomLocality);
 
     NBAtomData*         adat         = nb->atdat;
     gpu_plist*          plist        = nb->plist[iloc];
@@ -452,7 +452,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
        we always call the local local x+q copy (and the rest of the local
        work in nbnxn_gpu_launch_kernel().
      */
-    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(*nb, iloc))
+    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(nb, iloc))
     {
         plist->haveFreshList = false;
 

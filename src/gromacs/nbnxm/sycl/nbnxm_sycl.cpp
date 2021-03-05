@@ -80,7 +80,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
 {
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
-    const InteractionLocality iloc = gpuAtomToInteractionLocality(atomLocality);
+    const InteractionLocality iloc = atomToInteractionLocality(atomLocality);
     GMX_ASSERT(iloc == InteractionLocality::Local
                        || (iloc == InteractionLocality::NonLocal && nb->bNonLocalStreamDoneMarked == false),
                "Non-local stream is indicating that the copy back event is enqueued at the "
@@ -90,7 +90,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     NBAtomData*         adat         = nb->atdat;
 
     /* don't launch non-local copy-back if there was no non-local work to do */
-    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(*nb, iloc))
+    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(nb, iloc))
     {
         nb->bNonLocalStreamDoneMarked = false;
         return;

@@ -723,7 +723,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
 
     /* determine interaction locality from atom locality */
-    const InteractionLocality iloc = gpuAtomToInteractionLocality(atomLocality);
+    const InteractionLocality iloc = atomToInteractionLocality(atomLocality);
     GMX_ASSERT(iloc == InteractionLocality::Local
                        || (iloc == InteractionLocality::NonLocal && nb->bNonLocalStreamDoneMarked == false),
                "Non-local stream is indicating that the copy back event is enqueued at the "
@@ -736,7 +736,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
     /* don't launch non-local copy-back if there was no non-local work to do */
-    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(*nb, iloc))
+    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(nb, iloc))
     {
         nb->bNonLocalStreamDoneMarked = false;
         return;
@@ -854,7 +854,7 @@ void nbnxn_gpu_x_to_nbat_x(const Nbnxm::Grid&        grid,
     const int                  numColumns      = grid.numColumns();
     const int                  cellOffset      = grid.cellOffset();
     const int                  numAtomsPerCell = grid.numAtomsPerCell();
-    Nbnxm::InteractionLocality interactionLoc  = gpuAtomToInteractionLocality(locality);
+    Nbnxm::InteractionLocality interactionLoc  = atomToInteractionLocality(locality);
 
     const DeviceStream& deviceStream = *nb->deviceStreams[interactionLoc];
 

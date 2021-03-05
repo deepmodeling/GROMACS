@@ -857,7 +857,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     cl_int gmx_unused cl_error;
 
     /* determine interaction locality from atom locality */
-    const InteractionLocality iloc = gpuAtomToInteractionLocality(atomLocality);
+    const InteractionLocality iloc = atomToInteractionLocality(atomLocality);
     GMX_ASSERT(iloc == InteractionLocality::Local
                        || (iloc == InteractionLocality::NonLocal && nb->bNonLocalStreamDoneMarked == false),
                "Non-local stream is indicating that the copy back event is enqueued at the "
@@ -869,7 +869,7 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
 
     /* don't launch non-local copy-back if there was no non-local work to do */
-    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(*nb, iloc))
+    if ((iloc == InteractionLocality::NonLocal) && !haveGpuShortRangeWork(nb, iloc))
     {
         /* TODO An alternative way to signal that non-local work is
            complete is to use a clEnqueueMarker+clEnqueueBarrier
