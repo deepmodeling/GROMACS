@@ -55,13 +55,11 @@
 static void low_mspeed(real tempi, gmx_mtop_t* mtop, rvec v[], gmx::ThreeFry2x64<>* rng, const gmx::MDLogger& logger)
 {
     int                                    nrdf;
-    real                                   boltz;
     real                                   ekin, temp;
     gmx::TabulatedNormalDistribution<real> normalDist;
 
-    boltz = gmx::BOLTZ * tempi;
-    ekin  = 0.0;
-    nrdf  = 0;
+    ekin = 0.0;
+    nrdf = 0;
     for (const AtomProxy atomP : AtomRange(*mtop))
     {
         const t_atom& local = atomP.atom();
