@@ -241,7 +241,7 @@ void* save_malloc_aligned(const char* name, const char* file, int line, size_t n
         // sharing.
         size_t bytes                = nelem * elsize;
         auto   multiplesOfAlignment = (bytes / alignment + 1) * alignment;
-        p                           = std::aligned_alloc(alignment, multiplesOfAlignment);
+        p                           = aligned_alloc(alignment, multiplesOfAlignment);
 
         if (p == nullptr)
         {
