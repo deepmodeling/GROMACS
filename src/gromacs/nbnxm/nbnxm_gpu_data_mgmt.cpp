@@ -474,7 +474,7 @@ void gpu_copy_xq_to_gpu(NbnxmGpu* nb, const nbnxn_atomdata_t* nbatom, const Atom
     }
 
     /* HtoD x, q */
-    GMX_ASSERT(sizeof(Float4) == sizeof(*nbatom->x().data()),
+    GMX_ASSERT(sizeof(Float4) == sizeof(adat->xq[0]),
                "The size of the xyzq buffer element should be equal to the size of Float4.");
     copyToDeviceBuffer(&adat->xq,
                        reinterpret_cast<const Float4*>(nbatom->x().data()) + atomsRange.begin(),
