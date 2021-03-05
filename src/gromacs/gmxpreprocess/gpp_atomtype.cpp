@@ -87,6 +87,8 @@ public:
     size_t size() const { return types.size(); }
     //! The actual atom type data.
     std::vector<AtomTypeData> types;
+    //! Map to quickly look up data type index from name. Ref #3974.
+    std::unordered_map<std::string, int> nameToAtomType;
 };
 
 bool PreprocessingAtomTypes::isSet(int nt) const
@@ -97,16 +99,14 @@ bool PreprocessingAtomTypes::isSet(int nt) const
 std::optional<int> PreprocessingAtomTypes::atomTypeFromName(const std::string& str) const
 {
     /* Atom types are always case sensitive */
-    auto found = std::find_if(impl_->types.begin(), impl_->types.end(), [&str](const auto& type) {
-        return str == std::string(*type.name_);
-    });
-    if (found == impl_->types.end())
+    const auto found = impl_->nameToAtomType.find(str);
+    if (found == impl_->nameToAtomType.end())
     {
         return std::nullopt;
     }
     else
     {
-        return std::make_optional(std::distance(impl_->types.begin(), found));
+        return std::make_optional(found->second);
     }
 }
 
@@ -185,15 +185,9 @@ int PreprocessingAtomTypes::addType(t_symtab*                tab,
     if (!position.has_value())
     {
         impl_->types.emplace_back(a, put_symtab(tab, name.c_str()), nb, bondAtomType, atomNumber);
-        if (auto atomType = atomTypeFromName(name); atomType.has_value())
-        {
-            return *atomType;
-        }
-        else
-        {
-            GMX_RELEASE_ASSERT(false, "Unhandled error in adding atom type.");
-            return 0;
-        }
+        const int newType           = impl_->types.size() - 1;
+        impl_->nameToAtomType[name] = newType;
+        return newType;
     }
     else
     {
@@ -391,6 +385,13 @@ void PreprocessingAtomTypes::renumberTypes(gmx::ArrayRef<InteractionsOfType> pli
 
     impl_->types                  = new_types;
     plist[ftype].interactionTypes = nbsnew;
+
+    // Re-create the map used for fast lookups
+    impl_->nameToAtomType.clear();
+    for (size_t i = 0; i < impl_->types.size(); i++)
+    {
+        impl_->nameToAtomType[std::string(*impl_->types[i].name_)] = i;
+    }
 }
 
 void PreprocessingAtomTypes::copyTot_atomtypes(t_atomtypes* atomtypes) const
