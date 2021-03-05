@@ -148,6 +148,7 @@ static std::vector<char> awhBiasParamSerialized(AwhHistogramGrowthType          
  * \param[in] eawhgrowth Way to grow potential.
  * \param[in] eawhpotential Which potential to use.
  * \param[in] beta Value for 1/(kB*T).
+ * \param[in] inputErrorScaling Factor for initial error scaling.
  * \param[in] inputSeed Seed value to use.
  * \param[in] dimensionParameterBuffers Buffers containing the dimension parameters.
  * \param[in] inputUserData If there is a user provided PMF estimate.
