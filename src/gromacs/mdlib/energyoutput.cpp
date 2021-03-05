@@ -908,7 +908,7 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
             nboxs = boxs_nm.size();
         }
         vol  = box[XX][XX] * box[YY][YY] * box[ZZ][ZZ];
-        dens = (tmass * AMU) / (vol * NANO * NANO * NANO);
+        dens = (tmass * gmx::AMU) / (vol * gmx::NANO * gmx::NANO * gmx::NANO);
         add_ebin(ebin_, ib_, nboxs, bs, bSum);
         add_ebin(ebin_, ivol_, 1, &vol, bSum);
         add_ebin(ebin_, idens_, 1, &dens, bSum);
@@ -953,12 +953,12 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
     if (ekind && ekind->cosacc.cos_accel != 0)
     {
         vol  = box[XX][XX] * box[YY][YY] * box[ZZ][ZZ];
-        dens = (tmass * AMU) / (vol * NANO * NANO * NANO);
+        dens = (tmass * gmx::AMU) / (vol * gmx::NANO * gmx::NANO * gmx::NANO);
         add_ebin(ebin_, ivcos_, 1, &(ekind->cosacc.vcos), bSum);
         /* 1/viscosity, unit 1/(kg m^-1 s^-1) */
         tmp = 1
               / (ekind->cosacc.cos_accel / (ekind->cosacc.vcos * PICO) * dens
-                 * gmx::square(box[ZZ][ZZ] * NANO / (2 * M_PI)));
+                 * gmx::square(box[ZZ][ZZ] * gmx::NANO / (2 * M_PI)));
         add_ebin(ebin_, ivisc_, 1, &tmp, bSum);
     }
     if (nE_ > 1)

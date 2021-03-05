@@ -845,7 +845,7 @@ static real calc_delta(FILE* fplog, gmx_bool bPrint, struct gmx_repl_ex* re, int
     if (re->bNPT)
     {
         /* revist the calculation for 5.0.  Might be some improvements. */
-        dpV = (beta[ap] * re->pres[ap] - beta[bp] * re->pres[bp]) * (Vol[b] - Vol[a]) / PRESFAC;
+        dpV = (beta[ap] * re->pres[ap] - beta[bp] * re->pres[bp]) * (Vol[b] - Vol[a]) / gmx::PRESFAC;
         if (bPrint)
         {
             fprintf(fplog, "  dpV = %10.3e  d = %10.3e\n", dpV, delta + dpV);
@@ -899,14 +899,14 @@ static void test_for_replica_exchange(FILE*                 fplog,
         /* temperatures of different states*/
         for (i = 0; i < re->nrepl; i++)
         {
-            re->beta[i] = 1.0 / (re->q[ereTEMP][i] * BOLTZ);
+            re->beta[i] = 1.0 / (re->q[ereTEMP][i] * gmx::BOLTZ);
         }
     }
     else
     {
         for (i = 0; i < re->nrepl; i++)
         {
-            re->beta[i] = 1.0 / (re->temp * BOLTZ); /* we have a single temperature */
+            re->beta[i] = 1.0 / (re->temp * gmx::BOLTZ); /* we have a single temperature */
         }
     }
     if (re->type == ereLAMBDA || re->type == ereTL)

@@ -38,69 +38,69 @@
 #ifndef GMX_MATH_UNITS_H
 #define GMX_MATH_UNITS_H
 
+#include <cmath>
+
 /*
  * Physical constants to be used in Gromacs.
  * No constants (apart from 0, 1 or 2) should
  * be anywhere else in the code.
  */
 
-#include "gromacs/math/utilities.h"
+namespace gmx
+{
 
-#define ANGSTROM (1e-10)           /* Old...	*/
-#define KILO (1e3)                 /* Thousand	*/
-#define NANO (1e-9)                /* A Number	*/
-#define PICO (1e-12)               /* A Number	*/
-#define A2NM (ANGSTROM / NANO)     /* NANO	        */
-#define NM2A (NANO / ANGSTROM)     /* 10.0		*/
-#define RAD2DEG (180.0 / M_PI)     /* Conversion	*/
-#define DEG2RAD (M_PI / 180.0)     /* id		*/
-#define CAL2JOULE (4.184)          /* Exact definition of the calorie */
-#define E_CHARGE (1.602176634e-19) /* Exact definition, Coulomb NIST 2018 CODATA */
+constexpr double ANGSTROM  = 1e-10;
+constexpr double KILO      = 1e3;
+constexpr double NANO      = 1e-9;
+constexpr double PICO      = 1e-12;
+constexpr double NM2A      = NANO / ANGSTROM;
+constexpr double RAD2DEG   = 180.0 / M_PI;
+constexpr double DEG2RAD   = M_PI / 180.0;
+constexpr double CAL2JOULE = 4.184;           /* Exact definition of the calorie */
+constexpr double E_CHARGE  = 1.602176634e-19; /* Exact definition, Coulomb NIST 2018 CODATA */
 
-#define AMU (1.66053906660e-27)                     /* kg, NIST 2018 CODATA  */
-#define BOLTZMANN (1.380649e-23)                    /* (J/K, Exact definition, NIST 2018 CODATA */
-#define AVOGADRO (6.02214076e23)                    /* 1/mol, Exact definition, NIST 2018 CODATA */
-#define RGAS (BOLTZMANN * AVOGADRO)                 /* (J/(mol K))  */
-#define BOLTZ (RGAS / KILO)                         /* (kJ/(mol K)) */
-#define FARADAY (E_CHARGE * AVOGADRO)               /* (C/mol)      */
-#define ELECTRONVOLT (E_CHARGE * AVOGADRO / KILO)   /* (kJ/mol)   */
-#define PLANCK1 (6.62607015e-34)                    /* J/Hz, Exact definition, NIST 2018 CODATA */
-#define PLANCK (PLANCK1 * AVOGADRO / (PICO * KILO)) /* (kJ/mol) ps */
+constexpr double AMU       = 1.66053906660e-27;    /* kg, NIST 2018 CODATA  */
+constexpr double BOLTZMANN = 1.380649e-23;         /* (J/K, Exact definition, NIST 2018 CODATA */
+constexpr double AVOGADRO  = 6.02214076e23;        /* 1/mol, Exact definition, NIST 2018 CODATA */
+constexpr double RGAS      = BOLTZMANN * AVOGADRO; /* (J/(mol K))  */
+constexpr double BOLTZ     = RGAS / KILO;          /* (kJ/(mol K)) */
+constexpr double FARADAY   = E_CHARGE * AVOGADRO;  /* (C/mol)      */
+constexpr double PLANCK1   = 6.62607015e-34;       /* J/Hz, Exact definition, NIST 2018 CODATA */
+constexpr double PLANCK    = (PLANCK1 * AVOGADRO / (PICO * KILO)); /* (kJ/mol) ps */
 
-#define EPSILON0_SI (8.8541878128e-12) /* F/m,  NIST 2018 CODATA */
+constexpr double EPSILON0_SI = 8.8541878128e-12; /* F/m,  NIST 2018 CODATA */
 /* Epsilon in our MD units: (e^2 / Na (kJ nm)) == (e^2 mol/(kJ nm)) */
-#define EPSILON0 ((EPSILON0_SI * NANO * KILO) / (E_CHARGE * E_CHARGE * AVOGADRO))
+constexpr double EPSILON0 = ((EPSILON0_SI * NANO * KILO) / (E_CHARGE * E_CHARGE * AVOGADRO));
 
-#define SPEED_OF_LIGHT (2.99792458e05)  /* units of nm/ps, Exact definition, NIST 2018 CODATA */
-#define ATOMICMASS_keV (931494.10242)   /* Atomic mass in keV, NIST 2018 CODATA   */
-#define ELECTRONMASS_keV (510.99895000) /* Electron mas in keV, NIST 2018 CODATA  */
+constexpr double SPEED_OF_LIGHT =
+        2.99792458e05; /* units of nm/ps, Exact definition, NIST 2018 CODATA */
 
-#define RYDBERG (1.0973731568160e-02) /* nm^-1, NIST 2018 CODATA */
+constexpr double RYDBERG = 1.0973731568160e-02; /* nm^-1, NIST 2018 CODATA */
 
-#define ONE_4PI_EPS0 (1.0 / (4.0 * M_PI * EPSILON0))
-#define FACEL (10.0 * ONE_4PI_EPS0)
+constexpr double ONE_4PI_EPS0 = (1.0 / (4.0 * M_PI * EPSILON0));
 
 /* Pressure in MD units is:
  * 1 bar = 1e5 Pa = 1e5 kg m^-1 s^-2 = 1e-28 kg nm^-1 ps^-2 = 1e-28 / AMU amu nm^1 ps ^2
  */
-#define BAR_MDUNITS (1e5 * NANO * PICO * PICO / AMU)
-#define PRESFAC (1.0 / BAR_MDUNITS)
+constexpr double BAR_MDUNITS = (1e5 * NANO * PICO * PICO / AMU);
+constexpr double PRESFAC     = 1.0 / BAR_MDUNITS;
 
 /* DEBYE2ENM should be (1e-21*PICO)/(SPEED_OF_LIGHT*E_CHARGE*NANO*NANO),
  * but we need to factor out some of the exponents to avoid single-precision overflows.
  */
-#define DEBYE2ENM (1e-15 / (SPEED_OF_LIGHT * E_CHARGE))
-#define ENM2DEBYE (1.0 / DEBYE2ENM)
+constexpr double DEBYE2ENM = (1e-15 / (SPEED_OF_LIGHT * E_CHARGE));
+constexpr double ENM2DEBYE = 1.0 / DEBYE2ENM;
 
 /* to convert from a acceleration in (e V)/(amu nm) */
 /* FIELDFAC is also Faraday's constant and E_CHARGE/(1e6 AMU) */
-#define FIELDFAC (FARADAY / KILO)
+constexpr double FIELDFAC = FARADAY / KILO;
 
 /* to convert AU to MD units: */
-#define HARTREE2KJ ((2.0 * RYDBERG * PLANCK * SPEED_OF_LIGHT) / AVOGADRO)
-#define BOHR2NM (0.0529177210903) /* nm^-1, NIST 2018 CODATA */
-#define HARTREE_BOHR2MD (HARTREE2KJ * AVOGADRO / BOHR2NM)
+constexpr double HARTREE2KJ      = ((2.0 * RYDBERG * PLANCK * SPEED_OF_LIGHT) / AVOGADRO);
+constexpr double BOHR2NM         = 0.0529177210903; /* nm^-1, NIST 2018 CODATA */
+constexpr double HARTREE_BOHR2MD = (HARTREE2KJ * AVOGADRO / BOHR2NM);
 
+} // namespace gmx
 
 /* The four basic units */
 #define unit_length "nm"

@@ -594,8 +594,9 @@ static void setup_acc_wham(const double* profile, t_UmbrellaWindow* window, int 
                 {
                     U = tabulated_pot(distance, opt); /* Use tabulated potential     */
                 }
-                contrib1 = profile[k] * std::exp(-U / (BOLTZ * opt->Temperature));
-                contrib2 = window[i].N[j] * std::exp(-U / (BOLTZ * opt->Temperature) + window[i].z[j]);
+                contrib1 = profile[k] * std::exp(-U / (gmx::BOLTZ * opt->Temperature));
+                contrib2 = window[i].N[j]
+                           * std::exp(-U / (gmx::BOLTZ * opt->Temperature) + window[i].z[j]);
                 window[i].bContrib[j][k] = (contrib1 > wham_contrib_lim || contrib2 > wham_contrib_lim);
                 bAnyContrib              = bAnyContrib || window[i].bContrib[j][k];
                 if (window[i].bContrib[j][k])
@@ -689,7 +690,7 @@ static void calc_profile(double* profile, t_UmbrellaWindow* window, int nWindows
                             U = tabulated_pot(distance, opt); /* Use tabulated potential     */
                         }
                         denom += invg * window[j].N[k]
-                                 * std::exp(-U / (BOLTZ * opt->Temperature) + window[j].z[k]);
+                                 * std::exp(-U / (gmx::BOLTZ * opt->Temperature) + window[j].z[k]);
                     }
                 }
                 profile[i] = num / denom;
@@ -755,7 +756,7 @@ static double calc_z(const double* profile, t_UmbrellaWindow* window, int nWindo
                         {
                             U = tabulated_pot(distance, opt); /* Use tabulated potential     */
                         }
-                        total += profile[k] * std::exp(-U / (BOLTZ * opt->Temperature));
+                        total += profile[k] * std::exp(-U / (gmx::BOLTZ * opt->Temperature));
                     }
                     /* Avoid floating point exception if window is far outside min and max */
                     if (total != 0.0)
@@ -852,11 +853,11 @@ static void prof_normalization_and_unit(double* profile, t_UmbrellaOptions* opt)
     }
     else if (opt->unit == en_kJ)
     {
-        unit_factor = BOLTZ * opt->Temperature;
+        unit_factor = gmx::BOLTZ * opt->Temperature;
     }
     else if (opt->unit == en_kCal)
     {
-        unit_factor = (BOLTZ / CAL2JOULE) * opt->Temperature;
+        unit_factor = (gmx::BOLTZ / gmx::CAL2JOULE) * opt->Temperature;
     }
     else
     {
@@ -2711,7 +2712,7 @@ static void guessPotByIntegration(t_UmbrellaWindow* window, int nWindows, t_Umbr
      */
     for (j = 0; j < opt->bins; ++j)
     {
-        pot[j] = std::exp(-pot[j] / (BOLTZ * opt->Temperature));
+        pot[j] = std::exp(-pot[j] / (gmx::BOLTZ * opt->Temperature));
     }
     calc_z(pot, window, nWindows, opt, TRUE);
 

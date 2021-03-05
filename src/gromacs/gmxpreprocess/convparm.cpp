@@ -145,9 +145,9 @@ static int assign_param(t_functype                ftype,
     {
         case F_G96ANGLES:
             /* Post processing of input data: store cosine iso angle itself */
-            newparam->harmonic.rA  = cos(old[0] * DEG2RAD);
+            newparam->harmonic.rA  = cos(old[0] * gmx::DEG2RAD);
             newparam->harmonic.krA = old[1];
-            newparam->harmonic.rB  = cos(old[2] * DEG2RAD);
+            newparam->harmonic.rB  = cos(old[2] * gmx::DEG2RAD);
             newparam->harmonic.krB = old[3];
             break;
         case F_G96BONDS:
@@ -430,8 +430,8 @@ static int assign_param(t_functype                ftype,
             newparam->vsite.f = old[5];
             break;
         case F_VSITE3FAD:
-            newparam->vsite.a = old[1] * cos(DEG2RAD * old[0]);
-            newparam->vsite.b = old[1] * sin(DEG2RAD * old[0]);
+            newparam->vsite.a = old[1] * cos(gmx::DEG2RAD * old[0]);
+            newparam->vsite.b = old[1] * sin(gmx::DEG2RAD * old[0]);
             newparam->vsite.c = old[2];
             newparam->vsite.d = old[3];
             newparam->vsite.e = old[4];

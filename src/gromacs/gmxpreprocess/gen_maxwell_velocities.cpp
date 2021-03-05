@@ -4,7 +4,7 @@
  * Copyright (c) 1991-2000, University of Groningen, The Netherlands.
  * Copyright (c) 2001-2004, The GROMACS development team.
  * Copyright (c) 2013,2014,2015,2016,2018 by the GROMACS development team.
- * Copyright (c) 2019,2020, by the GROMACS development team, led by
+ * Copyright (c) 2019,2020,2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -59,7 +59,7 @@ static void low_mspeed(real tempi, gmx_mtop_t* mtop, rvec v[], gmx::ThreeFry2x64
     real                                   ekin, temp;
     gmx::TabulatedNormalDistribution<real> normalDist;
 
-    boltz = BOLTZ * tempi;
+    boltz = gmx::BOLTZ * tempi;
     ekin  = 0.0;
     nrdf  = 0;
     for (const AtomProxy atomP : AtomRange(*mtop))
@@ -70,7 +70,7 @@ static void low_mspeed(real tempi, gmx_mtop_t* mtop, rvec v[], gmx::ThreeFry2x64
         if (mass > 0)
         {
             rng->restart(i, 0);
-            real sd = std::sqrt(boltz / mass);
+            real sd = std::sqrt(gmx::BOLTZ / mass);
             for (int m = 0; (m < DIM); m++)
             {
                 v[i][m] = sd * normalDist(*rng);
@@ -79,7 +79,7 @@ static void low_mspeed(real tempi, gmx_mtop_t* mtop, rvec v[], gmx::ThreeFry2x64
             nrdf += DIM;
         }
     }
-    temp = (2.0 * ekin) / (nrdf * BOLTZ);
+    temp = (2.0 * ekin) / (nrdf * gmx::BOLTZ);
     if (temp > 0)
     {
         real scal = std::sqrt(tempi / temp);

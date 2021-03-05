@@ -215,7 +215,7 @@ Awh::Awh(FILE*                 fplog,
     }
 
     /* Initialize all the biases */
-    const double beta = 1 / (BOLTZ * inputRecord.opts.ref_t[0]);
+    const double beta = 1 / (gmx::BOLTZ * inputRecord.opts.ref_t[0]);
     for (int k = 0; k < awhParams.numBias; k++)
     {
         const AwhBiasParams& awhBiasParams = awhParams.awhBiasParams[k];
