@@ -74,7 +74,7 @@ public:
      * Send force synchronizer to PP rank
      * \param[in] ppRank           PP rank to receive data
      */
-    void sendFSynchronizerToPpCudaDirect(int ppRank);
+    void sendFSynchronizerToPpCudaDirect(int ppRank, MPI_Request* request);
 
 private:
     //! Event indicating when PME forces are ready on the GPU in order for PP stream to sync with the PME stream

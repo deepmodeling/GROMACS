@@ -82,7 +82,8 @@ void PmeForceSenderGpu::sendForceBufferAddressToPpRanks(rvec* /* d_f */)
                "correct implementation.");
 }
 
-void PmeForceSenderGpu::sendFSynchronizerToPpCudaDirect(int /* ppRank */)
+void PmeForceSenderGpu::sendFSynchronizerToPpCudaDirect(int /* ppRank */,
+                                                        MPI_Request* /* request */)
 {
     GMX_ASSERT(!impl_,
                "A CPU stub for PME-PP GPU communication was called instead of the correct "

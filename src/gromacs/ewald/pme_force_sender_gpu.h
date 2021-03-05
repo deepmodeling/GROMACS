@@ -89,7 +89,7 @@ public:
      * Send force synchronizer to PP rank
      * \param[in] ppRank           PP rank to receive data
      */
-    void sendFSynchronizerToPpCudaDirect(int ppRank);
+    void sendFSynchronizerToPpCudaDirect(int ppRank, MPI_Request* request);
 
 private:
     class Impl;
