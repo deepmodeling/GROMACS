@@ -29,3 +29,11 @@ The OpenCL code produces incorrect results on Volta and Turing GPU architectures
 from NVIDIA (CC 7.0 and 7.5). This is an issue that affects certain flavors of 
 the nonboded kernels, most likely a result of miscompilation, and there is no
 known workaround.
+
+MdrunIO and MdrunFEP tests fail on Power9
+-----------------------------------------
+
+The mentioned tests fail with small differences in the reported energies that
+are just outside of the set tolerances.
+
+:issue:`3747`
