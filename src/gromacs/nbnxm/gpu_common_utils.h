@@ -73,20 +73,6 @@ static inline bool canSkipNonbondedWork(const NbnxmGpu& nb, InteractionLocality 
     return (iloc == InteractionLocality::NonLocal && nb.plist[iloc]->nsci == 0);
 }
 
-/*! \brief Returns true if there is GPU short-range work for the given interaction locality.
- *
- * Note that as, unlike nonbonded tasks, bonded tasks are not split into local/nonlocal,
- * and therefore if there are GPU offloaded bonded interactions, this function will return
- * true for all interaction localities.
- *
- * \param[inout]  nb        Pointer to the nonbonded GPU data structure
- * \param[in]     iLocality Interaction locality identifier
- */
-static inline bool haveGpuShortRangeWork(const NbnxmGpu& nb, const gmx::InteractionLocality iLocality)
-{
-    return nb.haveWork[iLocality];
-}
-
 /*! \brief Calculate atom range and return start index and length.
  *
  * \param[in] atomData Atom descriptor data structure
