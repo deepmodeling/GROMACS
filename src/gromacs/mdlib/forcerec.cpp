@@ -1477,6 +1477,8 @@ void init_forcerec(FILE*                            fp,
         if (ir->bSITS)
         {
             fr->sits = Sits::init_sits(mdlog, ir, fr, cr, hardwareInfo, deviceInfo, mtop, box, wcycle);
+            fr->sits.sits_atomdata_set_energygroups(fr->cginfo);
+            fr->sits.print_sitsvals();
         }
     }
 

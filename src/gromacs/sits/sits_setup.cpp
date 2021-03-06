@@ -181,7 +181,7 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
     {
         /* init the NxN GPU data; the last argument tells whether we'll have
          * both local and non-local NB calculation on GPU */
-        gpu_sits = gpu_init_sits(deviceInfo, fr->ic, nbat.get(), cr->nodeid, haveMultipleDomains);
+        gpu_sits = gpu_init_sits(deviceInfo, sits_at.get());
     }
 
     return std::make_unique<sits_t>(std::move(sits_at), gpu_sits, wcycle);
@@ -212,4 +212,16 @@ sits_t::sits_atomdata_set_energygroups(std::vector<int> cginfo)
     {
         energrp[i] = cginfo[i];
     }
+}
+
+sits_t::print_sitsvals()
+{
+    printf("\n############# SITS ############\n");
+    printf("natoms = %d\n", natoms);
+    printf("k_num = %d,\nbeta_k = ", k_numbers);
+    for (int i=0; i<k_numbers; i++)
+    {
+        printf("%.3f ", beta_k[i]);
+    }
+    printf("\n############# SITS ############\n");
 }

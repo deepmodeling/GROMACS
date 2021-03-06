@@ -284,63 +284,63 @@ static const nbnxn_cu_kfunc_ptr_t nb_kfunc_ener_prune_ptr[eelCuNR][evdwCuNR] = {
 };
 
 /*! Force + energy kernel function pointers. */
-static const nbnxn_cu_kfunc_ptr_t nb_sits_kfunc_ener_noprune_ptr[eelCuNR][evdwCuNR] = {
-    { nbnxn_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
-      nbnxn_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_cuda,
-      nbnxn_kernel_ElecCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_cuda,
-      nbnxn_kernel_ElecCut_VdwLJEwCombLB_VF_cuda },
-    { nbnxn_kernel_ElecRF_VdwLJ_VF_cuda, nbnxn_kernel_ElecRF_VdwLJCombGeom_VF_cuda,
-      nbnxn_kernel_ElecRF_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecRF_VdwLJFsw_VF_cuda,
-      nbnxn_kernel_ElecRF_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecRF_VdwLJEwCombGeom_VF_cuda,
-      nbnxn_kernel_ElecRF_VdwLJEwCombLB_VF_cuda },
-    { nbnxn_kernel_ElecEwQSTab_VdwLJ_VF_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEwQSTab_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJFsw_VF_cuda,
-      nbnxn_kernel_ElecEwQSTab_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_cuda },
-    { nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_cuda },
-    { nbnxn_kernel_ElecEw_VdwLJ_VF_cuda, nbnxn_kernel_ElecEw_VdwLJCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEw_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEw_VdwLJFsw_VF_cuda,
-      nbnxn_kernel_ElecEw_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEw_VdwLJEwCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEw_VdwLJEwCombLB_VF_cuda },
-    { nbnxn_kernel_ElecEwTwinCut_VdwLJ_VF_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJCombLB_VF_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJFsw_VF_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJPsw_VF_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_cuda }
+static const nbnxn_sits_cu_kfunc_ptr_t nb_sits_kfunc_ener_noprune_ptr[eelCuNR][evdwCuNR] = {
+  { nbnxn_sits_kernel_ElecCut_VdwLJ_VF_cuda, nbnxn_sits_kernel_ElecCut_VdwLJCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecCut_VdwLJCombLB_VF_cuda, nbnxn_sits_kernel_ElecCut_VdwLJFsw_VF_cuda,
+    nbnxn_sits_kernel_ElecCut_VdwLJPsw_VF_cuda, nbnxn_sits_kernel_ElecCut_VdwLJEwCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecCut_VdwLJEwCombLB_VF_cuda },
+  { nbnxn_sits_kernel_ElecRF_VdwLJ_VF_cuda, nbnxn_sits_kernel_ElecRF_VdwLJCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecRF_VdwLJCombLB_VF_cuda, nbnxn_sits_kernel_ElecRF_VdwLJFsw_VF_cuda,
+    nbnxn_sits_kernel_ElecRF_VdwLJPsw_VF_cuda, nbnxn_sits_kernel_ElecRF_VdwLJEwCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecRF_VdwLJEwCombLB_VF_cuda },
+  { nbnxn_sits_kernel_ElecEwQSTab_VdwLJ_VF_cuda, nbnxn_sits_kernel_ElecEwQSTab_VdwLJCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEwQSTab_VdwLJCombLB_VF_cuda, nbnxn_sits_kernel_ElecEwQSTab_VdwLJFsw_VF_cuda,
+    nbnxn_sits_kernel_ElecEwQSTab_VdwLJPsw_VF_cuda, nbnxn_sits_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_cuda },
+  { nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_cuda, nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_cuda, nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_cuda, nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_cuda },
+  { nbnxn_sits_kernel_ElecEw_VdwLJ_VF_cuda, nbnxn_sits_kernel_ElecEw_VdwLJCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEw_VdwLJCombLB_VF_cuda, nbnxn_sits_kernel_ElecEw_VdwLJFsw_VF_cuda,
+    nbnxn_sits_kernel_ElecEw_VdwLJPsw_VF_cuda, nbnxn_sits_kernel_ElecEw_VdwLJEwCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEw_VdwLJEwCombLB_VF_cuda },
+  { nbnxn_sits_kernel_ElecEwTwinCut_VdwLJ_VF_cuda, nbnxn_sits_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJCombLB_VF_cuda, nbnxn_sits_kernel_ElecEwTwinCut_VdwLJFsw_VF_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJPsw_VF_cuda, nbnxn_sits_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_cuda }
 };
 
 /*! Force + energy + pruning kernel function pointers. */
-static const nbnxn_cu_kfunc_ptr_t nb_sits_kfunc_ener_prune_ptr[eelCuNR][evdwCuNR] = {
-    { nbnxn_kernel_ElecCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecCut_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJFsw_VF_prune_cuda,
-      nbnxn_kernel_ElecCut_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecCut_VdwLJEwCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecCut_VdwLJEwCombLB_VF_prune_cuda },
-    { nbnxn_kernel_ElecRF_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecRF_VdwLJCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecRF_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecRF_VdwLJFsw_VF_prune_cuda,
-      nbnxn_kernel_ElecRF_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecRF_VdwLJEwCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecRF_VdwLJEwCombLB_VF_prune_cuda },
-    { nbnxn_kernel_ElecEwQSTab_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTab_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJFsw_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTab_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_prune_cuda },
-    { nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_prune_cuda },
-    { nbnxn_kernel_ElecEw_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecEw_VdwLJCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEw_VdwLJCombLB_VF_prune_cuda, nbnxn_kernel_ElecEw_VdwLJFsw_VF_prune_cuda,
-      nbnxn_kernel_ElecEw_VdwLJPsw_VF_prune_cuda, nbnxn_kernel_ElecEw_VdwLJEwCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEw_VdwLJEwCombLB_VF_prune_cuda },
-    { nbnxn_kernel_ElecEwTwinCut_VdwLJ_VF_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJCombLB_VF_prune_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJFsw_VF_prune_cuda, nbnxn_kernel_ElecEwTwinCut_VdwLJPsw_VF_prune_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_prune_cuda,
-      nbnxn_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_prune_cuda }
+static const nbnxn_sits_cu_kfunc_ptr_t nb_sits_kfunc_ener_prune_ptr[eelCuNR][evdwCuNR] = {
+  { nbnxn_sits_kernel_ElecCut_VdwLJ_VF_prune_cuda, nbnxn_sits_kernel_ElecCut_VdwLJCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecCut_VdwLJCombLB_VF_prune_cuda, nbnxn_sits_kernel_ElecCut_VdwLJFsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecCut_VdwLJPsw_VF_prune_cuda, nbnxn_sits_kernel_ElecCut_VdwLJEwCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecCut_VdwLJEwCombLB_VF_prune_cuda },
+  { nbnxn_sits_kernel_ElecRF_VdwLJ_VF_prune_cuda, nbnxn_sits_kernel_ElecRF_VdwLJCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecRF_VdwLJCombLB_VF_prune_cuda, nbnxn_sits_kernel_ElecRF_VdwLJFsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecRF_VdwLJPsw_VF_prune_cuda, nbnxn_sits_kernel_ElecRF_VdwLJEwCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecRF_VdwLJEwCombLB_VF_prune_cuda },
+  { nbnxn_sits_kernel_ElecEwQSTab_VdwLJ_VF_prune_cuda, nbnxn_sits_kernel_ElecEwQSTab_VdwLJCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTab_VdwLJCombLB_VF_prune_cuda, nbnxn_sits_kernel_ElecEwQSTab_VdwLJFsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTab_VdwLJPsw_VF_prune_cuda, nbnxn_sits_kernel_ElecEwQSTab_VdwLJEwCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTab_VdwLJEwCombLB_VF_prune_cuda },
+  { nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJ_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJCombLB_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJFsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJPsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJEwCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwQSTabTwinCut_VdwLJEwCombLB_VF_prune_cuda },
+  { nbnxn_sits_kernel_ElecEw_VdwLJ_VF_prune_cuda, nbnxn_sits_kernel_ElecEw_VdwLJCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEw_VdwLJCombLB_VF_prune_cuda, nbnxn_sits_kernel_ElecEw_VdwLJFsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEw_VdwLJPsw_VF_prune_cuda, nbnxn_sits_kernel_ElecEw_VdwLJEwCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEw_VdwLJEwCombLB_VF_prune_cuda },
+  { nbnxn_sits_kernel_ElecEwTwinCut_VdwLJ_VF_prune_cuda, nbnxn_sits_kernel_ElecEwTwinCut_VdwLJCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJCombLB_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJFsw_VF_prune_cuda, nbnxn_sits_kernel_ElecEwTwinCut_VdwLJPsw_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJEwCombGeom_VF_prune_cuda,
+    nbnxn_sits_kernel_ElecEwTwinCut_VdwLJEwCombLB_VF_prune_cuda }
 };
 
 /*! Return a pointer to the kernel version to be executed at the current step. */
@@ -397,7 +397,7 @@ static inline nbnxn_sits_cu_kfunc_ptr_t select_nbnxn_sits_kernel(int            
                                                        bool                    bDoPrune,
                                                        const gmx_device_info_t gmx_unused* devInfo)
 {
-    nbnxn_cu_kfunc_ptr_t res;
+    nbnxn_sits_cu_kfunc_ptr_t res;
 
     GMX_ASSERT(eeltype < eelCuNR,
                "The electrostatics type requested is not implemented in the CUDA kernels.");

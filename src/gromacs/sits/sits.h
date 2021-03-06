@@ -158,6 +158,8 @@ public:
 
     void sits_atomdata_set_energygroups(std::vector<int> cginfo);
 
+    void print_sitsvals();
+
     // Interactions enhanced: (bond, angle), dihedral, LJ-SR, PME_Direct-SR, LJ-14, Coul-14;
     // Not enhanced: LJ-Recip, Coul-Recip, Disp. Corr., (bond, angle)
 
@@ -165,7 +167,7 @@ public:
 
     //改变frc，使得需要增强的frc被选择性增强，由于共用的frc，因此这步frc增强需要放到刚好计算完所有要增强的frc的函数下方，而避免增强不应该增强的子模块frc
     //因此，体系的所有可能的frc需要先算待增强的frc，插入此函数，再算不应增强的frc
-    void sits_enhance_force(VECTOR* frc);
+    void sits_enhance_force();
 };
 
 namespace Sits

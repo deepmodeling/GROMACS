@@ -94,7 +94,7 @@ struct t_sits
     char* norm_traj_file; //记录log_norm变化的文件
     char* norm_rest_file; //记录最后一帧log_norm的文件
     char* energy_record_out;
-}
+};
 
 struct t_grpopts
 {
