@@ -77,32 +77,14 @@
 namespace Sits
 {
 
-/* This is a heuristically determined parameter for the Kepler
- * and Maxwell architectures for the minimum size of ci lists by multiplying
- * this constant with the # of multiprocessors on the current device.
- * Since the maximum number of blocks per multiprocessor is 16, the ideal
- * count for small systems is 32 or 48 blocks per multiprocessor. Because
- * there is a bit of fluctuations in the generated block counts, we use
- * a target of 44 instead of the ideal value of 48.
- */
-static unsigned int gpu_min_ci_balanced_factor = 44;
-
 /* Fw. decl. */
-static void nbnxn_cuda_clear_e_fshift(gmx_nbnxn_cuda_t* nb);
-
-/* Fw. decl, */
-static void nbnxn_cuda_free_nbparam_table(cu_nbparam_t* nbparam);
+static void sits_cuda_clear_e_fshift(gmx_sits_cuda_t* gpu_sits);
 
 /*! Initializes the atomdata structure first time, it only gets filled at
     pair-search. */
-static void init_atomdata_first(cu_atomdata_t* ad, int ntypes)
+static void sits_init_atomdata_first(cu_sits_atdat_t* atdat)
 {
     cudaError_t stat;
-
-    ad->ntypes = ntypes;
-    stat       = cudaMalloc((void**)&ad->shift_vec, SHIFTS * sizeof(*ad->shift_vec));
-    CU_RET_ERR(stat, "cudaMalloc failed on ad->shift_vec");
-    ad->bShiftVecUploaded = false;
 
     stat = cudaMalloc((void**)&ad->fshift, SHIFTS * sizeof(*ad->fshift));
     CU_RET_ERR(stat, "cudaMalloc failed on ad->fshift");
@@ -112,183 +94,133 @@ static void init_atomdata_first(cu_atomdata_t* ad, int ntypes)
     stat = cudaMalloc((void**)&ad->e_el, sizeof(*ad->e_el));
     CU_RET_ERR(stat, "cudaMalloc failed on ad->e_el");
 
-    /* initialize to nullptr poiters to data that is not allocated here and will
-       need reallocation in nbnxn_cuda_init_atomdata */
-    ad->xq = nullptr;
-    ad->f  = nullptr;
-
-    /* size -1 indicates that the respective array hasn't been initialized yet */
-    ad->natoms = -1;
-    ad->nalloc = -1;
-}
-
-/*! Copies all parameters related to the cut-off from ic to nbp */
-static void set_cutoff_parameters(cu_nbparam_t* nbp, const interaction_const_t* ic, const PairlistParams& listParams)
-{
-    nbp->ewald_beta        = ic->ewaldcoeff_q;
-    nbp->sh_ewald          = ic->sh_ewald;
-    nbp->epsfac            = ic->epsfac;
-    nbp->two_k_rf          = 2.0 * ic->k_rf;
-    nbp->c_rf              = ic->c_rf;
-    nbp->rvdw_sq           = ic->rvdw * ic->rvdw;
-    nbp->rcoulomb_sq       = ic->rcoulomb * ic->rcoulomb;
-    nbp->rlistOuter_sq     = listParams.rlistOuter * listParams.rlistOuter;
-    nbp->rlistInner_sq     = listParams.rlistInner * listParams.rlistInner;
-    nbp->useDynamicPruning = listParams.useDynamicPruning;
-
-    nbp->sh_lj_ewald   = ic->sh_lj_ewald;
-    nbp->ewaldcoeff_lj = ic->ewaldcoeff_lj;
-
-    nbp->rvdw_switch      = ic->rvdw_switch;
-    nbp->dispersion_shift = ic->dispersion_shift;
-    nbp->repulsion_shift  = ic->repulsion_shift;
-    nbp->vdw_switch       = ic->vdw_switch;
-}
-
-/*! Initializes the nonbonded parameter data structure. */
-static void init_nbparam(cu_nbparam_t*                   nbp,
-                         const interaction_const_t*      ic,
-                         const PairlistParams&           listParams,
-                         const nbnxn_atomdata_t::Params& nbatParams)
-{
-    int ntypes;
-
-    ntypes = nbatParams.numTypes;
-
-    set_cutoff_parameters(nbp, ic, listParams);
-
-    /* The kernel code supports LJ combination rules (geometric and LB) for
-     * all kernel types, but we only generate useful combination rule kernels.
-     * We currently only use LJ combination rule (geometric and LB) kernels
-     * for plain cut-off LJ. On Maxwell the force only kernels speed up 15%
-     * with PME and 20% with RF, the other kernels speed up about half as much.
-     * For LJ force-switch the geometric rule would give 7% speed-up, but this
-     * combination is rarely used. LJ force-switch with LB rule is more common,
-     * but gives only 1% speed-up.
-     */
-    if (ic->vdwtype == evdwCUT)
-    {
-        switch (ic->vdw_modifier)
-        {
-            case eintmodNONE:
-            case eintmodPOTSHIFT:
-                switch (nbatParams.comb_rule)
-                {
-                    case ljcrNONE: nbp->vdwtype = evdwCuCUT; break;
-                    case ljcrGEOM: nbp->vdwtype = evdwCuCUTCOMBGEOM; break;
-                    case ljcrLB: nbp->vdwtype = evdwCuCUTCOMBLB; break;
-                    default:
-                        gmx_incons(
-                                "The requested LJ combination rule is not implemented in the CUDA "
-                                "GPU accelerated kernels!");
-                }
-                break;
-            case eintmodFORCESWITCH: nbp->vdwtype = evdwCuFSWITCH; break;
-            case eintmodPOTSWITCH: nbp->vdwtype = evdwCuPSWITCH; break;
-            default:
-                gmx_incons(
-                        "The requested VdW interaction modifier is not implemented in the CUDA GPU "
-                        "accelerated kernels!");
-        }
-    }
-    else if (ic->vdwtype == evdwPME)
-    {
-        if (ic->ljpme_comb_rule == ljcrGEOM)
-        {
-            assert(nbatParams.comb_rule == ljcrGEOM);
-            nbp->vdwtype = evdwCuEWALDGEOM;
-        }
-        else
-        {
-            assert(nbatParams.comb_rule == ljcrLB);
-            nbp->vdwtype = evdwCuEWALDLB;
-        }
-    }
-    else
-    {
-        gmx_incons(
-                "The requested VdW type is not implemented in the CUDA GPU accelerated kernels!");
-    }
-
-    if (ic->eeltype == eelCUT)
-    {
-        nbp->eeltype = eelCuCUT;
-    }
-    else if (EEL_RF(ic->eeltype))
-    {
-        nbp->eeltype = eelCuRF;
-    }
-    else if ((EEL_PME(ic->eeltype) || ic->eeltype == eelEWALD))
-    {
-        nbp->eeltype = pick_ewald_kernel_type(*ic);
-    }
-    else
-    {
-        /* Shouldn't happen, as this is checked when choosing Verlet-scheme */
-        gmx_incons(
-                "The requested electrostatics type is not implemented in the CUDA GPU accelerated "
-                "kernels!");
-    }
-
-    /* generate table for PME */
-    nbp->coulomb_tab = nullptr;
-    if (nbp->eeltype == eelCuEWALD_TAB || nbp->eeltype == eelCuEWALD_TAB_TWIN)
-    {
-        GMX_RELEASE_ASSERT(ic->coulombEwaldTables, "Need valid Coulomb Ewald correction tables");
-        init_ewald_coulomb_force_table(*ic->coulombEwaldTables, nbp);
-    }
-
-    /* set up LJ parameter lookup table */
-    if (!useLjCombRule(nbp))
-    {
-        initParamLookupTable(nbp->nbfp, nbp->nbfp_texobj, nbatParams.nbfp.data(), 2 * ntypes * ntypes);
-    }
-
-    /* set up LJ-PME parameter lookup table */
-    if (ic->vdwtype == evdwPME)
-    {
-        initParamLookupTable(nbp->nbfp_comb, nbp->nbfp_comb_texobj, nbatParams.nbfp_comb.data(), 2 * ntypes);
-    }
-}
-
-/*! Initializes the pair list data structure. */
-static void init_plist(cu_plist_t* pl)
-{
     /* initialize to nullptr pointers to data that is not allocated here and will
-       need reallocation in nbnxn_gpu_init_pairlist */
-    pl->sci   = nullptr;
-    pl->cj4   = nullptr;
-    pl->imask = nullptr;
-    pl->excl  = nullptr;
+       need reallocation in sits_cuda_init_atomdata */
+    atdat->d_force_tot = nullptr;
+    atdat->d_force_pw  = nullptr;
+    atdat->d_force_nbat_tot = nullptr;
+    atdat->d_force_nbat_pw  = nullptr;
 
     /* size -1 indicates that the respective array hasn't been initialized yet */
-    pl->na_c          = -1;
-    pl->nsci          = -1;
-    pl->sci_nalloc    = -1;
-    pl->ncj4          = -1;
-    pl->cj4_nalloc    = -1;
-    pl->nimask        = -1;
-    pl->imask_nalloc  = -1;
-    pl->nexcl         = -1;
-    pl->excl_nalloc   = -1;
-    pl->haveFreshList = false;
+    atdat->natoms = -1;
+    atdat->nalloc = -1;
 }
 
 /*! Initializes simulation constant data. */
-static void cuda_init_const(gmx_nbnxn_cuda_t*               nb,
-                            const interaction_const_t*      ic,
-                            const PairlistParams&           listParams,
-                            const nbnxn_atomdata_t::Params& nbatParams)
+static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
+                                  const sits_atomdata_t*     sits_at)
 {
-    init_atomdata_first(nb->atdat, nbatParams.numTypes);
-    init_nbparam(nb->nbparam, ic, listParams, nbatParams);
+    cu_sits_param_t* param = gpu_sits->sits_param;
+    cudaStream_t stream    = gpu_sits->stream;
+
+    sits_init_atomdata_first(gpu_sits->sits_atdat);
+
+    // SITS ensemble definition
+    param->record_interval = sits_at->record_interval;   // interval of energy record
+    param->update_interval = sits_at->update_interval; // interval of $n_k$ update
+    param->constant_nk     = sits_at->constant_nk;   // whether iteratively update n_k
+    param->k_numbers       = sits_at->k_numbers;
+    param->beta0           = sits_at->beta0;
+
+    //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
+    param->fb_shift        = sits_at->fb_shift;
+    // energy record modifications: energy_record = energy_multiple * U + energy_shift;
+    param->energy_multiple = sits_at->energy_multiple;
+    param->energy_shift    = sits_at->energy_shift;
+
+    // Derivations and physical quantities see:
+    // \ref A selective integrated tempering method
+    // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
+
+    DeviceContext context = nullptr;
+
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->beta_k, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->beta_k, sits_at->beta_k.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->nkExpBetakU, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->nkExpBetakU, sits_at->nkExpBetakU.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->nk, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->nk, sits_at->nk.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    stat = cudaMalloc((void**)&param->sum_a, sizeof(*param->sum_a));
+    CU_RET_ERR(stat, "cudaMalloc failed on param->sum_a");
+    stat = cudaMalloc((void**)&param->sum_b, sizeof(*param->sum_b));
+    CU_RET_ERR(stat, "cudaMalloc failed on param->sum_b");
+    stat = cudaMalloc((void**)&param->factor, 2 * sizeof(*param->sum_b));
+    CU_RET_ERR(stat, "cudaMalloc failed on param->factor");
+
+    // Details of $n_k$ iteration see:
+    // \ref An integrate-over-temperature approach for enhanced sampling
+
+    // |   .cpp var    |  ylj .F90 var  |  Ref var
+    // | ene_recorded  | vshift         | U  
+    // | gf            | gf             | log( n_k * exp(-beta_k * U) )
+    // | gfsum         | gfsum          | log( Sum_(k=1)^N ( log( n_k * exp(-beta_k * U) ) ) )
+    // | log_weight    | rb             | log of the weighting function
+    // | log_mk_inv    | ratio          | log(m_k^-1)
+    // | log_norm_old  | normlold       | W(j-1)
+    // | log_norm      | norml          | W(j)
+    // | log_pk        | rbfb           | log(p_k)
+    // | log_nk_inv    | pratio         | log(n_k^-1)
+    // | log_nk        | fb             | log(n_k)
+
+    stat = cudaMalloc((void**)&param->ene_recorded, sizeof(*param->ene_recorded));
+    CU_RET_ERR(stat, "cudaMalloc failed on param->ene_recorded");
+    stat = cudaMalloc((void**)&param->gfsum, sizeof(*param->gfsum));
+    CU_RET_ERR(stat, "cudaMalloc failed on param->gfsum");
+
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->gf, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->gf, sits_at->gf.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_weight, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_weight, sits_at->log_weight.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_mk_inv, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_mk_inv, sits_at->log_mk_inv.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_norm_old, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_norm_old, sits_at->log_norm_old.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_norm, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_norm, sits_at->log_norm.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_pk, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_pk, sits_at->log_pk.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_nk_inv, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_nk_inv, sits_at->log_nk_inv.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
+    
+    param->k_nalloc = 0;
+    reallocateDeviceBuffer(&param->log_nk, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->log_nk, sits_at->log_nk.data(), 0, sits_at->k_numbers, stream,
+                       GpuApiCallBehavior::Async, nullptr);
 
     /* clear energy and shift force outputs */
-    nbnxn_cuda_clear_e_fshift(nb);
+    sits_cuda_clear_e_fshift(gpu_sits);
 }
 
-gmx_nbnxn_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
-                                const interaction_const_t* ic,
+gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
                                 const sits_atomdata_t*     sits_at,
                                 int /*rank*/)
 {
@@ -300,125 +232,73 @@ gmx_nbnxn_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
     snew(gpu_sits->sits_param, 1);
 
     /* init nbst */
-    pmalloc((void**)&nb->nbst.e_lj, sizeof(*nb->nbst.e_lj));
-    pmalloc((void**)&nb->nbst.e_el, sizeof(*nb->nbst.e_el));
-    pmalloc((void**)&nb->nbst.fshift, SHIFTS * sizeof(*nb->nbst.fshift));
-
-    init_plist(nb->plist[InteractionLocality::Local]);
+    // pmalloc((void**)&nb->nbst.e_lj, sizeof(*nb->nbst.e_lj));
+    // pmalloc((void**)&nb->nbst.e_el, sizeof(*nb->nbst.e_el));
+    // pmalloc((void**)&nb->nbst.fshift, SHIFTS * sizeof(*nb->nbst.fshift));
 
     /* set device info, just point it to the right GPU among the detected ones */
     gpu_sits->dev_info = deviceInfo;
 
     /* local/non-local GPU streams */
-    stat = cudaStreamCreate(&nb->stream[InteractionLocality::Local]);
+    stat = cudaStreamCreate(&gpu_sits->stream);
 
     /* set the kernel type for the current GPU */
     /* pick L1 cache configuration */
     cuda_set_cacheconfig();
 
-    cuda_init_const(nb, ic, listParams, nbat->params());
+    cuda_init_sits_params(gpu_sits, sits_at);
 
     nb->atomIndicesSize       = 0;
     nb->atomIndicesSize_alloc = 0;
 
     if (debug)
     {
-        fprintf(debug, "Initialized CUDA data structures.\n");
+        fprintf(debug, "Initialized SITS CUDA data structures.\n");
     }
 
-    return nb;
-}
-
-void gpu_init_pairlist(gmx_nbnxn_cuda_t* nb, const NbnxnPairlistGpu* h_plist, const InteractionLocality iloc)
-{
-    char         sbuf[STRLEN];
-    bool         bDoTime = (nb->bDoTime && !h_plist->sci.empty());
-    cudaStream_t stream  = nb->stream[iloc];
-    cu_plist_t*  d_plist = nb->plist[iloc];
-
-    if (d_plist->na_c < 0)
-    {
-        d_plist->na_c = h_plist->na_ci;
-    }
-    else
-    {
-        if (d_plist->na_c != h_plist->na_ci)
-        {
-            sprintf(sbuf, "In cu_init_plist: the #atoms per cell has changed (from %d to %d)",
-                    d_plist->na_c, h_plist->na_ci);
-            gmx_incons(sbuf);
-        }
-    }
-
-    gpu_timers_t::Interaction& iTimers = nb->timers->interaction[iloc];
-
-    if (bDoTime)
-    {
-        iTimers.pl_h2d.openTimingRegion(stream);
-        iTimers.didPairlistH2D = true;
-    }
-
-    DeviceContext context = nullptr;
-
-    reallocateDeviceBuffer(&d_plist->sci, h_plist->sci.size(), &d_plist->nsci, &d_plist->sci_nalloc, context);
-    copyToDeviceBuffer(&d_plist->sci, h_plist->sci.data(), 0, h_plist->sci.size(), stream,
-                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
-
-    reallocateDeviceBuffer(&d_plist->cj4, h_plist->cj4.size(), &d_plist->ncj4, &d_plist->cj4_nalloc, context);
-    copyToDeviceBuffer(&d_plist->cj4, h_plist->cj4.data(), 0, h_plist->cj4.size(), stream,
-                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
-
-    reallocateDeviceBuffer(&d_plist->imask, h_plist->cj4.size() * c_nbnxnGpuClusterpairSplit,
-                           &d_plist->nimask, &d_plist->imask_nalloc, context);
-
-    reallocateDeviceBuffer(&d_plist->excl, h_plist->excl.size(), &d_plist->nexcl,
-                           &d_plist->excl_nalloc, context);
-    copyToDeviceBuffer(&d_plist->excl, h_plist->excl.data(), 0, h_plist->excl.size(), stream,
-                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
-
-    if (bDoTime)
-    {
-        iTimers.pl_h2d.closeTimingRegion(stream);
-    }
-
-    /* the next use of thist list we be the first one, so we need to prune */
-    d_plist->haveFreshList = true;
+    return gpu_sits;
 }
 
 /*! Clears the first natoms_clear elements of the GPU nonbonded force output array. */
 static void sits_cuda_clear_f(gmx_sits_cuda_t* gpu_sits, int natoms_clear)
 {
     cudaError_t    stat;
-    cu_atomdata_t* adat = nb->atdat;
+    cu_sits_atdat_t* adat = gpu_sits->sits_atdat;
     cudaStream_t   ls   = nb->stream[InteractionLocality::Local];
 
-    stat = cudaMemsetAsync(adat->f, 0, natoms_clear * sizeof(*adat->f), ls);
-    CU_RET_ERR(stat, "cudaMemsetAsync on f falied");
+    stat = cudaMemsetAsync(adat->d_force_tot, 0, natoms_clear * sizeof(*adat->d_force_tot), ls);
+    CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
+    stat = cudaMemsetAsync(adat->d_force_pw, 0, natoms_clear * sizeof(*adat->d_force_pw), ls);
+    CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
+    stat = cudaMemsetAsync(adat->d_force_nbat_tot, 0, natoms_clear * sizeof(*adat->d_force_nbat_tot), ls);
+    CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
+    stat = cudaMemsetAsync(adat->d_force_nbat_pw, 0, natoms_clear * sizeof(*adat->d_force_nbat_pw), ls);
+    CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
 }
 
 /*! Clears nonbonded shift force output array and energy outputs on the GPU. */
-static void nbnxn_cuda_clear_e_fshift(gmx_nbnxn_cuda_t* nb)
+static void sits_cuda_clear_e_fshift(gmx_sits_cuda_t* gpu_sits)
 {
     cudaError_t    stat;
-    cu_atomdata_t* adat = nb->atdat;
-    cudaStream_t   ls   = nb->stream[InteractionLocality::Local];
+    cu_atomdata_t* adat = gpu_sits->sits_atdat;
+    cudaStream_t   ls   = gpu_sits->stream;
 
-    stat = cudaMemsetAsync(adat->fshift, 0, SHIFTS * sizeof(*adat->fshift), ls);
-    CU_RET_ERR(stat, "cudaMemsetAsync on fshift falied");
-    stat = cudaMemsetAsync(adat->e_lj, 0, sizeof(*adat->e_lj), ls);
-    CU_RET_ERR(stat, "cudaMemsetAsync on e_lj falied");
-    stat = cudaMemsetAsync(adat->e_el, 0, sizeof(*adat->e_el), ls);
-    CU_RET_ERR(stat, "cudaMemsetAsync on e_el falied");
+    stat = cudaMemsetAsync(adat->d_enerd, 0, sizeof(*adat->d_enerd), ls);
+    CU_RET_ERR(stat, "cudaMemsetAsync on enerd failed");
+    // stat = cudaMemsetAsync(adat->e_lj, 0, sizeof(*adat->e_lj), ls);
+    // CU_RET_ERR(stat, "cudaMemsetAsync on e_lj failed");
+    // stat = cudaMemsetAsync(adat->e_el, 0, sizeof(*adat->e_el), ls);
+    // CU_RET_ERR(stat, "cudaMemsetAsync on e_el failed");
 }
 
-void gpu_clear_outputs(gmx_nbnxn_cuda_t* nb, bool computeVirial)
+void sits_gpu_clear_outputs(gmx_sits_cuda_t* gpu_sits, bool computeVirial)
 {
-    nbnxn_cuda_clear_f(nb, nb->atdat->natoms);
+    sits_cuda_clear_f(gpu_sits, gpu_sits->sits_atdat->natoms);
     /* clear shift force array and energies if the outputs were
        used in the current step */
     if (computeVirial)
     {
-        nbnxn_cuda_clear_e_fshift(nb);
+        sits_cuda_clear_e_fshift(nb);
     }
 }
 
@@ -458,6 +338,10 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxm_atomdata_t* n
         CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_tot");
         stat = cudaMalloc((void**)&d_atdat->d_force_pw, nalloc * sizeof(*d_atdat->d_force_pw));
         CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_pw");
+        stat = cudaMalloc((void**)&d_atdat->d_force_nbat_tot, nalloc * sizeof(*d_atdat->d_force_nbat_tot));
+        CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_tot");
+        stat = cudaMalloc((void**)&d_atdat->d_force_nbat_pw, nalloc * sizeof(*d_atdat->d_force_nbat_pw));
+        CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_pw");
         if (nbat->params().nenergrp > 1)
         {
             stat = cudaMalloc((void**)&d_atdat->energrp, nalloc * sizeof(*d_atdat->energrp));
@@ -473,12 +357,12 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxm_atomdata_t* n
     /* need to clear GPU f output if realloc happened */
     if (realloced)
     {
-        nbnxn_cuda_clear_f(nb, nalloc);
+        sits_cuda_clear_f(gpu_sits, nalloc);
     }
 
     if (nbat->params().nenergrp > 1)
     {
-        cu_copy_H2D_async(d_atdat->energrp, nbat->params().energrp_gpu.data(),
+        cu_copy_H2D_async(d_atdat->energrp, nbat->params().energrp_1x1.data(),
                           natoms * sizeof(*d_atdat->energrp), ls);
     }
 }
@@ -538,18 +422,18 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
     }
 }
 
-void* gpu_get_xq(gmx_nbnxn_gpu_t* nb)
-{
-    assert(nb);
+// void* gpu_get_xq(gmx_nbnxn_gpu_t* nb)
+// {
+//     assert(nb);
 
-    return static_cast<void*>(nb->atdat->xq);
-}
+//     return static_cast<void*>(nb->atdat->xq);
+// }
 
-void* gpu_get_f(gmx_nbnxn_gpu_t* nb)
-{
-    assert(nb);
+// void* gpu_get_f(gmx_nbnxn_gpu_t* nb)
+// {
+//     assert(nb);
 
-    return static_cast<void*>(nb->atdat->f);
-}
+//     return static_cast<void*>(nb->atdat->f);
+// }
 
 } // namespace Sits

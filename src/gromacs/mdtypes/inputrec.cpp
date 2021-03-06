@@ -633,17 +633,17 @@ static void pr_sitsvals(FILE* fp, int indent, const t_sits* sits, int n_lambda)
     //     }
     //     else
     //     {
-    //         printf("	SITS Log Nk Initial To Default Value 0.0\n");
+    //         printf("	SITS Log nk Initial To Default Value 0.0\n");
     //         for (int i = 0; i < sits->k_numbers; i++)
     //         {
     //             tempf[i] = 0.0;
     //         }
     //     }
     //     Malloc_Safely((void**)&(sits->log_nk), sizeof(float)*sits->k_numbers);
-    //     Malloc_Safely((void**)&(sits->Nk), sizeof(float)*sits->k_numbers);
+    //     Malloc_Safely((void**)&(sits->nk), sizeof(float)*sits->k_numbers);
     //     for (int i = 0; i < sits->k_numbers; i++){
     //         sits->log_nk[i] = tempf[i];
-    //         sits->Nk[i] = expf(tempf[i]);
+    //         sits->nk[i] = expf(tempf[i]);
     //     }
 
     //     // norm的初始化文件及其初始化

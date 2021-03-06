@@ -34,6 +34,7 @@ struct cu_sits_atdat_t
     bool sits_enh_bias = false;    // whether to enhance the bias
 
     int natoms; /**< number of atoms                              */
+    int nalloc;
 
     //! array of atom indices
     int* atomIndices;
@@ -42,6 +43,8 @@ struct cu_sits_atdat_t
     //! size of atom indices allocated in device buffer
     int atomIndicesSize_alloc;
 
+    int nenergrp;
+    int neg_2log;
     int* energrp;
 
     float3* d_enerd; // stores pp, pw, and ww energies in bonded and nonbonded SR kernels
@@ -63,8 +66,9 @@ public:
     // SITS ensemble definition
     int   record_interval = 1;   // interval of energy record
     int   update_interval = 100; // interval of $n_k$ update
-    int   constant_nk     = 0;   // whether iteratively update n_k
+    bool  constant_nk     = false;   // whether iteratively update n_k
     int   k_numbers;             // 
+    int   k_nalloc;
     float beta0;                 // original temperature \beta
 
     //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
@@ -78,11 +82,11 @@ public:
     // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
 
     float* beta_k;
-    float* NkExpBetakU;
-    float* Nk;
+    float* nkExpBetakU;
+    float* nk;
     float* sum_a;
     float* sum_b;
-    float* d_fc_ball;
+    float* factor;
 
     // Details of $n_k$ iteration see:
     // \ref An integrate-over-temperature approach for enhanced sampling
@@ -126,7 +130,8 @@ struct gmx_sits_cuda_t
     //! parameters required for the sits calc.
     cu_sits_param_t* sits_param;
     //! staging area where fshift/energies get downloaded
-    nb_staging_t nbst;
+    // nb_staging_t nbst;
+    cudaStream_t* stream;
 };
 
 #endif /* SITS_CUDA_TYPES_H */

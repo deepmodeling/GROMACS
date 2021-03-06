@@ -1819,36 +1819,36 @@ private:
 
 } // namespace
 
-bool Open_File_Safely(FILE **file, const char *file_name, const char *open_type)
+bool Open_File_Safely(FILE** file, const char* file_name, const char* open_type)
 {
-	file[0] = NULL;
-	file[0] = fopen(file_name, open_type);
-	if (file[0] == NULL)
-	{
-		printf("Open file %s failed.\n", file_name);
-		getchar();
-		return false;
-	}
-	else
-	{
-		return true;
-	}
+    file[0] = NULL;
+    file[0] = fopen(file_name, open_type);
+    if (file[0] == NULL)
+    {
+        printf("Open file %s failed.\n", file_name);
+        getchar();
+        return false;
+    }
+    else
+    {
+        return true;
+    }
 }
 
-bool Malloc_Safely(void **address, size_t size)
+bool Malloc_Safely(void** address, size_t size)
 {
-	address[0] = NULL;
-	address[0] = (void*)malloc(size);
-	if (address[0] != NULL)
-	{
-		return true;
-	}
-	else
-	{
-		printf("malloc failed!\n");
-		getchar();
-		return false;
-	}
+    address[0] = NULL;
+    address[0] = (void*)malloc(size);
+    if (address[0] != NULL)
+    {
+        return true;
+    }
+    else
+    {
+        printf("malloc failed!\n");
+        getchar();
+        return false;
+    }
 }
 
 void get_ir(const char*     mdparin,
@@ -2292,11 +2292,12 @@ void get_ir(const char*     mdparin,
 
         float* tempf;
         // float* tempf = malloc(sizeof(float)*sits->k_numbers);
-        Malloc_Safely((void**)&tempf, sizeof(float)*sits->k_numbers);
+        Malloc_Safely((void**)&tempf, sizeof(float) * sits->k_numbers);
 
-        if (sits->beta_k != NULL) free(sits->beta_k);
+        if (sits->beta_k != NULL)
+            free(sits->beta_k);
         // sits->beta_k = malloc(sizeof(float)*sits->k_numbers);
-        Malloc_Safely((void**)&(sits->beta_k), sizeof(float)*sits->k_numbers);
+        Malloc_Safely((void**)&(sits->beta_k), sizeof(float) * sits->k_numbers);
         //温度相关信息
         float temp_slope = (temph - templ) / (sits->k_numbers - 1);
         for (int i = 0; i < sits->k_numbers; i = i + 1)
@@ -2306,8 +2307,8 @@ void get_ir(const char*     mdparin,
         }
 
         sits->energy_multiple = get_ereal(&inp, "sits-energy-multiple", 1.0f, wi);
-        sits->energy_shift = get_ereal(&inp, "sits-energy-shift", 0.0f, wi);
-        sits->fb_shift = get_ereal(&inp, "sits-fb-shift", 0.0f, wi);
+        sits->energy_shift    = get_ereal(&inp, "sits-energy-shift", 0.0f, wi);
+        sits->fb_shift        = get_ereal(&inp, "sits-fb-shift", 0.0f, wi);
 
         sits->constant_nk = (get_eeenum(&inp, "sits-constant-nk", yesno_names, wi) != 0);
         if (!sits->constant_nk)
@@ -2344,17 +2345,18 @@ void get_ir(const char*     mdparin,
         }
         else
         {
-            printf("	SITS Log Nk Initial To Default Value 0.0\n");
+            printf("	SITS Log nk Initial To Default Value 0.0\n");
             for (int i = 0; i < sits->k_numbers; i++)
             {
                 tempf[i] = 0.0;
             }
         }
-        Malloc_Safely((void**)&(sits->log_nk), sizeof(float)*sits->k_numbers);
-        Malloc_Safely((void**)&(sits->Nk), sizeof(float)*sits->k_numbers);
-        for (int i = 0; i < sits->k_numbers; i++){
+        Malloc_Safely((void**)&(sits->log_nk), sizeof(float) * sits->k_numbers);
+        Malloc_Safely((void**)&(sits->nk), sizeof(float) * sits->k_numbers);
+        for (int i = 0; i < sits->k_numbers; i++)
+        {
             sits->log_nk[i] = tempf[i];
-            sits->Nk[i] = expf(tempf[i]);
+            sits->nk[i]     = expf(tempf[i]);
         }
 
         // norm的初始化文件及其初始化
@@ -2378,17 +2380,18 @@ void get_ir(const char*     mdparin,
                 tempf[i] = -FLT_MAX;
             }
         }
-        Malloc_Safely((void**)&(sits->log_norm), sizeof(float)*sits->k_numbers);
-        Malloc_Safely((void**)&(sits->log_norm_old), sizeof(float)*sits->k_numbers);
-        for (int i = 0; i < sits->k_numbers; i++){
-            sits->log_norm[i] = tempf[i];
+        Malloc_Safely((void**)&(sits->log_norm), sizeof(float) * sits->k_numbers);
+        Malloc_Safely((void**)&(sits->log_norm_old), sizeof(float) * sits->k_numbers);
+        for (int i = 0; i < sits->k_numbers; i++)
+        {
+            sits->log_norm[i]     = tempf[i];
             sits->log_norm_old[i] = tempf[i];
         }
 
         free(tempf);
         free(temps);
     }
-    
+
     //记录分能量的文件
     sits->energy_record_out = get_estr(&inp, "sits-energy-record-out", "sits_energy.dat");
 
@@ -3297,8 +3300,8 @@ static bool do_egp_flag(t_inputrec* ir, SimulationGroups* groups, const char* op
         j = 0;
         while ((j < nr)
                && gmx_strcasecmp(
-                          names[2 * i].c_str(),
-                          *(groups->groupNames[groups->groups[SimulationAtomGroupType::EnergyOutput][j]])))
+                       names[2 * i].c_str(),
+                       *(groups->groupNames[groups->groups[SimulationAtomGroupType::EnergyOutput][j]])))
         {
             j++;
         }
@@ -3309,8 +3312,8 @@ static bool do_egp_flag(t_inputrec* ir, SimulationGroups* groups, const char* op
         k = 0;
         while ((k < nr)
                && gmx_strcasecmp(
-                          names[2 * i + 1].c_str(),
-                          *(groups->groupNames[groups->groups[SimulationAtomGroupType::EnergyOutput][k]])))
+                       names[2 * i + 1].c_str(),
+                       *(groups->groupNames[groups->groups[SimulationAtomGroupType::EnergyOutput][k]])))
         {
             k++;
         }
@@ -4199,7 +4202,7 @@ static void check_combination_rule_differences(const gmx_mtop_t* mtop,
     ptr = getenv("GMX_LJCOMB_TOL");
     if (ptr != nullptr)
     {
-        double dbl;
+        double            dbl;
         double gmx_unused canary;
 
         if (sscanf(ptr, "%lf%lf", &dbl, &canary) != 1)

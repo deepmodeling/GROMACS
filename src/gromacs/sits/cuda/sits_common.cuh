@@ -33,8 +33,8 @@ struct SITS_INFORMATION
 
 	int k_numbers;
 	float *beta_k;
-	float *NkExpBetakU;
-	float *Nk;
+	float *nkExpBetakU;
+	float *nk;
 	float *sum_a;
 	float *sum_b;
 	float *factor;

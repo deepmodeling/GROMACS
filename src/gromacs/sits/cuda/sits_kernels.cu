@@ -125,7 +125,7 @@ static __global__ void SITS_Update_nk(const int kn, float* log_nk, float* nk, co
     }
 }
 
-__global__ void SITS_For_Enhanced_Force_Calculate_NkExpBetakU_1(const int    k_numbers,
+__global__ void SITS_For_Enhanced_Force_Calculate_nkExpBetakU_1(const int    k_numbers,
                                                                 const float* beta_k,
                                                                 const float* nk,
                                                                 float*       nkexpbetaku,
@@ -139,7 +139,7 @@ __global__ void SITS_For_Enhanced_Force_Calculate_NkExpBetakU_1(const int    k_n
     }
 }
 
-__global__ void SITS_For_Enhanced_Force_Calculate_NkExpBetakU_2(const int    k_numbers,
+__global__ void SITS_For_Enhanced_Force_Calculate_nkExpBetakU_2(const int    k_numbers,
                                                                 const float* beta_k,
                                                                 const float* nk,
                                                                 float*       nkexpbetaku,
@@ -171,7 +171,7 @@ __global__ void SITS_For_Enhanced_Force_Sum_Of_Above(const int    k_numbers,
     atomicAdd(sum_of_above, lin);
 }
 
-__global__ void SITS_For_Enhanced_Force_Sum_Of_NkExpBetakU(const int    k_numbers,
+__global__ void SITS_For_Enhanced_Force_Sum_Of_nkExpBetakU(const int    k_numbers,
                                                            const float* nkexpbetaku,
                                                            float*       sum_of_below)
 {
@@ -212,16 +212,16 @@ __global__ void SITS_Classical_Enhanced_Force(const int     atom_numbers,
     ene       = pe_a * ene + pe_b;
     if (ene > 0)
     {
-        SITS_For_Enhanced_Force_Calculate_NkExpBetakU_1<<<1, 64>>>(k_numbers, beta_k, n_k,
+        SITS_For_Enhanced_Force_Calculate_nkExpBetakU_1<<<1, 64>>>(k_numbers, beta_k, n_k,
                                                                    nkexpbetaku, ene);
     }
     else
     {
-        SITS_For_Enhanced_Force_Calculate_NkExpBetakU_2<<<1, 64>>>(k_numbers, beta_k, n_k,
+        SITS_For_Enhanced_Force_Calculate_nkExpBetakU_2<<<1, 64>>>(k_numbers, beta_k, n_k,
                                                                    nkexpbetaku, ene);
     }
 
-    SITS_For_Enhanced_Force_Sum_Of_NkExpBetakU<<<1, 128>>>(k_numbers, nkexpbetaku, sum_b);
+    SITS_For_Enhanced_Force_Sum_Of_nkExpBetakU<<<1, 128>>>(k_numbers, nkexpbetaku, sum_b);
 
     SITS_For_Enhanced_Force_Sum_Of_Above<<<1, 128>>>(k_numbers, nkexpbetaku, beta_k, sum_a);
 
@@ -284,7 +284,7 @@ void SITS::SITS_Classical_Update_Info(int steps)
                                              classical_info.log_mk_inv);
 
             SITS_Update_nk<<<ceilf((float)classical_info.k_numbers / 32.), 32>>>(
-                    classical_info.k_numbers, classical_info.log_nk, classical_info.Nk,
+                    classical_info.k_numbers, classical_info.log_nk, classical_info.nk,
                     classical_info.log_nk_inv);
 
 
@@ -293,7 +293,7 @@ void SITS::SITS_Classical_Update_Info(int steps)
 
             if (!classical_info.constant_nk)
             {
-                cudaMemcpy(classical_info.log_nk_recorded_cpu, classical_info.Nk,
+                cudaMemcpy(classical_info.log_nk_recorded_cpu, classical_info.nk,
                            sizeof(float) * classical_info.k_numbers, cudaMemcpyDeviceToHost);
                 fwrite(classical_info.log_nk_recorded_cpu, sizeof(float), classical_info.k_numbers,
                        classical_info.nk_traj_file);
@@ -544,13 +544,13 @@ void SITS::Initial_SITS(CONTROLLER* controller, int atom_numbers)
         Malloc_Safely((void**)&tempf, sizeof(float) * classical_info.k_numbers);
 
         Cuda_Malloc_Safely((void**)&classical_info.beta_k, sizeof(float) * classical_info.k_numbers);
-        Cuda_Malloc_Safely((void**)&classical_info.NkExpBetakU, sizeof(float) * classical_info.k_numbers);
-        Cuda_Malloc_Safely((void**)&classical_info.Nk, sizeof(float) * classical_info.k_numbers);
+        Cuda_Malloc_Safely((void**)&classical_info.nkExpBetakU, sizeof(float) * classical_info.k_numbers);
+        Cuda_Malloc_Safely((void**)&classical_info.nk, sizeof(float) * classical_info.k_numbers);
         Cuda_Malloc_Safely((void**)&classical_info.sum_a, sizeof(float));
         Cuda_Malloc_Safely((void**)&classical_info.sum_b, sizeof(float));
-        Cuda_Malloc_Safely((void**)&classical_info.d_fc_ball,
+        Cuda_Malloc_Safely((void**)&classical_info.factor,
                            sizeof(float) * 2); //这里分配两个，一个存上一次的一个，免得变化太大体系炸了
-        Reset_List<<<1, 2>>>(2, classical_info.d_fc_ball, 1.0);
+        Reset_List<<<1, 2>>>(2, classical_info.factor, 1.0);
         Cuda_Malloc_Safely((void**)&classical_info.ene_recorded, sizeof(float));
         Cuda_Malloc_Safely((void**)&classical_info.gf, sizeof(float) * classical_info.k_numbers);
         Cuda_Malloc_Safely((void**)&classical_info.gfsum, sizeof(float));
@@ -569,14 +569,14 @@ void SITS::Initial_SITS(CONTROLLER* controller, int atom_numbers)
             // nk的轨迹文件
             if (controller[0].Command_Exist("sits_nk_traj_file"))
             {
-                printf("	SITS Log Nk Trajectory File: %s\n",
+                printf("	SITS Log nk Trajectory File: %s\n",
                        controller[0].Command("sits_nk_traj_file"));
                 Open_File_Safely(&classical_info.nk_traj_file,
                                  controller[0].Command("sits_nk_traj_file"), "wb");
             }
             else
             {
-                printf("	SITS Log Nk Trajectory File: sits_nk_traj_file.dat\n");
+                printf("	SITS Log nk Trajectory File: sits_nk_traj_file.dat\n");
                 Open_File_Safely(&classical_info.nk_traj_file, "sits_nk_traj_file.dat", "wb");
             }
             // norm的轨迹文件
@@ -596,13 +596,13 @@ void SITS::Initial_SITS(CONTROLLER* controller, int atom_numbers)
         // nk的重开文件
         if (controller[0].Command_Exist("sits_nk_rest_file"))
         {
-            printf("	SITS Log Nk Restart File: %s\n",
+            printf("	SITS Log nk Restart File: %s\n",
                    controller[0].Command("sits_nk_rest_file"));
             strcpy(classical_info.nk_rest_file, controller[0].Command("sits_nk_rest_file"));
         }
         else
         {
-            printf("	SITS Log Nk Restart File: sits_nk_rest_file.dat\n");
+            printf("	SITS Log nk Restart File: sits_nk_rest_file.dat\n");
             strcpy(classical_info.nk_rest_file, "sits_nk_rest_file.dat");
         }
         // norm的重开文件
@@ -621,7 +621,7 @@ void SITS::Initial_SITS(CONTROLLER* controller, int atom_numbers)
         if (controller[0].Command_Exist("sits_nk_init_file"))
         {
             FILE* nk_init_file;
-            printf("	SITS Log Nk Initial File: %s\n",
+            printf("	SITS Log nk Initial File: %s\n",
                    controller[0].Command("sits_nk_init_file"));
             Open_File_Safely(&nk_init_file, controller[0].Command("sits_nk_init_file"), "wb");
             for (int i = 0; i < classical_info.k_numbers; i++)
@@ -632,7 +632,7 @@ void SITS::Initial_SITS(CONTROLLER* controller, int atom_numbers)
         }
         else
         {
-            printf("	SITS Log Nk Initial To Default Value 0.0\n");
+            printf("	SITS Log nk Initial To Default Value 0.0\n");
             for (int i = 0; i < classical_info.k_numbers; i++)
             {
                 tempf[i] = 0.0;
@@ -645,7 +645,7 @@ void SITS::Initial_SITS(CONTROLLER* controller, int atom_numbers)
         {
             tempf[i] = expf(tempf[i]);
         }
-        cudaMemcpy(classical_info.Nk, tempf, sizeof(float) * classical_info.k_numbers,
+        cudaMemcpy(classical_info.nk, tempf, sizeof(float) * classical_info.k_numbers,
                    cudaMemcpyHostToDevice);
 
         // norm的初始化文件及其初始化
@@ -707,7 +707,7 @@ void SITS::Print()
 {
     if (info.sits_mode == CLASSICAL_SITS_MODE)
     {
-        cudaMemcpy(&info.fc_ball, classical_info.d_fc_ball, sizeof(float), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&info.fc_ball, classical_info.factor, sizeof(float), cudaMemcpyDeviceToHost);
     }
     cudaMemcpy(&h_total_pp_atom_energy, d_total_pp_atom_energy, sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(&h_total_ww_atom_energy, d_total_ww_atom_energy, sizeof(float), cudaMemcpyDeviceToHost);
@@ -756,9 +756,9 @@ void SITS::sits_enhance_force(int steps, VECTOR* frc)
         SITS_Classical_Enhanced_Force<<<1, 1>>>(
                 info.atom_numbers, info.protein_atom_numbers, info.pwwp_enhance_factor, frc,
                 protein_water_frc, d_total_pp_atom_energy, d_total_protein_water_atom_energy,
-                classical_info.k_numbers, classical_info.NkExpBetakU, classical_info.beta_k,
-                classical_info.Nk, classical_info.sum_a, classical_info.sum_b,
-                classical_info.d_fc_ball, classical_info.beta0, classical_info.energy_multiple,
+                classical_info.k_numbers, classical_info.nkExpBetakU, classical_info.beta_k,
+                classical_info.nk, classical_info.sum_a, classical_info.sum_b,
+                classical_info.factor, classical_info.beta0, classical_info.energy_multiple,
                 classical_info.energy_shift, classical_info.fb_shift);
     }
     else
@@ -812,7 +812,7 @@ void SITS::CLASSICAL_SITS_INFORMATION::Export_Restart_Information_To_File()
 {
     FILE* nk;
     Open_File_Safely(&nk, nk_rest_file, "w");
-    cudaMemcpy(log_nk_recorded_cpu, Nk, sizeof(float) * k_numbers, cudaMemcpyDeviceToHost);
+    cudaMemcpy(log_nk_recorded_cpu, nk, sizeof(float) * k_numbers, cudaMemcpyDeviceToHost);
     for (int i = 0; i < k_numbers; i++)
     {
         fprintf(nk, "%f\n", log_nk_recorded_cpu[i]);

@@ -72,7 +72,7 @@ struct t_sits
     float beta0;                 //本身温度对应的beta
     //! The range of temperatures used for simulated tempering
     real* beta_k;
-    real* log_nk, Nk;
+    real* log_nk, nk;
     real* log_norm, log_norm_old;
     //! The low temperature for simulated tempering
     // real sitstemp_low;
@@ -89,9 +89,9 @@ struct t_sits
     int  nstsitsrecord;
     int  nstsitsupdate;
         //文件
-    FILE* nk_traj_file;   //记录nk变化的文件
+    char* nk_traj_file;   //记录nk变化的文件
     char* nk_rest_file;   //记录最后一帧nk的文件
-    FILE* norm_traj_file; //记录log_norm变化的文件
+    char* norm_traj_file; //记录log_norm变化的文件
     char* norm_rest_file; //记录最后一帧log_norm的文件
     char* energy_record_out;
 }

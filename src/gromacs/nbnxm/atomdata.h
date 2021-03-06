@@ -193,6 +193,7 @@ struct nbnxn_atomdata_t
         // The energy groups, one int entry per cluster, only set when needed
         gmx::HostVector<int> energrp;
         gmx::HostVector<int> energrp_gpu;
+        gmx::HostVector<int> energrp_1x1;
     };
 
     // Diagonal and topology exclusion helper data for all SIMD kernels

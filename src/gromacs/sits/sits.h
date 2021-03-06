@@ -78,7 +78,7 @@ private:
     //     float constant_fc_ball = 1.0; //固定的fcball值
     // } simple_info;
     // void fc_ball_random_walk(); // simple mode里根据上面几个参数进行fc_ball的一次随机移动
-    // void SITS_Classical_Update_Info(int steps); // classical info中需要迭代更新Nk
+    // void SITS_Classical_Update_Info(int steps); // classical info中需要迭代nkNk
 public:
     struct sits_atomdata_t
     {
@@ -90,9 +90,9 @@ public:
         //控制变量
         int   record_interval = 1;   //每隔1步记录一次能量
         int   update_interval = 100; //每隔100步更新一次nk
-        int   constant_nk     = 0;   // sits是否迭代更新nk
         int   k_numbers;             //划分多少个格子
         float beta0;                 //本身温度对应的beta
+        bool  constant_nk     = false;   // sits是否迭代更新nk
         //文件
         FILE*  nk_traj_file;        //记录nk变化的文件
         string nk_rest_file;   //记录最后一帧nk的文件
@@ -113,11 +113,11 @@ public:
         // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
 
         gmx::HostVector<real> beta_k;
-        gmx::HostVector<real> NkExpBetakU;
-        gmx::HostVector<real> Nk;
+        gmx::HostVector<real> nkExpBetakU;
+        gmx::HostVector<real> nk;
         gmx::HostVector<real> sum_a;
         gmx::HostVector<real> sum_b;
-        gmx::HostVector<real> d_fc_ball;
+        gmx::HostVector<real> factor
 
         // Details of $n_k$ iteration see:
         // \ref An integrate-over-temperature approach for enhanced sampling
@@ -144,8 +144,6 @@ public:
         gmx::HostVector<real> log_pk;
         gmx::HostVector<real> log_nk_inverse;
         gmx::HostVector<real> log_nk;
-
-        void Export_Restart_Information_To_File();
     } sits_at;
 
 public:
@@ -156,11 +154,9 @@ public:
     gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
     gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
 
-    cu_sits_t* gpu_sits;
+    gmx_sits_cuda_t* gpu_sits;
 
     void sits_atomdata_set_energygroups(std::vector<int> cginfo);
-
-    void gpu_init_sits();
 
     // Interactions enhanced: (bond, angle), dihedral, LJ-SR, PME_Direct-SR, LJ-14, Coul-14;
     // Not enhanced: LJ-Recip, Coul-Recip, Disp. Corr., (bond, angle)
