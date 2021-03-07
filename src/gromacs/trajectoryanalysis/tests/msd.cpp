@@ -66,9 +66,12 @@ namespace
 
 using gmx::test::CommandLine;
 
-// \todo This is mostly taken from xvgtest.cpp. We could probably create some modular checker
-// functionality where each line is compared against a set of subcheckers automatically. Then we
-// could build matchers like this out of the modular components.
+/*! \brief Returns whether or not we care about a header line in an xvg file, for matching purposes.
+ *
+ * \todo This is mostly taken from xvgtest.cpp. We could probably create some modular checker
+ * functionality where each line is compared against a set of subcheckers automatically. Then we
+ * could build matchers like this out of the modular components.
+ */
 bool isRelevantXvgHeader(const std::string& line)
 {
     return startsWith(line, "@")
@@ -82,8 +85,11 @@ void checkXvgDataPoint(TestReferenceChecker* checker, const std::string& value)
     checker->checkRealFromString(value, nullptr);
 }
 
-//! MsdMatcher is effectively an extension of XvgMatcher, which checks diffusion coefficients in
-//! addition to legends and data points.
+/*! \brief MsdMatcher is effectively an extension of XvgMatcher for gmx msd results.
+ *
+ * In addition to the usual fields XvgMatcher checks, MsdMatcher checks for properly reported
+ * diffusion coefficients.
+ */
 class MsdMatcher : public ITextBlockMatcher
 {
 public:

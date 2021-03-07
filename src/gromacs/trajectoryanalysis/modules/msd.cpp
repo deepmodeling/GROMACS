@@ -1,7 +1,7 @@
 /*
  * This file is part of the GROMACS molecular simulation package.
  *
- * Copyright (c) 2020,2021, by the GROMACS development team, led by
+ * Copyright (c) 2021, by the GROMACS development team, led by
  * Mark Abraham, David van der Spoel, Berk Hess, and Erik Lindahl,
  * and including many others, as listed in the AUTHORS file in the
  * top-level source directory and at http://www.gromacs.org.
@@ -63,21 +63,24 @@
 #include "gromacs/trajectoryanalysis/analysissettings.h"
 #include "gromacs/trajectoryanalysis/topologyinformation.h"
 #include "gromacs/trajectory/trajectoryframe.h"
-#include "gromacs/utility/programcontext.h"
 #include "gromacs/utility/stringutil.h"
 #include "gromacs/utility.h"
 
-namespace gmx::analysismodules
+namespace gmx
+{
+namespace analysismodules
 {
 
 namespace
 {
 
-// Convert nm^2/ps to 10e-5 cm^2/s
+//! Convert nm^2/ps to 10e-5 cm^2/s
 constexpr double c_diffusionConversionFactor = 1000.0;
-// Used in diffusion coefficient calculations
+//! Three dimensional diffusion coefficient multiplication constant.
 constexpr double c_3DdiffusionDimensionFactor = 6.0;
+//! Two dimensional diffusion coefficient multiplication constant.
 constexpr double c_2DdiffusionDimensionFactor = 4.0;
+//! One dimensional diffusion coefficient multiplication constant.
 constexpr double c_1DdiffusionDimensionFactor = 2.0;
 
 
@@ -161,8 +164,9 @@ std::vector<real> MsdData::averageMsds() const
  * \return Euclidian distance for the given dimension.
  */
 template<bool x, bool y, bool z>
-inline double calcSingleSquaredDistance(const RVec c1, const RVec c2)
+inline double calcSingleSquaredDistance(RVec c1, const RVec c2)
 {
+    static_assert(x || y || z, "zero-dimensional MSD selected");
     const DVec firstCoords  = c1.toDVec();
     const DVec secondCoords = c2.toDVec();
     double     result       = 0;
@@ -191,18 +195,18 @@ inline double calcSingleSquaredDistance(const RVec c1, const RVec c2)
  * \tparam z If true, calculate z dimension of displacement
  * \param c1 First vector
  * \param c2 Second vector
- * \param num_vals
+ * \param numberOfValues
  * \return Per-particle averaged distance
  */
 template<bool x, bool y, bool z>
-double calcAverageDisplacement(const RVec* c1, const RVec* c2, const int num_vals)
+double calcAverageDisplacement(ArrayRef<const RVec> c1, ArrayRef<const RVec> c2)
 {
     double result = 0;
-    for (int i = 0; i < num_vals; i++)
+    for (size_t i = 0; i < c1.size(); i++)
     {
         result += calcSingleSquaredDistance<x, y, z>(c1[i], c2[i]);
     }
-    return result / num_vals;
+    return result / c1.size();
 }
 
 
@@ -399,9 +403,9 @@ class Msd : public TrajectoryAnalysisModule
 {
 public:
     Msd();
-    ~Msd() override;
 
     void initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings) override;
+    void optionsFinished(TrajectoryAnalysisSettings* settings) override;
     void initAfterFirstFrame(const TrajectoryAnalysisSettings& settings, const t_trxframe& fr) override;
     void initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top) override;
     void analyzeFrame(int                           frameNumber,
@@ -422,7 +426,7 @@ private:
     //! Diffusion coefficient conversion factor
     double diffusionCoefficientDimensionFactor_ = c_3DdiffusionDimensionFactor;
     //! Method used to calculate MSD - changes based on dimensonality.
-    std::function<double(const RVec*, const RVec*, int)> calcMsd_ =
+    std::function<double(ArrayRef<const RVec>, ArrayRef<const RVec>)> calcMsd_ =
             calcAverageDisplacement<true, true, true>;
 
     //! Picoseconds between restarts
@@ -464,17 +468,11 @@ private:
     //! Per-tau MSDs for each selected group
     std::string output_;
     //! Per molecule diffusion coefficients if -mol is selected.
-    std::string       moleculeOutput_;
-    gmx_output_env_t* oenv_ = nullptr;
+    std::string moleculeOutput_;
 };
 
 
 Msd::Msd() = default;
-Msd::~Msd()
-{
-    output_env_done(oenv_);
-}
-
 
 void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* settings)
 {
@@ -519,8 +517,8 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
                                .description("Selections to compute MSDs for from the reference"));
 
     // Select MSD type - defaults to 3D if neither option is selected.
-    EnumerationArray<SingleDimDiffType, const char*> enumTypeNames = { "x", "y", "z", "unselected" };
-    EnumerationArray<TwoDimDiffType, const char*> enumLateralNames = { "x", "y", "z", "unselected" };
+    EnumerationArray<SingleDimDiffType, const char*> enumTypeNames    = { "x", "y", "z", "unused" };
+    EnumerationArray<TwoDimDiffType, const char*>    enumLateralNames = { "x", "y", "z", "unused" };
     options->addOption(EnumOption<SingleDimDiffType>("type")
                                .enumValue(enumTypeNames)
                                .store(&singleDimType_)
@@ -554,10 +552,8 @@ void Msd::initOptions(IOptionsContainer* options, TrajectoryAnalysisSettings* se
                     .description("Report diffusion coefficients for each molecule in selection"));
 }
 
-void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top)
+void Msd::optionsFinished(TrajectoryAnalysisSettings gmx_unused* settings)
 {
-    plotSettings_ = settings.plotSettings();
-    // Initial parameter consistency checks.
     if (singleDimType_ != SingleDimDiffType::Unused && twoDimType_ != TwoDimDiffType::Unused)
     {
         std::string errorMessage =
@@ -571,9 +567,12 @@ void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const Topolog
                 "Cannot have multiple groups selected with -sel when using -mol.";
         GMX_THROW(InconsistentInputError(errorMessage.c_str()));
     }
+}
 
-    output_env_init(
-            &oenv_, getProgramContext(), settings.timeUnit(), FALSE, settings.plotSettings().plotFormat(), 0);
+
+void Msd::initAnalysis(const TrajectoryAnalysisSettings& settings, const TopologyInformation& top)
+{
+    plotSettings_ = settings.plotSettings();
 
     // Enumeration helpers for dispatching the right MSD calculation type.
     const EnumerationArray<SingleDimDiffType, decltype(&calcAverageDisplacement<true, true, true>)>
@@ -665,13 +664,13 @@ void Msd::analyzeFrame(int gmx_unused                frameNumber,
             // If dt > trestart, the tau increment will be dt rather than trestart.
             double  tau      = time - (t0_ + std::max<double>(trestart_, *dt_) * i);
             int64_t tauIndex = gmx::roundToInt64(tau / *dt_);
-            msdData.msds[tauIndex].push_back(
-                    calcMsd_(coords.data(), msdData.frames[i].data(), coords.size()));
+            msdData.msds[tauIndex].push_back(calcMsd_(coords, msdData.frames[i]));
 
             for (size_t molInd = 0; molInd < molecules_.size(); molInd++)
             {
                 molecules_[molInd].msdData[tauIndex].push_back(
-                        calcMsd_(&coords[molInd], &msdData.frames[i][molInd], 1));
+                        calcMsd_(arrayRefFromArray(&coords[molInd], 1),
+                                 arrayRefFromArray(&msdData.frames[i][molInd], 1)));
             }
         }
 
@@ -697,11 +696,11 @@ static size_t calculateFitIndex(const int    userFitTau,
     return std::min<size_t>(numTaus - 1, gmx::roundToInt(static_cast<double>(userFitTau) / dt));
 }
 
-static constexpr double c_defaultStartFitIndexFraction = 0.1;
-static constexpr double c_defaultEndFitIndexFraction   = 0.9;
 
 void Msd::finishAnalysis(int gmx_unused nframes)
 {
+    static constexpr double c_defaultStartFitIndexFraction = 0.1;
+    static constexpr double c_defaultEndFitIndexFraction   = 0.9;
     beginFitIndex_ = calculateFitIndex(beginFit_, c_defaultStartFitIndexFraction, taus_.size(), *dt_);
     endFitIndex_   = calculateFitIndex(endFit_, c_defaultEndFitIndexFraction, taus_.size(), *dt_);
     const int numTausForFit = 1 + endFitIndex_ - beginFitIndex_;
@@ -836,4 +835,5 @@ TrajectoryAnalysisModulePointer MsdInfo::create()
 }
 
 
-} // namespace gmx::analysismodules
+} // namespace analysismodules
+} // namespace gmx
