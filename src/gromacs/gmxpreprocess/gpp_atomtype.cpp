@@ -87,7 +87,7 @@ public:
     size_t size() const { return types.size(); }
     //! The actual atom type data.
     std::vector<AtomTypeData> types;
-    //! Map to quickly look up data type index from name. Ref #3974.
+    //! Map from \c types[i].name to \c i for quick look-up in \ref atomTypeFromName. Ref #3974.
     std::unordered_map<std::string, int> nameToAtomType;
 };
 
