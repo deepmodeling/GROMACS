@@ -30,7 +30,7 @@
 struct cu_sits_atdat_t
 {
     int sits_calc_mode = 0;        // sits calculation mode: classical or simple
-    int sits_enh_mode = PP_AND_PW; // sits enhancing region: solvate, intramolecular or intermolecular
+    int sits_enh_mode = 0; // sits enhancing region: solvate, intramolecular or intermolecular
     bool sits_enh_bias = false;    // whether to enhance the bias
 
     int natoms; /**< number of atoms                              */
@@ -54,7 +54,7 @@ struct cu_sits_atdat_t
 
     float3* d_force_tot_nbat;
     float3* d_force_pw_nbat;
-}
+};
 
 struct cu_sits_param_t
 {
@@ -113,7 +113,7 @@ public:
     float* log_pk;
     float* log_nk_inv;
     float* log_nk;
-}
+};
 
 class GpuEventSynchronizer;
 

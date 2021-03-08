@@ -89,6 +89,8 @@
 #define MAXPTR 254
 #define NOGID 255
 
+#define CONSTANT_kB 0.00198716
+
 /* Resource parameters
  * Do not change any of these until you read the instruction
  * in readinp.h. Some cpp's do not take spaces after the backslash
@@ -2303,7 +2305,7 @@ void get_ir(const char*     mdparin,
         for (int i = 0; i < sits->k_numbers; i = i + 1)
         {
             sits->beta_k[i] = templ + temp_slope * i;
-            sits->beta_k[i] = 1. / (CONSTANT_kB * sits->beta_k[i]);
+            sits->beta_k[i] = 1.0f / (CONSTANT_kB * sits->beta_k[i]);
         }
 
         sits->energy_multiple = get_ereal(&inp, "sits-energy-multiple", 1.0f, wi);
@@ -2320,17 +2322,17 @@ void get_ir(const char*     mdparin,
         if (!sits->constant_nk)
         {
             // nk的轨迹文件
-            sits->nk_traj_file = get_estr(&inp, "sits-nk-traj-file", "sits_nk.dat");
+            sits->nk_traj_file = const_cast<char*>(get_estr(&inp, "sits-nk-traj-file", "sits_nk.dat"));
             // norm的轨迹文件
-            sits->norm_traj_file = get_estr(&inp, "sits-norm-traj-file", "sits_norm.dat");
+            sits->norm_traj_file = const_cast<char*>(get_estr(&inp, "sits-norm-traj-file", "sits_norm.dat"));
         }
 
         char* temps;
 
         // nk的重开文件
-        sits->nk_rest_file = get_estr(&inp, "sits-nk-rest-file", "none");
+        sits->nk_rest_file = const_cast<char*>(get_estr(&inp, "sits-nk-rest-file", "none"));
         // norm的重开文件
-        sits->norm_rest_file = get_estr(&inp, "sits-norm-rest-file", "none");
+        sits->norm_rest_file = const_cast<char*>(get_estr(&inp, "sits-norm-rest-file", "none"));
 
         temps = sits->nk_rest_file;
         if (temps != "none")
@@ -2374,10 +2376,10 @@ void get_ir(const char*     mdparin,
         }
         else
         {
-            printf("	SITS Log Normalization Initial To Default Value %.0e\n", -FLT_MAX);
+            printf("	SITS Log Normalization Initial To Default Value %.0e\n", -9999.);
             for (int i = 0; i < sits->k_numbers; i++)
             {
-                tempf[i] = -FLT_MAX;
+                tempf[i] = -9999.;
             }
         }
         Malloc_Safely((void**)&(sits->log_norm), sizeof(float) * sits->k_numbers);
@@ -2393,7 +2395,7 @@ void get_ir(const char*     mdparin,
     }
 
     //记录分能量的文件
-    sits->energy_record_out = get_estr(&inp, "sits-energy-record-out", "sits_energy.dat");
+    sits->energy_record_out = const_cast<char*>(get_estr(&inp, "sits-energy-record-out", "sits_energy.dat"));
 
     /* simulated tempering variables */
     printStringNewline(&inp, "simulated tempering variables");

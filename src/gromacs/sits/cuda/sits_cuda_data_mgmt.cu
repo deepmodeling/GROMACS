@@ -98,8 +98,8 @@ static void sits_init_atomdata_first(cu_sits_atdat_t* atdat)
        need reallocation in sits_cuda_init_atomdata */
     atdat->d_force_tot = nullptr;
     atdat->d_force_pw  = nullptr;
-    atdat->d_force_nbat_tot = nullptr;
-    atdat->d_force_nbat_pw  = nullptr;
+    atdat->d_force_tot_nbat = nullptr;
+    atdat->d_force_pw_nbat  = nullptr;
 
     /* size -1 indicates that the respective array hasn't been initialized yet */
     atdat->natoms = -1;
@@ -270,9 +270,9 @@ static void sits_cuda_clear_f(gmx_sits_cuda_t* gpu_sits, int natoms_clear)
     CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
     stat = cudaMemsetAsync(adat->d_force_pw, 0, natoms_clear * sizeof(*adat->d_force_pw), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
-    stat = cudaMemsetAsync(adat->d_force_nbat_tot, 0, natoms_clear * sizeof(*adat->d_force_nbat_tot), ls);
+    stat = cudaMemsetAsync(adat->d_force_tot_nbat, 0, natoms_clear * sizeof(*adat->d_force_tot_nbat), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
-    stat = cudaMemsetAsync(adat->d_force_nbat_pw, 0, natoms_clear * sizeof(*adat->d_force_nbat_pw), ls);
+    stat = cudaMemsetAsync(adat->d_force_pw_nbat, 0, natoms_clear * sizeof(*adat->d_force_pw_nbat), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
 }
 
@@ -329,8 +329,8 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxm_atomdata_t* n
         {
             freeDeviceBuffer(&d_atdat->d_force_tot);
             freeDeviceBuffer(&d_atdat->d_force_pw);
-            freeDeviceBuffer(&d_atdat->d_force_nbat_tot);
-            freeDeviceBuffer(&d_atdat->d_force_nbat_pw);
+            freeDeviceBuffer(&d_atdat->d_force_tot_nbat);
+            freeDeviceBuffer(&d_atdat->d_force_pw_nbat);
             freeDeviceBuffer(&d_atdat->energrp);
         }
 
@@ -338,9 +338,9 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxm_atomdata_t* n
         CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_tot");
         stat = cudaMalloc((void**)&d_atdat->d_force_pw, nalloc * sizeof(*d_atdat->d_force_pw));
         CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_pw");
-        stat = cudaMalloc((void**)&d_atdat->d_force_nbat_tot, nalloc * sizeof(*d_atdat->d_force_nbat_tot));
+        stat = cudaMalloc((void**)&d_atdat->d_force_tot_nbat, nalloc * sizeof(*d_atdat->d_force_tot_nbat));
         CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_tot");
-        stat = cudaMalloc((void**)&d_atdat->d_force_nbat_pw, nalloc * sizeof(*d_atdat->d_force_nbat_pw));
+        stat = cudaMalloc((void**)&d_atdat->d_force_pw_nbat, nalloc * sizeof(*d_atdat->d_force_pw_nbat));
         CU_RET_ERR(stat, "cudaMalloc failed on d_atdat->d_force_pw");
         if (nbat->params().nenergrp > 1)
         {
@@ -397,8 +397,8 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
 
     freeDeviceBuffer(&atdat->d_force_tot);
     freeDeviceBuffer(&atdat->d_force_pw);
-    freeDeviceBuffer(&atdat->d_force_nbat_tot);
-    freeDeviceBuffer(&atdat->d_force_nbat_pw);
+    freeDeviceBuffer(&atdat->d_force_tot_nbat);
+    freeDeviceBuffer(&atdat->d_force_pw_nbat);
     freeDeviceBuffer(&atdat->atomIndices);
     freeDeviceBuffer(&atdat->energrp);
 

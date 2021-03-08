@@ -463,11 +463,11 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
                 snew(sits->log_norm, sits->k_numbers);
                 snew(sits->log_norm_old, sits->k_numbers);
             }
-            serializer->doDoubleArray(sits->beta_k, sits->k_numbers);
-            serializer->doDoubleArray(sits->log_nk, sits->k_numbers);
-            serializer->doDoubleArray(sits->nk, sits->k_numbers);
-            serializer->doDoubleArray(sits->log_norm, sits->k_numbers);
-            serializer->doDoubleArray(sits->log_norm_old, sits->k_numbers);
+            serializer->doRealArray(sits->beta_k, sits->k_numbers);
+            serializer->doRealArray(sits->log_nk, sits->k_numbers);
+            serializer->doRealArray(sits->nk, sits->k_numbers);
+            serializer->doRealArray(sits->log_norm, sits->k_numbers);
+            serializer->doRealArray(sits->log_norm_old, sits->k_numbers);
         }
 
         serializer->doReal(&sits->energy_multiple);
@@ -476,11 +476,34 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
         serializer->doBool(&sits->constant_nk);
         serializer->doInt(&sits->nstsitsrecord);
         serializer->doInt(&sits->nstsitsupdate);
-        serializer->doString(&sits->nk_traj_file);
-        serializer->doString(&sits->norm_traj_file);
-        serializer->doString(&sits->nk_rest_file);
-        serializer->doString(&sits->norm_rest_file);
-        serializer->doString(&sits->energy_record_out);
+
+        std::string buf;
+        if (serializer->reading())
+        {
+            serializer->doString(&buf);
+            sits->nk_traj_file = gmx_strdup(buf.c_str());
+            serializer->doString(&buf);
+            sits->norm_traj_file = gmx_strdup(buf.c_str());
+            serializer->doString(&buf);
+            sits->nk_rest_file = gmx_strdup(buf.c_str());
+            serializer->doString(&buf);
+            sits->norm_rest_file = gmx_strdup(buf.c_str());
+            serializer->doString(&buf);
+            sits->energy_record_out = gmx_strdup(buf.c_str());
+        }
+        else
+        {
+            buf = sits->nk_traj_file;
+            serializer->doString(&buf);
+            buf = sits->norm_traj_file;
+            serializer->doString(&buf);
+            buf = sits->nk_rest_file;
+            serializer->doString(&buf);
+            buf = sits->norm_rest_file;
+            serializer->doString(&buf);
+            buf = sits->energy_record_out;
+            serializer->doString(&buf);
+        }
     }
 }
 

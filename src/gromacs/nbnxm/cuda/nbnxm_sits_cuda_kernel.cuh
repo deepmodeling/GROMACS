@@ -49,6 +49,7 @@
 #include "gromacs/gpu_utils/cuda_kernel_utils.cuh"
 #include "gromacs/math/utilities.h"
 #include "gromacs/pbcutil/ishift.h"
+#include "gromacs/sits/cuda/sits_cuda_types.h"
 /* Note that floating-point constants in CUDA code should be suffixed
  * with f (e.g. 0.5f), to stop the compiler producing intermediate
  * code that is in double precision.
@@ -146,15 +147,15 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #endif /* GMX_PTX_ARCH >= 350 */
 #ifdef PRUNE_NBL
 #    ifdef CALC_ENERGIES
-        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_prune_cuda)
+        __global__ void NB_SITS_KERNEL_FUNC_NAME(nbnxn_sits_kernel, _VF_prune_cuda)
 #    else
-        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_prune_cuda)
+        __global__ void NB_SITS_KERNEL_FUNC_NAME(nbnxn_sits_kernel, _F_prune_cuda)
 #    endif /* CALC_ENERGIES */
 #else
 #    ifdef CALC_ENERGIES
-        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_cuda)
+        __global__ void NB_SITS_KERNEL_FUNC_NAME(nbnxn_sits_kernel, _VF_cuda)
 #    else
-        __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_cuda)
+        __global__ void NB_SITS_KERNEL_FUNC_NAME(nbnxn_sits_kernel, _F_cuda)
 #    endif /* CALC_ENERGIES */
 #endif     /* PRUNE_NBL */
                 (const cu_atomdata_t atdat, const cu_nbparam_t nbparam, const cu_plist_t plist, const cu_sits_atdat_t sits_atdat, bool bCalcFshift)
@@ -180,8 +181,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float3*              f           = atdat.f;
 
     // SITS forces
-    float3*              f_sits_tot  = sits.d_force_nbat_tot;
-    float3*              f_sits_pw   = sits.d_force_nbat_pw;
+    float3*              f_sits_tot  = sits_atdat.d_force_tot_nbat;
+    float3*              f_sits_pw   = sits_atdat.d_force_pw_nbat;
 
     const float3*        shift_vec   = atdat.shift_vec;
     float                rcoulomb_sq = nbparam.rcoulomb_sq;
@@ -334,11 +335,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef CALC_ENERGIES
     E_lj         = 0.0f;
     E_el         = 0.0f;
-
-    E_lj_tot     = 0.0f;
-    E_el_tot     = 0.0f;
-    E_lj_pw      = 0.0f;
-    E_el_pw      = 0.0f;
 
 #        ifdef EXCLUSION_FORCES /* Ewald or RF */
     if (nb_sci.shift == CENTRAL && pl_cj4[cij4_start].cj[0] == sci * c_numClPerSupercl)
@@ -674,8 +670,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                     /* reduce j forces */
                     reduce_force_j_warp_shfl(fcj_buf, f, tidxi, aj, c_fullWarpMask);
 
-                    reduce_force_j_warp_shfl(fcj_tot_buf, gpu_sits.d_force_tot_nbat, tidxi, aj, c_fullWarpMask);
-                    reduce_force_j_warp_shfl(fcj_pw_buf, gpu_sits.d_force_pw_nbat, tidxi, aj, c_fullWarpMask);
+                    reduce_force_j_warp_shfl(fcj_tot_buf, sits_atdat.d_force_tot_nbat, tidxi, aj, c_fullWarpMask);
+                    reduce_force_j_warp_shfl(fcj_pw_buf, sits_atdat.d_force_pw_nbat, tidxi, aj, c_fullWarpMask);
                 }
             }
 #    ifdef PRUNE_NBL
@@ -702,8 +698,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
         ai = (sci * c_numClPerSupercl + i) * c_clSize + tidxi;
         reduce_force_i_warp_shfl(fci_buf[i], f, &fshift_buf, bCalcFshift, tidxj, ai, c_fullWarpMask);
 
-        reduce_force_i_warp_shfl(fci_tot_buf[i], gpu_sits.d_force_tot_nbat, &fshift_buf, 0, tidxj, ai, c_fullWarpMask);
-        reduce_force_i_warp_shfl(fci_pw_buf[i], gpu_sits.d_force_pw_nbat, &fshift_buf, 0, tidxj, ai, c_fullWarpMask);
+        reduce_force_i_warp_shfl(fci_tot_buf[i], sits_atdat.d_force_tot_nbat, &fshift_buf, 0, tidxj, ai, c_fullWarpMask);
+        reduce_force_i_warp_shfl(fci_pw_buf[i], sits_atdat.d_force_pw_nbat, &fshift_buf, 0, tidxj, ai, c_fullWarpMask);
     }
 
     /* add up local shift forces into global mem, tidxj indexes x,y,z */
@@ -715,9 +711,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef CALC_ENERGIES
     /* reduce the energies over warps and store into global memory */
     reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
-    reduce_energy_warp_shfl(E_lj_decomp.x, E_el_decomp.x, gpu_sits.d_enerd.x, gpu_sits.d_enerd.x, tidx, c_fullWarpMask);
-    reduce_energy_warp_shfl(E_lj_decomp.y, E_el_decomp.y, gpu_sits.d_enerd.y, gpu_sits.d_enerd.y, tidx, c_fullWarpMask);
-    reduce_energy_warp_shfl(E_lj_decomp.z, E_el_decomp.z, gpu_sits.d_enerd.z, gpu_sits.d_enerd.z, tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.x, E_el_decomp.x, &(sits_atdat.d_enerd->x), &(sits_atdat.d_enerd->x), tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.y, E_el_decomp.y, &(sits_atdat.d_enerd->y), &(sits_atdat.d_enerd->y), tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.z, E_el_decomp.z, &(sits_atdat.d_enerd->z), &(sits_atdat.d_enerd->z), tidx, c_fullWarpMask);
 
 #    endif
 }

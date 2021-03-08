@@ -72,8 +72,10 @@ struct t_sits
     float beta0;                 //本身温度对应的beta
     //! The range of temperatures used for simulated tempering
     real* beta_k;
-    real* log_nk, nk;
-    real* log_norm, log_norm_old;
+    real* log_nk;
+    real* nk;
+    real* log_norm;
+    real* log_norm_old;
     //! The low temperature for simulated tempering
     // real sitstemp_low;
     //! The high temperature for simulated tempering

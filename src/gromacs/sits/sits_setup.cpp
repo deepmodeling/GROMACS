@@ -50,6 +50,7 @@
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/sits/sits.h"
 #include "gromacs/sits/cuda/sits_cuda_types.h"
+#include "gromacs/sits/sits_gpu_data_mgmt.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/logger.h"
 
@@ -134,7 +135,8 @@ void sits_atomdata_init(const gmx::MDLogger&    mdlog,
     sits_at->natoms = 0;
 }
 
-std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
+std::unique_ptr<sits_t> init_sits(
+                                //   const gmx::MDLogger&     mdlog,
                                   gmx_bool                 bFEP_SITS,
                                   const t_inputrec*        ir,
                                   const t_forcerec*        fr,
@@ -190,7 +192,7 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
 } // namespace Sits
 
 sits_t::sits_t(std::unique_ptr<sits_atomdata_t>  sits_at,
-                gmx_sits_gpu_t*                  gpu_sits_ptr,
+                gmx_sits_cuda_t*                  gpu_sits_ptr,
                 gmx_wallcycle*                    wcycle) :
     sits_at(std::move(sits_at)),
     wcycle_(wcycle),

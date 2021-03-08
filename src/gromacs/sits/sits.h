@@ -1,3 +1,6 @@
+#ifndef GMX_SITS_H
+#define GMX_SITS_H
+
 #include <cassert>
 #include <cinttypes>
 #include <csignal>
@@ -13,12 +16,12 @@
 #include "gromacs/math/utilities.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/mdtypes/locality.h"
-#include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/enumerationhelpers.h"
 #include "gromacs/utility/range.h"
 #include "gromacs/utility/real.h"
 
-#include "gromacs/sits/cuda/sits_cuda_types.h"
+// #include "gromacs/sits/cuda/sits_cuda_types.h"
+struct gmx_sits_cuda_t;
 
 struct gmx_device_info_t;
 struct gmx_domdec_zones_t;
@@ -26,9 +29,6 @@ struct gmx_enerdata_t;
 struct gmx_hw_info_t;
 struct gmx_mtop_t;
 struct gmx_wallcycle;
-struct interaction_const_t;
-struct sits_t;
-struct t_blocka;
 struct t_commrec;
 struct t_lambda;
 struct t_mdatoms;
@@ -36,26 +36,18 @@ struct t_nrnb;
 struct t_forcerec;
 struct t_inputrec;
 
-enum SITS_CALC_MODE
-{
-    CLASSICAL_SITS; SIMPLE_SITS;
-};
+// enum class SITS_CALC_MODE
+// {
+//     CLASSICAL_SITS; SIMPLE_SITS
+// };
 
-enum SITS_ENH_MODE
-{
-    PP_AND_PW; INTRA_MOL; INTER_MOL; ALL;
-};
+// enum class SITS_ENH_MODE
+// {
+//     PP_AND_PW; INTRA_MOL; INTER_MOL; ALL
+// };
 
 struct sits_t
 {
-public:
-    //! Constructs an object from its components
-    sits_t(std::unique_ptr<nbnxn_atomdata_t> nbat,
-           const Nbnxm::KernelSetup&         kernelSetup,
-           cu_sits_atdat*                    gpu_sits,
-           gmx_wallcycle*                    wcycle);
-
-    ~sits_t();
 
 private:
     FILE* sits_enerd_log = NULL;
@@ -95,9 +87,9 @@ public:
         bool  constant_nk     = false;   // sits是否迭代更新nk
         //文件
         FILE*  nk_traj_file;        //记录nk变化的文件
-        string nk_rest_file;   //记录最后一帧nk的文件
+        std::string nk_rest_file;   //记录最后一帧nk的文件
         FILE*  norm_traj_file;      //记录log_norm变化的文件
-        string norm_rest_file; //记录最后一帧log_norm的文件
+        std::string norm_rest_file; //记录最后一帧log_norm的文件
 
         //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
         float fb_shift;
@@ -117,7 +109,7 @@ public:
         gmx::HostVector<real> nk;
         gmx::HostVector<real> sum_a;
         gmx::HostVector<real> sum_b;
-        gmx::HostVector<real> factor
+        gmx::HostVector<real> factor;
 
         // Details of $n_k$ iteration see:
         // \ref An integrate-over-temperature approach for enhanced sampling
@@ -148,11 +140,11 @@ public:
 
 public:
     int sits_calc_mode = 0;         //选择sits模式
-    int sits_enh_mode  = PP_AND_PW; //
+    int sits_enh_mode  = 0; //
     int sits_enh_bias  = false;     //
 
-    gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
-    gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
+    // gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
+    // gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
 
     gmx_sits_cuda_t* gpu_sits;
 
@@ -168,13 +160,21 @@ public:
     //改变frc，使得需要增强的frc被选择性增强，由于共用的frc，因此这步frc增强需要放到刚好计算完所有要增强的frc的函数下方，而避免增强不应该增强的子模块frc
     //因此，体系的所有可能的frc需要先算待增强的frc，插入此函数，再算不应增强的frc
     void sits_enhance_force();
+
+    //! Constructs an object from its components
+    sits_t(std::unique_ptr<sits_atomdata_t>  sits_at,
+            gmx_sits_cuda_t*                  gpu_sits_ptr,
+            gmx_wallcycle*                    wcycle);
+
+    ~sits_t();
 };
 
 namespace Sits
 {
 
-/*! \brief Creates an Nbnxm object */
-std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
+/*! \brief Creates an Sits object */
+std::unique_ptr<sits_t> init_sits(
+                                //   const gmx::MDLogger&     mdlog,
                                   gmx_bool                 bFEP_SITS,
                                   const t_inputrec*        ir,
                                   const t_forcerec*        fr,
@@ -185,3 +185,5 @@ std::unique_ptr<sits_t> init_sits(const gmx::MDLogger&     mdlog,
                                   matrix                   box,
                                   gmx_wallcycle*           wcycle);
 } // namespace Sits
+
+#endif // GMX_SITS_H
