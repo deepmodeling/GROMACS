@@ -1,1 +1,6 @@
 build
+build.sh
+rebuild.sh
+Plumed.cmake
+Plumed.h
+Plumed.inc
