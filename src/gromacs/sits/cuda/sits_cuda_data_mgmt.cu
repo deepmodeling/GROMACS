@@ -46,7 +46,7 @@
 
 // TODO We would like to move this down, but the way gmx_nbnxn_gpu_t
 //      is currently declared means this has to be before gpu_types.h
-#include "nbnxm_cuda_types.h"
+#include "gromacs/nbnxm/cuda/nbnxm_cuda_types.h"
 
 // TODO Remove this comment when the above order issue is resolved
 #include "gromacs/gpu_utils/cudautils.cuh"
@@ -72,7 +72,13 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 
-#include "nbnxm_cuda.h"
+#include "gromacs/nbnxm/cuda/nbnxm_cuda.h"
+
+#include "sits_cuda_types.h"
+#include "gromacs/sits/sits.h"
+#include "gromacs/sits/sits_gpu_data_mgmt.h"
+
+struct sits_atomdata_t;
 
 namespace Sits
 {
@@ -86,13 +92,8 @@ static void sits_init_atomdata_first(cu_sits_atdat_t* atdat)
 {
     cudaError_t stat;
 
-    stat = cudaMalloc((void**)&ad->fshift, SHIFTS * sizeof(*ad->fshift));
-    CU_RET_ERR(stat, "cudaMalloc failed on ad->fshift");
-
-    stat = cudaMalloc((void**)&ad->e_lj, sizeof(*ad->e_lj));
-    CU_RET_ERR(stat, "cudaMalloc failed on ad->e_lj");
-    stat = cudaMalloc((void**)&ad->e_el, sizeof(*ad->e_el));
-    CU_RET_ERR(stat, "cudaMalloc failed on ad->e_el");
+    stat = cudaMalloc((void**)&atdat->d_enerd, SHIFTS * sizeof(*atdat->d_enerd));
+    CU_RET_ERR(stat, "cudaMalloc failed on atdat->d_enerd");
 
     /* initialize to nullptr pointers to data that is not allocated here and will
        need reallocation in sits_cuda_init_atomdata */
@@ -110,8 +111,9 @@ static void sits_init_atomdata_first(cu_sits_atdat_t* atdat)
 static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
                                   const sits_atomdata_t*     sits_at)
 {
+    cudaError_t    stat;
     cu_sits_param_t* param = gpu_sits->sits_param;
-    cudaStream_t stream    = gpu_sits->stream;
+    cudaStream_t stream    = gpu_sits->stream[0];
 
     sits_init_atomdata_first(gpu_sits->sits_atdat);
 
@@ -222,7 +224,7 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
 
 gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
                                 const sits_atomdata_t*     sits_at,
-                                int /*rank*/)
+                                int rank)
 {
     cudaError_t stat;
 
@@ -240,16 +242,16 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
     gpu_sits->dev_info = deviceInfo;
 
     /* local/non-local GPU streams */
-    stat = cudaStreamCreate(&gpu_sits->stream);
+    stat = cudaStreamCreate(gpu_sits->stream);
 
     /* set the kernel type for the current GPU */
     /* pick L1 cache configuration */
-    cuda_set_cacheconfig();
+    // cuda_set_cacheconfig();
 
     cuda_init_sits_params(gpu_sits, sits_at);
 
-    nb->atomIndicesSize       = 0;
-    nb->atomIndicesSize_alloc = 0;
+    gpu_sits->sits_atdat->atomIndicesSize       = 0;
+    gpu_sits->sits_atdat->atomIndicesSize_alloc = 0;
 
     if (debug)
     {
@@ -264,7 +266,7 @@ static void sits_cuda_clear_f(gmx_sits_cuda_t* gpu_sits, int natoms_clear)
 {
     cudaError_t    stat;
     cu_sits_atdat_t* adat = gpu_sits->sits_atdat;
-    cudaStream_t   ls   = nb->stream[InteractionLocality::Local];
+    cudaStream_t   ls   = gpu_sits->stream[0];
 
     stat = cudaMemsetAsync(adat->d_force_tot, 0, natoms_clear * sizeof(*adat->d_force_tot), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
@@ -279,9 +281,9 @@ static void sits_cuda_clear_f(gmx_sits_cuda_t* gpu_sits, int natoms_clear)
 /*! Clears nonbonded shift force output array and energy outputs on the GPU. */
 static void sits_cuda_clear_e_fshift(gmx_sits_cuda_t* gpu_sits)
 {
-    cudaError_t    stat;
-    cu_atomdata_t* adat = gpu_sits->sits_atdat;
-    cudaStream_t   ls   = gpu_sits->stream;
+    cudaError_t      stat;
+    cu_sits_atdat_t* adat = gpu_sits->sits_atdat;
+    cudaStream_t     ls   = gpu_sits->stream[0];
 
     stat = cudaMemsetAsync(adat->d_enerd, 0, sizeof(*adat->d_enerd), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on enerd failed");
@@ -298,16 +300,17 @@ void sits_gpu_clear_outputs(gmx_sits_cuda_t* gpu_sits, bool computeVirial)
        used in the current step */
     if (computeVirial)
     {
-        sits_cuda_clear_e_fshift(nb);
+        sits_cuda_clear_e_fshift(gpu_sits);
     }
 }
 
-void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxm_atomdata_t* nbat)
+void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxn_atomdata_t* nbat)
 {
     cudaError_t      stat;
     int              nalloc, natoms;
     bool             realloced;
     cu_sits_atdat_t* d_atdat = gpu_sits->sits_atdat;
+    cudaStream_t     ls   = gpu_sits->stream[0];
 
     natoms    = nbat->numAtoms();
     realloced = false;
@@ -414,7 +417,7 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
 
     sfree(atdat);
     sfree(sits_param);
-    sfree(nb);
+    sfree(gpu_sits);
 
     if (debug)
     {

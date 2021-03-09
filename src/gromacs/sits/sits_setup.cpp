@@ -42,6 +42,8 @@
 
 #include "gmxpre.h"
 
+#include "gromacs/domdec/domdec.h"
+#include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/hardware/hw_info.h"
 #include "gromacs/mdlib/gmx_omp_nthreads.h"
 #include "gromacs/mdtypes/commrec.h"
@@ -49,7 +51,6 @@
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/sits/sits.h"
-#include "gromacs/sits/cuda/sits_cuda_types.h"
 #include "gromacs/sits/sits_gpu_data_mgmt.h"
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/logger.h"
@@ -83,7 +84,8 @@ bool Open_File_Safely(FILE** file, const char* file_name, const char* open_type)
 }
 
 /* Initializes an sits_atomdata_t data structure */
-void sits_atomdata_init(const gmx::MDLogger&    mdlog,
+void sits_atomdata_init(
+                        // const gmx::MDLogger&    mdlog,
                         sits_atomdata_t*        sits_at,
                         int                     n_energygroups,
                         t_sits*                 sitsvals)
@@ -176,26 +178,30 @@ std::unique_ptr<sits_t> init_sits(
          */
         mimimumNumEnergyGroupNonbonded = 1;
     }
-    sits_atomdata_init(mdlog, sits_at.get(), mimimumNumEnergyGroupNonbonded, ir->sitsvals);
+    sits_atomdata_init(sits_at.get(), mimimumNumEnergyGroupNonbonded, ir->sitsvals);
 
     gmx_sits_cuda_t* gpu_sits = nullptr;
     if (useGpu)
     {
         /* init the NxN GPU data; the last argument tells whether we'll have
          * both local and non-local NB calculation on GPU */
-        gpu_sits = gpu_init_sits(deviceInfo, sits_at.get());
+        gpu_sits = gpu_init_sits(deviceInfo, sits_at.get(), 0);
     }
 
-    return std::make_unique<sits_t>(std::move(sits_at), gpu_sits, wcycle);
+    return std::make_unique<sits_t>(std::move(sits_at), gpu_sits);
 }
 
 } // namespace Sits
 
+sits_atomdata_t::sits_atomdata_t() :
+    natoms(0),
+    k_numbers(0)
+{
+}
+
 sits_t::sits_t(std::unique_ptr<sits_atomdata_t>  sits_at,
-                gmx_sits_cuda_t*                  gpu_sits_ptr,
-                gmx_wallcycle*                    wcycle) :
+                gmx_sits_cuda_t*                  gpu_sits_ptr) :
     sits_at(std::move(sits_at)),
-    wcycle_(wcycle),
     gpu_sits(gpu_sits_ptr)
 {
     GMX_RELEASE_ASSERT(sits_at, "Need valid atomdata object");
@@ -206,24 +212,24 @@ sits_t::~sits_t()
     Sits::gpu_free(gpu_sits);
 }
 
-sits_t::sits_atomdata_set_energygroups(std::vector<int> cginfo)
+void sits_t::sits_atomdata_set_energygroups(std::vector<int> cginfo)
 {
-    natoms = cginfo.size();
-    energrp.resize(natoms);
-    for (int i = 0; i < natoms; i++)
+    sits_at->natoms = cginfo.size();
+    sits_at->energrp.resize(sits_at->natoms);
+    for (int i = 0; i < sits_at->natoms; i++)
     {
-        energrp[i] = cginfo[i];
+        sits_at->energrp[i] = cginfo[i];
     }
 }
 
-sits_t::print_sitsvals()
+void sits_t::print_sitsvals()
 {
     printf("\n############# SITS ############\n");
-    printf("natoms = %d\n", natoms);
-    printf("k_num = %d,\nbeta_k = ", k_numbers);
-    for (int i=0; i<k_numbers; i++)
+    printf("natoms = %d\n", sits_at->natoms);
+    printf("k_num = %d,\nbeta_k = ", sits_at->k_numbers);
+    for (int i=0; i<sits_at->k_numbers; i++)
     {
-        printf("%.3f ", beta_k[i]);
+        printf("%.3f ", sits_at->beta_k[i]);
     }
     printf("\n############# SITS ############\n");
 }

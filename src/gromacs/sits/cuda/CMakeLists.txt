@@ -36,7 +36,6 @@ if(GMX_USE_CUDA)
     set(SITS_CUDA_KERNEL_SOURCES
             
     )
-    endif()
 
     file(GLOB SITS_CUDA_SOURCES
         #  nbnxm_cuda.cu

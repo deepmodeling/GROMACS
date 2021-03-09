@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <cassert>
 #include <cinttypes>
 #include <csignal>
@@ -7,7 +9,10 @@
 #include <algorithm>
 #include <memory>
 
-#include "gromacs/gpu_utils/devicebuffer_datatype.h"
+#include "gromacs/gpu_utils/cuda_arch_utils.cuh"
+#include "gromacs/gpu_utils/cudautils.cuh"
+#include "gromacs/gpu_utils/devicebuffer.h"
+#include "gromacs/gpu_utils/gputraits.cuh"
 #include "gromacs/math/arrayrefwithpadding.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/math/utilities.h"
@@ -29,9 +34,9 @@
 
 struct cu_sits_atdat_t
 {
-    int sits_calc_mode = 0;        // sits calculation mode: classical or simple
-    int sits_enh_mode = 0; // sits enhancing region: solvate, intramolecular or intermolecular
-    bool sits_enh_bias = false;    // whether to enhance the bias
+    int sits_calc_mode;        // sits calculation mode: classical or simple
+    int sits_enh_mode; // sits enhancing region: solvate, intramolecular or intermolecular
+    bool sits_enh_bias;    // whether to enhance the bias
 
     int natoms; /**< number of atoms                              */
     int nalloc;
@@ -58,15 +63,14 @@ struct cu_sits_atdat_t
 
 struct cu_sits_param_t
 {
-public:
     // SITS energy records
-    int record_count = 0; //记录次数
-    int reset = 1; // record的时候，第一次和后面公式不一样，这个变量是拿来控制这个的
+    int record_count; //记录次数
+    int reset; // record的时候，第一次和后面公式不一样，这个变量是拿来控制这个的
 
     // SITS ensemble definition
-    int   record_interval = 1;   // interval of energy record
-    int   update_interval = 100; // interval of $n_k$ update
-    bool  constant_nk     = false;   // whether iteratively update n_k
+    int   record_interval;   // interval of energy record
+    int   update_interval; // interval of $n_k$ update
+    bool  constant_nk;   // whether iteratively update n_k
     int   k_numbers;             // 
     int   k_nalloc;
     float beta0;                 // original temperature \beta

@@ -34,6 +34,10 @@
 
 file(GLOB SITS_SOURCES sits_setup.cpp)
 
+gmx_add_libgromacs_sources(
+    sits_setup.cpp
+    )
+
 set(SITS_SOURCES ${SITS_SOURCES} PARENT_SCOPE)
 # if (BUILD_TESTING)
 #     add_subdirectory(tests)

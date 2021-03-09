@@ -46,13 +46,17 @@
 #include <memory>
 
 #include "gromacs/gpu_utils/gpu_macros.h"
-
-#include "gromacs/sits/cuda/sits_cuda_types.h"
-#include "gpu_types.h"
+#include "gromacs/nbnxm/gpu_types.h"
+#include "gromacs/nbnxm/nbnxm.h"
+#include "gromacs/sits/sits.h"
+// #include "gromacs/sits/cuda/sits_cuda_types.h"
 
 struct sits_atomdata_t;
+struct nbnxn_atomdata_t;
+struct gmx_sits_cuda_t;
 struct gmx_gpu_info_t;
 struct gmx_device_info_t;
+struct gmx_sits_cuda_t;
 
 namespace Sits
 {
@@ -65,15 +69,15 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
 
 /** Initializes atom-data on the GPU, called at every pair search step. */
 CUDA_FUNC_QUALIFIER
-void gpu_init_sits_atomdata(gmx_sits_cuda_t gmx_unused* gpu_sits, const nbnxm_atomdata_t gmx_unused* nbat) GPU_FUNC_TERM;
+void gpu_init_sits_atomdata(gmx_sits_cuda_t gmx_unused* gpu_sits, const nbnxn_atomdata_t gmx_unused* nbat); CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 /** Clears GPU outputs: nonbonded force, shift force and energy. */
 CUDA_FUNC_QUALIFIER
-void sits_gpu_clear_outputs(gmx_sits_cuda_t gmx_unused* gpu_sits, bool gmx_unused computeVirial) GPU_FUNC_TERM;
+void sits_gpu_clear_outputs(gmx_sits_cuda_t gmx_unused* gpu_sits, bool gmx_unused computeVirial); CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 /** Frees all GPU resources used for the nonbonded calculations. */
 CUDA_FUNC_QUALIFIER
-void gpu_free(gmx_sits_cuda_t gmx_unused* gpu_sits) GPU_FUNC_TERM;
+void gpu_free(gmx_sits_cuda_t gmx_unused* gpu_sits); CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 /** Returns an opaque pointer to the GPU command stream
  *  Note: CUDA only.

@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "gromacs/gpu_utils/devicebuffer_datatype.h"
+#include "gromacs/gpu_utils/hostallocator.h"
 #include "gromacs/math/arrayrefwithpadding.h"
 #include "gromacs/math/vectypes.h"
 #include "gromacs/math/utilities.h"
@@ -46,6 +47,74 @@ struct t_inputrec;
 //     PP_AND_PW; INTRA_MOL; INTER_MOL; ALL
 // };
 
+struct sits_atomdata_t
+{
+public:
+    //暂时变量
+    int record_count = 0; //记录次数
+    int reset = 1; // record的时候，第一次和后面公式不一样，这个变量是拿来控制这个的
+
+    //控制变量
+    int   record_interval = 1;   //每隔1步记录一次能量
+    int   update_interval = 100; //每隔100步更新一次nk
+    int   k_numbers;             //划分多少个格子
+    float beta0;                 //本身温度对应的beta
+    bool  constant_nk = false;   // sits是否迭代更新nk
+    //文件
+    FILE*       nk_traj_file;   //记录nk变化的文件
+    std::string nk_rest_file;   //记录最后一帧nk的文件
+    FILE*       norm_traj_file; //记录log_norm变化的文件
+    std::string norm_rest_file; //记录最后一帧log_norm的文件
+
+    //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
+    float fb_shift;
+    //也可以对进行修正，使加强计算能量时值为 energy_multiple * 原始能量 + energy_shift;
+    float energy_multiple;
+    float energy_shift;
+
+    int                  natoms;
+    gmx::HostVector<int> energrp;
+
+    // Derivations and physical quantities see:
+    // \ref A selective integrated tempering method
+    // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
+
+    gmx::HostVector<real> beta_k;
+    gmx::HostVector<real> nkExpBetakU;
+    gmx::HostVector<real> nk;
+    gmx::HostVector<real> sum_a;
+    gmx::HostVector<real> sum_b;
+    gmx::HostVector<real> factor;
+
+    // Details of $n_k$ iteration see:
+    // \ref An integrate-over-temperature approach for enhanced sampling
+
+    // |   .cpp var    |  ylj .F90 var  |  Ref var
+    // | ene_recorded  | vshift         | U
+    // | gf            | gf             | log( n_k * exp(-beta_k * U) )
+    // | gfsum         | gfsum          | log( Sum_(k=1)^N ( log( n_k * exp(-beta_k * U) ) ) )
+    // | log_weight    | rb             | log of the weighting function
+    // | log_mk_inv    | ratio          | log(m_k^-1)
+    // | log_norm_old  | normlold       | W(j-1)
+    // | log_norm      | norml          | W(j)
+    // | log_pk        | rbfb           | log(p_k)
+    // | log_nk_inv    | pratio         | log(n_k^-1)
+    // | log_nk        | fb             | log(n_k)
+
+    gmx::HostVector<real> ene_recorded;
+    gmx::HostVector<real> gf;
+    gmx::HostVector<real> gfsum;
+    gmx::HostVector<real> log_weight;
+    gmx::HostVector<real> log_mk_inv;
+    gmx::HostVector<real> log_norm_old;
+    gmx::HostVector<real> log_norm;
+    gmx::HostVector<real> log_pk;
+    gmx::HostVector<real> log_nk_inv;
+    gmx::HostVector<real> log_nk;
+
+    sits_atomdata_t();
+};
+
 struct sits_t
 {
 
@@ -72,76 +141,12 @@ private:
     // void fc_ball_random_walk(); // simple mode里根据上面几个参数进行fc_ball的一次随机移动
     // void SITS_Classical_Update_Info(int steps); // classical info中需要迭代nkNk
 public:
-    struct sits_atomdata_t
-    {
-    public:
-        //暂时变量
-        int record_count = 0; //记录次数
-        int reset = 1; // record的时候，第一次和后面公式不一样，这个变量是拿来控制这个的
-
-        //控制变量
-        int   record_interval = 1;   //每隔1步记录一次能量
-        int   update_interval = 100; //每隔100步更新一次nk
-        int   k_numbers;             //划分多少个格子
-        float beta0;                 //本身温度对应的beta
-        bool  constant_nk     = false;   // sits是否迭代更新nk
-        //文件
-        FILE*  nk_traj_file;        //记录nk变化的文件
-        std::string nk_rest_file;   //记录最后一帧nk的文件
-        FILE*  norm_traj_file;      //记录log_norm变化的文件
-        std::string norm_rest_file; //记录最后一帧log_norm的文件
-
-        //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
-        float fb_shift;
-        //也可以对进行修正，使加强计算能量时值为 energy_multiple * 原始能量 + energy_shift;
-        float energy_multiple;
-        float energy_shift;
-
-        int natoms;
-        gmx::HostVector<int> energrp;
-
-        // Derivations and physical quantities see:
-        // \ref A selective integrated tempering method
-        // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
-
-        gmx::HostVector<real> beta_k;
-        gmx::HostVector<real> nkExpBetakU;
-        gmx::HostVector<real> nk;
-        gmx::HostVector<real> sum_a;
-        gmx::HostVector<real> sum_b;
-        gmx::HostVector<real> factor;
-
-        // Details of $n_k$ iteration see:
-        // \ref An integrate-over-temperature approach for enhanced sampling
-
-        // |   .cpp var    |  ylj .F90 var  |  Ref var
-        // | ene_recorded  | vshift         | U
-        // | gf            | gf             | log( n_k * exp(-beta_k * U) )
-        // | gfsum         | gfsum          | log( Sum_(k=1)^N ( log( n_k * exp(-beta_k * U) ) ) )
-        // | log_weight    | rb             | log of the weighting function
-        // | log_mk_inv    | ratio          | log(m_k^-1)
-        // | log_norm_old  | normlold       | W(j-1)
-        // | log_norm      | norml          | W(j)
-        // | log_pk        | rbfb           | log(p_k)
-        // | log_nk_inv    | pratio         | log(n_k^-1)
-        // | log_nk        | fb             | log(n_k)
-
-        gmx::HostVector<real> ene_recorded;
-        gmx::HostVector<real> gf;
-        gmx::HostVector<real> gfsum;
-        gmx::HostVector<real> log_weight;
-        gmx::HostVector<real> log_mk_inverse;
-        gmx::HostVector<real> log_norm_old;
-        gmx::HostVector<real> log_norm;
-        gmx::HostVector<real> log_pk;
-        gmx::HostVector<real> log_nk_inverse;
-        gmx::HostVector<real> log_nk;
-    } sits_at;
+    std::unique_ptr<sits_atomdata_t> sits_at;
 
 public:
-    int sits_calc_mode = 0;         //选择sits模式
-    int sits_enh_mode  = 0; //
-    int sits_enh_bias  = false;     //
+    int sits_calc_mode = 0;     //选择sits模式
+    int sits_enh_mode  = 0;     //
+    int sits_enh_bias  = false; //
 
     // gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
     // gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
@@ -162,9 +167,7 @@ public:
     void sits_enhance_force();
 
     //! Constructs an object from its components
-    sits_t(std::unique_ptr<sits_atomdata_t>  sits_at,
-            gmx_sits_cuda_t*                  gpu_sits_ptr,
-            gmx_wallcycle*                    wcycle);
+    sits_t(std::unique_ptr<sits_atomdata_t> sits_at, gmx_sits_cuda_t* gpu_sits_ptr);
 
     ~sits_t();
 };
@@ -174,16 +177,16 @@ namespace Sits
 
 /*! \brief Creates an Sits object */
 std::unique_ptr<sits_t> init_sits(
-                                //   const gmx::MDLogger&     mdlog,
-                                  gmx_bool                 bFEP_SITS,
-                                  const t_inputrec*        ir,
-                                  const t_forcerec*        fr,
-                                  const t_commrec*         cr,
-                                  const gmx_hw_info_t&     hardwareInfo,
-                                  const gmx_device_info_t* deviceInfo,
-                                  const gmx_mtop_t*        mtop,
-                                  matrix                   box,
-                                  gmx_wallcycle*           wcycle);
+        //   const gmx::MDLogger&     mdlog,
+        gmx_bool                 bFEP_SITS,
+        const t_inputrec*        ir,
+        const t_forcerec*        fr,
+        const t_commrec*         cr,
+        const gmx_hw_info_t&     hardwareInfo,
+        const gmx_device_info_t* deviceInfo,
+        const gmx_mtop_t*        mtop,
+        matrix                   box,
+        gmx_wallcycle*           wcycle);
 } // namespace Sits
 
 #endif // GMX_SITS_H
