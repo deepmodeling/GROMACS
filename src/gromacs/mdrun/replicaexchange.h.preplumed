@@ -106,12 +106,4 @@ gmx_bool replica_exchange(FILE*                 fplog,
  * Should only be called on the master ranks */
 void print_replica_exchange_statistics(FILE* fplog, gmx_repl_ex_t re);
 
-/* PLUMED HREX */
-extern int replica_exchange_get_repl(const gmx_repl_ex_t re);
-extern int replica_exchange_get_nrepl(const gmx_repl_ex_t re);
-extern void pd_collect_state(const t_commrec *cr, t_state *state);
-extern void exchange_state(const gmx_multisim_t *ms, int b, t_state *state);
-extern void copy_state_serial(const t_state *src, t_state *dest);
-/* END PLUMED HREX */
-
 #endif

@@ -164,16 +164,6 @@
 #    include "corewrap.h"
 #endif
 
-/* PLUMED */
-#include "../../../Plumed.h"
-extern int    plumedswitch;
-extern plumed plumedmain; 
-/* END PLUMED */
-
-/* PLUMED HREX */
-extern int plumed_hrex;
-/* END PLUMED HREX */
-
 namespace gmx
 {
 
@@ -888,7 +878,7 @@ int Mdrunner::mdrunner()
             manageDevelopmentFeatures(mdlog, useGpuForNonbonded, pmeRunMode);
 
     const bool inputIsCompatibleWithModularSimulator = ModularSimulator::isInputCompatible(
-            false, inputrec, doRerun, mtop, ms, replExParams, nullptr, doEssentialDynamics, doMembed) && (plumedswitch==0);
+            false, inputrec, doRerun, mtop, ms, replExParams, nullptr, doEssentialDynamics, doMembed);
     const bool useModularSimulator = inputIsCompatibleWithModularSimulator
                                      && !(getenv("GMX_DISABLE_MODULAR_SIMULATOR") != nullptr);
 
@@ -1578,18 +1568,6 @@ int Mdrunner::mdrunner()
         GMX_ASSERT(stopHandlerBuilder_, "Runner must provide StopHandlerBuilder to simulator.");
         SimulatorBuilder simulatorBuilder;
 
-        /* PLUMED */
-        if(plumedswitch){
-          /* detect plumed API version */
-          int pversion=0;
-          plumed_cmd(plumedmain,"getApiVersion",&pversion);
-          if(pversion>5) {
-             int nth = gmx_omp_nthreads_get(emntDefault);
-             if(pversion>5) plumed_cmd(plumedmain,"setNumOMPthreads",&nth);
-          }
-        }
-        /* END PLUMED */
-
         // build and run simulator object based on user-input
         auto simulator = simulatorBuilder.build(
                 inputIsCompatibleWithModularSimulator, fplog, cr, ms, mdlog,
@@ -1663,12 +1641,6 @@ int Mdrunner::mdrunner()
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());
     walltime_accounting_destroy(walltime_accounting);
-
-    /* PLUMED */
-    if(plumedswitch){
-      plumed_finalize(plumedmain);
-    }
-    /* END PLUMED */
 
     // Ensure log file content is written
     if (logFileHandle)
