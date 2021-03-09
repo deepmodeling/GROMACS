@@ -243,6 +243,7 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
 
     /* local/non-local GPU streams */
     stat = cudaStreamCreate(gpu_sits->stream);
+    CU_RET_ERR(stat, "cudaStreamCreate on stream failed");
 
     /* set the kernel type for the current GPU */
     /* pick L1 cache configuration */
