@@ -92,7 +92,7 @@ static void sits_init_atomdata_first(cu_sits_atdat_t* atdat)
 {
     cudaError_t stat;
 
-    stat = cudaMalloc((void**)&atdat->d_enerd, SHIFTS * sizeof(*atdat->d_enerd));
+    stat = cudaMalloc((void**)&atdat->d_enerd, sizeof(*atdat->d_enerd));
     CU_RET_ERR(stat, "cudaMalloc failed on atdat->d_enerd");
 
     /* initialize to nullptr pointers to data that is not allocated here and will
@@ -395,8 +395,9 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
 
     if (atdat->d_enerd != NULL)
     {
-        stat = cudaFree(atdat->d_enerd);
-        CU_RET_ERR(stat, "cudaFree failed on atdat->d_enerd");
+        // TODO: fix cudaFree here!
+        // stat = cudaFree(atdat->d_enerd);
+        // CU_RET_ERR(stat, "cudaFree failed on atdat->d_enerd");
     }
 
     freeDeviceBuffer(&atdat->d_force_tot);

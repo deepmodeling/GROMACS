@@ -167,7 +167,7 @@ public:
     void sits_enhance_force();
 
     //! Constructs an object from its components
-    sits_t(std::unique_ptr<sits_atomdata_t> sits_at, gmx_sits_cuda_t* gpu_sits_ptr);
+    sits_t(std::unique_ptr<sits_atomdata_t> sits_at_in, gmx_sits_cuda_t* gpu_sits_ptr);
 
     ~sits_t();
 };
@@ -185,7 +185,6 @@ std::unique_ptr<sits_t> init_sits(
         const gmx_hw_info_t&     hardwareInfo,
         const gmx_device_info_t* deviceInfo,
         const gmx_mtop_t*        mtop,
-        matrix                   box,
         gmx_wallcycle*           wcycle);
 } // namespace Sits
 

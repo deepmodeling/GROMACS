@@ -79,6 +79,7 @@ t_inputrec::t_inputrec()
     // gcc -Wno-class-memaccess in a CMakeLists.txt file.
     std::memset(this, 0, sizeof(*this)); // NOLINT(bugprone-undefined-memory-manipulation)
     snew(fepvals, 1);
+    snew(sitsvals, 1);
     snew(expandedvals, 1);
     snew(simtempvals, 1);
 }

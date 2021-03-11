@@ -2390,8 +2390,8 @@ void get_ir(const char*     mdparin,
             sits->log_norm_old[i] = tempf[i];
         }
 
-        free(tempf);
-        free(temps);
+        // free(tempf);
+        // free(temps);
     }
 
     //记录分能量的文件

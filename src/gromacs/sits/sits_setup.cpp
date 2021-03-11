@@ -199,9 +199,9 @@ sits_atomdata_t::sits_atomdata_t() :
 {
 }
 
-sits_t::sits_t(std::unique_ptr<sits_atomdata_t>  sits_at,
+sits_t::sits_t(std::unique_ptr<sits_atomdata_t>  sits_at_in,
                 gmx_sits_cuda_t*                  gpu_sits_ptr) :
-    sits_at(std::move(sits_at)),
+    sits_at(std::move(sits_at_in)),
     gpu_sits(gpu_sits_ptr)
 {
     GMX_RELEASE_ASSERT(sits_at, "Need valid atomdata object");

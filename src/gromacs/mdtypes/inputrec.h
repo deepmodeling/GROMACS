@@ -66,10 +66,10 @@ struct t_sits
     int sits_enh_mode; //
     bool sits_enh_bias;     //
 
-    float pw_enhance_factor;
+    real pw_enhance_factor;
 
     int   k_numbers;             //划分多少个格子
-    float beta0;                 //本身温度对应的beta
+    real beta0;                 //本身温度对应的beta
     //! The range of temperatures used for simulated tempering
     real* beta_k;
     real* log_nk;
@@ -82,10 +82,10 @@ struct t_sits
     // real sitstemp_high;
 
     //也可以对进行修正，使加强计算能量时值为 energy_multiple * 原始能量 + energy_shift;
-    float energy_multiple;
-    float energy_shift;
+    real energy_multiple;
+    real energy_shift;
     //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
-    float fb_shift;
+    real fb_shift;
 
     bool constant_nk;   // sits是否迭代更新nk
     int  nstsitsrecord;
