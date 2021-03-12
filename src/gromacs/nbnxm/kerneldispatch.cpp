@@ -52,6 +52,9 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
+
+#include "gromacs/sits/sits.h"
+
 #include "gromacs/simd/simd.h"
 #include "gromacs/timing/wallcycle.h"
 #include "gromacs/utility/gmxassert.h"
@@ -435,7 +438,14 @@ void nonbonded_verlet_t::dispatchNonbondedKernel(gmx::InteractionLocality   iLoc
             break;
 
         case Nbnxm::KernelType::Gpu8x8x8:
-            Nbnxm::gpu_launch_kernel(gpu_nbv, stepWork, iLocality);
+            if (fr.sits)
+            {
+                Nbnxm::gpu_launch_sits_kernel(gpu_nbv, fr.sits->gpu_sits, stepWork, iLocality);
+            }
+            else
+            {
+                Nbnxm::gpu_launch_kernel(gpu_nbv, stepWork, iLocality);
+            }
             break;
 
         case Nbnxm::KernelType::Cpu8x8x8_PlainC:

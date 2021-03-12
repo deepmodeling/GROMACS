@@ -180,10 +180,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
     const float4*        xq          = atdat.xq;
     float3*              f           = atdat.f;
 
-    // SITS forces
-    float3*              f_sits_tot  = sits_atdat.d_force_tot_nbat;
-    float3*              f_sits_pw   = sits_atdat.d_force_pw_nbat;
-
     const float3*        shift_vec   = atdat.shift_vec;
     float                rcoulomb_sq = nbparam.rcoulomb_sq;
 #    ifdef VDW_CUTOFF_CHECK
@@ -245,7 +241,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        int_bit, F_invr;
 #    ifdef CALC_ENERGIES
     float        E_lj, E_el;
-    float        E_lj_buf, E_el_buf;
+    float        E_el_buf;
+#    ifdef LJ_EWALD
+    float        E_lj_buf;
+#    endif
     float3       E_lj_decomp, E_el_decomp;
     float        factor_buf;
 #    endif
@@ -453,7 +452,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                         {
                             ci = sci * c_numClPerSupercl + i; /* i cluster index */
                             egp_sh_i[tidxi] = (atdat.energrp[ci] >> (tidxi * atdat.neg_2log)) & egp_mask;
-                            egp_ind = egp_sh_j[tidxj] * atdat.nenergrp + egp_sh_i[tidxi];
+                            // egp_ind = egp_sh_j[tidxj] * atdat.nenergrp + egp_sh_i[tidxi];
 
                             /* all threads load an atom from i cluster ci into shmem! */
                             xqbuf = xqib[i * c_clSize + tidxi];
@@ -711,9 +710,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef CALC_ENERGIES
     /* reduce the energies over warps and store into global memory */
     reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
-    reduce_energy_warp_shfl(E_lj_decomp.x, E_el_decomp.x, &(sits_atdat.d_enerd->x), &(sits_atdat.d_enerd->x), tidx, c_fullWarpMask);
-    reduce_energy_warp_shfl(E_lj_decomp.y, E_el_decomp.y, &(sits_atdat.d_enerd->y), &(sits_atdat.d_enerd->y), tidx, c_fullWarpMask);
-    reduce_energy_warp_shfl(E_lj_decomp.z, E_el_decomp.z, &(sits_atdat.d_enerd->z), &(sits_atdat.d_enerd->z), tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.x, E_el_decomp.x, &(sits_atdat.d_enerd[0]), &(sits_atdat.d_enerd[0]), tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.y, E_el_decomp.y, &(sits_atdat.d_enerd[1]), &(sits_atdat.d_enerd[1]), tidx, c_fullWarpMask);
+    reduce_energy_warp_shfl(E_lj_decomp.z, E_el_decomp.z, &(sits_atdat.d_enerd[2]), &(sits_atdat.d_enerd[2]), tidx, c_fullWarpMask);
 
 #    endif
 }

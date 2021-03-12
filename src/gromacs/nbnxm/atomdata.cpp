@@ -938,8 +938,6 @@ static void nbnxn_atomdata_set_energygroups(nbnxn_atomdata_t::Params* params,
     params->energrp_gpu.resize(gridSet.numGridAtomsTotal());
     params->energrp_1x1.resize(gridSet.numGridAtomsTotal());
 
-    printf("numGridAtomsTotal: %d", gridSet.numGridAtomsTotal());
-
     for (const Nbnxm::Grid& grid : gridSet.grids())
     {
         /* Loop over all columns and copy and fill */

@@ -54,6 +54,7 @@
 
 struct interaction_const_t;
 struct nbnxn_atomdata_t;
+struct gmx_sits_cuda_t;
 struct gmx_wallcycle;
 enum class GpuTaskCompletion;
 
@@ -95,6 +96,12 @@ void gpu_copy_xq_to_gpu(gmx_nbnxn_gpu_t gmx_unused*   nb,
  */
 GPU_FUNC_QUALIFIER
 void gpu_launch_kernel(gmx_nbnxn_gpu_t gmx_unused* nb,
+                       const gmx::StepWorkload gmx_unused& stepWork,
+                       gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
+
+GPU_FUNC_QUALIFIER
+void gpu_launch_sits_kernel(gmx_nbnxn_gpu_t gmx_unused* nb,
+                       gmx_sits_cuda_t gmx_unused* gpu_sits,
                        const gmx::StepWorkload gmx_unused& stepWork,
                        gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
 

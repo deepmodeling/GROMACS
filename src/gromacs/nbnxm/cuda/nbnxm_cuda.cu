@@ -692,6 +692,106 @@ void gpu_launch_kernel(gmx_nbnxn_cuda_t* nb, const gmx::StepWorkload& stepWork, 
     }
 }
 
+void gpu_launch_sits_kernel(gmx_nbnxn_cuda_t* nb, gmx_sits_cuda_t* gpu_sits, const gmx::StepWorkload& stepWork, const InteractionLocality iloc)
+{
+    cu_atomdata_t* adat   = nb->atdat;
+    cu_nbparam_t*  nbp    = nb->nbparam;
+    cu_plist_t*    plist  = nb->plist[iloc];
+    cu_timers_t*   t      = nb->timers;
+    cudaStream_t   stream = nb->stream[iloc];
+    cu_sits_atdat_t* sits_adat = gpu_sits->sits_atdat;
+
+    bool bDoTime = nb->bDoTime;
+
+    /* Don't launch the non-local kernel if there is no work to do.
+       Doing the same for the local kernel is more complicated, since the
+       local part of the force array also depends on the non-local kernel.
+       So to avoid complicating the code and to reduce the risk of bugs,
+       we always call the local kernel, and later (not in
+       this function) the stream wait, local f copyback and the f buffer
+       clearing. All these operations, except for the local interaction kernel,
+       are needed for the non-local interactions. The skip of the local kernel
+       call is taken care of later in this function. */
+    if (canSkipNonbondedWork(*nb, iloc))
+    {
+        plist->haveFreshList = false;
+
+        return;
+    }
+
+    if (nbp->useDynamicPruning && plist->haveFreshList)
+    {
+        /* Prunes for rlistOuter and rlistInner, sets plist->haveFreshList=false
+           (TODO: ATM that's the way the timing accounting can distinguish between
+           separate prune kernel and combined force+prune, maybe we need a better way?).
+         */
+        gpu_launch_kernel_pruneonly(nb, iloc, 1);
+    }
+
+    if (plist->nsci == 0)
+    {
+        /* Don't launch an empty local kernel (not allowed with CUDA) */
+        return;
+    }
+
+    /* beginning of timed nonbonded calculation section */
+    if (bDoTime)
+    {
+        t->interaction[iloc].nb_k.openTimingRegion(stream);
+    }
+
+    /* Kernel launch config:
+     * - The thread block dimensions match the size of i-clusters, j-clusters,
+     *   and j-cluster concurrency, in x, y, and z, respectively.
+     * - The 1D block-grid contains as many blocks as super-clusters.
+     */
+    int num_threads_z = 1;
+    if (nb->dev_info->prop.major == 3 && nb->dev_info->prop.minor == 7)
+    {
+        num_threads_z = 2;
+    }
+    int nblock = calc_nb_kernel_nblock(plist->nsci, nb->dev_info);
+
+
+    KernelLaunchConfig config;
+    config.blockSize[0]     = c_clSize;
+    config.blockSize[1]     = c_clSize;
+    config.blockSize[2]     = num_threads_z;
+    config.gridSize[0]      = nblock;
+    config.sharedMemorySize = calc_shmem_required_nonbonded(num_threads_z, nb->dev_info, nbp);
+    config.stream           = stream;
+
+    if (debug)
+    {
+        fprintf(debug,
+                "Non-bonded GPU launch configuration:\n\tThread block: %zux%zux%zu\n\t"
+                "\tGrid: %zux%zu\n\t#Super-clusters/clusters: %d/%d (%d)\n"
+                "\tShMem: %zu\n",
+                config.blockSize[0], config.blockSize[1], config.blockSize[2], config.gridSize[0],
+                config.gridSize[1], plist->nsci * c_numClPerSupercl, c_numClPerSupercl, plist->na_c,
+                config.sharedMemorySize);
+    }
+
+    auto*      timingEvent = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
+    const auto kernel      = select_nbnxn_sits_kernel(
+            nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy,
+            (plist->haveFreshList && !nb->timers->interaction[iloc].didPrune), nb->dev_info);
+    const auto kernelArgs =
+            prepareGpuKernelArguments(kernel, config, adat, nbp, plist, sits_adat, &stepWork.computeVirial);
+    launchGpuKernel(kernel, config, timingEvent, "k_calc_nb", kernelArgs);
+
+    if (bDoTime)
+    {
+        t->interaction[iloc].nb_k.closeTimingRegion(stream);
+    }
+
+    if (GMX_NATIVE_WINDOWS)
+    {
+        /* Windows: force flushing WDDM queue */
+        cudaStreamQuery(stream);
+    }
+}
+
 /*! Calculates the amount of shared memory required by the CUDA kernel in use. */
 static inline int calc_shmem_required_prune(const int num_threads_z)
 {

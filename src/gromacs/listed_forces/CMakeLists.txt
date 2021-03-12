@@ -49,6 +49,7 @@ if(GMX_USE_CUDA)
     gmx_add_libgromacs_sources(
        gpubonded_impl.cu
        gpubondedkernels.cu
+       gpubondedkernels_sits.cu
        )
 endif()
 

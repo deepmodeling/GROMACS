@@ -90,6 +90,8 @@
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
+#include "gromacs/sits/sits_gpu_data_mgmt.h"
+#include "gromacs/sits/sits.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/mshift.h"
 #include "gromacs/pbcutil/pbc.h"
@@ -1173,6 +1175,10 @@ void do_force(FILE*                               fplog,
 
             wallcycle_sub_start_nocount(wcycle, ewcsLAUNCH_GPU_NONBONDED);
             Nbnxm::gpu_init_atomdata(nbv->gpu_nbv, nbv->nbat.get());
+            if (fr->sits)
+            {
+                Sits::gpu_init_sits_atomdata(fr->sits->gpu_sits, nbv->nbat.get());
+            }
             wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_NONBONDED);
 
             if (fr->gpuBonded)
@@ -1266,7 +1272,14 @@ void do_force(FILE*                               fplog,
         if (domainWork.haveGpuBondedWork && !havePPDomainDecomposition(cr))
         {
             wallcycle_sub_start(wcycle, ewcsLAUNCH_GPU_BONDED);
-            fr->gpuBonded->launchKernel(fr, stepWork, box);
+            if (fr->sits)
+            {
+                fr->gpuBonded->launchSITSKernel(fr, stepWork, box);
+            }
+            else
+            {
+                fr->gpuBonded->launchKernel(fr, stepWork, box);
+            }
             wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_BONDED);
         }
 
@@ -1360,7 +1373,14 @@ void do_force(FILE*                               fplog,
             if (domainWork.haveGpuBondedWork)
             {
                 wallcycle_sub_start(wcycle, ewcsLAUNCH_GPU_BONDED);
-                fr->gpuBonded->launchKernel(fr, stepWork, box);
+                if (fr->sits)
+                {
+                    fr->gpuBonded->launchSITSKernel(fr, stepWork, box);
+                }
+                else
+                {
+                    fr->gpuBonded->launchKernel(fr, stepWork, box);
+                }
                 wallcycle_sub_stop(wcycle, ewcsLAUNCH_GPU_BONDED);
             }
 

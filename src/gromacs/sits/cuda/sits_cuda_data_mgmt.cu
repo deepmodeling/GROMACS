@@ -92,7 +92,7 @@ static void sits_init_atomdata_first(cu_sits_atdat_t* atdat)
 {
     cudaError_t stat;
 
-    stat = cudaMalloc((void**)&atdat->d_enerd, sizeof(*atdat->d_enerd));
+    stat = cudaMalloc((void**)&atdat->d_enerd, 3 * sizeof(*atdat->d_enerd));
     CU_RET_ERR(stat, "cudaMalloc failed on atdat->d_enerd");
 
     /* initialize to nullptr pointers to data that is not allocated here and will
@@ -113,7 +113,7 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
 {
     cudaError_t    stat;
     cu_sits_param_t* param = gpu_sits->sits_param;
-    cudaStream_t stream    = gpu_sits->stream[0];
+    cudaStream_t stream    = *(gpu_sits->stream);
 
     sits_init_atomdata_first(gpu_sits->sits_atdat);
 
@@ -232,6 +232,7 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
     snew(gpu_sits, 1);
     snew(gpu_sits->sits_atdat, 1);
     snew(gpu_sits->sits_param, 1);
+    snew(gpu_sits->stream, 1);
 
     /* init nbst */
     // pmalloc((void**)&nb->nbst.e_lj, sizeof(*nb->nbst.e_lj));
@@ -267,7 +268,7 @@ static void sits_cuda_clear_f(gmx_sits_cuda_t* gpu_sits, int natoms_clear)
 {
     cudaError_t    stat;
     cu_sits_atdat_t* adat = gpu_sits->sits_atdat;
-    cudaStream_t   ls   = gpu_sits->stream[0];
+    cudaStream_t   ls   = *(gpu_sits->stream);
 
     stat = cudaMemsetAsync(adat->d_force_tot, 0, natoms_clear * sizeof(*adat->d_force_tot), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on f failed");
@@ -284,9 +285,9 @@ static void sits_cuda_clear_e_fshift(gmx_sits_cuda_t* gpu_sits)
 {
     cudaError_t      stat;
     cu_sits_atdat_t* adat = gpu_sits->sits_atdat;
-    cudaStream_t     ls   = gpu_sits->stream[0];
+    cudaStream_t     ls   = *(gpu_sits->stream);
 
-    stat = cudaMemsetAsync(adat->d_enerd, 0, sizeof(*adat->d_enerd), ls);
+    stat = cudaMemsetAsync(adat->d_enerd, 0, 3 * sizeof(*adat->d_enerd), ls);
     CU_RET_ERR(stat, "cudaMemsetAsync on enerd failed");
     // stat = cudaMemsetAsync(adat->e_lj, 0, sizeof(*adat->e_lj), ls);
     // CU_RET_ERR(stat, "cudaMemsetAsync on e_lj failed");
@@ -311,7 +312,7 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxn_atomdata_t* n
     int              nalloc, natoms;
     bool             realloced;
     cu_sits_atdat_t* d_atdat = gpu_sits->sits_atdat;
-    cudaStream_t     ls   = gpu_sits->stream[0];
+    cudaStream_t     ls   = *(gpu_sits->stream);
 
     natoms    = nbat->numAtoms();
     realloced = false;
@@ -393,11 +394,11 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
     //     }
     // }
 
-    if (atdat->d_enerd != NULL)
+    if (atdat->d_enerd != nullptr)
     {
         // TODO: fix cudaFree here!
-        // stat = cudaFree(atdat->d_enerd);
-        // CU_RET_ERR(stat, "cudaFree failed on atdat->d_enerd");
+        stat = cudaFree(atdat->d_enerd);
+        CU_RET_ERR(stat, "cudaFree failed on atdat->d_enerd");
     }
 
     freeDeviceBuffer(&atdat->d_force_tot);
@@ -419,6 +420,7 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
 
     sfree(atdat);
     sfree(sits_param);
+    sfree(gpu_sits->stream);
     sfree(gpu_sits);
 
     if (debug)

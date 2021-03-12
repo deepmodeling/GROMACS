@@ -52,7 +52,7 @@ struct cu_sits_atdat_t
     int neg_2log;
     int* energrp;
 
-    float3* d_enerd; // stores pp, pw, and ww energies in bonded and nonbonded SR kernels
+    float* d_enerd; // stores pp, pw, and ww energies in bonded and nonbonded SR kernels
 
     float3* d_force_tot;
     float3* d_force_pw;
