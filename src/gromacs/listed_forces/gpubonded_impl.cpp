@@ -149,7 +149,7 @@ bool inputSupportsGpuBondeds(const t_inputrec& ir, const gmx_mtop_t& mtop, std::
     }
     if (ir.opts.ngener > 1)
     {
-        errorReasons.emplace_back("Cannot run with multiple energy groups");
+        // errorReasons.emplace_back("Cannot run with multiple energy groups");
     }
     return addMessageIfNotSupported(errorReasons, error);
 }

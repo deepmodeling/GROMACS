@@ -294,7 +294,7 @@ void GpuBonded::Impl::waitAccumulateEnergyTerms(gmx_enerdata_t* enerd)
 
     // Note: We do not support energy groups here
     gmx_grppairener_t* grppener = &enerd->grpp;
-    GMX_RELEASE_ASSERT(grppener->nener == 1, "No energy group support for bondeds on the GPU");
+    // GMX_RELEASE_ASSERT(grppener->nener == 1, "No energy group support for bondeds on the GPU");
     grppener->ener[egLJ14][0] += vTot_[F_LJ14];
     grppener->ener[egCOUL14][0] += vTot_[F_COUL14];
 }

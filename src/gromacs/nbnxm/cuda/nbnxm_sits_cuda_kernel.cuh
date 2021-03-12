@@ -246,6 +246,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        E_lj_buf;
 #    endif
     float3       E_lj_decomp, E_el_decomp;
+    E_lj_decomp.x = E_lj_decomp.y = E_lj_decomp.z = 0.0;
+    E_el_decomp.x = E_el_decomp.y = E_el_decomp.z = 0.0;
     float        factor_buf;
 #    endif
 #    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
@@ -256,7 +258,14 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float3       xi, xj, rv, f_ij, fcj_buf;
     float3       fci_buf[c_numClPerSupercl]; /* i force buffer */
     float3       fcj_pw_buf, fcj_tot_buf;
+    fcj_pw_buf.x = fcj_pw_buf.y = fcj_pw_buf.z = 0.0;
+    fcj_tot_buf.x = fcj_tot_buf.y = fcj_tot_buf.z = 0.0;
     float3       fci_pw_buf[c_numClPerSupercl], fci_tot_buf[c_numClPerSupercl];
+    for (int i = 0; i < c_numClPerSupercl; i++)
+    {
+        fci_pw_buf[i].x = fci_pw_buf[i].y = fci_pw_buf[i].z = 0.0;
+        fci_tot_buf[i].x = fci_tot_buf[i].y = fci_tot_buf[i].z = 0.0;
+    }
     nbnxn_sci_t  nb_sci;
 
     /*! i-cluster interaction mask for a super-cluster with all c_numClPerSupercl=8 bits set */
@@ -378,7 +387,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
         /* Correct for epsfac^2 due to adding qi^2 */
-        factor_buf = 1.0 / nbparam.epsfac * c_clSize * NTHREAD_Z;
+        factor_buf = 1.0 / (nbparam.epsfac * c_clSize * NTHREAD_Z);
 #                if defined EL_RF || defined EL_CUTOFF
         factor_buf *= -0.5f * c_rf;
 #                else
