@@ -445,15 +445,15 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
 {
     if (file_version >= 79)
     {
-        serializer->doInt(&sits->sits_calc_mode);
+        serializer->doInt(&sits->sits_cal_mode);
         serializer->doInt(&sits->sits_enh_mode);
         serializer->doBool(&sits->sits_enh_bias);
-        serializer->doReal(&sits->pw_enhance_factor);
+        serializer->doReal(&sits->pw_enh_factor);
 
         serializer->doInt(&sits->k_numbers);
         serializer->doReal(&sits->beta0);
 
-        if (sits->sits_calc_mode == 0 && sits->k_numbers > 0)
+        if (sits->sits_cal_mode == 0 && sits->k_numbers > 0)
         {
             if (serializer->reading())
             {
@@ -476,6 +476,7 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
         serializer->doBool(&sits->constant_nk);
         serializer->doInt(&sits->nstsitsrecord);
         serializer->doInt(&sits->nstsitsupdate);
+        serializer->doInt(&sits->niter);
 
         std::string buf;
         if (serializer->reading())

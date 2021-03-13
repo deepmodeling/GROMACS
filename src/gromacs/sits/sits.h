@@ -37,7 +37,7 @@ struct t_nrnb;
 struct t_forcerec;
 struct t_inputrec;
 
-// enum class SITS_CALC_MODE
+// enum class sits_cal_mode
 // {
 //     CLASSICAL_SITS; SIMPLE_SITS
 // };
@@ -50,6 +50,11 @@ struct t_inputrec;
 struct sits_atomdata_t
 {
 public:
+    int   sits_cal_mode = 0;     // SITS Calculation mode: Classical / Simple
+    int   sits_enh_mode = 0;     //
+    bool  sits_enh_bias = false; //
+    float pw_enh_factor = 0.5;
+
     //暂时变量
     int record_count = 0; //记录次数
     int reset = 1; // record的时候，第一次和后面公式不一样，这个变量是拿来控制这个的
@@ -57,6 +62,7 @@ public:
     //控制变量
     int   record_interval = 1;   //每隔1步记录一次能量
     int   update_interval = 100; //每隔100步更新一次nk
+    int   niter           = 50;
     int   k_numbers;             //划分多少个格子
     float beta0;                 //本身温度对应的beta
     bool  constant_nk = false;   // sits是否迭代更新nk
@@ -139,14 +145,9 @@ private:
     //     float constant_fc_ball = 1.0; //固定的fcball值
     // } simple_info;
     // void fc_ball_random_walk(); // simple mode里根据上面几个参数进行fc_ball的一次随机移动
-    // void SITS_Classical_Update_Info(int steps); // classical info中需要迭代nkNk
+    // vsits_cal_modeical_Update_Info(int steps); // classical info中需要迭代nkNk
 public:
     std::unique_ptr<sits_atomdata_t> sits_at;
-
-public:
-    int sits_calc_mode = 0;     //选择sits模式
-    int sits_enh_mode  = 0;     //
-    int sits_enh_bias  = false; //
 
     // gmx::ArrayRefWithPadding<gmx::RVec> force_tot = NULL; //用于记录AB两类原子交叉项作用力
     // gmx::ArrayRefWithPadding<gmx::RVec> force_pw = NULL; //用于记录AB两类原子交叉项作用力
@@ -160,11 +161,13 @@ public:
     // Interactions enhanced: (bond, angle), dihedral, LJ-SR, PME_Direct-SR, LJ-14, Coul-14;
     // Not enhanced: LJ-Recip, Coul-Recip, Disp. Corr., (bond, angle)
 
-    void clear_sits_energy();
+    void clear_sits_energy_force();
 
     //改变frc，使得需要增强的frc被选择性增强，由于共用的frc，因此这步frc增强需要放到刚好计算完所有要增强的frc的函数下方，而避免增强不应该增强的子模块frc
     //因此，体系的所有可能的frc需要先算待增强的frc，插入此函数，再算不应增强的frc
-    void sits_enhance_force();
+    void sits_enhance_force(int step);
+
+    void sits_update_params(int step);
 
     //! Constructs an object from its components
     sits_t(std::unique_ptr<sits_atomdata_t> sits_at_in, gmx_sits_cuda_t* gpu_sits_ptr);

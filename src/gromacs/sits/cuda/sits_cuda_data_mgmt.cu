@@ -120,6 +120,7 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     // SITS ensemble definition
     param->record_interval = sits_at->record_interval;   // interval of energy record
     param->update_interval = sits_at->update_interval; // interval of $n_k$ update
+    param->niter           = sits_at->niter;
     param->constant_nk     = sits_at->constant_nk;   // whether iteratively update n_k
     param->k_numbers       = sits_at->k_numbers;
     param->beta0           = sits_at->beta0;
@@ -234,6 +235,7 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
     snew(gpu_sits->sits_param, 1);
     snew(gpu_sits->stream, 1);
 
+
     /* init nbst */
     // pmalloc((void**)&nb->nbst.e_lj, sizeof(*nb->nbst.e_lj));
     // pmalloc((void**)&nb->nbst.e_el, sizeof(*nb->nbst.e_el));
@@ -254,6 +256,10 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
 
     gpu_sits->sits_atdat->atomIndicesSize       = 0;
     gpu_sits->sits_atdat->atomIndicesSize_alloc = 0;
+    gpu_sits->sits_atdat->sits_cal_mode         = sits_at->sits_cal_mode;        // sits calculation mode: classical or simple
+    gpu_sits->sits_atdat->sits_enh_mode         = sits_at->sits_enh_mode; // sits enhancing region: solvate, intramolecular or intermolecular
+    gpu_sits->sits_atdat->sits_enh_bias         = sits_at->sits_enh_bias;    // whether to enhance the bias
+    gpu_sits->sits_atdat->pw_enh_factor         = sits_at->pw_enh_factor;
 
     if (debug)
     {
@@ -300,7 +306,7 @@ void sits_gpu_clear_outputs(gmx_sits_cuda_t* gpu_sits, bool computeVirial)
     sits_cuda_clear_f(gpu_sits, gpu_sits->sits_atdat->natoms);
     /* clear shift force array and energies if the outputs were
        used in the current step */
-    if (computeVirial)
+    if (true)
     {
         sits_cuda_clear_e_fshift(gpu_sits);
     }

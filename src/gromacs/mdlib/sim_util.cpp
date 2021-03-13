@@ -1817,6 +1817,17 @@ void do_force(FILE*                               fplog,
         }
     }
 
+    if (fr->sits)
+    {
+        if (fr->sits->gpu_sits)
+        {
+            fr->sits->sits_update_params(step);
+            fr->sits->sits_enhance_force(step);
+            fr->sits->print_sitsvals();
+            fr->sits->clear_sits_energy_force();
+        }
+    }
+
     launchGpuEndOfStepTasks(nbv, fr->gpuBonded, fr->pmedata, enerd, *runScheduleWork,
                             simulationWork.useGpuNonbonded, useGpuPmeOnThisRank, step, wcycle);
 

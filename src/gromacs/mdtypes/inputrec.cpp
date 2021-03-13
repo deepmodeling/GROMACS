@@ -562,16 +562,16 @@ static void pr_expandedvals(FILE* fp, int indent, const t_expanded* expand, int 
 static void pr_sitsvals(FILE* fp, int indent, const t_sits* sits, int n_lambda)
 {
     PS("sits-enhance-mode", esits_enh_names[sits->sits_enh_mode]);
-    PI("sits-calc-mode", sits->sits_calc_mode);
+    PI("sits-calc-mode", sits->sits_cal_mode);
     PI("sits-enh-bias", sits->sits_enh_bias);
 
-    PR("pw-enhance-factor", sits->pw_enhance_factor);
+    PR("pw-enhance-factor", sits->pw_enh_factor);
 
     // PR("sits-temp-low", sits->sitstemp_low);
     // PR("sits-temp-high", sits->sitstemp_high);
     // pr_rvec(fp, indent, "sits-temperatures", sits->temp_k, n_lambda, TRUE);
 
-    if (sits->sits_calc_mode == 0)
+    if (sits->sits_cal_mode == 0)
     {
         PI("sits-t-numbers", sits->k_numbers);
         PR("sits-t-ref", 1.0f / CONSTANT_kB / sits->beta0);

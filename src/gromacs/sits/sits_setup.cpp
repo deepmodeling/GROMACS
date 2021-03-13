@@ -93,6 +93,15 @@ void sits_atomdata_init(
     // sits_atomdata_params_init(mdlog, &nbat->paramsDeprecated(), kernelType, enbnxninitcombrule,
     //                            ntype, nbfp, n_energygroups);
 
+    sits_at->sits_cal_mode = sitsvals->sits_cal_mode;
+    sits_at->sits_enh_mode = sitsvals->sits_enh_mode;
+    sits_at->sits_enh_bias = sitsvals->sits_enh_bias;
+    sits_at->pw_enh_factor = sitsvals->pw_enh_factor;
+
+    sits_at->record_interval = sitsvals->nstsitsrecord;
+    sits_at->update_interval = sitsvals->nstsitsupdate;
+    sits_at->niter           = sitsvals->niter;
+
     sits_at->k_numbers = sitsvals->k_numbers;
 
     sits_at->beta_k.resize(sits_at->k_numbers);
@@ -231,5 +240,20 @@ void sits_t::print_sitsvals()
     {
         printf("%.3f ", sits_at->beta_k[i]);
     }
+
+    if (gpu_sits)
+    {
+        float* h_enerd;
+        h_enerd = (float *) malloc(3 * sizeof(float));
+        cudaMemcpy(&h_enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
+
+        float* h_factor;
+        h_factor = (float *) malloc(sizeof(float));
+        cudaMemcpy(&h_enerd, gpu_sits->sits_param->factor, sizeof(float), cudaMemcpyDeviceToHost);
+
+        printf("\n______AA______ ______AB______ ______BB______ fc_ball\n");
+        printf("%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
+    }
+
     printf("\n############# SITS ############\n");
 }

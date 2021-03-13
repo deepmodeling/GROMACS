@@ -2277,12 +2277,12 @@ void get_ir(const char*     mdparin,
 
     /* selective integrated tempering variables */
     ir->bSITS               = (get_eeenum(&inp, "sits", yesno_names, wi) != 0);
-    sits->sits_calc_mode    = get_eint(&inp, "sits-calc-mode", 0, wi);
+    sits->sits_cal_mode    = get_eint(&inp, "sits-calc-mode", 0, wi);
     sits->sits_enh_mode     = get_eeenum(&inp, "sits-enhance-mode", esits_enh_names, wi);
     sits->sits_enh_bias     = (get_eeenum(&inp, "sits-enhance-bias", yesno_names, wi) != 0);
-    sits->pw_enhance_factor = get_ereal(&inp, "pw-enhance-factor", 0.5, wi);
+    sits->pw_enh_factor = get_ereal(&inp, "pw-enhance-factor", 0.5, wi);
 
-    if (sits->sits_calc_mode == 0)
+    if (sits->sits_cal_mode == 0)
     {
         sits->k_numbers = get_eint(&inp, "sits-t-numbers", 40, wi);
 
@@ -2317,6 +2317,7 @@ void get_ir(const char*     mdparin,
         {
             sits->nstsitsrecord = get_eint(&inp, "nstsitsrecord", 1, wi);
             sits->nstsitsupdate = get_eint(&inp, "nstsitsupdate", 100, wi);
+            sits->niter = get_eint(&inp, "sits-niter", 100, wi);
         }
 
         if (!sits->constant_nk)

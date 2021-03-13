@@ -62,11 +62,11 @@ class KeyValueTreeObject;
 
 struct t_sits
 {
-    int sits_calc_mode;         //选择sits模式
+    int sits_cal_mode;         //选择sits模式
     int sits_enh_mode; //
     bool sits_enh_bias;     //
 
-    real pw_enhance_factor;
+    real pw_enh_factor;
 
     int   k_numbers;             //划分多少个格子
     real beta0;                 //本身温度对应的beta
@@ -90,6 +90,7 @@ struct t_sits
     bool constant_nk;   // sits是否迭代更新nk
     int  nstsitsrecord;
     int  nstsitsupdate;
+    int  niter;
         //文件
     char* nk_traj_file;   //记录nk变化的文件
     char* nk_rest_file;   //记录最后一帧nk的文件

@@ -34,9 +34,10 @@
 
 struct cu_sits_atdat_t
 {
-    int sits_calc_mode;        // sits calculation mode: classical or simple
+    int sits_cal_mode;        // sits calculation mode: classical or simple
     int sits_enh_mode; // sits enhancing region: solvate, intramolecular or intermolecular
     bool sits_enh_bias;    // whether to enhance the bias
+    float pw_enh_factor;
 
     int natoms; /**< number of atoms                              */
     int nalloc;
@@ -70,6 +71,7 @@ struct cu_sits_param_t
     // SITS ensemble definition
     int   record_interval;   // interval of energy record
     int   update_interval; // interval of $n_k$ update
+    int   niter;
     bool  constant_nk;   // whether iteratively update n_k
     int   k_numbers;             // 
     int   k_nalloc;
