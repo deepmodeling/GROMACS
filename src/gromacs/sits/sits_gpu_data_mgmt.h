@@ -59,7 +59,7 @@
 struct sits_atomdata_t;
 struct nbnxn_atomdata_t;
 struct gmx_sits_cuda_t;
-struct gmx_nbnxn_gpu_t;
+// struct gmx_nbnxn_gpu_t;
 struct gmx_gpu_info_t;
 struct gmx_device_info_t;
 

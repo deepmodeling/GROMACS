@@ -1826,6 +1826,7 @@ void do_force(FILE*                               fplog,
             fr->sits->clear_sits_energy_force();
             if (useGpuFBufOps == BufferOpsUseGpu::True)
             {
+                gmx::FixedCapacityVector<GpuEventSynchronizer*, 3> dependencyList;
                 Sits::nbnxn_gpu_add_sits_f_to_f(stateGpu->getForces(), nbv->gpu_nbv, fr->sits->gpu_sits, dependencyList, true);
             }
         }

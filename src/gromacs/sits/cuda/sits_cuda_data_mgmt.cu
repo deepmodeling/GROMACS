@@ -80,9 +80,12 @@
 #include "gromacs/sits/sits_gpu_data_mgmt.h"
 
 struct sits_atomdata_t;
+// struct cu_atomdata_t;
 
 namespace Sits
 {
+
+constexpr static int c_bufOpsThreadsPerBlock = 128;
 
 /* Fw. decl. */
 static void sits_cuda_clear_e_fshift(gmx_sits_cuda_t* gpu_sits);
@@ -495,8 +498,7 @@ void nbnxn_gpu_add_sits_f_to_f(DeviceBuffer<float>                        totalF
     GMX_ASSERT(numAtoms != 0, "Cannot call function with no atoms");
     GMX_ASSERT(totalForcesDevice, "Need a valid totalForcesDevice pointer");
 
-    const InteractionLocality iLocality = gpuAtomToInteractionLocality(atomLocality);
-    cudaStream_t              stream    = nb->stream[iLocality];
+    cudaStream_t              stream    = nb->stream[0];
     cu_atomdata_t*            adat      = nb->atdat;
 
     int atomStart = 0;
@@ -533,12 +535,7 @@ void nbnxn_gpu_add_sits_f_to_f(DeviceBuffer<float>                        totalF
 
     launchGpuKernel(kernelFn, config, nullptr, "FbufferOps", kernelArgs);
 
-    if (atomLocality == AtomLocality::Local)
-    {
-        GMX_ASSERT(nb->localFReductionDone != nullptr,
-                   "localFReductionDone has to be a valid pointer");
-        nb->localFReductionDone->markEvent(stream);
-    }
+    nb->localFReductionDone->markEvent(stream);
 }
 
 } // namespace Sits
