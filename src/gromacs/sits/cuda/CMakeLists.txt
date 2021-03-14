@@ -34,7 +34,7 @@
 
 if(GMX_USE_CUDA)
     set(SITS_CUDA_KERNEL_SOURCES
-            
+        sits_cuda.cu
     )
 
     file(GLOB SITS_CUDA_SOURCES

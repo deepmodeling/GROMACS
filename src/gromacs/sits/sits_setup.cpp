@@ -243,16 +243,7 @@ void sits_t::print_sitsvals()
 
     if (gpu_sits)
     {
-        float* h_enerd;
-        h_enerd = (float *) malloc(3 * sizeof(float));
-        cudaMemcpy(&h_enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
-
-        float* h_factor;
-        h_factor = (float *) malloc(sizeof(float));
-        cudaMemcpy(&h_enerd, gpu_sits->sits_param->factor, sizeof(float), cudaMemcpyDeviceToHost);
-
-        printf("\n______AA______ ______AB______ ______BB______ fc_ball\n");
-        printf("%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
+        Sits::gpu_print_sitsvals(gpu_sits);
     }
 
     printf("\n############# SITS ############\n");

@@ -54,13 +54,6 @@
 #include "gromacs/gpu_utils/gpueventsynchronizer.cuh"
 #include "gromacs/gpu_utils/vectype_ops.cuh"
 #include "gromacs/mdtypes/simulation_workload.h"
-#include "gromacs/nbnxm/atomdata.h"
-#include "gromacs/nbnxm/gpu_common.h"
-#include "gromacs/nbnxm/gpu_common_utils.h"
-#include "gromacs/nbnxm/gpu_data_mgmt.h"
-#include "gromacs/nbnxm/grid.h"
-#include "gromacs/nbnxm/nbnxm.h"
-#include "gromacs/nbnxm/pairlist.h"
 
 #include "gromacs/sits/sits_gpu_data_mgmt.h"
 #include "gromacs/sits/sits.h"
@@ -70,6 +63,8 @@
 #include "gromacs/utility/gmxassert.h"
 
 #include "sits_cuda_types.h"
+
+#define FLT_MAX 10e8;
 
 /*! As we execute nonbonded workload in separate streams, before launching
    the kernel we need to make sure that he following operations have completed:
@@ -301,6 +296,38 @@ __global__ void sits_enhance_force_Sum_Of_nkExpBetakU(const int    k_numbers,
     atomicAdd(sum_of_below, lin);
 }
 
+__global__ void sits_enhance_force_update_factor(float*        sum_a,
+                                                float*        sum_b,
+                                                float*        factor,
+                                                const float   beta_0,
+                                                const float   fb_bias)
+{
+    if (threadIdx.x == 0)
+    {
+        if (isinf(factor[0]) || isnan(factor[0]) || factor[0] == 0.0)
+        {
+            factor[0] = 1.0;
+        }
+        if (isinf(factor[1]) || isnan(factor[1]) || factor[1] == 0.0)
+        {
+            factor[1] = 1.0;
+        }
+        factor[0] = sum_a[0] / sum_b[0] / beta_0 + fb_bias;
+        // avoid crashing caused by sharp fluctuation of fc_ball
+        if (!isinf(factor[0]) && !isnan(factor[0]) && (factor[0] > 0.4 * factor[1])
+            && (factor[0] < 2 * factor[1]))
+        {
+            factor[1] = factor[0];
+        }
+        else
+        {
+            factor[0] = factor[1];
+        }
+    }
+    printf("\n| sum_a | sum_b | factor | factor1 |\n");
+    printf(" %7.3f %7.3f %8.3f %8.3f \n", *sum_a, *sum_b, factor[0], factor[1]);
+}
+
 static __global__ void sits_enhance_force_Protein(const int     protein_numbers,
                                                   float3*       md_frc,
                                                   const float3* pw_frc,
@@ -333,12 +360,12 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
                                                      int*          energrp,
                                                      float3*       md_frc,
                                                      const float3* pw_frc,
-                                                     const float   fc_ball,
+                                                     float*        fc_ball,
                                                      const float   pw_factor)
 {
     for (int i = threadIdx.x; i < natoms; i = i + blockDim.x)
     {
-        float fc_1 = fc_ball - 1.0;
+        float fc_1 = fc_ball[0] - 1.0;
         if (energrp[i] == 0)
         {
             md_frc[i].x *= fc_1;
@@ -351,67 +378,9 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
     }
 }
 
-__global__ void Sits_Classical_Enhanced_Force(const int     natoms,
-                                              const int     protein_natoms,
-                                              const float   pw_factor,
-                                              float3*       md_frc,
-                                              const float3* pw_frc,
-                                              const float*  pp_ene,
-                                              const float*  pw_ene,
-                                              const int     k_numbers,
-                                              float*        nkexpbetaku,
-                                              const float*  beta_k,
-                                              const float*  n_k,
-                                              float*        sum_a,
-                                              float*        sum_b,
-                                              float*        factor,
-                                              const float   beta_0,
-                                              const float   pe_a,
-                                              const float   pe_b,
-                                              const float   fb_bias)
-{
-    float ene = *(pp_ene) + pw_factor * *(pw_ene);
-    ene       = pe_a * ene + pe_b;
-    if (ene > 0)
-    {
-        sits_enhance_force_Calculate_nkExpBetakU_1<<<1, 64>>>(k_numbers, beta_k, n_k,
-                                                                   nkexpbetaku, ene);
-    }
-    else
-    {
-        sits_enhance_force_Calculate_nkExpBetakU_2<<<1, 64>>>(k_numbers, beta_k, n_k,
-                                                                   nkexpbetaku, ene);
-    }
+/*-------------------------------- End CUDA kernels-----------------------------*/
 
-    sits_enhance_force_Sum_Of_nkExpBetakU<<<1, 128>>>(k_numbers, nkexpbetaku, sum_b);
-
-    sits_enhance_force_Sum_Of_Above<<<1, 128>>>(k_numbers, nkexpbetaku, beta_k, sum_a);
-
-    factor[0] = sum_a[0] / sum_b[0] / beta_0 + fb_bias;
-    // avoid crashing caused by sharp fluctuation of fc_ball
-    if (!isinf(factor[0]) && !isnan(factor[0]) && (factor[0] > 0.5 * factor[1])
-        && (factor[0] < 2 * factor[1]))
-    {
-        factor[1] = factor[0];
-    }
-    else
-    {
-        factor[0] = factor[1];
-    }
-    float fc = factor[0];
-
-    //	printf("factor %e sum0 %e %e ene %f lfactor %e\n", fc, sum_a[0], sum_b[0], ene, factor[1]);
-    __syncthreads();
-
-    // line
-    // fc = (ene - 20.) / 80./2. + 0.2;
-    sits_enhance_force_Protein<<<1, 128>>>(protein_natoms, md_frc, pw_frc, fc,
-                                                pw_factor * fc + 1.0 - pw_factor);
-    sits_enhance_force_Water<<<1, 128>>>(protein_natoms, natoms, md_frc, pw_frc,
-                                              pw_factor * fc + 1.0 - pw_factor);
-}
-
-__global__ void Sits_Classical_Enhance_Force(const int     natoms,
+void Sits_Classical_Enhance_Force(const int     natoms,
                                               int*          energrp,
                                               const float   pw_factor,
                                               float3*       md_frc,
@@ -430,7 +399,14 @@ __global__ void Sits_Classical_Enhance_Force(const int     natoms,
                                               const float   pe_b,
                                               const float   fb_bias)
 {
-    float ene = *(pp_ene) + pw_factor * *(pw_ene);
+    float* h_E_pp;
+    float* h_E_pw;
+
+    h_E_pp = (float *) malloc(sizeof(float));
+    h_E_pw = (float *) malloc(sizeof(float));
+    cudaMemcpy(h_E_pp, pp_ene, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_E_pw, pw_ene, sizeof(float), cudaMemcpyDeviceToHost);
+    float ene = *(h_E_pp) + pw_factor * *(h_E_pw);
     ene       = pe_a * ene + pe_b;
     if (ene > 0)
     {
@@ -447,28 +423,13 @@ __global__ void Sits_Classical_Enhance_Force(const int     natoms,
 
     sits_enhance_force_Sum_Of_Above<<<1, 128>>>(k_numbers, nkexpbetaku, beta_k, sum_a);
 
-    factor[0] = sum_a[0] / sum_b[0] / beta_0 + fb_bias;
-    // avoid crashing caused by sharp fluctuation of fc_ball
-    if (!isinf(factor[0]) && !isnan(factor[0]) && (factor[0] > 0.5 * factor[1])
-        && (factor[0] < 2 * factor[1]))
-    {
-        factor[1] = factor[0];
-    }
-    else
-    {
-        factor[0] = factor[1];
-    }
-    float fc = factor[0];
-
+    sits_enhance_force_update_factor<<<1, 1>>>(sum_a, sum_b, factor, beta_0, fb_bias);
     //	printf("factor %e sum0 %e %e ene %f lfactor %e\n", fc, sum_a[0], sum_b[0], ene, factor[1]);
-    __syncthreads();
 
     // line
     // fc = (ene - 20.) / 80./2. + 0.2;
-    sits_enhance_force_by_energrp<<<1, 128>>>(natoms, energrp, md_frc, pw_frc, fc, pw_factor);
+    sits_enhance_force_by_energrp<<<1, 128>>>(natoms, energrp, md_frc, pw_frc, factor, pw_factor);
 }
-
-/*-------------------------------- End CUDA kernels-----------------------------*/
 
 namespace Sits
 {
@@ -496,7 +457,7 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step)
         param->reset = 0;
         param->record_count++;
 
-        if ((param->record_count % param->update_interval == 0) && (param->record_count % param->update_interval < param->niter))
+        if ((param->record_count % param->update_interval == 0) && (param->record_count / param->update_interval < param->niter))
         {
             Sits_Update_log_mk_inv<<<ceilf((float)param->k_numbers / 32.), 32>>>(
                     param->k_numbers, param->log_weight, param->log_mk_inv,
@@ -510,7 +471,7 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step)
                     param->k_numbers, param->log_nk, param->nk,
                     param->log_nk_inv);
 
-            param->record_count = 0;
+            // param->record_count = 0;
             param->reset        = 1;
 
             if (!param->constant_nk)
@@ -533,9 +494,9 @@ void gpu_enhance_force(gmx_sits_cuda_t* gpu_sits, int step)
     cu_sits_atdat_t* atdat = gpu_sits->sits_atdat;
     cu_sits_param_t* param = gpu_sits->sits_param;
 
-    if (sits_at->sits_cal_mode == 0)
+    if (atdat->sits_cal_mode == 0)
     {
-        Sits_Classical_Enhance_Force<<<1, 1>>>(
+        Sits_Classical_Enhance_Force(
                 atdat->natoms, atdat->energrp, atdat->pw_enh_factor, 
                 atdat->d_force_tot_nbat, atdat->d_force_pw_nbat, 
                 &(atdat->d_enerd[0]), &(atdat->d_enerd[1]),
@@ -544,7 +505,7 @@ void gpu_enhance_force(gmx_sits_cuda_t* gpu_sits, int step)
                 param->factor, param->beta0, param->energy_multiple,
                 param->energy_shift, param->fb_shift);
     }
-    else if (sits_at->sits_cal_mode == 1)
+    else if (atdat->sits_cal_mode == 1)
     {
         // Get fc_ball by random walk in given potential to reach certain marginal distribution
         // if (!simple_param->is_constant_fc_ball)

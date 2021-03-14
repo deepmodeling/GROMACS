@@ -351,7 +351,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         for (i = 0; i < c_numClPerSupercl; i++)
         {
             egp_sh_i[tidxi] = (atdat.energrp[i] >> (tidxi * atdat.neg_2log)) & egp_mask;
-            egp_ind = min(2, 2*egp_sh_i[tidxi]);
+            // egp_ind = min(2, 2*egp_sh_i[tidxi]);
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
             qi = xqib[i * c_clSize + tidxi].w;
             E_el_buf = qi * qi;

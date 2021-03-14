@@ -156,8 +156,15 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     CU_RET_ERR(stat, "cudaMalloc failed on param->sum_a");
     stat = cudaMalloc((void**)&param->sum_b, sizeof(*param->sum_b));
     CU_RET_ERR(stat, "cudaMalloc failed on param->sum_b");
-    stat = cudaMalloc((void**)&param->factor, 2 * sizeof(*param->sum_b));
+    stat = cudaMalloc((void**)&param->factor, 2 * sizeof(*param->factor));
     CU_RET_ERR(stat, "cudaMalloc failed on param->factor");
+
+    stat = cudaMemsetAsync(param->sum_a, 0, sizeof(*param->sum_a), stream);
+    CU_RET_ERR(stat, "cudaMemsetAsync on param->sum_a failed");
+    stat = cudaMemsetAsync(param->sum_b, 0, sizeof(*param->sum_b), stream);
+    CU_RET_ERR(stat, "cudaMemsetAsync on param->sum_b failed");
+    stat = cudaMemsetAsync(param->factor, 0, 2 * sizeof(*param->factor), stream);
+    CU_RET_ERR(stat, "cudaMemsetAsync on param->factor failed");
 
     // Details of $n_k$ iteration see:
     // \ref An integrate-over-temperature approach for enhanced sampling
@@ -378,19 +385,41 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxn_atomdata_t* n
     }
 }
 
+void gpu_print_sitsvals(gmx_sits_cuda_t* gpu_sits)
+{
+    float* h_enerd;
+    h_enerd = (float *) malloc(3 * sizeof(float));
+    cudaMemcpy(h_enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
+
+    float* h_factor;
+    h_factor = (float *) malloc(sizeof(float));
+    cudaMemcpy(h_factor, gpu_sits->sits_param->factor, sizeof(float), cudaMemcpyDeviceToHost);
+
+    // float* h_sum_a;
+    // h_sum_a = (float *) malloc(sizeof(float));
+    // cudaMemcpy(h_sum_a, gpu_sits->sits_param->sum_a, sizeof(float), cudaMemcpyDeviceToHost);
+
+    // float* h_sum_b;
+    // h_sum_a = (float *) malloc(sizeof(float));
+    // cudaMemcpy(h_sum_a, gpu_sits->sits_param->sum_a, sizeof(float), cudaMemcpyDeviceToHost);
+
+    printf("\n______AA______ ______AB______ ______BB______   sum_a  sum_b  fc_ball\n");
+    printf("%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
+}
+
 void gpu_free(gmx_sits_cuda_t* gpu_sits)
 {
     cudaError_t      stat;
     cu_sits_atdat_t* atdat;
-    cu_sits_param_t* sits_param;
+    cu_sits_param_t* param;
 
     if (gpu_sits == nullptr)
     {
         return;
     }
 
-    atdat      = gpu_sits->sits_atdat;
-    sits_param = gpu_sits->sits_param;
+    atdat = gpu_sits->sits_atdat;
+    param = gpu_sits->sits_param;
 
     // if ((info.sits_mode & 0x0000000F) == SIMPLE_SITS_MODE)
     // {
@@ -403,16 +432,16 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
     if (atdat->d_enerd != nullptr)
     {
         // TODO: fix cudaFree here!
-        stat = cudaFree(atdat->d_enerd);
-        CU_RET_ERR(stat, "cudaFree failed on atdat->d_enerd");
+        // stat = cudaFree(atdat->d_enerd);
+        // CU_RET_ERR(stat, "cudaFree failed on atdat->d_enerd");
     }
 
-    freeDeviceBuffer(&atdat->d_force_tot);
-    freeDeviceBuffer(&atdat->d_force_pw);
-    freeDeviceBuffer(&atdat->d_force_tot_nbat);
-    freeDeviceBuffer(&atdat->d_force_pw_nbat);
-    freeDeviceBuffer(&atdat->atomIndices);
-    freeDeviceBuffer(&atdat->energrp);
+    // freeDeviceBuffer(&atdat->d_force_tot);
+    // freeDeviceBuffer(&atdat->d_force_pw);
+    // freeDeviceBuffer(&atdat->d_force_tot_nbat);
+    // freeDeviceBuffer(&atdat->d_force_pw_nbat);
+    // freeDeviceBuffer(&atdat->atomIndices);
+    // freeDeviceBuffer(&atdat->energrp);
 
     /* Free nbst */
     // pfree(nb->nbst.e_lj);
@@ -425,7 +454,7 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
     // nb->nbst.fshift = nullptr;
 
     sfree(atdat);
-    sfree(sits_param);
+    sfree(param);
     sfree(gpu_sits->stream);
     sfree(gpu_sits);
 

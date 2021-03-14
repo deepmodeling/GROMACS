@@ -48,7 +48,7 @@
 #include "gromacs/utility/basedefinitions.h"
 #include "gromacs/utility/real.h"
 
-#include "cuda/sits_cuda_types.h"
+struct gmx_sits_cuda_t;
 
 struct interaction_const_t;
 struct nbnxn_atomdata_t;

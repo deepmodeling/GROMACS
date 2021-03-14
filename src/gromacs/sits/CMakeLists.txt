@@ -32,10 +32,11 @@
 # To help us fund GROMACS development, we humbly ask that you cite
 # the research papers on the package. Check out http://www.gromacs.org.
 
-file(GLOB SITS_SOURCES sits_setup.cpp)
+file(GLOB SITS_SOURCES *.cpp)
 
 gmx_add_libgromacs_sources(
     sits_setup.cpp
+    kerneldispatch.cpp
     )
 
 set(SITS_SOURCES ${SITS_SOURCES} PARENT_SCOPE)

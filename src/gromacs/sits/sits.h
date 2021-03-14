@@ -21,6 +21,7 @@
 #include "gromacs/utility/range.h"
 #include "gromacs/utility/real.h"
 
+#include "sits_gpu.h"
 // #include "gromacs/sits/cuda/sits_cuda_types.h"
 struct gmx_sits_cuda_t;
 
