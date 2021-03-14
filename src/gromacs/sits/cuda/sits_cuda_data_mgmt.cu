@@ -72,6 +72,7 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 
+#include "gromacs/nbnxm/cuda/nbnxm_buffer_ops_kernels.cuh"
 #include "gromacs/nbnxm/cuda/nbnxm_cuda.h"
 
 #include "sits_cuda_types.h"
@@ -477,5 +478,67 @@ void gpu_free(gmx_sits_cuda_t* gpu_sits)
 
 //     return static_cast<void*>(nb->atdat->f);
 // }
+
+/* F buffer operations on GPU: performs force summations and conversion from nb to rvec format.
+ *
+ * NOTE: When the total force device buffer is reallocated and its size increases, it is cleared in
+ *       Local stream. Hence, if accumulateForce is true, NonLocal stream should start accumulating
+ *       forces only after Local stream already done so.
+ */
+void nbnxn_gpu_add_sits_f_to_f(DeviceBuffer<float>                        totalForcesDevice,
+                               gmx_nbnxn_gpu_t*                           nb,
+                               gmx_sits_cuda_t*                           gpu_sits,
+                               gmx::ArrayRef<GpuEventSynchronizer* const> dependencyList,
+                               bool                                       accumulateForce)
+{
+    GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
+    GMX_ASSERT(numAtoms != 0, "Cannot call function with no atoms");
+    GMX_ASSERT(totalForcesDevice, "Need a valid totalForcesDevice pointer");
+
+    const InteractionLocality iLocality = gpuAtomToInteractionLocality(atomLocality);
+    cudaStream_t              stream    = nb->stream[iLocality];
+    cu_atomdata_t*            adat      = nb->atdat;
+
+    int atomStart = 0;
+    int numAtoms  = adat->natoms;
+
+    // Enqueue wait on all dependencies passed
+    for (auto const synchronizer : dependencyList)
+    {
+        synchronizer->enqueueWaitEvent(stream);
+    }
+
+    /* launch kernel */
+
+    KernelLaunchConfig config;
+    config.blockSize[0] = c_bufOpsThreadsPerBlock;
+    config.blockSize[1] = 1;
+    config.blockSize[2] = 1;
+    config.gridSize[0]  = ((numAtoms + 1) + c_bufOpsThreadsPerBlock - 1) / c_bufOpsThreadsPerBlock;
+    config.gridSize[1]  = 1;
+    config.gridSize[2]  = 1;
+    config.sharedMemorySize = 0;
+    config.stream           = stream;
+
+    auto kernelFn = accumulateForce ? nbnxn_gpu_add_nbat_f_to_f_kernel<true, false>
+                                    : nbnxn_gpu_add_nbat_f_to_f_kernel<false, false>;
+
+    const float3* d_fNB    = gpu_sits->sits_atdat->d_force_tot_nbat;
+    const float3* d_fPme   = nullptr;
+    float3*       d_fTotal = (float3*)totalForcesDevice;
+    const int*    d_cell   = nb->cell;
+
+    const auto kernelArgs = prepareGpuKernelArguments(kernelFn, config, &d_fNB, &d_fPme, &d_fTotal,
+                                                      &d_cell, &atomStart, &numAtoms);
+
+    launchGpuKernel(kernelFn, config, nullptr, "FbufferOps", kernelArgs);
+
+    if (atomLocality == AtomLocality::Local)
+    {
+        GMX_ASSERT(nb->localFReductionDone != nullptr,
+                   "localFReductionDone has to be a valid pointer");
+        nb->localFReductionDone->markEvent(stream);
+    }
+}
 
 } // namespace Sits

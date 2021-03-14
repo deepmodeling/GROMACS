@@ -46,6 +46,11 @@
 #include <memory>
 
 #include "gromacs/gpu_utils/gpu_macros.h"
+#include "gromacs/math/vectypes.h"
+#include "gromacs/mdtypes/locality.h"
+#include "gromacs/utility/basedefinitions.h"
+#include "gromacs/utility/real.h"
+#include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/nbnxm/gpu_types.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/sits/sits.h"
@@ -54,9 +59,9 @@
 struct sits_atomdata_t;
 struct nbnxn_atomdata_t;
 struct gmx_sits_cuda_t;
+struct gmx_nbnxn_gpu_t;
 struct gmx_gpu_info_t;
 struct gmx_device_info_t;
-struct gmx_sits_cuda_t;
 
 namespace Sits
 {
@@ -107,6 +112,24 @@ void gpu_free(gmx_sits_cuda_t gmx_unused* gpu_sits); CUDA_FUNC_TERM_WITH_RETURN(
 // CUDA_FUNC_QUALIFIER
 // rvec* gpu_get_fshift(gmx_nbnxn_gpu_t gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
+/*! \brief Force buffer operations on GPU.
+ *
+ * Transforms non-bonded forces into plain rvec format and add all the force components to the total
+ * force buffer
+ *
+ * \param[in]   totalForcesDevice    Device buffer to accumulate resulting force.
+ * \param[in]   gpu_nbv              The NBNXM GPU data structure.
+ * \param[in]   gpu_sits             The SITS GPU data structure.
+ * \param[in]   dependencyList       List of synchronizers that represent the dependencies the reduction task needs to sync on.
+ * \param[in]   accumulateForce      Whether there are usefull data already in the total force buffer.
+ *
+ */
+CUDA_FUNC_QUALIFIER
+void nbnxn_gpu_add_sits_f_to_f(DeviceBuffer<float> gmx_unused totalForcesDevice,
+                               gmx_nbnxn_gpu_t gmx_unused* gpu_nbv,
+                               gmx_sits_cuda_t gmx_unused* gpu_sits,
+                               gmx::ArrayRef<GpuEventSynchronizer* const> gmx_unused dependencyList,
+                               bool gmx_unused accumulateForce) CUDA_FUNC_TERM;
 } // namespace Sits
 
 #endif

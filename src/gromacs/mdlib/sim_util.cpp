@@ -1824,6 +1824,10 @@ void do_force(FILE*                               fplog,
             fr->sits->sits_update_params(step);
             fr->sits->sits_enhance_force(step);
             fr->sits->clear_sits_energy_force();
+            if (useGpuFBufOps == BufferOpsUseGpu::True)
+            {
+                Sits::nbnxn_gpu_add_sits_f_to_f(stateGpu->getForces(), nbv->gpu_nbv, fr->sits->gpu_sits, dependencyList, true);
+            }
         }
     }
 
