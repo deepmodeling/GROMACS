@@ -89,7 +89,7 @@
 #define MAXPTR 254
 #define NOGID 255
 
-#define CONSTANT_kB 0.00198716
+#define CONSTANT_kB 0.008314472
 
 /* Resource parameters
  * Do not change any of these until you read the instruction
@@ -2351,7 +2351,7 @@ void get_ir(const char*     mdparin,
             printf("	SITS Log nk Initial To Default Value 0.0\n");
             for (int i = 0; i < sits->k_numbers; i++)
             {
-                tempf[i] = 0.0;
+                tempf[i] = -i * 2.0;
             }
         }
         Malloc_Safely((void**)&(sits->log_nk), sizeof(float) * sits->k_numbers);

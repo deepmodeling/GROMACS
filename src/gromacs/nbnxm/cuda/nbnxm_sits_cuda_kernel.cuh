@@ -258,14 +258,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float3       xi, xj, rv, f_ij, fcj_buf;
     float3       fci_buf[c_numClPerSupercl]; /* i force buffer */
     float3       fcj_pw_buf, fcj_tot_buf;
-    fcj_pw_buf.x = fcj_pw_buf.y = fcj_pw_buf.z = 0.0;
-    fcj_tot_buf.x = fcj_tot_buf.y = fcj_tot_buf.z = 0.0;
     float3       fci_pw_buf[c_numClPerSupercl], fci_tot_buf[c_numClPerSupercl];
-    for (int i = 0; i < c_numClPerSupercl; i++)
-    {
-        fci_pw_buf[i].x = fci_pw_buf[i].y = fci_pw_buf[i].z = 0.0;
-        fci_tot_buf[i].x = fci_tot_buf[i].y = fci_tot_buf[i].z = 0.0;
-    }
     nbnxn_sci_t  nb_sci;
 
     /*! i-cluster interaction mask for a super-cluster with all c_numClPerSupercl=8 bits set */
@@ -331,6 +324,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     for (i = 0; i < c_numClPerSupercl; i++)
     {
         fci_buf[i] = make_float3(0.0f);
+        fci_tot_buf[i] = make_float3(0.0f);
+        fci_pw_buf[i] = make_float3(0.0f);
     }
 
 #    ifdef LJ_EWALD
@@ -451,6 +446,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif
 
                     fcj_buf = make_float3(0.0f);
+                    fcj_pw_buf = make_float3(0.0f);
+                    fcj_tot_buf = make_float3(0.0f);
 
 #    if !defined PRUNE_NBL
 #        pragma unroll 8

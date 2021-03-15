@@ -62,6 +62,8 @@
 #include "gromacs/utility/cstringutil.h"
 #include "gromacs/utility/gmxassert.h"
 
+#include "gromacs/math/utilities.h"
+
 #include "sits_cuda_types.h"
 
 #define FLT_MAX 10e8;
@@ -155,8 +157,7 @@ static __global__ void Sits_Record_Ene(float*       ene_record,
     // printf("DEBUG ene_record: %f\n", ene_record[0]);
 }
 
-static __global__ void
-Sits_Update_gf(const int kn, float* gf, const float* ene_record, const float* log_nk, const float* beta_k)
+static __global__ void Sits_Update_gf(const int kn, float* gf, const float* ene_record, const float* log_nk, const float* beta_k)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < kn)
@@ -179,14 +180,17 @@ static __global__ void Sits_Update_gfsum(const int kn, float* gfsum, const float
     }
 }
 
-static __global__ void
-Sits_Update_log_pk(const int kn, float* log_pk, const float* gf, const float* gfsum, const int reset)
+static __global__ void Sits_Update_log_pk(const int kn, float* log_pk, const float* gf, const float* gfsum, const int reset)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < kn)
     {
+        if (reset == 1)
+        {
+            log_pk[i] = -FLT_MAX;
+        }
         float gfi = gf[i];
-        log_pk[i] = ((float)reset) * gfi + ((float)(1 - reset)) * log_add_log(log_pk[i], gfi - gfsum[0]);
+        log_pk[i] = log_add_log(log_pk[i], gfi - gfsum[0]);
         // printf("DEBUG log_pk: %d %f %f\n", i, log_pk[i], gfsum[0]);
     }
 }
@@ -324,8 +328,8 @@ __global__ void sits_enhance_force_update_factor(float*        sum_a,
             factor[0] = factor[1];
         }
     }
-    printf("\n| sum_a | sum_b | factor | factor1 |\n");
-    printf(" %7.3f %7.3f %8.3f %8.3f \n", *sum_a, *sum_b, factor[0], factor[1]);
+    // printf("\n| sum_a | sum_b | factor | factor1 |\n");
+    // printf(" %7.3f %7.3f %8.3f %8.3f \n", *sum_a, *sum_b, factor[0], factor[1]);
 }
 
 static __global__ void sits_enhance_force_Protein(const int     protein_numbers,
@@ -368,13 +372,13 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
         float fc_1 = fc_ball[0] - 1.0;
         if (energrp[i] == 0)
         {
-            md_frc[i].x *= fc_1;
-            md_frc[i].y *= fc_1;
-            md_frc[i].z *= fc_1;
+            md_frc[i] *= fc_1;
         }
-        md_frc[i].x += fc_1 * pw_factor * pw_frc[i].x;
-        md_frc[i].y += fc_1 * pw_factor * pw_frc[i].y;
-        md_frc[i].z += fc_1 * pw_factor * pw_frc[i].z;
+        else
+        {
+            md_frc[i] = make_float3(0.0);
+        }
+        md_frc[i] += fc_1 * pw_factor * pw_frc[i];
     }
 }
 
@@ -428,7 +432,7 @@ void Sits_Classical_Enhance_Force(const int     natoms,
 
     // line
     // fc = (ene - 20.) / 80./2. + 0.2;
-    sits_enhance_force_by_energrp<<<1, 128>>>(natoms, energrp, md_frc, pw_frc, factor, pw_factor);
+    sits_enhance_force_by_energrp<<<32, 128>>>(natoms, energrp, md_frc, pw_frc, factor, pw_factor);
 }
 
 namespace Sits

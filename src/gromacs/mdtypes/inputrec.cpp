@@ -61,7 +61,7 @@
 #include "gromacs/utility/textwriter.h"
 #include "gromacs/utility/txtdump.h"
 
-#define CONSTANT_kB 0.00198716
+#define CONSTANT_kB 0.008314472
 
 //! Macro to select a bool name
 #define EBOOL(e) gmx::boolToString(e)

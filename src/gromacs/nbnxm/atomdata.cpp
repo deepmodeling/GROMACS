@@ -954,7 +954,7 @@ static void nbnxn_atomdata_set_energygroups(nbnxn_atomdata_t::Params* params,
                                   params->energrp_gpu.data() + grid.atomToCluster(atomOffset));
             copy_egp_to_nbat_egps(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
                                   numAtoms, 1, params->neg_2log, atinfo,
-                                  params->energrp_1x1.data() + grid.atomToCluster(atomOffset));
+                                  params->energrp_1x1.data() + atomOffset);
         }
     }
 }
