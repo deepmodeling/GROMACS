@@ -246,8 +246,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        E_lj_buf;
 #    endif
     float3       E_lj_decomp, E_el_decomp;
-    E_lj_decomp.x = E_lj_decomp.y = E_lj_decomp.z = 0.0;
-    E_el_decomp.x = E_el_decomp.y = E_el_decomp.z = 0.0;
+    E_lj_decomp.x = make_float3(0.0);
+    E_el_decomp.x = make_float3(0.0);
     float        factor_buf;
 #    endif
 #    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
@@ -345,7 +345,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         /* we have the diagonal: add the charge and LJ self interaction energy term */
         for (i = 0; i < c_numClPerSupercl; i++)
         {
-            egp_sh_i[tidxi] = (atdat.energrp[i] >> (tidxi * atdat.neg_2log)) & egp_mask;
+            egp_sh_i[tidxi] = (atdat.energrp[sci * c_numClPerSupercl + i] >> (tidxi * atdat.neg_2log)) & egp_mask;
             // egp_ind = min(2, 2*egp_sh_i[tidxi]);
 #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
             qi = xqib[i * c_clSize + tidxi].w;
