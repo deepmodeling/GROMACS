@@ -1012,6 +1012,35 @@ void gpu_launch_cpyback(gmx_nbnxn_cuda_t*        nb,
     }
 }
 
+void gpu_launch_sits_cpyback(gmx_nbnxn_cuda_t*        nb,
+                        gmx_sits_cuda_t*         gpu_sits,
+                        nbnxn_atomdata_t*        nbatom,
+                        const gmx::StepWorkload& stepWork,
+                        const AtomLocality       atomLocality)
+{
+    GMX_ASSERT(nb, "Need a valid nbnxn_gpu object");
+
+    cudaError_t stat;
+    int         adat_begin, adat_len; /* local/nonlocal offset and length used for xq and f */
+
+    /* extract the data */
+    cu_atomdata_t* adat    = nb->atdat;
+    cudaStream_t   stream  = *(gpu_sits->stream);
+
+    // getGpuAtomRange(adat, atomLocality, &adat_begin, &adat_len);
+    adat_begin = 0;
+    adat_len = adat->natoms;
+
+    /* DtoH f
+     * Skip if buffer ops / reduction is offloaded to the GPU.
+     */
+    if (!stepWork.useGpuFBufferOps)
+    {
+        cu_copy_D2H_sync(nbatom->out[0].f.data() + adat_begin * 3, gpu_sits->sits_atdat->d_force_tot_nbat + adat_begin,
+                          (adat_len) * sizeof(*adat->f));
+    }
+}
+
 void cuda_set_cacheconfig()
 {
     cudaError_t stat;
@@ -1025,6 +1054,22 @@ void cuda_set_cacheconfig()
             cudaFuncSetCacheConfig(nb_kfunc_ener_noprune_ptr[i][j], cudaFuncCachePreferEqual);
             cudaFuncSetCacheConfig(nb_kfunc_noener_prune_ptr[i][j], cudaFuncCachePreferEqual);
             stat = cudaFuncSetCacheConfig(nb_kfunc_noener_noprune_ptr[i][j], cudaFuncCachePreferEqual);
+            CU_RET_ERR(stat, "cudaFuncSetCacheConfig failed");
+        }
+    }
+}
+
+void cuda_set_sits_cacheconfig()
+{
+    cudaError_t stat;
+
+    for (int i = 0; i < eelCuNR; i++)
+    {
+        for (int j = 0; j < evdwCuNR; j++)
+        {
+            /* Default kernel 32/32 kB Shared/L1 */
+            cudaFuncSetCacheConfig(nb_sits_kfunc_ener_prune_ptr[i][j], cudaFuncCachePreferEqual);
+            stat = cudaFuncSetCacheConfig(nb_sits_kfunc_ener_noprune_ptr[i][j], cudaFuncCachePreferEqual);
             CU_RET_ERR(stat, "cudaFuncSetCacheConfig failed");
         }
     }

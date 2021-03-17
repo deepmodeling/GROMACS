@@ -261,7 +261,7 @@ gmx_sits_cuda_t* gpu_init_sits(const gmx_device_info_t*   deviceInfo,
 
     /* set the kernel type for the current GPU */
     /* pick L1 cache configuration */
-    // cuda_set_cacheconfig();
+    Nbnxm::cuda_set_sits_cacheconfig();
 
     cuda_init_sits_params(gpu_sits, sits_at);
 

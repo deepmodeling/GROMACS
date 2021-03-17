@@ -47,6 +47,8 @@ namespace Nbnxm
 //! Set up the cache configuration for the non-bonded kernels.
 void cuda_set_cacheconfig();
 
+void cuda_set_sits_cacheconfig();
+
 } // namespace Nbnxm
 
 #endif

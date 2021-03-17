@@ -227,24 +227,34 @@ void sits_t::sits_atomdata_set_energygroups(std::vector<int> cginfo)
     sits_at->energrp.resize(sits_at->natoms);
     for (int i = 0; i < sits_at->natoms; i++)
     {
-        sits_at->energrp[i] = cginfo[i];
+        sits_at->energrp[i] = cginfo[i]&255;
     }
 }
 
-void sits_t::print_sitsvals()
+void sits_t::print_sitsvals(bool bFirstTime)
 {
-    printf("\n############# SITS ############\n");
-    printf("natoms = %d\n", sits_at->natoms);
-    printf("k_num = %d,\nbeta_k = ", sits_at->k_numbers);
-    for (int i=0; i<sits_at->k_numbers; i++)
+    if (bFirstTime)
     {
-        printf("%.3f ", sits_at->beta_k[i]);
+        printf("\n############# SITS ############\n");
+        printf("natoms = %d\n", sits_at->natoms);
+        printf("k_num = %d,\nbeta_k = ", sits_at->k_numbers);
+        for (int i=0; i<sits_at->k_numbers; i++)
+        {
+            printf("%.3f ", sits_at->beta_k[i]);
+        }
     }
 
     if (gpu_sits)
     {
         Sits::gpu_print_sitsvals(gpu_sits);
     }
+    else
+    {
 
-    printf("\n############# SITS ############\n");
+    }
+
+    if (bFirstTime)
+    {
+        printf("\n############# SITS ############\n");
+    }
 }

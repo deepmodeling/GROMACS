@@ -155,6 +155,13 @@ void gpu_launch_cpyback(gmx_nbnxn_gpu_t gmx_unused* nb,
                         const gmx::StepWorkload gmx_unused& stepWork,
                         gmx::AtomLocality gmx_unused aloc) GPU_FUNC_TERM;
 
+GPU_FUNC_QUALIFIER
+void gpu_launch_sits_cpyback(gmx_nbnxn_gpu_t gmx_unused* nb,
+                        gmx_sits_cuda_t gmx_unused* gpu_sits,
+                        nbnxn_atomdata_t gmx_unused* nbatom,
+                        const gmx::StepWorkload gmx_unused& stepWork,
+                        gmx::AtomLocality gmx_unused aloc) GPU_FUNC_TERM;
+
 /*! \brief Attempts to complete nonbonded GPU task.
  *
  *  This function attempts to complete the nonbonded task (both GPU and CPU auxiliary work).

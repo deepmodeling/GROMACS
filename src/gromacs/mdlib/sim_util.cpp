@@ -141,6 +141,15 @@ static void sum_forces(rvec f[], gmx::ArrayRef<const gmx::RVec> forceToAdd)
     }
 }
 
+//! Clears all elements of buffer
+static void clearBufferAll(gmx::ArrayRef<real> buffer)
+{
+    for (real& elem : buffer)
+    {
+        elem = 0;
+    }
+}
+
 static void calc_virial(int                              start,
                         int                              homenr,
                         const rvec                       x[],
@@ -1823,6 +1832,7 @@ void do_force(FILE*                               fplog,
         {
             fr->sits->sits_update_params(step);
             fr->sits->sits_enhance_force(step);
+            // fr->sits->print_sitsvals(false);
             fr->sits->clear_sits_energy_force();
             if (useGpuFBufOps == BufferOpsUseGpu::True)
             {
@@ -1831,7 +1841,9 @@ void do_force(FILE*                               fplog,
             }
             else
             {
-
+                clearBufferAll(nbv->nbat->out[0].f);
+                Nbnxm::gpu_launch_sits_cpyback(nbv->gpu_nbv, fr->sits->gpu_sits, nbv->nbat.get(), stepWork, AtomLocality::Local);
+                nbv->atomdata_add_nbat_f_to_f(AtomLocality::Local, forceOut.forceWithShiftForces().force());
             }
         }
     }
