@@ -389,15 +389,17 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxn_atomdata_t* n
     }
 }
 
-void gpu_print_sitsvals(gmx_sits_cuda_t* gpu_sits)
+void gpu_print_sitsvals(gmx_sits_cuda_t* gpu_sits, FILE* enerdlog)
 {
+    cu_sits_param_t* param = gpu_sits->sits_param;
+
     float* h_enerd;
     h_enerd = (float *) malloc(3 * sizeof(float));
     cudaMemcpy(h_enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
 
     float* h_factor;
     h_factor = (float *) malloc(sizeof(float));
-    cudaMemcpy(h_factor, gpu_sits->sits_param->factor, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_factor, param->factor, sizeof(float), cudaMemcpyDeviceToHost);
 
     // float* h_sum_a;
     // h_sum_a = (float *) malloc(sizeof(float));
@@ -407,8 +409,16 @@ void gpu_print_sitsvals(gmx_sits_cuda_t* gpu_sits)
     // h_sum_a = (float *) malloc(sizeof(float));
     // cudaMemcpy(h_sum_a, gpu_sits->sits_param->sum_a, sizeof(float), cudaMemcpyDeviceToHost);
 
-    printf("\n______AA______ ______AB______ ______BB______   sum_a  sum_b  fc_ball\n");
-    printf("%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
+    // fprintf(enerdlog, "\n______AA______ ______AB______ ______BB______   sum_a  sum_b  fc_ball\n");
+    if (enerdlog)
+    {
+        fprintf(enerdlog, "%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
+    }
+    else
+    {
+        printf("\n______AA______ ______AB______ ______BB______   sum_a  sum_b  fc_ball\n");
+        printf("%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
+    }
 }
 
 void gpu_free(gmx_sits_cuda_t* gpu_sits)

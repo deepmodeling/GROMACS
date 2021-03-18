@@ -438,7 +438,7 @@ void Sits_Classical_Enhance_Force(const int     natoms,
 namespace Sits
 {
 
-void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step)
+void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* normlog)
 {
     cu_sits_atdat_t* atdat = gpu_sits->sits_atdat;
     cu_sits_param_t* param = gpu_sits->sits_param;
@@ -480,6 +480,36 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step)
 
             if (!param->constant_nk)
             {
+                float* h_log_nk;
+                h_log_nk = (float*) malloc(param->k_numbers * sizeof(float));
+                cudaMemcpy(h_log_nk, param->log_nk, sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
+
+                float* h_log_pk;
+                h_log_pk = (float*) malloc(param->k_numbers * sizeof(float));
+                cudaMemcpy(h_log_pk, param->log_pk, sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
+
+                float* h_log_norm;
+                h_log_norm = (float*) malloc(param->k_numbers * sizeof(float));
+                cudaMemcpy(h_log_norm, param->log_norm, sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
+
+                if (nklog)
+                {
+                    for (int i = 0; i < param->k_numbers; i++){
+                        fprintf(nklog, "%8.4f ", h_log_nk[i]);
+                    }
+                    for (int i = 0; i < param->k_numbers; i++){
+                        fprintf(nklog, "%8.4f ", h_log_pk[i]);
+                    }
+                    fprintf(nklog, "\n");
+                }
+
+                if (normlog)
+                {
+                    for (int i = 0; i < param->k_numbers; i++){
+                        fprintf(normlog, "%8.4f ", h_log_norm[i]);
+                    }
+                    fprintf(nklog, "\n");
+                }
                 // cudaMemcpy(param->log_nk_recorded_cpu, param->nk,
                 //            sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
                 // fwrite(param->log_nk_recorded_cpu, sizeof(float), param->k_numbers,

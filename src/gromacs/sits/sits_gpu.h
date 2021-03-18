@@ -62,7 +62,7 @@ GPU_FUNC_QUALIFIER
 void gpu_enhance_force(gmx_sits_cuda_t gmx_unused* gpu_sits, int step) GPU_FUNC_TERM;
 
 GPU_FUNC_QUALIFIER
-void gpu_update_params(gmx_sits_cuda_t gmx_unused* gpu_sits, int step) GPU_FUNC_TERM;
+void gpu_update_params(gmx_sits_cuda_t gmx_unused* gpu_sits, int step, FILE* nklog, FILE* normlog) GPU_FUNC_TERM;
 
 } // namespace Sits
 #endif

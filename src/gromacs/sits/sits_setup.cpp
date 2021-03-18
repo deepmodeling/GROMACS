@@ -98,21 +98,17 @@ void sits_atomdata_init(
     sits_at->sits_enh_bias = sitsvals->sits_enh_bias;
     sits_at->pw_enh_factor = sitsvals->pw_enh_factor;
 
-    sits_at->record_interval = sitsvals->nstsitsrecord;
-    sits_at->update_interval = sitsvals->nstsitsupdate;
-    sits_at->niter           = sitsvals->niter;
-
     sits_at->k_numbers = sitsvals->k_numbers;
 
     sits_at->beta_k.resize(sits_at->k_numbers);
     sits_at->nkExpBetakU.resize(sits_at->k_numbers);
     sits_at->nk.resize(sits_at->k_numbers);
-    sits_at->sum_a.resize(sits_at->k_numbers);
-    sits_at->sum_b.resize(sits_at->k_numbers);
-    sits_at->factor.resize(sits_at->k_numbers);
-    sits_at->ene_recorded.resize(sits_at->k_numbers);
+    sits_at->sum_a = 0.0;
+    sits_at->sum_b = 0.0;
+    sits_at->factor.resize(2);
+    sits_at->ene_recorded = 0.0;
 	sits_at->gf.resize(sits_at->k_numbers);
-	sits_at->gfsum.resize(sits_at->k_numbers);
+	sits_at->gfsum = 0.0;
 	sits_at->log_weight.resize(sits_at->k_numbers);
 	sits_at->log_mk_inv.resize(sits_at->k_numbers);
 	sits_at->log_norm_old.resize(sits_at->k_numbers);
@@ -130,11 +126,21 @@ void sits_atomdata_init(
         sits_at->log_norm_old[i] = sitsvals->log_norm_old[i];
     }
 
+    sits_at->output_interval = sitsvals->nst_sits_enerd_out;
+    Open_File_Safely(&(sits_at->sits_enerd_out, sitsvals->sits_enerd_out, "wb");
+
     sits_at->beta0         = sitsvals->beta0;
     sits_at->constant_nk   = sitsvals->constant_nk;   // sits是否迭代更新nk
-    Open_File_Safely(&(sits_at->nk_traj_file), sitsvals->nk_traj_file, "wb"); //记录nk变化的文件
+
+    if (!sits_at->constant_nk)
+    {
+        Open_File_Safely(&(sits_at->nk_traj_file), sitsvals->nk_traj_file, "wb"); //记录nk变化的文件
+        Open_File_Safely(&(sits_at->norm_traj_file), sitsvals->norm_traj_file, "wb");      //记录log_norm变化的文件
+        sits_at->record_interval = sitsvals->nstsitsrecord;
+        sits_at->update_interval = sitsvals->nstsitsupdate;
+        sits_at->niter           = sitsvals->niter;
+    }
     sits_at->nk_rest_file  = sitsvals->nk_rest_file;   //记录最后一帧nk的文件
-    Open_File_Safely(&(sits_at->norm_traj_file), sitsvals->norm_traj_file, "wb");      //记录log_norm变化的文件
     sits_at->norm_rest_file= sitsvals->norm_rest_file; //记录最后一帧log_norm的文件
 
     //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
@@ -246,7 +252,7 @@ void sits_t::print_sitsvals(bool bFirstTime)
 
     if (gpu_sits)
     {
-        Sits::gpu_print_sitsvals(gpu_sits);
+        Sits::gpu_print_sitsvals(gpu_sits, sits_at->sits_enerd_out);
     }
     else
     {

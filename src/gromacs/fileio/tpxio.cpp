@@ -477,32 +477,39 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
         serializer->doInt(&sits->nstsitsrecord);
         serializer->doInt(&sits->nstsitsupdate);
         serializer->doInt(&sits->niter);
+        serializer->doInt(&sits->nst_sits_enerd_out);
 
         std::string buf;
         if (serializer->reading())
         {
-            serializer->doString(&buf);
-            sits->nk_traj_file = gmx_strdup(buf.c_str());
-            serializer->doString(&buf);
-            sits->norm_traj_file = gmx_strdup(buf.c_str());
+            if (!sits->constant_nk)
+            {
+                serializer->doString(&buf);
+                sits->nk_traj_file = gmx_strdup(buf.c_str());
+                serializer->doString(&buf);
+                sits->norm_traj_file = gmx_strdup(buf.c_str());
+            }
             serializer->doString(&buf);
             sits->nk_rest_file = gmx_strdup(buf.c_str());
             serializer->doString(&buf);
             sits->norm_rest_file = gmx_strdup(buf.c_str());
             serializer->doString(&buf);
-            sits->energy_record_out = gmx_strdup(buf.c_str());
+            sits->sits_enerd_out = gmx_strdup(buf.c_str());
         }
         else
         {
-            buf = sits->nk_traj_file;
-            serializer->doString(&buf);
-            buf = sits->norm_traj_file;
-            serializer->doString(&buf);
+            if (!sits->constant_nk)
+            {
+                buf = sits->nk_traj_file;
+                serializer->doString(&buf);
+                buf = sits->norm_traj_file;
+                serializer->doString(&buf);
+            }
             buf = sits->nk_rest_file;
             serializer->doString(&buf);
             buf = sits->norm_rest_file;
             serializer->doString(&buf);
-            buf = sits->energy_record_out;
+            buf = sits->sits_enerd_out;
             serializer->doString(&buf);
         }
     }

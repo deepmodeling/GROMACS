@@ -63,6 +63,7 @@ public:
     //控制变量
     int   record_interval = 1;   //每隔1步记录一次能量
     int   update_interval = 100; //每隔100步更新一次nk
+    int   output_interval = 100;
     int   niter           = 50;
     int   k_numbers;             //划分多少个格子
     float beta0;                 //本身温度对应的beta
@@ -72,6 +73,7 @@ public:
     std::string nk_rest_file;   //记录最后一帧nk的文件
     FILE*       norm_traj_file; //记录log_norm变化的文件
     std::string norm_rest_file; //记录最后一帧log_norm的文件
+    FILE*       sits_enerd_out;
 
     //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，
     float fb_shift;
@@ -89,8 +91,8 @@ public:
     gmx::HostVector<real> beta_k;
     gmx::HostVector<real> nkExpBetakU;
     gmx::HostVector<real> nk;
-    gmx::HostVector<real> sum_a;
-    gmx::HostVector<real> sum_b;
+    real sum_a;
+    real sum_b;
     gmx::HostVector<real> factor;
 
     // Details of $n_k$ iteration see:
@@ -108,9 +110,9 @@ public:
     // | log_nk_inv    | pratio         | log(n_k^-1)
     // | log_nk        | fb             | log(n_k)
 
-    gmx::HostVector<real> ene_recorded;
+    real ene_recorded;
     gmx::HostVector<real> gf;
-    gmx::HostVector<real> gfsum;
+    real gfsum;
     gmx::HostVector<real> log_weight;
     gmx::HostVector<real> log_mk_inv;
     gmx::HostVector<real> log_norm_old;
@@ -126,8 +128,6 @@ struct sits_t
 {
 
 private:
-    FILE* sits_enerd_log = NULL;
-
     // struct FC_BALL_INFORMATION
     // {
     //     float move_length = 0.01; // simpleSITS中fcball随机游走的最大步长

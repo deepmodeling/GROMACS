@@ -680,7 +680,7 @@ static void pr_sitsvals(FILE* fp, int indent, const t_sits* sits, int n_lambda)
     }
     
     //记录分能量的文件
-    // PS("sits_energy_record", sits->energy_record_out);
+    // PS("sits_energy_record", sits->sits_enerd_out);
     // if (controller[0].Command_Exist("sits_energy_record"))
     // {
     //     printf("	SITS Energy Record File: %s\n",

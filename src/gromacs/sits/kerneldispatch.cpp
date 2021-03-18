@@ -71,7 +71,7 @@ void sits_t::sits_update_params(int step)
 {
     if (gpu_sits)
     {
-        Sits::gpu_update_params(gpu_sits, step);
+        Sits::gpu_update_params(gpu_sits, step, sits_at->nk_traj_file, sits_at->norm_traj_file);
     }
     else
     {

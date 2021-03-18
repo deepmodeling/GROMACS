@@ -81,7 +81,7 @@ CUDA_FUNC_QUALIFIER
 void sits_gpu_clear_outputs(gmx_sits_cuda_t gmx_unused* gpu_sits, bool gmx_unused computeVirial); CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 CUDA_FUNC_QUALIFIER
-void gpu_print_sitsvals(gmx_sits_cuda_t gmx_unused* gpu_sits); CUDA_FUNC_TERM_WITH_RETURN(nullptr);
+void gpu_print_sitsvals(gmx_sits_cuda_t gmx_unused* gpu_sits, FILE* enerdlog = nullptr); CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 /** Frees all GPU resources used for the nonbonded calculations. */
 CUDA_FUNC_QUALIFIER

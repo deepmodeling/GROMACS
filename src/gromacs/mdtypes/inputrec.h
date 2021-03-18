@@ -96,7 +96,8 @@ struct t_sits
     char* nk_rest_file;   //记录最后一帧nk的文件
     char* norm_traj_file; //记录log_norm变化的文件
     char* norm_rest_file; //记录最后一帧log_norm的文件
-    char* energy_record_out;
+    int nst_sits_enerd_out;
+    char* sits_enerd_out;
 };
 
 struct t_grpopts

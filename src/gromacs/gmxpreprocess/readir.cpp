@@ -2396,7 +2396,8 @@ void get_ir(const char*     mdparin,
     }
 
     //记录分能量的文件
-    sits->energy_record_out = const_cast<char*>(get_estr(&inp, "sits-energy-record-out", "sits_energy.dat"));
+    sits->nst_sits_enerd_out = get_eint(&inp, "nst-sits-enerd-out", 100, wi);
+    sits->sits_enerd_out = const_cast<char*>(get_estr(&inp, "sits-enerd-out", "sits_enerd.dat"));
 
     /* simulated tempering variables */
     printStringNewline(&inp, "simulated tempering variables");
