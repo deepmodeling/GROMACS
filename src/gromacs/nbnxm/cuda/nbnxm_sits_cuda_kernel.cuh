@@ -246,8 +246,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float        E_lj_buf;
 #    endif
     float3       E_lj_decomp, E_el_decomp;
-    E_lj_decomp.x = make_float3(0.0);
-    E_el_decomp.x = make_float3(0.0);
+    E_lj_decomp = make_float3(0.0);
+    E_el_decomp = make_float3(0.0);
     float        factor_buf;
 #    endif
 #    if defined CALC_ENERGIES || defined LJ_POT_SWITCH

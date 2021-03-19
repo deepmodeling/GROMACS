@@ -153,11 +153,6 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     copyToDeviceBuffer(&param->wt_beta_k, sits_at->wt_beta_k.data(), 0, sits_at->k_numbers, stream,
                        GpuApiCallBehavior::Async, nullptr);
     
-    param->k_nalloc = 0;
-    reallocateDeviceBuffer(&param->nk, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
-    copyToDeviceBuffer(&param->nk, sits_at->nk.data(), 0, sits_at->k_numbers, stream,
-                       GpuApiCallBehavior::Async, nullptr);
-    
     stat = cudaMalloc((void**)&param->sum_beta_factor, sizeof(*param->sum_beta_factor));
     CU_RET_ERR(stat, "cudaMalloc failed on param->sum_beta_factor");
     stat = cudaMalloc((void**)&param->factor, 2 * sizeof(*param->factor));
@@ -216,11 +211,6 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     param->k_nalloc = 0;
     reallocateDeviceBuffer(&param->log_pk, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
     copyToDeviceBuffer(&param->log_pk, sits_at->log_pk.data(), 0, sits_at->k_numbers, stream,
-                       GpuApiCallBehavior::Async, nullptr);
-    
-    param->k_nalloc = 0;
-    reallocateDeviceBuffer(&param->log_nk_inv, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
-    copyToDeviceBuffer(&param->log_nk_inv, sits_at->log_nk_inv.data(), 0, sits_at->k_numbers, stream,
                        GpuApiCallBehavior::Async, nullptr);
     
     param->k_nalloc = 0;
@@ -391,10 +381,10 @@ void gpu_sitsvals_cpyback(gmx_sits_cuda_t* gpu_sits, sits_atomdata_t*     sits_a
 {
     cu_sits_param_t* param = gpu_sits->sits_param;
 
-    cudaMemcpy(sits_at->ene_recorded, gpu_sits->sits_atdat->ene_recorded, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&sits_at->ene_recorded, param->ene_recorded, sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(sits_at->enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(sits_at->factor, param->factor, sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(sits_at->gfsum, param->gfsum, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&sits_at->gfsum, param->gfsum, sizeof(float), cudaMemcpyDeviceToHost);
 }
 
 void gpu_free(gmx_sits_cuda_t* gpu_sits)
