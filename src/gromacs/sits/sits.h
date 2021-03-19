@@ -156,7 +156,7 @@ public:
 
     void print_sitsvals(bool bFirstTime = true, int step = 0);
 
-    void sits_update_effectiveU(float* Epot) {*Epot -= (sits_at->ene_recorded + sits_at->beta0 * sits_at->gfsum);}
+    void sits_update_effectiveU(float* Epot) {*Epot -= (sits_at->ene_recorded + sits_at->gfsum / sits_at->beta0);}
 
     // Interactions enhanced: (bond, angle), dihedral, LJ-SR, PME_Direct-SR, LJ-14, Coul-14;
     // Not enhanced: LJ-Recip, Coul-Recip, Disp. Corr., (bond, angle)
