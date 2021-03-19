@@ -73,7 +73,6 @@ struct t_sits
     //! The range of temperatures used for simulated tempering
     real* beta_k;
     real* log_nk;
-    real* nk;
     real* log_norm;
     real* log_norm_old;
     //! The low temperature for simulated tempering

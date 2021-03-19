@@ -2338,28 +2338,28 @@ void get_ir(const char*     mdparin,
         temps = sits->nk_rest_file;
         if (temps != "none")
         {
+            printf("SITS log_nk initialized to given value by file %s:\n", temps);
             FILE* nk_init_file;
-            Open_File_Safely(&nk_init_file, temps, "wb");
+            Open_File_Safely(&nk_init_file, temps, "r");
             for (int i = 0; i < sits->k_numbers; i++)
             {
                 fscanf(nk_init_file, "%f", &tempf[i]);
+                printf("%8.3f ", tempf[i]);
             }
             fclose(nk_init_file);
         }
         else
         {
-            printf("	SITS Log nk Initial To Default Value 0.0\n");
+            printf("SITS log_nk initialized to default value 0.0\n");
             for (int i = 0; i < sits->k_numbers; i++)
             {
-                tempf[i] = -i * 2.0;
+                tempf[i] = 0.0;
             }
         }
         Malloc_Safely((void**)&(sits->log_nk), sizeof(float) * sits->k_numbers);
-        Malloc_Safely((void**)&(sits->nk), sizeof(float) * sits->k_numbers);
         for (int i = 0; i < sits->k_numbers; i++)
         {
             sits->log_nk[i] = tempf[i];
-            sits->nk[i]     = expf(tempf[i]);
         }
 
         // norm的初始化文件及其初始化
@@ -2367,8 +2367,8 @@ void get_ir(const char*     mdparin,
         if (temps != "none")
         {
             FILE* norm_init_file;
-            printf("	SITS Log Normalization Initial File: %s\n", temps);
-            Open_File_Safely(&norm_init_file, temps, "wb");
+            printf("SITS log_normalization init file: %s\n", temps);
+            Open_File_Safely(&norm_init_file, temps, "r");
             for (int i = 0; i < sits->k_numbers; i++)
             {
                 fscanf(norm_init_file, "%f", &tempf[i]);
@@ -2377,7 +2377,7 @@ void get_ir(const char*     mdparin,
         }
         else
         {
-            printf("	SITS Log Normalization Initial To Default Value %.0e\n", -9999.);
+            printf("SITS log_normalization initialized to default value %.0e\n", -9999.);
             for (int i = 0; i < sits->k_numbers; i++)
             {
                 tempf[i] = -9999.;

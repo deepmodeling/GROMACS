@@ -459,13 +459,11 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
             {
                 snew(sits->beta_k, sits->k_numbers);
                 snew(sits->log_nk, sits->k_numbers);
-                snew(sits->nk, sits->k_numbers);
                 snew(sits->log_norm, sits->k_numbers);
                 snew(sits->log_norm_old, sits->k_numbers);
             }
             serializer->doRealArray(sits->beta_k, sits->k_numbers);
             serializer->doRealArray(sits->log_nk, sits->k_numbers);
-            serializer->doRealArray(sits->nk, sits->k_numbers);
             serializer->doRealArray(sits->log_norm, sits->k_numbers);
             serializer->doRealArray(sits->log_norm_old, sits->k_numbers);
         }

@@ -102,9 +102,7 @@ void sits_atomdata_init(
 
     sits_at->beta_k.resize(sits_at->k_numbers);
     sits_at->wt_beta_k.resize(sits_at->k_numbers);
-    sits_at->nk.resize(sits_at->k_numbers);
     sits_at->sum_beta_factor = 0.0;
-    sits_at->factor.resize(2);
     sits_at->ene_recorded = 0.0;
 	sits_at->gf.resize(sits_at->k_numbers);
 	sits_at->gfsum = 0.0;
@@ -113,20 +111,18 @@ void sits_atomdata_init(
 	sits_at->log_norm_old.resize(sits_at->k_numbers);
 	sits_at->log_norm.resize(sits_at->k_numbers);
 	sits_at->log_pk.resize(sits_at->k_numbers);
-	sits_at->log_nk_inv.resize(sits_at->k_numbers);
 	sits_at->log_nk.resize(sits_at->k_numbers);
 
     for (int i = 0; i< sits_at->k_numbers; i++)
     {
         sits_at->beta_k[i] = sitsvals->beta_k[i];
         sits_at->log_nk[i] = sitsvals->log_nk[i];
-        sits_at->nk[i]     = sitsvals->nk[i];
         sits_at->log_norm[i] = sitsvals->log_norm[i];
         sits_at->log_norm_old[i] = sitsvals->log_norm_old[i];
     }
 
     sits_at->output_interval = sitsvals->nst_sits_enerd_out;
-    Open_File_Safely(&(sits_at->sits_enerd_out, sitsvals->sits_enerd_out, "wb");
+    Open_File_Safely(&(sits_at->sits_enerd_out), sitsvals->sits_enerd_out, "wb");
 
     sits_at->beta0         = sitsvals->beta0;
     sits_at->constant_nk   = sitsvals->constant_nk;   // sits是否迭代更新nk
@@ -255,19 +251,19 @@ void sits_t::print_sitsvals(bool bFirstTime, int step)
         {
             if (gpu_sits)
             {
-                Sits::gpu_sitsvals_cpyback(gpu_sits, sits_at);
+                Sits::gpu_sitsvals_cpyback(gpu_sits, sits_at.get());
             }
             float weight = exp(-sits_at->beta0 * sits_at->ene_recorded - sits_at->gfsum);
             if (sits_at->sits_enerd_out)
             {
-                fprintf(sits_at->sits_enerd_out, "%14.4f %14.4f %14.4f %14.4f %14.4f $14.4f %7.4f\n", 
+                fprintf(sits_at->sits_enerd_out, "%14.4f %14.4f %14.4f %14.4f %14.4f %14e %7.5f\n", 
                         sits_at->enerd[0], sits_at->enerd[1], sits_at->enerd[2], sits_at->ene_recorded, 
                         -sits_at->gfsum / sits_at->beta0, weight, sits_at->factor[0]);
             }
             else
             {
                 printf("\n______AA______ ______AB______ ______BB______ _____E_enh____ _____E_eff____ ___reweight___   factor\n");
-                printf("%14.4f %14.4f %14.4f %14.4f %14.4f $14.4f %7.4f\n",
+                printf("%14.4f %14.4f %14.4f %14.4f %14.4f %14e %7.5f\n",
                         sits_at->enerd[0], sits_at->enerd[1], sits_at->enerd[2], sits_at->ene_recorded, 
                         -sits_at->gfsum / sits_at->beta0, weight, sits_at->factor[0]);
             }

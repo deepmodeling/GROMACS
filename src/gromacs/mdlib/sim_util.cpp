@@ -1906,7 +1906,7 @@ void do_force(FILE*                               fplog,
         }
         if (fr->sits)
         {
-            fr->sits->sits_update_effectiveU(enerd->term[F_EPOT]);
+            fr->sits->sits_update_effectiveU(&(enerd->term[F_EPOT]));
         }
     }
 
