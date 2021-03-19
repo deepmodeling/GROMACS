@@ -89,11 +89,9 @@ public:
     // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
 
     gmx::HostVector<real> beta_k;
-    gmx::HostVector<real> nkExpBetakU;
-    gmx::HostVector<real> nk;
-    real sum_a;
-    real sum_b;
-    gmx::HostVector<real> factor;
+    gmx::HostVector<real> wt_beta_k;
+    real sum_beta_factor;
+    real factor[2] = {1.0, 1.0};
 
     // Details of $n_k$ iteration see:
     // \ref An integrate-over-temperature approach for enhanced sampling
@@ -101,15 +99,15 @@ public:
     // |   .cpp var    |  ylj .F90 var  |  Ref var
     // | ene_recorded  | vshift         | U
     // | gf            | gf             | log( n_k * exp(-beta_k * U) )
-    // | gfsum         | gfsum          | log( Sum_(k=1)^N ( log( n_k * exp(-beta_k * U) ) ) )
+    // | gfsum         | gfsum          | log( Sum_(k=1)^N ( n_k * exp(-beta_k * U) ) )
     // | log_weight    | rb             | log of the weighting function
     // | log_mk_inv    | ratio          | log(m_k^-1)
     // | log_norm_old  | normlold       | W(j-1)
     // | log_norm      | norml          | W(j)
     // | log_pk        | rbfb           | log(p_k)
-    // | log_nk_inv    | pratio         | log(n_k^-1)
     // | log_nk        | fb             | log(n_k)
 
+    real enerd[3] = {0.0, 0.0, 0.0};
     real ene_recorded;
     gmx::HostVector<real> gf;
     real gfsum;
@@ -118,7 +116,6 @@ public:
     gmx::HostVector<real> log_norm_old;
     gmx::HostVector<real> log_norm;
     gmx::HostVector<real> log_pk;
-    gmx::HostVector<real> log_nk_inv;
     gmx::HostVector<real> log_nk;
 
     sits_atomdata_t();
@@ -131,7 +128,7 @@ private:
     // struct FC_BALL_INFORMATION
     // {
     //     float move_length = 0.01; // simpleSITS中fcball随机游走的最大步长
-    //     float fc_max      = 1.2;  //游走的上限，对应最低的温度T正比于1/fc_ball
+    //     float fc_max      = 1.2;  //游走的上限，对应最低的温度T正比于1/factor
     //     float fc_min      = 0.5;  //游走的下限，对应最高的温度
 
     //     int random_seed = 0; //随机游走的初始种子，可能和其他程序的种子冲突
@@ -158,6 +155,8 @@ public:
     void sits_atomdata_set_energygroups(std::vector<int> cginfo);
 
     void print_sitsvals(bool bFirstTime = true, int step = 0);
+
+    void sits_update_effectiveU(float* Epot) {*Epot -= (sits_at->ene_recorded + sits_at->beta0 * sits_at->gfsum);}
 
     // Interactions enhanced: (bond, angle), dihedral, LJ-SR, PME_Direct-SR, LJ-14, Coul-14;
     // Not enhanced: LJ-Recip, Coul-Recip, Disp. Corr., (bond, angle)

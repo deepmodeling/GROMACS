@@ -135,6 +135,8 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     param->energy_multiple = sits_at->energy_multiple;
     param->energy_shift    = sits_at->energy_shift;
 
+    param->record_count    = 0;
+
     // Derivations and physical quantities see:
     // \ref A selective integrated tempering method
     // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
@@ -147,8 +149,8 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
                        GpuApiCallBehavior::Async, nullptr);
     
     param->k_nalloc = 0;
-    reallocateDeviceBuffer(&param->nkExpBetakU, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
-    copyToDeviceBuffer(&param->nkExpBetakU, sits_at->nkExpBetakU.data(), 0, sits_at->k_numbers, stream,
+    reallocateDeviceBuffer(&param->wt_beta_k, sits_at->k_numbers, &param->k_numbers, &param->k_nalloc, context);
+    copyToDeviceBuffer(&param->wt_beta_k, sits_at->wt_beta_k.data(), 0, sits_at->k_numbers, stream,
                        GpuApiCallBehavior::Async, nullptr);
     
     param->k_nalloc = 0;
@@ -156,17 +158,13 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     copyToDeviceBuffer(&param->nk, sits_at->nk.data(), 0, sits_at->k_numbers, stream,
                        GpuApiCallBehavior::Async, nullptr);
     
-    stat = cudaMalloc((void**)&param->sum_a, sizeof(*param->sum_a));
-    CU_RET_ERR(stat, "cudaMalloc failed on param->sum_a");
-    stat = cudaMalloc((void**)&param->sum_b, sizeof(*param->sum_b));
-    CU_RET_ERR(stat, "cudaMalloc failed on param->sum_b");
+    stat = cudaMalloc((void**)&param->sum_beta_factor, sizeof(*param->sum_beta_factor));
+    CU_RET_ERR(stat, "cudaMalloc failed on param->sum_beta_factor");
     stat = cudaMalloc((void**)&param->factor, 2 * sizeof(*param->factor));
     CU_RET_ERR(stat, "cudaMalloc failed on param->factor");
 
-    stat = cudaMemsetAsync(param->sum_a, 0, sizeof(*param->sum_a), stream);
-    CU_RET_ERR(stat, "cudaMemsetAsync on param->sum_a failed");
-    stat = cudaMemsetAsync(param->sum_b, 0, sizeof(*param->sum_b), stream);
-    CU_RET_ERR(stat, "cudaMemsetAsync on param->sum_b failed");
+    stat = cudaMemsetAsync(param->sum_beta_factor, 0, sizeof(*param->sum_beta_factor), stream);
+    CU_RET_ERR(stat, "cudaMemsetAsync on param->sum_beta_factor failed");
     stat = cudaMemsetAsync(param->factor, 0, 2 * sizeof(*param->factor), stream);
     CU_RET_ERR(stat, "cudaMemsetAsync on param->factor failed");
 
@@ -176,7 +174,7 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     // |   .cpp var    |  ylj .F90 var  |  Ref var
     // | ene_recorded  | vshift         | U  
     // | gf            | gf             | log( n_k * exp(-beta_k * U) )
-    // | gfsum         | gfsum          | log( Sum_(k=1)^N ( log( n_k * exp(-beta_k * U) ) ) )
+    // | gfsum         | gfsum          | log( Sum_(k=1)^N ( n_k * exp(-beta_k * U) ) )
     // | log_weight    | rb             | log of the weighting function
     // | log_mk_inv    | ratio          | log(m_k^-1)
     // | log_norm_old  | normlold       | W(j-1)
@@ -389,36 +387,14 @@ void gpu_init_sits_atomdata(gmx_sits_cuda_t* gpu_sits, const nbnxn_atomdata_t* n
     }
 }
 
-void gpu_print_sitsvals(gmx_sits_cuda_t* gpu_sits, FILE* enerdlog)
+void gpu_sitsvals_cpyback(gmx_sits_cuda_t* gpu_sits, sits_atomdata_t*     sits_at)
 {
     cu_sits_param_t* param = gpu_sits->sits_param;
 
-    float* h_enerd;
-    h_enerd = (float *) malloc(3 * sizeof(float));
-    cudaMemcpy(h_enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
-
-    float* h_factor;
-    h_factor = (float *) malloc(sizeof(float));
-    cudaMemcpy(h_factor, param->factor, sizeof(float), cudaMemcpyDeviceToHost);
-
-    // float* h_sum_a;
-    // h_sum_a = (float *) malloc(sizeof(float));
-    // cudaMemcpy(h_sum_a, gpu_sits->sits_param->sum_a, sizeof(float), cudaMemcpyDeviceToHost);
-
-    // float* h_sum_b;
-    // h_sum_a = (float *) malloc(sizeof(float));
-    // cudaMemcpy(h_sum_a, gpu_sits->sits_param->sum_a, sizeof(float), cudaMemcpyDeviceToHost);
-
-    // fprintf(enerdlog, "\n______AA______ ______AB______ ______BB______   sum_a  sum_b  fc_ball\n");
-    if (enerdlog)
-    {
-        fprintf(enerdlog, "%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
-    }
-    else
-    {
-        printf("\n______AA______ ______AB______ ______BB______   sum_a  sum_b  fc_ball\n");
-        printf("%14.4f %14.4f %14.4f %7.4f\n", h_enerd[0], h_enerd[1], h_enerd[2], h_factor[0]);
-    }
+    cudaMemcpy(sits_at->ene_recorded, gpu_sits->sits_atdat->ene_recorded, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sits_at->enerd, gpu_sits->sits_atdat->d_enerd, 3*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sits_at->factor, param->factor, sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sits_at->gfsum, param->gfsum, sizeof(float), cudaMemcpyDeviceToHost);
 }
 
 void gpu_free(gmx_sits_cuda_t* gpu_sits)

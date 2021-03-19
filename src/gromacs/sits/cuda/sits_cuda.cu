@@ -218,73 +218,30 @@ static __global__ void Sits_Update_log_mk_inv(const int    kn,
     }
 }
 
-static __global__ void Sits_Update_log_nk_inv(const int kn, float* log_nk_inv, const float* log_mk_inv)
+static __global__ void Sits_Update_log_nk(const int kn, float* log_nk, const float* log_mk_inv)
 {
     for (int i = 0; i < kn - 1; i++)
     {
-        log_nk_inv[i + 1] = log_nk_inv[i] + log_mk_inv[i];
+        log_nk[i + 1] = log_nk[i] - log_mk_inv[i];
     }
 }
 
-static __global__ void Sits_Update_nk(const int kn, float* log_nk, float* nk, const float* log_nk_inv)
+__global__ void sits_classical_calc_weighted_beta(const int   k_numbers,
+                                                const float* beta_k,
+                                                const float* gf,
+                                                const float* gfsum,
+                                                float*       wt_beta_k)
 {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if (i < kn)
-    {
-        log_nk[i] = -log_nk_inv[i];
-        nk[i]     = exp(log_nk[i]);
-    }
-}
-
-__global__ void sits_enhance_force_Calculate_nkExpBetakU_1(const int    k_numbers,
-                                                                const float* beta_k,
-                                                                const float* nk,
-                                                                float*       nkexpbetaku,
-                                                                const float  ene)
-{
-    float lin = beta_k[k_numbers - 1];
     for (int i = threadIdx.x; i < k_numbers; i = i + blockDim.x)
     {
-        nkexpbetaku[i] = nk[i] * expf(-(beta_k[i] - lin) * ene);
-        // printf("%f %f\n", beta_k[i], nkexpbetaku[i]);
+        wt_beta_k[i] = beta_k[i] * expf(gf[i] - gfsum[0]);
+        // printf("%f %f\n", beta_k[i], wt_beta_k[i]);
     }
 }
 
-__global__ void sits_enhance_force_Calculate_nkExpBetakU_2(const int    k_numbers,
-                                                                const float* beta_k,
-                                                                const float* nk,
-                                                                float*       nkexpbetaku,
-                                                                const float  ene)
-{
-    float lin = beta_k[0];
-    for (int i = threadIdx.x; i < k_numbers; i = i + blockDim.x)
-    {
-        nkexpbetaku[i] = nk[i] * expf(-(beta_k[i] - lin) * ene);
-        // printf("%f %f\n", beta_k[i], nkexpbetaku[i]);
-    }
-}
-
-__global__ void sits_enhance_force_Sum_Of_Above(const int    k_numbers,
-                                                     const float* nkexpbetaku,
-                                                     const float* beta_k,
-                                                     float*       sum_of_above)
-{
-    if (threadIdx.x == 0)
-    {
-        sum_of_above[0] = 0.;
-    }
-    __syncthreads();
-    float lin = 0.;
-    for (int i = threadIdx.x; i < k_numbers; i = i + blockDim.x)
-    {
-        lin = lin + beta_k[i] * nkexpbetaku[i];
-    }
-    atomicAdd(sum_of_above, lin);
-}
-
-__global__ void sits_enhance_force_Sum_Of_nkExpBetakU(const int    k_numbers,
-                                                           const float* nkexpbetaku,
-                                                           float*       sum_of_below)
+__global__ void sits_classical_sum_to_factor(const int    k_numbers,
+                                            const float* wt_beta_k,
+                                            float*       sum_of_below)
 {
     if (threadIdx.x == 0)
     {
@@ -294,17 +251,16 @@ __global__ void sits_enhance_force_Sum_Of_nkExpBetakU(const int    k_numbers,
     float lin = 0.;
     for (int i = threadIdx.x; i < k_numbers; i = i + blockDim.x)
     {
-        lin = lin + nkexpbetaku[i];
-        // printf("%f\n", nkexpbetaku[i]);
+        lin = lin + wt_beta_k[i];
+        // printf("%f\n", wt_beta_k[i]);
     }
     atomicAdd(sum_of_below, lin);
 }
 
-__global__ void sits_enhance_force_update_factor(float*        sum_a,
-                                                float*        sum_b,
-                                                float*        factor,
-                                                const float   beta_0,
-                                                const float   fb_bias)
+__global__ void sits_classical_update_factor(float*        sum_beta_factor,
+                                            float*        factor,
+                                            const float   beta_0,
+                                            const float   fb_bias)
 {
     if (threadIdx.x == 0)
     {
@@ -316,8 +272,8 @@ __global__ void sits_enhance_force_update_factor(float*        sum_a,
         {
             factor[1] = 1.0;
         }
-        factor[0] = sum_a[0] / sum_b[0] / beta_0 + fb_bias;
-        // avoid crashing caused by sharp fluctuation of fc_ball
+        factor[0] = sum_beta_factor[0] / beta_0 + fb_bias;
+        // avoid crashing caused by sharp fluctuation of factor
         if (!isinf(factor[0]) && !isnan(factor[0]) && (factor[0] > 0.4 * factor[1])
             && (factor[0] < 2 * factor[1]))
         {
@@ -328,21 +284,21 @@ __global__ void sits_enhance_force_update_factor(float*        sum_a,
             factor[0] = factor[1];
         }
     }
-    // printf("\n| sum_a | sum_b | factor | factor1 |\n");
-    // printf(" %7.3f %7.3f %8.3f %8.3f \n", *sum_a, *sum_b, factor[0], factor[1]);
+    // printf("\n| sum_beta_factor | factor | factor1 |\n");
+    // printf(" %7.3f %8.3f %8.3f \n", *sum_beta_factor, factor[0], factor[1]);
 }
 
 static __global__ void sits_enhance_force_Protein(const int     protein_numbers,
                                                   float3*       md_frc,
                                                   const float3* pw_frc,
-                                                  const float   fc_ball,
+                                                  const float   factor,
                                                   const float   pw_factor)
 {
     for (int i = threadIdx.x; i < protein_numbers; i = i + blockDim.x)
     {
-        md_frc[i].x = fc_ball * (md_frc[i].x) + pw_factor * pw_frc[i].x;
-        md_frc[i].y = fc_ball * (md_frc[i].y) + pw_factor * pw_frc[i].y;
-        md_frc[i].z = fc_ball * (md_frc[i].z) + pw_factor * pw_frc[i].z;
+        md_frc[i].x = factor * (md_frc[i].x) + pw_factor * pw_frc[i].x;
+        md_frc[i].y = factor * (md_frc[i].y) + pw_factor * pw_frc[i].y;
+        md_frc[i].z = factor * (md_frc[i].z) + pw_factor * pw_frc[i].z;
     }
 }
 
@@ -364,12 +320,13 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
                                                      int*          energrp,
                                                      float3*       md_frc,
                                                      const float3* pw_frc,
-                                                     float*        fc_ball,
+                                                     float*        factor,
                                                      const float   pw_factor)
 {
+    float fc_1 = factor[0] - 1.0;
+    float fc_1_pwfactor = fc_1 * pw_factor;
     for (int i = threadIdx.x; i < natoms; i = i + blockDim.x)
     {
-        float fc_1 = fc_ball[0] - 1.0;
         if (energrp[i] == 0)
         {
             md_frc[i] *= fc_1;
@@ -378,61 +335,27 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
         {
             md_frc[i] = make_float3(0.0);
         }
-        md_frc[i] += fc_1 * pw_factor * pw_frc[i];
+        md_frc[i] += fc_1_pwfactor * pw_frc[i];
     }
 }
 
 /*-------------------------------- End CUDA kernels-----------------------------*/
 
-void Sits_Classical_Enhance_Force(const int     natoms,
-                                              int*          energrp,
-                                              const float   pw_factor,
-                                              float3*       md_frc,
-                                              const float3* pw_frc,
-                                              const float*  pp_ene,
-                                              const float*  pw_ene,
-                                              const int     k_numbers,
-                                              float*        nkexpbetaku,
-                                              const float*  beta_k,
-                                              const float*  n_k,
-                                              float*        sum_a,
-                                              float*        sum_b,
-                                              float*        factor,
-                                              const float   beta_0,
-                                              const float   pe_a,
-                                              const float   pe_b,
-                                              const float   fb_bias)
+void sits_calc_factor_classical(const int     k_numbers,
+                                const float   beta_0,
+                                const float*  beta_k,
+                                float*        wt_beta_k,
+                                const float*  gf,
+                                const float*  gfsum,
+                                float*        sum_beta_factor,
+                                float*        factor,
+                                const float   fb_bias)
 {
-    float* h_E_pp;
-    float* h_E_pw;
-
-    h_E_pp = (float *) malloc(sizeof(float));
-    h_E_pw = (float *) malloc(sizeof(float));
-    cudaMemcpy(h_E_pp, pp_ene, sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_E_pw, pw_ene, sizeof(float), cudaMemcpyDeviceToHost);
-    float ene = *(h_E_pp) + pw_factor * *(h_E_pw);
-    ene       = pe_a * ene + pe_b;
-    if (ene > 0)
-    {
-        sits_enhance_force_Calculate_nkExpBetakU_1<<<1, 64>>>(k_numbers, beta_k, n_k,
-                                                                   nkexpbetaku, ene);
-    }
-    else
-    {
-        sits_enhance_force_Calculate_nkExpBetakU_2<<<1, 64>>>(k_numbers, beta_k, n_k,
-                                                                   nkexpbetaku, ene);
-    }
-
-    sits_enhance_force_Sum_Of_nkExpBetakU<<<1, 128>>>(k_numbers, nkexpbetaku, sum_b);
-
-    sits_enhance_force_Sum_Of_Above<<<1, 128>>>(k_numbers, nkexpbetaku, beta_k, sum_a);
-
-    sits_enhance_force_update_factor<<<1, 1>>>(sum_a, sum_b, factor, beta_0, fb_bias);
-    //	printf("factor %e sum0 %e %e ene %f lfactor %e\n", fc, sum_a[0], sum_b[0], ene, factor[1]);
-
+    sits_classical_calc_weighted_beta<<<1, 64>>>(k_numbers, beta_k, gf, gfsum, wt_beta_k);
+    sits_classical_sum_to_factor<<<1, 64>>>(k_numbers, wt_beta_k, sum_beta_factor);
+    sits_classical_update_factor<<<1, 1>>>(sum_beta_factor, factor, beta_0, fb_bias);
     // line
     // fc = (ene - 20.) / 80./2. + 0.2;
-    sits_enhance_force_by_energrp<<<32, 128>>>(natoms, energrp, md_frc, pw_frc, factor, pw_factor);
 }
 
 namespace Sits
@@ -443,18 +366,18 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* n
     cu_sits_atdat_t* atdat = gpu_sits->sits_atdat;
     cu_sits_param_t* param = gpu_sits->sits_param;
 
-    if (!param->constant_nk && step % param->record_interval == 0)
-    {
-        Sits_Record_Ene<<<1, 1>>>(param->ene_recorded, &(atdat->d_enerd[1]), &(atdat->d_enerd[0]),
-                                  param->energy_multiple, param->energy_shift, atdat->pw_enh_factor);
+    Sits_Record_Ene<<<1, 1>>>(param->ene_recorded, &(atdat->d_enerd[1]), &(atdat->d_enerd[0]),
+                              param->energy_multiple, param->energy_shift, atdat->pw_enh_factor);
 
-        Sits_Update_gf<<<ceilf((float)param->k_numbers / 32.), 32>>>(
+    Sits_Update_gf<<<ceilf((float)param->k_numbers / 64.), 64>>>(
                 param->k_numbers, param->gf, param->ene_recorded,
                 param->log_nk, param->beta_k);
 
-        Sits_Update_gfsum<<<1, 1>>>(param->k_numbers, param->gfsum, param->gf);
+    Sits_Update_gfsum<<<1, 1>>>(param->k_numbers, param->gfsum, param->gf);
 
-        Sits_Update_log_pk<<<ceilf((float)param->k_numbers / 32.), 32>>>(
+    if ((!param->constant_nk) && (step % param->record_interval == 0))
+    {
+        Sits_Update_log_pk<<<ceilf((float)param->k_numbers / 64.), 64>>>(
                 param->k_numbers, param->log_pk, param->gf,
                 param->gfsum, param->reset);
 
@@ -463,17 +386,12 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* n
 
         if ((param->record_count % param->update_interval == 0) && (param->record_count / param->update_interval < param->niter))
         {
-            Sits_Update_log_mk_inv<<<ceilf((float)param->k_numbers / 32.), 32>>>(
+            Sits_Update_log_mk_inv<<<ceilf((float)param->k_numbers / 64.), 64>>>(
                     param->k_numbers, param->log_weight, param->log_mk_inv,
                     param->log_norm_old, param->log_norm, param->log_pk,
                     param->log_nk);
 
-            Sits_Update_log_nk_inv<<<1, 1>>>(param->k_numbers, param->log_nk_inv,
-                                             param->log_mk_inv);
-
-            Sits_Update_nk<<<ceilf((float)param->k_numbers / 32.), 32>>>(
-                    param->k_numbers, param->log_nk, param->nk,
-                    param->log_nk_inv);
+            Sits_Update_log_nk<<<1, 1>>>(param->k_numbers, param->log_nk, param->log_mk_inv);
 
             // param->record_count = 0;
             param->reset        = 1;
@@ -498,7 +416,7 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* n
                         fprintf(nklog, "%8.4f ", h_log_nk[i]);
                     }
                     for (int i = 0; i < param->k_numbers; i++){
-                        fprintf(nklog, "%8.4f ", h_log_pk[i]);
+                        // fprintf(nklog, "%8.4f ", h_log_pk[i]);
                     }
                     fprintf(nklog, "\n");
                 }
@@ -530,63 +448,22 @@ void gpu_enhance_force(gmx_sits_cuda_t* gpu_sits, int step)
 
     if (atdat->sits_cal_mode == 0)
     {
-        Sits_Classical_Enhance_Force(
-                atdat->natoms, atdat->energrp, atdat->pw_enh_factor, 
-                atdat->d_force_tot_nbat, atdat->d_force_pw_nbat, 
-                &(atdat->d_enerd[0]), &(atdat->d_enerd[1]),
-                param->k_numbers, param->nkExpBetakU, param->beta_k,
-                param->nk, param->sum_a, param->sum_b,
-                param->factor, param->beta0, param->energy_multiple,
-                param->energy_shift, param->fb_shift);
+        sits_calc_factor_classical(param->k_numbers, param->beta0, param->beta_k, param->wt_beta_k, 
+                                    param->gf, param->gfsum, param->sum_beta_factor, param->factor, param->fb_shift);
     }
     else if (atdat->sits_cal_mode == 1)
     {
-        // Get fc_ball by random walk in given potential to reach certain marginal distribution
+        // Get factor by random walk in given potential to reach certain marginal distribution
         // if (!simple_param->is_constant_fc_ball)
         // {
         //     fc_ball_random_walk();
         // }
         // else
         // {
-        //     param->fc_ball = simple_param->constant_fc_ball;
+        //     param->factor = simple_param->constant_fc_ball;
         // }
-        // sits_enhance_force_Protein<<<1, 128>>>(
-        //         param->protein_natoms, frc, protein_water_frc, param->fc_ball,
-        //         param->pwwp_enhance_factor * param->fc_ball + 1.0 - param->pwwp_enhance_factor);
-        // sits_enhance_force_Water<<<1, 128>>>(
-        //         param->protein_natoms, param->natoms, frc, protein_water_frc,
-        //         param->pwwp_enhance_factor * param->fc_ball + 1.0 - param->pwwp_enhance_factor);
     }
-    else
-    {
-        // sits_enhance_force_Protein<<<1, 128>>>(
-        //         param->protein_natoms, frc, protein_water_frc, param->fc_ball,
-        //         param->pwwp_enhance_factor * param->fc_ball + 1.0 - param->pwwp_enhance_factor);
-        // sits_enhance_force_Water<<<1, 128>>>(
-        //         param->protein_natoms, param->natoms, frc, protein_water_frc,
-        //         param->pwwp_enhance_factor * param->fc_ball + 1.0 - param->pwwp_enhance_factor);
-    }
+    sits_enhance_force_by_energrp<<<32, 128>>>(atdat->natoms, atdat->energrp, atdat->d_force_tot_nbat, atdat->d_force_pw_nbat, param->factor, atdat->pw_enh_factor);
 }
-
-// void sits_t::CLASSICAL_Sits_INFORMATION::Export_Restart_Information_To_File()
-// {
-//     FILE* nk;
-//     Open_File_Safely(&nk, nk_rest_file, "w");
-//     cudaMemcpy(log_nk_recorded_cpu, nk, sizeof(float) * k_numbers, cudaMemcpyDeviceToHost);
-//     for (int i = 0; i < k_numbers; i++)
-//     {
-//         fprintf(nk, "%f\n", log_nk_recorded_cpu[i]);
-//     }
-//     fclose(nk);
-
-//     FILE* norm;
-//     Open_File_Safely(&norm, norm_rest_file, "w");
-//     cudaMemcpy(log_norm_recorded_cpu, log_norm, sizeof(float) * k_numbers, cudaMemcpyDeviceToHost);
-//     for (int i = 0; i < k_numbers; i++)
-//     {
-//         fprintf(norm, "%f\n", log_norm_recorded_cpu[i]);
-//     }
-//     fclose(norm);
-// }
 
 } // namespace Sits

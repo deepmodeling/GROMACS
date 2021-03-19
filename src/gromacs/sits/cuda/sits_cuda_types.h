@@ -88,10 +88,8 @@ struct cu_sits_param_t
     // \ref Self-adaptive enhanced sampling in the energy and trajectory spaces : Accelerated thermodynamics and kinetic calculations
 
     float* beta_k;
-    float* nkExpBetakU;
-    float* nk;
-    float* sum_a;
-    float* sum_b;
+    float* wt_beta_k;
+    float* sum_beta_factor;
     float* factor;
 
     // Details of $n_k$ iteration see:

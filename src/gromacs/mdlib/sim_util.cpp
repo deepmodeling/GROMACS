@@ -1904,6 +1904,10 @@ void do_force(FILE*                               fplog,
         {
             checkPotentialEnergyValidity(step, *enerd, *inputrec);
         }
+        if (fr->sits)
+        {
+            fr->sits->sits_update_effectiveU(enerd->term[F_EPOT]);
+        }
     }
 
     /* In case we don't have constraints and are using GPUs, the next balancing
