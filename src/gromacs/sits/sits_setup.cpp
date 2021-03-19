@@ -237,7 +237,7 @@ void sits_t::sits_atomdata_set_energygroups(std::vector<int> cginfo)
     }
 }
 
-void sits_t::print_sitsvals(bool bFirstTime)
+void sits_t::print_sitsvals(bool bFirstTime, int step)
 {
     if (bFirstTime)
     {
@@ -248,19 +248,20 @@ void sits_t::print_sitsvals(bool bFirstTime)
         {
             printf("%.3f ", sits_at->beta_k[i]);
         }
-    }
-
-    if (gpu_sits)
-    {
-        Sits::gpu_print_sitsvals(gpu_sits, sits_at->sits_enerd_out);
+        printf("\n############# SITS ############\n");
     }
     else
     {
+        if (step % sits_at->output_interval == 0)
+        {
+            if (gpu_sits)
+            {
+                Sits::gpu_print_sitsvals(gpu_sits, sits_at->sits_enerd_out);
+            }
+            else
+            {
 
-    }
-
-    if (bFirstTime)
-    {
-        printf("\n############# SITS ############\n");
+            }
+        }
     }
 }

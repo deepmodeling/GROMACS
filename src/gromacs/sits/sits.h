@@ -157,7 +157,7 @@ public:
 
     void sits_atomdata_set_energygroups(std::vector<int> cginfo);
 
-    void print_sitsvals(bool bFirstTime = true);
+    void print_sitsvals(bool bFirstTime = true, int step = 0);
 
     // Interactions enhanced: (bond, angle), dihedral, LJ-SR, PME_Direct-SR, LJ-14, Coul-14;
     // Not enhanced: LJ-Recip, Coul-Recip, Disp. Corr., (bond, angle)

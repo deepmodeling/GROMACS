@@ -1832,8 +1832,7 @@ void do_force(FILE*                               fplog,
         {
             fr->sits->sits_update_params(step);
             fr->sits->sits_enhance_force(step);
-            // fr->sits->print_sitsvals(false);
-            fr->sits->clear_sits_energy_force();
+            fr->sits->print_sitsvals(false, step);
             if (useGpuFBufOps == BufferOpsUseGpu::True)
             {
                 gmx::FixedCapacityVector<GpuEventSynchronizer*, 3> dependencyList;
@@ -1845,6 +1844,7 @@ void do_force(FILE*                               fplog,
                 Nbnxm::gpu_launch_sits_cpyback(nbv->gpu_nbv, fr->sits->gpu_sits, nbv->nbat.get(), stepWork, AtomLocality::Local);
                 nbv->atomdata_add_nbat_f_to_f(AtomLocality::Local, forceOut.forceWithShiftForces().force());
             }
+            fr->sits->clear_sits_energy_force();
         }
     }
 
