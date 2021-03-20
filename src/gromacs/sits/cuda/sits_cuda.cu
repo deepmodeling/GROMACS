@@ -426,7 +426,7 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* n
                     for (int i = 0; i < param->k_numbers; i++){
                         fprintf(normlog, "%8.4f ", h_log_norm[i]);
                     }
-                    fprintf(nklog, "\n");
+                    fprintf(normlog, "\n");
                 }
                 // cudaMemcpy(param->log_nk_recorded_cpu, param->nk,
                 //            sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
