@@ -1885,10 +1885,10 @@ void gmx::LegacySimulator::do_md()
                 stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);
                 stateGpu->copyCoordinatesToGpu(state->x, AtomLocality::Local);
                 integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
-                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc);
+                                stateGpu->getForces(), top.idef, *mdatoms);
                 t_pbc pbc;
-                set_pbc(&pbc, epbcXYZ, state->box);
-                integrator->setPbc(&pbc);
+                set_pbc(&pbc, PbcType::Xyz, state->box);
+                integrator->setPbc(&pbc, state->box);
             }
         }
 
