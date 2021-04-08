@@ -488,12 +488,7 @@ void gmx::LegacySimulator::do_md()
     }
     if (useGpuForUpdate)
     {
-        changePinningPolicy(&state->v, PinningPolicy::PinnedIfSupported);
-    }
-
-    // NOTE: The global state is no longer used at this point.
-    // But state_global is still used as temporary storage space for writing
-    // the global state to file and potentially for replica exchange.
+        chansetPbclobal state to file and potentially for replica exchange.
     // (Global topology should persist.)
 
     update_mdatoms(mdatoms, state->lambda[FreeEnergyPerturbationCouplingType::Mass]);
@@ -1886,9 +1881,7 @@ void gmx::LegacySimulator::do_md()
                 stateGpu->copyCoordinatesToGpu(state->x, AtomLocality::Local);
                 integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
                                 stateGpu->getForces(), top.idef, *mdatoms);
-                t_pbc pbc;
-                set_pbc(&pbc, PbcType::Xyz, state->box);
-                integrator->setPbc(&pbc, state->box);
+                integrator->setPbc(PbcType::Xyz, state->box);
             }
         }
 
