@@ -777,7 +777,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
 
 void nbnxn_gpu_init_atomIndicesInv(const Nbnxm::GridSet gridSet, NbnxmGpu* gpu_nbv)
 {
-    const DeviceStream& deviceStream = gpu_nbv->deviceStreams[InteractionLocality::Local];
+    const DeviceStream& deviceStream = *gpu_nbv->deviceStreams[InteractionLocality::Local];
     bool bDoTime = gpu_nbv->bDoTime;
 
     gridSet.setAtomIndicesInverse();

@@ -697,7 +697,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
 
     if (bFEP)
     {
-        cu_feplist_t*    feplist  = nb->feplist[iloc];
+        gpu_feplist*    feplist  = nb->feplist[iloc];
         const int* d_atomIndicesInv = nb->atomIndicesInv;
         const int* d_atomIndices    = nb->atomIndices;
         KernelLaunchConfig fep_config;
@@ -712,7 +712,6 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
         fep_config.gridSize[1]      = 1;
         fep_config.gridSize[2]      = 1;
         fep_config.sharedMemorySize = 0;
-        fep_config.stream           = stream;
 
         if (debug)
         {
@@ -727,10 +726,9 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
 
         auto*      fep_timingEvent = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
         const auto fep_kernel      = select_nbnxn_fep_kernel(
-                nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, nb->dev_info);
+                nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, nb->deviceContext_.deviceInfo());
         const auto fep_kernelArgs =
                 prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &d_atomIndicesInv, &stepWork.computeVirial);
-        // printf("nri: %d, nrj: %d\n", feplist->nri, feplist->nrj);
         launchGpuKernel(fep_kernel, fep_config, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
     }
 

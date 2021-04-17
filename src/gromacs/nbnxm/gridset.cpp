@@ -133,7 +133,7 @@ void GridSet::setLocalAtomOrder()
     }
 }
 
-void GridSet::setAtomIndicesInverse()
+const void GridSet::setAtomIndicesInverse()
 {
     /* Extract the atom index array that will be filled here */
     const int atomIndicesSize = gridSetData_.atomIndices.size();

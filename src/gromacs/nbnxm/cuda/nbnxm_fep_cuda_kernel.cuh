@@ -159,7 +159,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         // #endif     /* PRUNE_NBL */
         (const cu_atomdata_t atdat,
          const NBParamGpu  nbparam,
-         const gpu_feplist  feplist,
+         const Nbnxm::gpu_feplist  feplist,
          const int* __restrict__ gm_atomIndexInv,
          bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY
