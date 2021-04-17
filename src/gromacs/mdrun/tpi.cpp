@@ -682,6 +682,15 @@ void LegacySimulator::do_tpi()
                                            gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr),
                                            fr->cginfo);
 
+                if (mdatoms->nPerturbed!=0)
+                {
+                    fr->nbv->setAtomPropertiesAB(gmx::constArrayRefFromArray(mdatoms->typeA, mdatoms->nr),
+                                                 gmx::constArrayRefFromArray(mdatoms->typeB, mdatoms->nr),
+                                                 gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr),
+                                                 gmx::constArrayRefFromArray(mdatoms->chargeB, mdatoms->nr),
+                                                 fr->cginfo);
+                }
+
                 fr->nbv->constructPairlist(InteractionLocality::Local, top.excls, step, nrnb);
 
                 bNS = FALSE;

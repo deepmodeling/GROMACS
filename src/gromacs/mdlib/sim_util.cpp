@@ -1336,6 +1336,15 @@ void do_force(FILE*                               fplog,
         nbv->setAtomProperties(gmx::constArrayRefFromArray(mdatoms->typeA, mdatoms->nr),
                                gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr), fr->cginfo);
 
+        if (mdatoms->nPerturbed)
+        {
+            fr->nbv->setAtomPropertiesAB(gmx::constArrayRefFromArray(mdatoms->typeA, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->typeB, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->chargeB, mdatoms->nr),
+                                         fr->cginfo);
+        }
+
         wallcycle_stop(wcycle, ewcNS);
 
         /* initialize the GPU nbnxm atom data and bonded data structures */
@@ -1383,6 +1392,8 @@ void do_force(FILE*                               fplog,
         {
             nbv->atomdata_init_copy_x_to_nbat_x_gpu();
         }
+
+        nbv->atomdata_init_atomIndicesInv();
 
         if (simulationWork.useGpuBufferOps)
         {
@@ -1664,18 +1675,18 @@ void do_force(FILE*                               fplog,
         /* Calculate the local and non-local free energy interactions here.
          * Happens here on the CPU both with and without GPU.
          */
-        nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
-                                      as_rvec_array(x.unpaddedArrayRef().data()),
-                                      &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
-                                      inputrec->fepvals, lambda, enerd, stepWork, nrnb);
+        // nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
+        //                               as_rvec_array(x.unpaddedArrayRef().data()),
+        //                               &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
+        //                               inputrec->fepvals, lambda, enerd, stepWork, nrnb);
 
-        if (havePPDomainDecomposition(cr))
-        {
-            nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
-                                          as_rvec_array(x.unpaddedArrayRef().data()),
-                                          &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
-                                          inputrec->fepvals, lambda, enerd, stepWork, nrnb);
-        }
+        // if (havePPDomainDecomposition(cr))
+        // {
+        //     nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
+        //                                   as_rvec_array(x.unpaddedArrayRef().data()),
+        //                                   &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
+        //                                   inputrec->fepvals, lambda, enerd, stepWork, nrnb);
+        // }
     }
 
     if (stepWork.computeNonbondedForces && !useOrEmulateGpuNb)

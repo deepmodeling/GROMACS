@@ -428,6 +428,16 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
          */
         mimimumNumEnergyGroupNonbonded = 1;
     }
+
+    float lambda_q = 0.0;
+    float lambda_v = 0.0;
+    if (ir->efep != efepNO)
+    {
+        const int state = ir->fepvals->init_fep_state;
+        lambda_q = ir->fepvals->all_lambda[efptCOUL][state];
+        lambda_v = ir->fepvals->all_lambda[efptVDW][state];
+    }
+
     nbnxn_atomdata_init(mdlog, nbat.get(), kernelSetup.kernelType, enbnxninitcombrule, fr->ntype,
                         fr->nbfp, mimimumNumEnergyGroupNonbonded,
                         (useGpuForNonbonded || emulateGpu) ? 1 : gmx_omp_nthreads_get(emntNonbonded));
@@ -442,6 +452,11 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
                 (deviceStreamManager != nullptr),
                 "Device stream manager should be initialized in order to use GPU for non-bonded.");
         gpu_nbv = gpu_init(*deviceStreamManager, fr->ic, pairlistParams, nbat.get(), haveMultipleDomains);
+
+        cuda_copy_fepconst(gpu_nbv, pairlistParams.haveFep,
+                           fr->ic->softCoreParameters->alphaCoulomb, fr->ic->softCoreParameters->alphaVdw,
+                           fr->ic->softCoreParameters->sigma6WithInvalidSigma, fr->ic->softCoreParameters->sigma6Minimum);
+        cuda_copy_feplambda(gpu_nbv, lambda_q, lambda_v);
 
         minimumIlistCountForGpuBalancing = getMinimumIlistCountForGpuBalancing(gpu_nbv);
     }

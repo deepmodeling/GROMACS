@@ -113,6 +113,10 @@ struct cu_atomdata
 
     //! atom coordinates + charges, size natoms
     DeviceBuffer<float4> xq;
+    //! atom chargeAs, size natoms, only in FEP
+    DeviceBuffer<float>  qA;
+    //! atom chargeBs, size natoms, only in FEP
+    DeviceBuffer<float>  qB;
     //! force output array, size natoms
     DeviceBuffer<float3> f;
 
@@ -130,6 +134,14 @@ struct cu_atomdata
     DeviceBuffer<int> atom_types;
     //! sqrt(c6),sqrt(c12) size natoms
     DeviceBuffer<float2> lj_comb;
+    //! atom typeB indices, size natoms, only in FEP
+    DeviceBuffer<int>    atom_typesA;
+    //! sqrt(c6),sqrt(c12) for stateA, size natoms
+    DeviceBuffer<float2> lj_combA;
+    //! atom typeB indices, size natoms, only in FEP
+    DeviceBuffer<int>    atom_typesB;
+    //! sqrt(c6),sqrt(c12) for stateB, size natoms
+    DeviceBuffer<float2> lj_combB;
 
     //! shifts
     DeviceBuffer<float3> shift_vec;
@@ -158,8 +170,10 @@ struct NbnxmGpu
     bool bUseTwoStreams = false;
     /*! \brief atom data */
     cu_atomdata_t* atdat = nullptr;
-    /*! \brief array of atom indices */
+    /*! \brief array of atom indices (nbat to normal) */
     int* atomIndices = nullptr;
+    /*! \brief array of atom indices (normal to nbat) */
+    int* atomIndicesInv = nullptr;
     /*! \brief size of atom indices */
     int atomIndicesSize = 0;
     /*! \brief size of atom indices allocated in device buffer */
@@ -180,6 +194,7 @@ struct NbnxmGpu
     NBParamGpu* nbparam = nullptr;
     /*! \brief pair-list data structures (local and non-local) */
     gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_plist*> plist = { { nullptr } };
+    gmx::EnumerationArray<Nbnxm::InteractionLocality, Nbnxm::gpu_feplist*> feplist = { { nullptr } };
     /*! \brief staging area where fshift/energies get downloaded */
     nb_staging_t nbst;
     /*! \brief local and non-local GPU streams */

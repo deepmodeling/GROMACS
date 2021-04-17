@@ -48,6 +48,7 @@
 #include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/timing/wallcycle.h"
+#include "gromacs/mdtypes/mdatom.h"
 
 #include "nbnxm_gpu.h"
 #include "pairlistsets.h"
@@ -124,6 +125,15 @@ void nonbonded_verlet_t::setAtomProperties(gmx::ArrayRef<const int>  atomTypes,
                                            gmx::ArrayRef<const int>  atomInfo)
 {
     nbnxn_atomdata_set(nbat.get(), pairSearch_->gridSet(), atomTypes, atomCharges, atomInfo);
+}
+
+void nonbonded_verlet_t::setAtomPropertiesAB(gmx::ArrayRef<const int>  atomTypesA,
+                                             gmx::ArrayRef<const int>  atomTypesB,
+                                             gmx::ArrayRef<const real> atomChargesA,
+                                             gmx::ArrayRef<const real> atomChargesB,
+                                             gmx::ArrayRef<const int>  atomInfo)
+{   
+    nbnxn_atomdata_setAB(nbat.get(), pairSearch_->gridSet(), atomTypesA, atomTypesB, atomChargesA, atomChargesB, atomInfo);
 }
 
 void nonbonded_verlet_t::convertCoordinates(const gmx::AtomLocality        locality,
@@ -229,6 +239,11 @@ void nonbonded_verlet_t::setupGpuShortRangeWork(const gmx::GpuBonded*          g
 void nonbonded_verlet_t::atomdata_init_copy_x_to_nbat_x_gpu()
 {
     Nbnxm::nbnxn_gpu_init_x_to_nbat_x(pairSearch_->gridSet(), gpu_nbv);
+}
+
+void nonbonded_verlet_t::atomdata_init_atomIndicesInv()
+{
+    Nbnxm::nbnxn_gpu_init_atomIndicesInv(pairSearch_->gridSet(), gpu_nbv);
 }
 
 void nonbonded_verlet_t::insertNonlocalGpuDependency(const gmx::InteractionLocality interactionLocality)
