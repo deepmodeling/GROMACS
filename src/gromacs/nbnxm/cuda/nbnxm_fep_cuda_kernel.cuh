@@ -207,8 +207,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif
 
 #    ifdef LJ_COMB_LB
-    float sigmaAB[2], epsilonAB[2];
+    float sigmaAB[2];
 #    endif
+
+    float epsilonAB[2]; 
 
     const float4* xq          = atdat.xq;
     const float*  qA          = atdat.qA;
