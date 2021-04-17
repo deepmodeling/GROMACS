@@ -726,7 +726,7 @@ void gpu_launch_kernel(NbnxmGpu* nb, const gmx::StepWorkload& stepWork, const In
 
         auto*      fep_timingEvent = bDoTime ? t->interaction[iloc].nb_k.fetchNextEvent() : nullptr;
         const auto fep_kernel      = select_nbnxn_fep_kernel(
-                nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, nb->deviceContext_.deviceInfo());
+                nbp->eeltype, nbp->vdwtype, stepWork.computeEnergy, &nb->deviceContext_->deviceInfo());
         const auto fep_kernelArgs =
                 prepareGpuKernelArguments(fep_kernel, fep_config, adat, nbp, feplist, &d_atomIndicesInv, &stepWork.computeVirial);
         launchGpuKernel(fep_kernel, fep_config, deviceStream, fep_timingEvent, "k_calc_nb_fep", fep_kernelArgs);
