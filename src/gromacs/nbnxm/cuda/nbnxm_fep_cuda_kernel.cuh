@@ -144,19 +144,12 @@ __launch_bounds__(THREADS_PER_BLOCK, MIN_BLOCKS_PER_MP)
 #else
 __launch_bounds__(THREADS_PER_BLOCK)
 #endif /* GMX_PTX_ARCH >= 350 */
-// #ifdef PRUNE_NBL
-// #    ifdef CALC_ENERGIES
-//         __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _VF_prune_cuda)
-// #    else
-//         __global__ void NB_KERNEL_FUNC_NAME(nbnxn_kernel, _F_prune_cuda)
-// #    endif /* CALC_ENERGIES */
-// #else
+
 #ifdef CALC_ENERGIES
         __global__ void NB_FEP_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _VF_cuda)
 #else
         __global__ void NB_FEP_KERNEL_FUNC_NAME(nbnxn_fep_kernel, _F_cuda)
 #endif  /* CALC_ENERGIES */
-        // #endif     /* PRUNE_NBL */
         (const cu_atomdata_t atdat,
          const NBParamGpu  nbparam,
          const Nbnxm::gpu_feplist  feplist,
@@ -167,7 +160,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #else
 {
     /* convenience variables */
-    // const nbnxn_sci_t* pl_sci = plist.sci;
 
     const bool  bFEP     = nbparam.bFEP;
     bool        bFEPpair = 0;
@@ -189,7 +181,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
     const float LFC[2]       = { _lambda_q, lambda_q };
     const float LFV[2]       = { _lambda_v, lambda_v };
 
-    // const nbnxn_excl_t*  excl        = plist.excl;
 #    ifndef LJ_COMB
     const int* atom_typesA = atdat.atom_typesA;
     const int* atom_typesB = atdat.atom_typesB;
@@ -259,8 +250,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif     /* CALC_ENERGIES */
 
     /* thread/block/warp id-s */
-    // unsigned int tidxi = threadIdx.x;
-    // unsigned int tidxj = threadIdx.y;
 #    ifdef CALC_ENERGIES
     unsigned int tidx         = threadIdx.y * blockDim.x + threadIdx.x;
 #    endif
@@ -268,23 +257,13 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 + threadIdx.z * blockDim.y * blockDim.x + threadIdx.y * blockDim.x
                                 + threadIdx.x;
 
-    // #    if NTHREAD_Z == 1
-    //     unsigned int tidxz = 0;
-    // #    else
-    //     unsigned int  tidxz = threadIdx.z;
-    // #    endif
-    // unsigned int bidx  = blockIdx.x;
-    // unsigned int widx  = tidx / warp_size; /* warp index */
-
 #    ifndef LJ_COMB
 #    else
     float2        ljcp_iAB[2], ljcp_jAB[2];
 #    endif
     float qi, qj_f, r2, rpm2, rp, inv_r, inv_r2;
     float qBi, qBj_f;
-    // #if !defined LJ_COMB_LB || defined CALC_ENERGIES
     float inv_r6, c6, c12;
-// #endif
 #    ifdef LJ_COMB_LB
     float sigma, epsilon;
 #    endif
@@ -299,87 +278,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
     float4 xqbuf;
     float3 xi, xj, rv, f_ij, fci_buf, fcj_buf;
 
-    /*********************************************************************
-     * Set up shared memory pointers.
-     * sm_nextSlotPtr should always be updated to point to the "next slot",
-     * that is past the last point where data has been stored.
-     */
-    //     extern __shared__ char sm_dynamicShmem[];
-    //     char*                  sm_nextSlotPtr = sm_dynamicShmem;
-    //     static_assert(sizeof(char) == 1,
-    //                   "The shared memory offset calculation assumes that char is 1 byte");
-
-    //     /* shmem buffer for i x+q pre-loading */
-    //     float4* xqib = (float4*)sm_nextSlotPtr;
-    //     sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*xqib));
-
-    //     float* qBib;
-    //     if (bFEP)
-    //     {
-    //         qBib = (float*)sm_nextSlotPtr;
-    //         sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*qBib));
-    //     }
-
-    //     /* shmem buffer for cj, for each warp separately */
-    //     int* cjs = (int*)(sm_nextSlotPtr);
-    //     /* the cjs buffer's use expects a base pointer offset for pairs of warps in the j-concurrent execution */
-    //     cjs += tidxz * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize;
-    //     sm_nextSlotPtr += (NTHREAD_Z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize * sizeof(*cjs));
-
-    // #ifndef LJ_COMB
-    //     /* shmem buffer for i atom-type pre-loading */
-    //     int* atib = (int*)sm_nextSlotPtr;
-    //     sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*atib));
-
-    //     int* atBib;
-    //     if (bFEP){
-    //         atBib = (int*)sm_nextSlotPtr;
-    //         sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*atBib));
-    //     }
-    // #else
-    //     /* shmem buffer for i-atom LJ combination rule parameters */
-    //     float2* ljcpib = (float2*)sm_nextSlotPtr;
-    //     sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*ljcpib));
-
-    //     float2* ljcpBib;
-    //     if (bFEP){
-    //         ljcpBib = (float2*)sm_nextSlotPtr;
-    //         sm_nextSlotPtr += (c_numClPerSupercl * c_clSize * sizeof(*ljcpBib));
-    //     }
-    // #endif
-
-    /*********************************************************************/
-
     // Extract pair list data
     const int  nri    = feplist.nri;
     const int* iinr   = feplist.iinr;
     const int* jindex = feplist.jindex;
     const int* jjnr   = feplist.jjnr;
     const int* shift  = feplist.shift;
-
-    //     if (tidxz == 0)
-    //     {
-    //         /* Pre-load i-atom x and q into shared memory */
-    //         ci = sci * c_numClPerSupercl + tidxj;
-    //         ai = ci * c_clSize + tidxi;
-
-    //         float* shiftptr = (float*)&shift_vec[nb_sci.shift];
-    //         xqbuf = xq[ai] + make_float4(LDG(shiftptr), LDG(shiftptr + 1), LDG(shiftptr + 2), 0.0f);
-    //         xqbuf.w *= nbparam.epsfac;
-    //         xqib[tidxj * c_clSize + tidxi] = xqbuf;
-    //         qBib[tidxj * c_clSize + tidxi] = qB[ai] * nbparam.epsfac;
-
-    // #ifndef LJ_COMB
-    //         /* Pre-load the i-atom types into shared memory */
-    //         atib[tidxj * c_clSize + tidxi] = atom_typesA[ai];
-    //         atBib[tidxj * c_clSize + tidxi] = atom_typesB[ai];
-    // #else
-    //         /* Pre-load the LJ combination parameters into shared memory */
-    //         ljcpib[tidxj * c_clSize + tidxi] = lj_combA[ai];
-    //         ljcpBib[tidxj * c_clSize + tidxi] = lj_combB[ai];
-    // #endif
-    //     }
-    //     __syncthreads();
 
 #    ifdef LJ_EWALD
     /* TODO: we are trading registers with flops by keeping lje_coeff-s, try re-calculating it later */
@@ -393,84 +297,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
     E_el         = 0.0f;
 #    endif /* CALC_ENERGIES */
 
-    // #        ifdef EXCLUSION_FORCES /* Ewald or RF */
-    //     if (nb_sci.shift == CENTRAL && pl_cj4[cij4_start].cj[0] == sci * c_numClPerSupercl)
-    //     {
-    //         /* we have the diagonal: add the charge and LJ self interaction energy term */
-    //         for (i = 0; i < c_numClPerSupercl; i++)
-    //         {
-    // #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
-    //             qi = xqib[i * c_clSize + tidxi].w;
-    //             if (bFEP)
-    //             {
-    //                 qBi = qBib[i * c_clSize + tidxi];
-    //                 E_el += _lambda_q * qi * qi + lambda_q * qBi * qBi;
-    //             }
-    //             else
-    //             {
-    //                 E_el += qi * qi;
-    //             }
-    // #            endif
-
-    // #            ifdef LJ_EWALD
-    // #                if DISABLE_CUDA_TEXTURES
-    //             if (bFEP)
-    //             {
-    //                 E_lj += _lambda_v * LDG(
-    //                         &nbparam.nbfp[atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2])
-    //                     + lambda_v * LDG(
-    //                         &nbparam.nbfp[atom_typesB[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2]);
-    //             }
-    //             else
-    //             {
-    //                 E_lj += LDG(
-    //                         &nbparam.nbfp[atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2]);
-    //             }
-    // #                else
-    //             if (bFEP)
-    //             {
-    //                 E_lj += _lambda_v * tex1Dfetch<float>(
-    //                         nbparam.nbfp_texobj,
-    //                         atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
-    //                     + lambda_v * tex1Dfetch<float>(
-    //                         nbparam.nbfp_texobj,
-    //                         atom_typesB[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
-    //             }
-    //             else
-    //             {
-    //                 E_lj += tex1Dfetch<float>(
-    //                         nbparam.nbfp_texobj,
-    //                         atom_typesA[(sci * c_numClPerSupercl + i) * c_clSize + tidxi] * (ntypes + 1) * 2);
-    //             }
-    // #                endif
-    // #            endif
-    //         }
-
-    //         /* divide the self term(s) equally over the j-threads, then multiply with the coefficients. */
-    // #            ifdef LJ_EWALD
-    //         E_lj /= c_clSize * NTHREAD_Z;
-    //         E_lj *= 0.5f * c_oneSixth * lje_coeff6_6;
-    // #            endif
-
-    // #            if defined EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF
-    //         /* Correct for epsfac^2 due to adding qi^2 */
-    //         E_el /= nbparam.epsfac * c_clSize * NTHREAD_Z;
-    // #                if defined EL_RF || defined EL_CUTOFF
-    //         E_el *= -0.5f * c_rf;
-    // #                else
-    //         E_el *= -beta * M_FLOAT_1_SQRTPI; /* last factor 1/sqrt(pi) */
-    // #                endif
-    // #            endif /* EL_EWALD_ANY || defined EL_RF || defined EL_CUTOFF */
-    //     }
-    //     // printf("E_el=%e\n\n", E_el);
-    // #        endif     /* EXCLUSION_FORCES */
-
-    // #    endif /* CALC_ENERGIES */
-
-    // #    ifdef EXCLUSION_FORCES
-    //     const int nonSelfInteraction = !(nb_sci.shift == CENTRAL & tidxj <= tidxi);
-    // #    endif
-
     /* loop over the j clusters = seen by any of the atoms in the current super-cluster;
      * The loop stride NTHREAD_Z ensures that consecutive warps-pairs are assigned
      * consecutive j4's entries.
@@ -480,7 +306,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
     int npair_within_cutoff = 0;
 
-    // float* shiftptr = (float*)&shift_vec[nb_sci.shift];
     if (tidxi_global < nri)
     {
         const int n        = tidxi_global;
@@ -494,14 +319,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
         xi  = make_float3(xqbuf.x, xqbuf.y, xqbuf.z);
         qi  = qA[ai] * nbparam.epsfac;
         qBi = qB[ai] * nbparam.epsfac;
-        // const int  is3   = 3 * shift[n];
-        // const real shX   = shiftvec[is3];
-        // const real shY   = shiftvec[is3 + 1];
-        // const real shZ   = shiftvec[is3 + 2];
-        // const int  ii3   = 3 * ii;
-        // const real ix    = shX + x[ii3 + 0];
-        // const real iy    = shY + x[ii3 + 1];
-        // const real iz    = shZ + x[ii3 + 2];
 
 #    ifndef LJ_COMB
         typeiAB[0] = atom_typesA[ai];
@@ -510,27 +327,12 @@ __launch_bounds__(THREADS_PER_BLOCK)
         ljcp_iAB[0] = lj_combA[ai];
         ljcp_iAB[1] = lj_combB[ai];
 #    endif
-        // int  = {typej, typeBj};
-        // const int  ntiA  = 2 * ntype * typeA[ii];
-        // const int  ntiB  = 2 * ntype * typeB[ii];
-
         fci_buf = make_float3(0.0f);
-        // real       fix   = 0;
-        // real       fiy   = 0;
-        // real       fiz   = 0;
+
 
         for (int j = nj0; j < nj1; j++)
         {
-            // int        tj[NSTATES];
             const int aj = gm_atomIndexInv[jjnr[j]];
-            // real       c6[NSTATES], c12[NSTATES], qq[NSTATES], Vcoul[NSTATES], Vvdw[NSTATES];
-            // real       r, rinv, rp, rpm2, rpc, rpcm2;
-            // real       alpha_vdw_eff, alpha_coul_eff, sigma_pow[NSTATES];
-            // const real dx  = ix - x[j3];
-            // const real dy  = iy - x[j3 + 1];
-            // const real dz  = iz - x[j3 + 2];
-            // const real rsq = dx * dx + dy * dy + dz * dz;
-            // SCReal     FscalC[NSTATES], FscalV[NSTATES]; /* Needs double for sc_power==48 */
             F_invr    = 0.0f;
             FscalC[0] = FscalC[1] = FscalV[0] = FscalV[1] = 0;
 #    ifdef CALC_ENERGIES
@@ -546,7 +348,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
             qBj_f = qB[aj];
             qq[0] = qi * qj_f;
             qq[1] = qBi * qBj_f;
-            // printf("ni=%d, nj=%d, ii=%d, jj=%d, xi=[%.4f, %.4f, %.4f], xi_shift=[%.4f, %.4f, %.4f], xj=[%.4f, %.4f, %.4f]\n", n, j, iinr[n], jjnr[j], xi_raw.x, xi_raw.y, xi_raw.z, xi.x, xi.y, xi.z, xj.x, xj.y, xj.z);
 #    ifndef LJ_COMB
             typejAB[0] = atom_typesA[aj];
             typejAB[1] = atom_typesB[aj];
@@ -568,9 +369,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                 inv_r = 0;
                 r2    = 0;
             }
-            // r2 = max(r2, NBNXN_MIN_RSQ);
             inv_r2 = inv_r * inv_r;
-            // printf("excl %d=%d\n", j, feplist.excl_fep[j]);
 
             if (feplist.excl_fep == nullptr || feplist.excl_fep[j])
             {
@@ -591,13 +390,13 @@ __launch_bounds__(THREADS_PER_BLOCK)
                             fetch_nbfp_c6_c12(c6AB[k], c12AB[k], nbparam,
                                               ntypes * typeiAB[k] + typejAB[k]);
                             if (useSoftCore)
-                                convert_c6_c12_to_sigma6_epsilon(c6AB[k], c12AB[k], &(sigma6[k]));
+                                convert_c6_c12_to_sigma6_epsilon(c6AB[k], c12AB[k], &(sigma6[k]), &epsilonAB[k]);
 #    else
 #        ifdef LJ_COMB_GEOM
                             c6AB[k]  = ljcp_iAB[k].x * ljcp_jAB[k].x;
                             c12AB[k] = ljcp_iAB[k].y * ljcp_jAB[k].y;
                             if (useSoftCore)
-                                convert_c6_c12_to_sigma6_epsilon(c6AB[k], c12AB[k], &(sigma6[k]));
+                                convert_c6_c12_to_sigma6_epsilon(c6AB[k], c12AB[k], &(sigma6[k]), &epsilonAB[k]);
 #        else
                             /* LJ 2^(1/6)*sigma and 12*epsilon */
                             sigmaAB[k]   = ljcp_iAB[k].x + ljcp_jAB[k].x;
@@ -611,13 +410,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 float sigma2 = sigmaAB[k] * sigmaAB[k];
                                 sigma6[k]    = sigma2 * sigma2 * sigma2 * 0.5;
                             }
-// #            if defined CALC_ENERGIES || defined LJ_FORCE_SWITCH || defined LJ_POT_SWITCH
-//                                 convert_sigma_epsilon_to_c6_c12(sigma, epsilon, &c6, &c12);
-//                                 if (bFEP)
-//                                 {
-//                                     convert_sigma_epsilon_to_c6_c12(sigmaB, epsilonB, &c6B, &c12B);
-//                                 }
-// #            endif
+
 #        endif /* LJ_COMB_GEOM */
 #    endif     /* LJ_COMB */
                         }
@@ -638,7 +431,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef EXCLUSION_FORCES
                         /* We could mask inv_r2, but with Ewald
                          * masking both inv_r6 and F_invr is faster */
-                        // inv_r6 *= int_bit;
 #    endif /* EXCLUSION_FORCES */
                         for (int k = 0; k < 2; k++)
                         {
@@ -694,8 +486,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     rinvV  = inv_r;
 #    endif
                                 }
-                                // #        endif /* EXCLUSION_FORCES */
-                                // #    if !defined LJ_COMB_LB || defined CALC_ENERGIES
 
                                 if (c6AB[k] != 0 || c12AB[k] != 0)
                                 {
@@ -779,18 +569,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                     FscalC[k] = qq[k] * (int_bit * rinvC - two_k_rf * r2C);
 #    endif
 #    if defined EL_EWALD_ANY
-                                    // #ifdef CALC_ENERGIES
-                                    // #ifdef EL_EWALD_ANA
-                                    //                     if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
-                                    //                     printf("interaction [%d-%d], r2=[%e], rinvC=[%e],
-                                    //                     ewald corr.F=[%.5f], ewald corr.V=[%.5f],
-                                    //                     qq=[%e, %e], c6=[%e, %e], c12=[%e, %e],
-                                    //                     FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%f\n", ai, aj, r2, rinvC, pmecorrF(beta2 * r2) * beta3, inv_r * erff(r2 * inv_r * beta),
-                                    //                     qq[0], qq[1], c6AB[0], c6AB[1], c12AB[0], c12AB[1],
-                                    //                     FscalC[0] * rpm2, qq[1] * int_bit * rinvC * rpinvC * rpm2,
-                                    //                     FscalV[0] * rpm2, FscalV[1] * rpinvV * rpm2, Vcoul[0], qq[1] * int_bit * (rinvC - ewald_shift), Vvdw[0], Vvdw[1], int_bit);
-                                    // #endif
-                                    // #        endif
                                     FscalC[k] = qq[k] * int_bit * rinvC;
 #    endif /* EL_EWALD_ANA/TAB */
 
@@ -807,8 +585,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        endif /* EL_EWALD_ANY */
 #    endif
                                 }
-                                // if ((c6AB[0] != 0 || c6AB[1] != 0 || c12AB[0]!=0 || c12AB[1]!=0 || qq[0]!=0 || qq[1]!=0) && (k == 1))
-                                // printf("interaction [%d-%d], r2=[%e], mask=%f, FscalC=[%e, %e], FscalV=[%e, %e]\n", ai, aj, r2, int_bit, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2);
                                 FscalC[k] *= rpinvC;
                                 FscalV[k] *= rpinvV;
                             }
@@ -966,11 +742,6 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        elif defined EL_EWALD_TAB
                 f_lr = inv_r > 0 ? interpolate_coulomb_force_r(nbparam, r2 * inv_r) : 0;
 #        endif
-#        ifdef CALC_ENERGIES
-                // printf("interaction [%d-%d], r2=[%e], rinvC=[%e], ewald corr.F=[%.5f], ewald corr.V=[%.5f],
-                // FscalC=[%e, %e], FscalV=[%e, %e], Vcoul=[%e, %e], Vvdw=[%e, %e], mask=%d\n", iinr[n],
-                // jjnr[j], r2, rinvC, -f_lr, v_lr, FscalC[0] * rpm2, FscalC[1] * rpm2, FscalV[0] * rpm2, FscalV[1] * rpm2, Vcoul[0], Vcoul[1], Vvdw[0], Vvdw[1], feplist.excl_fep[j]);
-#        endif
                 if (bFEP)
                 {
                     for (int k = 0; k < 2; k++)
@@ -999,34 +770,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
             /* accumulate i forces in registers */
             fci_buf += f_ij;
             /* reduce j forces */
-            // reduce_force_j_warp_shfl(fcj_buf, f, tidxi, aj, c_fullWarpMask);
             atomicAdd(&(f[aj]), fcj_buf);
         }
-        //     }
-        //     // avoid shared memory WAR hazards between loop iterations
-        //     __syncwarp(c_fullWarpMask);
-        // }
-
-        /* skip central shifts when summing shift forces */
-        // if (nb_sci.shift == CENTRAL)
-        // {
-        //     bCalcFshift = false;
-        // }
-
-        // float3 fshift_buf = 0.0f;
-
-        /* reduce i forces */
-        // for (i = 0; i < c_numClPerSupercl; i++)
-        // {
-        //     ai = (sci * c_numClPerSupercl + i) * c_clSize + tidxi;
-        //     reduce_force_i_warp_shfl(fci_buf[i], f, &fshift_buf, bCalcFshift, tidxj, ai, c_fullWarpMask);
-        // }
-
-        /* add up local shift forces into global mem, tidxj indexes x,y,z */
-        // if (bCalcFshift && (tidxj & 3) < 3)
-        // {
-        //     atomicAdd(&(atdat.fshift[nb_sci.shift].x) + (tidxj & 3), fshift_buf);
-        // }
         atomicAdd(&(f[ai]), fci_buf);
         if (bCalcFshift)
         {
@@ -1034,12 +779,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
         }
 
 #    ifdef CALC_ENERGIES
-        /* reduce the energies over warps and store into global memory */
-        // reduce_energy_warp_shfl(E_lj, E_el, e_lj, e_el, tidx, c_fullWarpMask);
         atomicAdd(e_lj, E_lj);
         atomicAdd(e_el, E_el);
 #    endif
-        // printf("nFEP=%d, nnFEP=%d\n", nFEP, nnFEP);
     }
 }
 #endif /* FUNCTION_DECLARATION_ONLY */
