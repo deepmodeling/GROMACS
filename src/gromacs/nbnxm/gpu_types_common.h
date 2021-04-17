@@ -148,7 +148,8 @@ struct FEPParamGpu
     float lambda_q;
     //! free energy λ for vdw interaction
     float lambda_v;
-}
+};
+
 namespace Nbnxm
 {
 

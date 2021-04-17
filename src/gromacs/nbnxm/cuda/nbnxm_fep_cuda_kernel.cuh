@@ -158,8 +158,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #endif  /* CALC_ENERGIES */
         // #endif     /* PRUNE_NBL */
         (const cu_atomdata_t atdat,
-         const cu_nbparam_t  nbparam,
-         const cu_feplist_t  feplist,
+         const NBParamGpu  nbparam,
+         const gpu_feplist  feplist,
          const int* __restrict__ gm_atomIndexInv,
          bool bCalcFshift)
 #ifdef FUNCTION_DECLARATION_ONLY

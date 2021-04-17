@@ -350,11 +350,11 @@ void nbnxn_atomdata_set(nbnxn_atomdata_t*         nbat,
 
 void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
                           const Nbnxm::GridSet& gridSet,
-                          ArrayRef<const int>   atomTypesA,
-                          ArrayRef<const int>   atomTypesB,
-                          ArrayRef<const real>  atomChargesA,
-                          ArrayRef<const real>  atomChargesB,
-                          ArrayRef<const int>   atomInfo);
+                          gmx::ArrayRef<const int>   atomTypesA,
+                          gmx::ArrayRef<const int>   atomTypesB,
+                          gmx::ArrayRef<const real>  atomChargesA,
+                          gmx::ArrayRef<const real>  atomChargesB,
+                          gmx::ArrayRef<const int>   atomInfo);
 
 //! Copy the shift vectors to nbat
 void nbnxn_atomdata_copy_shiftvec(gmx_bool dynamic_box, rvec* shift_vec, nbnxn_atomdata_t* nbat);
