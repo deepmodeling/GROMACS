@@ -239,6 +239,31 @@ static void cuda_init_const(NbnxmGpu*                       nb,
     nbnxn_cuda_clear_e_fshift(nb);
 }
 
+void cuda_copy_fepconst(NbnxmGpu*               nb,
+                        const bool            bFEP,
+                        const float          alpha_coul,
+                        const float           alpha_vdw,
+                        const float          alpha_bond,
+                        const float       sc_sigma6_def,
+                        const float       sc_sigma6_min)
+{
+    nb->nbparam->bFEP       = bFEP;
+    nb->nbparam->alpha_coul = alpha_coul;
+    nb->nbparam->alpha_vdw  = alpha_vdw;
+    nb->nbparam->alpha_bond = alpha_bond;
+    nb->nbparam->sc_sigma6  = sc_sigma6_def;
+    nb->nbparam->sc_sigma6_min = sc_sigma6_min;
+}
+
+void cuda_copy_feplambda(NbnxmGpu*               nb,
+                         const float       lambda_q,
+                         const float       lambda_v)
+{
+    nb->nbparam->lambda_q   = lambda_q;
+    nb->nbparam->lambda_v   = lambda_v;
+}
+
+
 NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
                    const interaction_const_t*      ic,
                    const PairlistParams&           listParams,
@@ -252,9 +277,11 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     snew(nb->atdat, 1);
     snew(nb->nbparam, 1);
     snew(nb->plist[InteractionLocality::Local], 1);
+    snew(nb->feplist[InteractionLocality::Local], 1);
     if (bLocalAndNonlocal)
     {
         snew(nb->plist[InteractionLocality::NonLocal], 1);
+        snew(nb->feplist[InteractionLocality::NonLocal], 1);
     }
 
     nb->bUseTwoStreams = bLocalAndNonlocal;
@@ -268,6 +295,7 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     pmalloc((void**)&nb->nbst.fshift, SHIFTS * sizeof(*nb->nbst.fshift));
 
     init_plist(nb->plist[InteractionLocality::Local]);
+    init_feplist(nb->feplist[InteractionLocality::Local]);
 
     /* local/non-local GPU streams */
     GMX_RELEASE_ASSERT(deviceStreamManager.streamIsValid(gmx::DeviceStreamType::NonBondedLocal),
@@ -277,6 +305,7 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     if (nb->bUseTwoStreams)
     {
         init_plist(nb->plist[InteractionLocality::NonLocal]);
+        init_feplist(nb->feplist[InteractionLocality::Local]);
 
         /* Note that the device we're running on does not have to support
          * priorities, because we are querying the priority range which in this
@@ -381,6 +410,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
     int                  nalloc, natoms;
     bool                 realloced;
     bool                 bDoTime       = nb->bDoTime;
+    bool                 bFEP          = nb->nbparam->bFEP;
     cu_timers_t*         timers        = nb->timers;
     cu_atomdata_t*       d_atdat       = nb->atdat;
     const DeviceContext& deviceContext = *nb->deviceContext_;
@@ -408,6 +438,15 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->xq);
             freeDeviceBuffer(&d_atdat->atom_types);
             freeDeviceBuffer(&d_atdat->lj_comb);
+            if (bFEP)
+            {
+                freeDeviceBuffer(&d_atdat->qA);
+                freeDeviceBuffer(&d_atdat->atom_typesA);
+                freeDeviceBuffer(&d_atdat->lj_combA);
+                freeDeviceBuffer(&d_atdat->qB);
+                freeDeviceBuffer(&d_atdat->atom_typesB);
+                freeDeviceBuffer(&d_atdat->lj_combB);
+            }
         }
 
         allocateDeviceBuffer(&d_atdat->f, nalloc, deviceContext);
@@ -419,6 +458,23 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         else
         {
             allocateDeviceBuffer(&d_atdat->atom_types, nalloc, deviceContext);
+        }
+
+        if (bFEP)
+        {
+            allocateDeviceBuffer(&d_atdat->qA, nalloc, deviceContext);
+            allocateDeviceBuffer(&d_atdat->qB, nalloc, deviceContext);
+            if (useLjCombRule(nb->nbparam->vdwtype))
+            {
+                allocateDeviceBuffer(&d_atdat->lj_combA, nalloc, deviceContext);
+                allocateDeviceBuffer(&d_atdat->lj_combB, nalloc, deviceContext);
+
+            }
+            else
+            {
+                allocateDeviceBuffer(&d_atdat->atom_typesA, nalloc, deviceContext);
+                allocateDeviceBuffer(&d_atdat->atom_typesB, nalloc, deviceContext);
+            }
         }
 
         d_atdat->nalloc = nalloc;
@@ -448,6 +504,44 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                       "Sizes of host- and device-side atom types should be the same.");
         copyToDeviceBuffer(&d_atdat->atom_types, nbat->params().type.data(), 0, natoms, localStream,
                            GpuApiCallBehavior::Async, nullptr);
+    }
+
+    if (bFEP)
+    {
+        static_assert(sizeof(d_atdat->qA[0]) == sizeof(float),
+                      "Size of the qA parameters element should be equal to the size of float.");
+        copyToDeviceBuffer(&d_atdat->qA,
+                           reinterpret_cast<const float*>(nbat->params().qA.data()), 0,
+                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+        static_assert(sizeof(d_atdat->qB[0]) == sizeof(float),
+                      "Size of the qB parameters element should be equal to the size of float.");
+        copyToDeviceBuffer(&d_atdat->qB,
+                           reinterpret_cast<const float*>(nbat->params().qB.data()), 0,
+                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+        if (useLjCombRule(nb->nbparam->vdwtype))
+        {
+            static_assert(sizeof(d_atdat->lj_combA[0]) == sizeof(float2),
+                      "Size of the LJA parameters element should be equal to the size of float2.");
+            copyToDeviceBuffer(&d_atdat->lj_combA,
+                           reinterpret_cast<const float2*>(nbat->params().lj_combA.data()), 0,
+                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+            static_assert(sizeof(d_atdat->lj_combB[0]) == sizeof(float2),
+                      "Size of the LJB parameters element should be equal to the size of float2.");
+            copyToDeviceBuffer(&d_atdat->lj_combB,
+                           reinterpret_cast<const float2*>(nbat->params().lj_combB.data()), 0,
+                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+        }
+        else
+        {
+            static_assert(sizeof(d_atdat->atom_typesA[0]) == sizeof(nbat->params().typeA[0]),
+                      "Sizes of host- and device-side atom types A should be the same.");
+            copyToDeviceBuffer(&d_atdat->atom_typesA, nbat->params().typeA.data(), 0, natoms, localStream,
+                           GpuApiCallBehavior::Async, nullptr);
+            static_assert(sizeof(d_atdat->atom_typesB[0]) == sizeof(nbat->params().typeB[0]),
+                      "Sizes of host- and device-side atom types B should be the same.");
+            copyToDeviceBuffer(&d_atdat->atom_typesB, nbat->params().typeB.data(), 0, natoms, localStream,
+                           GpuApiCallBehavior::Async, nullptr);
+        }
     }
 
     if (bDoTime)
@@ -504,6 +598,15 @@ void gpu_free(NbnxmGpu* nb)
     freeDeviceBuffer(&atdat->atom_types);
     freeDeviceBuffer(&atdat->lj_comb);
 
+    if (atdat->qA != NULL){
+        freeDeviceBuffer(&atdat->qA);
+        freeDeviceBuffer(&atdat->atom_typesA);
+        freeDeviceBuffer(&atdat->lj_combA);
+        freeDeviceBuffer(&atdat->qB);
+        freeDeviceBuffer(&atdat->atom_typesB);
+        freeDeviceBuffer(&atdat->lj_combB);
+    }
+
     /* Free plist */
     auto* plist = nb->plist[InteractionLocality::Local];
     freeDeviceBuffer(&plist->sci);
@@ -554,6 +657,21 @@ void* gpu_get_xq(NbnxmGpu* nb)
 
     return static_cast<void*>(nb->atdat->xq);
 }
+
+void* gpu_get_qA(NbnxmGpu* nb)
+{
+    assert(nb);
+
+    return static_cast<void*>(nb->atdat->qA);
+}
+
+void* gpu_get_qB(NbnxmGpu* nb)
+{
+    assert(nb);
+
+    return static_cast<void*>(nb->atdat->qB);
+}
+
 
 DeviceBuffer<gmx::RVec> gpu_get_f(NbnxmGpu* nb)
 {
@@ -657,4 +775,47 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
     return;
 }
 
+void nbnxn_gpu_init_atomIndicesInv(const Nbnxm::GridSet gridSet, NbnxmGpu* gpu_nbv)
+{
+    const DeviceStream& deviceStream = gpu_nbv->deviceStreams[InteractionLocality::Local];
+    bool bDoTime = gpu_nbv->bDoTime;
+
+    gridSet.setAtomIndicesInverse();
+
+    for (unsigned int g = 0; g < gridSet.grids().size(); g++)
+    {
+
+        const Nbnxm::Grid& grid = gridSet.grids()[g];
+
+        const int  numColumns      = grid.numColumns();
+        const int* atomIndices     = gridSet.atomIndices().data();
+        const int  atomIndicesSize = gridSet.atomIndices().size();
+        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
+
+        gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+        gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+        
+        if (atomIndicesSize > 0)
+        {
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
+            }
+
+            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
+                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, deviceStream,
+                               GpuApiCallBehavior::Async, nullptr);
+
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.closeTimingRegion(deviceStream);
+            }
+        }
+    }
+}
 } // namespace Nbnxm

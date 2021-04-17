@@ -156,6 +156,8 @@ public:
     //! Sets the order of the local atoms to the order grid atom ordering
     void setLocalAtomOrder();
 
+    void setAtomIndicesInverse();
+
     //! Returns the list of grids
     gmx::ArrayRef<const Grid> grids() const { return grids_; }
 
@@ -164,6 +166,9 @@ public:
 
     //! Returns the grid atom indices covering all grids
     gmx::ArrayRef<const int> atomIndices() const { return gridSetData_.atomIndices; }
+
+    //! Returns the grid atom inversed indices covering all grids
+    gmx::ArrayRef<const int> atomIndices() const { return gridSetData_.atomIndicesInv; }
 
     //! Returns whether we have perturbed non-bonded interactions
     bool haveFep() const { return haveFep_; }

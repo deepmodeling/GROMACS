@@ -121,8 +121,34 @@ struct NBParamGpu
     DeviceBuffer<float> coulomb_tab;
     //! texture object bound to coulomb_tab
     DeviceTexture coulomb_tab_texobj;
+
+    //! whether using free energy perturbation
+    bool  bFEP;
+    float alpha_coul;
+    float alpha_vdw;
+    float alpha_bond;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    //! free energy λ for coulomb interaction
+    float lambda_q;
+    //! free energy λ for vdw interaction
+    float lambda_v;
 };
 
+struct FEPParamGpu
+{
+    //! whether using free energy perturbation
+    bool  bFEP;
+    float alpha_coul;
+    float alpha_vdw;
+    float alpha_bond;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    //! free energy λ for coulomb interaction
+    float lambda_q;
+    //! free energy λ for vdw interaction
+    float lambda_v;
+}
 namespace Nbnxm
 {
 
@@ -217,6 +243,23 @@ struct gpu_plist
     int rollingPruningNumParts;
     //! the next part to which the rolling pruning needs to be applied
     int rollingPruningPart;
+};
+
+struct gpu_feplist
+{
+    int     nri, maxnri; /* Current/max number of i particles	   */
+    int     nrj, maxnrj; /* Current/max number of j particles	   */
+    DeviceBuffer<int>    iinr;        /* The i-elements                        */
+    DeviceBuffer<int>    gid;         /* Index in energy arrays                */
+    DeviceBuffer<int>    shift;       /* Shift vector index                    */
+    DeviceBuffer<int>    jindex;      /* Index in jjnr                         */
+    DeviceBuffer<int>    jjnr;        /* The j-atom list                       */
+    DeviceBuffer<char>   excl_fep;    /* Exclusions for FEP with Verlet scheme */
+
+    /* parameter+variables for normal and rolling pruning */
+    bool haveFreshList; /**< true after search, indictes that initial pruning with outer prunning is needed */
+    int  rollingPruningNumParts; /**< the number of parts/steps over which one cyle of roling pruning takes places */
+    int  rollingPruningPart; /**< the next part to which the roling pruning needs to be applied */
 };
 
 } // namespace Nbnxm

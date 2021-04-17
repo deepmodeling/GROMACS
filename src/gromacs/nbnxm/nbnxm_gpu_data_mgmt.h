@@ -57,6 +57,7 @@ namespace Nbnxm
 {
 
 struct gpu_plist;
+struct gpu_feplist;
 
 /*! \brief Tabulates the Ewald Coulomb force and initializes the size/scale and the table GPU array.
  *
@@ -78,6 +79,10 @@ void set_cutoff_parameters(NBParamGpu* nbp, const interaction_const_t* ic, const
 /*! \brief Initializes the pair list data structure.
  */
 void init_plist(gpu_plist* pl);
+
+/*! \brief Initializes the pair list data structure.
+ */
+void init_feplist(gpu_feplist* pl);
 
 /*! \brief Initializes the timings data structure. */
 void init_timings(gmx_wallclock_gpu_nbnxn_t* t);

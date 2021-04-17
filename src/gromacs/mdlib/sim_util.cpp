@@ -1336,6 +1336,15 @@ void do_force(FILE*                               fplog,
         nbv->setAtomProperties(gmx::constArrayRefFromArray(mdatoms->typeA, mdatoms->nr),
                                gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr), fr->cginfo);
 
+        if (mdatoms->nPerturbed)
+        {
+            fr->nbv->setAtomPropertiesAB(gmx::constArrayRefFromArray(mdatoms->typeA, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->typeB, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->chargeB, mdatoms->nr),
+                                         fr->cginfo);
+        }
+
         wallcycle_stop(wcycle, ewcNS);
 
         /* initialize the GPU nbnxm atom data and bonded data structures */

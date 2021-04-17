@@ -67,6 +67,19 @@ class DeviceStreamManager;
 
 namespace Nbnxm
 {
+GPU_FUNC_QUALIFIER
+void cuda_copy_fepconst(NbnxmGpu*       nb,
+                        const bool      bFEP,
+                        const float     alpha_coul,
+                        const float     alpha_vdw,
+                        const float     alpha_bond,
+                        const float     sc_sigma6_def,
+                        const float     sc_sigma6_min);
+
+GPU_FUNC_QUALIFIER
+void cuda_copy_feplambda(NbnxmGpu*         nb,
+                         const float       lambda_q,
+                         const float       lambda_v);
 
 /** Initializes the data structures related to GPU nonbonded calculations. */
 GPU_FUNC_QUALIFIER
@@ -82,6 +95,12 @@ GPU_FUNC_QUALIFIER
 void gpu_init_pairlist(NbnxmGpu gmx_unused*          nb,
                        const struct NbnxnPairlistGpu gmx_unused* h_nblist,
                        gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
+
+/** Initializes fep pair-list data for GPU, called at every pair search step. */
+GPU_FUNC_QUALIFIER
+void gpu_init_feppairlist(NbnxmGpu gmx_unused*   nb,
+                          const struct t_nblist gmx_unused* h_nblist,
+                          gmx::InteractionLocality gmx_unused iloc) GPU_FUNC_TERM;
 
 /** Initializes atom-data on the GPU, called at every pair search step. */
 GPU_FUNC_QUALIFIER
@@ -136,6 +155,12 @@ const DeviceStream* gpu_get_command_stream(NbnxmGpu gmx_unused* nb, gmx::Interac
  */
 CUDA_FUNC_QUALIFIER
 void* gpu_get_xq(NbnxmGpu gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
+
+CUDA_FUNC_QUALIFIER
+void* gpu_get_qA(NbnxmGpu gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
+
+CUDA_FUNC_QUALIFIER
+void* gpu_get_qB(NbnxmGpu gmx_unused* nb) CUDA_FUNC_TERM_WITH_RETURN(nullptr);
 
 /** Returns an opaque pointer to the GPU force array
  *  Note: CUDA only.

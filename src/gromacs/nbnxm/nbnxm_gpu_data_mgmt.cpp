@@ -236,6 +236,26 @@ void init_plist(gpu_plist* pl)
     pl->rollingPruningPart     = 0;
 }
 
+/*! Initializes the pair list data structure. */
+void init_feplist(gpu_feplist* pl)
+{
+    /* initialize to nullptr pointers to data that is not allocated here and will
+       need reallocation in nbnxn_gpu_init_pairlist */
+    pl->iinr   = nullptr;
+    pl->gid    = nullptr;
+    pl->shift  = nullptr;
+    pl->jindex = nullptr;
+    pl->jjnr   = nullptr;
+    pl->excl_fep= nullptr;
+
+    /* size -1 indicates that the respective array hasn't been initialized yet */
+    pl->nri           = -1;
+    pl->maxnri        = -1;
+    pl->nrj           = -1;
+    pl->maxnrj        = -1;
+    pl->haveFreshList = false;
+}
+
 void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
 {
     int i, j;
@@ -320,6 +340,63 @@ void gpu_init_pairlist(NbnxmGpu* nb, const NbnxnPairlistGpu* h_plist, const Inte
 
     /* need to prune the pair list during the next step */
     d_plist->haveFreshList = true;
+}
+
+void gpu_init_feppairlist(NbnxmGpu* nb, const t_nblist* h_feplist, const InteractionLocality iloc)
+{
+    char         sbuf[STRLEN];
+    bool         bDoTime = (nb->bDoTime && !h_feplist->nri == 0);
+    const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
+    gpu_feplist* d_feplist = nb->feplist[iloc];
+
+    d_feplist->nri = h_feplist->nri;
+
+    gpu_timers_t::Interaction& iTimers = nb->timers->interaction[iloc];
+
+    if (bDoTime)
+    {
+        iTimers.pl_h2d.openTimingRegion(deviceStream);
+        iTimers.didPairlistH2D = true;
+    }
+
+    const DeviceContext& deviceContext = *nb->deviceContext_;
+    d_feplist->maxnri = 0;
+    reallocateDeviceBuffer(&d_feplist->iinr, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, deviceContext);
+    copyToDeviceBuffer(&d_feplist->iinr, h_feplist->iinr, 0, h_feplist->nri, deviceStream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = 0;
+
+    reallocateDeviceBuffer(&d_feplist->gid, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, deviceContext);
+    copyToDeviceBuffer(&d_feplist->gid, h_feplist->gid, 0, h_feplist->nri, deviceStream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = 0;
+
+    reallocateDeviceBuffer(&d_feplist->jindex, h_feplist->nri+1, &d_feplist->nri, &d_feplist->maxnri, deviceContext);
+    copyToDeviceBuffer(&d_feplist->jindex, h_feplist->jindex, 0, h_feplist->nri+1, deviceStream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnri = 0;
+
+    reallocateDeviceBuffer(&d_feplist->shift, h_feplist->nri, &d_feplist->nri, &d_feplist->maxnri, deviceContext);
+    copyToDeviceBuffer(&d_feplist->shift, h_feplist->shift, 0, h_feplist->nri, deviceStream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    
+    d_feplist->maxnrj = 0;
+    reallocateDeviceBuffer(&d_feplist->jjnr, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, deviceContext);
+    copyToDeviceBuffer(&d_feplist->jjnr, h_feplist->jjnr, 0, h_feplist->nrj, deviceStream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+    d_feplist->maxnrj = 0;
+
+    reallocateDeviceBuffer(&d_feplist->excl_fep, h_feplist->nrj, &d_feplist->nrj, &d_feplist->maxnrj, deviceContext);
+    copyToDeviceBuffer(&d_feplist->excl_fep, h_feplist->excl_fep, 0, h_feplist->nrj, deviceStream,
+                       GpuApiCallBehavior::Async, bDoTime ? iTimers.pl_h2d.fetchNextEvent() : nullptr);
+
+    if (bDoTime)
+    {
+        iTimers.pl_h2d.closeTimingRegion(deviceStream);
+    }
+
+    /* the next use of thist list we be the first one, so we need to prune */
+    d_feplist->haveFreshList = true;
 }
 
 //! This function is documented in the header file

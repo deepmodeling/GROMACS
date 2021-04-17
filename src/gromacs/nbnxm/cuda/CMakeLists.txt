@@ -40,6 +40,8 @@ if(GMX_GPU_CUDA)
                 nbnxm_cuda_kernel_F_prune.cu
                 nbnxm_cuda_kernel_VF_noprune.cu
                 nbnxm_cuda_kernel_VF_prune.cu
+                nbnxm_fep_cuda_kernel_F.cu
+                nbnxm_fep_cuda_kernel_VF.cu
                 nbnxm_cuda_kernel_pruneonly.cu)
     endif()
 
