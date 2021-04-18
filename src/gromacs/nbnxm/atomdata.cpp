@@ -753,8 +753,8 @@ static void nbnxn_atomdata_set_atomtypesAB(nbnxn_atomdata_t::Params* params,
                                            ArrayRef<const int>                atomTypesA,
                                            ArrayRef<const int>                atomTypesB)
 {
-    params->atomTypesA.resize(gridSet.numGridAtomsTotal());
-    params->atomTypesB.resize(gridSet.numGridAtomsTotal());
+    params->typeA.resize(gridSet.numGridAtomsTotal());
+    params->typeB.resize(gridSet.numGridAtomsTotal());
 
     for (const Nbnxm::Grid& grid : gridSet.grids())
     {
@@ -765,9 +765,9 @@ static void nbnxn_atomdata_set_atomtypesAB(nbnxn_atomdata_t::Params* params,
             const int atomOffset = grid.firstAtomInColumn(i);
 
             copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
-                                 numAtoms, atomTypesA, params->numTypes - 1, params->atomTypesA.data() + atomOffset);
+                                 numAtoms, atomTypesA, params->numTypes - 1, params->typeA.data() + atomOffset);
             copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
-                                 numAtoms, atomTypesB, params->numTypes - 1, params->atomTypesB.data() + atomOffset);
+                                 numAtoms, atomTypesB, params->numTypes - 1, params->typeB.data() + atomOffset);
         }
     }
 }
@@ -914,7 +914,7 @@ static void nbnxn_atomdata_set_charges(nbnxn_atomdata_t*     nbat,
     }
 }
 
-static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::GridSet& gridSet, const real* chargesA, const real* chargesB)
+static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::GridSet& gridSet, ArrayRef<const real> chargesA, ArrayRef<const real> chargesB)
 {
     //TODO: Xformat not equal to nbatXYZQ case is not handled
     nbat->paramsDeprecated().qA.resize(nbat->numAtoms());
@@ -1103,7 +1103,7 @@ void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
 {
     nbnxn_atomdata_t::Params& params = nbat->paramsDeprecated();
 
-    nbnxn_atomdata_set_atomtypesAB(&params, gridSet, atomTypesA, atomChargesB);
+    nbnxn_atomdata_set_atomtypesAB(&params, gridSet, atomTypesA, atomTypesB);
 
     nbnxn_atomdata_set_chargesAB(nbat, gridSet, atomChargesA, atomChargesB);
 
