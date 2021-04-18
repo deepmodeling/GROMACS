@@ -62,6 +62,7 @@
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/timing/gpu_timing.h"
 #include "gromacs/utility/cstringutil.h"
+#include "gromacs/mdtypes/nblist.h"
 
 #include "nbnxm_gpu.h"
 #include "pairlistsets.h"
@@ -254,6 +255,8 @@ void init_feplist(gpu_feplist* pl)
     pl->nrj           = -1;
     pl->maxnrj        = -1;
     pl->haveFreshList = false;
+    pl->rollingPruningNumParts = 0;
+    pl->rollingPruningPart     = 0;
 }
 
 void init_timings(gmx_wallclock_gpu_nbnxn_t* t)
