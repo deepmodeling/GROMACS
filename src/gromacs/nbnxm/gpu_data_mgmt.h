@@ -72,7 +72,6 @@ void cuda_copy_fepconst(NbnxmGpu*       nb,
                         const bool      bFEP,
                         const float     alpha_coul,
                         const float     alpha_vdw,
-                        const float     alpha_bond,
                         const float     sc_sigma6_def,
                         const float     sc_sigma6_min);
 
