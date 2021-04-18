@@ -764,10 +764,12 @@ static void nbnxn_atomdata_set_atomtypesAB(nbnxn_atomdata_t::Params* params,
             const int numAtoms   = grid.paddedNumAtomsInColumn(i);
             const int atomOffset = grid.firstAtomInColumn(i);
 
-            copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
-                                 numAtoms, atomTypesA, params->numTypes - 1, params->typeA.data() + atomOffset);
-            copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset, grid.numAtomsInColumn(i),
-                                 numAtoms, atomTypesB, params->numTypes - 1, params->typeB.data() + atomOffset);
+            copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset,
+                                 grid.numAtomsInColumn(i), numAtoms, atomTypesA.data(),
+                                 params->numTypes - 1, params->typeA.data() + atomOffset);
+            copy_int_to_nbat_int(gridSet.atomIndices().data() + atomOffset,
+                                 grid.numAtomsInColumn(i), numAtoms, atomTypesB.data(),
+                                 params->numTypes - 1, params->typeB.data() + atomOffset);
         }
     }
 }
