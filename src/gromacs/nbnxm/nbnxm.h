@@ -270,6 +270,12 @@ public:
                            gmx::ArrayRef<const real> atomCharges,
                            gmx::ArrayRef<const int>  atomInfo);
 
+    void setAtomPropertiesAB(gmx::ArrayRef<const int>  atomTypesA,
+                             gmx::ArrayRef<const int>  atomTypesB,
+                             gmx::ArrayRef<const real> atomChargesA,
+                             gmx::ArrayRef<const real> atomChargesB,
+                             gmx::ArrayRef<const int>  atomInfo);
+
     /*!\brief Convert the coordinates to NBNXM format for the given locality.
      *
      * The API function for the transformation of the coordinates from one layout to another.

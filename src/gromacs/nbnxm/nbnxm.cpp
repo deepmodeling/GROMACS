@@ -133,7 +133,7 @@ void nonbonded_verlet_t::setAtomPropertiesAB(gmx::ArrayRef<const int>  atomTypes
                                              gmx::ArrayRef<const real> atomChargesB,
                                              gmx::ArrayRef<const int>  atomInfo)
 {   
-    nbnxn_atomdata_setAB(nbat.get(), pairSearch_->gridSet(), atomTypesA, atomTypesB, atomChargesA, atomChargesB, atomInfo.data());
+    nbnxn_atomdata_setAB(nbat.get(), pairSearch_->gridSet(), atomTypesA, atomTypesB, atomChargesA, atomChargesB, atomInfo);
 }
 
 void nonbonded_verlet_t::convertCoordinates(const gmx::AtomLocality        locality,
