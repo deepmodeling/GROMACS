@@ -437,7 +437,6 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->atom_types);
             freeDeviceBuffer(&d_atdat->lj_comb);
 
-            printf("free starts.\n");
             if (bFEP)
             {
                 freeDeviceBuffer(&d_atdat->qA);
@@ -447,7 +446,6 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                 freeDeviceBuffer(&d_atdat->atom_typesB);
                 freeDeviceBuffer(&d_atdat->lj_combB);
             }
-            printf("free ends.\n");
         }
 
         allocateDeviceBuffer(&d_atdat->f, nalloc, deviceContext);
@@ -522,6 +520,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                            reinterpret_cast<const float*>(nbat->params().qB.data()), 0,
                            natoms, localStream, GpuApiCallBehavior::Async, nullptr);
         printf("qAB OK!\n");
+        printf("if condition:%d\n", useLjCombRule(nb->nbparam->vdwtype));
         if (useLjCombRule(nb->nbparam->vdwtype))
         {
             static_assert(sizeof(d_atdat->lj_combA[0]) == sizeof(float2),
