@@ -63,7 +63,8 @@ int ExpandedEnsembleDynamics(FILE*                 log,
                              df_history_t*         dfhist,
                              int64_t               step,
                              rvec*                 v,
-                             const t_mdatoms*      mdatoms);
+                             const t_mdatoms*      mdatoms,
+                             real*                 realFepState);
 
 void PrintFreeEnergyInfoToFile(FILE*               outfile,
                                const t_lambda*     fep,

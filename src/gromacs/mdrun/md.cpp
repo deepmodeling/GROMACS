@@ -70,6 +70,7 @@
 #include "gromacs/gmxlib/nrnb.h"
 #include "gromacs/gpu_utils/device_stream_manager.h"
 #include "gromacs/gpu_utils/gpu_utils.h"
+#include "gromacs/math/units.h"
 #include "gromacs/imd/imd.h"
 #include "gromacs/listed_forces/listed_forces.h"
 #include "gromacs/math/functions.h"
@@ -151,6 +152,16 @@
 #include "replicaexchange.h"
 #include "shellfc.h"
 
+/* PLUMED */
+#include "../../../Plumed.h"
+extern int    plumedswitch;
+extern plumed plumedmain;
+/* END PLUMED */
+
+/* PLUMED HREX */
+extern int plumed_hrex;
+/* END PLUMED HREX */
+
 using gmx::SimulationSignaller;
 
 void gmx::LegacySimulator::do_md()
@@ -196,6 +207,14 @@ void gmx::LegacySimulator::do_md()
     gmx_bool bPMETunePrinting = FALSE;
 
     bool bInteractiveMDstep = false;
+
+    /* PLUMED */
+    int plumedNeedsEnergy=0;
+    int plumedWantsToStop=0;
+    matrix plumed_vir;
+    real lambdaForce=0;
+    real realFepState=0;
+    /* END PLUMED */
 
     /* Domain decomposition could incorrectly miss a bonded
        interaction, but checking for that requires a global
@@ -276,7 +295,7 @@ void gmx::LegacySimulator::do_md()
         // the propagation of such signals must take place between
         // simulations, not just within simulations.
         // TODO: Make algorithm initializers set these flags.
-        simulationsShareState = useReplicaExchange || usingEnsembleRestraints || awhUsesMultiSim;
+        simulationsShareState = useReplicaExchange || usingEnsembleRestraints || awhUsesMultiSim || (plumedswitch && ms); // PLUMED hack, if we have multiple sim and plumed we usually want them to be in sync 
 
         if (simulationsShareState)
         {
@@ -677,6 +696,55 @@ void gmx::LegacySimulator::do_md()
         fprintf(fplog, "\n");
     }
 
+    /* PLUMED */
+    if(plumedswitch){
+      /* detect plumed API version */
+      int pversion=0;
+      plumed_cmd(plumedmain,"getApiVersion",&pversion);
+      /* setting kbT is only implemented with api>1) */
+      real kbT=ir->opts.ref_t[0]*BOLTZ;
+      if(pversion>1) plumed_cmd(plumedmain,"setKbT",&kbT);
+      if(pversion>2){
+        int res=1;
+        if( (startingBehavior != StartingBehavior::NewSimulation) ) plumed_cmd(plumedmain,"setRestart",&res);
+      }
+
+      if(ms && ms->numSimulations_>1) {
+        if(MASTER(cr)) plumed_cmd(plumedmain,"GREX setMPIIntercomm",&ms->mastersComm_);
+        if(PAR(cr)){
+          if(DOMAINDECOMP(cr)) {
+            plumed_cmd(plumedmain,"GREX setMPIIntracomm",&cr->dd->mpi_comm_all);
+          }else{
+            plumed_cmd(plumedmain,"GREX setMPIIntracomm",&cr->mpi_comm_mysim);
+          }
+        }
+        plumed_cmd(plumedmain,"GREX init",nullptr);
+      }
+      if(PAR(cr)){
+        if(DOMAINDECOMP(cr)) {
+          plumed_cmd(plumedmain,"setMPIComm",&cr->dd->mpi_comm_all);
+        }
+      }
+      plumed_cmd(plumedmain,"setNatoms",&top_global->natoms);
+      plumed_cmd(plumedmain,"setMDEngine","gromacs");
+      plumed_cmd(plumedmain,"setLog",fplog);
+      real real_delta_t=ir->delta_t;
+      plumed_cmd(plumedmain,"setTimestep",&real_delta_t);
+      plumed_cmd(plumedmain,"init",nullptr);
+
+      if(PAR(cr)){
+        if(DOMAINDECOMP(cr)) {
+          int nat_home = dd_numHomeAtoms(*cr->dd);
+          plumed_cmd(plumedmain,"setAtomsNlocal",&nat_home);
+          plumed_cmd(plumedmain,"setAtomsGatindex",cr->dd->globalAtomIndices.data());
+        }
+      }
+      realFepState = state->fep_state;
+      plumed_cmd(plumedmain, "setExtraCV lambda", &realFepState);
+      plumed_cmd(plumedmain, "setExtraCVForce lambda", &lambdaForce);
+    }
+    /* END PLUMED */
+
     walltime_accounting_start_time(walltime_accounting);
     wallcycle_start(wcycle, ewcRUN);
     print_start(fplog, cr, walltime_accounting, "mdrun");
@@ -833,6 +901,14 @@ void gmx::LegacySimulator::do_md()
                                     fr, vsite, constr, nrnb, wcycle, do_verbose && !bPMETunePrinting);
                 shouldCheckNumberOfBondedInteractions = true;
                 upd.setNumAtoms(state->natoms);
+
+                /* PLUMED */
+                if(plumedswitch){
+                  int nat_home = dd_numHomeAtoms(*cr->dd);
+                  plumed_cmd(plumedmain,"setAtomsNlocal",&nat_home);
+                  plumed_cmd(plumedmain,"setAtomsGatindex",cr->dd->globalAtomIndices.data());
+                }
+                /* END PLUMED */
             }
         }
 
@@ -872,6 +948,92 @@ void gmx::LegacySimulator::do_md()
                                             &shouldCheckNumberOfBondedInteractions);
         }
         clear_mat(force_vir);
+
+        /* PLUMED HREX */
+        gmx_bool bHREX = bDoReplEx && plumed_hrex;
+
+        if (plumedswitch && bHREX) {
+          gmx_enerdata_t *hrex_enerd;
+          int repl  = -1;
+          int nrepl = -1;
+          if (MASTER(cr)){
+            repl  = replica_exchange_get_repl(repl_ex);
+            nrepl = replica_exchange_get_nrepl(repl_ex);
+          }
+
+          if (DOMAINDECOMP(cr)) {
+            dd_collect_state(cr->dd,state,state_global);
+          } else {
+            copy_state_serial(state, state_global);
+          }
+
+          if(MASTER(cr)){
+            if(repl%2==step/replExParams.exchangeInterval%2){
+              if(repl-1>=0) exchange_state(ms,repl-1,state_global);
+            }else{
+              if(repl+1<nrepl) exchange_state(ms,repl+1,state_global);
+            }
+          }
+          if (!DOMAINDECOMP(cr)) {
+            copy_state_serial(state_global, state);
+          }
+          if(PAR(cr)){
+            if (DOMAINDECOMP(cr)) {
+              dd_partition_system(fplog,mdlog,step,cr,TRUE,1,
+                                  state_global,*top_global,ir,
+                                  imdSession, pull_work,
+                                  state,&f,mdAtoms,&top,fr,vsite,constr,
+                                  nrnb,wcycle,FALSE);
+            }
+          }
+          do_force(fplog, cr, ms, ir, awh.get(), enforcedRotation, imdSession, pull_work, step,
+                   nrnb, wcycle, &top, state->box, state->x.arrayRefWithPadding(), &state->hist,
+                   &f.view(), force_vir, mdatoms, hrex_enerd, state->lambda, 
+                   fr, runScheduleWork, vsite, mu_tot, t, ed ? ed->getLegacyED() : nullptr,
+                   GMX_FORCE_STATECHANGED |
+                   GMX_FORCE_DYNAMICBOX |
+                   GMX_FORCE_ALLFORCES |
+                   GMX_FORCE_VIRIAL |
+                   GMX_FORCE_ENERGY |
+                   GMX_FORCE_DHDL |
+                   GMX_FORCE_NS,
+                   ddBalanceRegionHandler);
+
+          plumed_cmd(plumedmain,"GREX cacheLocalUSwap",&hrex_enerd->term[F_EPOT]);
+
+          /* exchange back */
+          if (DOMAINDECOMP(cr)) {
+            dd_collect_state(cr->dd,state,state_global);
+          } else {
+            copy_state_serial(state, state_global);
+          }
+
+          if(MASTER(cr)){
+            if(repl%2==step/replExParams.exchangeInterval%2){
+              if(repl-1>=0) exchange_state(ms,repl-1,state_global);
+            }else{
+              if(repl+1<nrepl) exchange_state(ms,repl+1,state_global);
+            }
+          }
+
+          if (!DOMAINDECOMP(cr)) {
+            copy_state_serial(state_global, state);
+          }
+          if(PAR(cr)){
+            if (DOMAINDECOMP(cr)) {
+              dd_partition_system(fplog,mdlog,step,cr,TRUE,1,
+                                  state_global,*top_global,ir,
+                                  imdSession, pull_work,
+                                  state,&f,mdAtoms,&top,fr,vsite,constr,
+                                  nrnb,wcycle,FALSE);
+              int nat_home = dd_numHomeAtoms(*cr->dd);
+              plumed_cmd(plumedmain,"setAtomsNlocal",&nat_home);
+              plumed_cmd(plumedmain,"setAtomsGatindex",cr->dd->globalAtomIndices.data());
+            }
+          }
+          bNS=true;
+        }
+        /* END PLUMED HREX */
 
         checkpointHandler->decideIfCheckpointingThisStep(bNS, bFirstStep, bLastStep);
 
@@ -942,11 +1104,49 @@ void gmx::LegacySimulator::do_md()
              * This is parallellized as well, and does communication too.
              * Check comments in sim_util.c
              */
+
+             /* PLUMED */
+            plumedNeedsEnergy=0;
+            if(plumedswitch){
+              int pversion=0;
+              plumed_cmd(plumedmain,"getApiVersion",&pversion);
+              long int lstep=step; plumed_cmd(plumedmain,"setStepLong",&lstep);
+              plumed_cmd(plumedmain,"setPositions",&state->x[0][0]);
+              plumed_cmd(plumedmain,"setMasses",&mdatoms->massT[0]);
+              plumed_cmd(plumedmain,"setCharges",&mdatoms->chargeA[0]);
+              plumed_cmd(plumedmain,"setBox",&state->box[0][0]);
+              plumed_cmd(plumedmain,"prepareCalc",nullptr);
+              plumed_cmd(plumedmain,"setStopFlag",&plumedWantsToStop);
+              int checkp=0; if(checkpointHandler->isCheckpointingStep()) checkp=1;
+              if(pversion>3) plumed_cmd(plumedmain,"doCheckPoint",&checkp);
+              plumed_cmd(plumedmain,"setForces",&f.view().force()[0][0]);
+              plumed_cmd(plumedmain,"isEnergyNeeded",&plumedNeedsEnergy);
+              if(plumedNeedsEnergy) force_flags |= GMX_FORCE_ENERGY | GMX_FORCE_VIRIAL;
+              clear_mat(plumed_vir);
+              plumed_cmd(plumedmain,"setVirial",&plumed_vir[0][0]);
+            }
+            /* END PLUMED */
             do_force(fplog, cr, ms, ir, awh.get(), enforcedRotation, imdSession, pull_work, step,
                      nrnb, wcycle, &top, state->box, state->x.arrayRefWithPadding(), &state->hist,
                      &f.view(), force_vir, mdatoms, enerd, state->lambda, fr, runScheduleWork,
                      vsite, mu_tot, t, ed ? ed->getLegacyED() : nullptr,
                      (bNS ? GMX_FORCE_NS : 0) | force_flags, ddBalanceRegionHandler);
+            /* PLUMED */
+            if(plumedswitch){
+              if(plumedNeedsEnergy){
+                msmul(force_vir,2.0,plumed_vir);
+                plumed_cmd(plumedmain,"setEnergy",&enerd->term[F_EPOT]);
+                plumed_cmd(plumedmain,"performCalc",nullptr);
+                msmul(plumed_vir,0.5,force_vir);
+              } else {
+                msmul(plumed_vir,0.5,plumed_vir);
+                m_add(force_vir,plumed_vir,force_vir);
+              }
+              if(bDoReplEx) plumed_cmd(plumedmain,"GREX savePositions",nullptr);
+              if(plumedWantsToStop) ir->nsteps=step_rel+1;
+              if(bHREX) plumed_cmd(plumedmain,"GREX cacheLocalUNow",&enerd->term[F_EPOT]);
+            }
+            /* END PLUMED */
         }
 
         // VV integrators do not need the following velocity half step
@@ -1110,7 +1310,7 @@ void gmx::LegacySimulator::do_md()
                do update the velocities and the tau_t. */
 
             lamnew = ExpandedEnsembleDynamics(fplog, ir, enerd, state, &MassQ, state->fep_state,
-                                              state->dfhist, step, state->v.rvec_array(), mdatoms);
+                                              state->dfhist, step, state->v.rvec_array(), mdatoms, &realFepState);
             /* history is maintained in state->dfhist, but state_global is what is sent to trajectory and log output */
             if (MASTER(cr))
             {
@@ -1359,7 +1559,7 @@ void gmx::LegacySimulator::do_md()
             /* are the small terms in the shake_vir here due
              * to numerical errors, or are they important
              * physically? I'm thinking they are just errors, but not completely sure.
-             * For now, will call without actually constraining, constr=NULL*/
+             * For now, will call without actually constraining, constr=nullptr*/
             upd.finish_update(*ir, mdatoms, state, wcycle, false);
         }
         if (EI_VV(ir->eI))
@@ -1590,6 +1790,10 @@ void gmx::LegacySimulator::do_md()
             /* Have to do this part _after_ outputting the logfile and the edr file */
             /* Gets written into the state at the beginning of next loop*/
             state->fep_state = lamnew;
+            if(plumedswitch)
+            {
+                realFepState = state->fep_state;
+            }
         }
         else if (ir->bDoAwh && awh->needForeignEnergyDifferences(step))
         {

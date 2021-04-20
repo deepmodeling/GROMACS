@@ -33,6 +33,13 @@
  * To help us fund GROMACS development, we humbly ask that you cite
  * the research papers on the package. Check out http://www.gromacs.org.
  */
+
+/* PLUMED */
+#include "../../../Plumed.h"
+extern int    plumedswitch;
+extern plumed plumedmain;
+/* END PLUMED */
+
 #include "gmxpre.h"
 
 #include "expanded.h"
@@ -870,6 +877,9 @@ static int ChooseNewLambda(int               nlim,
     starting_fep_state = fep_state;
     lamnew             = fep_state; /* so that there is a default setting -- stays the same */
 
+    // Don't equilibrate weights when using Plumed
+    if (!plumedswitch)
+    {
     if (!EWL(expand->elamstats)) /* ignore equilibrating the weights if using WL */
     {
         if ((expand->lmc_forced_nstart > 0) && (dfhist->n_at_lam[nlim - 1] <= expand->lmc_forced_nstart))
@@ -893,6 +903,7 @@ static int ChooseNewLambda(int               nlim,
             }
             return lamnew;
         }
+    }
     }
 
     snew(propose, nlim);
@@ -1180,7 +1191,8 @@ void PrintFreeEnergyInfoToFile(FILE*               outfile,
     if (step % frequency == 0)
     {
         fprintf(outfile, "             MC-lambda information\n");
-        if (EWL(expand->elamstats) && (!(dfhist->bEquil)))
+        // Ignore Wang-Landau when using plumed
+        if (EWL(expand->elamstats) && (!(dfhist->bEquil)) && !plumedswitch)
         {
             fprintf(outfile, "  Wang-Landau incrementor is: %11.5g\n", dfhist->wl_delta);
         }
@@ -1232,7 +1244,8 @@ void PrintFreeEnergyInfoToFile(FILE*               outfile,
                     fprintf(outfile, "%9.3f", simtemp->temperatures[ifep]);
                 }
             }
-            if (EWL(expand->elamstats)
+            // No Wang-Landau when using Plumed
+            if (EWL(expand->elamstats) && (!plumedswitch)
                 && (!(dfhist->bEquil))) /* if performing WL and still haven't equilibrated */
             {
                 if (expand->elamstats == elamstatsWL)
@@ -1344,7 +1357,8 @@ int ExpandedEnsembleDynamics(FILE*                 log,
                              df_history_t*         dfhist,
                              int64_t               step,
                              rvec*                 v,
-                             const t_mdatoms*      mdatoms)
+                             const t_mdatoms*      mdatoms,
+                             real*                 realFepState)
 /* Note that the state variable is only needed for simulated tempering, not
    Hamiltonian expanded ensemble.  May be able to remove it after integrator refactoring. */
 {
@@ -1449,6 +1463,30 @@ int ExpandedEnsembleDynamics(FILE*                 log,
         weighted_lamee[i] -= maxweighted;
     }
 
+    if (plumedswitch)
+    {
+        // Update weights at all lambda states with current values from Plumed.
+        // For acceptance criterion, expanded ensemble is expecting the weight at
+        // lambda i=0 to be zero.
+        real zeroBias = 0;
+        for (i = 0; i < nlim; i++)
+        {
+            *realFepState = i;
+            real bias = 0;
+            plumed_cmd(plumedmain, "prepareCalc", nullptr);
+            plumed_cmd(plumedmain, "performCalcNoUpdate", nullptr);
+            plumed_cmd(plumedmain, "getBias", &bias);
+            bias /= expand->mc_temp * BOLTZ;
+            if (i == 0)
+            {
+                zeroBias = bias;
+            }
+            dfhist->sum_weights[i] = -bias + zeroBias;
+        }
+        *realFepState = fep_state;
+    }
+    else // Don't update weights using different method when Plumed is active
+    {
     /* update weights - we decide whether or not to actually do this inside */
 
     bDoneEquilibrating =
@@ -1461,7 +1499,9 @@ int ExpandedEnsembleDynamics(FILE*                 log,
                     step, elmceq_names[expand->elmceq]);
         }
     }
+    }
 
+    // Accept / reject is handled by GROMACS (with Plumed weights).
     lamnew = ChooseNewLambda(nlim, expand, dfhist, fep_state, weighted_lamee, p_k,
                              ir->expandedvals->lmc_seed, step);
     /* if using simulated tempering, we need to adjust the temperatures */

@@ -157,6 +157,39 @@ int LegacyMdrunOptions::updateFromCommandLine(int argc, char** argv, ArrayRef<co
     domdecOptions.numCells[YY] = roundToInt(realddxyz[YY]);
     domdecOptions.numCells[ZZ] = roundToInt(realddxyz[ZZ]);
 
+    /* PLUMED */
+    plumedswitch=0;
+    if (opt2bSet("-plumed", static_cast<int>(filenames.size()), filenames.data())) plumedswitch=1;
+    if(plumedswitch){
+      int real_precision=sizeof(real);
+      real energyUnits=1.0;
+      real lengthUnits=1.0;
+      real timeUnits=1.0;
+  
+      if(!plumed_installed()){
+        gmx_fatal(FARGS,"Plumed is not available. Check your PLUMED_KERNEL variable.");
+      }
+      plumedmain=plumed_create();
+      plumed_cmd(plumedmain,"setRealPrecision",&real_precision);
+      // this is not necessary for gromacs units:
+      plumed_cmd(plumedmain,"setMDEnergyUnits",&energyUnits);
+      plumed_cmd(plumedmain,"setMDLengthUnits",&lengthUnits);
+      plumed_cmd(plumedmain,"setMDTimeUnits",&timeUnits);
+      //
+      plumed_cmd(plumedmain,"setPlumedDat",ftp2fn(efDAT,static_cast<int>(filenames.size()), filenames.data()));
+      plumedswitch=1;
+    }
+    /* PLUMED HREX*/
+    if(getenv("PLUMED_HREX")) plumed_hrex=1;
+    if(plumed_hrex){
+      if(!plumedswitch) gmx_fatal(FARGS,"-hrex (or PLUMED_HREX) requires -plumed");
+      if(replExParams.exchangeInterval==0) gmx_fatal(FARGS,"-hrex (or PLUMED_HREX) replica exchange");
+      if(replExParams.numExchanges!=0) gmx_fatal(FARGS,"-hrex (or PLUMED_HREX) not compatible with -nex");
+    }
+    /* END PLUMED HREX */
+
+    /* END PLUMED */
+
     return 1;
 }
 

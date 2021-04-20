@@ -172,6 +172,16 @@
 #include "replicaexchange.h"
 #include "simulatorbuilder.h"
 
+/* PLUMED */
+#include "../../../Plumed.h"
+int    plumedswitch;
+plumed plumedmain; 
+/* END PLUMED */
+
+/* PLUMED HREX */
+int plumed_hrex;
+/* END PLUMED HREX */
+
 namespace gmx
 {
 
@@ -908,7 +918,7 @@ int Mdrunner::mdrunner()
 
     const bool useModularSimulator =
             checkUseModularSimulator(false, inputrec.get(), doRerun, mtop, ms, replExParams,
-                                     nullptr, doEssentialDynamics, membedHolder.doMembed());
+                                     nullptr, doEssentialDynamics, membedHolder.doMembed() && (plumedswitch==0) /* PLUMED */);
 
     // Build restraints.
     // TODO: hide restraint implementation details from Mdrunner.
@@ -1739,6 +1749,19 @@ int Mdrunner::mdrunner()
         simulatorBuilder.add(BoxDeformationHandle(deform.get()));
         simulatorBuilder.add(std::move(modularSimulatorCheckpointData));
 
+        /* PLUMED */
+        if(plumedswitch){
+          if(useModularSimulator) gmx_fatal(FARGS, "PLUMED is not yet compatible with GROMACS new modular simulator");
+          /* detect plumed API version */
+          int pversion=0;
+          plumed_cmd(plumedmain,"getApiVersion",&pversion);
+          if(pversion>5) {
+             int nth = gmx_omp_nthreads_get(emntDefault);
+             if(pversion>5) plumed_cmd(plumedmain,"setNumOMPthreads",&nth);
+          }
+        }
+        /* END PLUMED */
+
         // build and run simulator object based on user-input
         auto simulator = simulatorBuilder.build(useModularSimulator);
         simulator->run();
@@ -1828,6 +1851,12 @@ int Mdrunner::mdrunner()
     /* Does what it says */
     print_date_and_time(fplog, cr->nodeid, "Finished mdrun", gmx_gettime());
     walltime_accounting_destroy(walltime_accounting);
+
+    /* PLUMED */
+    if(plumedswitch){
+      plumed_finalize(plumedmain);
+    }
+    /* END PLUMED */
 
     // Ensure log file content is written
     if (logFileHandle)

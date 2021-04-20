@@ -57,7 +57,18 @@
 
 #include "replicaexchange.h"
 
+/* PLUMED */
+#include "../../../Plumed.h"
+extern int    plumedswitch;
+extern plumed plumedmain; 
+/* END PLUMED */
+
+/* PLUMED HREX */
+extern int plumed_hrex;
+/* END PLUMED HREX */
+
 namespace gmx
+
 {
 
 /*! \libinternal
@@ -123,6 +134,7 @@ public:
                                           { efMTX, "-mtx", "nm", ffOPTWR },
                                           { efRND, "-multidir", nullptr, ffOPTRDMULT },
                                           { efXVG, "-awh", "awhinit", ffOPTRD },
+                                          { efDAT, "-plumed", "plumed", ffOPTRD },  /* PLUMED */
                                           { efDAT, "-membed", "membed", ffOPTRD },
                                           { efTOP, "-mp", "membed", ffOPTRD },
                                           { efNDX, "-mn", "membed", ffOPTRD },
@@ -162,7 +174,7 @@ public:
 
     ImdOptions& imdOptions = mdrunOptions.imdOptions;
 
-    t_pargs pa[48] = {
+        t_pargs           pa[49] = {
 
         { "-dd", FALSE, etRVEC, { &realddxyz }, "Domain decomposition grid, 0 is optimize" },
         { "-ddorder", FALSE, etENUM, { ddrank_opt_choices }, "DD rank order" },
@@ -333,6 +345,8 @@ public:
           etINT,
           { &replExParams.randomSeed },
           "Seed for replica exchange, -1 is generate a seed" },
+        { "-hrex",  FALSE, etBOOL, {&plumed_hrex}, /* PLUMED HREX */
+              "Enable hamiltonian replica exchange" },
         { "-imdport", FALSE, etINT, { &imdOptions.port }, "HIDDENIMD listening port" },
         { "-imdwait",
           FALSE,

@@ -135,6 +135,12 @@ using gmx::RVec;
 using gmx::SimulationWorkload;
 using gmx::StepWorkload;
 
+/* PLUMED */
+#include "../../../Plumed.h"
+extern int    plumedswitch;
+extern plumed plumedmain;
+/* END PLUMED */
+
 // TODO: this environment variable allows us to verify before release
 // that on less common architectures the total cost of polling is not larger than
 // a blocking wait (so polling does not introduce overhead when the static
@@ -1768,6 +1774,14 @@ void do_force(FILE*                               fplog,
                                      enerd, box, lambda.data(), as_rvec_array(dipoleData.muStateAB),
                                      stepWork, ddBalanceRegionHandler);
     }
+
+    /* PLUMED */
+    if(plumedswitch){
+      int plumedNeedsEnergy;
+      plumed_cmd(plumedmain,"isEnergyNeeded",&plumedNeedsEnergy);
+      if(!plumedNeedsEnergy) plumed_cmd(plumedmain,"performCalc",nullptr);
+    }
+    /* END PLUMED */ 
 
     wallcycle_stop(wcycle, ewcFORCE);
 
