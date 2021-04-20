@@ -716,6 +716,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
 
         const int  numColumns      = grid.numColumns();
         const int* atomIndices     = gridSet.atomIndices().data();
+        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
         const int  atomIndicesSize = gridSet.atomIndices().size();
         const int* cxy_na          = grid.cxy_na().data();
         const int* cxy_ind         = grid.cxy_ind().data();
@@ -735,7 +736,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
 
             copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
                                GpuApiCallBehavior::Async, nullptr);
-            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndices, 0, atomIndicesSize, deviceStream,
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, deviceStream,
                                GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)
