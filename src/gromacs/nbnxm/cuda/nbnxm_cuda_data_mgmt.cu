@@ -436,6 +436,8 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->xq);
             freeDeviceBuffer(&d_atdat->atom_types);
             freeDeviceBuffer(&d_atdat->lj_comb);
+
+            printf("free starts.\n");
             if (bFEP)
             {
                 freeDeviceBuffer(&d_atdat->qA);
@@ -445,6 +447,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                 freeDeviceBuffer(&d_atdat->atom_typesB);
                 freeDeviceBuffer(&d_atdat->lj_combB);
             }
+            printf("free ends.\n");
         }
 
         allocateDeviceBuffer(&d_atdat->f, nalloc, deviceContext);
@@ -504,6 +507,8 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                            GpuApiCallBehavior::Async, nullptr);
     }
 
+
+    printf("start fep copys.\n");
     if (bFEP)
     {
         static_assert(sizeof(d_atdat->qA[0]) == sizeof(float),
@@ -516,6 +521,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         copyToDeviceBuffer(&d_atdat->qB,
                            reinterpret_cast<const float*>(nbat->params().qB.data()), 0,
                            natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+        printf("qAB OK!\n");
         if (useLjCombRule(nb->nbparam->vdwtype))
         {
             static_assert(sizeof(d_atdat->lj_combA[0]) == sizeof(float2),
@@ -528,6 +534,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
             copyToDeviceBuffer(&d_atdat->lj_combB,
                            reinterpret_cast<const float2*>(nbat->params().lj_combB.data()), 0,
                            natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+            printf("ljAB OK!\n");
         }
         else
         {
@@ -539,8 +546,11 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                       "Sizes of host- and device-side atom types B should be the same.");
             copyToDeviceBuffer(&d_atdat->atom_typesB, nbat->params().typeB.data(), 0, natoms, localStream,
                            GpuApiCallBehavior::Async, nullptr);
+
+            printf("typeAB OK!\n");
         }
     }
+    printf("end fep copys.\n");
 
     if (bDoTime)
     {
@@ -596,6 +606,7 @@ void gpu_free(NbnxmGpu* nb)
     freeDeviceBuffer(&atdat->atom_types);
     freeDeviceBuffer(&atdat->lj_comb);
 
+    printf("free agian starts.\n");
     if (atdat->qA != NULL){
         freeDeviceBuffer(&atdat->qA);
         freeDeviceBuffer(&atdat->atom_typesA);
@@ -604,6 +615,7 @@ void gpu_free(NbnxmGpu* nb)
         freeDeviceBuffer(&atdat->atom_typesB);
         freeDeviceBuffer(&atdat->lj_combB);
     }
+    printf("free agian ends.\n");
 
     /* Free plist */
     auto* plist = nb->plist[InteractionLocality::Local];
