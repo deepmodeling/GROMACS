@@ -696,6 +696,50 @@ DeviceBuffer<gmx::RVec> gpu_get_fshift(NbnxmGpu* nb)
     return reinterpret_cast<DeviceBuffer<gmx::RVec>>(nb->atdat->fshift);
 }
 
+void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gridSet, NbnxmGpu* gpu_nbv)
+{
+    const DeviceStream& deviceStream = *gpu_nbv->deviceStreams[InteractionLocality::Local];
+    bool bDoTime = gpu_nbv->bDoTime;
+
+    gridSet.setAtomIndicesInverse();
+
+    for (unsigned int g = 0; g < gridSet.grids().size(); g++)
+    {
+
+        const Nbnxm::Grid& grid = gridSet.grids()[g];
+
+        const int  numColumns      = grid.numColumns();
+        const int* atomIndices     = gridSet.atomIndices().data();
+        const int  atomIndicesSize = gridSet.atomIndices().size();
+        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
+
+        gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+        gpu_nbv->atomIndicesSize_alloc = 0;
+        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
+                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+        
+        if (atomIndicesSize > 0)
+        {
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
+            }
+
+            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
+                               GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, deviceStream,
+                               GpuApiCallBehavior::Async, nullptr);
+
+            if (bDoTime)
+            {
+                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.closeTimingRegion(deviceStream);
+            }
+        }
+    }
+}
+
 /* Initialization for X buffer operations on GPU. */
 /* TODO  Remove explicit pinning from host arrays from here and manage in a more natural way*/
 void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv)
@@ -722,9 +766,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
         const int* cxy_ind         = grid.cxy_ind().data();
 
         reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
-        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
+                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);;
 
         if (atomIndicesSize > 0)
         {
@@ -736,9 +778,6 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
 
             copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
                                GpuApiCallBehavior::Async, nullptr);
-            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
-
             if (bDoTime)
             {
                 gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.closeTimingRegion(deviceStream);
@@ -789,47 +828,4 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
     return;
 }
 
-void nbnxn_gpu_init_atomIndicesInv(Nbnxm::GridSet gridSet, NbnxmGpu* gpu_nbv)
-{
-    const DeviceStream& deviceStream = *gpu_nbv->deviceStreams[InteractionLocality::Local];
-    bool bDoTime = gpu_nbv->bDoTime;
-
-    gridSet.setAtomIndicesInverse();
-
-    for (unsigned int g = 0; g < gridSet.grids().size(); g++)
-    {
-
-        const Nbnxm::Grid& grid = gridSet.grids()[g];
-
-        const int  numColumns      = grid.numColumns();
-        const int* atomIndices     = gridSet.atomIndices().data();
-        const int  atomIndicesSize = gridSet.atomIndices().size();
-        const int* atomIndicesInv  = gridSet.atomIndicesInv().data();
-
-        gpu_nbv->atomIndicesSize_alloc = 0;
-        reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
-        gpu_nbv->atomIndicesSize_alloc = 0;
-        reallocateDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
-        
-        if (atomIndicesSize > 0)
-        {
-            if (bDoTime)
-            {
-                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.openTimingRegion(deviceStream);
-            }
-
-            copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
-            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndicesInv, 0, atomIndicesSize, deviceStream,
-                               GpuApiCallBehavior::Async, nullptr);
-
-            if (bDoTime)
-            {
-                gpu_nbv->timers->xf[AtomLocality::Local].nb_h2d.closeTimingRegion(deviceStream);
-            }
-        }
-    }
-}
 } // namespace Nbnxm
