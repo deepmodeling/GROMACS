@@ -331,10 +331,11 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    endif
         fci_buf = make_float3(0.0f);
 
-
+        printf("nj0 = %d, nj1 = %d.\n", nj0, nj1);
         for (int j = nj0; j < nj1; j++)
         {
             const int aj = gm_atomIndexInv[jjnr[j]];
+            printf("j = %d, aj = %d", j, aj);
             F_invr    = 0.0f;
             FscalC[0] = FscalC[1] = FscalV[0] = FscalV[1] = 0;
 #    ifdef CALC_ENERGIES
