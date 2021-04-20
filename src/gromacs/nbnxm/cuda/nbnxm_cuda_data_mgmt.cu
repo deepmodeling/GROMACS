@@ -735,6 +735,8 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
 
             copyToDeviceBuffer(&gpu_nbv->atomIndices, atomIndices, 0, atomIndicesSize, deviceStream,
                                GpuApiCallBehavior::Async, nullptr);
+            copyToDeviceBuffer(&gpu_nbv->atomIndicesInv, atomIndices, 0, atomIndicesSize, deviceStream,
+                               GpuApiCallBehavior::Async, nullptr);
 
             if (bDoTime)
             {
