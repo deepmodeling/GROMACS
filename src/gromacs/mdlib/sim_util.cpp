@@ -1393,6 +1393,8 @@ void do_force(FILE*                               fplog,
             nbv->atomdata_init_copy_x_to_nbat_x_gpu();
         }
 
+        nbv->atomdata_init_atomIndicesInv();
+
         if (simulationWork.useGpuBufferOps)
         {
             setupGpuForceReductions(runScheduleWork, cr, fr);

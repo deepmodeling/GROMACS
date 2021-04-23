@@ -352,7 +352,10 @@ void gpu_init_feppairlist(NbnxmGpu* nb, const t_nblist* h_feplist, const Interac
     const DeviceStream& deviceStream = *nb->deviceStreams[iloc];
     gpu_feplist* d_feplist = nb->feplist[iloc];
 
-    d_feplist->nri = h_feplist->nri;
+    if (h_feplist->nri < 0)
+    {
+        d_feplist->nri = h_feplist->nri;
+    }
 
     gpu_timers_t::Interaction& iTimers = nb->timers->interaction[iloc];
 
