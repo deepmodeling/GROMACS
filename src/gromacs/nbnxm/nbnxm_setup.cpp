@@ -455,6 +455,7 @@ std::unique_ptr<nonbonded_verlet_t> init_nb_verlet(const gmx::MDLogger& mdlog,
 
         cuda_copy_fepconst(gpu_nbv, pairlistParams.haveFep,
                            fr->ic->softCoreParameters->alphaCoulomb, fr->ic->softCoreParameters->alphaVdw,
+                           fr->ic->softCoreParameters->lambdaPower,
                            fr->ic->softCoreParameters->sigma6WithInvalidSigma, fr->ic->softCoreParameters->sigma6Minimum);
         cuda_copy_feplambda(gpu_nbv, lambda_q, lambda_v);
 

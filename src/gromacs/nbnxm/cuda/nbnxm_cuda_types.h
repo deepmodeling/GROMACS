@@ -95,6 +95,10 @@ struct nb_staging_t
     float* e_lj = nullptr;
     //! electrostatic energy
     float* e_el = nullptr;
+    //! LJ energy
+    float* dvdl_lj = nullptr;
+    //! electrostatic energy
+    float* dvdl_el = nullptr;
     //! shift forces
     float3* fshift = nullptr;
 };
@@ -124,6 +128,12 @@ struct cu_atomdata
     DeviceBuffer<float> e_lj;
     //! Electrostatics energy input, size 1
     DeviceBuffer<float> e_el;
+
+    //! DVDL LJ energy output, size 1
+    DeviceBuffer<float> dvdl_jl;
+    
+    //! Electrostatics energy input, size 1
+    DeviceBuffer<float> dvdl_el;
 
     //! shift forces
     DeviceBuffer<float3> fshift;

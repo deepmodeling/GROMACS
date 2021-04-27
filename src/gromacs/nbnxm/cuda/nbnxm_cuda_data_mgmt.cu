@@ -106,6 +106,8 @@ static void init_atomdata_first(cu_atomdata_t* ad, int ntypes, const DeviceConte
     allocateDeviceBuffer(&ad->fshift, SHIFTS, deviceContext);
     allocateDeviceBuffer(&ad->e_lj, 1, deviceContext);
     allocateDeviceBuffer(&ad->e_el, 1, deviceContext);
+    allocateDeviceBuffer(&ad->dvdl_lj, 1, deviceContext);
+    allocateDeviceBuffer(&ad->dvdl_el, 1, deviceContext);
 
     /* initialize to nullptr poiters to data that is not allocated here and will
        need reallocation in nbnxn_cuda_init_atomdata */
@@ -243,12 +245,14 @@ void cuda_copy_fepconst(NbnxmGpu*               nb,
                         const bool            bFEP,
                         const float          alpha_coul,
                         const float           alpha_vdw,
+                        const int             lam_power,
                         const float       sc_sigma6_def,
                         const float       sc_sigma6_min)
 {
     nb->nbparam->bFEP       = bFEP;
     nb->nbparam->alpha_coul = alpha_coul;
     nb->nbparam->alpha_vdw  = alpha_vdw;
+    nb->nbparam->lam_power  = lam_power;
     nb->nbparam->sc_sigma6  = sc_sigma6_def;
     nb->nbparam->sc_sigma6_min = sc_sigma6_min;
 }
@@ -290,6 +294,8 @@ NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
     /* init nbst */
     pmalloc((void**)&nb->nbst.e_lj, sizeof(*nb->nbst.e_lj));
     pmalloc((void**)&nb->nbst.e_el, sizeof(*nb->nbst.e_el));
+    pmalloc((void**)&nb->nbst.dvdl_lj, sizeof(*nb->nbst.dvdl_lj));
+    pmalloc((void**)&nb->nbst.dvdl_el, sizeof(*nb->nbst.dvdl_el));
     pmalloc((void**)&nb->nbst.fshift, SHIFTS * sizeof(*nb->nbst.fshift));
 
     init_plist(nb->plist[InteractionLocality::Local]);
@@ -390,6 +396,8 @@ static void nbnxn_cuda_clear_e_fshift(NbnxmGpu* nb)
     clearDeviceBufferAsync(&adat->fshift, 0, SHIFTS, localStream);
     clearDeviceBufferAsync(&adat->e_lj, 0, 1, localStream);
     clearDeviceBufferAsync(&adat->e_el, 0, 1, localStream);
+    clearDeviceBufferAsync(&adat->dvdl_lj, 0, 1, localStream);
+    clearDeviceBufferAsync(&adat->dvdl_el, 0, 1, localStream);
 }
 
 void gpu_clear_outputs(NbnxmGpu* nb, bool computeVirial)
@@ -592,6 +600,8 @@ void gpu_free(NbnxmGpu* nb)
 
     freeDeviceBuffer(&atdat->e_lj);
     freeDeviceBuffer(&atdat->e_el);
+    freeDeviceBuffer(&atdat->dvdl_lj);
+    freeDeviceBuffer(&atdat->dvdl_el);
 
     freeDeviceBuffer(&atdat->f);
     freeDeviceBuffer(&atdat->xq);
@@ -630,6 +640,12 @@ void gpu_free(NbnxmGpu* nb)
 
     pfree(nb->nbst.e_el);
     nb->nbst.e_el = nullptr;
+
+    pfree(nb->nbst.dvdl_lj);
+    nb->nbst.dvdl_lj = nullptr;
+
+    pfree(nb->nbst.dvdl_el);
+    nb->nbst.dvdl_el = nullptr;
 
     pfree(nb->nbst.fshift);
     nb->nbst.fshift = nullptr;

@@ -955,6 +955,16 @@ void gpu_launch_cpyback(NbnxmGpu*                nb,
                           "same.");
             copyFromDeviceBuffer(nb->nbst.e_el, &adat->e_el, 0, 1, deviceStream,
                                  GpuApiCallBehavior::Async, nullptr);
+            
+            static_assert(sizeof(nb->nbst.dvdl_lj[0]) == sizeof(adat->dvdl_lj[0]),
+                          "Sizes of host- and device-side LJ energy terms should be the same.");
+            copyFromDeviceBuffer(nb->nbst.dvdl_lj, &adat->dvdl_lj, 0, 1, deviceStream,
+                                 GpuApiCallBehavior::Async, nullptr);
+            static_assert(sizeof(nb->nbst.dvdl_el[0]) == sizeof(adat->dvdl_el[0]),
+                          "Sizes of host- and device-side electrostatic energy terms should be the "
+                          "same.");
+            copyFromDeviceBuffer(nb->nbst.dvdl_el, &adat->dvdl_el, 0, 1, deviceStream,
+                                 GpuApiCallBehavior::Async, nullptr);
         }
     }
 
