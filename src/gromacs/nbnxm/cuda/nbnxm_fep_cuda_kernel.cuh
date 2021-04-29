@@ -176,10 +176,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
     const float lambda_v       = nbparam.lambda_v;
     const float _lambda_v      = 1 - lambda_v;
 
-    const float lfac_coul[2] = { lambda_q, _lambda_q };
-    const float lfac_vdw[2]  = { lambda_v, _lambda_v };
-    const float LFC[2]       = { _lambda_q, lambda_q };
-    const float LFV[2]       = { _lambda_v, lambda_v };
+    float lfac_coul[2] = { lambda_q, _lambda_q };
+    float lfac_vdw[2]  = { lambda_v, _lambda_v };
+    float LFC[2]       = { _lambda_q, lambda_q };
+    float LFV[2]       = { _lambda_v, lambda_v };
 
 #    ifndef LJ_COMB
     const int* atom_typesA = atdat.atom_typesA;
@@ -247,9 +247,10 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #        else
     float c_rf = nbparam.c_rf;
 #        endif /* EL_EWALD_ANY */
+
     float*        e_lj        = atdat.e_lj;
     float*        e_el        = atdat.e_el;
-    float*        dvdl_lj   = atdat.dvdl_lj;
+    float*        dvdl_lj     = atdat.dvdl_lj;
     float*        dvdl_el     = atdat.dvdl_el;
 
     const int     lam_power   = nbparam.lam_power;
@@ -263,9 +264,23 @@ __launch_bounds__(THREADS_PER_BLOCK)
 
     for (int i = 0; i < 2; i++)
     {
-        lfac_coul[i]  = (lam_power == 2 ? (1 - LFC[i]) * (1 - LFC[i]) : (1 - LFC[i]));
+        if (lam_power == 2)
+        {
+            lfac_coul[i] = (1 - LFC[i]) * (1 - LFC[i]);
+        }
+        else
+        {
+            lfac_coul[i] = 1 - LFC[i];
+        }
         dlfac_coul[i] = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFC[i]) : 1);
-        lfac_vdw[i]   = (lam_power == 2 ? (1 - LFV[i]) * (1 - LFV[i]) : (1 - LFV[i]));
+        if (lam_power == 2)
+        {
+            lfac_vdw[i] = (1 - LFV[i]) * (1 - LFV[i]);
+        }
+        else
+        {
+            lfac_vdw[i] = 1 - LFV[i];
+        }
         dlfac_vdw[i]  = DLF[i] * lam_power / sc_r_power * (lam_power == 2 ? (1 - LFV[i]) : 1);
     }
 #    endif     /* CALC_ENERGIES */
@@ -317,9 +332,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    ifdef CALC_ENERGIES
     E_lj         = 0.0f;
     E_el         = 0.0f;
-    DVDL_lj         = 0.0f;
-    DVDL_el         = 0.0f;
-
+    DVDL_lj      = 0.0f;
+    DVDL_el      = 0.0f;
 #    endif /* CALC_ENERGIES */
 
     /* loop over the j clusters = seen by any of the atoms in the current super-cluster;
@@ -787,7 +801,9 @@ __launch_bounds__(THREADS_PER_BLOCK)
                         E_el -= LFC[k] * qq[k] * v_lr;
 #        endif
                         F_invr -= LFC[k] * qq[k] * f_lr;
-                        DVDL_el -= (DLF[i] * qq[i]) * v_lr;
+#        ifdef CALC_ENERGIES
+                        DVDL_el -= (DLF[k] * qq[k]) * v_lr;
+#        endif
                     }
                 }
                 else
@@ -821,7 +837,7 @@ __launch_bounds__(THREADS_PER_BLOCK)
         atomicAdd(e_lj, E_lj);
         atomicAdd(e_el, E_el);
         atomicAdd(dvdl_lj, DVDL_lj);
-        atomicAdd(dvdl_ej, DVDL_el);
+        atomicAdd(dvdl_el, DVDL_el);
 #    endif
     }
 }

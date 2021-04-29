@@ -130,7 +130,7 @@ struct cu_atomdata
     DeviceBuffer<float> e_el;
 
     //! DVDL LJ energy output, size 1
-    DeviceBuffer<float> dvdl_jl;
+    DeviceBuffer<float> dvdl_lj;
     
     //! Electrostatics energy input, size 1
     DeviceBuffer<float> dvdl_el;
