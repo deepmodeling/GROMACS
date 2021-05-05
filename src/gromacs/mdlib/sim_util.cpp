@@ -744,7 +744,8 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
                                         gmx_enerdata_t*     enerd,
                                         const real          lambdaQ,
                                         const StepWorkload& stepWork,
-                                        gmx_wallcycle_t     wcycle)
+                                        gmx_wallcycle_t     wcycle,
+                                        t_lambda*          fepvals)
 {
     bool isPmeGpuDone = false;
     bool isNbGpuDone  = false;
@@ -767,11 +768,24 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
             auto&             forceBuffersNonbonded = forceOutputsNonbonded->forceWithShiftForces();
             GpuTaskCompletion completionType =
                     (isPmeGpuDone) ? GpuTaskCompletion::Wait : GpuTaskCompletion::Check;
-            isNbGpuDone = Nbnxm::gpu_try_finish_task(
-                    nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                    enerd->grpp.ener[egCOULSR].data(), forceBuffersNonbonded.shiftForces(),
-                    completionType, wcycle);
 
+            if (fepvals->sc_alpha != 0)
+            {
+                isNbGpuDone = Nbnxm::gpu_try_finish_task(
+                    nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                    &enerd->dvdl_nonlin[efptVDW], &enerd->dvdl_nonlin[efptCOUL],
+                    forceBuffersNonbonded.shiftForces(), completionType, wcycle);
+            }
+            else
+            {
+                isNbGpuDone = Nbnxm::gpu_try_finish_task(
+                    nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                    &enerd->dvdl_lin[efptVDW], &enerd->dvdl_lin[efptCOUL],
+                    forceBuffersNonbonded.shiftForces(), completionType, wcycle);
+            }
+
+            //TODO: foregin computations
+            
             if (isNbGpuDone)
             {
                 nbv->atomdata_add_nbat_f_to_f(AtomLocality::Local, forceBuffersNonbonded.force());
@@ -1824,9 +1838,20 @@ void do_force(FILE*                               fplog,
         {
             if (simulationWork.useGpuNonbonded)
             {
-                cycles_wait_gpu += Nbnxm::gpu_wait_finish_task(
-                        nbv->gpu_nbv, stepWork, AtomLocality::NonLocal, enerd->grpp.ener[egLJSR].data(),
-                        enerd->grpp.ener[egCOULSR].data(), forceWithShiftForces.shiftForces(), wcycle);
+                if (inputrec->fepvals->sc_alpha != 0)
+                {
+                    cycles_wait_gpu += Nbnxm::gpu_wait_finish_task(
+                        nbv->gpu_nbv, stepWork, AtomLocality::NonLocal, enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                        &enerd->dvdl_nonlin[efptVDW], &enerd->dvdl_nonlin[efptCOUL],
+                        forceWithShiftForces.shiftForces(), wcycle);
+                }
+                else
+                {
+                    cycles_wait_gpu += Nbnxm::gpu_wait_finish_task(
+                        nbv->gpu_nbv, stepWork, AtomLocality::NonLocal, enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                        &enerd->dvdl_lin[efptVDW], &enerd->dvdl_lin[efptCOUL],
+                        forceWithShiftForces.shiftForces(), wcycle);
+                }
             }
             else
             {
@@ -1936,7 +1961,7 @@ void do_force(FILE*                               fplog,
     if (alternateGpuWait)
     {
         alternatePmeNbGpuWaitReduce(fr->nbv.get(), fr->pmedata, forceOutNonbonded,
-                                    forceOutMtsLevel1, enerd, lambda[efptCOUL], stepWork, wcycle);
+                                    forceOutMtsLevel1, enerd, lambda[efptCOUL], stepWork, wcycle, inputrec->fepvals);
     }
 
     if (!alternateGpuWait && useGpuPmeOnThisRank)
@@ -1954,10 +1979,22 @@ void do_force(FILE*                               fplog,
          * of the step time.
          */
         const float gpuWaitApiOverheadMargin = 2e6F; /* cycles */
-        const float waitCycles               = Nbnxm::gpu_wait_finish_task(
-                nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(),
-                enerd->grpp.ener[egCOULSR].data(),
+        float waitCycles;
+        
+        if (inputrec->fepvals->sc_alpha != 0)
+        {
+            waitCycles = Nbnxm::gpu_wait_finish_task(
+                nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                &enerd->dvdl_nonlin[efptVDW], &enerd->dvdl_nonlin[efptCOUL],
                 forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle);
+        }
+        else
+        {
+            waitCycles = Nbnxm::gpu_wait_finish_task(
+                nbv->gpu_nbv, stepWork, AtomLocality::Local, enerd->grpp.ener[egLJSR].data(), enerd->grpp.ener[egCOULSR].data(),
+                &enerd->dvdl_lin[efptVDW], &enerd->dvdl_lin[efptCOUL],
+                forceOutNonbonded->forceWithShiftForces().shiftForces(), wcycle);
+        }
 
         if (ddBalanceRegionHandler.useBalancingRegion())
         {

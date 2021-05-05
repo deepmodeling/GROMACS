@@ -252,6 +252,8 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
                                              const bool                reduceFshift,
                                              real*                     e_lj,
                                              real*                     e_el,
+                                             double*                     dvdl_lj,
+                                             double*                     dvdl_el,
                                              rvec*                     fshift)
 {
     /* add up energies and shift forces (only once at local F wait) */
@@ -261,6 +263,8 @@ static inline void gpu_reduce_staged_outputs(const StagingData&        nbst,
         {
             *e_lj += *nbst.e_lj;
             *e_el += *nbst.e_el;
+            *dvdl_lj += *nbst.dvdl_lj;
+            *dvdl_el += *nbst.dvdl_el;
         }
 
         if (reduceFshift)
@@ -367,6 +371,8 @@ bool gpu_try_finish_task(NbnxmGpu*                nb,
                          const AtomLocality       aloc,
                          real*                    e_lj,
                          real*                    e_el,
+                         double*                    dvdl_lj,
+                         double*                    dvdl_el,
                          gmx::ArrayRef<gmx::RVec> shiftForces,
                          GpuTaskCompletion        completionKind,
                          gmx_wallcycle*           wcycle)
@@ -425,7 +431,7 @@ bool gpu_try_finish_task(NbnxmGpu*                nb,
         if (stepWork.computeEnergy || stepWork.computeVirial)
         {
             gpu_reduce_staged_outputs(nb->nbst, iLocality, stepWork.computeEnergy, stepWork.computeVirial,
-                                      e_lj, e_el, as_rvec_array(shiftForces.data()));
+                                      e_lj, e_el, dvdl_lj, dvdl_el, as_rvec_array(shiftForces.data()));
         }
     }
 
@@ -462,6 +468,8 @@ float gpu_wait_finish_task(NbnxmGpu*                nb,
                            AtomLocality             aloc,
                            real*                    e_lj,
                            real*                    e_el,
+                           double*                    dvdl_lj,
+                           double*                    dvdl_el,
                            gmx::ArrayRef<gmx::RVec> shiftForces,
                            gmx_wallcycle*           wcycle)
 {
@@ -470,7 +478,7 @@ float gpu_wait_finish_task(NbnxmGpu*                nb,
                                 : ewcWAIT_GPU_NB_NL;
 
     wallcycle_start(wcycle, cycleCounter);
-    gpu_try_finish_task(nb, stepWork, aloc, e_lj, e_el, shiftForces, GpuTaskCompletion::Wait, wcycle);
+    gpu_try_finish_task(nb, stepWork, aloc, e_lj, e_el, dvdl_lj, dvdl_el, shiftForces, GpuTaskCompletion::Wait, wcycle);
     float waitTime = wallcycle_stop(wcycle, cycleCounter);
 
     return waitTime;
