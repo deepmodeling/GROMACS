@@ -41,6 +41,7 @@
  * \author David van der Spoel <david.vanderspoel@icm.uu.se>
  * \ingroup module_mdrun
  */
+#include <iostream>
 #include "gmxpre.h"
 
 #include <cinttypes>
@@ -1470,8 +1471,24 @@ void gmx::LegacySimulator::do_md()
         {
             if (bNS && (bFirstStep || DOMAINDECOMP(cr)))
             {
+                // Langevin
+                t_lang lang;
+                lang.flag = false;
+                if (ir->etc == etcLANGEVIN) {
+                    std::cout << "Using Langevin" << std::endl;
+                    lang.flag = true;
+                    lang.c1 = new real[state_global->natoms];
+                    lang.c2 = new real[state_global->natoms];
+                    for (int n = 0; n < state_global->natoms; n++) {
+                        int gt = mdatoms->cTC ? mdatoms->cTC[n] : 0;
+                        lang.c1[n] = std::exp(-ir->delta_t / ir->opts.tau_t[gt]);
+                        lang.c2[n] = std::sqrt(BOLTZ * ir->opts.ref_t[gt] * mdatoms->invmass[n] * (1 - lang.c1[n]*lang.c1[n]));
+                    }
+                    lang.seed = ir->ld_seed;
+                }
+
                 integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
-                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc);
+                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc, lang);
 
                 // Copy data to the GPU after buffers might have being reinitialized
                 stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);
@@ -1485,7 +1502,7 @@ void gmx::LegacySimulator::do_md()
             }
 
             const bool doTemperatureScaling =
-                    (ir->etc != etcNO && do_per_step(step + ir->nsttcouple - 1, ir->nsttcouple));
+                    (ir->etc != etcNO && ir->etc != etcLANGEVIN && do_per_step(step + ir->nsttcouple - 1, ir->nsttcouple));
 
             // This applies Leap-Frog, LINCS and SETTLE in succession
             integrator->integrate(stateGpu->getForcesReadyOnDeviceEvent(

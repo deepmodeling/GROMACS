@@ -1455,6 +1455,7 @@ real NPT_energy(const t_inputrec* ir, const t_state* state, const t_extmass* Mas
     {
         case etcNO: break;
         case etcVRESCALE:
+        case etcLANGEVIN:
         case etcBERENDSEN: energyNPT += energyVrescale(ir, state); break;
         case etcNOSEHOOVER: energyNPT += energyNoseHoover(ir, state, MassQ); break;
         case etcANDERSEN:

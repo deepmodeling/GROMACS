@@ -119,6 +119,7 @@ int tcouple_min_integration_steps(int etc)
         case etcNOSEHOOVER: n = nstmin_harmonic; break;
         case etcANDERSEN:
         case etcANDERSENMASSIVE: n = 1; break;
+        case etcLANGEVIN: n = 0; break;
         default: gmx_incons("Unknown etc value");
     }
 

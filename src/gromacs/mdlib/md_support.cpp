@@ -556,7 +556,7 @@ void set_state_entries(t_state* state, const t_inputrec* ir, bool useModularSimu
         state->flags |= (1 << estNH_VXI);
     }
 
-    if (ir->etc == etcVRESCALE || ir->etc == etcBERENDSEN)
+    if (ir->etc == etcVRESCALE || ir->etc == etcBERENDSEN || ir->etc == etcLANGEVIN)
     {
         state->flags |= (1 << estTHERM_INT);
     }

@@ -130,6 +130,8 @@ void UpdateConstrainCuda::Impl::integrate(GpuEventSynchronizer*             fRea
     lincsCuda_->apply(d_xp_, d_x_, updateVelocities, d_v_, 1.0 / dt, computeVirial, virial);
     settleCuda_->apply(d_xp_, d_x_, updateVelocities, d_v_, 1.0 / dt, computeVirial, virial);
 
+    integrator_->integrate2(d_x_, d_v_, dt);
+
     // scaledVirial -> virial (methods above returns scaled values)
     float scaleFactor = 0.5f / (dt * dt);
     for (int i = 0; i < DIM; i++)
@@ -193,7 +195,8 @@ void UpdateConstrainCuda::Impl::set(DeviceBuffer<float>       d_x,
                                     const DeviceBuffer<float> d_f,
                                     const t_idef&             idef,
                                     const t_mdatoms&          md,
-                                    const int                 numTempScaleValues)
+                                    const int                 numTempScaleValues,
+                                    const t_lang&             lang)
 {
     GMX_ASSERT(d_x != nullptr, "Coordinates device buffer should not be null.");
     GMX_ASSERT(d_v != nullptr, "Velocities device buffer should not be null.");
@@ -209,9 +212,13 @@ void UpdateConstrainCuda::Impl::set(DeviceBuffer<float>       d_x,
 
     reallocateDeviceBuffer(&d_inverseMasses_, numAtoms_, &numInverseMasses_,
                            &numInverseMassesAlloc_, nullptr);
+    reallocateDeviceBuffer(&d_lang_c1_, numAtoms_, &numInverseMasses_,
+                           &numInverseMassesAlloc_, nullptr);
+    reallocateDeviceBuffer(&d_lang_c1_, numAtoms_, &numInverseMasses_,
+                           &numInverseMassesAlloc_, nullptr);
 
     // Integrator should also update something, but it does not even have a method yet
-    integrator_->set(md, numTempScaleValues, md.cTC);
+    integrator_->set(md, numTempScaleValues, md.cTC, lang);
     lincsCuda_->set(idef, md);
     settleCuda_->set(idef, md);
 
@@ -267,9 +274,10 @@ void UpdateConstrainCuda::set(DeviceBuffer<float>       d_x,
                               const DeviceBuffer<float> d_f,
                               const t_idef&             idef,
                               const t_mdatoms&          md,
-                              const int                 numTempScaleValues)
+                              const int                 numTempScaleValues,
+                              const t_lang&             lang)
 {
-    impl_->set(d_x, d_v, d_f, idef, md, numTempScaleValues);
+    impl_->set(d_x, d_v, d_f, idef, md, numTempScaleValues, lang);
 }
 
 void UpdateConstrainCuda::setPbc(const t_pbc* pbc)
