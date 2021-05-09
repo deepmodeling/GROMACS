@@ -480,12 +480,24 @@ __launch_bounds__(THREADS_PER_BLOCK)
 #    if defined CALC_ENERGIES || defined LJ_POT_SWITCH
                             Vvdw[k]   = 0;
 #    endif
+                            if (useSoftCore)
+                            {
+                                if ((c12AB[0] > 0) && (c12AB[1] > 0))
+                                {
+                                    alpha_vdw_eff  = 0;
+                                    alpha_coul_eff = 0;
+                                }
+                                else
+                                {
+                                    alpha_vdw_eff  = alpha_vdw;
+                                    alpha_coul_eff = alpha_coul;
+                                }
+                            }
+
                             if ((qq[k] != 0) || (c6AB[k] != 0) || (c12AB[k] != 0))
                             {
                                 if ((c12AB[0] == 0 || c12AB[1] == 0) && (useSoftCore))
                                 {
-                                    alpha_vdw_eff  = alpha_vdw;
-                                    alpha_coul_eff = alpha_coul;
                                     if (sigma6[k] == 0)
                                         sigma6[k] = sigma6_def;
                                     if (sigma6[k] < sigma6_min)
@@ -626,7 +638,8 @@ __launch_bounds__(THREADS_PER_BLOCK)
                                 FscalC[k] *= rpinvC;
                                 FscalV[k] *= rpinvV;
                             }
-                        }
+                        }// end of for (int k = 0; k < 2; k++)
+
                         for (int k = 0; k < 2; k++)
                         {
 #    ifdef CALC_ENERGIES
