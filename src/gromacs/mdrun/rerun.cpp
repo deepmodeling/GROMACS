@@ -234,10 +234,10 @@ void gmx::LegacySimulator::do_rerun()
     if (ir->efep != efepNO
         && (mdAtoms->mdatoms()->nMassPerturbed > 0 || (constr && constr->havePerturbedConstraints())))
     {
-        gmx_fatal(FARGS,
-                  "Perturbed masses or constraints are not supported by rerun. "
-                  "Either make a .tpr without mass and constraint perturbation, "
-                  "or use GROMACS 2018.4, 2018.5 or later 2018 version.");
+        // gmx_fatal(FARGS,
+        //           "Perturbed masses or constraints are not supported by rerun. "
+        //           "Either make a .tpr without mass and constraint perturbation, "
+        //           "or use GROMACS 2018.4, 2018.5 or later 2018 version.");
     }
     if (ir->bExpanded)
     {
