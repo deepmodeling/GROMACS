@@ -325,17 +325,19 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
 {
     float fc_1 = factor[0] - 1.0;
     float fc_1_pwfactor = fc_1 * pw_factor;
-    for (int i = threadIdx.x; i < natoms; i = i + blockDim.x)
+    idx = blockIdx.x * blockDim.x + threadIdx.x;
+    // for (int i = threadIdx.x; i < natoms; i = i + blockDim.x)
+    if (idx < natoms)
     {
-        if (energrp[i] == 0)
+        if (energrp[idx] == 0)
         {
-            md_frc[i] *= fc_1;
+            md_frc[idx] *= fc_1;
         }
         else
         {
-            md_frc[i] = make_float3(0.0);
+            md_frc[idx] = make_float3(0.0);
         }
-        md_frc[i] += fc_1_pwfactor * pw_frc[i];
+        md_frc[idx] += fc_1_pwfactor * pw_frc[idx];
     }
 }
 
@@ -463,7 +465,7 @@ void gpu_enhance_force(gmx_sits_cuda_t* gpu_sits, int step)
         //     param->factor = simple_param->constant_fc_ball;
         // }
     }
-    sits_enhance_force_by_energrp<<<32, 128>>>(atdat->natoms, atdat->energrp, atdat->d_force_tot_nbat, atdat->d_force_pw_nbat, param->factor, atdat->pw_enh_factor);
+    sits_enhance_force_by_energrp<<<ceil(atdat->natoms / 128), 128>>>(atdat->natoms, atdat->energrp, atdat->d_force_tot_nbat, atdat->d_force_pw_nbat, param->factor, atdat->pw_enh_factor);
 }
 
 } // namespace Sits
