@@ -325,7 +325,7 @@ static __global__ void sits_enhance_force_by_energrp(const int     natoms,
 {
     float fc_1 = factor[0] - 1.0;
     float fc_1_pwfactor = fc_1 * pw_factor;
-    idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
     // for (int i = threadIdx.x; i < natoms; i = i + blockDim.x)
     if (idx < natoms)
     {
