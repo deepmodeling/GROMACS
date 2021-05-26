@@ -2302,7 +2302,7 @@ void get_ir(const char*     mdparin,
         Malloc_Safely((void**)&(sits->beta_k), sizeof(float) * sits->k_numbers);
         //温度相关信息
         float temp_slope = log(temph / templ) / (sits->k_numbers - 1);
-        float temp_log = log(templ)
+        float temp_log = log(templ);
         for (int i = 0; i < sits->k_numbers; i = i + 1)
         {
             sits->beta_k[i] = temp_log + temp_slope * i;
