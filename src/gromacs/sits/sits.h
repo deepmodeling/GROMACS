@@ -73,6 +73,7 @@ public:
     std::string nk_rest_file;   //记录最后一帧nk的文件
     FILE*       norm_traj_file; //记录log_norm变化的文件
     std::string norm_rest_file; //记录最后一帧log_norm的文件
+    FILE*       pk_traj_file; //记录log_norm变化的文件
     FILE*       sits_enerd_out;
 
     //计算时，可以对fc_ball直接修正，+ fb_shift进行调节，

@@ -363,7 +363,7 @@ void sits_calc_factor_classical(const int     k_numbers,
 namespace Sits
 {
 
-void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* normlog)
+void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* normlog, FILE* pklog)
 {
     cu_sits_atdat_t* atdat = gpu_sits->sits_atdat;
     cu_sits_param_t* param = gpu_sits->sits_param;
@@ -430,14 +430,14 @@ void gpu_update_params(gmx_sits_cuda_t* gpu_sits, int step, FILE* nklog, FILE* n
                     }
                     fprintf(normlog, "\n");
                 }
-                // cudaMemcpy(param->log_nk_recorded_cpu, param->nk,
-                //            sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
-                // fwrite(param->log_nk_recorded_cpu, sizeof(float), param->k_numbers,
-                //        param->nk_traj_file);
-                // cudaMemcpy(param->log_norm_recorded_cpu, param->log_norm,
-                //            sizeof(float) * param->k_numbers, cudaMemcpyDeviceToHost);
-                // fwrite(param->log_norm_recorded_cpu, sizeof(float),
-                //        param->k_numbers, param->norm_traj_file);
+
+                if (pklog)
+                {
+                    for (int i = 0; i < param->k_numbers; i++){
+                        fprintf(pklog, "%8.4f ", h_log_pk[i]);
+                    }
+                    fprintf(pklog, "\n");
+                }
             }
         }
     }
