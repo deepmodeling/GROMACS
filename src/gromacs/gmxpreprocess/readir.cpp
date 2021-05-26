@@ -2301,11 +2301,12 @@ void get_ir(const char*     mdparin,
         // sits->beta_k = malloc(sizeof(float)*sits->k_numbers);
         Malloc_Safely((void**)&(sits->beta_k), sizeof(float) * sits->k_numbers);
         //温度相关信息
-        float temp_slope = (temph - templ) / (sits->k_numbers - 1);
+        float temp_slope = log(temph / templ) / (sits->k_numbers - 1);
+        float temp_log = log(templ)
         for (int i = 0; i < sits->k_numbers; i = i + 1)
         {
-            sits->beta_k[i] = templ + temp_slope * i;
-            sits->beta_k[i] = 1.0f / (CONSTANT_kB * sits->beta_k[i]);
+            sits->beta_k[i] = temp_log + temp_slope * i;
+            sits->beta_k[i] = 1.0f / (CONSTANT_kB * exp(sits->beta_k[i]));
         }
 
         sits->energy_multiple = get_ereal(&inp, "sits-energy-multiple", 1.0f, wi);
@@ -2322,10 +2323,9 @@ void get_ir(const char*     mdparin,
 
         if (!sits->constant_nk)
         {
-            // nk的轨迹文件
             sits->nk_traj_file = const_cast<char*>(get_estr(&inp, "sits-nk-traj-file", "sits_nk.dat"));
-            // norm的轨迹文件
             sits->norm_traj_file = const_cast<char*>(get_estr(&inp, "sits-norm-traj-file", "sits_norm.dat"));
+            sits->pk_traj_file = const_cast<char*>(get_estr(&inp, "sits-norm-traj-file", "sits_pk.dat"));
         }
 
         char* temps;

@@ -131,6 +131,7 @@ void sits_atomdata_init(
     {
         Open_File_Safely(&(sits_at->nk_traj_file), sitsvals->nk_traj_file, "wb"); //记录nk变化的文件
         Open_File_Safely(&(sits_at->norm_traj_file), sitsvals->norm_traj_file, "wb");      //记录log_norm变化的文件
+        Open_File_Safely(&(sits_at->pk_traj_file), sitsvals->pk_traj_file, "wb");      //记录log_norm变化的文件
         sits_at->record_interval = sitsvals->nstsitsrecord;
         sits_at->update_interval = sitsvals->nstsitsupdate;
         sits_at->niter           = sitsvals->niter;
