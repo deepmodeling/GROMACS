@@ -136,6 +136,7 @@ static void cuda_init_sits_params(gmx_sits_cuda_t*           gpu_sits,
     param->energy_shift    = sits_at->energy_shift;
 
     param->record_count    = 0;
+    param->reset           = 1;
 
     // Derivations and physical quantities see:
     // \ref A selective integrated tempering method
