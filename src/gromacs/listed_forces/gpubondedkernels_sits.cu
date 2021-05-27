@@ -154,21 +154,21 @@ __device__ void bonds_gpu(const int       i,
             
             if (egp_i == egp_j)
             {
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), fij[0]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), -fij[0]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), fij[1]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), -fij[1]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), fij[2]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), -fij[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), fbond * dx[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), -fbond * dx[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), fbond * dx[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), -fbond * dx[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), fbond * dx[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), -fbond * dx[2]);
             }
             else
             {
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), fij[0]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), -fij[0]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), fij[1]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), -fij[1]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), fij[2]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), -fij[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), fbond * dx[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), -fbond * dx[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), fbond * dx[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), -fbond * dx[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), fbond * dx[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), -fbond * dx[2]);
             }
         }
     }
@@ -448,21 +448,21 @@ __device__ void urey_bradley_gpu(const int       i,
 
             if (egp_i == egp_j)
             {
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), fij[0]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), -fij[0]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), fij[1]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), -fij[1]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), fij[2]);
-                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), -fij[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), fbond * r_ik[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].x), -fbond * r_ik[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), fbond * r_ik[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].y), -fbond * r_ik[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), fbond * r_ik[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].z), -fbond * r_ik[2]);
             }
             else
             {
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), fij[0]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), -fij[0]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), fij[1]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), -fij[1]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), fij[2]);
-                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), -fij[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), fbond * r_ik[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].x), -fbond * r_ik[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), fbond * r_ik[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].y), -fbond * r_ik[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), fbond * r_ik[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].z), -fbond * r_ik[2]);
             }
         }
     }
