@@ -236,8 +236,8 @@ __device__ void angles_gpu(const int       i,
         int  egp_i    = sits_atdat.energrp[ai];
         int  egp_j    = sits_atdat.energrp[ak];
 
-        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
-        else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
+        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), va);
+        else atomicAdd(&(sits_atdat.d_enerd[1]), va);
 
         float cos_theta2 = cos_theta * cos_theta;
         if (cos_theta2 < 1.0f)
