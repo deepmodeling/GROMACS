@@ -129,11 +129,11 @@ __device__ void bonds_gpu(const int       i,
             *vtot_loc += vbond;
         }
 
-        // int  egp_i    = sits_atdat.energrp[ai];
-        // int  egp_j    = sits_atdat.energrp[aj];
+        int  egp_i    = sits_atdat.energrp[ai];
+        int  egp_j    = sits_atdat.energrp[aj];
 
-        // if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
-        // else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
+        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
+        else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
 
         if (dr2 != 0.0f)
         {
@@ -150,17 +150,25 @@ __device__ void bonds_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[ki][m], fij);
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fij);
                 }
-
-                // if (egp_i == egp_j)
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[ai][m]), fij);
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[aj][m]), -fij);
-                // }
-                // else
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[ai][m]), fij);
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[aj][m]), -fij);
-                // }
+            }
+            
+            if (egp_i == egp_j)
+            {
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), fij[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), -fij[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), fij[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), -fij[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), fij[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), -fij[2]);
+            }
+            else
+            {
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), fij[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), -fij[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), fij[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), -fij[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), fij[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), -fij[2]);
             }
         }
     }
@@ -225,11 +233,11 @@ __device__ void angles_gpu(const int       i,
             *vtot_loc += va;
         }
 
-        // int  egp_i    = sits_atdat.energrp[ai];
-        // int  egp_j    = sits_atdat.energrp[ak];
+        int  egp_i    = sits_atdat.energrp[ai];
+        int  egp_j    = sits_atdat.energrp[ak];
 
-        // if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
-        // else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
+        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
+        else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
 
         float cos_theta2 = cos_theta * cos_theta;
         if (cos_theta2 < 1.0f)
@@ -264,19 +272,31 @@ __device__ void angles_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], f_j[m]);
                     atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
                 }
+            }
 
-                // if (egp_i == egp_j)
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[ai][m]), f_i[m]);
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[aj][m]), f_j[m]);
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[ak][m]), f_k[m]);
-                // }
-                // else
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[ai][m]), f_i[m]);
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[aj][m]), f_j[m]);
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[ak][m]), f_k[m]);
-                // }
+            if (egp_i == egp_j)
+            {
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), f_i[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), f_j[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].x), f_k[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), f_i[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), f_j[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].y), f_k[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), f_i[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), f_j[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].z), f_k[2]);
+            }
+            else
+            {
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), f_i[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), f_j[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].x), f_k[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), f_i[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), f_j[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].y), f_k[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), f_i[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), f_j[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].z), f_k[2]);
             }
         }
     }
@@ -324,11 +344,11 @@ __device__ void urey_bradley_gpu(const int       i,
             *vtot_loc += va;
         }
 
-        // int  egp_i    = sits_atdat.energrp[ai];
-        // int  egp_j    = sits_atdat.energrp[ak];
+        int  egp_i    = sits_atdat.energrp[ai];
+        int  egp_j    = sits_atdat.energrp[ak];
 
-        // if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), va);
-        // else atomicAdd(&(sits_atdat.d_enerd[1]), va);
+        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), va);
+        else atomicAdd(&(sits_atdat.d_enerd[1]), va);
 
         fvec r_ik;
         int  ki = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[ai], gm_xq[ak], r_ik);
@@ -371,19 +391,31 @@ __device__ void urey_bradley_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], f_j[m]);
                     atomicAdd(&sm_fShiftLoc[t2][m], f_k[m]);
                 }
+            }
 
-                // if (egp_i == egp_j)
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[ai][m]), f_i[m]);
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[aj][m]), f_j[m]);
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[ak][m]), f_k[m]);
-                // }
-                // else
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[ai][m]), f_i[m]);
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[aj][m]), f_j[m]);
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[ak][m]), f_k[m]);
-                // }
+            if (egp_i == egp_j)
+            {
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), f_i[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), f_j[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].x), f_k[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), f_i[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), f_j[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].y), f_k[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), f_i[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), f_j[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ak].z), f_k[2]);
+            }
+            else
+            {
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), f_i[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), f_j[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].x), f_k[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), f_i[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), f_j[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].y), f_k[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), f_i[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), f_j[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ak].z), f_k[2]);
             }
         }
 
@@ -395,8 +427,8 @@ __device__ void urey_bradley_gpu(const int       i,
                 *vtot_loc += vbond;
             }
 
-            // if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
-            // else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
+            if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
+            else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
 
             fbond *= rsqrtf(dr2);
 
@@ -412,17 +444,25 @@ __device__ void urey_bradley_gpu(const int       i,
                     atomicAdd(&sm_fShiftLoc[ki][m], fik);
                     atomicAdd(&sm_fShiftLoc[CENTRAL][m], -fik);
                 }
+            }
 
-                // if (egp_i == egp_j)
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[ai][m]), fij);
-                //     atomicAdd(&(sits_atdat.d_force_tot_nbat[aj][m]), -fij);
-                // }
-                // else
-                // {
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[ai][m]), fij);
-                //     atomicAdd(&(sits_atdat.d_force_pw_nbat[aj][m]), -fij);
-                // }
+            if (egp_i == egp_j)
+            {
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].x), fij[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].x), -fij[0]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].y), fij[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].y), -fij[1]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[ai].z), fij[2]);
+                atomicAdd(&(sits_atdat.d_force_tot_nbat[aj].z), -fij[2]);
+            }
+            else
+            {
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].x), fij[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].x), -fij[0]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].y), fij[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].y), -fij[1]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[ai].z), fij[2]);
+                atomicAdd(&(sits_atdat.d_force_pw_nbat[aj].z), -fij[2]);
             }
         }
     }
