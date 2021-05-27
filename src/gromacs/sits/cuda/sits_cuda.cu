@@ -207,13 +207,18 @@ static __global__ void Sits_Update_log_mk_inv(const int    kn,
     if (i < kn - 1)
     {
         log_weight[i] = (log_pk[i] + log_pk[i + 1]) * 0.5;
-        // printf("DEBUG log_weight: %d %f %f\n", i, log_pk[i], log_pk[i + 1]);
         log_mk_inv[i]   = log_nk[i] - log_nk[i + 1];
-        log_norm_old[i] = log_norm[i];
-        log_norm[i]     = log_add_log(log_norm[i], log_weight[i]);
-        log_mk_inv[i] =
-                log_add_log(log_mk_inv[i] + log_norm_old[i] - log_norm[i],
-                            log_pk[i + 1] - log_pk[i] + log_mk_inv[i] + log_weight[i] - log_norm[i]);
+        // printf("DEBUG log_weight: %d %f %f\n", i, log_pk[i], log_pk[i + 1]);
+        float log_diff = log_pk[i + 1] - log_pk[i];
+        if (abs(log_diff) > 0.000000001){
+            log_mk_inv[i] += 0.25 * log_diff;
+        }
+        else
+        {
+            log_norm_old[i] = log_norm[i];
+            log_norm[i]     = log_add_log(log_norm[i], log_weight[i]);
+            log_mk_inv[i]  += log_add_log(log_norm_old[i] - log_norm[i], log_diff + log_weight[i] - log_norm[i]);
+        }
         // printf("DEBUG log_norm: %d %f %f\n", i, log_norm[i], log_weight[i]);
     }
 }
