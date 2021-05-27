@@ -486,6 +486,8 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
                 sits->nk_traj_file = gmx_strdup(buf.c_str());
                 serializer->doString(&buf);
                 sits->norm_traj_file = gmx_strdup(buf.c_str());
+                serializer->doString(&buf);
+                sits->pk_traj_file = gmx_strdup(buf.c_str());
             }
             serializer->doString(&buf);
             sits->nk_rest_file = gmx_strdup(buf.c_str());
@@ -501,6 +503,8 @@ static void do_sitsvals(gmx::ISerializer* serializer, t_sits* sits, int file_ver
                 buf = sits->nk_traj_file;
                 serializer->doString(&buf);
                 buf = sits->norm_traj_file;
+                serializer->doString(&buf);
+                buf = sits->pk_traj_file;
                 serializer->doString(&buf);
             }
             buf = sits->nk_rest_file;

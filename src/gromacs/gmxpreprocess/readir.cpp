@@ -2325,7 +2325,7 @@ void get_ir(const char*     mdparin,
         {
             sits->nk_traj_file = const_cast<char*>(get_estr(&inp, "sits-nk-traj-file", "sits_nk.dat"));
             sits->norm_traj_file = const_cast<char*>(get_estr(&inp, "sits-norm-traj-file", "sits_norm.dat"));
-            sits->pk_traj_file = const_cast<char*>(get_estr(&inp, "sits-norm-traj-file", "sits_pk.dat"));
+            sits->pk_traj_file = const_cast<char*>(get_estr(&inp, "sits-pk-traj-file", "sits_pk.dat"));
         }
 
         char* temps;
