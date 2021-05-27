@@ -55,6 +55,10 @@
 #include "gromacs/topology/topology.h"
 #include "gromacs/utility/smalloc.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 void do_md_trajectory_writing(FILE*                          fplog,
                               t_commrec*                     cr,
                               int                            nfile,
@@ -78,6 +82,7 @@ void do_md_trajectory_writing(FILE*                          fplog,
                               gmx_bool                       bDoConfOut,
                               gmx_bool                       bSumEkinhOld)
 {
+    nvtxRangePush(__FUNCTION__);
     int   mdof_flags;
     rvec* x_for_confout = nullptr;
 
@@ -194,4 +199,6 @@ void do_md_trajectory_writing(FILE*                          fplog,
         fcWriteVisFrame(ir->ePBC, state_global->box, top_global, state_global->x.rvec_array());
     }
 #endif
+
+    nvtxRangePop();
 }

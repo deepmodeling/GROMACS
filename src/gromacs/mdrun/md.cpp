@@ -151,6 +151,10 @@
 #include "replicaexchange.h"
 #include "shellfc.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 using gmx::SimulationSignaller;
 
 void gmx::LegacySimulator::do_md()
@@ -949,6 +953,7 @@ void gmx::LegacySimulator::do_md()
                      (bNS ? GMX_FORCE_NS : 0) | force_flags, ddBalanceRegionHandler);
         }
 
+        nvtxRangePushA("update");
         // VV integrators do not need the following velocity half step
         // if it is the first step after starting from a checkpoint.
         // That is, the half step is needed on all other steps, and
@@ -1490,7 +1495,7 @@ void gmx::LegacySimulator::do_md()
             }
             integrator->setPbc(PbcType::Xyz, state->box);
         }
-
+        nvtxRangePop();
         /* ################# END UPDATE STEP 2 ################# */
         /* #### We now have r(t+dt) and v(t+dt/2)  ############# */
 

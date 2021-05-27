@@ -127,6 +127,10 @@
 #include "pme_spline_work.h"
 #include "pme_spread.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 /*! \brief Help build a descriptive message in \c error if there are
  * \c errorReasons why PME on GPU is not supported.
  *
@@ -1024,6 +1028,7 @@ int gmx_pme_do(struct gmx_pme_t*              pme,
                real*                          dvdlambda_lj,
                const gmx::StepWorkload&       stepWork)
 {
+    nvtxRangePush(__FUNCTION__);
     GMX_ASSERT(pme->runMode == PmeRunMode::CPU,
                "gmx_pme_do should not be called on the GPU PME run.");
 
@@ -1640,6 +1645,7 @@ int gmx_pme_do(struct gmx_pme_t*              pme,
             *energy_lj = 0;
         }
     }
+    nvtxRangePop();
     return 0;
 }
 

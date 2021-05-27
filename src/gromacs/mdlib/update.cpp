@@ -85,6 +85,10 @@
 #include "gromacs/utility/gmxomp.h"
 #include "gromacs/utility/smalloc.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 using namespace gmx; // TODO: Remove when this file is moved into gmx namespace
 
 struct gmx_sd_const_t
@@ -212,8 +216,10 @@ void Update::update_coords(const t_inputrec&                                inpu
                            const t_commrec*                                 cr,
                            const bool                                       haveConstraints)
 {
+    nvtxRangePush(__FUNCTION__);
     return impl_->update_coords(inputRecord, step, md, state, f, fcdata, ekind, M, updatePart, cr,
                                 haveConstraints);
+    nvtxRangePop();
 }
 
 void Update::finish_update(const t_inputrec& inputRecord,

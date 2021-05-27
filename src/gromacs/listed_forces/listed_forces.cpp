@@ -81,6 +81,10 @@
 #include "manage_threading.h"
 #include "utilities.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 ListedForces::ListedForces(const gmx_ffparams_t&      ffparams,
                            const int                  numEnergyGroups,
                            const int                  numThreads,
@@ -593,6 +597,8 @@ void calc_listed(struct gmx_wallcycle*         wcycle,
                  int*                          global_atom_index,
                  const gmx::StepWorkload&      stepWork)
 {
+    nvtxRangePush(__FUNCTION__);
+
     if (bt->haveBondeds)
     {
         gmx::ForceWithShiftForces& forceWithShiftForces = forceOutputs->forceWithShiftForces();
@@ -624,6 +630,8 @@ void calc_listed(struct gmx_wallcycle*         wcycle,
     {
         enerd->term[F_DISRESVIOL] = fcd->disres->sumviol;
     }
+
+    nvtxRangePop();
 }
 
 /*! \brief As calc_listed(), but only determines the potential energy
@@ -647,6 +655,8 @@ void calc_listed_lambda(const InteractionDefinitions& idef,
                         t_fcdata*                     fcd,
                         int*                          global_atom_index)
 {
+    nvtxRangePush(__FUNCTION__);
+    
     WorkDivision& workDivision = bt->foreignLambdaWorkDivision;
 
     const t_pbc* pbc_null;
@@ -691,6 +701,7 @@ void calc_listed_lambda(const InteractionDefinitions& idef,
             }
         }
     }
+    nvtxRangePop();
 }
 
 } // namespace
@@ -714,6 +725,8 @@ void ListedForces::calculate(struct gmx_wallcycle*                     wcycle,
                              int*                                      global_atom_index,
                              const gmx::StepWorkload&                  stepWork)
 {
+    //nvtxRangePush(__FUNCTION__);
+
     if (interactionSelection_.none() || !stepWork.computeListedForces)
     {
         return;
@@ -810,4 +823,6 @@ void ListedForces::calculate(struct gmx_wallcycle*                     wcycle,
             wallcycle_sub_stop(wcycle, ewcsLISTED_FEP);
         }
     }
+
+    //nvtxRangePop();
 }

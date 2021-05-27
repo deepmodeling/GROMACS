@@ -80,6 +80,10 @@
 #include "gromacs/utility/smalloc.h"
 #include "gromacs/utility/snprintf.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 static void calc_ke_part_normal(gmx::ArrayRef<const gmx::RVec> v,
                                 const t_grpopts*               opts,
                                 const t_mdatoms*               md,
@@ -318,6 +322,8 @@ void compute_globals(gmx_global_stat*               gstat,
                      gmx_bool*                      bSumEkinhOld,
                      const int                      flags)
 {
+    nvtxRangePush(__FUNCTION__);
+
     gmx_bool bEner, bPres, bTemp;
     gmx_bool bStopCM, bGStat, bReadEkin, bEkinAveVel, bScaleEkin, bConstrain;
     gmx_bool bCheckNumberOfBondedInteractions;
@@ -424,6 +430,7 @@ void compute_globals(gmx_global_stat*               gstat,
 
         enerd->term[F_PRES] = calc_pres(fr->pbcType, ir->nwall, lastbox, ekind->ekin, total_vir, pres);
     }
+    nvtxRangePop();
 }
 
 static void min_zero(int* n, int i)

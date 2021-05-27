@@ -125,6 +125,10 @@
 
 #include "gpuforcereduction.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 using gmx::ArrayRef;
 using gmx::AtomLocality;
 using gmx::DomainLifetimeWorkload;
@@ -397,6 +401,7 @@ static void do_nb_verlet(t_forcerec*                fr,
                          t_nrnb*                    nrnb,
                          gmx_wallcycle_t            wcycle)
 {
+    nvtxRangePush(__FUNCTION__);
     if (!stepWork.computeNonbondedForces)
     {
         /* skip non-bonded calculation */
@@ -423,6 +428,7 @@ static void do_nb_verlet(t_forcerec*                fr,
     }
 
     nbv->dispatchNonbondedKernel(ilocality, *ic, stepWork, clearF, *fr, enerd, nrnb);
+    nvtxRangePop();
 }
 
 static inline void clearRVecs(ArrayRef<RVec> v, const bool useOpenmpThreading)

@@ -75,6 +75,10 @@
 #include "gromacs/utility/pleasecite.h"
 #include "gromacs/utility/smalloc.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #define NTROTTERPARTS 3
 
 /* Suzuki-Yoshida Constants, for n=3 and n=5, for symplectic integration  */
@@ -1358,7 +1362,7 @@ void trotter_update(const t_inputrec*               ir,
                     gmx::ArrayRef<std::vector<int>> trotter_seqlist,
                     int                             trotter_seqno)
 {
-
+    nvtxRangePush(__FUNCTION__);
     int              n, i, d, ngtc, gc = 0, t;
     t_grp_tcstat*    tcstat;
     const t_grpopts* opts;
@@ -1468,6 +1472,7 @@ void trotter_update(const t_inputrec*               ir,
     }
     /* check for conserved momentum -- worth looking at this again eventually, but not working right now.*/
     sfree(scalefac);
+    nvtxRangePop();
 }
 
 

@@ -46,6 +46,10 @@
 #include "gromacs/utility/fatalerror.h"
 #include "gromacs/utility/smalloc.h"
 
+#include <nvToolsExt.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
 ForeignLambdaTerms::ForeignLambdaTerms(int numLambdas) :
     numLambdas_(numLambdas),
     energies_(1 + numLambdas),
@@ -281,6 +285,7 @@ void accumulateKineticLambdaComponents(gmx_enerdata_t*           enerd,
                                        gmx::ArrayRef<const real> lambda,
                                        const t_lambda&           fepvals)
 {
+    nvtxRangePush(__FUNCTION__);
     if (fepvals.separate_dvdl[efptBONDED])
     {
         enerd->term[F_DVDL_BONDED] += enerd->term[F_DVDL_CONSTR];
@@ -298,6 +303,7 @@ void accumulateKineticLambdaComponents(gmx_enerdata_t*           enerd,
 
     /* The constrain contribution is now included in other terms, so clear it */
     enerd->term[F_DVDL_CONSTR] = 0;
+    nvtxRangePop();
 }
 
 void reset_foreign_enerdata(gmx_enerdata_t* enerd)
