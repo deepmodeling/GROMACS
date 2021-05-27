@@ -236,8 +236,8 @@ __device__ void angles_gpu(const int       i,
         int  egp_i    = sits_atdat.energrp[ai];
         int  egp_j    = sits_atdat.energrp[ak];
 
-        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vbond);
-        else atomicAdd(&(sits_atdat.d_enerd[1]), vbond);
+        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), va);
+        else atomicAdd(&(sits_atdat.d_enerd[1]), va);
 
         float cos_theta2 = cos_theta * cos_theta;
         if (cos_theta2 < 1.0f)
@@ -523,6 +523,81 @@ __device__ static void do_dih_fup_gpu(const int      i,
                                       fvec           gm_f[],
                                       fvec           sm_fShiftLoc[],
                                       const PbcAiuc& pbcAiuc,
+                                      const float4   gm_xq[],
+                                      const int      t1,
+                                      const int      t2,
+                                      const int gmx_unused t3)
+{
+    float iprm  = iprod_gpu(m, m);
+    float iprn  = iprod_gpu(n, n);
+    float nrkj2 = iprod_gpu(r_kj, r_kj);
+    float toler = nrkj2 * GMX_REAL_EPS;
+
+    if ((iprm > toler) && (iprn > toler))
+    {
+        float nrkj_1 = rsqrtf(nrkj2); // replacing std::invsqrt call
+        float nrkj_2 = nrkj_1 * nrkj_1;
+        float nrkj   = nrkj2 * nrkj_1;
+        float a      = -ddphi * nrkj / iprm;
+        fvec  f_i;
+        svmul_gpu(a, m, f_i);
+        float b = ddphi * nrkj / iprn;
+        fvec  f_l;
+        svmul_gpu(b, n, f_l);
+        float p = iprod_gpu(r_ij, r_kj);
+        p *= nrkj_2;
+        float q = iprod_gpu(r_kl, r_kj);
+        q *= nrkj_2;
+        fvec uvec;
+        svmul_gpu(p, f_i, uvec);
+        fvec vvec;
+        svmul_gpu(q, f_l, vvec);
+        fvec svec;
+        fvec_sub_gpu(uvec, vvec, svec);
+        fvec f_j;
+        fvec_sub_gpu(f_i, svec, f_j);
+        fvec f_k;
+        fvec_add_gpu(f_l, svec, f_k);
+#pragma unroll
+        for (int m = 0; (m < DIM); m++)
+        {
+            atomicAdd(&gm_f[i][m], f_i[m]);
+            atomicAdd(&gm_f[j][m], -f_j[m]);
+            atomicAdd(&gm_f[k][m], -f_k[m]);
+            atomicAdd(&gm_f[l][m], f_l[m]);
+        }
+
+        if (calcVir)
+        {
+            fvec dx_jl;
+            int  t3 = pbcDxAiuc<calcVir>(pbcAiuc, gm_xq[l], gm_xq[j], dx_jl);
+
+#pragma unroll
+            for (int m = 0; (m < DIM); m++)
+            {
+                atomicAdd(&sm_fShiftLoc[t1][m], f_i[m]);
+                atomicAdd(&sm_fShiftLoc[CENTRAL][m], -f_j[m]);
+                atomicAdd(&sm_fShiftLoc[t2][m], -f_k[m]);
+                atomicAdd(&sm_fShiftLoc[t3][m], f_l[m]);
+            }
+        }
+    }
+}
+
+template<bool calcVir>
+__device__ static void do_dih_fup_gpu_sits(const int      i,
+                                      const int      j,
+                                      const int      k,
+                                      const int      l,
+                                      const float    ddphi,
+                                      const fvec     r_ij,
+                                      const fvec     r_kj,
+                                      const fvec     r_kl,
+                                      const fvec     m,
+                                      const fvec     n,
+                                      fvec           gm_f[],
+                                      fvec           sm_fShiftLoc[],
+                                      const PbcAiuc& pbcAiuc,
                                       cu_sits_atdat_t sits_atdat,
                                       const float4   gm_xq[],
                                       const int      t1,
@@ -666,7 +741,7 @@ __device__ void pdihs_gpu(const int       i,
         if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), vpd);
         else atomicAdd(&(sits_atdat.d_enerd[1]), vpd);
 
-        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
+        do_dih_fup_gpu_sits<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
                                 pbcAiuc, sits_atdat, gm_xq, t1, t2, t3);
     }
 }
@@ -767,7 +842,7 @@ __device__ void rbdihs_gpu(const int       i,
 
         ddphi = -ddphi * sin_phi;
 
-        do_dih_fup_gpu<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
+        do_dih_fup_gpu_sits<calcVir>(ai, aj, ak, al, ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
                                 pbcAiuc, sits_atdat, gm_xq, t1, t2, t3);
         if (calcEner)
         {
@@ -845,18 +920,18 @@ __device__ void idihs_gpu(const int       i,
         float ddphi = -kA * dp;
 
         do_dih_fup_gpu<calcVir>(ai, aj, ak, al, -ddphi, r_ij, r_kj, r_kl, m, n, gm_f, sm_fShiftLoc,
-                                pbcAiuc, sits_atdat, gm_xq, t1, t2, t3);
+                                pbcAiuc, gm_xq, t1, t2, t3);
 
         if (calcEner)
         {
             *vtot_loc += -0.5f * ddphi * dp;
         }
 
-        int  egp_i    = sits_atdat.energrp[ai];
-        int  egp_j    = sits_atdat.energrp[al];
+        // int  egp_i    = sits_atdat.energrp[ai];
+        // int  egp_j    = sits_atdat.energrp[al];
 
-        if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), -0.5f * ddphi * dp);
-        else atomicAdd(&(sits_atdat.d_enerd[1]), -0.5f * ddphi * dp);
+        // if (egp_i == egp_j) atomicAdd(&(sits_atdat.d_enerd[min(2, egp_i + egp_j)]), -0.5f * ddphi * dp);
+        // else atomicAdd(&(sits_atdat.d_enerd[1]), -0.5f * ddphi * dp);
     }
 }
 
