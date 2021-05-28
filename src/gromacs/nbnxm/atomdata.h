@@ -198,6 +198,11 @@ struct nbnxn_atomdata_t
         gmx::HostVector<real> lj_comb;
         //! Charges per atom, not set with format nbatXYZQ
         gmx::HostVector<real> q;
+        //! Charges of stateA per atom, not set with format nbatXYZQ
+        gmx::HostVector<real> qA;
+        //! Charges of stateB per atom, not set with format nbatXYZQ
+        gmx::HostVector<real> qB;
+
         //! The number of energy groups
         int nenergrp;
         //! 2log(nenergrp)
@@ -333,6 +338,12 @@ void nbnxn_atomdata_set(nbnxn_atomdata_t*         nbat,
                         gmx::ArrayRef<const int>  atomTypes,
                         gmx::ArrayRef<const real> atomCharges,
                         gmx::ArrayRef<const int>  atomInfo);
+
+void nbnxn_atomdata_setAB(nbnxn_atomdata_t*         nbat,
+                          const Nbnxm::GridSet&     gridSet,
+                          gmx::ArrayRef<const real> atomChargesA,
+                          gmx::ArrayRef<const real> atomChargesB,
+                          gmx::ArrayRef<const int>  atomInfo);
 
 //! Copy the shift vectors to nbat
 void nbnxn_atomdata_copy_shiftvec(gmx_bool dynamic_box, rvec* shift_vec, nbnxn_atomdata_t* nbat);

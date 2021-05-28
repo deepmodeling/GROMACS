@@ -97,6 +97,7 @@
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/mdtypes/state.h"
 #include "gromacs/mdtypes/state_propagator_data_gpu.h"
+#include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/nbnxm/gpu_data_mgmt.h"
 #include "gromacs/nbnxm/nbnxm.h"
 #include "gromacs/nbnxm/nbnxm_gpu.h"
@@ -413,7 +414,7 @@ static void do_nb_verlet(t_forcerec*                fr,
          */
         if (nbv->isDynamicPruningStepCpu(step))
         {
-            /* Prune the pair-list beyond fr->ic->rlistPrune using
+            /* Prune the pair-list beyond fr->ic->softCoreParameters->rlistPrune using
              * the current coordinates of the atoms.
              */
             wallcycle_sub_start(wcycle, ewcsNONBONDED_PRUNING);
@@ -1336,6 +1337,14 @@ void do_force(FILE*                               fplog,
         nbv->setAtomProperties(gmx::constArrayRefFromArray(mdatoms->typeA, mdatoms->nr),
                                gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr), fr->cginfo);
 
+
+        if (mdatoms->nPerturbed)
+        {
+            fr->nbv->setAtomPropertiesAB(gmx::constArrayRefFromArray(mdatoms->chargeA, mdatoms->nr),
+                                         gmx::constArrayRefFromArray(mdatoms->chargeB, mdatoms->nr),
+                                         fr->cginfo);
+        }
+
         wallcycle_stop(wcycle, ewcNS);
 
         /* initialize the GPU nbnxm atom data and bonded data structures */
@@ -1361,6 +1370,14 @@ void do_force(FILE*                               fplog,
                 fr->gpuBonded->updateInteractionListsAndDeviceBuffers(
                         nbv->getGridIndices(), top->idef, Nbnxm::gpu_get_xq(nbv->gpu_nbv),
                         Nbnxm::gpu_get_f(nbv->gpu_nbv), Nbnxm::gpu_get_fshift(nbv->gpu_nbv));
+                if (fr->efep != efepNO && mdatoms->nPerturbed != 0)
+                {
+                    fr->gpuBonded->updateFepValuesAndDeviceBuffers(
+                            Nbnxm::gpu_get_qA(nbv->gpu_nbv), Nbnxm::gpu_get_qB(nbv->gpu_nbv), 1,
+                            ic->softCoreParameters->alphaCoulomb, ic->softCoreParameters->alphaVdw,
+                            ic->softCoreParameters->sigma6WithInvalidSigma,
+                            ic->softCoreParameters->sigma6Minimum, lambda[efptCOUL], lambda[efptVDW]);
+                }
             }
         }
 
@@ -1728,38 +1745,39 @@ void do_force(FILE*                               fplog,
         enerd->dvdl_lin[efptVDW] += dvdl_walls;
     }
 
-    if (stepWork.computeListedForces)
-    {
-        /* Check whether we need to take into account PBC in listed interactions */
-        bool needMolPbc = false;
-        for (const auto& listedForces : fr->listedForces)
-        {
-            if (listedForces.haveCpuListedForces(*fr->fcdata))
-            {
-                needMolPbc = fr->bMolPBC;
-            }
-        }
+    // NOTE: Used to compute bonded FEP on CPU
+    // if (stepWork.computeListedForces)
+    // {
+    //     /* Check whether we need to take into account PBC in listed interactions */
+    //     bool needMolPbc = false;
+    //     for (const auto& listedForces : fr->listedForces)
+    //     {
+    //         if (listedForces.haveCpuListedForces(*fr->fcdata))
+    //         {
+    //             needMolPbc = fr->bMolPBC;
+    //         }
+    //     }
 
-        t_pbc pbc;
+    //     t_pbc pbc;
 
-        if (needMolPbc)
-        {
-            /* Since all atoms are in the rectangular or triclinic unit-cell,
-             * only single box vector shifts (2 in x) are required.
-             */
-            set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
-        }
+    //     if (needMolPbc)
+    //     {
+    //         /* Since all atoms are in the rectangular or triclinic unit-cell,
+    //          * only single box vector shifts (2 in x) are required.
+    //          */
+    //         set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
+    //     }
 
-        for (int mtsIndex = 0; mtsIndex < (fr->useMts && stepWork.computeSlowForces ? 2 : 1); mtsIndex++)
-        {
-            ListedForces& listedForces = fr->listedForces[mtsIndex];
-            ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutMtsLevel0 : *forceOutMtsLevel1);
-            listedForces.calculate(
-                    wcycle, box, inputrec->fepvals, cr, ms, x, xWholeMolecules, fr->fcdata.get(),
-                    hist, &forceOut, fr, &pbc, enerd, nrnb, lambda.data(), mdatoms,
-                    DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
-        }
-    }
+    //     for (int mtsIndex = 0; mtsIndex < (fr->useMts && stepWork.computeSlowForces ? 2 : 1); mtsIndex++)
+    //     {
+    //         ListedForces& listedForces = fr->listedForces[mtsIndex];
+    //         ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutMtsLevel0 : *forceOutMtsLevel1);
+    //         listedForces.calculate(
+    //                 wcycle, box, inputrec->fepvals, cr, ms, x, xWholeMolecules, fr->fcdata.get(),
+    //                 hist, &forceOut, fr, &pbc, enerd, nrnb, lambda.data(), mdatoms,
+    //                 DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
+    //     }
+    // }
 
     if (stepWork.computeSlowForces)
     {

@@ -121,6 +121,32 @@ struct NBParamGpu
     DeviceBuffer<float> coulomb_tab;
     //! texture object bound to coulomb_tab
     DeviceTexture coulomb_tab_texobj;
+
+    //! whether using free energy perturbation
+    bool  bFEP;
+    float alpha_coul;
+    float alpha_vdw;
+    int   lam_power; // // Exponent for the dependence of the soft-core on lambda
+    float sc_sigma6;
+    float sc_sigma6_min;
+    //! free energy λ for coulomb interaction
+    float lambda_q;
+    //! free energy λ for vdw interaction
+    float lambda_v;
+};
+
+struct FEPParamGpu
+{
+    //! whether using free energy perturbation
+    bool  bFEP;
+    float alpha_coul;
+    float alpha_vdw;
+    float sc_sigma6;
+    float sc_sigma6_min;
+    //! free energy λ for coulomb interaction
+    float lambda_q;
+    //! free energy λ for vdw interaction
+    float lambda_v;
 };
 
 namespace Nbnxm

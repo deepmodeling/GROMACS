@@ -418,6 +418,8 @@ nbnxn_atomdata_t::Params::Params(gmx::PinningPolicy pinningPolicy) :
     type({}, { pinningPolicy }),
     lj_comb({}, { pinningPolicy }),
     q({}, { pinningPolicy }),
+    qA({}, { pinningPolicy }),
+    qB({}, { pinningPolicy }),
     nenergrp(0),
     neg_2log(0),
     energrp({}, { pinningPolicy })
@@ -835,6 +837,44 @@ static void nbnxn_atomdata_set_charges(nbnxn_atomdata_t*     nbat,
     }
 }
 
+static void nbnxn_atomdata_set_chargesAB(nbnxn_atomdata_t* nbat, const Nbnxm::GridSet& gridSet, ArrayRef<const real> chargesA, ArrayRef<const real> chargesB)
+{
+    //TODO: Xformat not equal to nbatXYZQ case is not handled
+    nbat->paramsDeprecated().qA.resize(nbat->numAtoms());
+    nbat->paramsDeprecated().qB.resize(nbat->numAtoms());
+
+    for (const Nbnxm::Grid& grid : gridSet.grids())
+    {
+        /* Loop over all columns and copy and fill */
+        for (int cxy = 0; cxy < grid.numColumns(); cxy++)
+        {
+            const int atomOffset     = grid.firstAtomInColumn(cxy);
+            const int numAtoms       = grid.numAtomsInColumn(cxy);
+            const int paddedNumAtoms = grid.paddedNumAtomsInColumn(cxy);
+            
+            real* qA = nbat->paramsDeprecated().qA.data() + atomOffset;
+            real* qB = nbat->paramsDeprecated().qB.data() + atomOffset;
+            int   i;
+            for (i = 0; i < numAtoms; i++)
+            {
+                int idx = gridSet.atomIndices()[atomOffset + i];
+                *qA = chargesA[idx];
+                qA++;
+                *qB = chargesB[idx];
+                qB++;
+            }
+            /* Complete the partially filled last cell with zeros */
+            for (; i < paddedNumAtoms; i++)
+            {
+                *qA = 0;
+                qA++;
+                *qB = 0;
+                qB++;
+            }        
+        }
+    }
+}
+
 /* Set the charges of perturbed atoms in nbnxn_atomdata_t to 0.
  * This is to automatically remove the RF/PME self term in the nbnxn kernels.
  * Part of the zero interactions are still calculated in the normal kernels.
@@ -973,6 +1013,18 @@ void nbnxn_atomdata_set(nbnxn_atomdata_t*     nbat,
     nbnxn_atomdata_set_ljcombparams(&params, nbat->XFormat, gridSet);
 
     nbnxn_atomdata_set_energygroups(&params, gridSet, atomInfo);
+}
+
+/* Sets all required atom parameter data in nbnxn_atomdata_t */
+void nbnxn_atomdata_setAB(nbnxn_atomdata_t*     nbat,
+                          const Nbnxm::GridSet& gridSet,
+                          ArrayRef<const real>  atomChargesA,
+                          ArrayRef<const real>  atomChargesB,
+                          ArrayRef<const int>   atomInfo)
+{
+    nbnxn_atomdata_t::Params& params = nbat->paramsDeprecated();
+
+    nbnxn_atomdata_set_chargesAB(nbat, gridSet, atomChargesA, atomChargesB);
 }
 
 /* Copies the shift vector array to nbnxn_atomdata_t */

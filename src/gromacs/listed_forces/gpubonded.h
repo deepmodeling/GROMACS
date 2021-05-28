@@ -146,6 +146,17 @@ public:
                                                 void*                         xqDevice,
                                                 DeviceBuffer<RVec>            forceDevice,
                                                 DeviceBuffer<RVec>            fshiftDevice);
+
+    void updateFepValuesAndDeviceBuffers(void*       qADevice,
+                                         void*       qBDevice,
+                                         const bool  bFEP,
+                                         const float alpha_coul,
+                                         const float alpha_vdw,
+                                         const float sc_sigma6_def,
+                                         const float sc_sigma6_min,
+                                         const float lambda_q,
+                                         const float lambda_v);
+
     /*! \brief
      * Update PBC data.
      *

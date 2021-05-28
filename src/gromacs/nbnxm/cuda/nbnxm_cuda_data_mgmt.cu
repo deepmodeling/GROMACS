@@ -239,6 +239,31 @@ static void cuda_init_const(NbnxmGpu*                       nb,
     nbnxn_cuda_clear_e_fshift(nb);
 }
 
+void cuda_copy_fepconst(NbnxmGpu*               nb,
+                        const bool            bFEP,
+                        const float          alpha_coul,
+                        const float           alpha_vdw,
+                        const int             lam_power,
+                        const float       sc_sigma6_def,
+                        const float       sc_sigma6_min)
+{
+    nb->nbparam->bFEP       = bFEP;
+    nb->nbparam->alpha_coul = alpha_coul;
+    nb->nbparam->alpha_vdw  = alpha_vdw;
+    nb->nbparam->lam_power  = lam_power;
+    nb->nbparam->sc_sigma6  = sc_sigma6_def;
+    nb->nbparam->sc_sigma6_min = sc_sigma6_min;
+}
+
+void cuda_copy_feplambda(NbnxmGpu*               nb,
+                         const float       lambda_q,
+                         const float       lambda_v)
+{
+    nb->nbparam->lambda_q   = lambda_q;
+    nb->nbparam->lambda_v   = lambda_v;
+}
+
+
 NbnxmGpu* gpu_init(const gmx::DeviceStreamManager& deviceStreamManager,
                    const interaction_const_t*      ic,
                    const PairlistParams&           listParams,
@@ -381,6 +406,7 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
     int                  nalloc, natoms;
     bool                 realloced;
     bool                 bDoTime       = nb->bDoTime;
+    bool                 bFEP          = nb->nbparam->bFEP;
     cu_timers_t*         timers        = nb->timers;
     cu_atomdata_t*       d_atdat       = nb->atdat;
     const DeviceContext& deviceContext = *nb->deviceContext_;
@@ -408,6 +434,12 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
             freeDeviceBuffer(&d_atdat->xq);
             freeDeviceBuffer(&d_atdat->atom_types);
             freeDeviceBuffer(&d_atdat->lj_comb);
+
+            if (bFEP)
+            {
+                freeDeviceBuffer(&d_atdat->qA);
+                freeDeviceBuffer(&d_atdat->qB);
+            }
         }
 
         allocateDeviceBuffer(&d_atdat->f, nalloc, deviceContext);
@@ -419,6 +451,12 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
         else
         {
             allocateDeviceBuffer(&d_atdat->atom_types, nalloc, deviceContext);
+        }
+
+        if (bFEP)
+        {
+            allocateDeviceBuffer(&d_atdat->qA, nalloc, deviceContext);
+            allocateDeviceBuffer(&d_atdat->qB, nalloc, deviceContext);
         }
 
         d_atdat->nalloc = nalloc;
@@ -448,6 +486,20 @@ void gpu_init_atomdata(NbnxmGpu* nb, const nbnxn_atomdata_t* nbat)
                       "Sizes of host- and device-side atom types should be the same.");
         copyToDeviceBuffer(&d_atdat->atom_types, nbat->params().type.data(), 0, natoms, localStream,
                            GpuApiCallBehavior::Async, nullptr);
+    }
+
+    if (bFEP)
+    {
+        static_assert(sizeof(d_atdat->qA[0]) == sizeof(float),
+                      "Size of the qA parameters element should be equal to the size of float.");
+        copyToDeviceBuffer(&d_atdat->qA,
+                           reinterpret_cast<const float*>(nbat->params().qA.data()), 0,
+                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
+        static_assert(sizeof(d_atdat->qB[0]) == sizeof(float),
+                      "Size of the qB parameters element should be equal to the size of float.");
+        copyToDeviceBuffer(&d_atdat->qB,
+                           reinterpret_cast<const float*>(nbat->params().qB.data()), 0,
+                           natoms, localStream, GpuApiCallBehavior::Async, nullptr);
     }
 
     if (bDoTime)
@@ -504,6 +556,11 @@ void gpu_free(NbnxmGpu* nb)
     freeDeviceBuffer(&atdat->atom_types);
     freeDeviceBuffer(&atdat->lj_comb);
 
+    if (atdat->qA != NULL){
+        freeDeviceBuffer(&atdat->qA);
+        freeDeviceBuffer(&atdat->qB);
+    }
+
     /* Free plist */
     auto* plist = nb->plist[InteractionLocality::Local];
     freeDeviceBuffer(&plist->sci);
@@ -554,6 +611,21 @@ void* gpu_get_xq(NbnxmGpu* nb)
 
     return static_cast<void*>(nb->atdat->xq);
 }
+
+void* gpu_get_qA(NbnxmGpu* nb)
+{
+    assert(nb);
+
+    return static_cast<void*>(nb->atdat->qA);
+}
+
+void* gpu_get_qB(NbnxmGpu* nb)
+{
+    assert(nb);
+
+    return static_cast<void*>(nb->atdat->qB);
+}
+
 
 DeviceBuffer<gmx::RVec> gpu_get_f(NbnxmGpu* nb)
 {

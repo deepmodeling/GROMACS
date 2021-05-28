@@ -59,6 +59,7 @@
 #include "gromacs/topology/forcefieldparameters.h"
 
 struct t_forcerec;
+struct BondedFepParameters;
 
 namespace gmx
 {
@@ -83,6 +84,7 @@ GpuBonded::Impl::Impl(const gmx_ffparams_t& ffparams,
                   "(calcVir=true)");
 
     wcycle_ = wcycle;
+    BondedFepParameters bonded_fep = BondedFepParameters();
 
     allocateDeviceBuffer(&d_forceParams_, ffparams.numTypes(), deviceContext_);
     // This could be an async transfer (if the source is pinned), so
@@ -90,13 +92,23 @@ GpuBonded::Impl::Impl(const gmx_ffparams_t& ffparams,
     // to consume additional pinned pages.
     copyToDeviceBuffer(&d_forceParams_, ffparams.iparams.data(), 0, ffparams.numTypes(),
                        deviceStream_, GpuApiCallBehavior::Sync, nullptr);
+
+    allocateDeviceBuffer(&d_fepParams_, sizeof(BondedFepParameters), deviceContext_);
+    // This could be an async transfer (if the source is pinned), so
+    // long as it uses the same stream as the kernels and we are happy
+    // to consume additional pinned pages.
+    copyToDeviceBuffer(&d_fepParams_, &bonded_fep, 0, sizeof(BondedFepParameters), deviceStream_,
+                       GpuApiCallBehavior::Sync, nullptr);
     vTot_.resize(F_NRE);
     allocateDeviceBuffer(&d_vTot_, F_NRE, deviceContext_);
     clearDeviceBufferAsync(&d_vTot_, 0, F_NRE, deviceStream_);
 
     kernelParams_.electrostaticsScaleFactor = electrostaticsScaleFactor;
     kernelParams_.d_forceParams             = d_forceParams_;
+    kernelParams_.d_fepParams               = d_fepParams_;
     kernelParams_.d_xq                      = d_xq_;
+    kernelParams_.d_qA                      = d_qA_;
+    kernelParams_.d_qB                      = d_qB_;
     kernelParams_.d_f                       = d_f_;
     kernelParams_.d_fShift                  = d_fShift_;
     kernelParams_.d_vTot                    = d_vTot_;
@@ -131,6 +143,7 @@ GpuBonded::Impl::~Impl()
     }
 
     freeDeviceBuffer(&d_forceParams_);
+    freeDeviceBuffer(&d_fepParams_);
     freeDeviceBuffer(&d_vTot_);
 }
 
@@ -213,7 +226,8 @@ void GpuBonded::Impl::updateInteractionListsAndDeviceBuffers(ArrayRef<const int>
          * But instead of doing all interactions on the CPU, we can
          * still easily handle the types that have no perturbed
          * interactions on the GPU. */
-        if (!idef.il[fType].empty() && !fTypeHasPerturbedEntries(idef, fType))
+        // if (!idef.il[fType].empty() && !fTypeHasPerturbedEntries(idef, fType))
+        if (!idef.il[fType].empty())
         {
             haveInteractions_ = true;
 
@@ -281,6 +295,37 @@ void GpuBonded::Impl::updateInteractionListsAndDeviceBuffers(ArrayRef<const int>
     kernelParams_.d_vTot        = d_vTot_;
 
     // TODO wallcycle sub stop
+}
+
+void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*       d_qAPtr,
+                                                      void*       d_qBPtr,
+                                                      const bool  bFEP,
+                                                      const float alpha_coul,
+                                                      const float alpha_vdw,
+                                                      const float sc_sigma6_def,
+                                                      const float sc_sigma6_min,
+                                                      const float lambda_q,
+                                                      const float lambda_v)
+{
+    d_qA_ = static_cast<float*>(d_qAPtr);
+    d_qB_ = static_cast<float*>(d_qBPtr);
+
+    kernelParams_.d_qA = d_qA_;
+    kernelParams_.d_qB = d_qB_;
+
+    BondedFepParameters bonded_fep = BondedFepParameters();
+
+    bonded_fep.bFEP          = bFEP;
+    bonded_fep.alpha_coul    = alpha_coul;
+    bonded_fep.alpha_vdw     = alpha_vdw;
+    bonded_fep.sc_sigma6     = sc_sigma6_def;
+    bonded_fep.sc_sigma6_min = sc_sigma6_min;
+    bonded_fep.lambda_q      = lambda_q;
+    bonded_fep.lambda_v      = lambda_v;
+
+    copyToDeviceBuffer(&d_fepParams_, &bonded_fep, 0, sizeof(BondedFepParameters), deviceStream_,
+                       GpuApiCallBehavior::Sync, nullptr);
+    kernelParams_.d_fepParams = d_fepParams_;
 }
 
 void GpuBonded::Impl::setPbc(PbcType pbcType, const matrix box, bool canMoleculeSpanPbc)
@@ -362,6 +407,20 @@ void GpuBonded::updateInteractionListsAndDeviceBuffers(ArrayRef<const int>      
                                                        DeviceBuffer<RVec>            d_fShift)
 {
     impl_->updateInteractionListsAndDeviceBuffers(nbnxnAtomOrder, idef, d_xq, d_f, d_fShift);
+}
+
+void GpuBonded::updateFepValuesAndDeviceBuffers(void*       d_qA,
+                                                void*       d_qB,
+                                                const bool  bFEP,
+                                                const float alpha_coul,
+                                                const float alpha_vdw,
+                                                const float sc_sigma6_def,
+                                                const float sc_sigma6_min,
+                                                const float lambda_q,
+                                                const float lambda_v)
+{
+    impl_->updateFepValuesAndDeviceBuffers(d_qA, d_qB, bFEP, alpha_coul, alpha_vdw, sc_sigma6_def,
+                                           sc_sigma6_min, lambda_q, lambda_v);
 }
 
 void GpuBonded::setPbc(PbcType pbcType, const matrix box, bool canMoleculeSpanPbc)

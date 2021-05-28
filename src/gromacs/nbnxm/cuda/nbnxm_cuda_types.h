@@ -113,6 +113,10 @@ struct cu_atomdata
 
     //! atom coordinates + charges, size natoms
     DeviceBuffer<float4> xq;
+    //! atom chargeAs, size natoms, only in FEP
+    DeviceBuffer<float>  qA;
+    //! atom chargeBs, size natoms, only in FEP
+    DeviceBuffer<float>  qB;
     //! force output array, size natoms
     DeviceBuffer<float3> f;
 

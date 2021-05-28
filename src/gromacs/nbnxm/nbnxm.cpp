@@ -48,6 +48,7 @@
 #include "gromacs/domdec/domdec_struct.h"
 #include "gromacs/nbnxm/atomdata.h"
 #include "gromacs/timing/wallcycle.h"
+#include "gromacs/mdtypes/mdatom.h"
 
 #include "nbnxm_gpu.h"
 #include "pairlistsets.h"
@@ -124,6 +125,13 @@ void nonbonded_verlet_t::setAtomProperties(gmx::ArrayRef<const int>  atomTypes,
                                            gmx::ArrayRef<const int>  atomInfo)
 {
     nbnxn_atomdata_set(nbat.get(), pairSearch_->gridSet(), atomTypes, atomCharges, atomInfo);
+}
+
+void nonbonded_verlet_t::setAtomPropertiesAB(gmx::ArrayRef<const real> atomChargesA,
+                                             gmx::ArrayRef<const real> atomChargesB,
+                                             gmx::ArrayRef<const int>  atomInfo)
+{   
+    nbnxn_atomdata_setAB(nbat.get(), pairSearch_->gridSet(), atomChargesA, atomChargesB, atomInfo);
 }
 
 void nonbonded_verlet_t::convertCoordinates(const gmx::AtomLocality        locality,
