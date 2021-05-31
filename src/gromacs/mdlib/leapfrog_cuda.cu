@@ -64,6 +64,7 @@
 #include "gromacs/pbcutil/pbc.h"
 #include "gromacs/pbcutil/pbc_aiuc_cuda.cuh"
 #include "gromacs/utility/arrayref.h"
+#include "curand_kernel.h"
 
 namespace gmx
 {
@@ -99,6 +100,17 @@ enum class VelocityScalingType
     Diagonal, //!< Apply velocity scaling using a diagonal matrix
     Full      //!< Apply velocity scaling using a full matrix
 };
+
+__global__ void setup_kernel(const int numAtoms,
+                             const int seed,
+                             curandStateMRG32k3a *ranst)
+{
+    int threadIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    if (threadIndex < numAtoms)
+    {
+        curand_init(seed, threadIndex, 0, &ranst[threadIndex]);
+    }
+}
 
 /*! \brief Main kernel for Leap-Frog integrator.
  *
@@ -197,6 +209,36 @@ __launch_bounds__(c_maxThreadsPerBlock) __global__
         v += f * imdt;
 
         x += v * dt;
+
+        gm_v[threadIndex] = v;
+        gm_x[threadIndex] = x;
+    }
+    return;
+}
+
+__launch_bounds__(c_maxThreadsPerBlock) __global__
+        void langevin_second_step(const int numAtoms,
+                                  float3* __restrict__ gm_x,
+                                  float3* __restrict__ gm_v,
+                                  const float dt,
+                                  const float* lang_c1,
+                                  const float* lang_c2,
+                                  curandStateMRG32k3a* ranst)
+{
+    int threadIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    if (threadIndex < numAtoms)
+    {
+        float3 x    = gm_x[threadIndex];
+        float3 v    = gm_v[threadIndex];
+
+        x -= v * dt * 0.5;
+
+        v.x = lang_c1[threadIndex] * v.x + lang_c2[threadIndex] * curand_normal(&ranst[threadIndex]);
+        v.y = lang_c1[threadIndex] * v.y + lang_c2[threadIndex] * curand_normal(&ranst[threadIndex]);
+        v.z = lang_c1[threadIndex] * v.z + lang_c2[threadIndex] * curand_normal(&ranst[threadIndex]);
+
+        x += v * dt * 0.5;
+
         gm_v[threadIndex] = v;
         gm_x[threadIndex] = x;
     }
@@ -318,6 +360,24 @@ void LeapFrogCuda::integrate(const float3*                     d_x,
     return;
 }
 
+void LeapFrogCuda::integrate2(const float3*                     d_x,
+                              float3*                           d_v,
+                              const real                        dt)
+{
+
+    ensureNoPendingCudaError("In CUDA version of Leap-Frog integrator (2nd step)");
+
+    if (doLangevin)
+    {
+        auto kernelPtr = langevin_second_step;
+        const auto kernelArgs = prepareGpuKernelArguments(
+                kernelPtr, kernelLaunchConfig_, &numAtoms_, &d_x, &d_v, &dt, &d_lang_c1_, &d_lang_c2_, &ranst);
+        launchGpuKernel(kernelPtr, kernelLaunchConfig_, nullptr, "langevin_second_step", kernelArgs);
+    }
+
+    return;
+}
+
 LeapFrogCuda::LeapFrogCuda(CommandStream commandStream) : commandStream_(commandStream)
 {
     numAtoms_ = 0;
@@ -341,7 +401,8 @@ void LeapFrogCuda::setPbc(const t_pbc* pbc)
     setPbcAiuc(pbc->ndim_ePBC, pbc->box, &pbcAiuc_);
 }
 
-void LeapFrogCuda::set(const t_mdatoms& md, const int numTempScaleValues, const unsigned short* tempScaleGroups)
+void LeapFrogCuda::set(const t_mdatoms& md, const int numTempScaleValues, const unsigned short* tempScaleGroups,
+                       const t_lang& lang)
 {
     numAtoms_                       = md.nr;
     kernelLaunchConfig_.gridSize[0] = (numAtoms_ + c_threadsPerBlock - 1) / c_threadsPerBlock;
@@ -352,6 +413,29 @@ void LeapFrogCuda::set(const t_mdatoms& md, const int numTempScaleValues, const 
                            &numInverseMassesAlloc_, nullptr);
     copyToDeviceBuffer(&d_inverseMasses_, (float*)md.invmass, 0, numAtoms_, commandStream_,
                        GpuApiCallBehavior::Sync, nullptr);
+
+    // Langevin
+    doLangevin = false;
+    if (lang.flag) {
+        doLangevin = true;
+
+        numInverseMasses_ = -1;
+        numInverseMassesAlloc_ = -1;
+        reallocateDeviceBuffer(&d_lang_c1_, numAtoms_, &numInverseMasses_,
+                               &numInverseMassesAlloc_, nullptr);
+        copyToDeviceBuffer(&d_lang_c1_, (float*)lang.c1, 0, numAtoms_, commandStream_,
+                           GpuApiCallBehavior::Sync, nullptr);
+
+        numInverseMasses_ = -1;
+        numInverseMassesAlloc_ = -1;
+        reallocateDeviceBuffer(&d_lang_c2_, numAtoms_, &numInverseMasses_,
+                               &numInverseMassesAlloc_, nullptr);
+        copyToDeviceBuffer(&d_lang_c2_, (float*)lang.c2, 0, numAtoms_, commandStream_,
+                           GpuApiCallBehavior::Sync, nullptr);
+
+        cudaMalloc((void **)&ranst, numAtoms_ * sizeof(curandStateMRG32k3a));
+        setup_kernel<<<kernelLaunchConfig_.gridSize[0], c_threadsPerBlock>>>(numAtoms_, lang.seed, ranst);
+    }
 
     // Temperature scale group map only used if there are more then one group
     if (numTempScaleValues > 1)

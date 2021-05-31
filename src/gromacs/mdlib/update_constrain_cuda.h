@@ -58,6 +58,7 @@ struct t_idef;
 struct t_inputrec;
 struct t_mdatoms;
 struct t_pbc;
+struct t_lang;
 
 namespace gmx
 {
@@ -139,7 +140,8 @@ public:
              DeviceBuffer<float> d_f,
              const t_idef&       idef,
              const t_mdatoms&    md,
-             int                 numTempScaleValues);
+             int                 numTempScaleValues,
+             const t_lang&       lang);
 
     /*! \brief
      * Update PBC data.

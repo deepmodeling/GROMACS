@@ -833,7 +833,7 @@ bool ModularSimulator::isInputCompatible(bool                             exitOn
     isInputCompatible =
             isInputCompatible
             && conditionalAssert(
-                       inputrec->etc == etcNO || inputrec->etc == etcVRESCALE,
+                       inputrec->etc == etcNO || inputrec->etc == etcVRESCALE || inputrec->etc == etcLANGEVIN,
                        "Only v-rescale thermostat is supported by the modular simulator.");
     isInputCompatible =
             isInputCompatible

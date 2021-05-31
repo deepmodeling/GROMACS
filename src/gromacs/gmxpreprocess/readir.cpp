@@ -3418,7 +3418,7 @@ void do_index(const char*                   mdparin,
                 warning_error(wi, warn_buf);
             }
 
-            if (ir->etc != etcVRESCALE && ir->opts.tau_t[i] == 0)
+            if (ir->etc != etcVRESCALE && ir->etc != etcLANGEVIN && ir->opts.tau_t[i] == 0)
             {
                 warning_note(
                         wi,
@@ -4178,7 +4178,7 @@ void triple_check(const char* mdparin, t_inputrec* ir, gmx_mtop_t* sys, warninp_
     }
 
     if (ir->cutoff_scheme == ecutsVERLET && ir->verletbuf_tol > 0 && ir->nstlist > 1
-        && ((EI_MD(ir->eI) || EI_SD(ir->eI)) && (ir->etc == etcVRESCALE || ir->etc == etcBERENDSEN)))
+        && ((EI_MD(ir->eI) || EI_SD(ir->eI)) && (ir->etc == etcVRESCALE || ir->etc == etcBERENDSEN || ir->etc == etcLANGEVIN)))
     {
         /* Check if a too small Verlet buffer might potentially
          * cause more drift than the thermostat can couple off.

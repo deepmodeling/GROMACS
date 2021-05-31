@@ -54,6 +54,7 @@
 #include "gromacs/pbcutil/pbc_aiuc.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/classhelpers.h"
+#include "curand_kernel.h"
 
 namespace gmx
 {
@@ -105,6 +106,10 @@ public:
                    const float                       dtPressureCouple,
                    const matrix                      prVelocityScalingMatrix);
 
+    void integrate2(const float3*                     d_x,
+                    float3*                           d_v,
+                    const real                        dt);
+
     /*! \brief Set the integrator
      *
      * Allocates memory for inverse masses, and, if needed for temperature scaling factor(s)
@@ -115,7 +120,8 @@ public:
      * \param[in] numTempScaleValues  Number of temperature scale groups.
      * \param[in] tempScaleGroups     Maps the atom index to temperature scale value.
      */
-    void set(const t_mdatoms& md, int numTempScaleValues, const unsigned short* tempScaleGroups);
+    void set(const t_mdatoms& md, int numTempScaleValues, const unsigned short* tempScaleGroups,
+             const t_lang& lang);
 
     /*! \brief Class with hardware-specific interfaces and implementations.*/
     class Impl;
@@ -136,6 +142,12 @@ private:
     int numInverseMasses_ = -1;
     //! Maximum size of the reciprocal masses array
     int numInverseMassesAlloc_ = -1;
+
+    // Langevin
+    bool doLangevin;
+    real* d_lang_c1_;
+    real* d_lang_c2_;
+    curandStateMRG32k3a* ranst;
 
     //! Number of temperature coupling groups (zero = no coupling)
     int numTempScaleValues_ = 0;
