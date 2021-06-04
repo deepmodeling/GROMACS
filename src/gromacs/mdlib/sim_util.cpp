@@ -1745,39 +1745,37 @@ void do_force(FILE*                               fplog,
         enerd->dvdl_lin[efptVDW] += dvdl_walls;
     }
 
-    // NOTE: Used to compute bonded FEP on CPU
-    // if (stepWork.computeListedForces)
-    // {
-    //     /* Check whether we need to take into account PBC in listed interactions */
-    //     bool needMolPbc = false;
-    //     for (const auto& listedForces : fr->listedForces)
-    //     {
-    //         if (listedForces.haveCpuListedForces(*fr->fcdata))
-    //         {
-    //             needMolPbc = fr->bMolPBC;
-    //         }
-    //     }
+    if (stepWork.computeListedForces)
+    {
+        /* Check whether we need to take into account PBC in listed interactions */
+        bool needMolPbc = false;
+        for (const auto& listedForces : fr->listedForces)
+        {
+            if (listedForces.haveCpuListedForces(*fr->fcdata))
+            {
+                needMolPbc = fr->bMolPBC;
+            }
+        }
 
-    //     t_pbc pbc;
+        t_pbc pbc;
 
-    //     if (needMolPbc)
-    //     {
-    //         /* Since all atoms are in the rectangular or triclinic unit-cell,
-    //          * only single box vector shifts (2 in x) are required.
-    //          */
-    //         set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
-    //     }
+        {
+            /* Since all atoms are in the rectangular or triclinic unit-cell,
+             * only single box vector shifts (2 in x) are required.
+             */
+            set_pbc_dd(&pbc, fr->pbcType, DOMAINDECOMP(cr) ? cr->dd->numCells : nullptr, TRUE, box);
+        }
 
-    //     for (int mtsIndex = 0; mtsIndex < (fr->useMts && stepWork.computeSlowForces ? 2 : 1); mtsIndex++)
-    //     {
-    //         ListedForces& listedForces = fr->listedForces[mtsIndex];
-    //         ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutMtsLevel0 : *forceOutMtsLevel1);
-    //         listedForces.calculate(
-    //                 wcycle, box, inputrec->fepvals, cr, ms, x, xWholeMolecules, fr->fcdata.get(),
-    //                 hist, &forceOut, fr, &pbc, enerd, nrnb, lambda.data(), mdatoms,
-    //                 DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
-    //     }
-    // }
+        for (int mtsIndex = 0; mtsIndex < (fr->useMts && stepWork.computeSlowForces ? 2 : 1); mtsIndex++)
+        {
+            ListedForces& listedForces = fr->listedForces[mtsIndex];
+            ForceOutputs& forceOut     = (mtsIndex == 0 ? forceOutMtsLevel0 : *forceOutMtsLevel1);
+            listedForces.calculate(
+                    wcycle, box, inputrec->fepvals, cr, ms, x, xWholeMolecules, fr->fcdata.get(),
+                    hist, &forceOut, fr, &pbc, enerd, nrnb, lambda.data(), mdatoms,
+                    DOMAINDECOMP(cr) ? cr->dd->globalAtomIndices.data() : nullptr, stepWork);
+        }
+    }
 
     if (stepWork.computeSlowForces)
     {
