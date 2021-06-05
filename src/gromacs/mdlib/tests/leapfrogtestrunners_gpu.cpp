@@ -97,8 +97,18 @@ void LeapFrogDeviceTestRunner::integrate(LeapFrogTestData* testData, int numStep
 
     auto integrator = std::make_unique<LeapFrogGpu>(deviceContext, deviceStream);
 
-    integrator->set(testData->numAtoms_, testData->inverseMasses_.data(),
-                    testData->numTCoupleGroups_, testData->mdAtoms_.cTC);
+    t_lang lang;
+    lang.c1 = new float[numAtoms];
+    lang.c2 = new float[numAtoms];
+    for (int n = 0; n < numAtoms; n++)
+    {
+        int gt     = testData->mdAtoms_.cTC[n];
+        lang.c1[n] = std::exp(-testData->inputRecord_.delta_t / testData->inputRecord_.opts.tau_t[gt]);
+        lang.c2[n] = std::sqrt(BOLTZ * testData->inputRecord_.opts.ref_t[gt]
+                               * testData->mdAtoms_.invmass[n] * (1 - lang.c1[n] * lang.c1[n]));
+    }
+
+    integrator->set(testData->mdAtoms_, testData->numTCoupleGroups_, testData->mdAtoms_.cTC, lang);
 
     bool doTempCouple = testData->numTCoupleGroups_ > 0;
     for (int step = 0; step < numSteps; step++)

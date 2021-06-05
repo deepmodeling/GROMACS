@@ -495,7 +495,7 @@ EnergyOutput::EnergyOutput(ener_file*               fp_ene,
             }
         }
     }
-    else if (etc_ == etcBERENDSEN || etc_ == etcYES || etc_ == etcVRESCALE)
+    else if (etc_ == etcBERENDSEN || etc_ == etcYES || etc_ == etcVRESCALE || etc_ == etcLANGEVIN)
     {
         for (i = 0; (i < nTC_); i++)
         {
@@ -1040,7 +1040,7 @@ void EnergyOutput::addDataAtEnergyStep(bool                    bDoDHDL,
                 }
             }
         }
-        else if (etc_ == etcBERENDSEN || etc_ == etcYES || etc_ == etcVRESCALE)
+        else if (etc_ == etcBERENDSEN || etc_ == etcYES || etc_ == etcVRESCALE || etc_ == etcLANGEVIN)
         {
             for (int i = 0; (i < nTC_); i++)
             {

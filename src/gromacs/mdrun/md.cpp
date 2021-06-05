@@ -47,6 +47,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 
 #include <algorithm>
 #include <memory>
@@ -76,6 +77,7 @@
 #include "gromacs/math/invertmatrix.h"
 #include "gromacs/math/vec.h"
 #include "gromacs/math/vectypes.h"
+#include "gromacs/math/units.h"
 #include "gromacs/mdlib/checkpointhandler.h"
 #include "gromacs/mdlib/compute_io.h"
 #include "gromacs/mdlib/constr.h"
@@ -1261,8 +1263,27 @@ void gmx::LegacySimulator::do_md()
         {
             if (bNS && (bFirstStep || DOMAINDECOMP(cr)))
             {
+                // Langevin
+                t_lang lang;
+                lang.flag = false;
+                if (ir->etc == etcLANGEVIN)
+                {
+                    std::cout << "Using Langevin" << std::endl;
+                    lang.flag = true;
+                    lang.c1   = new real[state_global->natoms];
+                    lang.c2   = new real[state_global->natoms];
+                    for (int n = 0; n < state_global->natoms; n++)
+                    {
+                        int gt     = mdatoms->cTC ? mdatoms->cTC[n] : 0;
+                        lang.c1[n] = std::exp(-ir->delta_t / ir->opts.tau_t[gt]);
+                        lang.c2[n] = std::sqrt(BOLTZ * ir->opts.ref_t[gt] * mdatoms->invmass[n]
+                                               * (1 - lang.c1[n] * lang.c1[n]));
+                    }
+                    lang.seed = ir->ld_seed;
+                }
+
                 integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
-                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc);
+                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc, lang);
 
                 // Copy data to the GPU after buffers might have being reinitialized
                 stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);

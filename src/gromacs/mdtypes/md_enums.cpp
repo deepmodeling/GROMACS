@@ -96,7 +96,7 @@ const char* eintmod_names[eintmodNR + 1] = {
 };
 
 const char* etcoupl_names[etcNR + 1] = {
-    "No", "Berendsen", "Nose-Hoover", "yes", "Andersen", "Andersen-massive", "V-rescale", nullptr
+    "No", "Berendsen", "Nose-Hoover", "yes", "Andersen", "Andersen-massive", "V-rescale", "Langevin", nullptr
 }; /* yes is alias for berendsen */
 
 const char* epcoupl_names[epcNR + 1] = { "No",        "Berendsen", "Parrinello-Rahman",

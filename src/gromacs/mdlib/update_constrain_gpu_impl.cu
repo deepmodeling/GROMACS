@@ -137,6 +137,11 @@ void UpdateConstrainGpu::Impl::integrate(GpuEventSynchronizer*             fRead
     lincsGpu_->apply(d_xp_, d_x_, updateVelocities, d_v_, 1.0 / dt, computeVirial, virial, pbcAiuc_);
     settleGpu_->apply(d_xp_, d_x_, updateVelocities, d_v_, 1.0 / dt, computeVirial, virial, pbcAiuc_);
 
+    integrator_->integrate2(d_x_, d_v_, dt, doTemperatureScaling);
+
+    lincsGpu_->apply(d_xp_, d_x_, updateVelocities, d_v_, 0.5 / dt, computeVirial, virial, pbcAiuc_);
+    settleGpu_->apply(d_xp_, d_x_, updateVelocities, d_v_, 0.5 / dt, computeVirial, virial, pbcAiuc_);
+
     // scaledVirial -> virial (methods above returns scaled values)
     float scaleFactor = 0.5f / (dt * dt);
     for (int i = 0; i < DIM; i++)
@@ -236,7 +241,8 @@ void UpdateConstrainGpu::Impl::set(DeviceBuffer<RVec>            d_x,
                                    const DeviceBuffer<RVec>      d_f,
                                    const InteractionDefinitions& idef,
                                    const t_mdatoms&              md,
-                                   const int                     numTempScaleValues)
+                                   const int                     numTempScaleValues,
+                                   const t_lang&                 lang)
 {
     // TODO wallcycle
     wallcycle_start_nocount(wcycle_, ewcLAUNCH_GPU);
@@ -256,9 +262,13 @@ void UpdateConstrainGpu::Impl::set(DeviceBuffer<RVec>            d_x,
 
     reallocateDeviceBuffer(&d_inverseMasses_, numAtoms_, &numInverseMasses_,
                            &numInverseMassesAlloc_, deviceContext_);
+    reallocateDeviceBuffer(&d_lang_c1_, numAtoms_, &numInverseMasses_, &numInverseMassesAlloc_,
+                           deviceContext_);
+    reallocateDeviceBuffer(&d_lang_c1_, numAtoms_, &numInverseMasses_, &numInverseMassesAlloc_,
+                           deviceContext_);
 
     // Integrator should also update something, but it does not even have a method yet
-    integrator_->set(numAtoms_, md.invmass, numTempScaleValues, md.cTC);
+    integrator_->set(numAtoms_, md.invmass, numTempScaleValues, md.cTC, lang);
     lincsGpu_->set(idef, numAtoms_, md.invmass);
     settleGpu_->set(idef);
 
@@ -322,9 +332,10 @@ void UpdateConstrainGpu::set(DeviceBuffer<RVec>            d_x,
                              const DeviceBuffer<RVec>      d_f,
                              const InteractionDefinitions& idef,
                              const t_mdatoms&              md,
-                             const int                     numTempScaleValues)
+                             const int                     numTempScaleValues,
+                             const t_lang&                 lang)
 {
-    impl_->set(d_x, d_v, d_f, idef, md, numTempScaleValues);
+    impl_->set(d_x, d_v, d_f, idef, md, numTempScaleValues, lang);
 }
 
 void UpdateConstrainGpu::setPbc(const PbcType pbcType, const matrix box)

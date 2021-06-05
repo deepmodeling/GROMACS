@@ -54,6 +54,7 @@
 #include "gromacs/mdlib/settle_gpu.cuh"
 #include "gromacs/mdlib/update_constrain_gpu.h"
 #include "gromacs/mdtypes/inputrec.h"
+#include "curand_kernel.h"
 
 namespace gmx
 {
@@ -154,7 +155,8 @@ public:
              const DeviceBuffer<RVec>      d_f,
              const InteractionDefinitions& idef,
              const t_mdatoms&              md,
-             const int                     numTempScaleValues);
+             const int                     numTempScaleValues,
+             const t_lang&                 lang);
 
     /*! \brief
      * Update PBC data.
@@ -213,6 +215,11 @@ private:
     int numInverseMasses_ = -1;
     //! Allocation size for the reciprocal masses buffer
     int numInverseMassesAlloc_ = -1;
+
+    // Langevin
+    real* d_lang_c1_;
+    real* d_lang_c2_;
+    curandStateMRG32k3a* ranst;
 
     //! Leap-Frog integrator
     std::unique_ptr<LeapFrogGpu> integrator_;
