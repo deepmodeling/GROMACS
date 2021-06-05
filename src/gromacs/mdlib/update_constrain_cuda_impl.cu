@@ -130,7 +130,10 @@ void UpdateConstrainCuda::Impl::integrate(GpuEventSynchronizer*             fRea
     lincsCuda_->apply(d_xp_, d_x_, updateVelocities, d_v_, 1.0 / dt, computeVirial, virial);
     settleCuda_->apply(d_xp_, d_x_, updateVelocities, d_v_, 1.0 / dt, computeVirial, virial);
 
-    integrator_->integrate2(d_x_, d_v_, dt);
+    integrator_->integrate2(d_x_, d_v_, dt, doTemperatureScaling);
+
+    lincsCuda_->apply(d_xp_, d_x_, updateVelocities, d_v_, 0.5 / dt, computeVirial, virial);
+    settleCuda_->apply(d_xp_, d_x_, updateVelocities, d_v_, 0.5 / dt, computeVirial, virial);
 
     // scaledVirial -> virial (methods above returns scaled values)
     float scaleFactor = 0.5f / (dt * dt);

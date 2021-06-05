@@ -1512,7 +1512,7 @@ void gmx::LegacySimulator::do_md()
             }
 
             const bool doTemperatureScaling =
-                    (ir->etc != etcNO && ir->etc != etcLANGEVIN && do_per_step(step + ir->nsttcouple - 1, ir->nsttcouple));
+                    (ir->etc != etcNO && do_per_step(step + ir->nsttcouple - 1, ir->nsttcouple));
 
             // This applies Leap-Frog, LINCS and SETTLE in succession
             integrator->integrate(stateGpu->getForcesReadyOnDeviceEvent(

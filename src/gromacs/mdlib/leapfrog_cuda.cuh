@@ -108,7 +108,8 @@ public:
 
     void integrate2(const float3*                     d_x,
                     float3*                           d_v,
-                    const real                        dt);
+                    const real                        dt,
+                    const bool                        doTemperatureScaling);
 
     /*! \brief Set the integrator
      *
