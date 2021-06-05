@@ -390,11 +390,11 @@ void gmx::LegacySimulator::do_md()
                            "Constraints pulling is not supported with the GPU update.\n");
         GMX_RELEASE_ASSERT(fcdata.orires->nr == 0,
                            "Orientation restraints are not supported with the GPU update.\n");
-        GMX_RELEASE_ASSERT(
-                ir->efep == efepNO
-                        || (!haveFepPerturbedMasses(*top_global) && !havePerturbedConstraints(*top_global)),
-                "Free energy perturbation of masses and constraints are not supported with the GPU "
-                "update.");
+        // GMX_RELEASE_ASSERT(
+        //         ir->efep == efepNO
+        //                 || (!haveFepPerturbedMasses(*top_global) && !havePerturbedConstraints(*top_global)),
+        //         "Free energy perturbation of masses and constraints are not supported with the GPU "
+        //         "update.");
 
         if (constr != nullptr && constr->numConstraintsTotal() > 0)
         {

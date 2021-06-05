@@ -650,10 +650,10 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
         // The graph is needed, but not supported
         errorMessage += "Orientation restraints are not supported.\n";
     }
-    if (inputrec.efep != efepNO && (haveFepPerturbedMasses(mtop) || havePerturbedConstraints(mtop)))
-    {
-        errorMessage += "Free energy perturbation for mass and constraints are not supported.\n";
-    }
+    // if (inputrec.efep != efepNO && (haveFepPerturbedMasses(mtop) || havePerturbedConstraints(mtop)))
+    // {
+    //     errorMessage += "Free energy perturbation for mass and constraints are not supported.\n";
+    // }
     const auto particleTypes = gmx_mtop_particletype_count(mtop);
     if (particleTypes[eptShell] > 0)
     {
