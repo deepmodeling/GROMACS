@@ -316,12 +316,13 @@ void LeapFrogCuda::integrate(const float3*                     d_x,
                              const matrix                      prVelocityScalingMatrix)
 {
 
+    bool vRescale = doTemperatureScaling && (!doLangevin);
     ensureNoPendingCudaError("In CUDA version of Leap-Frog integrator");
 
     auto kernelPtr = leapfrog_kernel<NumTempScaleValues::None, VelocityScalingType::None>;
-    if (doTemperatureScaling || doParrinelloRahman)
+    if (vRescale || doParrinelloRahman)
     {
-        if (doTemperatureScaling)
+        if (vRescale)
         {
             GMX_ASSERT(numTempScaleValues_ == ssize(h_lambdas_),
                        "Number of temperature scaling factors changed since it was set for the "
@@ -349,7 +350,7 @@ void LeapFrogCuda::integrate(const float3*                     d_x,
                                 dtPressureCouple * prVelocityScalingMatrix[YY][YY],
                                 dtPressureCouple * prVelocityScalingMatrix[ZZ][ZZ]);
         }
-        kernelPtr = selectLeapFrogKernelPtr(doTemperatureScaling, numTempScaleValues_, prVelocityScalingType);
+        kernelPtr = selectLeapFrogKernelPtr(vRescale, numTempScaleValues_, prVelocityScalingType);
     }
 
     const auto kernelArgs = prepareGpuKernelArguments(
@@ -362,12 +363,13 @@ void LeapFrogCuda::integrate(const float3*                     d_x,
 
 void LeapFrogCuda::integrate2(const float3*                     d_x,
                               float3*                           d_v,
-                              const real                        dt)
+                              const real                        dt,
+                              const bool                        doTemperatureScaling)
 {
 
     ensureNoPendingCudaError("In CUDA version of Leap-Frog integrator (2nd step)");
 
-    if (doLangevin)
+    if (doTemperatureScaling && doLangevin)
     {
         auto kernelPtr = langevin_second_step;
         const auto kernelArgs = prepareGpuKernelArguments(
@@ -433,6 +435,7 @@ void LeapFrogCuda::set(const t_mdatoms& md, const int numTempScaleValues, const 
         copyToDeviceBuffer(&d_lang_c2_, (float*)lang.c2, 0, numAtoms_, commandStream_,
                            GpuApiCallBehavior::Sync, nullptr);
 
+        cudaFree(ranst);
         cudaMalloc((void **)&ranst, numAtoms_ * sizeof(curandStateMRG32k3a));
         setup_kernel<<<kernelLaunchConfig_.gridSize[0], c_threadsPerBlock>>>(numAtoms_, lang.seed, ranst);
     }
