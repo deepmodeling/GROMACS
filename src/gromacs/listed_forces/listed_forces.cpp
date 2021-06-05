@@ -69,6 +69,7 @@
 #include "gromacs/mdtypes/forcerec.h"
 #include "gromacs/mdtypes/inputrec.h"
 #include "gromacs/mdtypes/md_enums.h"
+#include "gromacs/mdtypes/interaction_const.h"
 #include "gromacs/mdtypes/simulation_workload.h"
 #include "gromacs/pbcutil/ishift.h"
 #include "gromacs/pbcutil/pbc.h"
@@ -426,6 +427,7 @@ real calc_one_bond(int                           thread,
 
     const bool havePerturbedInteractions =
             (idef.ilsort == ilsortFE_SORTED && numNonperturbedInteractions < iatoms.ssize());
+    const real sb_alpha = fr->ic->softCoreParameters->alphaBond;
     BondedKernelFlavor flavor =
             selectBondedKernelFlavor(stepWork, fr->use_simd_kernels, havePerturbedInteractions);
     int efptFTYPE;
@@ -459,12 +461,12 @@ real calc_one_bond(int                           thread,
                wallcycle needs to be extended to support calling from
                multiple threads. */
             v = cmap_dihs(nbn, iatoms.data() + nb0, iparams.data(), &idef.cmap_grid, x, f, fshift,
-                          pbc, lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd, global_atom_index);
+                          pbc, sb_alpha, lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd, global_atom_index);
         }
         else
         {
             v = calculateSimpleBond(ftype, nbn, iatoms.data() + nb0, iparams.data(), x, f, fshift,
-                                    pbc, lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd,
+                                    pbc, sb_alpha, lambda[efptFTYPE], &(dvdl[efptFTYPE]), md, fcd,
                                     global_atom_index, flavor);
         }
     }

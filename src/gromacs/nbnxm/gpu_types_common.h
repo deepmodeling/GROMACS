@@ -126,6 +126,7 @@ struct NBParamGpu
     bool  bFEP;
     float alpha_coul;
     float alpha_vdw;
+    float alpha_bond;
     int   lam_power; // // Exponent for the dependence of the soft-core on lambda
     float sc_sigma6;
     float sc_sigma6_min;
@@ -141,6 +142,7 @@ struct FEPParamGpu
     bool  bFEP;
     float alpha_coul;
     float alpha_vdw;
+    float alpha_bond;
     float sc_sigma6;
     float sc_sigma6_min;
     //! free energy λ for coulomb interaction
