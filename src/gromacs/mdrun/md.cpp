@@ -775,6 +775,8 @@ void gmx::LegacySimulator::do_md()
     step     = ir->init_step;
     step_rel = 0;
 
+    t_lang lang;
+
     // TODO extract this to new multi-simulation module
     if (MASTER(cr) && isMultiSim(ms) && !useReplicaExchange)
     {
@@ -1472,7 +1474,6 @@ void gmx::LegacySimulator::do_md()
             if (bNS && (bFirstStep || DOMAINDECOMP(cr)))
             {
                 // Langevin
-                t_lang lang;
                 lang.flag = false;
                 if (ir->etc == etcLANGEVIN) {
                     std::cout << "Using Langevin" << std::endl;
