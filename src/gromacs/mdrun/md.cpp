@@ -1831,21 +1831,6 @@ void gmx::LegacySimulator::do_md()
             bExchanged = replica_exchange(fplog, cr, ms, repl_ex, state_global, enerd, state, step, t);
             if (useGpuForUpdate)
             {
-                // Langevin
-                t_lang lang;
-                lang.flag = false;
-                if (ir->etc == etcLANGEVIN) {
-                    std::cout << "Using Langevin" << std::endl;
-                    lang.flag = true;
-                    lang.c1 = new real[state_global->natoms];
-                    lang.c2 = new real[state_global->natoms];
-                    for (int n = 0; n < state_global->natoms; n++) {
-                        int gt = mdatoms->cTC ? mdatoms->cTC[n] : 0;
-                        lang.c1[n] = std::exp(-ir->delta_t / ir->opts.tau_t[gt]);
-                        lang.c2[n] = std::sqrt(BOLTZ * ir->opts.ref_t[gt] * mdatoms->invmass[n] * (1 - lang.c1[n]*lang.c1[n]));
-                    }
-                    lang.seed = ir->ld_seed;
-                }
                 // Copy data to the GPU after buffers might have being reinitialized
                 stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);
                 stateGpu->copyCoordinatesToGpu(state->x, AtomLocality::Local);
