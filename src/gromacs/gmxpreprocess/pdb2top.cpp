@@ -504,7 +504,7 @@ static void print_top_heavy_H(FILE* out, real mHmult)
     {
         fprintf(out, "; Using deuterium instead of hydrogen\n\n");
     }
-    else if (mHmult == 4.0)
+    else if (mHmult == 3.0)
     {
         fprintf(out, "#define HEAVY_H\n\n");
     }
