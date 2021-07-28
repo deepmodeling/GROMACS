@@ -792,7 +792,7 @@ void gmx::LegacySimulator::do_md()
         do_verbose = mdrunOptions.verbose
                      && (step % mdrunOptions.verboseStepPrintInterval == 0 || bFirstStep || bLastStep);
 
-        if (useGpuForUpdate && !bFirstStep && bNS)
+        if (useGpuForUpdate && !bFirstStep && (bNS || bDoReplEx))
         {
             // Copy velocities from the GPU on search steps to keep a copy on host (device buffers are reinitialized).
             stateGpu->copyVelocitiesFromGpu(state->v, AtomLocality::Local);
@@ -1626,6 +1626,16 @@ void gmx::LegacySimulator::do_md()
         if (bDoReplEx)
         {
             bExchanged = replica_exchange(fplog, cr, ms, repl_ex, state_global, enerd, state, step, t);
+            if (useGpuForUpdate)
+            {
+                // Copy data to the GPU after buffers might have being reinitialized
+                stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);
+                stateGpu->copyCoordinatesToGpu(state->x, AtomLocality::Local);
+                integrator->set(stateGpu->getCoordinates(), stateGpu->getVelocities(),
+                                stateGpu->getForces(), top.idef, *mdatoms, ekind->ngtc);
+                integrator->setPbc(PbcType::Xyz, state->box);
+            }
+
         }
 
         if ((bExchanged || bNeedRepartition) && DOMAINDECOMP(cr))
