@@ -171,7 +171,9 @@ void printInteractionParameters(gmx::TextWriter* writer, t_functype ftype, const
         case F_LJC14_Q:
             writer->writeLineFormatted("fqq=%15.8e, qi=%15.8e, qj=%15.8e, c6=%15.8e, c12=%15.8e",
                                        iparams.ljc14.fqq, iparams.ljc14.qi, iparams.ljc14.qj,
-                                       iparams.ljc14.c6, iparams.ljc14.c12);
+                                       iparams.ljc14.c6, iparams.ljc14.c12,
+                                       iparams.ljc14.fqqB, iparams.ljc14.qiB, iparams.ljc14.qjB,
+                                       iparams.ljc14.c6B, iparams.ljc14.c12B);
             break;
         case F_LJC_PAIRS_NB:
             writer->writeLineFormatted("qi=%15.8e, qj=%15.8e, c6=%15.8e, c12=%15.8e", iparams.ljcnb.qi,

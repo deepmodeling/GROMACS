@@ -124,7 +124,7 @@ typedef union t_iparams {
     } lj14;
     struct
     {
-        real fqq, qi, qj, c6, c12;
+        real fqq, qi, qj, c6, c12, fqqB, qiB, qjB, c6B, c12B;
     } ljc14;
     struct
     {

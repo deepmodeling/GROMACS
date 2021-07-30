@@ -438,6 +438,13 @@ static real do_pairs_general(int                 ftype,
                 c12         = iparams[itype].lj14.c12A;
                 break;
             case F_LJC14_Q:
+                bFreeEnergy = (fr->efep != efepNO
+                               && (((md->nPerturbed != 0) && (md->bPerturbed[ai] || md->bPerturbed[aj]))
+                                   || iparams[itype].ljc14.fqq != iparams[itype].ljc14.fqqB
+                                   || iparams[itype].ljc14.qi != iparams[itype].ljc14.qiB
+                                   || iparams[itype].ljc14.qj != iparams[itype].ljc14.qjB
+                                   || iparams[itype].ljc14.c6A != iparams[itype].ljc14.c6B
+                                   || iparams[itype].ljc14.c12A != iparams[itype].ljc14.c12B));
                 qq = iparams[itype].ljc14.qi * iparams[itype].ljc14.qj * epsfac
                      * iparams[itype].ljc14.fqq;
                 c6  = iparams[itype].ljc14.c6;
@@ -489,9 +496,24 @@ static real do_pairs_general(int                 ftype,
         if (bFreeEnergy)
         {
             /* Currently free energy is only supported for F_LJ14, so no need to check for that if we got here */
-            qqB  = md->chargeB[ai] * md->chargeB[aj] * epsfac * fr->fudgeQQ;
-            c6B  = iparams[itype].lj14.c6B * 6.0;
-            c12B = iparams[itype].lj14.c12B * 12.0;
+            switch (ftype)
+            {
+                case F_LJ14:
+                    qqB  = md->chargeB[ai] * md->chargeB[aj] * epsfac * fr->fudgeQQ;
+                    c6B  = iparams[itype].lj14.c6B * 6.0;
+                    c12B = iparams[itype].lj14.c12B * 12.0;
+                    break;
+                case F_LJC14:
+                    qqB = iparams[itype].ljc14.qiB * iparams[itype].ljc14.qjB * epsfac
+                     * iparams[itype].ljc14.fqqB;
+                    c6B  = iparams[itype].ljc14.c6B * 6.0;
+                    c12B = iparams[itype].ljc14.c12B * 12.0;
+                    break;
+                default:
+                    /* Cannot happen since we called gmx_fatal() above in this case */
+                    qqB = c6B = c12B = 0; /* Keep compiler happy */
+                    break;
+            }
 
             fscal = free_energy_evaluate_single(
                     r2, *fr->ic->softCoreParameters, fr->pairsTable->scale,

@@ -1881,6 +1881,11 @@ static void do_iparams(gmx::ISerializer* serializer, t_functype ftype, t_iparams
             serializer->doReal(&iparams->ljc14.qj);
             serializer->doReal(&iparams->ljc14.c6);
             serializer->doReal(&iparams->ljc14.c12);
+            serializer->doReal(&iparams->ljc14.fqqB);
+            serializer->doReal(&iparams->ljc14.qiB);
+            serializer->doReal(&iparams->ljc14.qjB);
+            serializer->doReal(&iparams->ljc14.c6B);
+            serializer->doReal(&iparams->ljc14.c12B);
             break;
         case F_LJC_PAIRS_NB:
             serializer->doReal(&iparams->ljcnb.qi);
