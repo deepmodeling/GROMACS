@@ -1449,67 +1449,89 @@ __global__ void exec_kernel_gpu(BondedCudaKernelParameters kernelParams)
                 threadComputedPotential = true;
             }
 
-            switch (fType)
+            if (kernelParams.d_qA != nullptr) // bonded GPU FEP
             {
-                case F_BONDS:
-                    // bonds_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                    //                              kernelParams.d_forceParams, kernelParams.d_xq,
-                    //                              kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    bonds_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    break;
-                case F_ANGLES:
-                    // angles_gpu<calcVir, calcEner>(
-                    //         fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                    //         kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    angles_fep_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    break;
-                case F_UREY_BRADLEY:
-                    // urey_bradley_gpu<calcVir, calcEner>(
-                    //         fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                    //         kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    urey_bradley_fep_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    break;
-                case F_PDIHS:
-                case F_PIDIHS:
-                    // pdihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                    //                              kernelParams.d_forceParams, kernelParams.d_xq,
-                    //                              kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    pdihs_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    break;
-                case F_RBDIHS:
-                    // rbdihs_gpu<calcVir, calcEner>(
-                    //         fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
-                    //         kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    rbdihs_fep_gpu<calcVir, calcEner>(
-                            fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
-                            kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    break;
-                case F_IDIHS:
-                    // idihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                    //                              kernelParams.d_forceParams, kernelParams.d_xq,
-                    //                              kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    idihs_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
-                                                 kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
-                                                 kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
-                    break;
-                case F_LJ14:
-                    // pairs_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
-                    //                              kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc,
-                    //                              kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor,
-                    //                              &vtotVdw_loc, &vtotElec_loc);
-                    pairs_fep_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
-                                                 kernelParams.d_xq, kernelParams.d_qA, kernelParams.d_qB, kernelParams.d_f, sm_fShiftLoc,
-                                                 kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor,
-                                                 &vtotVdw_loc, &vtotElec_loc);
-                    break;
+                switch (fType)
+                {
+                    case F_BONDS:
+                        bonds_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                    kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
+                                                    kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_ANGLES:
+                        angles_fep_gpu<calcVir, calcEner>(
+                                fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
+                                kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_UREY_BRADLEY:
+                        urey_bradley_fep_gpu<calcVir, calcEner>(
+                                fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
+                                kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_PDIHS:
+                    case F_PIDIHS:
+                        pdihs_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                    kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
+                                                    kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_RBDIHS:
+                        rbdihs_fep_gpu<calcVir, calcEner>(
+                                fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
+                                kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_IDIHS:
+                        idihs_fep_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                    kernelParams.d_forceParams, kernelParams.d_fepParams, kernelParams.d_xq,
+                                                    kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_LJ14:
+                        pairs_fep_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
+                                                    kernelParams.d_xq, kernelParams.d_qA, kernelParams.d_qB, kernelParams.d_f, sm_fShiftLoc,
+                                                    kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor,
+                                                    &vtotVdw_loc, &vtotElec_loc);
+                        break;
+                }
+            } else {
+                switch (fType)
+                {
+                    case F_BONDS:
+                        bonds_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                     kernelParams.d_forceParams, kernelParams.d_xq,
+                                                     kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_ANGLES:
+                        angles_gpu<calcVir, calcEner>(
+                                fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                                kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_UREY_BRADLEY:
+                        urey_bradley_gpu<calcVir, calcEner>(
+                                fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                                kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_PDIHS:
+                    case F_PIDIHS:
+                        pdihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                     kernelParams.d_forceParams, kernelParams.d_xq,
+                                                     kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_RBDIHS:
+                        rbdihs_gpu<calcVir, calcEner>(
+                                fTypeTid, &vtot_loc, numBonds, iatoms, kernelParams.d_forceParams,
+                                kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_IDIHS:
+                        idihs_gpu<calcVir, calcEner>(fTypeTid, &vtot_loc, numBonds, iatoms,
+                                                     kernelParams.d_forceParams, kernelParams.d_xq,
+                                                     kernelParams.d_f, sm_fShiftLoc, kernelParams.pbcAiuc);
+                        break;
+                    case F_LJ14:
+                        pairs_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
+                                                     kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc,
+                                                     kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor,
+                                                     &vtotVdw_loc, &vtotElec_loc);
+                        break;
+                }
             }
             break;
         }
