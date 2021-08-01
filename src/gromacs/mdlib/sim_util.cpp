@@ -784,7 +784,7 @@ static void alternatePmeNbGpuWaitReduce(nonbonded_verlet_t* nbv,
                     forceBuffersNonbonded.shiftForces(), completionType, wcycle);
             }
 
-            //TODO: foregin computations
+            //TODO: foreign lambda computations
             
             if (isNbGpuDone)
             {
@@ -1684,23 +1684,23 @@ void do_force(FILE*                               fplog,
         do_nb_verlet(fr, ic, enerd, stepWork, InteractionLocality::Local, enbvClearFYes, step, nrnb, wcycle);
     }
 
-    if (fr->efep != efepNO && stepWork.computeNonbondedForces)
+    if (fr->efep != efepNO && stepWork.computeNonbondedForces && !useOrEmulateGpuNb)
     {
         /* Calculate the local and non-local free energy interactions here.
          * Happens here on the CPU both with and without GPU.
          */
-        // nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
-        //                               as_rvec_array(x.unpaddedArrayRef().data()),
-        //                               &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
-        //                               inputrec->fepvals, lambda, enerd, stepWork, nrnb);
+        nbv->dispatchFreeEnergyKernel(InteractionLocality::Local, fr,
+                                      as_rvec_array(x.unpaddedArrayRef().data()),
+                                      &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
+                                      inputrec->fepvals, lambda, enerd, stepWork, nrnb);
 
-        // if (havePPDomainDecomposition(cr))
-        // {
-        //     nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
-        //                                   as_rvec_array(x.unpaddedArrayRef().data()),
-        //                                   &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
-        //                                   inputrec->fepvals, lambda, enerd, stepWork, nrnb);
-        // }
+        if (havePPDomainDecomposition(cr))
+        {
+            nbv->dispatchFreeEnergyKernel(InteractionLocality::NonLocal, fr,
+                                          as_rvec_array(x.unpaddedArrayRef().data()),
+                                          &forceOutNonbonded->forceWithShiftForces(), *mdatoms,
+                                          inputrec->fepvals, lambda, enerd, stepWork, nrnb);
+        }
     }
 
     if (stepWork.computeNonbondedForces && !useOrEmulateGpuNb)
