@@ -117,6 +117,10 @@ static gmx_bool ip_pert(int ftype, const t_iparams* ip)
         case F_LJ14:
             bPert = (ip->lj14.c6A != ip->lj14.c6B || ip->lj14.c12A != ip->lj14.c12B);
             break;
+        case F_LJC14_Q:
+            bPert = (ip->ljc14.fqq * ip->ljc14.qi * ip->ljc14.qj != ip->ljc14.fqqB * ip->ljc14.qiB * ip->ljc14.qjB 
+                    || ip->ljc14.c6 != ip->ljc14.c6B || ip->ljc14.c12 != ip->lj14.c12B);
+            break;
         case F_CMAP: bPert = FALSE; break;
         case F_RESTRANGLES:
         case F_RESTRDIHS:
