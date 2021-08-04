@@ -125,7 +125,7 @@ const t_interaction_function interaction_function[F_NRE] = {
     def_nofc("GB13", "GB 1-3 Pol. (unused)"), def_nofc("GB14", "GB 1-4 Pol. (unused)"),
     def_nofc("GBPOL", "GB Polarization (unused)"), def_nofc("NPSOLVATION", "Nonpolar Sol. (unused)"),
     def_bondedz("LJ14", "LJ-14", 2, 2, 2), def_nofc("COUL14", "Coulomb-14"),
-    def_bondedz("LJC14_Q", "LJC-14 q", 2, 5, 0), def_bondedz("LJC_NB", "LJC Pairs NB", 2, 4, 0),
+    def_bondedz("LJC14_Q", "LJC-14 q", 2, 5, 5), def_bondedz("LJC_NB", "LJC Pairs NB", 2, 4, 0),
     def_nb("LJ_SR", "LJ (SR)", 2, 2), def_nb("BHAM", "Buck.ham (SR)", 2, 3),
     def_nofc("LJ_LR", "LJ (unused)"), def_nofc("BHAM_LR", "B.ham (unused)"),
     def_nofc("DISPCORR", "Disper. corr."), def_nofc("COUL_SR", "Coulomb (SR)"),

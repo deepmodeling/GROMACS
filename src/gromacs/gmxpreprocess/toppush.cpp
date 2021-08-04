@@ -1026,10 +1026,11 @@ void push_nbt(Directive d, t_nbparam** nbt, PreprocessingAtomTypes* atypes, char
     const char* form3 = "%*s%*s%*s%lf%lf%lf";
     const char* form4 = "%*s%*s%*s%lf%lf%lf%lf";
     const char* form5 = "%*s%*s%*s%lf%lf%lf%lf%lf";
+    const char* form10 = "%*s%*s%*s%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf";
     char        a0[80], a1[80];
     int         i, f, n, ftype, nrfp;
-    double      c[4], dum;
-    real        cr[4];
+    double      c[8], dum;
+    real        cr[8];
     int         ai, aj;
     t_nbparam*  nbp;
     bool        bId;
@@ -1072,11 +1073,20 @@ void push_nbt(Directive d, t_nbparam** nbt, PreprocessingAtomTypes* atypes, char
     }
     else if (ftype == F_LJC14_Q)
     {
-        n = sscanf(pline, form5, &c[0], &c[1], &c[2], &c[3], &dum);
-        if (n != 4)
+        n = sscanf(pline, form10, &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &dum, &dum);
+        if (n < 4)
         {
+            too_few(wi);
             incorrect_n_param(wi);
             return;
+        }
+        /* When the B topology parameters are not set,
+         * copy them from topology A
+         */
+        GMX_ASSERT(nrfp <= 10, "LJC-14 cannot have more than 10 parameters");
+        for (i = n; i < nrfp; i++)
+        {
+            c[i] = c[i - 4];
         }
     }
     else if (nrfp == 2)
@@ -2602,6 +2612,8 @@ static void convert_pairs_to_pairsQ(gmx::ArrayRef<InteractionsOfType> interactio
     for (const auto& param : paramp1)
     {
         std::vector<real> forceParam = { fudgeQQ, atoms->atom[param.ai()].q,
+                                         atoms->atom[param.aj()].q, param.c0(), param.c1(),
+                                         fudgeQQ, atoms->atom[param.ai()].q,
                                          atoms->atom[param.aj()].q, param.c0(), param.c1() };
         paramnew.emplace_back(InteractionOfType(param.atoms(), forceParam, ""));
     }
