@@ -590,6 +590,7 @@ static void pr_fepvals(FILE* fp, int indent, const t_lambda* fep, gmx_bool bMDPf
     }
     PI("calc-lambda-neighbors", fep->lambda_neighbors);
     PS("dhdl-print-energy", edHdLPrintEnergy_names[fep->edHdLPrintEnergy]);
+    PR("sb-alpha", fep->sb_alpha);
     PR("sc-alpha", fep->sc_alpha);
     PI("sc-power", fep->sc_power);
     PR("sc-r-power", fep->sc_r_power);
@@ -1275,6 +1276,7 @@ static void cmp_fepvals(FILE* fp, const t_lambda* fep1, const t_lambda* fep2, re
         }
     }
     cmp_int(fp, "inputrec->fepvals->lambda_neighbors", 1, fep1->lambda_neighbors, fep2->lambda_neighbors);
+    cmp_real(fp, "inputrec->fepvals->sb_alpha", -1, fep1->sb_alpha, fep2->sb_alpha, ftol, abstol);
     cmp_real(fp, "inputrec->fepvals->sc_alpha", -1, fep1->sc_alpha, fep2->sc_alpha, ftol, abstol);
     cmp_int(fp, "inputrec->fepvals->sc_power", -1, fep1->sc_power, fep2->sc_power);
     cmp_real(fp, "inputrec->fepvals->sc_r_power", -1, fep1->sc_r_power, fep2->sc_r_power, ftol, abstol);

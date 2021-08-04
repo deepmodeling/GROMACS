@@ -75,6 +75,7 @@ struct BondedFepParameters
     bool  bFEP; /**< whether using free energy perturbation    */
     float alpha_coul;
     float alpha_vdw;
+    float alpha_bond;
     float sc_sigma6;
     float sc_sigma6_min;
     float lambda_q; /**< free energy λ for coulomb interaction */
@@ -85,6 +86,7 @@ struct BondedFepParameters
         bFEP          = 0;
         alpha_coul    = 0.0;
         alpha_vdw     = 0.0;
+        alpha_bond    = 0.0;
         sc_sigma6     = 0.0;
         sc_sigma6_min = 0.0;
         lambda_q      = 0.0;
@@ -181,6 +183,7 @@ public:
                                          const bool  bFEP,
                                          const float alpha_coul,
                                          const float alpha_vdw,
+                                         const float alpha_bond,
                                          const float sc_sigma6_def,
                                          const float sc_sigma6_min,
                                          const float lambda_q,

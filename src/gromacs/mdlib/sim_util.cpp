@@ -1390,7 +1390,7 @@ void do_force(FILE*                               fplog,
                     fr->gpuBonded->updateFepValuesAndDeviceBuffers(
                             Nbnxm::gpu_get_qA(nbv->gpu_nbv), Nbnxm::gpu_get_qB(nbv->gpu_nbv), 1,
                             ic->softCoreParameters->alphaCoulomb, ic->softCoreParameters->alphaVdw,
-                            ic->softCoreParameters->sigma6WithInvalidSigma,
+                            ic->softCoreParameters->alphaBond, ic->softCoreParameters->sigma6WithInvalidSigma,
                             ic->softCoreParameters->sigma6Minimum, lambda[efptCOUL], lambda[efptVDW]);
                 }
             }

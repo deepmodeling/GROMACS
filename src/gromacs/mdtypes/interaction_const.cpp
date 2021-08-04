@@ -44,6 +44,7 @@
 interaction_const_t::SoftCoreParameters::SoftCoreParameters(const t_lambda& fepvals) :
     alphaVdw(fepvals.sc_alpha),
     alphaCoulomb(fepvals.bScCoul ? fepvals.sc_alpha : 0),
+    alphaBond(fepvals.sb_alpha),
     lambdaPower(fepvals.sc_power),
     sigma6WithInvalidSigma(gmx::power6(fepvals.sc_sigma)),
     sigma6Minimum(fepvals.bScCoul ? gmx::power6(fepvals.sc_sigma_min) : 0)

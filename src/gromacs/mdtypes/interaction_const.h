@@ -118,6 +118,8 @@ struct interaction_const_t
         real alphaVdw;
         // Alpha parameter for Coulomb interactions
         real alphaCoulomb;
+        // Alpha parameter for bonded interactions
+        real alphaBond;
         // Exponent for the dependence of the soft-core on lambda
         int lambdaPower;
         // Value for sigma^6 for LJ interaction with C6<=0 and/or C12<=0
