@@ -2046,7 +2046,10 @@ void push_bond(Directive                         d,
         param.setForceParameter(2, at->atom[param.aj()].q);
         /* The default LJ parameters are the standard 1-4 parameters */
         bFoundA = default_nb_params(F_LJ14, bondtype, at, &param, 3, FALSE, bGenPairs);
-        bFoundB = TRUE;
+        param.setForceParameter(5, fudgeQQ);
+        param.setForceParameter(6, at->atom[param.ai()].q);
+        param.setForceParameter(7, at->atom[param.aj()].q);
+        bFoundB = default_nb_params(F_LJ14, bondtype, at, &param, 8, FALSE, bGenPairs);;
     }
     else if (ftype == F_LJC_PAIRS_NB)
     {
