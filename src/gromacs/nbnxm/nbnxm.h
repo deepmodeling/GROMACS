@@ -343,6 +343,18 @@ public:
                                   gmx_enerdata_t*            enerd,
                                   const gmx::StepWorkload&   stepWork,
                                   t_nrnb*                    nrnb);
+    
+        //! Executes the non-bonded free-energy kernel for foreign lambdas, always runs on the CPU
+    void dispatchOnlyForeignFreeEnergyKernel(gmx::InteractionLocality   iLocality,
+                                  const t_forcerec*          fr,
+                                  rvec                       x[],
+                                  gmx::ForceWithShiftForces* forceWithShiftForces,
+                                  const t_mdatoms&           mdatoms,
+                                  t_lambda*                  fepvals,
+                                  gmx::ArrayRef<const real>  lambda,
+                                  gmx_enerdata_t*            enerd,
+                                  const gmx::StepWorkload&   stepWork,
+                                  t_nrnb*                    nrnb);
 
     /*! \brief Add the forces stored in nbat to f, zeros the forces in nbat
      * \param [in] locality         Local or non-local
