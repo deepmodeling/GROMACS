@@ -269,10 +269,10 @@ static int assign_param(t_functype ftype, t_iparams* newparam, gmx::ArrayRef<con
             newparam->ljc14.qi  = old[1];
             newparam->ljc14.qj  = old[2];
             set_ljparams(comb, reppow, old[3], old[4], &newparam->ljc14.c6, &newparam->ljc14.c12);
-            newparam->ljc14.fqqB = old[0];
-            newparam->ljc14.qiB  = old[1];
-            newparam->ljc14.qjB  = old[2];
-            set_ljparams(comb, reppow, old[3], old[4], &newparam->ljc14.c6B, &newparam->ljc14.c12B);
+            newparam->ljc14.fqqB = old[5];
+            newparam->ljc14.qiB  = old[6];
+            newparam->ljc14.qjB  = old[7];
+            set_ljparams(comb, reppow, old[8], old[9], &newparam->ljc14.c6B, &newparam->ljc14.c12B);
             break;
         case F_LJC_PAIRS_NB:
             newparam->ljcnb.qi = old[0];
