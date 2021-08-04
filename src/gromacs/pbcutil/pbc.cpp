@@ -50,8 +50,6 @@
 
 #include <algorithm>
 
-#include<execinfo.h>
-
 #include "gromacs/math/functions.h"
 #include "gromacs/math/units.h"
 #include "gromacs/math/utilities.h"
@@ -87,33 +85,6 @@ enum
 #define BOX_MARGIN 1.0010
 //! Margin correction if the box is too skewed
 #define BOX_MARGIN_CORRECT 1.0005
-
-void get_func_stack()
-{
-
-    int    j, nptrs;
-    void*  buffer[100];
-    char** strings;
-
-    nptrs = backtrace(buffer, 100);
-    printf("backtrace() returned %d addresses\n", nptrs);
-
-    /* The call backtrace_symbols_fd(buffer, nptrs, STDOUT_FILENO)
-     *  would produce similar output to the following: */
-
-    strings = backtrace_symbols(buffer, nptrs);
-
-    if (strings == NULL)
-    {
-        perror("backtrace_symbols");
-        exit(EXIT_FAILURE);
-    }
-
-    for (j = 0; j < nptrs; j++)
-        printf("%s\n", strings[j]);
-
-    free(strings);
-}
 
 int numPbcDimensions(PbcType pbcType)
 {
@@ -816,8 +787,7 @@ void pbc_dx(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
             break;
         case epbcdxNOPBC:
         case epbcdxUNSUPPORTED: break;
-        default:
-            gmx_fatal(FARGS, "Internal error in pbc_dx, set_pbc has not been called");
+        default: gmx_fatal(FARGS, "Internal error in pbc_dx, set_pbc has not been called");
     }
 }
 
@@ -1080,8 +1050,6 @@ int pbc_dx_aiuc(const t_pbc* pbc, const rvec x1, const rvec x2, rvec dx)
         case epbcdxNOPBC:
         case epbcdxUNSUPPORTED: break;
         default:
-            get_func_stack();
-            printf("about to throw error\n");
             gmx_fatal(FARGS,
                       "Internal error in pbc_dx_aiuc, set_pbc_dd or set_pbc has not been called");
     }

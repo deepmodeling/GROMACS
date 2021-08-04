@@ -193,6 +193,8 @@ static real free_energy_evaluate_single(real                                    
     const real one  = 1.0_real;
     const real two  = 2.0_real;
 
+    const bool useScBetaNO = (scParams.alphaCoulomb == 0.0);
+
     qq[0]  = qqA;
     qq[1]  = qqB;
     c6[0]  = c6A;
@@ -202,6 +204,9 @@ static real free_energy_evaluate_single(real                                    
 
     const real rpm2 = r2 * r2;   /* r4 */
     const real rp   = rpm2 * r2; /* r6 */
+
+    const real rpcm2 = rpm2;
+    const real rpc   = rp;
 
     /* Loop over state A(0) and B(1) */
     for (i = 0; i < 2; i++)
@@ -232,8 +237,15 @@ static real free_energy_evaluate_single(real                                    
     }
     else
     {
-        alpha_vdw_eff  = scParams.alphaVdw;
-        alpha_coul_eff = scParams.alphaCoulomb;
+        alpha_vdw_eff = scParams.alphaVdw;
+        if (useScBetaNO)
+        {
+            alpha_coul_eff = alpha_vdw_eff;
+        }
+        else
+        {
+            alpha_coul_eff = scParams.alphaCoulomb;
+        }
     }
 
     /* Loop over A and B states again */
@@ -248,7 +260,15 @@ static real free_energy_evaluate_single(real                                    
         if ((qq[i] != 0) || (c6[i] != 0) || (c12[i] != 0))
         {
             /* Coulomb */
-            rpinv  = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rp);
+            if (useScBetaNO)
+            {
+                rpinv = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rp);
+            }
+            else
+            {
+                rpinv = one / (alpha_coul_eff * lfac_coul[i] * sigma_pow[i] + rpc);
+            }
+
             r_coul = sixthRoot(rpinv);
 
             /* Electrostatics table lookup data */
@@ -315,8 +335,17 @@ static real free_energy_evaluate_single(real                                    
 
         fscal += (LFC[i] * fscal_elec[i] + LFV[i] * fscal_vdw[i]) * rpm2;
 
-        dvdl_coul += velec[i] * DLF[i]
-                     + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i] * sigma_pow[i];
+        if (useScBetaNO)
+        {
+            dvdl_coul += velec[i] * DLF[i]
+                         + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i] * sigma_pow[i];
+        }
+        else
+        {
+            dvdl_coul += velec[i] * DLF[i]
+                         + LFC[i] * alpha_coul_eff * dlfac_coul[i] * fscal_elec[i] * sigma_pow[i];
+        }
+
         dvdl_vdw += vvdw[i] * DLF[i]
                     + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * fscal_vdw[i] * sigma_pow[i];
     }
