@@ -453,7 +453,6 @@ static inline int calc_shmem_required_nonbonded(const int               num_thre
     /* NOTE: with the default kernel on sm3.0 we need shmem only for pre-loading */
     /* i-atom x+q in shared memory */
     shmem = c_nbnxnGpuNumClusterPerSupercluster * c_clSize * sizeof(float4);
-
     /* cj in shared memory, for each warp separately */
     shmem += num_threads_z * c_nbnxnGpuClusterpairSplit * c_nbnxnGpuJgroupSize * sizeof(int);
 

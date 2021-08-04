@@ -43,7 +43,7 @@
 
 interaction_const_t::SoftCoreParameters::SoftCoreParameters(const t_lambda& fepvals) :
     alphaVdw(fepvals.sc_alpha),
-    alphaCoulomb(fepvals.bScCoul ? fepvals.sc_alpha : 0),
+    alphaCoulomb(fepvals.bScCoul ? (fepvals.sc_beta == 0 ? fepvals.sc_alpha : fepvals.sc_beta) : 0),
     alphaBond(fepvals.sb_alpha),
     lambdaPower(fepvals.sc_power),
     sigma6WithInvalidSigma(gmx::power6(fepvals.sc_sigma)),

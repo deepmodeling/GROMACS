@@ -255,6 +255,7 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
     const bool  doForces      = ((kernel_data->flags & GMX_NONBONDED_DO_FORCE) != 0);
     const bool  doShiftForces = ((kernel_data->flags & GMX_NONBONDED_DO_SHIFTFORCE) != 0);
     const bool  doPotential   = ((kernel_data->flags & GMX_NONBONDED_DO_POTENTIAL) != 0);
+    const bool  useScBetaNO   = (alpha_coul == 0.0) && (sigma6_min != 0.0);
 
     // Extract data from interaction_const_t
     const real facel           = ic->epsfac;
@@ -520,8 +521,15 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                     }
                     else
                     {
-                        alpha_vdw_eff  = alpha_vdw;
-                        alpha_coul_eff = alpha_coul;
+                        alpha_vdw_eff = alpha_vdw;
+                        if (useScBetaNO)
+                        {
+                            alpha_coul_eff = alpha_vdw_eff;
+                        }
+                        else
+                        {
+                            alpha_coul_eff = alpha_coul;
+                        }
                     }
                 }
 
@@ -540,8 +548,17 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
                         /* this section has to be inside the loop because of the dependence on sigma6 */
                         if (useSoftCore)
                         {
-                            rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma6[i] + rp);
-                            pthRoot(rpinvC, &rinvC, &rC);
+                            if (useScBetaNO)
+                            {
+                                rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma6[i] + rp);
+                                pthRoot(rpinvC, &rinvC, &rC);
+                            }
+                            else
+                            {
+                                rpinvC = one / (alpha_coul_eff * lfac_coul[i] * sigma6[i] + rp);
+                                pthRoot(rpinvC, &rinvC, &rC);
+                            }
+                            
                             if (scLambdasOrAlphasDiffer)
                             {
                                 rpinvV = one / (alpha_vdw_eff * lfac_vdw[i] * sigma6[i] + rp);
@@ -655,8 +672,18 @@ static void nb_free_energy_kernel(const t_nblist* gmx_restrict nlist,
 
                     if (useSoftCore)
                     {
-                        dvdl_coul += Vcoul[i] * DLF[i]
-                                     + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i] * sigma6[i];
+                        if (useScBetaNO)
+                        {
+                            dvdl_coul +=
+                                    Vcoul[i] * DLF[i]
+                                    + LFC[i] * alpha_vdw_eff * dlfac_coul[i] * FscalC[i] * sigma6[i];
+                        }
+                        else
+                        {
+                            dvdl_coul +=
+                                    Vcoul[i] * DLF[i]
+                                    + LFC[i] * alpha_coul_eff * dlfac_coul[i] * FscalC[i] * sigma6[i];
+                        }
                         dvdl_vdw += Vvdw[i] * DLF[i]
                                     + LFV[i] * alpha_vdw_eff * dlfac_vdw[i] * FscalV[i] * sigma6[i];
                     }

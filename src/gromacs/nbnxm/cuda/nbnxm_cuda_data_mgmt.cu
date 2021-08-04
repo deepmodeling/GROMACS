@@ -775,7 +775,7 @@ void nbnxn_gpu_init_x_to_nbat_x(const Nbnxm::GridSet& gridSet, NbnxmGpu* gpu_nbv
         const int* cxy_ind         = grid.cxy_ind().data();
 
         reallocateDeviceBuffer(&gpu_nbv->atomIndices, atomIndicesSize, &gpu_nbv->atomIndicesSize,
-                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);;
+                               &gpu_nbv->atomIndicesSize_alloc, *gpu_nbv->deviceContext_);
 
         if (atomIndicesSize > 0)
         {

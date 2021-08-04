@@ -141,6 +141,8 @@ struct t_lambda
     real sb_alpha;
     //! Free energy soft-core parameter
     real sc_alpha;
+    //! Free energy soft-core parameter (additional for splitted)
+    real sc_beta;
     //! Lambda power for soft-core interactions
     int sc_power;
     //! R power for soft-core interactions
