@@ -564,6 +564,7 @@ static void do_fepvals(gmx::ISerializer* serializer, t_lambda* fepvals, int file
             fepvals->separate_dvdl[efptFEP] = TRUE;
         }
     }
+    serializer->doReal(&fepvals->sb_alpha);
     serializer->doReal(&fepvals->sc_alpha);
     serializer->doReal(&fepvals->sc_beta);
     serializer->doInt(&fepvals->sc_power);

@@ -2312,6 +2312,7 @@ void get_ir(const char*     mdparin,
     fep->lambda_neighbors = get_eint(&inp, "calc-lambda-neighbors", 1, wi);
     setStringEntry(&inp, "init-lambda-weights", inputrecStrings->lambda_weights, nullptr);
     fep->edHdLPrintEnergy   = get_eeenum(&inp, "dhdl-print-energy", edHdLPrintEnergy_names, wi);
+    fep->sb_alpha           = get_ereal(&inp, "sb-alpha", 0.0, wi);
     fep->sc_alpha           = get_ereal(&inp, "sc-alpha", 0.0, wi);
     fep->sc_beta            = get_ereal(&inp, "sc-beta", 0.0, wi);
     fep->sc_power           = get_eint(&inp, "sc-power", 1, wi);

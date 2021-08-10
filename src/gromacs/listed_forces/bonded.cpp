@@ -96,6 +96,7 @@ using BondedFunction = real (*)(int              nbonds,
                                 rvec4            f[],
                                 rvec             fshift[],
                                 const t_pbc*     pbc,
+                                real             sb_alpha,
                                 real             lambda,
                                 real*            dvdlambda,
                                 const t_mdatoms* md,
@@ -250,6 +251,7 @@ real morse_bonds(int             nbonds,
                  rvec4           f[],
                  rvec            fshift[],
                  const t_pbc*    pbc,
+                 real            sb_alpha,
                  real            lambda,
                  real*           dvdlambda,
                  const t_mdatoms gmx_unused* md,
@@ -318,6 +320,7 @@ real cubic_bonds(int             nbonds,
                  rvec4           f[],
                  rvec            fshift[],
                  const t_pbc*    pbc,
+                 real            sb_alpha,
                  real gmx_unused lambda,
                  real gmx_unused* dvdlambda,
                  const t_mdatoms gmx_unused* md,
@@ -373,6 +376,7 @@ real FENE_bonds(int             nbonds,
                 rvec4           f[],
                 rvec            fshift[],
                 const t_pbc*    pbc,
+                real            sb_alpha,
                 real gmx_unused lambda,
                 real gmx_unused* dvdlambda,
                 const t_mdatoms gmx_unused* md,
@@ -449,6 +453,52 @@ real harmonic(real kA, real kB, real xA, real xB, real x, real lambda, real* V, 
     /* That was 19 flops */
 }
 
+real harmonic_softbond(real kA, real kB, real xA, real xB, real x, real sb_alpha, real lambda, real* V, real* F)
+{
+    const real half = 0.5;
+    real       L1, kk, x0, dx, dx2, dxA, dxA2, dxB, dxB2;
+    real       v, f, dvdlambda;
+
+    L1 = 1.0 - lambda;
+    kk = L1 * kA + lambda * kB;
+    x0 = L1 * xA + lambda * xB;
+
+    dx  = x - x0;
+    dx2 = dx * dx;
+
+    dxA = x - xA;
+    dxA2= dxA * dxA;
+
+    dxB = x - xB;
+    dxB2= dxB * dxB;
+
+    if (kA == 0)
+    {
+        f         = -lambda * kB * dxB / (1 + sb_alpha * L1 * dxB2) / (1 + sb_alpha * L1 * dxB2);
+        v         = half * lambda * kB * dxB2 / (1 + sb_alpha * L1 * dxB2);
+        dvdlambda = v * (1 + sb_alpha * dxB2) / (1 + sb_alpha * L1 * dxB2);
+    }
+    else if (kB == 0)
+    {
+        f         = -L1 * kA * dxA / (1 + sb_alpha * lambda * dxB2) / (1 + sb_alpha * lambda * dxB2);
+        v         = half * L1 * kA * dxA2 / (1 + sb_alpha * lambda * dxA2);
+        dvdlambda = v * (1 + sb_alpha * dxB2) / (1 + sb_alpha * lambda * dxB2);
+    }
+    else
+    {
+        f         = -kk * dx;
+        v         = half * kk * dx2;
+        dvdlambda = half * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+    }
+
+    *F = f;
+    *V = v;
+
+    return dvdlambda;
+
+    /* That was 19 flops */
+}
+
 template<BondedKernelFlavor flavor>
 std::enable_if_t<flavor != BondedKernelFlavor::ForcesSimdWhenAvailable || !GMX_SIMD_HAVE_REAL, real>
 bonds(int             nbonds,
@@ -458,6 +508,7 @@ bonds(int             nbonds,
       rvec4           f[],
       rvec            fshift[],
       const t_pbc*    pbc,
+      real            sb_alpha,
       real            lambda,
       real*           dvdlambda,
       const t_mdatoms gmx_unused* md,
@@ -479,9 +530,18 @@ bonds(int             nbonds,
         dr2 = iprod(dx, dx);                       /*   5		*/
         dr  = std::sqrt(dr2);                      /*  10		*/
 
-        *dvdlambda += harmonic(forceparams[type].harmonic.krA, forceparams[type].harmonic.krB,
-                               forceparams[type].harmonic.rA, forceparams[type].harmonic.rB, dr,
-                               lambda, &vbond, &fbond); /*  19  */
+        if ((forceparams[type].harmonic.krA > 0) && (forceparams[type].harmonic.krB > 0) || (sb_alpha == 0))
+        {
+            *dvdlambda += harmonic(forceparams[type].harmonic.krA, forceparams[type].harmonic.krB,
+                                   forceparams[type].harmonic.rA, forceparams[type].harmonic.rB, dr,
+                                   lambda, &vbond, &fbond); /*  19  */
+        }
+        else
+        {
+            *dvdlambda += harmonic_softbond(forceparams[type].harmonic.krA, forceparams[type].harmonic.krB,
+                                            forceparams[type].harmonic.rA, forceparams[type].harmonic.rB, dr,
+                                            sb_alpha, lambda, &vbond, &fbond); /*  19  */
+        }
 
         if (dr2 == 0.0)
         {
@@ -513,6 +573,7 @@ bonds(int             nbonds,
       rvec4           f[],
       rvec gmx_unused fshift[],
       const t_pbc*    pbc,
+      real            sb_alpha,
       real gmx_unused lambda,
       real gmx_unused* dvdlambda,
       const t_mdatoms gmx_unused* md,
@@ -603,6 +664,7 @@ real restraint_bonds(int             nbonds,
                      rvec4           f[],
                      rvec            fshift[],
                      const t_pbc*    pbc,
+                     real            sb_alpha,
                      real            lambda,
                      real*           dvdlambda,
                      const t_mdatoms gmx_unused* md,
@@ -691,6 +753,7 @@ real polarize(int              nbonds,
               rvec4            f[],
               rvec             fshift[],
               const t_pbc*     pbc,
+              real             sb_alpha,
               real             lambda,
               real*            dvdlambda,
               const t_mdatoms* md,
@@ -736,6 +799,7 @@ real anharm_polarize(int              nbonds,
                      rvec4            f[],
                      rvec             fshift[],
                      const t_pbc*     pbc,
+                     real             sb_alpha,
                      real             lambda,
                      real*            dvdlambda,
                      const t_mdatoms* md,
@@ -790,6 +854,7 @@ real water_pol(int             nbonds,
                rvec4           f[],
                rvec gmx_unused fshift[],
                const t_pbc gmx_unused* pbc,
+               real            sb_alpha,
                real gmx_unused lambda,
                real gmx_unused* dvdlambda,
                const t_mdatoms gmx_unused* md,
@@ -934,6 +999,7 @@ real thole_pol(int             nbonds,
                rvec4           f[],
                rvec            fshift[],
                const t_pbc*    pbc,
+               real            sb_alpha,
                real gmx_unused lambda,
                real gmx_unused* dvdlambda,
                const t_mdatoms* md,
@@ -985,6 +1051,7 @@ angles(int             nbonds,
        rvec4           f[],
        rvec            fshift[],
        const t_pbc*    pbc,
+       real            sb_alpha,
        real            lambda,
        real*           dvdlambda,
        const t_mdatoms gmx_unused* md,
@@ -1072,6 +1139,7 @@ angles(int             nbonds,
        rvec4           f[],
        rvec gmx_unused fshift[],
        const t_pbc*    pbc,
+       real            sb_alpha,
        real gmx_unused lambda,
        real gmx_unused* dvdlambda,
        const t_mdatoms gmx_unused* md,
@@ -1230,6 +1298,7 @@ real linear_angles(int             nbonds,
                    rvec4           f[],
                    rvec            fshift[],
                    const t_pbc*    pbc,
+                   real            sb_alpha,
                    real            lambda,
                    real*           dvdlambda,
                    const t_mdatoms gmx_unused* md,
@@ -1300,6 +1369,7 @@ urey_bradley(int             nbonds,
              rvec4           f[],
              rvec            fshift[],
              const t_pbc*    pbc,
+             real            sb_alpha,
              real            lambda,
              real*           dvdlambda,
              const t_mdatoms gmx_unused* md,
@@ -1410,6 +1480,7 @@ urey_bradley(int             nbonds,
              rvec4           f[],
              rvec gmx_unused fshift[],
              const t_pbc*    pbc,
+             real            sb_alpha,
              real gmx_unused lambda,
              real gmx_unused* dvdlambda,
              const t_mdatoms gmx_unused* md,
@@ -1552,6 +1623,7 @@ real quartic_angles(int             nbonds,
                     rvec4           f[],
                     rvec            fshift[],
                     const t_pbc*    pbc,
+                    real            sb_alpha,
                     real gmx_unused lambda,
                     real gmx_unused* dvdlambda,
                     const t_mdatoms gmx_unused* md,
@@ -1917,6 +1989,7 @@ pdihs(int             nbonds,
       rvec4           f[],
       rvec            fshift[],
       const t_pbc*    pbc,
+      real            sb_alpha,
       real            lambda,
       real*           dvdlambda,
       const t_mdatoms gmx_unused* md,
@@ -1972,6 +2045,7 @@ pdihs(int             nbonds,
       rvec4           f[],
       rvec gmx_unused fshift[],
       const t_pbc*    pbc,
+      real            sb_alpha,
       real gmx_unused lambda,
       real gmx_unused* dvdlambda,
       const t_mdatoms gmx_unused* md,
@@ -2086,6 +2160,7 @@ rbdihs(int             nbonds,
        rvec4           f[],
        rvec gmx_unused fshift[],
        const t_pbc*    pbc,
+       real            sb_alpha,
        real gmx_unused lambda,
        real gmx_unused* dvdlambda,
        const t_mdatoms gmx_unused* md,
@@ -2212,6 +2287,7 @@ real idihs(int             nbonds,
            rvec4           f[],
            rvec            fshift[],
            const t_pbc*    pbc,
+           real            sb_alpha,
            real            lambda,
            real*           dvdlambda,
            const t_mdatoms gmx_unused* md,
@@ -2282,6 +2358,7 @@ real low_angres(int             nbonds,
                 rvec4           f[],
                 rvec            fshift[],
                 const t_pbc*    pbc,
+                real            sb_alpha,
                 real            lambda,
                 real*           dvdlambda,
                 gmx_bool        bZAxis)
@@ -2373,13 +2450,14 @@ real angres(int             nbonds,
             rvec4           f[],
             rvec            fshift[],
             const t_pbc*    pbc,
+            real            sb_alpha,
             real            lambda,
             real*           dvdlambda,
             const t_mdatoms gmx_unused* md,
             t_fcdata gmx_unused* fcd,
             int gmx_unused* global_atom_index)
 {
-    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, lambda, dvdlambda, FALSE);
+    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, sb_alpha, lambda, dvdlambda, FALSE);
 }
 
 template<BondedKernelFlavor flavor>
@@ -2390,13 +2468,14 @@ real angresz(int             nbonds,
              rvec4           f[],
              rvec            fshift[],
              const t_pbc*    pbc,
+             real            sb_alpha,
              real            lambda,
              real*           dvdlambda,
              const t_mdatoms gmx_unused* md,
              t_fcdata gmx_unused* fcd,
              int gmx_unused* global_atom_index)
 {
-    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, lambda, dvdlambda, TRUE);
+    return low_angres<flavor>(nbonds, forceatoms, forceparams, x, f, fshift, pbc, sb_alpha, lambda, dvdlambda, TRUE);
 }
 
 template<BondedKernelFlavor flavor>
@@ -2407,6 +2486,7 @@ real dihres(int             nbonds,
             rvec4           f[],
             rvec            fshift[],
             const t_pbc*    pbc,
+            real            sb_alpha,
             real            lambda,
             real*           dvdlambda,
             const t_mdatoms gmx_unused* md,
@@ -2500,6 +2580,7 @@ real unimplemented(int gmx_unused nbonds,
                    rvec4 gmx_unused f[],
                    rvec gmx_unused fshift[],
                    const t_pbc gmx_unused* pbc,
+                   real            sb_alpha,
                    real gmx_unused lambda,
                    real gmx_unused* dvdlambda,
                    const t_mdatoms gmx_unused* md,
@@ -2517,6 +2598,7 @@ real restrangles(int             nbonds,
                  rvec4           f[],
                  rvec            fshift[],
                  const t_pbc*    pbc,
+                 real            sb_alpha,
                  real gmx_unused lambda,
                  real gmx_unused* dvdlambda,
                  const t_mdatoms gmx_unused* md,
@@ -2551,7 +2633,7 @@ real restrangles(int             nbonds,
             const t_iatom forceatoms[],const t_iparams forceparams[],
             const rvec x[],rvec4 f[],rvec fshift[],
             const t_pbc *pbc,
-            real gmx_unused lambda,real gmx_unused *dvdlambda,
+             real sb_alpha, real gmx_unused lambda, real gmx_unused *dvdlambda,
             const t_mdatoms gmx_unused *md,t_fcdata gmx_unused *fcd,
             int gmx_unused *global_atom_index)
            {
@@ -2619,6 +2701,7 @@ real restrdihs(int             nbonds,
                rvec4           f[],
                rvec            fshift[],
                const t_pbc*    pbc,
+               real            sb_alpha,
                real gmx_unused lambda,
                real gmx_unused* dvlambda,
                const t_mdatoms gmx_unused* md,
@@ -2727,6 +2810,7 @@ real cbtdihs(int             nbonds,
              rvec4           f[],
              rvec            fshift[],
              const t_pbc*    pbc,
+             real            sb_alpha,
              real gmx_unused lambda,
              real gmx_unused* dvdlambda,
              const t_mdatoms gmx_unused* md,
@@ -2829,6 +2913,7 @@ rbdihs(int             nbonds,
        rvec4           f[],
        rvec            fshift[],
        const t_pbc*    pbc,
+       real            sb_alpha,
        real            lambda,
        real*           dvdlambda,
        const t_mdatoms gmx_unused* md,
@@ -2980,6 +3065,7 @@ real cmap_dihs(int                 nbonds,
                rvec4               f[],
                rvec                fshift[],
                const struct t_pbc* pbc,
+               real            sb_alpha,
                real gmx_unused lambda,
                real gmx_unused* dvdlambda,
                const t_mdatoms gmx_unused* md,
@@ -3384,6 +3470,7 @@ real g96bonds(int             nbonds,
               rvec4           f[],
               rvec            fshift[],
               const t_pbc*    pbc,
+              real            sb_alpha,
               real            lambda,
               real*           dvdlambda,
               const t_mdatoms gmx_unused* md,
@@ -3436,6 +3523,7 @@ real g96angles(int             nbonds,
                rvec4           f[],
                rvec            fshift[],
                const t_pbc*    pbc,
+               real            sb_alpha,
                real            lambda,
                real*           dvdlambda,
                const t_mdatoms gmx_unused* md,
@@ -3498,6 +3586,7 @@ real cross_bond_bond(int             nbonds,
                      rvec4           f[],
                      rvec            fshift[],
                      const t_pbc*    pbc,
+                     real            sb_alpha,
                      real gmx_unused lambda,
                      real gmx_unused* dvdlambda,
                      const t_mdatoms gmx_unused* md,
@@ -3570,6 +3659,7 @@ real cross_bond_angle(int             nbonds,
                       rvec4           f[],
                       rvec            fshift[],
                       const t_pbc*    pbc,
+                      real            sb_alpha,
                       real gmx_unused lambda,
                       real gmx_unused* dvdlambda,
                       const t_mdatoms gmx_unused* md,
@@ -3701,6 +3791,7 @@ real tab_bonds(int             nbonds,
                rvec4           f[],
                rvec            fshift[],
                const t_pbc*    pbc,
+               real            sb_alpha,
                real            lambda,
                real*           dvdlambda,
                const t_mdatoms gmx_unused* md,
@@ -3749,6 +3840,7 @@ real tab_angles(int             nbonds,
                 rvec4           f[],
                 rvec            fshift[],
                 const t_pbc*    pbc,
+                real            sb_alpha,
                 real            lambda,
                 real*           dvdlambda,
                 const t_mdatoms gmx_unused* md,
@@ -3822,6 +3914,7 @@ real tab_dihs(int             nbonds,
               rvec4           f[],
               rvec            fshift[],
               const t_pbc*    pbc,
+              real            sb_alpha,
               real            lambda,
               real*           dvdlambda,
               const t_mdatoms gmx_unused* md,
@@ -3992,6 +4085,7 @@ real calculateSimpleBond(const int           ftype,
                          rvec4               f[],
                          rvec                fshift[],
                          const struct t_pbc* pbc,
+                         real                sb_alpha,
                          const real          lambda,
                          real*               dvdlambda,
                          const t_mdatoms*    md,
@@ -4001,8 +4095,8 @@ real calculateSimpleBond(const int           ftype,
 {
     const BondedInteractions& bonded = c_bondedInteractionFunctionsPerFlavor[bondedKernelFlavor][ftype];
 
-    real v = bonded.function(numForceatoms, forceatoms, forceparams, x, f, fshift, pbc, lambda,
-                             dvdlambda, md, fcd, global_atom_index);
+    real v = bonded.function(numForceatoms, forceatoms, forceparams, x, f, fshift, pbc, sb_alpha,
+                             lambda, dvdlambda, md, fcd, global_atom_index);
 
     return v;
 }

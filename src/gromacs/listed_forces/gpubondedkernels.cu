@@ -115,6 +115,49 @@ __device__ __forceinline__ static void
     *V = v;
 }
 
+__device__ __forceinline__ static void
+           harmonic_softbond_gpu(const float kA, const float kB, const float xA, const float xB, const float x, const float sb_alpha, const float lambda, float* V, float* F)
+{
+    constexpr float half = 0.5f;
+    float           L1, kk, x0, dx, dx2, dxA, dxA2, dxB, dxB2;
+    float           v, f, dvdlambda;
+
+    L1 = 1.0 - lambda;
+    kk = L1 * kA + lambda * kB;
+    x0 = L1 * xA + lambda * xB;
+
+    dx  = x - x0;
+    dx2 = dx * dx;
+
+    dxA = x - xA;
+    dxA2= dxA * dxA;
+
+    dxB = x - xB;
+    dxB2= dxB * dxB;
+
+    if (kA == 0)
+    {
+        f         = -lambda * kB * dxB / (1 + sb_alpha * L1 * dxB2) / (1 + sb_alpha * L1 * dxB2);
+        v         = half * lambda * kB * dxB2 / (1 + sb_alpha * L1 * dxB2);
+        dvdlambda = v * (1 + sb_alpha * dxB2) / (1 + sb_alpha * L1 * dxB2);
+    }
+    else if (kB == 0)
+    {
+        f         = -L1 * kA * dxA / (1 + sb_alpha * lambda * dxB2) / (1 + sb_alpha * lambda * dxB2);
+        v         = half * L1 * kA * dxA2 / (1 + sb_alpha * lambda * dxA2);
+        dvdlambda = v * (1 + sb_alpha * dxB2) / (1 + sb_alpha * lambda * dxB2);
+    }
+    else
+    {
+        f         = -kk * dx;
+        v         = half * kk * dx2;
+        dvdlambda = half * (kB - kA) * dx2 + (xA - xB) * kk * dx;
+    }
+
+    *F = f;
+    *V = v;
+}
+
 template<bool calcVir, bool calcEner>
 __device__ void bonds_gpu(const int       i,
                           float*          vtot_loc,
@@ -193,9 +236,9 @@ __device__ void bonds_fep_gpu(const int                 i,
 
         float vbond;
         float fbond;
-        harmonic_fep_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB,
-                         d_forceparams[type].harmonic.rA, d_forceparams[type].harmonic.rB, dr,
-                         d_fepparams->lambda_q, &vbond, &fbond);
+        harmonic_softbond_gpu(d_forceparams[type].harmonic.krA, d_forceparams[type].harmonic.krB,
+                              d_forceparams[type].harmonic.rA, d_forceparams[type].harmonic.rB, dr,
+                              d_fepparams->alpha_bond, d_fepparams->lambda_q, &vbond, &fbond);
 
         if (calcEner)
         {

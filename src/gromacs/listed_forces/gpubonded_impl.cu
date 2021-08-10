@@ -302,6 +302,7 @@ void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*       d_qAPtr,
                                                       const bool  bFEP,
                                                       const float alpha_coul,
                                                       const float alpha_vdw,
+                                                      const float alpha_bond,
                                                       const float sc_sigma6_def,
                                                       const float sc_sigma6_min,
                                                       const float lambda_q,
@@ -318,6 +319,7 @@ void GpuBonded::Impl::updateFepValuesAndDeviceBuffers(void*       d_qAPtr,
     bonded_fep.bFEP          = bFEP;
     bonded_fep.alpha_coul    = alpha_coul;
     bonded_fep.alpha_vdw     = alpha_vdw;
+    bonded_fep.alpha_bond    = alpha_bond;
     bonded_fep.sc_sigma6     = sc_sigma6_def;
     bonded_fep.sc_sigma6_min = sc_sigma6_min;
     bonded_fep.lambda_q      = lambda_q;
@@ -414,13 +416,14 @@ void GpuBonded::updateFepValuesAndDeviceBuffers(void*       d_qA,
                                                 const bool  bFEP,
                                                 const float alpha_coul,
                                                 const float alpha_vdw,
+                                                const float alpha_bond,
                                                 const float sc_sigma6_def,
                                                 const float sc_sigma6_min,
                                                 const float lambda_q,
                                                 const float lambda_v)
 {
-    impl_->updateFepValuesAndDeviceBuffers(d_qA, d_qB, bFEP, alpha_coul, alpha_vdw, sc_sigma6_def,
-                                           sc_sigma6_min, lambda_q, lambda_v);
+    impl_->updateFepValuesAndDeviceBuffers(d_qA, d_qB, bFEP, alpha_coul, alpha_vdw, alpha_bond,
+                                           sc_sigma6_def, sc_sigma6_min, lambda_q, lambda_v);
 }
 
 void GpuBonded::setPbc(PbcType pbcType, const matrix box, bool canMoleculeSpanPbc)
