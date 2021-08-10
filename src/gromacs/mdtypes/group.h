@@ -44,6 +44,14 @@
 #include "gromacs/utility/real.h"
 #include "gromacs/utility/smalloc.h"
 
+struct t_lang
+{
+    bool flag;
+    real* c1;
+    real* c2;
+    int seed;
+};
+
 struct t_grp_tcstat
 {
     //! Temperature at half step

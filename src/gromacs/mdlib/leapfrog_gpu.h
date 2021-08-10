@@ -60,6 +60,8 @@
 #include "gromacs/pbcutil/pbc_aiuc.h"
 #include "gromacs/utility/arrayref.h"
 #include "gromacs/utility/classhelpers.h"
+#include "gromacs/mdtypes/group.h"
+#include "curand_kernel.h"
 
 class DeviceContext;
 class DeviceStream;
@@ -133,6 +135,12 @@ public:
                    const float                       dtPressureCouple,
                    const matrix                      prVelocityScalingMatrix);
 
+    void integrate2(const float3*                     d_x,
+                    float3*                           d_v,
+                    const real                        dt,
+                    const bool                        doTemperatureScaling);
+
+
     /*! \brief Set the integrator
      *
      * Allocates memory for inverse masses, and, if needed for temperature scaling factor(s)
@@ -147,7 +155,8 @@ public:
     void set(const int             numAtoms,
              const real*           inverseMasses,
              int                   numTempScaleValues,
-             const unsigned short* tempScaleGroups);
+             const unsigned short* tempScaleGroups,
+             const t_lang&         lang);
 
     /*! \brief Class with hardware-specific interfaces and implementations.*/
     class Impl;
@@ -168,6 +177,12 @@ private:
     int numInverseMasses_ = -1;
     //! Maximum size of the reciprocal masses array
     int numInverseMassesAlloc_ = -1;
+
+    // Langevin
+    bool                 doLangevin;
+    real*                d_lang_c1_;
+    real*                d_lang_c2_;
+    curandStateMRG32k3a* ranst;
 
     //! Number of temperature coupling groups (zero = no coupling)
     int numTempScaleValues_ = 0;
