@@ -565,3 +565,87 @@ void nonbonded_verlet_t::dispatchFreeEnergyKernel(gmx::InteractionLocality   iLo
     }
     wallcycle_sub_stop(wcycle_, ewcsNONBONDED_FEP);
 }
+
+void nonbonded_verlet_t::dispatchOnlyForeignFreeEnergyKernel(gmx::InteractionLocality   iLocality,
+                                                  const t_forcerec*          fr,
+                                                  rvec                       x[],
+                                                  gmx::ForceWithShiftForces* forceWithShiftForces,
+                                                  const t_mdatoms&           mdatoms,
+                                                  t_lambda*                  fepvals,
+                                                  gmx::ArrayRef<real const>  lambda,
+                                                  gmx_enerdata_t*            enerd,
+                                                  const gmx::StepWorkload&   stepWork,
+                                                  t_nrnb*                    nrnb)
+{
+    const auto nbl_fep = pairlistSets().pairlistSet(iLocality).fepLists();
+
+    /* When the first list is empty, all are empty and there is nothing to do */
+    if (!pairlistSets().params().haveFep || nbl_fep[0]->nrj == 0)
+    {
+        return;
+    }
+
+    int donb_flags = 0;
+    /* Add short-range interactions */
+    donb_flags |= GMX_NONBONDED_DO_SR;
+
+    if (stepWork.computeForces)
+    {
+        donb_flags |= GMX_NONBONDED_DO_FORCE;
+    }
+    if (stepWork.computeVirial)
+    {
+        donb_flags |= GMX_NONBONDED_DO_SHIFTFORCE;
+    }
+    if (stepWork.computeEnergy)
+    {
+        donb_flags |= GMX_NONBONDED_DO_POTENTIAL;
+    }
+
+    nb_kernel_data_t kernel_data;
+    real             dvdl_nb[efptNR] = { 0 };
+
+    GMX_ASSERT(gmx_omp_nthreads_get(emntNonbonded) == nbl_fep.ssize(),
+               "Number of lists should be same as number of NB threads");
+
+    wallcycle_sub_start(wcycle_, ewcsNONBONDED_FEP);
+
+    /* If we do foreign lambda and we have soft-core interactions
+     * we have to recalculate the (non-linear) energies contributions.
+     */
+    if (fepvals->n_lambda > 0 && stepWork.computeDhdl && fepvals->sc_alpha != 0)
+    {
+        real lam_i[efptNR];
+        kernel_data.flags = (donb_flags & ~(GMX_NONBONDED_DO_FORCE | GMX_NONBONDED_DO_SHIFTFORCE))
+                            | GMX_NONBONDED_DO_FOREIGNLAMBDA;
+        kernel_data.lambda         = lam_i;
+        kernel_data.dvdl           = dvdl_nb;
+        kernel_data.energygrp_elec = enerd->foreign_grpp.ener[egCOULSR].data();
+        kernel_data.energygrp_vdw  = enerd->foreign_grpp.ener[egLJSR].data();
+
+        for (gmx::index i = 0; i < 1 + enerd->foreignLambdaTerms.numLambdas(); i++)
+        {
+            std::fill(std::begin(dvdl_nb), std::end(dvdl_nb), 0);
+            for (int j = 0; j < efptNR; j++)
+            {
+                lam_i[j] = (i == 0 ? lambda[j] : fepvals->all_lambda[j][i - 1]);
+            }
+            reset_foreign_enerdata(enerd);
+#pragma omp parallel for schedule(static) num_threads(nbl_fep.ssize())
+            for (gmx::index th = 0; th < nbl_fep.ssize(); th++)
+            {
+                try
+                {
+                    gmx_nb_free_energy_kernel(nbl_fep[th].get(), x, forceWithShiftForces, fr,
+                                              &mdatoms, &kernel_data, nrnb);
+                }
+                GMX_CATCH_ALL_AND_EXIT_WITH_FATAL_ERROR
+            }
+
+            sum_epot(enerd->foreign_grpp, enerd->foreign_term);
+            enerd->foreignLambdaTerms.accumulate(i, enerd->foreign_term[F_EPOT],
+                                                 dvdl_nb[efptVDW] + dvdl_nb[efptCOUL]);
+        }
+    }
+    wallcycle_sub_stop(wcycle_, ewcsNONBONDED_FEP);
+}
