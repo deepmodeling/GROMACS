@@ -613,7 +613,7 @@ bool decideWhetherToUseGpuForUpdate(const bool                     isDomainDecom
     {
         errorMessage += "Only a CUDA build is supported.\n";
     }
-    if ((inputrec.eI != eiMD) | (inputrec.eI != eiSD1))
+    if (inputrec.eI != eiMD && inputrec.eI != eiSD1)
     {
         errorMessage += "Only md and sd integrators are supported.\n";
     }
