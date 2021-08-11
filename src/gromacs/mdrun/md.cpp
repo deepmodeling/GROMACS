@@ -374,8 +374,8 @@ void gmx::LegacySimulator::do_md()
         GMX_RELEASE_ASSERT(useGpuForPme || (useGpuForNonbonded && simulationWork.useGpuBufferOps),
                            "Either PME or short-ranged non-bonded interaction tasks must run on "
                            "the GPU to use GPU update.\n");
-        GMX_RELEASE_ASSERT(ir->eI == eiMD,
-                           "Only the md integrator is supported with the GPU update.\n");
+        GMX_RELEASE_ASSERT((ir->eI == eiMD || ir->eI == eiSD1),
+                           "Only the md and sd integrators are supported with the GPU update.\n");
         GMX_RELEASE_ASSERT(
                 ir->etc != etcNOSEHOOVER,
                 "Nose-Hoover temperature coupling is not supported with the GPU update.\n");
@@ -1266,7 +1266,7 @@ void gmx::LegacySimulator::do_md()
                 // Langevin
                 t_lang lang;
                 lang.flag = false;
-                if (ir->etc == etcLANGEVIN) || (EI_SD(ir->eI))
+                if (ir->etc == etcLANGEVIN || EI_SD(ir->eI))
                 {
                     std::cout << "Using Langevin" << std::endl;
                     lang.flag = true;
