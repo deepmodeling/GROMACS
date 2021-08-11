@@ -1314,12 +1314,12 @@ __device__ void pairs_fep_gpu(const int       i,
         }
         else
         {
-            qq[0] = iparams[itype].ljc14.qi  * iparams[itype].ljc14.qj  * iparams[itype].ljc14.fqq  / fudgeQQ_back;
-            qq[1] = iparams[itype].ljc14.qiB * iparams[itype].ljc14.qjB * iparams[itype].ljc14.fqqB / fudgeQQ_back;
+            qq[0] = iparams[type].ljc14.qi  * iparams[type].ljc14.qj  * iparams[type].ljc14.fqq  / fudgeQQ_back;
+            qq[1] = iparams[type].ljc14.qiB * iparams[type].ljc14.qjB * iparams[type].ljc14.fqqB / fudgeQQ_back;
             c6AB[0] = iparams[type].ljc14.c6;
             c6AB[1] = iparams[type].ljc14.c6B;
             c12AB[0] = iparams[type].ljc14.c12;
-            c12AB[1] = iparams[type].ljc14.c12B};
+            c12AB[1] = iparams[type].ljc14.c12B;
         }
         
         float sigma6[2];
