@@ -227,7 +227,7 @@ bool ModularSimulator::isInputCompatible(bool                             exitOn
             && conditionalAssert(!doRerun, "Rerun is not supported by the modular simulator.");
     isInputCompatible = isInputCompatible
                         && conditionalAssert(inputrec->etc == etcNO || inputrec->etc == etcVRESCALE
-                                                     || inputrec->etc == etcBERENDSEN,
+                                                     || inputrec->etc == etcBERENDSEN || inputrec->etc == etcLANGEVIN,
                                              "Only v-rescale and Berendsen thermostat are "
                                              "supported by the modular simulator.");
     isInputCompatible =

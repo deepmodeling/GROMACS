@@ -95,6 +95,7 @@ enum
     etcANDERSEN,
     etcANDERSENMASSIVE,
     etcVRESCALE,
+    etcLANGEVIN,
     etcNR
 };
 //! Strings corresponding to temperatyre coupling types

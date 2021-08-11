@@ -59,6 +59,7 @@ class InteractionDefinitions;
 struct t_inputrec;
 struct t_mdatoms;
 struct t_pbc;
+struct t_lang;
 
 namespace gmx
 {
@@ -153,7 +154,8 @@ public:
              DeviceBuffer<RVec>            d_f,
              const InteractionDefinitions& idef,
              const t_mdatoms&              md,
-             int                           numTempScaleValues);
+             int                           numTempScaleValues,
+             const t_lang&                 lang);
 
     /*! \brief
      * Update PBC data.
