@@ -84,7 +84,7 @@ static constexpr int numFTypesOnGpu = 8;
  */
 constexpr std::array<int, numFTypesOnGpu> fTypesOnGpu = { F_BONDS,  F_ANGLES, F_UREY_BRADLEY,
                                                           F_PDIHS,  F_RBDIHS, F_IDIHS,
-                                                          F_PIDIHS, F_LJ14 };
+                                                          F_PIDIHS, F_LJ14,   F_LJC14_Q };
 
 /*! \brief Checks whether the GROMACS build allows to compute bonded interactions on a GPU.
  *

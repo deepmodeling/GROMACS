@@ -1267,6 +1267,7 @@ __device__ void pairs_fep_gpu(const int       i,
                           float3            sm_fShiftLoc[],
                           const PbcAiuc   pbcAiuc,
                           const float     scale_factor,
+                          const float     fudgeQQ_back,
                           float*          vtotVdw_loc,
                           float*          vtotElec_loc)
 {
@@ -1300,9 +1301,20 @@ __device__ void pairs_fep_gpu(const int       i,
         int  ai       = pairData.y;
         int  aj       = pairData.z;
 
-        float qq[2]  = {gm_qA[ai] * gm_qA[aj], gm_qB[ai] * gm_qB[aj]};
-        float c6AB[2]  = {iparams[type].lj14.c6A, iparams[type].lj14.c6B};
-        float c12AB[2] = {iparams[type].lj14.c12A, iparams[type].lj14.c12B};
+        if (fudgeQQ_back == 1.0)
+        {
+            float qq[2]  = {gm_qA[ai] * gm_qA[aj], gm_qB[ai] * gm_qB[aj]};
+            float c6AB[2]  = {iparams[type].lj14.c6A, iparams[type].lj14.c6B};
+            float c12AB[2] = {iparams[type].lj14.c12A, iparams[type].lj14.c12B};
+        }
+        else
+        {
+            float qq[2]  = {iparams[itype].ljc14.qi * iparams[itype].ljc14.qj * iparams[itype].ljc14.fqq / fudgeQQ_back,
+                            iparams[itype].ljc14.qiB * iparams[itype].ljc14.qjB * iparams[itype].ljc14.fqqB / fudgeQQ_back};
+            float c6AB[2]  = {iparams[type].ljc14.c6, iparams[type].ljc14.c6};
+            float c12AB[2] = {iparams[type].ljc14.c12A, iparams[type].ljc14.c12B};
+        }
+        
         float sigma6[2];
         float velec = 0;
         float vlj   = 0;
@@ -1550,7 +1562,16 @@ __global__ void exec_kernel_gpu(BondedCudaKernelParameters kernelParams)
                     //                              &vtotVdw_loc, &vtotElec_loc);
                     pairs_fep_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
                                                  kernelParams.d_xq, kernelParams.d_qA, kernelParams.d_qB, kernelParams.d_f, sm_fShiftLoc,
-                                                 kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor,
+                                                 kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor, 1.0,
+                                                 &vtotVdw_loc, &vtotElec_loc);
+                case F_LJC14_Q:
+                    // pairs_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams,
+                    //                              kernelParams.d_xq, kernelParams.d_f, sm_fShiftLoc,
+                    //                              kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor,
+                    //                              &vtotVdw_loc, &vtotElec_loc);
+                    pairs_fep_gpu<calcVir, calcEner>(fTypeTid, numBonds, iatoms, kernelParams.d_forceParams, kernelParams.d_fepParams,
+                                                 kernelParams.d_xq, kernelParams.d_qA, kernelParams.d_qB, kernelParams.d_f, sm_fShiftLoc,
+                                                 kernelParams.pbcAiuc, kernelParams.electrostaticsScaleFactor, 0.8333,
                                                  &vtotVdw_loc, &vtotElec_loc);
                     break;
             }
