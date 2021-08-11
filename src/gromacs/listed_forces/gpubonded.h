@@ -73,7 +73,7 @@ class ArrayRef;
 class StepWorkload;
 
 /*! \brief The number on bonded function types supported on GPUs */
-static constexpr int numFTypesOnGpu = 8;
+static constexpr int numFTypesOnGpu = 9;
 
 /*! \brief List of all bonded function types supported on GPUs
  *
