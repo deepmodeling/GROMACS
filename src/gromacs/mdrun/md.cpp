@@ -1485,7 +1485,7 @@ void gmx::LegacySimulator::do_md()
             {
                 // Langevin
                 lang.flag = false;
-                if (ir->etc == etcLANGEVIN) {
+                if (ir->etc == etcLANGEVIN) || (EI_SD(ir->eI)){
                     std::cout << "Using Langevin" << std::endl;
                     lang.flag = true;
                     lang.c1 = new real[state_global->natoms];
