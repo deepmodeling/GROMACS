@@ -1266,7 +1266,7 @@ void gmx::LegacySimulator::do_md()
                 // Langevin
                 t_lang lang;
                 lang.flag = false;
-                if (ir->etc == etcLANGEVIN)
+                if (ir->etc == etcLANGEVIN) || (EI_SD(ir->eI))
                 {
                     std::cout << "Using Langevin" << std::endl;
                     lang.flag = true;
