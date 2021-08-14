@@ -1652,9 +1652,7 @@ void gmx::LegacySimulator::do_md()
                 // Copy data to the GPU after buffers might have being reinitialized
                 stateGpu->copyVelocitiesToGpu(state->v, AtomLocality::Local);
                 stateGpu->copyCoordinatesToGpu(state->x, AtomLocality::Local);
-                t_pbc pbc;
-                set_pbc(&pbc, epbcXYZ, state->box);
-                integrator->setPbc(&pbc);
+                integrator->setPbc(PbcType::Xyz, state->box);
             }
         }
 
