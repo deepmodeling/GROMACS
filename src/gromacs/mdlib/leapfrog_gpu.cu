@@ -408,7 +408,7 @@ void LeapFrogGpu::set(const int             numAtoms,
         copyToDeviceBuffer(&d_lang_c2_, (float*)lang.c2, 0, numAtoms_, deviceStream_,
                            GpuApiCallBehavior::Sync, nullptr);
 
-        cudaFree(ranst);
+        // cudaFree(ranst);
         cudaMalloc((void**)&ranst, numAtoms_ * sizeof(curandStateMRG32k3a));
         setup_kernel<<<kernelLaunchConfig_.gridSize[0], c_threadsPerBlock>>>(numAtoms_, lang.seed, ranst);
     }
