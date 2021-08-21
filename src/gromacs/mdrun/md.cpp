@@ -699,6 +699,8 @@ void gmx::LegacySimulator::do_md()
     step     = ir->init_step;
     step_rel = 0;
 
+    t_lang lang;
+
     auto stopHandler = stopHandlerBuilder->getStopHandlerMD(
             compat::not_null<SimulationSignal*>(&signals[eglsSTOPCOND]), simulationsShareState,
             MASTER(cr), ir->nstlist, mdrunOptions.reproducible, nstSignalComm,
@@ -1264,7 +1266,6 @@ void gmx::LegacySimulator::do_md()
             if (bNS && (bFirstStep || DOMAINDECOMP(cr)))
             {
                 // Langevin
-                t_lang lang;
                 lang.flag = false;
                 if (ir->etc == etcLANGEVIN || EI_SD(ir->eI))
                 {
