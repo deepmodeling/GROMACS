@@ -1812,7 +1812,7 @@ void pdb2gmx::optionsFinished()
 
     if (bHeavyH_)
     {
-        mHmult_ = 4.0;
+        mHmult_ = 3.0;
     }
     else if (bDeuterate_)
     {
